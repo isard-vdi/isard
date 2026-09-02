@@ -717,7 +717,7 @@
         "videowall": "Videowall",
         "resources": "Recursos",
         "bastion": "Accés per bastió de l'usuari",
-        "delete": "Elimina"
+        "delete": "Suprimeix els escriptoris"
       },
       "recreate-modal": {
         "title": "Recrear desplegament '{name}'",
@@ -2531,6 +2531,23 @@
         "co-owner-warning": "Com a copropietari no pots canviar els copropietaris. Contacta amb el propietari del desplegament.",
         "success": "Copropietaris actualitzats",
         "error": "No s'han pogut actualitzar els copropietaris"
+      },
+      "delete-desktops-modal": {
+        "title": "Suprimeix els escriptoris de {name}",
+        "description": "Seleccioneu els escriptoris que voleu suprimir d'aquest desplegament. Els escriptoris d'un desplegament se suprimeixen permanentment i no es poden recuperar de la paperera.",
+        "select-all": "Selecciona-ho tot",
+        "headers": {
+          "desktop": "Escriptori",
+          "status": "Estat",
+          "last-access": "Últim accés",
+          "visible": "Visible"
+        },
+        "empty": "Aquest usuari no té cap escriptori en aquest desplegament",
+        "error-loading": "No s'han pogut carregar els escriptoris d'aquest usuari",
+        "error-partial": "No s'han pogut suprimir {n} escriptoris. Torneu-ho a provar.",
+        "cancel": "Cancel·la",
+        "confirm": "Suprimeix els escriptoris | Suprimeix l'escriptori | Suprimeix {n} escriptoris",
+        "success": "Escriptoris suprimits"
       },
       "download-csv-modal": {
         "title": "Descarregar CSV de visors directes de '{name}'",

@@ -353,6 +353,7 @@ class DeploymentService:
             # clients get a status they have no translation for.
             CommonDesktops.parse_frontend_desktop_status(desktop)
             desktop.pop("create_dict", None)
+            desktop["visible"] = desktop.pop("tag_visible", None)
             # ``guest_properties.viewers`` keys are the underscored DB form
             # (``browser_vnc`` / ``file_spice`` / ...). The Pydantic
             # response model (``UserDeploymentDesktop``) hyphenates on

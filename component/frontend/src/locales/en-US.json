@@ -725,7 +725,7 @@
         "videowall": "Videowall",
         "resources": "Resources",
         "bastion": "User bastion access",
-        "delete": "Delete"
+        "delete": "Delete desktops"
       },
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
@@ -2618,6 +2618,23 @@
         "co-owner-warning": "As a co-owner you cannot change the co-owners. Contact the deployment owner.",
         "success": "Co-owners updated",
         "error": "Could not update the co-owners"
+      },
+      "delete-desktops-modal": {
+        "title": "Delete desktops of {name}",
+        "description": "Select the desktops to delete from this deployment. Deployment desktops are deleted permanently and cannot be restored from the recycle bin.",
+        "select-all": "Select all",
+        "headers": {
+          "desktop": "Desktop",
+          "status": "Status",
+          "last-access": "Last access",
+          "visible": "Visible"
+        },
+        "empty": "This user has no desktops in this deployment",
+        "error-loading": "Could not load this user's desktops",
+        "error-partial": "{n} desktops could not be deleted. Please try again.",
+        "cancel": "Cancel",
+        "confirm": "Delete desktops | Delete desktop | Delete {n} desktops",
+        "success": "Desktops deleted"
       },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",

@@ -717,7 +717,7 @@
         "videowall": "Videowall",
         "resources": "Recursos",
         "bastion": "Acceso por bastión del usuario",
-        "delete": "Eliminar"
+        "delete": "Eliminar los escritorios"
       },
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
@@ -2543,6 +2543,23 @@
         "co-owner-warning": "Como copropietario no puedes cambiar los copropietarios. Contacta con el propietario del despliegue.",
         "success": "Copropietarios actualizados",
         "error": "No se han podido actualizar los copropietarios"
+      },
+      "delete-desktops-modal": {
+        "title": "Eliminar los escritorios de {name}",
+        "description": "Selecciona los escritorios que quieres eliminar de este despliegue. Los escritorios de un despliegue se eliminan permanentemente y no se pueden recuperar de la papelera.",
+        "select-all": "Seleccionar todo",
+        "headers": {
+          "desktop": "Escritorio",
+          "status": "Estado",
+          "last-access": "Último acceso",
+          "visible": "Visible"
+        },
+        "empty": "Este usuario no tiene ningún escritorio en este despliegue",
+        "error-loading": "No se han podido cargar los escritorios de este usuario",
+        "error-partial": "No se han podido eliminar {n} escritorios. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar los escritorios | Eliminar el escritorio | Eliminar {n} escritorios",
+        "success": "Escritorios eliminados"
       },
       "download-csv-modal": {
         "title": "Descargar CSV de visores directos de '{name}'",

@@ -36,6 +36,7 @@ import { formatRelativeTime } from '@/lib/utils'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import { DeleteDesktopsModal } from '@/components/deployments/actions/delete-desktops-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
@@ -83,14 +84,16 @@ const visibilityBadgeClass = computed(() => {
   } as const
 })
 
-const filteredDeploymentUsers = computed(() => {
-  const allDeploymentUsers = deploymentEntry.value?.users ?? []
-  return allDeploymentUsers.filter(areUsersVisible)
-})
+const userDesktopCount = (user: DeploymentUserDetail) =>
+  (user.desktops_statuses ?? []).reduce((total, entry) => total + entry.amount, 0)
+
+const usersWithDesktops = computed(() =>
+  (deploymentEntry.value?.users ?? []).filter((user) => userDesktopCount(user) > 0)
+)
+
+const filteredDeploymentUsers = computed(() => usersWithDesktops.value.filter(areUsersVisible))
 
 const inputSearch = ref<string>('')
-
-const hasDeploymentUsers = computed(() => (deploymentEntry.value?.users?.length ?? 0) > 0)
 
 // Visibility
 const areUsersVisible = (users: DeploymentUserDetail) => {
@@ -131,8 +134,6 @@ const header = computed(() => [
     width: 'minmax(min-content, var(--spacing-140))'
   }
 ])
-
-const totalDesktops = computed(() => deploymentEntry.value?.info.desktops_each_user)
 
 const isXL = useMediaQuery('(min-width: 1280px)')
 
@@ -191,6 +192,7 @@ const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
+const deleteDesktopsModalData = ref<{ userId: string; username: string } | null>(null)
 
 function downloadBastionCsv() {
   getDeploymentBastionCsv({
@@ -476,6 +478,14 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
   />
+  <DeleteDesktopsModal
+    v-if="deleteDesktopsModalData !== null"
+    :open="deleteDesktopsModalData !== null"
+    :deployment-id="deploymentId"
+    :user-id="deleteDesktopsModalData.userId"
+    :username="deleteDesktopsModalData.username"
+    @close="deleteDesktopsModalData = null"
+  />
   <DeploymentProvisioningModal
     :open="showProvisioningModal"
     :deployment="deploymentEntry"
@@ -518,7 +528,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
             </dt>
             <Skeleton v-if="deploymentEntryIsPending" class="h-5 w-10 mt-2" />
             <dd v-else class="text-xl font-bold text-center md:text-left">
-              {{ deploymentEntry?.info.total_users }}
+              {{ usersWithDesktops.length }}
             </dd>
           </div>
         </div>
@@ -557,7 +567,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
       </dl>
     </div>
     <PageToolbar>
-      <template v-if="hasDeploymentUsers" #search>
+      <template v-if="usersWithDesktops.length" #search>
         <SearchInput
           :id="DEPLOYMENT_SEARCH_INPUT_ID"
           v-model="inputSearch"
@@ -669,7 +679,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
             {{
               row.desktops_statuses.find((d) => d.status === DesktopStatusEnum.STARTED)?.amount ??
               0
-            }}/{{ totalDesktops }}
+            }}/{{ userDesktopCount(row) }}
           </div>
         </template>
         <template #cell-actions="{ row }">
@@ -750,7 +760,8 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                     hierarchy="secondary-gray"
                     icon="trash-04"
                     class="aspect-square p-[10px]"
-                    @click="handleNotImplemented"
+                    :aria-label="t('views.deployment.tooltips.delete')"
+                    @click="deleteDesktopsModalData = { userId: row.id, username: row.name }"
                   ></Button>
                 </TooltipTrigger>
                 <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.delete')" />
@@ -763,7 +774,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     <EmptyState
       v-else
       kind="deployment-users"
-      :variant="hasDeploymentUsers ? 'no-results' : 'first-run'"
+      :variant="usersWithDesktops.length ? 'no-results' : 'first-run'"
       :searching="inputSearch.length > 0"
       @clear-search="inputSearch = ''"
     />
