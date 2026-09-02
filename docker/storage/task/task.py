@@ -45,6 +45,7 @@ from subprocess import (
 )
 from time import sleep, time
 
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
 from isardvdi_common.helpers.task_streams import (
     PROGRESS_STREAM,
@@ -670,7 +671,18 @@ def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
 
 
 @_publishes_result
-def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
+def create(
+    storage_path,
+    storage_type,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    size=None,
+    parent_path=None,
+    parent_type=None,
+):
     """
     Create disk.
 
@@ -678,6 +690,14 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :type storage_path: str
     :param storage_type: Format of new disk
     :type storage_type: str
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param size: Size of new disk as qemu-img string format
     :type size: str
     :param parent_path: Path of backing file
@@ -716,46 +736,20 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
 
     options = ""
     if storage_type == "qcow2":
-        cluster_size = environ.get("QCOW2_CLUSTER_SIZE", "4k")
-        extended_l2 = environ.get("QCOW2_EXTENDED_L2", "off")
-        lazy_refcounts = environ.get("QCOW2_LAZY_REFCOUNTS", "off")
-        preallocation = environ.get("QCOW2_PREALLOCATION", "off")
-
-        if extended_l2 == "on":
-            _s = cluster_size.upper().strip()
-            _multipliers = {"K": 1024, "M": 1024**2}
-            _num = int("".join(c for c in _s if c.isdigit()))
-            _unit = "".join(c for c in _s if c.isalpha())
-            if _num * _multipliers.get(_unit, 1) < 16384:
-                raise ValueError(
-                    f"QCOW2_CLUSTER_SIZE={cluster_size} is too small for extended_l2=on "
-                    f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
-                )
-
-        options = (
-            f"cluster_size={cluster_size},"
-            f"extended_l2={extended_l2},"
-            f"lazy_refcounts={lazy_refcounts}"
+        options = qcow2_geometry.create_options(
+            {
+                "cluster_size": cluster_size,
+                "extended_l2": extended_l2,
+                "lazy_refcounts": lazy_refcounts,
+                "preallocation": preallocation,
+            },
+            has_backing_file=bool(parent_path),
         )
 
-        # Add preallocation if no backing file, or if extended_l2 is on (which supports
-        # preallocation with backing files via subcluster allocation bits)
-        if not parent_path or extended_l2 == "on":
-            options += f",preallocation={preallocation}"
-
-    command = [
-        "qemu-img",
-        "create",
-        "-f",
-        storage_type,
-        *backing_file,
-        storage_path,
-        *size,
-    ]
-
+    command = ["qemu-img", "create", "-f", storage_type]
     if options:
-        command.insert(6, "-o")
-        command.insert(7, options)
+        command += ["-o", options]
+    command += [*backing_file, storage_path, *size]
     return run(
         command,
         check=True,
@@ -800,7 +794,9 @@ def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
 
 
 @_publishes_result
-def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
+def qemu_img_info_backing_chain(
+    storage_id, storage_path, storage_type="qcow2", qcow2_geometry=None
+):
     """
     Get storage data with `qemu-img info` data updated.
 
@@ -819,6 +815,12 @@ def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
     :type storage_path: str
     :param storage_type: Format of the file on disk
     :type storage_type: str
+    :param qcow2_geometry: The geometry the writer just applied to this file, to
+        record alongside the measurement. ``preallocation`` is a create-time
+        action that ``qemu-img info`` does not report, so only the writer knows
+        it. Optional: this task is also enqueued from paths that write nothing
+        (chain checks, find/touch, engine re-measure), which pass ``None``.
+    :type qcow2_geometry: dict | None
     :return: Storage data to update
     :rtype: dict
     """
@@ -850,6 +852,10 @@ def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
         qemu_img_info_data[0].setdefault("backing-filename-format")
         qemu_img_info_data[0].setdefault("full-backing-filename")
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
+        # Only stamp on success: a failed measure must never record a geometry
+        # the disk may not have.
+        if qcow2_geometry:
+            storage_data["qcow2_geometry"] = qcow2_geometry
     else:
         match = search(
             rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
@@ -1580,7 +1586,18 @@ def migration_verify_destination(dst_path, expect_backing=None):
 
 
 @_publishes_result
-def convert(source_disk_path, dest_disk_path, format, compression, min_free_bytes=None):
+def convert(
+    source_disk_path,
+    dest_disk_path,
+    format,
+    compression,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    min_free_bytes=None,
+):
     """
     Convert disk.
 
@@ -1593,6 +1610,14 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
     :type format: str
     :param compression: True to compress the destination file. Only supported for qcow and qcow2 formats.
     :type compression: bool
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param min_free_bytes: Headroom to leave on the destination filesystem.
         ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
     :type min_free_bytes: int | None
@@ -1621,6 +1646,28 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
     else:
         compress = []
 
+    # convert writes a flat destination (no -B), so the geometry has no backing
+    # file and preallocation applies. Only qcow2 destinations take an ``-o``:
+    # a vmdk cannot honour qcow2 options.
+    geometry_opts = []
+    if format == "qcow2":
+        options = qcow2_geometry.create_options(
+            {
+                "cluster_size": cluster_size,
+                "extended_l2": extended_l2,
+                "lazy_refcounts": lazy_refcounts,
+                "preallocation": preallocation,
+            },
+            has_backing_file=False,
+        )
+        # qemu-img convert -c rejects any preallocation != off (verified on
+        # staging: "Compression and preallocation not supported at the same
+        # time"), so drop preallocation from the option string when compressing
+        # and let qemu default it.
+        if compression:
+            options = options.split(",preallocation=")[0]
+        geometry_opts = ["-o", options]
+
     try:
         rc = run_with_progress(
             [
@@ -1630,6 +1677,7 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
                 *compress,
                 "-O",
                 format,
+                *geometry_opts,
                 source_disk_path,
                 dest_disk_path,
             ],
@@ -2003,12 +2051,28 @@ def sparsify(storage_path):
 
 
 @_publishes_result
-def disconnect(storage_path, min_free_bytes=None):
+def disconnect(
+    storage_path,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    min_free_bytes=None,
+):
     """
     Disconnect storage_id from backing file
 
     :param storage_id: Storage ID
     :type storage_id: str
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param min_free_bytes: Headroom to leave on the filesystem holding the disk.
         ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
     :type min_free_bytes: int | None
@@ -2033,6 +2097,19 @@ def disconnect(storage_path, min_free_bytes=None):
         "disconnect",
     )
 
+    # The output is the flattened disk with no backing file, so preallocation
+    # applies. Written once here and rename()d over the live disk below, so
+    # without this the disconnect silently rebuilt the disk at qemu-img
+    # defaults, discarding the install's geometry.
+    options = qcow2_geometry.create_options(
+        {
+            "cluster_size": cluster_size,
+            "extended_l2": extended_l2,
+            "lazy_refcounts": lazy_refcounts,
+            "preallocation": preallocation,
+        },
+        has_backing_file=False,
+    )
     try:
         run(
             [
@@ -2042,6 +2119,8 @@ def disconnect(storage_path, min_free_bytes=None):
                 "qcow2",
                 "-O",
                 "qcow2",
+                "-o",
+                options,
                 storage_path,
                 disconnected_path,
             ],

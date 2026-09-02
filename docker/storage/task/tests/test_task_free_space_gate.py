@@ -27,6 +27,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import task  # noqa: E402
 
+# The geometry is now a required kwarg on convert/disconnect; its value is
+# irrelevant to the free-space floor, so these tests pass the default policy.
+_GEO = {
+    "cluster_size": "4k",
+    "extended_l2": "off",
+    "lazy_refcounts": "off",
+    "preallocation": "off",
+}
+
 
 def _sized(tmp_path, name, nbytes):
     p = tmp_path / name
@@ -149,7 +158,7 @@ def test_convert_refuses_when_the_destination_would_breach_the_floor(
     )
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.convert(src, dst, "qcow2", False, min_free_bytes=8000)
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8000, **_GEO)
 
     assert "refusing to convert" in str(excinfo.value)
     assert "ran" not in called  # qemu-img was never started
@@ -163,7 +172,7 @@ def test_convert_refuses_when_free_space_is_unknown(tmp_path, monkeypatch):
     monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.convert(src, dst, "qcow2", False, min_free_bytes=8192)
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **_GEO)
 
     assert "cannot read the free space" in str(excinfo.value)
 
@@ -180,7 +189,7 @@ def test_convert_proceeds_when_there_is_room(tmp_path, monkeypatch):
 
     monkeypatch.setattr(task, "run_with_progress", _ran)
 
-    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192) == 0
+    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **_GEO) == 0
     assert called.get("ran") is True
 
 
@@ -195,7 +204,7 @@ def test_disconnect_refuses_when_the_sibling_would_breach_the_floor(
     monkeypatch.setattr(task, "run", lambda *a, **k: called.setdefault("ran", True))
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.disconnect(disk, min_free_bytes=8000)
+        task.disconnect(disk, min_free_bytes=8000, **_GEO)
 
     assert "refusing to disconnect" in str(excinfo.value)
     assert "ran" not in called
@@ -209,7 +218,7 @@ def test_disconnect_refuses_when_free_space_is_unknown(tmp_path, monkeypatch):
     monkeypatch.setattr(task, "run", lambda *a, **k: None)
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.disconnect(disk, min_free_bytes=8192)
+        task.disconnect(disk, min_free_bytes=8192, **_GEO)
 
     assert "cannot read the free space" in str(excinfo.value)
 
@@ -230,6 +239,6 @@ def test_disconnect_measures_after_clearing_a_stale_sibling(tmp_path, monkeypatc
     monkeypatch.setattr(task, "_free_space", _free)
     monkeypatch.setattr(task, "run", lambda *a, **k: stale.write_bytes(b"\0" * 8))
 
-    task.disconnect(disk, min_free_bytes=8192)
+    task.disconnect(disk, min_free_bytes=8192, **_GEO)
 
     assert seen["stale_gone"] is True
