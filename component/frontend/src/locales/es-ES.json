@@ -874,7 +874,10 @@
       "connecting-to": "Accede al escritorio",
       "loading": {
         "title": "Cargando escritorio",
-        "description": "El escritorio se está preparando, esto puede tardar unos momentos"
+        "steps": {
+          "power": "Encendiendo la máquina virtual",
+          "viewer": "Preparando los visores"
+        }
       },
       "error-title": "No se ha podido conectar",
       "error-description": "El enlace del visor directo no es válido o ha caducado.",

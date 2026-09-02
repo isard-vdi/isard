@@ -875,7 +875,10 @@
       "connecting-to": "Access the desktop",
       "loading": {
         "title": "Loading desktop",
-        "description": "The desktop is being prepared, this might take a few moments"
+        "steps": {
+          "power": "Powering the virtual machine",
+          "viewer": "Preparing the viewers"
+        }
       },
       "error-title": "Could not connect",
       "error-description": "The direct viewer link is not valid or has expired.",

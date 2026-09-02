@@ -53,10 +53,11 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
+import { Spinner } from '@/components/ui/spinner'
+import { DirectViewerLoadingHint } from '@/components/direct-viewer'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
-import { DesktopCardSkeleton } from '@/components/desktop-card'
 import LogoSvg from '@/assets/logo.svg?url'
 
 const { t, d } = useI18n()
@@ -361,12 +362,24 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
     <main class="flex-1 flex flex-col items-center justify-center px-2">
       <div class="w-full grid place-items-center">
         <template v-if="isPending">
-          <div class="flex flex-col items-center gap-10 animate-pulse">
-            <div class="flex flex-col gap-1.5 items-center">
-              <div class="h-3.5 w-40 rounded-md bg-gray-warm-200"></div>
-              <div class="h-6 w-64 rounded-md bg-gray-warm-200"></div>
+          <div class="relative grid place-items-center h-[370px] w-[520px] max-w-full">
+            <img
+              src="@/assets/img/bg-blue-dots.svg"
+              alt=""
+              aria-hidden="true"
+              class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[208%] h-[168%] max-w-none z-0 select-none pointer-events-none"
+            />
+            <div
+              class="relative z-10 flex flex-col items-center justify-center gap-4 rounded-2xl bg-base-background/95 h-[280px] w-[400px] rounded-full"
+            >
+              <Spinner size="md" class="text-brand-600" />
+              <div class="flex flex-col items-center gap-3">
+                <h2 class="text-display-sm text-center font-bold text-brand-700">
+                  {{ t('views.direct-viewer.loading.title') }}
+                </h2>
+                <DirectViewerLoadingHint />
+              </div>
             </div>
-            <DesktopCardSkeleton variant="started" class="shadow-lg h-[370px] w-[520px]" />
           </div>
         </template>
         <template v-else-if="isError">
@@ -395,10 +408,10 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         <template v-else-if="desktopViewer">
           <div class="flex flex-col items-center gap-10">
             <div class="flex flex-col gap-1.5 items-center">
-              <p class="text-md text-left font-light text-gray-warm-800">
+              <p class="text-lg text-left font-light text-gray-warm-800">
                 {{ t('views.direct-viewer.connecting-to') }}
               </p>
-              <h2 class="text-xl text-left font-semibold text-brand-700">
+              <h2 class="text-display-sm text-left font-semibold text-brand-700">
                 {{ desktopViewer.name }}
               </h2>
             </div>
