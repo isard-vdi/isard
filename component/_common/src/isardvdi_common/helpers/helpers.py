@@ -502,12 +502,15 @@ class Helpers(RethinkSharedConnection):
         derivated_templates = cls._derivated_templates(template_id) + cls._duplicated(
             template_id
         )
-        derivated_template_ids = [t["id"] for t in derivated_templates]
+        derivated_template_ids = list({t["id"] for t in derivated_templates})
         with cls._rdb_context():
             deployments = list(
                 r.table("deployments")
                 .get_all(r.args(derivated_template_ids), index="template")
                 .pluck("id", "name", "user", "group")
+                # ``template`` is a multi index over create_dict, so a deployment
+                # with several desktops of the same template comes back once each
+                .distinct()
                 .merge(
                     lambda d: {
                         # A deleted owner must not break the whole tree
