@@ -11,9 +11,25 @@ These bypass `__init__` (it builds a thread pool) and stub the two collaborators
 the loop touches.
 """
 
+import sys
 import threading
+from unittest.mock import MagicMock
 
-from engine.models.engine import Engine
+# The shared bootstrap stubs ``rethinkdb`` as a MagicMock, and no other test
+# under engine/models imports engine.models.engine — which reaches isardvdi_common's
+# shared connection and from-imports three rethinkdb submodules a MagicMock cannot
+# satisfy. Stub them HERE: putting them in the shared conftest breaks the separate
+# importlib-mode invocation over engine/services/db.
+for _mod in (
+    "rethinkdb.connection_pool",
+    "rethinkdb.errors",
+    "rethinkdb.net",
+    "isardvdi_common.connections.rethink_connection_factory",
+    "isardvdi_common.connections.rethink_shared_connection",
+):
+    sys.modules.setdefault(_mod, MagicMock())
+
+from engine.models.engine import Engine  # noqa: E402
 
 
 def _thread(monkeypatch, consume, sleeps):
