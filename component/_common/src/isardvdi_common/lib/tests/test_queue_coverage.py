@@ -1092,3 +1092,80 @@ class TestPlainWorkerDoesNotBlindItsPool:
         )
         assert covered[(DEF, "interactive")] == 1
         assert opaque == {DEF}
+
+
+# --- the heartbeat's own sighting is throttled, the explicit ones are not -----
+
+
+@pytest.fixture(autouse=True)
+def _reset_lane_fleet_note():
+    """Module state, so a leak between tests would make them lie."""
+    qc._last_lane_fleet_note = 0.0
+    yield
+    qc._last_lane_fleet_note = 0.0
+
+
+def _counting_set(fake):
+    """Record every SET so the test can count writes, not just read the value:
+    every lane in a pass writes the SAME timestamp, so asserting the value
+    cannot tell one write from ten."""
+    seen = []
+    original = fake.set
+
+    def counted(key, value, *args, **kwargs):
+        seen.append(key)
+        return original(key, value, *args, **kwargs)
+
+    fake.set = counted
+    return seen
+
+
+def test_publish_lane_records_the_sighting_the_first_time():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    assert qc.fleet_last_seen(r) == 1000.0
+
+
+def test_a_pass_over_many_lanes_records_the_sighting_once():
+    r = _FakeRedis()
+    writes = _counting_set(r)
+    tiers = ("standard", "high", "low", "bulk", "template")
+    for tier in tiers:
+        qc.publish_lane(r, DEF, tier, "w1", now=1000.0, ttl=60)
+
+    assert writes.count(qc._FLEET_SEEN_KEY) == 1
+    assert qc.fleet_last_seen(r) == 1000.0
+    for tier in tiers:
+        assert r.zscore(qc.cov_key(DEF, tier), "w1") == 1000.0
+
+
+def test_the_sighting_is_refreshed_once_the_interval_has_passed():
+    r = _FakeRedis()
+    writes = _counting_set(r)
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.publish_lane(
+        r, DEF, "standard", "w1", now=1000.0 + qc.FLEET_SEEN_MIN_INTERVAL_S, ttl=60
+    )
+    assert writes.count(qc._FLEET_SEEN_KEY) == 2
+    assert qc.fleet_last_seen(r) == 1000.0 + qc.FLEET_SEEN_MIN_INTERVAL_S
+
+
+def test_the_throttle_is_far_inside_the_window_that_reads_it():
+    """A sighting this coarse can never move the gap decision."""
+    assert qc.FLEET_SEEN_MIN_INTERVAL_S < qc.FLEET_GONE_GRACE_S / 10
+
+
+def test_a_clock_that_jumps_backwards_still_records():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.publish_lane(r, DEF, "standard", "w1", now=900.0, ttl=60)
+    assert qc.fleet_last_seen(r) == 900.0
+
+
+def test_an_explicit_sighting_is_never_throttled():
+    """lane_shed_decision records a sighting it has just observed; throttling
+    that would date the fleet from the heartbeat instead of from the evidence."""
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.note_fleet_seen(r, 1000.5)
+    assert qc.fleet_last_seen(r) == 1000.5
