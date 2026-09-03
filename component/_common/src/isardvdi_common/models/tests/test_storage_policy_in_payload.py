@@ -12,7 +12,7 @@ environment and assert the actual values (geometry AND ``min_free_bytes``) reach
 the task payload, so a broken ``policy()`` or a dropped floor fails loudly.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from isardvdi_common.helpers import qcow2_geometry
@@ -134,3 +134,32 @@ def test_convert_vmdk_measure_records_no_geometry():
     measures = _measures(_capture_convert("vmdk"))
     assert measures, "the vmdk convert still measures its destination"
     assert all("qcow2_geometry" not in m for m in measures)
+
+
+def test_rsync_move_carries_the_resolved_floor():
+    """move is the third whole-disk copy and gates on the same floor; it must
+    carry it from the enqueuer, not read it from the worker's own env."""
+    s = _bare()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "pool", new_callable=PropertyMock, return_value=MagicMock(id="pA")
+        ),
+        patch.object(
+            Storage,
+            "status",
+            new_callable=PropertyMock,
+            return_value="ready",
+            create=True,
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+        patch(
+            "isardvdi_common.models.storage.get_queue_from_storage_pools",
+            return_value="pA",
+        ),
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="pA")
+        s.rsync(user_id="u1", destination_path="/isard/templates/x.qcow2")
+    kwargs = mock_create.call_args.kwargs["job_kwargs"]["kwargs"]
+    assert kwargs["min_free_bytes"] == 5368709120

@@ -917,6 +917,10 @@ class Storage(RethinkCustomBase):
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
+        # move is the third whole-disk copy, gated by the same free-space floor;
+        # resolve it on the enqueuer too so it is not read from the worker's own
+        # environment. Before set_maintenance so a malformed value raises first.
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
             blocking=True,
@@ -932,6 +936,7 @@ class Storage(RethinkCustomBase):
                     "method": "rsync",
                     "bwlimit": bwlimit,
                     "remove_source_file": remove_source_file,
+                    "min_free_bytes": min_free_bytes,
                 },
                 "timeout": timeout,
             },
@@ -1017,6 +1022,10 @@ class Storage(RethinkCustomBase):
 
         queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
 
+        # Resolved on the enqueuer for consistency with the other move sites, so
+        # no move ever falls back to the worker's own environment for the floor.
+        # A same-filesystem mv skips the gate anyway, so this is belt-and-braces.
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
             user_id=user_id,
@@ -1029,6 +1038,7 @@ class Storage(RethinkCustomBase):
                     "origin_path": origin_path,
                     "destination_path": f"{destination_path}/{self.id}.{self.type}",
                     "method": "mv",
+                    "min_free_bytes": min_free_bytes,
                 }
             },
             dependents=[
@@ -2285,6 +2295,10 @@ class Storage(RethinkCustomBase):
             )
 
         geometry = qcow2_geometry.policy()
+        # method="auto" resolves to rsync (a real copy) whenever src and dst are
+        # on different filesystems, so the move is gated: carry the floor here
+        # too instead of letting the worker read it from its own environment.
+        min_free_bytes = storage_min_free_bytes()
         template_storage.set_maintenance("create")
 
         return self.create_task(
@@ -2302,6 +2316,7 @@ class Storage(RethinkCustomBase):
                     "destination_path": template_storage.path,
                     "method": "auto",
                     "remove_source_file": True,
+                    "min_free_bytes": min_free_bytes,
                     # Surface rsync progress on the new template's row so
                     # the templates list in old-frontend / Vue 3 can render
                     # the same kind of progress bar Media downloads have.
