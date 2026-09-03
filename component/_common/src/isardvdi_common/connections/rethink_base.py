@@ -500,6 +500,69 @@ class RethinkBase(ABC):
         return result
 
     @classmethod
+    def update_document_if(
+        cls,
+        doc_id: str,
+        update_data: dict,
+        *,
+        field: str,
+        values,
+        validate: bool = True,
+    ) -> bool:
+        """Update ``doc_id`` only while its ``field`` is still one of ``values``.
+
+        One round trip, so nothing can change the row between the test and the
+        write - unlike reading it, deciding, and writing the decision back.
+        Returns whether the update applied.
+        """
+        if validate:
+            pydantic_model = cls._rdb_table_schema(**update_data)
+            update_data = pydantic_model.model_dump(mode="json", exclude_unset=True)
+        # ``__setattr__`` stamps this on every status write; a guarded write of
+        # the same field has to agree with it or the row loses its clock.
+        if "status" in update_data:
+            update_data.setdefault("status_time", time())
+        allowed = list(values)
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(doc_id)
+                .update(
+                    lambda row: r.branch(
+                        r.expr(allowed).contains(row[field].default(None)),
+                        update_data,
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(cls._rdb_connection)
+            )
+        return bool(result.get("replaced"))
+
+    @classmethod
+    def delete_document_if(cls, document_id: str, *, field: str, values) -> bool:
+        """Delete ``document_id`` only while its ``field`` is one of ``values``.
+
+        A ``replace`` to ``None`` is ReQL's conditional delete, so the test and
+        the removal are one operation and the row cannot come back in between.
+        """
+        allowed = list(values)
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(document_id)
+                .replace(
+                    lambda row: r.branch(
+                        r.expr(allowed).contains(row[field].default(None)),
+                        None,
+                        row,
+                    )
+                )
+                .run(cls._rdb_connection)
+            )
+        return result["deleted"] > 0
+
+    @classmethod
     def insert_document(
         cls,
         insert_data: list[dict] | dict,
