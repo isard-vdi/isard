@@ -28,7 +28,7 @@ import traceback
 from contextlib import contextmanager
 from functools import wraps
 from json import loads
-from os import environ, makedirs, remove, rename
+from os import makedirs, remove, rename
 from os import stat as os_stat
 from os import walk
 from os.path import basename, dirname, getmtime, isdir, isfile, join
@@ -247,7 +247,12 @@ def _redis_connection():
 # to the operation: a storage node with a full filesystem fails EVERY write on
 # it, not just the copy that filled it, and leaves rows mid-flight for someone
 # to reconcile. Pass ``min_free_bytes=0`` to switch it off deliberately.
-DEFAULT_MIN_FREE_BYTES = int(environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
+# A last-resort fallback for a task that somehow arrives without min_free_bytes;
+# the value is now installation policy resolved by the ENQUEUER and carried in
+# every convert/disconnect/move payload, so the worker must not read it from its
+# own environment (no compose part sets it there -- that read only ever returned
+# this 1 GiB anyway).
+DEFAULT_MIN_FREE_BYTES = 1 << 30
 
 
 def _qemu_measure_required(source_path, options):

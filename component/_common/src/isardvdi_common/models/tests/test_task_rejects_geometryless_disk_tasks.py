@@ -39,6 +39,14 @@ class TestRequireHelper:
             _require_qcow2_geometry(task, kwargs)
 
     @pytest.mark.parametrize("task", ["create", "convert", "disconnect"])
+    @pytest.mark.parametrize("empty", [None, ""])
+    def test_a_disk_task_with_an_empty_value_raises(self, task, empty):
+        # present-but-empty must not slip past into a slow worker-side validate()
+        kwargs = {**_GEO, "cluster_size": empty}
+        with pytest.raises(ValueError, match="qcow2 geometry"):
+            _require_qcow2_geometry(task, kwargs)
+
+    @pytest.mark.parametrize("task", ["create", "convert", "disconnect"])
     def test_a_disk_task_with_all_keys_passes(self, task):
         _require_qcow2_geometry(task, dict(_GEO))  # must not raise
 

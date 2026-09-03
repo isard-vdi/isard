@@ -1,4 +1,4 @@
-# Isard main config v3.0.5
+# Isard main config v3.0.6
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -287,6 +287,12 @@ HAPROXY_LOGGING=.
 ## under ``qcow2_geometry``).
 ## Applies to disk creation, ``convert`` (qcow2 destinations) and
 ## ``disconnect`` (which rewrites the disk in place).
+## ROLLOUT NOTE: before this release ``convert`` and ``disconnect`` wrote at
+## qemu's own defaults (64k, no preallocation); from this release they honour the
+## policy below. On an install using ``preallocation=falloc`` or ``full`` those
+## two operations now allocate the disk's full VIRTUAL size where they used to
+## write a sparse copy -- size the pools, or the recommendation, accordingly.
+## (``preallocation=metadata`` stays sparse, so it is unaffected.)
 ## Cluster size used when creating qcow2 disk images
 ## Default: 4k (maximum compatibility)
 ## Recommended for NFS: 2M (500x less metadata overhead vs 4k)
@@ -314,11 +320,12 @@ HAPROXY_LOGGING=.
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
 ## Free-space floor (bytes) left on the destination filesystem before a
-## convert/disconnect writes its full second copy of a disk; the operation is
-## refused rather than filling the pool. Like the geometry above, it is an
-## installation policy resolved by isard-apiv4 at enqueue time and carried in
-## the payload, so an identical operation is not refused on one storage node
-## and accepted on another. Default: 1073741824 (1 GiB).
+## convert, disconnect or move writes its full second copy of a disk; the
+## operation is refused rather than filling the pool. Like the geometry above, it
+## is an installation policy resolved by isard-apiv4 at enqueue time and carried
+## in the payload, so an identical operation is not refused on one storage node
+## and accepted on another. Must be an integer number of BYTES (not a
+## human-readable size like ``1G``). Default: 1073741824 (1 GiB).
 #STORAGE_MIN_FREE_BYTES=1073741824
 
 # ------ GPUS --------------------------------------------------------------

@@ -858,7 +858,11 @@ def _require_qcow2_geometry(task, task_kwargs):
     """
     if task not in _GEOMETRY_TASKS:
         return
-    missing = [k for k in qcow2_geometry.KEYS if k not in (task_kwargs or {})]
+    kwargs = task_kwargs or {}
+    # Absent OR present-but-empty: a None/"" value would pass a bare presence
+    # check and then die in the worker's validate(), which is the slow, quiet
+    # failure this guard exists to pre-empt.
+    missing = [k for k in qcow2_geometry.KEYS if kwargs.get(k) in (None, "")]
     if missing:
         raise ValueError(
             f"task {task!r} enqueued without qcow2 geometry {missing}; the "

@@ -54,13 +54,14 @@ def test_valid_policy_logs_it_and_does_not_raise(monkeypatch, caplog):
     assert not any(r.levelno >= logging.WARNING for r in caplog.records)
 
 
-def test_all_defaults_warns_about_the_distributed_trap(monkeypatch, caplog):
+def test_all_defaults_is_logged_at_info_not_warning(monkeypatch, caplog):
+    # Running the documented defaults is the correct majority config, so the
+    # distributed-trap breadcrumb is INFO, not an every-boot WARNING.
     _set(monkeypatch)  # nothing set: every key falls back to a default
     with caplog.at_level(logging.INFO):
         api._report_qcow2_geometry_at_boot()
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert warnings, "an all-default policy on the enqueuer must warn"
-    assert "absent" in warnings[0].message
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("absent" in r.message for r in caplog.records)
 
 
 def test_invalid_policy_logs_error_but_does_not_raise(monkeypatch, caplog):
