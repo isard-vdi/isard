@@ -255,25 +255,33 @@ def _redis_connection():
 DEFAULT_MIN_FREE_BYTES = 1 << 30
 
 
-def _qemu_measure_required(source_path, options):
+# qemu-img measure walks the source's whole L2 map (and its backing chain), not
+# just a header, so on a large disk over NFS it is far slower than a header read
+# and must not share QEMU_IMG_TIMEOUT (30 s). It is bounded work, not a hang, so
+# the budget is generous.
+QEMU_MEASURE_TIMEOUT = int(os.environ.get("QCOW2_MEASURE_TIMEOUT") or 900)
+
+
+def _qemu_measure_required(source_path, options, source_format=None):
     """Bytes a qcow2 destination written from ``source_path`` with ``-o
     options`` will physically need, per ``qemu-img measure``, or ``None`` if it
-    cannot be read.
+    cannot be read (logged with rc/stderr/timeout so a refused op is
+    diagnosable).
 
-    This is qemu's own estimate for the exact geometry about to be written, so
-    it is right for every preallocation mode: ``off`` and ``metadata`` stay
-    sparse (qemu downgrades metadata to off before the truncate, so it consumes
-    only its L1/L2/refcount tables), while ``falloc``/``full`` consume the whole
-    virtual size. The source format is PROBED (no ``-f``), so a vmdk source
-    measured for a qcow2 destination works -- forcing ``-f qcow2`` on a vmdk
-    would fail and refuse a runnable convert.
+    Only called where preallocation actually consumes space (``falloc``/
+    ``full``, and ``metadata`` which counts its metadata tables); ``off`` uses
+    the cheap ``os_stat`` proxy instead and never reaches here. ``source_format``
+    pins ``-f`` (``disconnect`` knows its source is qcow2); left ``None`` the
+    source format is probed, which ``convert`` needs for a vmdk source.
     """
+    fmt = ["-f", source_format] if source_format else []
     try:
         completed = run(
             [
                 "qemu-img",
                 "measure",
                 "-U",
+                *fmt,
                 "-O",
                 "qcow2",
                 "-o",
@@ -283,20 +291,46 @@ def _qemu_measure_required(source_path, options):
                 source_path,
             ],
             capture_output=True,
-            timeout=QEMU_IMG_TIMEOUT,
+            timeout=QEMU_MEASURE_TIMEOUT,
         )
-    except (TimeoutExpired, OSError):
+    except TimeoutExpired:
+        log.error(
+            "qemu-img measure timed out after %ss for %s (options %s)",
+            QEMU_MEASURE_TIMEOUT,
+            source_path,
+            options,
+        )
+        return None
+    except OSError as exc:
+        log.error("qemu-img measure could not run for %s: %s", source_path, exc)
         return None
     if completed.returncode != 0:
+        log.error(
+            "qemu-img measure failed (rc=%s) for %s: %s",
+            completed.returncode,
+            source_path,
+            completed.stderr.decode(errors="replace")[-STDERR_TAIL_BYTES:],
+        )
         return None
     try:
         return int(loads(completed.stdout)["required"])
-    except (ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError) as exc:
+        log.error(
+            "qemu-img measure returned unparseable output for %s: %s",
+            source_path,
+            exc,
+        )
         return None
 
 
 def _require_free_space(
-    target_dir, source_path, min_free_bytes, action, verb, measure_options=None
+    target_dir,
+    source_path,
+    min_free_bytes,
+    action,
+    verb,
+    measure_options=None,
+    source_format=None,
 ):
     """Refuse ``action`` unless ``target_dir`` keeps ``min_free_bytes`` free
     after landing a full copy of ``source_path``.
@@ -309,11 +343,12 @@ def _require_free_space(
     removed the guard exactly where it mattered.
 
     ``measure_options`` is the qcow2 ``-o`` option string a qcow2-writing caller
-    (convert/disconnect) will use: the space needed is then qemu's own
-    ``required`` for that exact geometry, which honours the preallocation mode
-    (metadata stays sparse, falloc/full consume the virtual size). A caller that
-    writes a raw copy (``move``) leaves it ``None`` and the apparent size is
-    used. Fails closed if the measure cannot be read.
+    passes ONLY when its destination preallocates (``preallocation`` other than
+    ``off``): the space needed is then qemu's own ``required`` for that exact
+    geometry. Left ``None`` -- for a sparse ``preallocation=off`` destination and
+    for a raw copy (``move``) -- the cheap apparent size is used and the
+    expensive measure is skipped entirely. ``source_format`` pins ``-f`` for the
+    measure. Fails closed (logged) if the measure cannot be read.
 
     ``min_free_bytes=0`` disables the check; ``None`` means "use the default".
 
@@ -339,11 +374,12 @@ def _require_free_space(
             "byte floor cannot be honoured"
         )
     if measure_options is not None:
-        needed = _qemu_measure_required(source_path, measure_options)
+        needed = _qemu_measure_required(source_path, measure_options, source_format)
         if needed is None:
             raise RuntimeError(
                 f"{action}: refusing to {verb} {source_path}: cannot measure the "
-                "space the destination geometry needs (qemu-img measure failed)"
+                "space the preallocated destination needs (qemu-img measure "
+                "failed; see the log for rc/stderr/timeout)"
             )
     else:
         try:
@@ -1722,14 +1758,18 @@ def convert(
             with_preallocation=not compression,
         )
         geometry_opts = ["-o", options]
-        measure_options = options
+        # Only measure when the destination actually preallocates: off (and a
+        # compressed convert, which drops preallocation above) stays sparse, so
+        # the cheap os_stat proxy is enough and the expensive metadata walk is
+        # skipped. The source format is probed here -- convert genuinely takes a
+        # vmdk source.
+        if preallocation != "off" and not compression:
+            measure_options = options
 
     # A convert writes a whole second copy of the disk, so on a tight pool it
     # fills the destination filesystem. Checked BEFORE qemu-img starts: letting
     # it run into ENOSPC costs the whole copy and leaves a partial destination
-    # for the failure branch to unlink. A qcow2 destination is measured for its
-    # exact geometry (so preallocation is honoured, and metadata is not treated
-    # as full); a vmdk falls back to the apparent size.
+    # for the failure branch to unlink.
     _require_free_space(
         dirname(dest_disk_path),
         source_disk_path,
@@ -2175,15 +2215,17 @@ def disconnect(
     # this can fill is the one already holding it. Measured AFTER the unlink
     # above: a stale sibling holds a whole disk image of the very space being
     # measured, so probing first would refuse on space about to be released.
-    # Measured for this exact geometry, so preallocation is honoured and metadata
-    # is not treated as full.
+    # Only measure when the destination preallocates (off stays sparse -> the
+    # cheap os_stat proxy). The source is a qcow2 disk we control, so pin its
+    # format rather than probe a guest-writable header.
     _require_free_space(
         dirname(storage_path),
         storage_path,
         min_free_bytes,
         "disconnect",
         "disconnect",
-        measure_options=options,
+        measure_options=options if preallocation != "off" else None,
+        source_format="qcow2",
     )
 
     try:
