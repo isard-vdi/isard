@@ -966,6 +966,39 @@ async def _reclaim_pending(redis, redis_manager, consumer_name):
             await _ack(redis, entry_id)
 
 
+async def _drain_progress_pel(redis, consumer_name):
+    """Claim and drop the progress entries a dead consumer left un-ACKed.
+
+    ``_reclaim_pending`` is the result stream's, and nothing was the progress
+    stream's, so a consumer killed mid-batch left its entries pending for ever:
+    they blocked ``_reap_dead_consumers`` from removing it, and the group grew a
+    member per restart. They are dropped rather than re-dispatched because
+    progress is fire-and-forget and an entry this stale describes a tick that
+    has since been superseded, so re-emitting it would walk a progress bar
+    backwards.
+    """
+    try:
+        response = await redis.xautoclaim(
+            PROGRESS_STREAM,
+            CONSUMER_GROUP,
+            consumer_name,
+            min_idle_time=RECLAIM_IDLE_MS,
+            count=READ_COUNT,
+        )
+    except Exception:
+        log.exception("task_results: progress xautoclaim failed")
+        return 0
+    entries = response[1] if len(response) >= 2 else []
+    for entry_id, _fields in entries:
+        await _ack_stream(redis, PROGRESS_STREAM, entry_id)
+    if entries:
+        log.warning(
+            "task_results: dropped %s stale progress entries left by a dead consumer",
+            len(entries),
+        )
+    return len(entries)
+
+
 async def _trim_to_frontier(redis):
     """Consumer-driven ``XTRIM ... MINID`` of the result stream (#2084 stopgap ①).
 
@@ -1086,6 +1119,9 @@ async def run(redis_manager):
                 # entry is dead-lettered rather than retried forever.
                 if now - last_reclaim >= RECLAIM_EVERY_S:
                     await _reclaim_pending(redis, redis_manager, consumer_name)
+                    await _drain_progress_pel(redis, consumer_name)
+                    await _reap_dead_consumers(redis, RESULT_STREAM, consumer_name)
+                    await _reap_dead_consumers(redis, PROGRESS_STREAM, consumer_name)
                     last_reclaim = now
                 # Consumer-driven MINID trim so an unread result can't be evicted.
                 if now - last_trim >= TRIM_EVERY_S:
