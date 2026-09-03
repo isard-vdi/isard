@@ -1,4 +1,4 @@
-# Isard main config v3.0.6
+# Isard main config v3.0.7
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -281,42 +281,60 @@ HAPROXY_LOGGING=.
 ## Installation-wide geometry for every qcow2 IsardVDI writes itself.
 ## Read by isard-apiv4 (the node running the web/all-in-one flavour) when the
 ## task is enqueued, and carried inside the task payload, so every storage
-## node writes the same shape regardless of its own environment. Changing a
-## value takes effect for disks created AFTER the apiv4 restart; existing
-## disks keep the geometry they were written with (visible per storage row
-## under ``qcow2_geometry``).
-## Applies to disk creation, ``convert`` (qcow2 destinations) and
-## ``disconnect`` (which rewrites the disk in place).
+## node writes the same shape regardless of its own environment. Applies to
+## disk creation, ``convert`` (qcow2 destinations) and ``disconnect`` (which
+## rewrites the disk in place). Changing a value takes effect for disks written
+## AFTER the apiv4 restart; existing disks keep the geometry they were written
+## with (visible per storage row under ``qcow2_geometry``) until an operation
+## rewrites them, so changing them is a forward-only decision.
 ## ROLLOUT NOTE: before this release ``convert`` and ``disconnect`` wrote at
 ## qemu's own defaults (64k, no preallocation); from this release they honour the
-## policy below. On an install using ``preallocation=falloc`` or ``full`` those
-## two operations now allocate the disk's full VIRTUAL size where they used to
-## write a sparse copy -- size the pools, or the recommendation, accordingly.
-## (``preallocation=metadata`` stays sparse, so it is unaffected.)
+## policy below, so on an install that set a non-off preallocation those two
+## operations now allocate accordingly -- see the preallocation note for why the
+## recommendation is off.
+##
+## Recommended for shared storage (NFS) and just as good on local NVMe:
+##   QCOW2_CLUSTER_SIZE=128k  QCOW2_EXTENDED_L2=on
+##   QCOW2_LAZY_REFCOUNTS=off QCOW2_PREALLOCATION=off
+##
 ## Cluster size used when creating qcow2 disk images
 ## Default: 4k (maximum compatibility)
-## Recommended for NFS: 2M (500x less metadata overhead vs 4k)
+## Recommended: 128k together with extended_l2=on. extended_l2 always splits a
+## cluster into 32 subclusters, and the subcluster is the copy-on-write unit
+## against the backing file, so 128k yields 4k subclusters - the block size of
+## XFS, of VDO and of the guest filesystems. 2M would yield 64k subclusters and
+## make a 4k guest write cost a 64k copy.
+## COST: 128k needs 128 KiB of L2 metadata per GiB (same as qemu's own 64k
+## default, 16x less than 4k, 16x more than 2M). With the default 32 MB
+## l2-cache that fully maps disks up to 256 GiB; raise l2-cache-size above that.
 ## Options: 512, 1k, 2k, 4k, 8k, 16k, 32k, 64k, 128k, 256k, 512k, 1M, 2M
 ## WARNING: extended_l2=on requires cluster_size >= 16k
 #QCOW2_CLUSTER_SIZE=4k
 ## Enable use of extended l2 entries when creating qcow2 disk images
 ## Default: off
-## Recommended for NFS with cluster_size >= 16k: on (64KB subclusters for better thin provisioning)
+## Recommended: on, paired with cluster_size=128k (see above). Subcluster
+## allocation is what keeps a big cluster cheap to write into.
 ## Options: on / off
 ## WARNING: requires cluster_size >= 16k, requires QEMU >= 5.2 on any host
 ## that reads these images. Images with extended_l2 are NOT readable by older QEMU.
 #QCOW2_EXTENDED_L2=off
 ## Enable lazy refcounts for better write performance
 ## Default: off
-## Recommended for NFS: on (safe with crash-consistent filesystems like XFS/ext4)
+## Recommended: off. It trades refcount writes for a rebuild after an ungraceful
+## host stop, and the gain has not been measured on a VDI workload.
 ## NOTE: after an ungraceful host crash, qemu will automatically rebuild refcount
 ## tables on next image open (qemu-img check -r all). This may slow desktop startup.
 ## Options: on / off
 #QCOW2_LAZY_REFCOUNTS=off
 ## Preallocation mode for new disks
-## With extended_l2=on, preallocation is also applied to disks with backing files
 ## Default: off
-## Recommended for NFS: metadata (reduces fragmentation)
+## Recommended: off. KEEP IT OFF when extended_l2=on: qcow2 normally refuses to
+## preallocate an image that has a backing file, but with extended l2 entries
+## QEMU allows it, so the setting reaches every derived desktop and not just the
+## base images. On NFS, where fallocate is not always available, "metadata"
+## degenerates into writing the whole image: a template holding 36 GB of real
+## data was measured occupying 151 GB, with 125 GB of zeros pushed over the
+## network. On a thin-provisioned (VDO/LVM-thin) pool that is a deferred ENOSPC.
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
 ## Free-space floor (bytes) left on the destination filesystem before a
