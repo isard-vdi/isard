@@ -6,6 +6,7 @@
 import json
 import logging as log
 import os
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -13,7 +14,6 @@ from typing import Any, Optional
 
 from api.services.error import Error
 from cachetools import cached
-from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.task_streams import (
@@ -44,7 +44,7 @@ from isardvdi_common.lib.users.categories.categories import (
 )
 from isardvdi_common.models.config import Config
 from isardvdi_common.models.task import Task
-from redis import Redis
+from redis import ConnectionPool, Redis
 from rq import Queue
 from rq.defaults import DEFAULT_WORKER_TTL
 from rq.job import Job, parse_job_id
@@ -154,13 +154,30 @@ def clear_governor_caches() -> None:
     problem_tasks_cache.clear()
 
 
+_REDIS_POOL: Optional[ConnectionPool] = None
+_REDIS_POOL_LOCK = threading.Lock()
+REDIS_HEALTH_CHECK_INTERVAL = 30
+
+
+def _redis_pool() -> ConnectionPool:
+    global _REDIS_POOL
+    if _REDIS_POOL is None:
+        with _REDIS_POOL_LOCK:
+            if _REDIS_POOL is None:
+                _REDIS_POOL = ConnectionPool(
+                    host=os.environ.get("REDIS_HOST") or "isard-redis",
+                    port=int(os.environ.get("REDIS_PORT") or 6379),
+                    password=os.environ.get("REDIS_PASSWORD", ""),
+                    db=RQ_DB,
+                    health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+                )
+    return _REDIS_POOL
+
+
 def _connect_redis() -> Redis:
-    return Redis(
-        host=os.environ.get("REDIS_HOST") or "isard-redis",
-        port=int(os.environ.get("REDIS_PORT") or 6379),
-        password=os.environ.get("REDIS_PASSWORD", ""),
-        db=RQ_DB,
-    )
+    # The pool is passed in, so auto_close_connection_pool is False and the
+    # `with` blocks below return the connection instead of disconnecting it.
+    return Redis(connection_pool=_redis_pool())
 
 
 # =============================================================================
