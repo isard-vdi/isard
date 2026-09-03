@@ -104,6 +104,14 @@ DEAD_STREAM_MAXLEN = 10000
 RECLAIM_IDLE_MS = 60000
 RECLAIM_EVERY_S = 30
 MAX_DELIVERIES = 5
+# An entry whose delivery count cannot be read is retried this many passes and
+# then dead-lettered anyway: unreadable must not mean immortal.
+MAX_UNREADABLE_RECLAIMS = 5
+# Entries one reclaim pass will settle before leaving the rest to the next one.
+RECLAIM_BUDGET = 512
+
+# entry id -> consecutive passes whose delivery count could not be read.
+_unreadable_reclaims = {}
 
 # Consumer-driven MINID trim (stopgap ①): periodically trim the result
 # stream down to the read+ACK frontier so an unread completion can NEVER be
@@ -940,16 +948,69 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
 
 async def _delivery_count(redis, entry_id):
     """How many times this PEL entry has been delivered (redis increments it
-    on every XREADGROUP / XCLAIM / XAUTOCLAIM). 0 if it can't be read."""
+    on every XREADGROUP / XCLAIM / XAUTOCLAIM).
+
+    ``None`` when the count cannot be read, which is NOT the same answer as
+    "never delivered": the caller uses it to decide whether an entry has
+    exhausted its retries, and a zero there means it never can.
+    """
     try:
         pending = await redis.xpending_range(
             STREAM_KEY, CONSUMER_GROUP, min=entry_id, max=entry_id, count=1
         )
-        if pending:
-            return int(pending[0]["times_delivered"])
     except Exception:
         log.exception("task_results: xpending_range failed for %s", entry_id)
-    return 0
+        return None
+    return int(pending[0]["times_delivered"]) if pending else 0
+
+
+async def _dead_letter(redis, entry_id, fields, reason):
+    """Move a PEL entry to the dead-letter stream and drop it from the PEL."""
+    try:
+        await redis.xadd(
+            DEAD_STREAM,
+            fields,
+            maxlen=DEAD_STREAM_MAXLEN,
+            approximate=True,
+        )
+        await _ack(redis, entry_id)
+        log.warning("task_results: dead-lettered %s after %s", entry_id, reason)
+    except Exception:
+        log.exception("task_results: dead-letter failed for %s", entry_id)
+
+
+async def _autoclaim_pages(redis, stream, consumer_name, budget):
+    """Yield ``stream``'s claimable pending entries, following the cursor.
+
+    XAUTOCLAIM answers ONE page plus a cursor to resume from, so a caller that
+    reads only the entries recovers a single page per call however long the
+    pending list is.
+    """
+    cursor = "0-0"
+    while budget > 0:
+        try:
+            response = await redis.xautoclaim(
+                stream,
+                CONSUMER_GROUP,
+                consumer_name,
+                min_idle_time=RECLAIM_IDLE_MS,
+                start_id=cursor,
+                count=min(READ_COUNT, budget),
+            )
+        except Exception:
+            log.exception("task_results: xautoclaim failed on %s", stream)
+            return
+        # redis-py returns [cursor, [(id, fields), ...]] (older) or
+        # [cursor, [...], [deleted_ids]] (redis >= 7).
+        cursor = response[0] if response else "0-0"
+        if isinstance(cursor, bytes):
+            cursor = cursor.decode()
+        entries = response[1] if len(response) >= 2 else []
+        for entry in entries:
+            yield entry
+        budget -= len(entries)
+        if not entries or cursor == "0-0":
+            return
 
 
 async def _reclaim_pending(redis, redis_manager, consumer_name):
@@ -957,53 +1018,54 @@ async def _reclaim_pending(redis, redis_manager, consumer_name):
     ``RECLAIM_IDLE_MS`` (a previous delivery failed and was never ACKed).
 
     Each reclaimed entry is re-dispatched and ACKed on success; one that has
-    already been delivered more than ``MAX_DELIVERIES`` times is moved to the
+    already been delivered more than ``MAX_DELIVERIES`` times, or whose count
+    has been unreadable for ``MAX_UNREADABLE_RECLAIMS`` passes, is moved to the
     dead-letter stream and ACKed, so a poison entry can never loop forever.
+
+    XAUTOCLAIM answers one page and a cursor to resume from; the pass follows
+    that cursor until the list is exhausted or ``RECLAIM_BUDGET`` entries have
+    been settled, so a backlog drains in passes rather than never.
     """
-    try:
-        response = await redis.xautoclaim(
-            STREAM_KEY,
-            CONSUMER_GROUP,
-            consumer_name,
-            min_idle_time=RECLAIM_IDLE_MS,
-            count=READ_COUNT,
-        )
-    except Exception:
-        log.exception("task_results: xautoclaim failed")
+    seen = set()
+    async for entry_id, fields in _autoclaim_pages(
+        redis, STREAM_KEY, consumer_name, RECLAIM_BUDGET
+    ):
+        seen.add(entry_id)
+        await _settle_reclaimed(redis, redis_manager, entry_id, fields)
+    # Only the entries this pass could still see are worth remembering; the
+    # rest have been settled, dead-lettered or trimmed away.
+    for entry_id in set(_unreadable_reclaims) - seen:
+        del _unreadable_reclaims[entry_id]
+
+
+async def _settle_reclaimed(redis, redis_manager, entry_id, fields):
+    if not fields:
+        # Entry no longer in the stream (trimmed); drop it from the PEL.
+        await _ack(redis, entry_id)
         return
-    # redis-py returns [cursor, [(id, fields), ...]] (older) or
-    # [cursor, [...], [deleted_ids]] (redis >= 7). We only need the entries.
-    entries = response[1] if len(response) >= 2 else []
-    for entry_id, fields in entries:
-        if not fields:
-            # Entry no longer in the stream (trimmed); drop it from the PEL.
-            await _ack(redis, entry_id)
-            continue
-        delivered = await _delivery_count(redis, entry_id)
+    delivered = await _delivery_count(redis, entry_id)
+    if delivered is None:
+        unreadable = _unreadable_reclaims.get(entry_id, 0) + 1
+        _unreadable_reclaims[entry_id] = unreadable
+        if unreadable > MAX_UNREADABLE_RECLAIMS:
+            await _dead_letter(
+                redis, entry_id, fields, f"{unreadable} unreadable deliveries"
+            )
+            _unreadable_reclaims.pop(entry_id, None)
+            return
+    else:
+        _unreadable_reclaims.pop(entry_id, None)
         if delivered > MAX_DELIVERIES:
-            try:
-                await redis.xadd(
-                    DEAD_STREAM,
-                    fields,
-                    maxlen=DEAD_STREAM_MAXLEN,
-                    approximate=True,
-                )
-                await _ack(redis, entry_id)
-                log.warning(
-                    "task_results: dead-lettered %s after %s deliveries",
-                    entry_id,
-                    delivered,
-                )
-            except Exception:
-                log.exception("task_results: dead-letter failed for %s", entry_id)
-            continue
-        ok = False
-        try:
-            ok = await _process_entry(redis_manager, fields)
-        except Exception:
-            log.exception("task_results: reclaim process_entry raised for %s", entry_id)
-        if ok:
-            await _ack(redis, entry_id)
+            await _dead_letter(redis, entry_id, fields, f"{delivered} deliveries")
+            return
+    ok = False
+    try:
+        ok = await _process_entry(redis_manager, fields)
+    except Exception:
+        log.exception("task_results: reclaim process_entry raised for %s", entry_id)
+    if ok:
+        await _ack(redis, entry_id)
+        _unreadable_reclaims.pop(entry_id, None)
 
 
 async def _drain_progress_pel(redis, consumer_name):
@@ -1017,26 +1079,18 @@ async def _drain_progress_pel(redis, consumer_name):
     has since been superseded, so re-emitting it would walk a progress bar
     backwards.
     """
-    try:
-        response = await redis.xautoclaim(
-            PROGRESS_STREAM,
-            CONSUMER_GROUP,
-            consumer_name,
-            min_idle_time=RECLAIM_IDLE_MS,
-            count=READ_COUNT,
-        )
-    except Exception:
-        log.exception("task_results: progress xautoclaim failed")
-        return 0
-    entries = response[1] if len(response) >= 2 else []
-    for entry_id, _fields in entries:
+    dropped = 0
+    async for entry_id, _fields in _autoclaim_pages(
+        redis, PROGRESS_STREAM, consumer_name, RECLAIM_BUDGET
+    ):
         await _ack_stream(redis, PROGRESS_STREAM, entry_id)
-    if entries:
+        dropped += 1
+    if dropped:
         log.warning(
             "task_results: dropped %s stale progress entries left by a dead consumer",
-            len(entries),
+            dropped,
         )
-    return len(entries)
+    return dropped
 
 
 async def _trim_to_frontier(redis):
