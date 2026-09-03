@@ -12,6 +12,7 @@ logs (does not raise) a bad policy, so a disk-shape typo cannot crash-loop the
 whole API.
 """
 
+import inspect
 import logging
 
 import api
@@ -89,3 +90,11 @@ def test_valid_min_free_is_silent(monkeypatch, caplog):
     with caplog.at_level(logging.ERROR):
         api._validate_storage_min_free_at_boot()
     assert not [r for r in caplog.records if r.levelno == logging.ERROR]
+
+
+def test_lifespan_calls_the_boot_reports():
+    """The reports are only useful if the lifespan invokes them; deleting the two
+    call lines must fail a test rather than pass silently."""
+    src = inspect.getsource(api.lifespan)
+    assert "_report_qcow2_geometry_at_boot()" in src
+    assert "_validate_storage_min_free_at_boot()" in src
