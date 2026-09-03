@@ -8,7 +8,12 @@ import { useUserStore } from '@/stores/user'
 import { useDomainInfoForm, type DomainInfoSource } from '@/composables/useDomainInfoForm'
 import { CheckboxGroup } from '@/components/checkbox-group'
 import type { FeaturedIconItem } from '@/components/checkbox-group/featured-icon'
-import { DesktopCardBase, DesktopCardHeader, DesktopCardSkeleton } from '@/components/desktop-card'
+import {
+  DesktopCardBase,
+  DesktopCardHeader,
+  DesktopCardSkeleton,
+  type CardSize
+} from '@/components/desktop-card'
 import { InputField } from '@/components/input-field'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
@@ -143,6 +148,13 @@ watch(
   { immediate: true }
 )
 
+// The kind selector makes the other column ~60px taller: the bigger card levels them.
+const previewCard = computed(() =>
+  props.showKindSelector
+    ? { size: 'xl' as CardSize, maxWidth: 'max-w-[520px]', height: 'h-[370px]' }
+    : { size: 'lg' as CardSize, maxWidth: 'max-w-[426px]', height: 'h-[310px]' }
+)
+
 const isInvalid = (field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) =>
   field.state.meta.isTouched && !field.state.meta.isValid
 
@@ -270,8 +282,19 @@ defineExpose({
       <p class="text-sm font-regular mb-6">
         {{ t('components.domain.configuration.preview.description') }}
       </p>
-      <DesktopCardSkeleton v-if="loading" class="w-[520px] h-[370px]" />
-      <DesktopCardBase v-else :image-url="imageUrl" :desktop-kind="kind">
+      <DesktopCardSkeleton
+        v-if="loading"
+        class="w-full"
+        :class="[previewCard.maxWidth, previewCard.height]"
+      />
+      <DesktopCardBase
+        v-else
+        :image-url="imageUrl"
+        :desktop-kind="kind"
+        :size="previewCard.size"
+        fill
+        :class="previewCard.maxWidth"
+      >
         <template #header-actions>
           <Button
             icon="image-plus"
