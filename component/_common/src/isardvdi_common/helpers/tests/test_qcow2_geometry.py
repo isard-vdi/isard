@@ -143,8 +143,7 @@ def test_from_env_reads_the_four_vars():
     }
 
 
-# The install defaults are the measured 128k/extended_l2 recommendation adopted
-# from MR 5223, NOT qemu-img's 4k/off.
+# The install defaults are the measured 128k/extended_l2 recommendation, not qemu-img's 4k/off.
 _INSTALL_DEFAULTS = {
     "cluster_size": "128k",
     "extended_l2": "on",

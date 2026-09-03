@@ -249,12 +249,8 @@ def test_disconnect_measures_after_clearing_a_stale_sibling(tmp_path, monkeypatc
 
 
 # --------------------------------------------------------------------------
-# convert/disconnect now honour preallocation. The gate must reserve the space
-# the destination geometry actually needs -- qemu-img measure's ``required`` for
-# the exact option string -- NOT the virtual size for every non-off mode:
-# preallocation=metadata stays sparse (qemu downgrades it to off before the
-# truncate), so treating it like full deterministically refuses convert/
-# disconnect on the cfg's own recommended NFS setting.
+# The gate reserves qemu-img measure's ``required`` for the exact option string,
+# not the virtual size: preallocation=metadata stays sparse.
 # --------------------------------------------------------------------------
 
 
@@ -363,9 +359,9 @@ def test_convert_full_preallocation_reserves_the_measured_required(
 def test_convert_metadata_reserves_the_measured_required_not_the_virtual_size(
     tmp_path, monkeypatch
 ):
-    """The #1 regression fix: metadata stays sparse, so measure returns a small
-    required. Free is set just above that required and far below the virtual
-    size, so the test fails if the gate ever reverts to reserving virtual."""
+    """metadata stays sparse, so measure returns a small required. Free sits just
+    above it and far below the virtual size, so the test fails if the gate ever
+    reverts to reserving virtual."""
     src = _sized(tmp_path, "src.qcow2", 5000)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_physical_free_space", lambda p: None)

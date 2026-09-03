@@ -124,13 +124,10 @@ def _report_qcow2_geometry_at_boot():
     sources = qcow2_geometry.env_sources()
     log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
     if all(v == "default" for v in sources.values()):
-        # Not a warning: docker-compose-parts/apiv4.yml supplies the fleet
-        # defaults with ${QCOW2_*:-...}, so an all-default resolution is the
-        # normal, correct state for an install that leaves the keys commented
-        # out in its cfg, exactly as isardvdi.cfg.example ships them.
+        # Not a warning: the compose part supplies these defaults, so an all-default resolution
+        # is the normal state for an install that leaves the keys commented out.
         log.info(
-            "no QCOW2_* override in this environment; using the compose "
-            "defaults %s",
+            "no QCOW2_* override in this environment; using the compose defaults %s",
             geometry,
         )
 
@@ -168,9 +165,7 @@ async def lifespan(app: FastAPI):
     # one channel per uvicorn worker process.
     _wire_grpc_providers()
 
-    # Surface the installation-wide qcow2 policy once, at boot: log what it
-    # resolved to, warn if the vars are absent here, and log (not raise) a bad
-    # policy so a disk-shape typo cannot take the whole API offline.
+    # Log, never raise: a disk-shape typo must not take the API offline.
     _report_qcow2_geometry_at_boot()
     _validate_storage_min_free_at_boot()
 

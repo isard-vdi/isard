@@ -14,9 +14,8 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from isardvdi_common.helpers import qcow2_geometry
-
 from api.routes import storage as storage_routes
+from isardvdi_common.helpers import qcow2_geometry
 
 _EXPECTED_PATH = "/api/v4/storage/qcow2-geometry"
 
@@ -55,9 +54,8 @@ def test_endpoint_does_not_serve_an_invalid_policy(monkeypatch):
 
 
 def test_the_route_is_registered_at_the_path_the_cli_hardcodes():
-    # #11: the CLI hardcodes _EXPECTED_PATH; assert the router really registers
-    # it (right relative path, right prefix, right method), so a rename cannot
-    # silently 404 the CLI. prefix + relative path must equal _EXPECTED_PATH.
+    # The CLI hardcodes _EXPECTED_PATH, so assert the router registers exactly it:
+    # prefix + relative path, so a rename cannot silently 404 the CLI.
     import api
 
     registered = {

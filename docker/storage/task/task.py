@@ -247,18 +247,11 @@ def _redis_connection():
 # to the operation: a storage node with a full filesystem fails EVERY write on
 # it, not just the copy that filled it, and leaves rows mid-flight for someone
 # to reconcile. Pass ``min_free_bytes=0`` to switch it off deliberately.
-# A last-resort fallback for a task that somehow arrives without min_free_bytes;
-# the value is now installation policy resolved by the ENQUEUER and carried in
-# every convert/disconnect/move payload, so the worker must not read it from its
-# own environment (no compose part sets it there -- that read only ever returned
-# this 1 GiB anyway).
+# Fallback only: the floor is installation policy, resolved by the enqueuer and carried in the payload.
 DEFAULT_MIN_FREE_BYTES = 1 << 30
 
 
-# qemu-img measure walks the source's whole L2 map (and its backing chain), not
-# just a header, so on a large disk over NFS it is far slower than a header read
-# and must not share QEMU_IMG_TIMEOUT (30 s). It is bounded work, not a hang, so
-# the budget is generous.
+# measure walks the whole L2 map and backing chain, so it must not share QEMU_IMG_TIMEOUT.
 QEMU_MEASURE_TIMEOUT = int(os.environ.get("QCOW2_MEASURE_TIMEOUT") or 900)
 
 
@@ -383,10 +376,7 @@ def _require_free_space(
             )
     else:
         try:
-            # APPARENT size, not st_blocks: the rsync argv carries no --sparse,
-            # so a sparse qcow2 lands close to fully allocated at the
-            # destination. Reserving only the allocated size would let the copy
-            # breach the very floor this gate exists to hold.
+            # Apparent size, not st_blocks: the rsync argv carries no --sparse.
             needed = os_stat(source_path).st_size
         except OSError as exc:
             raise RuntimeError(
@@ -954,8 +944,7 @@ def qemu_img_info_backing_chain(
         qemu_img_info_data[0].setdefault("backing-filename-format")
         qemu_img_info_data[0].setdefault("full-backing-filename")
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
-        # Only stamp on success: a failed measure must never record a geometry
-        # the disk may not have.
+        # Only stamp on success: a failed measure must not record a geometry the disk may not have.
         if qcow2_geometry:
             storage_data["qcow2_geometry"] = qcow2_geometry
     else:
@@ -1736,17 +1725,12 @@ def convert(
     else:
         compress = []
 
-    # convert writes a flat destination (no -B), so the geometry has no backing
-    # file and preallocation applies. Only qcow2 destinations take an ``-o``:
-    # a vmdk cannot honour qcow2 options. Built BEFORE the free-space gate so the
-    # gate can measure the destination for this exact geometry.
+    # Only a qcow2 destination takes ``-o``; a vmdk cannot honour qcow2 options. Built before the
+    # free-space gate so the gate measures the destination for this exact geometry.
     geometry_opts = []
     measure_options = None
     if format == "qcow2":
-        # qemu-img convert -c rejects any preallocation != off (verified on
-        # staging: "Compression and preallocation not supported at the same
-        # time"), so omit the preallocation term when compressing and let qemu
-        # default it. Otherwise the flat destination (no -B) preallocates.
+        # qemu-img convert -c rejects preallocation != off, so omit the term when compressing.
         options = qcow2_geometry.create_options(
             {
                 "cluster_size": cluster_size,
@@ -1758,11 +1742,7 @@ def convert(
             with_preallocation=not compression,
         )
         geometry_opts = ["-o", options]
-        # Only measure when the destination actually preallocates: off (and a
-        # compressed convert, which drops preallocation above) stays sparse, so
-        # the cheap os_stat proxy is enough and the expensive metadata walk is
-        # skipped. The source format is probed here -- convert genuinely takes a
-        # vmdk source.
+        # Only measure when the destination preallocates; off stays sparse, so os_stat suffices.
         if preallocation != "off" and not compression:
             measure_options = options
 
@@ -2196,11 +2176,8 @@ def disconnect(
     disconnected_path = storage_path + ".wo_chain"
     _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
 
-    # The output is the flattened disk with no backing file, so preallocation
-    # applies. Written once here and rename()d over the live disk below, so
-    # without this the disconnect silently rebuilt the disk at qemu-img
-    # defaults, discarding the install's geometry. Built before the gate so the
-    # gate can measure the destination for this exact geometry.
+    # The output is flat and rename()d over the live disk, so without ``-o`` the disconnect
+    # rebuilds it at qemu-img defaults.
     options = qcow2_geometry.create_options(
         {
             "cluster_size": cluster_size,
@@ -2215,9 +2192,7 @@ def disconnect(
     # this can fill is the one already holding it. Measured AFTER the unlink
     # above: a stale sibling holds a whole disk image of the very space being
     # measured, so probing first would refuse on space about to be released.
-    # Only measure when the destination preallocates (off stays sparse -> the
-    # cheap os_stat proxy). The source is a qcow2 disk we control, so pin its
-    # format rather than probe a guest-writable header.
+    # The source is a disk we control, so pin its format rather than probe a guest-writable header.
     _require_free_space(
         dirname(storage_path),
         storage_path,

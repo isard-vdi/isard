@@ -26,12 +26,7 @@ _ENV = {
     "lazy_refcounts": "QCOW2_LAZY_REFCOUNTS",
     "preallocation": "QCOW2_PREALLOCATION",
 }
-# The documented install defaults (isardvdi.cfg.example). 128k clusters with
-# extended_l2 on is the measured recommendation (128k -> 4k subclusters = the
-# block size of XFS/VDO/guests; 2M would make a 4k guest write cost a 64k copy),
-# adopted from MR 5223. These belong on the ENQUEUE side only: docker-compose
-# passes the four vars bare (``QCOW2_CLUSTER_SIZE:``), so an install that never
-# set them in its cfg has them ABSENT from the container env, not empty.
+# Mirrors the ${QCOW2_*:-...} defaults in docker-compose-parts/apiv4.yml, which is the reference.
 _DEFAULTS = {
     "cluster_size": "128k",
     "extended_l2": "on",
@@ -41,13 +36,10 @@ _DEFAULTS = {
 _ON_OFF = ("on", "off")
 _PREALLOCATION = ("off", "metadata", "falloc", "full")
 
-# qemu-img only accepts a qcow2 cluster size that is a power of two between 512
-# and 2M; anything else fails at create time. Checking it here turns the
-# likeliest typo into a boot-time rejection instead of a per-disk failure.
+# qemu-img only accepts a power-of-two cluster between 512 and 2M.
 _MIN_CLUSTER = 512
 _MAX_CLUSTER = 2 * 1024 * 1024
-# extended_l2 subclusters need a >=16k cluster (a cluster is split into 32
-# subclusters, each of which must be at least 512 bytes).
+# extended_l2 splits a cluster into 32 subclusters of >=512 bytes, so it needs >=16k.
 _EXTENDED_L2_MIN_CLUSTER = 16384
 
 

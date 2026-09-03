@@ -842,8 +842,7 @@ _TO_DICT_OMITTED_PROPERTIES = {
     "storage_id",
 }
 
-#: Tasks whose worker body writes a qcow2 with an explicit geometry. Every one
-#: must carry the four geometry values in its payload, resolved by the enqueuer.
+#: Tasks whose worker writes a qcow2 with an explicit geometry; each must carry the four values.
 _GEOMETRY_TASKS = ("create", "convert", "disconnect")
 
 
@@ -859,9 +858,7 @@ def _require_qcow2_geometry(task, task_kwargs):
     if task not in _GEOMETRY_TASKS:
         return
     kwargs = task_kwargs or {}
-    # Absent OR present-but-empty: a None/"" value would pass a bare presence
-    # check and then die in the worker's validate(), which is the slow, quiet
-    # failure this guard exists to pre-empt.
+    # Absent OR empty: a None/"" would pass a presence check and die later in the worker validate().
     missing = [k for k in qcow2_geometry.KEYS if kwargs.get(k) in (None, "")]
     if missing:
         raise ValueError(

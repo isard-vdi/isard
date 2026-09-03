@@ -29,10 +29,8 @@ _EXPECTED_SITES = 6
 
 _TREE = ast.parse(_SOURCE.read_text())
 
-# Some sites build their create kwargs in a local variable (e.g. ``create_kwargs
-# = {..., **geometry}``) and hand it to ``create_task`` by name. Map every
-# ``<name> = {dict literal}`` so a Name in the ``"kwargs"`` slot can be resolved
-# back to the dict it refers to.
+# Sites that build create kwargs in a local variable hand a Name to ``create_task``,
+# so map every ``<name> = {dict literal}`` to resolve it back.
 _DICT_ASSIGNMENTS = {
     target.id: node.value
     for node in ast.walk(_TREE)

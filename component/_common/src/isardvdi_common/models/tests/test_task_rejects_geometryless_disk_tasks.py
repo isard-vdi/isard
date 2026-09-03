@@ -90,8 +90,8 @@ class TestWiredIntoTask:
         assert built.job is not None
 
     def test_a_nested_create_dependent_without_geometry_raises(self):
-        # Site 6's shape: a create hung under a move root. The guard must fire
-        # on the nested dependent, not only on roots.
+        # A create hung under a move root: the guard must fire on the nested
+        # dependent, not only on roots.
         with pytest.raises(ValueError, match="qcow2 geometry"):
             _task(
                 task="move",

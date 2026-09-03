@@ -58,11 +58,8 @@ def test_valid_policy_logs_it_and_does_not_raise(monkeypatch, caplog):
 
 
 def test_all_defaults_is_informational_not_a_warning(monkeypatch, caplog):
-    # docker-compose-parts/apiv4.yml supplies the fleet defaults with
-    # ${QCOW2_*:-...}, so an install that leaves the keys commented out in its
-    # cfg -- which is how isardvdi.cfg.example ships them -- resolves to those
-    # defaults by design. That is the normal state and must not warn, or every
-    # correctly-configured install logs a warning at every boot.
+    # The compose part supplies these defaults, so an install that leaves the keys
+    # commented out resolves to them by design and must not warn at every boot.
     _set(monkeypatch)  # nothing set: every key falls back to a default
     with caplog.at_level(logging.INFO):
         api._report_qcow2_geometry_at_boot()
@@ -71,8 +68,7 @@ def test_all_defaults_is_informational_not_a_warning(monkeypatch, caplog):
 
 
 def test_invalid_policy_logs_error_but_does_not_raise(monkeypatch, caplog):
-    # The #5 fix: before, this crashed apiv4 startup and the container
-    # crash-looped. It must now log and let the API keep serving.
+    # A bad policy must log and let the API keep serving, not crash-loop the container.
     _set(monkeypatch, QCOW2_CLUSTER_SIZE="4k", QCOW2_EXTENDED_L2="on")
     with caplog.at_level(logging.ERROR):
         api._report_qcow2_geometry_at_boot()  # must NOT raise

@@ -43,10 +43,8 @@ from . import domain
 from .task import Task
 
 
-# The free-space floor for convert/disconnect is an installation policy, not a
-# per-host fact: resolved by the enqueuer and carried in the payload so an
-# identical operation is not refused on one storage node and accepted on
-# another. Mirrors the worker's DEFAULT_MIN_FREE_BYTES fallback (1 GiB).
+# Installation policy, not a per-host fact: resolved by the enqueuer so an identical operation is
+# not refused on one storage node and accepted on another.
 def storage_min_free_bytes():
     """Resolve STORAGE_MIN_FREE_BYTES to an int, validating it.
 
@@ -917,9 +915,7 @@ class Storage(RethinkCustomBase):
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
-        # move is the third whole-disk copy, gated by the same free-space floor;
-        # resolve it on the enqueuer too so it is not read from the worker's own
-        # environment. Before set_maintenance so a malformed value raises first.
+        # Before set_maintenance so a malformed value raises first.
         min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
@@ -1022,9 +1018,6 @@ class Storage(RethinkCustomBase):
 
         queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
 
-        # Resolved on the enqueuer for consistency with the other move sites, so
-        # no move ever falls back to the worker's own environment for the floor.
-        # A same-filesystem mv skips the gate anyway, so this is belt-and-braces.
         min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
@@ -1441,9 +1434,7 @@ class Storage(RethinkCustomBase):
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
         geometry = qcow2_geometry.policy()
-        # Resolved BEFORE set_maintenance: a malformed STORAGE_MIN_FREE_BYTES must
-        # raise here, not after the row is flipped to maintenance with no task to
-        # clear it.
+        # Before set_maintenance: a malformed value must raise before the row flips to maintenance.
         min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("disconnect")
         return self.create_task(
@@ -1536,12 +1527,9 @@ class Storage(RethinkCustomBase):
         dest_type = new_storage_type.lower()
 
         geometry = qcow2_geometry.policy()
-        # Resolved BEFORE set_maintenance: a malformed STORAGE_MIN_FREE_BYTES must
-        # raise here, not after this row (and the destination row) are already
-        # committed to a convert that can never finish.
+        # Before set_maintenance: a malformed value must raise before the rows are committed.
         min_free_bytes = storage_min_free_bytes()
-        # Only a qcow2 destination carries the geometry: a vmdk cannot honour
-        # qcow2 options, so the row must not record a geometry it does not have.
+        # Only a qcow2 destination carries the geometry; a vmdk cannot honour qcow2 options.
         measure_kwargs = {
             "storage_id": new_storage.id,
             "storage_path": new_storage.path,
@@ -2295,9 +2283,7 @@ class Storage(RethinkCustomBase):
             )
 
         geometry = qcow2_geometry.policy()
-        # method="auto" resolves to rsync (a real copy) whenever src and dst are
-        # on different filesystems, so the move is gated: carry the floor here
-        # too instead of letting the worker read it from its own environment.
+        # method="auto" is a real rsync copy across filesystems, so the move is gated too.
         min_free_bytes = storage_min_free_bytes()
         template_storage.set_maintenance("create")
 
