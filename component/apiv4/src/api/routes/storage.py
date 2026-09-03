@@ -29,6 +29,7 @@ from api.schemas.common import (
     SimpleResponse,
 )
 from api.schemas.storage import (
+    Qcow2GeometryResponse,
     StorageBatchIdsRequest,
     StorageConvertRequest,
     StorageConvertResponse,
@@ -305,6 +306,7 @@ async def get_user_ready_storages(request: Request):
 @manager_router.get(
     "/storage/qcow2-geometry",
     tags=[tag],
+    response_model=Qcow2GeometryResponse,
     summary="Get the installation qcow2 geometry policy",
     description=(
         "Returns the installation-wide qcow2 geometry policy (cluster_size, "
@@ -322,7 +324,7 @@ async def get_qcow2_geometry(request: Request):
     from isardvdi_common.helpers import qcow2_geometry
 
     try:
-        return JSONResponse(content=qcow2_geometry.policy(), status_code=200)
+        return Qcow2GeometryResponse(**qcow2_geometry.policy())
     except qcow2_geometry.Qcow2PolicyError as exc:
         raise await Error.create(
             request,
