@@ -57,15 +57,17 @@ def test_valid_policy_logs_it_and_does_not_raise(monkeypatch, caplog):
     assert not any(r.levelno >= logging.WARNING for r in caplog.records)
 
 
-def test_all_defaults_warns_about_the_distributed_trap(monkeypatch, caplog):
-    # apiv4 is the sole reader now, so an all-default resolution is exactly the
-    # distributed-install trap and must WARN, not whisper at INFO.
+def test_all_defaults_is_informational_not_a_warning(monkeypatch, caplog):
+    # docker-compose-parts/apiv4.yml supplies the fleet defaults with
+    # ${QCOW2_*:-...}, so an install that leaves the keys commented out in its
+    # cfg -- which is how isardvdi.cfg.example ships them -- resolves to those
+    # defaults by design. That is the normal state and must not warn, or every
+    # correctly-configured install logs a warning at every boot.
     _set(monkeypatch)  # nothing set: every key falls back to a default
     with caplog.at_level(logging.INFO):
         api._report_qcow2_geometry_at_boot()
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert warnings, "an all-default policy on the sole enqueuer must warn"
-    assert "absent" in warnings[0].message
+    assert not any(r.levelno >= logging.WARNING for r in caplog.records)
+    assert any("compose defaults" in r.message for r in caplog.records)
 
 
 def test_invalid_policy_logs_error_but_does_not_raise(monkeypatch, caplog):

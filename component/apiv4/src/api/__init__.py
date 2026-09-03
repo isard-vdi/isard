@@ -124,17 +124,13 @@ def _report_qcow2_geometry_at_boot():
     sources = qcow2_geometry.env_sources()
     log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
     if all(v == "default" for v in sources.values()):
-        # WARNING, not INFO: apiv4 is now the ONLY reader of these vars, so an
-        # all-default resolution is indistinguishable from a distributed install
-        # whose operator set the geometry on the (old) storage node -- exactly
-        # the silent-geometry-loss trap. A build.sh check errors when a
-        # non-apiv4 flavour still declares them; this catches the apiv4 side.
-        log.warning(
-            "all four QCOW2_* are absent from this apiv4 environment; using the "
-            "defaults %s. On a distributed install the geometry must be set in "
-            "the web/all-in-one node's cfg (the only node that enqueues disk "
-            "tasks now), not the storage node's, or every new disk silently "
-            "takes the default geometry.",
+        # Not a warning: docker-compose-parts/apiv4.yml supplies the fleet
+        # defaults with ${QCOW2_*:-...}, so an all-default resolution is the
+        # normal, correct state for an install that leaves the keys commented
+        # out in its cfg, exactly as isardvdi.cfg.example ships them.
+        log.info(
+            "no QCOW2_* override in this environment; using the compose "
+            "defaults %s",
             geometry,
         )
 
