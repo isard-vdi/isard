@@ -12,3 +12,4 @@ services:
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
       - ${BUILD_ROOT_PATH}/docker/storage/task:/opt/isardvdi/isardvdi_task
       - ${BUILD_ROOT_PATH}/docker/storage/utils:/utils
+      - ${BUILD_ROOT_PATH}/docker/storage/init.sh:/init.sh

@@ -310,7 +310,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(isardvdi_storage_governor_worker_up)",
+          "expr": "sum(isardvdi_storage_governor_worker_up{kind!=\"\"})",
           "instant": true,
           "range": false,
           "refId": "A"

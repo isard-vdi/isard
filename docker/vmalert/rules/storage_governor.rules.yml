@@ -56,8 +56,10 @@ groups:
       # Fleet-wide count of storage workers reporting up. `sum()` over an empty
       # set yields no series, so NoStorageWorkers cannot false-fire when the
       # exporter itself is blind (that case is GovernorScrapeFailed's job).
+      # kind!="" excludes the notifier's kindless RQ worker, which would
+      # otherwise hold this sum at 1 through a total storage outage.
       - record: isardvdi_storage_governor:worker_up:sum
-        expr: sum(isardvdi_storage_governor_worker_up)
+        expr: sum(isardvdi_storage_governor_worker_up{kind!=""})
 
       # Heavy-pool utilisation ratio for dashboards (cap floored to 1 to avoid a
       # divide-by-zero when the cap is momentarily 0).
