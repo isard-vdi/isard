@@ -9,11 +9,11 @@ import socket
 import time
 
 import redis
+from isardvdi_common.connections.redis_blocking import STREAM_BLOCK_MS, blocking_client
 from isardvdi_common.connections.redis_urls import changefeed_url
 
 log = logging.getLogger("engine")
 
-STREAM_BLOCK_MS = 5000
 STREAM_MAXLEN = 10000
 
 # How much of a rejected message to put in the log. Enough to identify the row
@@ -57,7 +57,9 @@ class RedisStreamConsumer:
 
     def _connect(self):
         if self._redis is None:
-            self._redis = redis.from_url(changefeed_url(), decode_responses=True)
+            self._redis = blocking_client(
+                changefeed_url(), block_ms=STREAM_BLOCK_MS, decode_responses=True
+            )
         return self._redis
 
     def _ensure_groups(self):
@@ -133,13 +135,23 @@ class RedisStreamConsumer:
                 r = self._connect()
 
                 while not (stop_event and stop_event.is_set()):
-                    results = r.xreadgroup(
-                        self.group,
-                        self.consumer,
-                        {s: ">" for s in self.streams},
-                        count=10,
-                        block=STREAM_BLOCK_MS,
-                    )
+                    try:
+                        results = r.xreadgroup(
+                            self.group,
+                            self.consumer,
+                            {s: ">" for s in self.streams},
+                            count=10,
+                            block=STREAM_BLOCK_MS,
+                        )
+                    except redis.TimeoutError:
+                        # The server may have delivered before the deadline, and
+                        # `>` never returns a delivered entry again.
+                        log.warning(
+                            f"Read of {self.streams} exceeded its socket deadline "
+                            f"with a {STREAM_BLOCK_MS}ms block; replaying pending"
+                        )
+                        self._process_pending(handler)
+                        continue
                     if not results:
                         continue
                     for stream_name, messages in results:
