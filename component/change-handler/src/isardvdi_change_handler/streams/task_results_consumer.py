@@ -189,6 +189,15 @@ def _stream_client():
     return async_blocking_client(rq_url(), block_ms=BLOCK_MS, decode_responses=True)
 
 
+def _anchor_ids(members):
+    """The rq jobs whose ``meta`` these chain members' marks live in."""
+    return {
+        anchor.id
+        for anchor in (getattr(member, "anchor", None) for member in members)
+        if anchor is not None and getattr(anchor, "id", None) is not None
+    }
+
+
 async def _ensure_consumer_group(redis, stream=STREAM_KEY):
     """Create the consumer group on ``stream`` if it doesn't yet exist.
 
@@ -718,18 +727,30 @@ async def _process_entry(redis_manager, fields):
     dead_chain = None
     if chain_failed:
         dead_chain = JobStatus.CANCELED if canceled else JobStatus.FAILED
-    dependents = await asyncio.to_thread(
-        lambda: list(
+
+    def walk(from_task):
+        return list(
             _walk_core_dependents(
-                task, include_canceled_storage=canceled, dead_chain=dead_chain
+                from_task, include_canceled_storage=canceled, dead_chain=dead_chain
             )
         )
-    )
+
+    # A live chain's walk never crosses a storage boundary, so everything it
+    # reaches hangs off this task and this task is the only anchor: no
+    # discovery pass needed, and the hot path keeps main's single walk. Only a
+    # dead chain, which is walked THROUGH its settled members, has to be read
+    # first to find out which anchors it will write to.
+    if dead_chain or canceled:
+        anchor_ids = _anchor_ids(await asyncio.to_thread(walk, task))
+    else:
+        anchor_ids = {task_id}
+
     # Finalize is always carried as ``meta["core_finalize"]``; ``_walk_core_dependents``
     # yields those as CoreStep views. A CoreStep is stamped via ``mark`` (not
     # ``Job.set_status``), its knot children are enqueued fresh, and it has no rq
     # job to drop.
     all_ok = True
+    retaken = False
     # Every anchor a mark was written to during this dispatch. A finalize tree
     # hangs off the job that carries it, and one dispatch walks several of
     # them, so collecting the anchors is what makes the marks durable — see the
@@ -741,98 +762,117 @@ async def _process_entry(redis_manager, fields):
     # idempotent ``init_document`` upsert or a guarded delete, so at-least-once
     # redelivery/replay is safe for the DB writes; only the fire-and-forget
     # socket is non-idempotent, and this scope removes the intra-pass repeats.
-    # The walk above only reads. From here on the pass MUTATES the anchors it
-    # found, so take their locks first — and only theirs.
-    async with _anchor_lock(
-        a.id for a in (getattr(d, "anchor", None) for d in dependents) if a is not None
-    ):
-        with dedup_status_emits():
-            for dep_task in dependents:
-                # Finalize is always metadata. A non-CoreStep here can only be a
-                # pre-upgrade legacy rq ``core`` job replayed during migration — the
-                # startup drain heals those, so skip rather than mishandle it.
-                if not isinstance(dep_task, CoreStep):
-                    continue
-                # Reaching what is behind a completed step means passing THROUGH
-                # it, not running it again. On a dead chain the walk yields those
-                # steps after the failure branch has already run, so re-executing
-                # one re-applies a success body over what the failure branch just
-                # wrote — a template marked Failed gets promoted back to ready by a
-                # step redoing work it had already done. Its mark stands as it is.
-                #
-                # Only on a dead chain: a redelivered RESULT event must still
-                # re-run its handlers, which is the at-least-once contract that
-                # recovers a knot child whose enqueue failed.
-                if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
-                    continue
-                ok = await _run_handler(redis_manager, dep_task)
-                all_ok = all_ok and ok
-                # Propagate the outcome onto this dep before the next sibling/child
-                # runs, so handlers that gate on ``task.depending_status`` see the
-                # right value (was "deferred" otherwise — no worker on the core
-                # queue ever marks it). A handler gated on ``depending_status``
-                # no-ops when the chain failed and reports success for having done
-                # nothing. Marking that FINISHED tells the NEXT step its dependency
-                # succeeded, so a nested step runs its success body for an operation
-                # that never happened.
-                # A step's outcome is ITS OWN, not the chain's. A chain cancelled
-                # half way still contains steps whose dependency genuinely
-                # succeeded; marking those FAILED because the chain as a whole did
-                # not succeed rewrites history that happened, and tells the step
-                # below them that a dependency failed when it did not. Every
-                # handler already decides this way — it gates on
-                # ``task.depending_status`` — so the mark has to agree with it, or
-                # a step reports an outcome its own handler did not take.
-                dependency_succeeded = dep_task.depending_status == JobStatus.FINISHED
-                step_status = (
-                    JobStatus.FINISHED
-                    if ok and dependency_succeeded
-                    else JobStatus.FAILED
-                )
-                # Stamp the shared meta node in place. A nested
-                # child's ``depending_status`` reads this parent, so the mark
-                # must land before the child runs (the walk yields parent first).
-                dep_task.mark(step_status == JobStatus.FINISHED)
-                anchor = dep_task.anchor
-                if anchor is not None:
-                    anchors[anchor.id] = anchor
-                # Advance this dep's storage children so the worker picks them up.
-                # Skipped when the handler failed — failure must NOT advance the
-                # chain — and when the member is cancelled, since running its
-                # children would do work for an operation the user cancelled.
-                #
-                # This one stays keyed on the WHOLE chain, deliberately, while the
-                # mark above is per step: creating work is mutation, not traversal.
-                # A step whose own dependency succeeded may still not start a disk
-                # operation once the chain it belongs to is dead — that is the
-                # operation the user cancelled.
-                if ok and not chain_failed and not _is_canceled(dep_task):
-                    enqueued = await _enqueue_metadata_storage_dependents(dep_task)
-                    all_ok = all_ok and enqueued
+    # ``save_meta`` writes the whole blob back, so the hydration, the marks and
+    # the save must all be inside the lock or one dispatch erases the other's.
+    while True:
+        async with _anchor_lock(anchor_ids):
+            task = await asyncio.to_thread(Task, task_id)
+            dependents = await asyncio.to_thread(walk, task)
+            unlocked = _anchor_ids(dependents) - anchor_ids
+            if unlocked:
+                # Retaken with the union rather than extended in place, which could
+                # invert two dispatches' lock order and deadlock them.
+                if retaken:
+                    log.warning(
+                        "task_results: anchors %s became reachable only after the "
+                        "locks were taken (event %s); redelivering rather than "
+                        "marking an anchor this pass does not hold",
+                        sorted(unlocked),
+                        task_id,
+                    )
+                    return False
+                anchor_ids = anchor_ids | unlocked
+                retaken = True
+                continue
+            with dedup_status_emits():
+                for dep_task in dependents:
+                    # Finalize is always metadata. A non-CoreStep here can only be a
+                    # pre-upgrade legacy rq ``core`` job replayed during migration — the
+                    # startup drain heals those, so skip rather than mishandle it.
+                    if not isinstance(dep_task, CoreStep):
+                        continue
+                    # Reaching what is behind a completed step means passing THROUGH
+                    # it, not running it again. On a dead chain the walk yields those
+                    # steps after the failure branch has already run, so re-executing
+                    # one re-applies a success body over what the failure branch just
+                    # wrote — a template marked Failed gets promoted back to ready by a
+                    # step redoing work it had already done. Its mark stands as it is.
+                    #
+                    # Only on a dead chain: a redelivered RESULT event must still
+                    # re-run its handlers, which is the at-least-once contract that
+                    # recovers a knot child whose enqueue failed.
+                    if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
+                        continue
+                    ok = await _run_handler(redis_manager, dep_task)
+                    all_ok = all_ok and ok
+                    # Propagate the outcome onto this dep before the next sibling/child
+                    # runs, so handlers that gate on ``task.depending_status`` see the
+                    # right value (was "deferred" otherwise — no worker on the core
+                    # queue ever marks it). A handler gated on ``depending_status``
+                    # no-ops when the chain failed and reports success for having done
+                    # nothing. Marking that FINISHED tells the NEXT step its dependency
+                    # succeeded, so a nested step runs its success body for an operation
+                    # that never happened.
+                    # A step's outcome is ITS OWN, not the chain's. A chain cancelled
+                    # half way still contains steps whose dependency genuinely
+                    # succeeded; marking those FAILED because the chain as a whole did
+                    # not succeed rewrites history that happened, and tells the step
+                    # below them that a dependency failed when it did not. Every
+                    # handler already decides this way — it gates on
+                    # ``task.depending_status`` — so the mark has to agree with it, or
+                    # a step reports an outcome its own handler did not take.
+                    dependency_succeeded = (
+                        dep_task.depending_status == JobStatus.FINISHED
+                    )
+                    step_status = (
+                        JobStatus.FINISHED
+                        if ok and dependency_succeeded
+                        else JobStatus.FAILED
+                    )
+                    # Stamp the shared meta node in place. A nested
+                    # child's ``depending_status`` reads this parent, so the mark
+                    # must land before the child runs (the walk yields parent first).
+                    dep_task.mark(step_status == JobStatus.FINISHED)
+                    anchor = dep_task.anchor
+                    if anchor is not None:
+                        anchors[anchor.id] = anchor
+                    # Advance this dep's storage children so the worker picks them up.
+                    # Skipped when the handler failed — failure must NOT advance the
+                    # chain — and when the member is cancelled, since running its
+                    # children would do work for an operation the user cancelled.
+                    #
+                    # This one stays keyed on the WHOLE chain, deliberately, while the
+                    # mark above is per step: creating work is mutation, not traversal.
+                    # A step whose own dependency succeeded may still not start a disk
+                    # operation once the chain it belongs to is dead — that is the
+                    # operation the user cancelled.
+                    if ok and not chain_failed and not _is_canceled(dep_task):
+                        enqueued = await _enqueue_metadata_storage_dependents(dep_task)
+                        all_ok = all_ok and enqueued
 
-    # Persist the finalize status marks so ``Task.pending`` stops gating the
-    # storage and the reconcile self-heal can tell a done chain from a stuck
-    # one. Best-effort: a redelivery re-runs the idempotent handlers and
-    # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
-    # drop from a queue — the persisted ``status`` mark is what retires each step
-    # and leaving the node in meta is the forensic record of what ran.
-    #
-    # Save EVERY anchor the dispatch marked, not just the job the event was
-    # keyed on. One event walks several finalize trees — in a template chain
-    # the tree hangs off the third storage job while the event names the root —
-    # and a mark written to an unsaved job is lost the moment this pass ends,
-    # leaving a step that ran looking like a step that never did.
-    for anchor in anchors.values():
-        try:
-            await asyncio.to_thread(anchor.job.save_meta)
-        except Exception:
-            all_ok = False
-            log.exception(
-                "task_results: failed to persist core_finalize marks on %s (event %s)",
-                anchor.id,
-                task_id,
-            )
-    return all_ok
+            # Persist the finalize status marks so ``Task.pending`` stops gating the
+            # storage and the reconcile self-heal can tell a done chain from a stuck
+            # one. Best-effort: a redelivery re-runs the idempotent handlers and
+            # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
+            # drop from a queue — the persisted ``status`` mark is what retires each step
+            # and leaving the node in meta is the forensic record of what ran.
+            #
+            # Save EVERY anchor the dispatch marked, not just the job the event was
+            # keyed on. One event walks several finalize trees — in a template chain
+            # the tree hangs off the third storage job while the event names the root —
+            # and a mark written to an unsaved job is lost the moment this pass ends,
+            # leaving a step that ran looking like a step that never did.
+            for anchor in anchors.values():
+                try:
+                    await asyncio.to_thread(anchor.job.save_meta)
+                except Exception:
+                    all_ok = False
+                    log.exception(
+                        "task_results: failed to persist core_finalize marks on %s (event %s)",
+                        anchor.id,
+                        task_id,
+                    )
+        return all_ok
 
 
 async def _ack(redis, entry_id):

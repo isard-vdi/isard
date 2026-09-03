@@ -89,6 +89,8 @@ from ..task_results.storage import (  # noqa: F401
     send_status_socket,
 )
 from .task_results_consumer import (
+    _anchor_ids,
+    _anchor_lock,
     _is_canceled,
     _release_storage_dependents,
     _run_handler,
@@ -242,6 +244,17 @@ async def _release_via_parents(task):
         )
 
 
+def _heal_anchor_ids(chain):
+    """The rq jobs this heal writes to: a step's anchor, a real member itself."""
+    ids = _anchor_ids(member for member in chain if isinstance(member, CoreStep))
+    ids.update(
+        member.id
+        for member in chain
+        if not isinstance(member, CoreStep) and getattr(member, "id", None) is not None
+    )
+    return ids
+
+
 async def _heal_core_orphan(redis_manager, task):
     """Re-run the missed core dispatch for ``task`` and its nested core
     dependents, mirroring :func:`_process_entry` in the consumer.
@@ -266,44 +279,47 @@ async def _heal_core_orphan(redis_manager, task):
     )
     chain = [task] + list(_walk_core_dependents(task))
     all_ok = True
-    for dep_task in chain:
-        ok = await _run_handler(redis_manager, dep_task)
-        all_ok = all_ok and ok
-        # A cancelled chain must not be advanced: leave each member's terminal
-        # CANCELED as it is rather than flipping it FINISHED.
-        if not canceled:
-            await _set_job_status(
-                dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
-            )
-        # Per MEMBER, not just per chain: ``doomed`` is read off the ROOT's
-        # dependencies, so a member cancelled on its own passes that test and
-        # gets its deferred storage children released, running real disk work
-        # for an operation that is over.
-        #
-        # BOTH signals are needed, and neither alone is enough — measured
-        # against real rq chains. A member a worker had already dequeued runs to
-        # completion and its success handler rewrites the rq status to
-        # ``finished``, so ``job_status`` reads NOT cancelled and only the
-        # durable record shows it; a member cancelled through rq directly has
-        # the opposite shape, a CANCELED status and no record. ``_set_job_status``
-        # already trusts the record for exactly this reason.
-        member_canceled = _is_canceled(dep_task) or await asyncio.to_thread(
-            was_canceled, dep_task._redis, dep_task.id
-        )
-        if ok and not doomed and not member_canceled:
-            await _release_storage_dependents(dep_task)
-    # Same rule as the consumer: the Jobs ARE the replay state, so they are
-    # only dropped once the whole heal succeeded. Deleting them after a failed
-    # handler would make a later redelivery a no-op and wedge the chain.
-    if all_ok:
+    # The consumer is a peer coroutine marking these same anchors, so both
+    # loops below have to be inside the lock.
+    async with _anchor_lock(_heal_anchor_ids(chain)):
         for dep_task in chain:
-            try:
-                await asyncio.to_thread(dep_task.job.delete)
-            except Exception:
-                log.exception(
-                    "reconcile: could not delete healed core orphan %s",
-                    getattr(dep_task, "id", "?"),
+            ok = await _run_handler(redis_manager, dep_task)
+            all_ok = all_ok and ok
+            # A cancelled chain must not be advanced: leave each member's terminal
+            # CANCELED as it is rather than flipping it FINISHED.
+            if not canceled:
+                await _set_job_status(
+                    dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED
                 )
+            # Per MEMBER, not just per chain: ``doomed`` is read off the ROOT's
+            # dependencies, so a member cancelled on its own passes that test and
+            # gets its deferred storage children released, running real disk work
+            # for an operation that is over.
+            #
+            # BOTH signals are needed, and neither alone is enough — measured
+            # against real rq chains. A member a worker had already dequeued runs to
+            # completion and its success handler rewrites the rq status to
+            # ``finished``, so ``job_status`` reads NOT cancelled and only the
+            # durable record shows it; a member cancelled through rq directly has
+            # the opposite shape, a CANCELED status and no record. ``_set_job_status``
+            # already trusts the record for exactly this reason.
+            member_canceled = _is_canceled(dep_task) or await asyncio.to_thread(
+                was_canceled, dep_task._redis, dep_task.id
+            )
+            if ok and not doomed and not member_canceled:
+                await _release_storage_dependents(dep_task)
+        # Same rule as the consumer: the Jobs ARE the replay state, so they are
+        # only dropped once the whole heal succeeded. Deleting them after a failed
+        # handler would make a later redelivery a no-op and wedge the chain.
+        if all_ok:
+            for dep_task in chain:
+                try:
+                    await asyncio.to_thread(dep_task.job.delete)
+                except Exception:
+                    log.exception(
+                        "reconcile: could not delete healed core orphan %s",
+                        getattr(dep_task, "id", "?"),
+                    )
     return 1
 
 
