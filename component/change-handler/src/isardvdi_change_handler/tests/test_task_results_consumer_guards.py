@@ -52,9 +52,11 @@ class TestDeliveryCount:
         assert await mod._delivery_count(redis, "1-0") == 4
 
     @pytest.mark.asyncio
-    async def test_error_returns_zero(self):
+    async def test_error_returns_none_not_zero(self):
+        # Unreadable is not "never delivered": a zero here compares below
+        # MAX_DELIVERIES for ever, so the entry could never be dead-lettered.
         redis = SimpleNamespace(xpending_range=AsyncMock(side_effect=RuntimeError()))
-        assert await mod._delivery_count(redis, "1-0") == 0
+        assert await mod._delivery_count(redis, "1-0") is None
 
     @pytest.mark.asyncio
     async def test_empty_returns_zero(self):

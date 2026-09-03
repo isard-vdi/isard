@@ -52,7 +52,10 @@ import time
 import uuid
 
 import redis
-import redis.asyncio as aioredis
+from isardvdi_common.connections.redis_blocking import (
+    STREAM_BLOCK_MS,
+    async_blocking_client,
+)
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.lib import queue_coverage
@@ -64,6 +67,7 @@ from isardvdi_common.models.task import (
     was_canceled,
 )
 from redis.exceptions import ResponseError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from rq import Queue
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
@@ -84,7 +88,7 @@ _JOB_GONE = (InvalidJobOperation, NoSuchJobError)
 STREAM_KEY = RESULT_STREAM
 CONSUMER_GROUP = "change-handler"
 READ_COUNT = 32
-BLOCK_MS = 5000
+BLOCK_MS = STREAM_BLOCK_MS
 RECONNECT_DELAY_S = 5
 
 # At-least-once recovery: an entry whose handler failed is left in the
@@ -100,6 +104,14 @@ DEAD_STREAM_MAXLEN = 10000
 RECLAIM_IDLE_MS = 60000
 RECLAIM_EVERY_S = 30
 MAX_DELIVERIES = 5
+# An entry whose delivery count cannot be read is retried this many passes and
+# then dead-lettered anyway: unreadable must not mean immortal.
+MAX_UNREADABLE_RECLAIMS = 5
+# Entries one reclaim pass will settle before leaving the rest to the next one.
+RECLAIM_BUDGET = 512
+
+# entry id -> consecutive passes whose delivery count could not be read.
+_unreadable_reclaims = {}
 
 # Consumer-driven MINID trim (stopgap ①): periodically trim the result
 # stream down to the read+ACK frontier so an unread completion can NEVER be
@@ -178,6 +190,20 @@ class _anchor_lock:
                     _anchor_locks.pop(anchor_id, None)
         self._held.clear()
         return False
+
+
+def _stream_client():
+    """The client every blocking read in this module goes through."""
+    return async_blocking_client(rq_url(), block_ms=BLOCK_MS, decode_responses=True)
+
+
+def _anchor_ids(members):
+    """The rq jobs whose ``meta`` these chain members' marks live in."""
+    return {
+        anchor.id
+        for anchor in (getattr(member, "anchor", None) for member in members)
+        if anchor is not None and getattr(anchor, "id", None) is not None
+    }
 
 
 async def _ensure_consumer_group(redis, stream=STREAM_KEY):
@@ -709,18 +735,30 @@ async def _process_entry(redis_manager, fields):
     dead_chain = None
     if chain_failed:
         dead_chain = JobStatus.CANCELED if canceled else JobStatus.FAILED
-    dependents = await asyncio.to_thread(
-        lambda: list(
+
+    def walk(from_task):
+        return list(
             _walk_core_dependents(
-                task, include_canceled_storage=canceled, dead_chain=dead_chain
+                from_task, include_canceled_storage=canceled, dead_chain=dead_chain
             )
         )
-    )
+
+    # A live chain's walk never crosses a storage boundary, so everything it
+    # reaches hangs off this task and this task is the only anchor: no
+    # discovery pass needed, and the hot path keeps main's single walk. Only a
+    # dead chain, which is walked THROUGH its settled members, has to be read
+    # first to find out which anchors it will write to.
+    if dead_chain or canceled:
+        anchor_ids = _anchor_ids(await asyncio.to_thread(walk, task))
+    else:
+        anchor_ids = {task_id}
+
     # Finalize is always carried as ``meta["core_finalize"]``; ``_walk_core_dependents``
     # yields those as CoreStep views. A CoreStep is stamped via ``mark`` (not
     # ``Job.set_status``), its knot children are enqueued fresh, and it has no rq
     # job to drop.
     all_ok = True
+    retaken = False
     # Every anchor a mark was written to during this dispatch. A finalize tree
     # hangs off the job that carries it, and one dispatch walks several of
     # them, so collecting the anchors is what makes the marks durable — see the
@@ -732,98 +770,117 @@ async def _process_entry(redis_manager, fields):
     # idempotent ``init_document`` upsert or a guarded delete, so at-least-once
     # redelivery/replay is safe for the DB writes; only the fire-and-forget
     # socket is non-idempotent, and this scope removes the intra-pass repeats.
-    # The walk above only reads. From here on the pass MUTATES the anchors it
-    # found, so take their locks first — and only theirs.
-    async with _anchor_lock(
-        a.id for a in (getattr(d, "anchor", None) for d in dependents) if a is not None
-    ):
-        with dedup_status_emits():
-            for dep_task in dependents:
-                # Finalize is always metadata. A non-CoreStep here can only be a
-                # pre-upgrade legacy rq ``core`` job replayed during migration — the
-                # startup drain heals those, so skip rather than mishandle it.
-                if not isinstance(dep_task, CoreStep):
-                    continue
-                # Reaching what is behind a completed step means passing THROUGH
-                # it, not running it again. On a dead chain the walk yields those
-                # steps after the failure branch has already run, so re-executing
-                # one re-applies a success body over what the failure branch just
-                # wrote — a template marked Failed gets promoted back to ready by a
-                # step redoing work it had already done. Its mark stands as it is.
-                #
-                # Only on a dead chain: a redelivered RESULT event must still
-                # re-run its handlers, which is the at-least-once contract that
-                # recovers a knot child whose enqueue failed.
-                if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
-                    continue
-                ok = await _run_handler(redis_manager, dep_task)
-                all_ok = all_ok and ok
-                # Propagate the outcome onto this dep before the next sibling/child
-                # runs, so handlers that gate on ``task.depending_status`` see the
-                # right value (was "deferred" otherwise — no worker on the core
-                # queue ever marks it). A handler gated on ``depending_status``
-                # no-ops when the chain failed and reports success for having done
-                # nothing. Marking that FINISHED tells the NEXT step its dependency
-                # succeeded, so a nested step runs its success body for an operation
-                # that never happened.
-                # A step's outcome is ITS OWN, not the chain's. A chain cancelled
-                # half way still contains steps whose dependency genuinely
-                # succeeded; marking those FAILED because the chain as a whole did
-                # not succeed rewrites history that happened, and tells the step
-                # below them that a dependency failed when it did not. Every
-                # handler already decides this way — it gates on
-                # ``task.depending_status`` — so the mark has to agree with it, or
-                # a step reports an outcome its own handler did not take.
-                dependency_succeeded = dep_task.depending_status == JobStatus.FINISHED
-                step_status = (
-                    JobStatus.FINISHED
-                    if ok and dependency_succeeded
-                    else JobStatus.FAILED
-                )
-                # Stamp the shared meta node in place. A nested
-                # child's ``depending_status`` reads this parent, so the mark
-                # must land before the child runs (the walk yields parent first).
-                dep_task.mark(step_status == JobStatus.FINISHED)
-                anchor = dep_task.anchor
-                if anchor is not None:
-                    anchors[anchor.id] = anchor
-                # Advance this dep's storage children so the worker picks them up.
-                # Skipped when the handler failed — failure must NOT advance the
-                # chain — and when the member is cancelled, since running its
-                # children would do work for an operation the user cancelled.
-                #
-                # This one stays keyed on the WHOLE chain, deliberately, while the
-                # mark above is per step: creating work is mutation, not traversal.
-                # A step whose own dependency succeeded may still not start a disk
-                # operation once the chain it belongs to is dead — that is the
-                # operation the user cancelled.
-                if ok and not chain_failed and not _is_canceled(dep_task):
-                    enqueued = await _enqueue_metadata_storage_dependents(dep_task)
-                    all_ok = all_ok and enqueued
+    # ``save_meta`` writes the whole blob back, so the hydration, the marks and
+    # the save must all be inside the lock or one dispatch erases the other's.
+    while True:
+        async with _anchor_lock(anchor_ids):
+            task = await asyncio.to_thread(Task, task_id)
+            dependents = await asyncio.to_thread(walk, task)
+            unlocked = _anchor_ids(dependents) - anchor_ids
+            if unlocked:
+                # Retaken with the union rather than extended in place, which could
+                # invert two dispatches' lock order and deadlock them.
+                if retaken:
+                    log.warning(
+                        "task_results: anchors %s became reachable only after the "
+                        "locks were taken (event %s); redelivering rather than "
+                        "marking an anchor this pass does not hold",
+                        sorted(unlocked),
+                        task_id,
+                    )
+                    return False
+                anchor_ids = anchor_ids | unlocked
+                retaken = True
+                continue
+            with dedup_status_emits():
+                for dep_task in dependents:
+                    # Finalize is always metadata. A non-CoreStep here can only be a
+                    # pre-upgrade legacy rq ``core`` job replayed during migration — the
+                    # startup drain heals those, so skip rather than mishandle it.
+                    if not isinstance(dep_task, CoreStep):
+                        continue
+                    # Reaching what is behind a completed step means passing THROUGH
+                    # it, not running it again. On a dead chain the walk yields those
+                    # steps after the failure branch has already run, so re-executing
+                    # one re-applies a success body over what the failure branch just
+                    # wrote — a template marked Failed gets promoted back to ready by a
+                    # step redoing work it had already done. Its mark stands as it is.
+                    #
+                    # Only on a dead chain: a redelivered RESULT event must still
+                    # re-run its handlers, which is the at-least-once contract that
+                    # recovers a knot child whose enqueue failed.
+                    if dead_chain and dep_task.job_status in _TERMINAL_STATUSES:
+                        continue
+                    ok = await _run_handler(redis_manager, dep_task)
+                    all_ok = all_ok and ok
+                    # Propagate the outcome onto this dep before the next sibling/child
+                    # runs, so handlers that gate on ``task.depending_status`` see the
+                    # right value (was "deferred" otherwise — no worker on the core
+                    # queue ever marks it). A handler gated on ``depending_status``
+                    # no-ops when the chain failed and reports success for having done
+                    # nothing. Marking that FINISHED tells the NEXT step its dependency
+                    # succeeded, so a nested step runs its success body for an operation
+                    # that never happened.
+                    # A step's outcome is ITS OWN, not the chain's. A chain cancelled
+                    # half way still contains steps whose dependency genuinely
+                    # succeeded; marking those FAILED because the chain as a whole did
+                    # not succeed rewrites history that happened, and tells the step
+                    # below them that a dependency failed when it did not. Every
+                    # handler already decides this way — it gates on
+                    # ``task.depending_status`` — so the mark has to agree with it, or
+                    # a step reports an outcome its own handler did not take.
+                    dependency_succeeded = (
+                        dep_task.depending_status == JobStatus.FINISHED
+                    )
+                    step_status = (
+                        JobStatus.FINISHED
+                        if ok and dependency_succeeded
+                        else JobStatus.FAILED
+                    )
+                    # Stamp the shared meta node in place. A nested
+                    # child's ``depending_status`` reads this parent, so the mark
+                    # must land before the child runs (the walk yields parent first).
+                    dep_task.mark(step_status == JobStatus.FINISHED)
+                    anchor = dep_task.anchor
+                    if anchor is not None:
+                        anchors[anchor.id] = anchor
+                    # Advance this dep's storage children so the worker picks them up.
+                    # Skipped when the handler failed — failure must NOT advance the
+                    # chain — and when the member is cancelled, since running its
+                    # children would do work for an operation the user cancelled.
+                    #
+                    # This one stays keyed on the WHOLE chain, deliberately, while the
+                    # mark above is per step: creating work is mutation, not traversal.
+                    # A step whose own dependency succeeded may still not start a disk
+                    # operation once the chain it belongs to is dead — that is the
+                    # operation the user cancelled.
+                    if ok and not chain_failed and not _is_canceled(dep_task):
+                        enqueued = await _enqueue_metadata_storage_dependents(dep_task)
+                        all_ok = all_ok and enqueued
 
-    # Persist the finalize status marks so ``Task.pending`` stops gating the
-    # storage and the reconcile self-heal can tell a done chain from a stuck
-    # one. Best-effort: a redelivery re-runs the idempotent handlers and
-    # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
-    # drop from a queue — the persisted ``status`` mark is what retires each step
-    # and leaving the node in meta is the forensic record of what ran.
-    #
-    # Save EVERY anchor the dispatch marked, not just the job the event was
-    # keyed on. One event walks several finalize trees — in a template chain
-    # the tree hangs off the third storage job while the event names the root —
-    # and a mark written to an unsaved job is lost the moment this pass ends,
-    # leaving a step that ran looking like a step that never did.
-    for anchor in anchors.values():
-        try:
-            await asyncio.to_thread(anchor.job.save_meta)
-        except Exception:
-            all_ok = False
-            log.exception(
-                "task_results: failed to persist core_finalize marks on %s (event %s)",
-                anchor.id,
-                task_id,
-            )
-    return all_ok
+            # Persist the finalize status marks so ``Task.pending`` stops gating the
+            # storage and the reconcile self-heal can tell a done chain from a stuck
+            # one. Best-effort: a redelivery re-runs the idempotent handlers and
+            # re-stamps. Metadata finalize steps are not rq jobs, so there is nothing to
+            # drop from a queue — the persisted ``status`` mark is what retires each step
+            # and leaving the node in meta is the forensic record of what ran.
+            #
+            # Save EVERY anchor the dispatch marked, not just the job the event was
+            # keyed on. One event walks several finalize trees — in a template chain
+            # the tree hangs off the third storage job while the event names the root —
+            # and a mark written to an unsaved job is lost the moment this pass ends,
+            # leaving a step that ran looking like a step that never did.
+            for anchor in anchors.values():
+                try:
+                    await asyncio.to_thread(anchor.job.save_meta)
+                except Exception:
+                    all_ok = False
+                    log.exception(
+                        "task_results: failed to persist core_finalize marks on %s (event %s)",
+                        anchor.id,
+                        task_id,
+                    )
+        return all_ok
 
 
 async def _ack(redis, entry_id):
@@ -844,13 +901,21 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
     Returns ``True`` if any entries were processed (so the caller can
     skip the block-and-wait next iteration), ``False`` otherwise.
     """
-    response = await redis.xreadgroup(
-        groupname=CONSUMER_GROUP,
-        consumername=consumer_name,
-        streams={STREAM_KEY: ">"},
-        count=READ_COUNT,
-        block=BLOCK_MS,
-    )
+    try:
+        response = await redis.xreadgroup(
+            groupname=CONSUMER_GROUP,
+            consumername=consumer_name,
+            streams={STREAM_KEY: ">"},
+            count=READ_COUNT,
+            block=BLOCK_MS,
+        )
+    except RedisTimeoutError:
+        log.warning(
+            "task_results: read of %s exceeded its socket deadline with a %sms block",
+            STREAM_KEY,
+            BLOCK_MS,
+        )
+        return False
     if not response:
         return False
     for _stream, entries in response:
@@ -883,16 +948,69 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
 
 async def _delivery_count(redis, entry_id):
     """How many times this PEL entry has been delivered (redis increments it
-    on every XREADGROUP / XCLAIM / XAUTOCLAIM). 0 if it can't be read."""
+    on every XREADGROUP / XCLAIM / XAUTOCLAIM).
+
+    ``None`` when the count cannot be read, which is NOT the same answer as
+    "never delivered": the caller uses it to decide whether an entry has
+    exhausted its retries, and a zero there means it never can.
+    """
     try:
         pending = await redis.xpending_range(
             STREAM_KEY, CONSUMER_GROUP, min=entry_id, max=entry_id, count=1
         )
-        if pending:
-            return int(pending[0]["times_delivered"])
     except Exception:
         log.exception("task_results: xpending_range failed for %s", entry_id)
-    return 0
+        return None
+    return int(pending[0]["times_delivered"]) if pending else 0
+
+
+async def _dead_letter(redis, entry_id, fields, reason):
+    """Move a PEL entry to the dead-letter stream and drop it from the PEL."""
+    try:
+        await redis.xadd(
+            DEAD_STREAM,
+            fields,
+            maxlen=DEAD_STREAM_MAXLEN,
+            approximate=True,
+        )
+        await _ack(redis, entry_id)
+        log.warning("task_results: dead-lettered %s after %s", entry_id, reason)
+    except Exception:
+        log.exception("task_results: dead-letter failed for %s", entry_id)
+
+
+async def _autoclaim_pages(redis, stream, consumer_name, budget):
+    """Yield ``stream``'s claimable pending entries, following the cursor.
+
+    XAUTOCLAIM answers ONE page plus a cursor to resume from, so a caller that
+    reads only the entries recovers a single page per call however long the
+    pending list is.
+    """
+    cursor = "0-0"
+    while budget > 0:
+        try:
+            response = await redis.xautoclaim(
+                stream,
+                CONSUMER_GROUP,
+                consumer_name,
+                min_idle_time=RECLAIM_IDLE_MS,
+                start_id=cursor,
+                count=min(READ_COUNT, budget),
+            )
+        except Exception:
+            log.exception("task_results: xautoclaim failed on %s", stream)
+            return
+        # redis-py returns [cursor, [(id, fields), ...]] (older) or
+        # [cursor, [...], [deleted_ids]] (redis >= 7).
+        cursor = response[0] if response else "0-0"
+        if isinstance(cursor, bytes):
+            cursor = cursor.decode()
+        entries = response[1] if len(response) >= 2 else []
+        for entry in entries:
+            yield entry
+        budget -= len(entries)
+        if not entries or cursor == "0-0":
+            return
 
 
 async def _reclaim_pending(redis, redis_manager, consumer_name):
@@ -900,53 +1018,79 @@ async def _reclaim_pending(redis, redis_manager, consumer_name):
     ``RECLAIM_IDLE_MS`` (a previous delivery failed and was never ACKed).
 
     Each reclaimed entry is re-dispatched and ACKed on success; one that has
-    already been delivered more than ``MAX_DELIVERIES`` times is moved to the
+    already been delivered more than ``MAX_DELIVERIES`` times, or whose count
+    has been unreadable for ``MAX_UNREADABLE_RECLAIMS`` passes, is moved to the
     dead-letter stream and ACKed, so a poison entry can never loop forever.
+
+    XAUTOCLAIM answers one page and a cursor to resume from; the pass follows
+    that cursor until the list is exhausted or ``RECLAIM_BUDGET`` entries have
+    been settled, so a backlog drains in passes rather than never.
     """
-    try:
-        response = await redis.xautoclaim(
-            STREAM_KEY,
-            CONSUMER_GROUP,
-            consumer_name,
-            min_idle_time=RECLAIM_IDLE_MS,
-            count=READ_COUNT,
-        )
-    except Exception:
-        log.exception("task_results: xautoclaim failed")
+    seen = set()
+    async for entry_id, fields in _autoclaim_pages(
+        redis, STREAM_KEY, consumer_name, RECLAIM_BUDGET
+    ):
+        seen.add(entry_id)
+        await _settle_reclaimed(redis, redis_manager, entry_id, fields)
+    # Only the entries this pass could still see are worth remembering; the
+    # rest have been settled, dead-lettered or trimmed away.
+    for entry_id in set(_unreadable_reclaims) - seen:
+        del _unreadable_reclaims[entry_id]
+
+
+async def _settle_reclaimed(redis, redis_manager, entry_id, fields):
+    if not fields:
+        # Entry no longer in the stream (trimmed); drop it from the PEL.
+        await _ack(redis, entry_id)
         return
-    # redis-py returns [cursor, [(id, fields), ...]] (older) or
-    # [cursor, [...], [deleted_ids]] (redis >= 7). We only need the entries.
-    entries = response[1] if len(response) >= 2 else []
-    for entry_id, fields in entries:
-        if not fields:
-            # Entry no longer in the stream (trimmed); drop it from the PEL.
-            await _ack(redis, entry_id)
-            continue
-        delivered = await _delivery_count(redis, entry_id)
+    delivered = await _delivery_count(redis, entry_id)
+    if delivered is None:
+        unreadable = _unreadable_reclaims.get(entry_id, 0) + 1
+        _unreadable_reclaims[entry_id] = unreadable
+        if unreadable > MAX_UNREADABLE_RECLAIMS:
+            await _dead_letter(
+                redis, entry_id, fields, f"{unreadable} unreadable deliveries"
+            )
+            _unreadable_reclaims.pop(entry_id, None)
+            return
+    else:
+        _unreadable_reclaims.pop(entry_id, None)
         if delivered > MAX_DELIVERIES:
-            try:
-                await redis.xadd(
-                    DEAD_STREAM,
-                    fields,
-                    maxlen=DEAD_STREAM_MAXLEN,
-                    approximate=True,
-                )
-                await _ack(redis, entry_id)
-                log.warning(
-                    "task_results: dead-lettered %s after %s deliveries",
-                    entry_id,
-                    delivered,
-                )
-            except Exception:
-                log.exception("task_results: dead-letter failed for %s", entry_id)
-            continue
-        ok = False
-        try:
-            ok = await _process_entry(redis_manager, fields)
-        except Exception:
-            log.exception("task_results: reclaim process_entry raised for %s", entry_id)
-        if ok:
-            await _ack(redis, entry_id)
+            await _dead_letter(redis, entry_id, fields, f"{delivered} deliveries")
+            return
+    ok = False
+    try:
+        ok = await _process_entry(redis_manager, fields)
+    except Exception:
+        log.exception("task_results: reclaim process_entry raised for %s", entry_id)
+    if ok:
+        await _ack(redis, entry_id)
+        _unreadable_reclaims.pop(entry_id, None)
+
+
+async def _drain_progress_pel(redis, consumer_name):
+    """Claim and drop the progress entries a dead consumer left un-ACKed.
+
+    ``_reclaim_pending`` is the result stream's, and nothing was the progress
+    stream's, so a consumer killed mid-batch left its entries pending for ever:
+    they blocked ``_reap_dead_consumers`` from removing it, and the group grew a
+    member per restart. They are dropped rather than re-dispatched because
+    progress is fire-and-forget and an entry this stale describes a tick that
+    has since been superseded, so re-emitting it would walk a progress bar
+    backwards.
+    """
+    dropped = 0
+    async for entry_id, _fields in _autoclaim_pages(
+        redis, PROGRESS_STREAM, consumer_name, RECLAIM_BUDGET
+    ):
+        await _ack_stream(redis, PROGRESS_STREAM, entry_id)
+        dropped += 1
+    if dropped:
+        log.warning(
+            "task_results: dropped %s stale progress entries left by a dead consumer",
+            dropped,
+        )
+    return dropped
 
 
 async def _trim_to_frontier(redis):
@@ -999,6 +1143,13 @@ async def _run_progress(redis, redis_manager, consumer_name):
             )
         except asyncio.CancelledError:
             raise
+        except RedisTimeoutError:
+            log.warning(
+                "task_results: read of %s exceeded its socket deadline with a %sms block",
+                PROGRESS_STREAM,
+                BLOCK_MS,
+            )
+            continue
         except Exception:
             log.exception("task_results: progress read failed")
             await asyncio.sleep(1)
@@ -1032,11 +1183,14 @@ async def run(redis_manager):
     """
     consumer_name = f"change-handler-{uuid.uuid4()}"
     log.warning("task_results: stream consumer starting as %s", consumer_name)
+    # Outside the reconnect loop: reconnecting more often than RECLAIM_EVERY_S
+    # would otherwise mean never reclaiming and never trimming.
+    last_reclaim = last_trim = time.monotonic()
     while True:
         redis = None
         progress_task = None
         try:
-            redis = aioredis.from_url(rq_url(), decode_responses=True)
+            redis = _stream_client()
             await redis.ping()
             await _ensure_consumer_group(redis, RESULT_STREAM)
             await _ensure_consumer_group(redis, PROGRESS_STREAM)
@@ -1051,7 +1205,6 @@ async def run(redis_manager):
             progress_task = asyncio.create_task(
                 _run_progress(redis, redis_manager, consumer_name)
             )
-            last_reclaim = last_trim = time.monotonic()
             while True:
                 await _read_and_dispatch(redis, redis_manager, consumer_name)
                 now = time.monotonic()
@@ -1060,6 +1213,9 @@ async def run(redis_manager):
                 # entry is dead-lettered rather than retried forever.
                 if now - last_reclaim >= RECLAIM_EVERY_S:
                     await _reclaim_pending(redis, redis_manager, consumer_name)
+                    await _drain_progress_pel(redis, consumer_name)
+                    await _reap_dead_consumers(redis, RESULT_STREAM, consumer_name)
+                    await _reap_dead_consumers(redis, PROGRESS_STREAM, consumer_name)
                     last_reclaim = now
                 # Consumer-driven MINID trim so an unread result can't be evicted.
                 if now - last_trim >= TRIM_EVERY_S:

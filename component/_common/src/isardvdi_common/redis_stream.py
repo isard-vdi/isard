@@ -9,16 +9,23 @@ import socket
 import time
 
 import redis
+from isardvdi_common.connections.redis_blocking import STREAM_BLOCK_MS, blocking_client
 from isardvdi_common.connections.redis_urls import changefeed_url
 
 log = logging.getLogger("engine")
 
-STREAM_BLOCK_MS = 5000
 STREAM_MAXLEN = 10000
 
 # How much of a rejected message to put in the log. Enough to identify the row
 # and the kind of change, short enough not to dump a whole document per failure.
 PAYLOAD_LOG_CHARS = 500
+
+# A consumer name carries the pid, so a restarted process registers a new one
+# and whatever the dead one held is claimable by nobody but a group-wide sweep.
+RECLAIM_IDLE_MS = 60000
+RECLAIM_EVERY_S = 30
+RECLAIM_COUNT = 100
+DEAD_CONSUMER_IDLE_MS = 12 * 60 * 60 * 1000
 
 
 def _payload_summary(fields):
@@ -57,7 +64,9 @@ class RedisStreamConsumer:
 
     def _connect(self):
         if self._redis is None:
-            self._redis = redis.from_url(changefeed_url(), decode_responses=True)
+            self._redis = blocking_client(
+                changefeed_url(), block_ms=STREAM_BLOCK_MS, decode_responses=True
+            )
         return self._redis
 
     def _ensure_groups(self):
@@ -90,26 +99,98 @@ class RedisStreamConsumer:
                     if not messages:
                         break
                     for msg_id, fields in messages:
-                        try:
-                            data = json.loads(fields["data"])
-                            handler(data)
-                        except Exception:
-                            log.exception(
-                                "Dropping pending message %s from %s (group %s): "
-                                "the handler failed and the change is lost. Payload: %s",
-                                msg_id,
-                                stream_name,
-                                self.group,
-                                _payload_summary(fields),
-                            )
-                        finally:
-                            # Acked either way on purpose: a message the handler
-                            # cannot process would be redelivered forever and
-                            # wedge the consumer. The log above makes it visible.
-                            r.xack(stream_name, self.group, msg_id)
+                        self._deliver(stream_name, msg_id, fields, handler)
                 else:
                     continue
                 break
+
+    def _deliver(self, stream_name, msg_id, fields, handler):
+        """Run the handler for one entry and ACK it, whatever it does.
+
+        Acked either way on purpose: a message the handler cannot process would
+        be redelivered forever and wedge the consumer. The log makes it visible.
+        """
+        r = self._connect()
+        try:
+            handler(json.loads(fields["data"]))
+        except Exception:
+            log.exception(
+                "Dropping message %s from %s (group %s): the handler failed "
+                "and the change is lost. Payload: %s",
+                msg_id,
+                stream_name,
+                self.group,
+                _payload_summary(fields),
+            )
+        finally:
+            r.xack(stream_name, self.group, msg_id)
+
+    def _reclaim_pending(self, handler=None):
+        """Claim and drop the entries a dead consumer of this group left.
+
+        ``_process_pending`` reads ``{stream: "0"}``, which is only ever this
+        consumer's own list, so a process killed between delivery and ACK
+        orphans its entries under a consumer name no live process will ever use
+        again. ``XAUTOCLAIM`` is group-wide and is the only thing that reaches
+        them.
+
+        They are dropped rather than re-delivered. These handlers apply the
+        values carried in the envelope rather than re-reading the row, and an
+        entry claimable here is at least ``RECLAIM_IDLE_MS`` old and arrives
+        after every change delivered since — so replaying one overwrites newer
+        state with older, which is worse than the loss it repairs. The loss is
+        the same one that happened before this method existed; what is new is
+        that it is reported and that the consumer can be reaped.
+        """
+        r = self._connect()
+        for stream in self.streams:
+            try:
+                response = r.xautoclaim(
+                    stream,
+                    self.group,
+                    self.consumer,
+                    min_idle_time=RECLAIM_IDLE_MS,
+                    count=RECLAIM_COUNT,
+                )
+            except Exception:
+                log.exception("Reclaim of %s (group %s) failed", stream, self.group)
+                continue
+            entries = response[1] if len(response) >= 2 else []
+            for msg_id, fields in entries:
+                if fields:
+                    log.warning(
+                        "Dropping orphaned message %s from %s (group %s): a dead "
+                        "consumer left it un-ACKed and it is now older than the "
+                        "changes already applied. Payload: %s",
+                        msg_id,
+                        stream,
+                        self.group,
+                        _payload_summary(fields),
+                    )
+                r.xack(stream, self.group, msg_id)
+
+    def _reap_dead_consumers(self):
+        """Drop the consumers left behind by previous processes.
+
+        Only ones with nothing pending: one still holding entries belongs to
+        the reclaim pass, and deleting it would drop its list rather than
+        replay it.
+        """
+        r = self._connect()
+        for stream in self.streams:
+            try:
+                for consumer in r.xinfo_consumers(stream, self.group):
+                    name = consumer.get("name")
+                    if not name or name == self.consumer:
+                        continue
+                    if int(consumer.get("pending") or 0) > 0:
+                        continue
+                    if int(consumer.get("idle") or 0) < DEAD_CONSUMER_IDLE_MS:
+                        continue
+                    r.xgroup_delconsumer(stream, self.group, name)
+                    log.info("Reaped dead consumer '%s' from %s", name, stream)
+            except Exception:
+                log.warning("Could not reap dead consumers on %s", stream)
 
     def run(self, handler, stop_event=None):
         """Block and consume messages, calling handler(data) for each.
@@ -119,6 +200,9 @@ class RedisStreamConsumer:
             stop_event: optional threading.Event to signal shutdown
         """
         backoff = 1
+        # Outside the reconnect loop: reconnecting more often than
+        # RECLAIM_EVERY_S would otherwise mean never reclaiming at all.
+        last_reclaim = time.monotonic()
         while True:
             try:
                 self._ensure_groups()
@@ -126,6 +210,9 @@ class RedisStreamConsumer:
                     f"Processing pending messages for group '{self.group}' on {self.streams}"
                 )
                 self._process_pending(handler)
+                self._reclaim_pending(handler)
+                self._reap_dead_consumers()
+                last_reclaim = time.monotonic()
                 log.info(
                     f"Listening on streams {self.streams} as group '{self.group}' consumer '{self.consumer}'"
                 )
@@ -133,34 +220,32 @@ class RedisStreamConsumer:
                 r = self._connect()
 
                 while not (stop_event and stop_event.is_set()):
-                    results = r.xreadgroup(
-                        self.group,
-                        self.consumer,
-                        {s: ">" for s in self.streams},
-                        count=10,
-                        block=STREAM_BLOCK_MS,
-                    )
+                    if time.monotonic() - last_reclaim >= RECLAIM_EVERY_S:
+                        self._reclaim_pending(handler)
+                        self._reap_dead_consumers()
+                        last_reclaim = time.monotonic()
+                    try:
+                        results = r.xreadgroup(
+                            self.group,
+                            self.consumer,
+                            {s: ">" for s in self.streams},
+                            count=10,
+                            block=STREAM_BLOCK_MS,
+                        )
+                    except redis.TimeoutError:
+                        # The server may have delivered before the deadline, and
+                        # `>` never returns a delivered entry again.
+                        log.warning(
+                            f"Read of {self.streams} exceeded its socket deadline "
+                            f"with a {STREAM_BLOCK_MS}ms block; replaying pending"
+                        )
+                        self._process_pending(handler)
+                        continue
                     if not results:
                         continue
                     for stream_name, messages in results:
                         for msg_id, fields in messages:
-                            try:
-                                data = json.loads(fields["data"])
-                                handler(data)
-                            except Exception:
-                                log.exception(
-                                    "Dropping message %s from %s (group %s): the "
-                                    "handler failed and the change is lost. Payload: %s",
-                                    msg_id,
-                                    stream_name,
-                                    self.group,
-                                    _payload_summary(fields),
-                                )
-                            finally:
-                                # As in _process_pending: acking a rejected
-                                # message keeps the consumer moving, but never
-                                # silently.
-                                r.xack(stream_name, self.group, msg_id)
+                            self._deliver(stream_name, msg_id, fields, handler)
 
             except (redis.ConnectionError, redis.TimeoutError, OSError) as e:
                 log.warning(
