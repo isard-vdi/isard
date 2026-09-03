@@ -126,7 +126,12 @@ class MigrationTreeSummary(BaseModel):
     bytes_total: int = 0
     # live progress (present on status / socket; absent on dry-run plan)
     done: int = 0
+    #: disks already on the destination, commit tail aside — the honest reading
+    #: of how far the copy has got. `completed` is the committed subset.
+    migrated: int = 0
+    completed: int = 0
     bytes_done: int = 0
+    bytes_copied: int = 0
     state_counts: dict = Field(default_factory=dict)
 
 
@@ -158,9 +163,16 @@ class MigrationTotalsResponse(BaseModel):
     #: can show a size next to each item-type count. Empty on older payloads.
     bytes_by_kind: dict = Field(default_factory=dict)
     bytes_done: int = 0
+    #: bytes already on the destination, committed or not. `bytes_done` counts
+    #: only the committed ones, so it lags a long copy by a whole disk.
+    bytes_copied: int = 0
     #: live count of disks past the saga (released/skipped) — drives the UI's
     #: aggregate progress bar; 0 on the dry-run plan totals.
     done: int = 0
+    #: disks already on the destination, commit tail aside; `completed` is the
+    #: committed subset. Both 0 on the dry-run plan totals.
+    migrated: int = 0
+    completed: int = 0
     state_counts: dict = Field(default_factory=dict)
     #: disks the selection walks but leaves in place. They carry no ledger row,
     #: so the plan preview is the only place they are ever visible.
