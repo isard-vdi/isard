@@ -354,3 +354,26 @@ tests:
             exp_annotations:
               summary: "No storage workers are up"
               description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+
+  # The only fixture that can tell the filtered rule from the unfiltered one:
+  # every other one gives each series a kind.
+  - name: no_storage_workers_ignores_a_kindless_worker
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="workerA",pool="default",kind="elastic"}'
+        values: "0 0 0 0"
+      - series: 'isardvdi_storage_governor_worker_up{worker="workerB",pool="default",kind="reserved"}'
+        values: "0 0 0 0"
+      # The notifier's RQ worker: up, and deliberately label-less.
+      - series: 'isardvdi_storage_governor_worker_up{worker="notifier:isard-notifier:82795ba4"}'
+        values: "1 1 1 1"
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "No storage workers are up"
+              description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
