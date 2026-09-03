@@ -227,7 +227,7 @@ class OrchestratorManagedHypervisor(BaseModel):
     stats: Optional[dict] = None
     status: HypervisorStatus
     destroy_time: Optional[AwareDatetime] = None
-    status_time: Optional[str] = None
+    status_time: Optional[str | int | float] = None
     desktops_started: int = 0
 
 

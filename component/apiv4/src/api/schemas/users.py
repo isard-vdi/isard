@@ -20,6 +20,7 @@
 
 from typing import Literal, Optional, Union
 
+from api.schemas.domains.hardware import DomainImage
 from isardvdi_common.schemas.shared.allowed import Allowed
 from isardvdi_common.schemas.user import UserStorageModel
 from pydantic import BaseModel, Field, field_validator
@@ -439,7 +440,7 @@ class UserDesktop(BaseModel):
     name: str
     status: str
     kind: str
-    image: Optional[dict] = None
+    image: Optional[DomainImage] = None
     description: Optional[str] = ""
     tag_visible: Optional[bool] = False
     accessed: Optional[float] = None
@@ -505,7 +506,7 @@ class WebappDomainItem(BaseModel):
     group: Optional[str] = None
     accessed: Optional[float] = None
     icon: Optional[str] = None
-    image: Optional[dict] = None
+    image: Optional[DomainImage] = None
     os: Optional[str] = None
     parents: Optional[list[str]] = None
     create_dict: Optional[dict] = None
