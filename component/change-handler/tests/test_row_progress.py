@@ -14,6 +14,10 @@ from isardvdi_change_handler.task_results.row_progress import (
 
 
 class _Row:
+    #: Stands in for the table, so the guarded write can test the STORED status
+    #: rather than the one the caller happens to be holding.
+    _rows = {}
+
     def __init__(self, _id, status="Downloading", kind="desktop"):
         self.id = _id
         self.status = status
@@ -21,6 +25,16 @@ class _Row:
         self.user = "u1"
         self.category = "c1"
         self.kind = kind
+        _Row._rows[_id] = self
+
+    @classmethod
+    def update_document_if(cls, doc_id, update_data, *, field, values, validate=True):
+        row = cls._rows[doc_id]
+        if getattr(row, field, None) not in values:
+            return False
+        for key, value in update_data.items():
+            setattr(row, key, value)
+        return True
 
 
 class _Manager:

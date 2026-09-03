@@ -288,11 +288,13 @@ def handle_storage_add(task, **storage_dict):
 
 
 def handle_storage_delete(task, storage_id):
-    """Port of core_worker.task.storage_delete."""
-    if not Storage.exists(storage_id):
-        return
-    if Storage(storage_id).status == "deleted":
-        Storage.delete(storage_id)
+    """Port of core_worker.task.storage_delete.
+
+    The status test travels with the delete: a cancel, a heal or a redelivery
+    can revive the row between reading it and dropping it, and dropping it then
+    leaves the qcow2 on disk with no row pointing at it.
+    """
+    Storage.delete_document_if(storage_id, field="status", values=("deleted",))
 
 
 async def handle_update_status(redis_manager, task, statuses=None):

@@ -37,17 +37,41 @@ def _task(depending_status="finished", **attrs):
 # ---------------------------------------------------------------------------
 
 
+def _storage_double(stored_status, dropped):
+    """A ``Storage`` whose conditional delete tests the STORED status.
+
+    The row's status is only ever read by the database, at the moment of the
+    write, which is the whole point of the guard.
+    """
+
+    class _Storage:
+        @staticmethod
+        def exists(_storage_id):
+            return stored_status is not None
+
+        @staticmethod
+        def delete(storage_id):
+            dropped.append(storage_id)
+
+        @staticmethod
+        def delete_document_if(storage_id, *, field, values):
+            if field == "status" and stored_status in values:
+                dropped.append(storage_id)
+                return True
+            return False
+
+    return _Storage
+
+
 def test_storage_delete_drops_a_row_already_marked_deleted():
     """The intended path: the chain settled, the row says ``deleted``."""
     from isardvdi_change_handler.task_results import storage
 
-    with patch.object(storage, "Storage") as mock_storage_cls:
-        mock_storage_cls.exists.return_value = True
-        mock_storage_cls.return_value = SimpleNamespace(status="deleted")
-
+    dropped = []
+    with patch.object(storage, "Storage", _storage_double("deleted", dropped)):
         storage.handle_storage_delete(_task(), "s1")
 
-    mock_storage_cls.delete.assert_called_once_with("s1")
+    assert dropped == ["s1"]
 
 
 def test_storage_delete_refuses_a_row_that_is_not_marked_deleted():
@@ -61,31 +85,22 @@ def test_storage_delete_refuses_a_row_that_is_not_marked_deleted():
     """
     from isardvdi_change_handler.task_results import storage
 
-    with patch.object(storage, "Storage") as mock_storage_cls:
-        mock_storage_cls.exists.return_value = True
-        mock_storage_cls.return_value = SimpleNamespace(status="ready")
-
+    dropped = []
+    with patch.object(storage, "Storage", _storage_double("ready", dropped)):
         storage.handle_storage_delete(_task(), "s1")
 
-    mock_storage_cls.delete.assert_not_called()
+    assert dropped == []
 
 
-def test_storage_delete_does_not_read_a_row_that_is_gone():
-    """A vanished row returns before the lookup, not after it.
-
-    Hydrating ``Storage(storage_id)`` for a missing id is what raises, so
-    the existence check has to short-circuit rather than merely make the
-    delete conditional.
-    """
+def test_storage_delete_does_not_drop_a_row_that_is_gone():
+    """A vanished row is not an error and not a delete."""
     from isardvdi_change_handler.task_results import storage
 
-    with patch.object(storage, "Storage") as mock_storage_cls:
-        mock_storage_cls.exists.return_value = False
-
+    dropped = []
+    with patch.object(storage, "Storage", _storage_double(None, dropped)):
         storage.handle_storage_delete(_task(), "s1")
 
-    mock_storage_cls.assert_not_called()
-    mock_storage_cls.delete.assert_not_called()
+    assert dropped == []
 
 
 # ---------------------------------------------------------------------------
