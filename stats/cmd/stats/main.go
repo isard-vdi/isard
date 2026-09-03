@@ -79,7 +79,7 @@ func hasHypervisor(flavour string) bool {
 
 func hasWeb(flavour string) bool {
 	switch flavour {
-	case "all-in-one", "web", "web+monitor", "web+storage+monitor", "web+storage+video+monitor":
+	case "all-in-one", "web", "web+monitor", "web+storage", "web+storage+video", "web+storage+monitor", "web+storage+video+monitor":
 		return true
 	default:
 		return false
