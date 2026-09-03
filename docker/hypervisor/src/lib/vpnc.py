@@ -9,15 +9,18 @@ from isardvdi_apiv4_client.api.role_admin import admin_hypervisor_vpn
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from pythonping import ping
 
+# Not /usr/bin/wg-quick: the host AppArmor profile attaches to that path.
+WG_QUICK = "/isard/bin/wg-quick"
+
 
 def connect(peer):
     try:
-        check_output(("/usr/bin/wg-quick", "down", "wg0"), stderr=DEVNULL).strip()
+        check_output((WG_QUICK, "down", "wg0"), stderr=DEVNULL).strip()
     except:
         None
     with open("/etc/wireguard/wg0.conf", "w") as f:
         f.write(peer)
-    check_output(("/usr/bin/wg-quick", "up", "wg0"), text=True).strip()
+    check_output((WG_QUICK, "up", "wg0"), text=True).strip()
 
 
 def reacheable(hostname, waittime=1000):
