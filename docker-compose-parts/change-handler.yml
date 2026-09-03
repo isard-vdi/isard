@@ -15,8 +15,11 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.34
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'isardvdi_change-handler' || exit 1"]
+      # Exec form, not CMD-SHELL: a shell would carry the pattern in its own
+      # command line and pgrep would match the check instead of the process.
+      test: ["CMD", "pgrep", "-f", "isardvdi_change_handler"]
       start_period: 30s
       interval: 5s
     volumes:
