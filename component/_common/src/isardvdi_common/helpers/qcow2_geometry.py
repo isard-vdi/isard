@@ -26,13 +26,15 @@ _ENV = {
     "lazy_refcounts": "QCOW2_LAZY_REFCOUNTS",
     "preallocation": "QCOW2_PREALLOCATION",
 }
-# The documented install defaults (isardvdi.cfg.example).
-# These belong on the ENQUEUE side only: docker-compose passes the four
-# vars bare (``QCOW2_CLUSTER_SIZE:``), so an install that never set them in
-# its cfg has them ABSENT from the container env, not empty.
+# The documented install defaults (isardvdi.cfg.example). 128k clusters with
+# extended_l2 on is the measured recommendation (128k -> 4k subclusters = the
+# block size of XFS/VDO/guests; 2M would make a 4k guest write cost a 64k copy),
+# adopted from MR 5223. These belong on the ENQUEUE side only: docker-compose
+# passes the four vars bare (``QCOW2_CLUSTER_SIZE:``), so an install that never
+# set them in its cfg has them ABSENT from the container env, not empty.
 _DEFAULTS = {
-    "cluster_size": "4k",
-    "extended_l2": "off",
+    "cluster_size": "128k",
+    "extended_l2": "on",
     "lazy_refcounts": "off",
     "preallocation": "off",
 }

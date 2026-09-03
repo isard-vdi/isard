@@ -143,8 +143,18 @@ def test_from_env_reads_the_four_vars():
     }
 
 
+# The install defaults are the measured 128k/extended_l2 recommendation adopted
+# from MR 5223, NOT qemu-img's 4k/off.
+_INSTALL_DEFAULTS = {
+    "cluster_size": "128k",
+    "extended_l2": "on",
+    "lazy_refcounts": "off",
+    "preallocation": "off",
+}
+
+
 def test_from_env_falls_back_to_defaults_when_absent():
-    assert qg.from_env({}) == _default()
+    assert qg.from_env({}) == _INSTALL_DEFAULTS
 
 
 def test_from_env_falls_back_to_defaults_when_empty():
@@ -154,7 +164,13 @@ def test_from_env_falls_back_to_defaults_when_empty():
         "QCOW2_LAZY_REFCOUNTS": "",
         "QCOW2_PREALLOCATION": "",
     }
-    assert qg.from_env(env) == _default()
+    assert qg.from_env(env) == _INSTALL_DEFAULTS
+
+
+def test_the_install_default_is_a_valid_policy():
+    # extended_l2=on needs cluster >= 16k; 128k satisfies it, so the default must
+    # not crash apiv4 at boot.
+    assert qg.validate(dict(_INSTALL_DEFAULTS)) == _INSTALL_DEFAULTS
 
 
 def test_from_env_validates():
