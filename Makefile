@@ -260,6 +260,14 @@ ci-test-apiv4:
 	uv sync --no-dev --group test --package isardvdi-apiv4
 	cd component/apiv4/src && USAGE=$${USAGE:-production} uv run --no-dev --group test --package isardvdi-apiv4 pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
 
+# Contract suites: what a third-party dependency really does, proved against it.
+# Needs only that dependency, never the stack, so it does not belong in a unit
+# job and does not need the compose file the rest of testing/integration wants.
+.PHONY: ci-test-contracts
+ci-test-contracts:
+	uv sync --no-dev --group test --package isardvdi-testing
+	docker/lib/ci-with-redis.sh sh -c 'uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/contracts -q --tb=short --junitxml=testing/integration/contracts/report.xml'
+
 .PHONY: ci-test-common
 ci-test-common:
 	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
