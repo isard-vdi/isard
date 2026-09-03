@@ -1,4 +1,0 @@
-services:
-  isard-redis:
-    environment:
-      REDIS_ARGS: --port ${REDIS_PORT:-6379} --requirepass ${REDIS_PASSWORD}

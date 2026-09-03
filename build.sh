@@ -578,12 +578,6 @@ create_docker_compose_file(){
 		fi
 	fi
 
-	if [ -n "$REDIS_PASSWORD" ]
-	then
-		echo "REDIS_PASSWORD is true, adding redis password part"
-		parts="$parts redis.passwd"
-	fi
-
 	# apiv4 presence in $parts does not change below, so the qcow2/flavour guard
 	# can run here (and stays out of the storage-composition block the vdo-stats
 	# test extracts and runs in isolation).
@@ -753,6 +747,19 @@ if [ -z "$CONFIG_FILES" ]; then
 	echo "ERROR: no isardvdi*.cfg found in $(pwd)." >&2
 	echo "Copy isardvdi.cfg.example to isardvdi.cfg and set USAGE=." >&2
 	exit 1
+fi
+
+# With no argument every isardvdi*.cfg is built, which is what the fleet's
+# upgrade path relies on. An argument selects one of them.
+if [ -n "$1" ]
+then
+	if ! echo "$CONFIG_FILES" | grep -qxF -- "$1"
+	then
+		echo "ERROR: '$1' is not an isardvdi*.cfg in $(pwd)." >&2
+		echo "Found: $(echo $CONFIG_FILES)" >&2
+		exit 1
+	fi
+	CONFIG_FILES="$1"
 fi
 
 for config_file in $CONFIG_FILES
