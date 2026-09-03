@@ -692,6 +692,10 @@ func TestEveryGovernorSignalIsReadBySomeRule(t *testing.T) {
 			"isardvdi_storage_governor_truncated_",
 			"a truncated scan means the leak and backlog numbers are computed from a partial list",
 		},
+		{
+			"isardvdi_storage_governor_streams_",
+			"the task streams are the ONLY place the finalize backlog is visible -- no queue gauge can express it -- so a stream signal no rule reads is the blindness this family was added to end",
+		},
 	}
 
 	problems := []string{}

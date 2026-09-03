@@ -13,6 +13,14 @@
 #     reset-compensation + clamp_min neutralise it even above the crit threshold.
 #   * PSIPinned fires only for the worker actually over psi_limit (group_left join).
 #   * WorkerHeartbeatLost / NoStorageWorkers fire within their for: 2m window.
+#   * TaskStreamLagStuck does NOT fire on a lag FIVE TIMES its threshold held for
+#     25 minutes and then drained. That case is the whole design: amplitude
+#     cannot separate a healthy burst from a stall on this signal (measured
+#     healthy peaks 261-673, incident 892), so the rule discriminates on the 30m
+#     `for:`. Lower the `for:` and that case starts failing.
+#   * TaskStreamDeadLettering does not fire on a TRIM of the dead stream, the
+#     same anti-shrink guarantee FailedSpike has.
+#   * TaskStreamsUnreadable stays quiet while Redis is down (RedisDown's job).
 
 rule_files:
   - storage_governor.rules.yml
@@ -377,3 +385,191 @@ tests:
             exp_annotations:
               summary: "No storage workers are up"
               description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+
+  # ===========================================================================
+  # TASK STREAMS — the finalize backlog no queue gauge can see.
+  # ===========================================================================
+
+  # A lag five times the threshold, drained after 25m, must NOT fire: the rule
+  # discriminates on duration, not height. Lower the `for:` and this fails.
+  - name: task_stream_lag_high_but_transient_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_lag{stream="stream:task-results",group="change-handler"}'
+        values: "500x24 0x10"
+    alert_rule_test:
+      - eval_time: 33m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamLagStuck
+        exp_alerts: []
+
+  - name: task_stream_lag_sustained_fires_after_30m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_lag{stream="stream:task-results",group="change-handler"}'
+        values: "101x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamLagStuck
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              stream: "stream:task-results"
+              group: change-handler
+            exp_annotations:
+              summary: "Task-stream consumer group is not draining"
+              description: "Group change-handler on stream:task-results has held a lag above 100 entries for 30m (101 now). Nothing settles the chains behind those entries, and no queue gauge can see it. Check the change-handler is alive and consuming; the threshold is below the healthy burst peak on purpose, so it is the 30m that makes this real, not the number."
+
+  - name: task_stream_lag_at_threshold_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_lag{stream="stream:task-results",group="change-handler"}'
+        values: "100x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamLagStuck
+        exp_alerts: []
+
+  # The backstop for a trim that erases the lag but not the pending list.
+  - name: task_stream_pending_sustained_fires_after_30m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_pending{stream="stream:task-results",group="change-handler"}'
+        values: "101x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamPendingStuck
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              stream: "stream:task-results"
+              group: change-handler
+            exp_annotations:
+              summary: "Task-stream entries are read but never acknowledged"
+              description: "Group change-handler on stream:task-results has held over 100 unacknowledged entries for 30m (101 now). A consumer took them and did not finish; the reclaim pass should have taken them back. Check the change-handler for a wedged handler and the dead-letter stream for what it gave up on."
+
+  # Boundary on the product's own RESULT_STREAM_HIGH_WATER: 90000 is not over it.
+  - name: task_stream_backpressured_not_at_the_high_water_mark
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_results_length'
+        values: "90000x10"
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamBackpressured
+        exp_alerts: []
+
+  - name: task_stream_backpressured_fires_past_the_high_water_mark
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_results_length'
+        values: "90001x10"
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamBackpressured
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Task-result stream is at its backpressure high-water mark"
+              description: "The result stream holds 90001 entries, past the 90000 high-water mark where enqueue is already being throttled, and 100000 is where unread results start being EVICTED (silent, unrecoverable loss of completions). Get the change-handler consuming again now."
+
+  # A trim of the dead stream is a shrink and must read as zero.
+  - name: task_stream_dead_letter_trim_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_dead_length'
+        values: "30 30 30 30 30 30 30 30 30 30 30 30 30 0 0 0"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamDeadLettering
+        exp_alerts: []
+
+  - name: task_stream_dead_letter_growth_fires
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_dead_length'
+        values: "0+1x14"
+    alert_rule_test:
+      - eval_time: 13m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamDeadLettering
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Task results are being dead-lettered"
+              description: "13 task results were dead-lettered in 15m: the consumer could not process them after every redelivery, so their chains will only be finalized by a reconcile pass, if at all. Read stream:task-results:dead and fix the handler that rejects them."
+
+  # An idle group with no consumer is a deployment not started yet, not an
+  # incident.
+  - name: task_stream_no_consumers_without_lag_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_consumers{stream="stream:task-results",group="change-handler"}'
+        values: "0x35"
+      - series: 'isardvdi_storage_governor_streams_group_lag{stream="stream:task-results",group="change-handler"}'
+        values: "0x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamNoConsumers
+        exp_alerts: []
+
+  - name: task_stream_no_consumers_with_lag_fires
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_group_consumers{stream="stream:task-results",group="change-handler"}'
+        values: "0x35"
+      - series: 'isardvdi_storage_governor_streams_group_lag{stream="stream:task-results",group="change-handler"}'
+        values: "5x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamNoConsumers
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              stream: "stream:task-results"
+              group: change-handler
+            exp_annotations:
+              summary: "Task-stream group has entries and no consumer at all"
+              description: "Group change-handler on stream:task-results has unread entries and zero registered consumers for 30m. Nothing will ever finalize those chains. Start the change-handler. Note this alert cannot be early -- dead consumers stay registered for 12h -- so treat TaskStreamLagStuck as the detector and this as the confirmation."
+
+  # A Redis outage is RedisDown's incident, not a second page for it.
+  - name: task_streams_unreadable_silent_when_redis_is_down
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_up'
+        values: "0x20"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 17m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamsUnreadable
+        exp_alerts: []
+
+  - name: task_streams_unreadable_fires_while_redis_is_up
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_streams_up'
+        values: "0x20"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 17m
+        groupname: storage_governor_alerts
+        alertname: TaskStreamsUnreadable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Task-stream health cannot be read while Redis is up"
+              description: "The governor could not read the task streams for 15m even though the broker answers PING, so every stream gauge in this group is blind (their series are absent, not zero). Check XINFO/XLEN permissions and the stream keys."

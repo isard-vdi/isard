@@ -54,6 +54,13 @@ type StorageGovernor struct {
 	descRedisUsedMemoryRatio *prometheus.Desc
 	descRedisEvictedKeys     *prometheus.Desc
 
+	descStreamsUp             *prometheus.Desc
+	descStreamsResultsLength  *prometheus.Desc
+	descStreamsDeadLength     *prometheus.Desc
+	descStreamsGroupLag       *prometheus.Desc
+	descStreamsGroupPending   *prometheus.Desc
+	descStreamsGroupConsumers *prometheus.Desc
+
 	descCategoryInflight *prometheus.Desc
 	descCategoryCap      *prometheus.Desc
 	descCategoryLeak     *prometheus.Desc
@@ -109,6 +116,15 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descRedisPingMs = d("redis_ping_ms", "RQ broker PING latency in milliseconds")
 	s.descRedisUsedMemoryRatio = d("redis_used_memory_ratio", "RQ broker used_memory / maxmemory")
 	s.descRedisEvictedKeys = d("redis_evicted_keys", "RQ broker evicted_keys counter (evictions silently corrupt SCARD gauges)")
+
+	// A finished task has already left its rq queue, so a chain waiting to be
+	// finalized reaches none of the gauges above.
+	s.descStreamsUp = d("streams_up", "Task-stream health block was read successfully (1); depths/groups are absent when 0")
+	s.descStreamsResultsLength = d("streams_results_length", "XLEN of the task-result stream; RESULT_STREAM_HIGH_WATER (90000) is where enqueue starts throttling and the 100000 floor is where unread results are evicted")
+	s.descStreamsDeadLength = d("streams_dead_length", "XLEN of the dead-letter stream: results the consumer could not process after every redelivery")
+	s.descStreamsGroupLag = d("streams_group_lag", "Entries a consumer group has never read (redis XINFO GROUPS lag; 0 when redis cannot compute it after a trim)", "stream", "group")
+	s.descStreamsGroupPending = d("streams_group_pending", "Entries a consumer group read and has not ACKed", "stream", "group")
+	s.descStreamsGroupConsumers = d("streams_group_consumers", "Consumers registered on a group -- counts CORPSES too, so this is a slow confirmation and never a detector (see the rules file)", "stream", "group")
 
 	s.descCategoryInflight = d("category_inflight", "In-flight fair-tier jobs for a category (SCARD governor:running:<pool>:<cat>)", "pool", "category")
 	s.descCategoryCap = d("category_cap", "Resolved per-category in-flight cap (fair tiers)", "pool", "category")
@@ -166,6 +182,12 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descRedisPingMs
 	ch <- s.descRedisUsedMemoryRatio
 	ch <- s.descRedisEvictedKeys
+	ch <- s.descStreamsUp
+	ch <- s.descStreamsResultsLength
+	ch <- s.descStreamsDeadLength
+	ch <- s.descStreamsGroupLag
+	ch <- s.descStreamsGroupPending
+	ch <- s.descStreamsGroupConsumers
 	ch <- s.descCategoryInflight
 	ch <- s.descCategoryCap
 	ch <- s.descCategoryLeak
@@ -259,6 +281,22 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 			gauge(s.descRedisUsedMemoryRatio, v)
 		}
 		gauge(s.descRedisEvictedKeys, float64(rh.EvictedKeys.Or(0)))
+	}
+
+	// A failed read degrades to {"up": false} with the depths at zero, so publish
+	// them only when it succeeded: absence must not read as an empty stream.
+	if sh, ok := gov.Streams.Get(); ok {
+		up := sh.Up.Or(false)
+		gauge(s.descStreamsUp, boolToFloat(up))
+		if up {
+			gauge(s.descStreamsResultsLength, float64(sh.ResultsLength.Or(0)))
+			gauge(s.descStreamsDeadLength, float64(sh.DeadLength.Or(0)))
+			for _, g := range sh.Groups {
+				gauge(s.descStreamsGroupLag, float64(g.Lag.Or(0)), g.Stream, g.Group)
+				gauge(s.descStreamsGroupPending, float64(g.Pending.Or(0)), g.Stream, g.Group)
+				gauge(s.descStreamsGroupConsumers, float64(g.Consumers.Or(0)), g.Stream, g.Group)
+			}
+		}
 	}
 
 	// --- pools / categories / lanes -------------------------------------
