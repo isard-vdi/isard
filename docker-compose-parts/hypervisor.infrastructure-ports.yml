@@ -1,0 +1,11 @@
+services:
+  isard-hypervisor:
+    ports:
+      - published: 2022
+        target: 2022
+        protocol: tcp
+        host_ip: ${INFRASTRUCTURE_HOST_IP}
+      - published: ${WG_HYPERS_PORT:-4443}
+        target: ${WG_HYPERS_PORT:-4443}
+        protocol: udp
+        host_ip: ${INFRASTRUCTURE_HOST_IP}
