@@ -152,11 +152,23 @@ class TestGraphConfigCRUD:
         stub_rdb["Processed"].delete_graph_config("g1")
         chain.get.assert_called_with("g1")
 
-    def test_list_graph_configs_returns_rows(self, stub_rdb):
+    def test_list_graph_configs_resolves_grouping_name(self, stub_rdb, monkeypatch):
+        from isardvdi_common.lib.analytics import analytics as mod
+
+        monkeypatch.setattr(
+            mod.GroupingsUsageProcessed,
+            "names_by_id",
+            classmethod(lambda cls: {"_all": "All desktop parameters"}),
+        )
         chain = stub_rdb["mock_table"].return_value
-        chain.merge.return_value.run.return_value = [{"id": "g1"}, {"id": "g2"}]
+        chain.run.return_value = [
+            {"id": "g1", "grouping": "_all"},
+            {"id": "g2", "grouping": "gone"},
+        ]
         result = stub_rdb["Processed"].list_graph_configs()
         assert {row["id"] for row in result} == {"g1", "g2"}
+        assert result[0]["grouping_name"] == "All desktop parameters"
+        assert result[1]["grouping_name"] == "gone"
 
 
 class TestEchartHelpers:

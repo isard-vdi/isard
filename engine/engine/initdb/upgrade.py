@@ -50,7 +50,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 206
+release_version = 207
+# release 207: backfill x_axis_days and priority on analytics graph rows that lost them
 # release 206: drop the profile keys the bastion used to copy into targets;
 #              they are resolved live now, so a stored copy is an access
 #              that survives losing the permission it came from
@@ -324,6 +325,7 @@ tables = [
     "vgpus",
     "redis_tasks_cleanup",
     "task_index_backfill",
+    "analytics",
 ]
 
 
@@ -8792,4 +8794,21 @@ password:s:%s"""
             except Exception as e:
                 log.error(f"redis_tasks_cleanup v199 failed (non-fatal): {e}")
 
+        return True
+
+    """
+    ANALYTICS TABLE UPGRADES
+    """
+
+    def analytics(self, version):
+        table = "analytics"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 207:
+            for field, value in (("x_axis_days", 90), ("priority", 0)):
+                try:
+                    r.table(table).filter(
+                        lambda row: row.has_fields(field).not_()
+                    ).update({field: value}).run(self.conn)
+                except Exception as e:
+                    log.error(f"analytics v207 backfill of {field} failed: {e}")
         return True

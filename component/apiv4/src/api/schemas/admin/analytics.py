@@ -52,23 +52,31 @@ class AnalyticsSuggestedRemovalsRequest(BaseModel):
 
 
 class AnalyticsGraphCreateRequest(BaseModel):
-    """Request body for creating an analytics graph configuration."""
+    """Request body for creating an analytics graph configuration.
 
-    name: Optional[str] = Field(default=None, description="Graph name")
-    grouping: Optional[str] = Field(default=None, description="Grouping ID")
-    type: Optional[str] = Field(default=None, description="Graph type")
-    consumer: Optional[str] = Field(default=None, description="Consumer type")
-    item_type: Optional[str] = Field(default=None, description="Item type")
+    ``id`` is absent on purpose: the admin form strips it and RethinkDB
+    assigns the primary key."""
+
+    grouping: str = Field(description="Grouping ID")
+    priority: int = Field(description="Render order, ascending")
+    x_axis_days: int = Field(ge=1, description="Days of history to plot")
+    title: str = Field(description="Graph title")
+    subtitle: Optional[str] = Field(default=None, description="Graph subtitle")
 
 
 class AnalyticsGraphUpdateRequest(BaseModel):
-    """Request body for updating an analytics graph configuration."""
+    """Request body for updating an analytics graph configuration.
 
-    name: Optional[str] = Field(default=None, description="Graph name")
+    ``id`` is absent on purpose: the edit form posts it in the body and
+    it must not reach the update."""
+
     grouping: Optional[str] = Field(default=None, description="Grouping ID")
-    type: Optional[str] = Field(default=None, description="Graph type")
-    consumer: Optional[str] = Field(default=None, description="Consumer type")
-    item_type: Optional[str] = Field(default=None, description="Item type")
+    priority: Optional[int] = Field(default=None, description="Render order, ascending")
+    x_axis_days: Optional[int] = Field(
+        default=None, ge=1, description="Days of history to plot"
+    )
+    title: Optional[str] = Field(default=None, description="Graph title")
+    subtitle: Optional[str] = Field(default=None, description="Graph subtitle")
 
 
 # =============================================================================
@@ -207,16 +215,18 @@ class SuggestedRemovalsResponse(BaseModel):
 class AnalyticsGraphConfigResponse(BaseModel):
     """Row in the ``analytics`` table — see ``AnalyticsGraphCreateRequest``
     for the writeable fields. ``id`` is auto-assigned by RethinkDB and
-    ``grouping_name`` is added by the list endpoint via a join on the
-    ``usage_grouping`` table; both are absent on freshly written rows."""
+    ``grouping_name`` is resolved by the list endpoint.
+
+    Every field is optional: rows written before the create/update schemas
+    carried these fields persisted without them."""
 
     id: Optional[str] = None
-    name: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
     grouping: Optional[str] = None
     grouping_name: Optional[str] = None
-    type: Optional[str] = None
-    consumer: Optional[str] = None
-    item_type: Optional[str] = None
+    priority: Optional[int] = None
+    x_axis_days: Optional[int] = None
 
 
 # =============================================================================

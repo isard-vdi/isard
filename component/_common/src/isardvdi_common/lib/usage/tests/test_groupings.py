@@ -104,6 +104,40 @@ class TestGetGrouping:
             stub_rdb["Processed"].get_grouping("does-not-exist")
 
 
+class TestNamesById:
+    def test_resolves_synthetic_and_user_groupings(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.run.return_value = [{"id": "user-grp", "name": "My grouping"}]
+        names = stub_rdb["Processed"].names_by_id()
+        assert names["_all"] == "All desktop parameters"
+        assert names["_system"] == "All desktop system parameters"
+        assert names["user-grp"] == "My grouping"
+
+    def test_user_row_wins_over_synthetic_id(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.run.return_value = [{"id": "_all", "name": "Shadowed"}]
+        assert stub_rdb["Processed"].names_by_id()["_all"] == "Shadowed"
+
+    def test_first_item_type_wins_among_synthetics(self, stub_rdb, monkeypatch):
+        """Synthetic ids repeat once per item_type; ``get_grouping`` returns
+        the first match, so the name map must agree with it."""
+        from isardvdi_common.lib.usage import groupings as mod
+
+        monkeypatch.setattr(
+            mod.UsageProcessed,
+            "get_params",
+            classmethod(
+                lambda cls: {
+                    "desktop": [{"id": "size", "custom": False}],
+                    "media": [{"id": "bytes", "custom": False}],
+                }
+            ),
+        )
+        chain = stub_rdb["mock_table"].return_value
+        chain.run.return_value = []
+        assert stub_rdb["Processed"].names_by_id()["_all"] == ("All desktop parameters")
+
+
 class TestCreateGrouping:
     def test_inserts_payload(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value

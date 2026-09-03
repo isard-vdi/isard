@@ -115,6 +115,17 @@ class GroupingsUsageProcessed(RethinkSharedConnection):
         return groupings
 
     @classmethod
+    def names_by_id(cls) -> dict[str, str]:
+        """Map grouping id to display name."""
+        names: dict[str, str] = {}
+        for grouping in _system_groupings_for(UsageProcessed.get_params()):
+            names.setdefault(grouping["id"], grouping["name"])
+        with cls._rdb_context():
+            for grouping in r.table("usage_grouping").run(cls._rdb_connection):
+                names[grouping["id"]] = grouping["name"]
+        return names
+
+    @classmethod
     def get_grouping(cls, grouping_id: str) -> dict:
         """Return a single grouping; falls back to system pseudo-groupings.
 

@@ -11,8 +11,8 @@ could query analytics for any category by sending an arbitrary list.
 TestCategoriesScoping pins this for every relevant endpoint.
 """
 
+import pytest
 from api.routes.tests.helpers import MockJWT
-from api.services.error import Error
 
 # ══════════════════════════════════════════════════════════════════════════
 #  POST /analytics/storage, /analytics/resources/count
@@ -170,95 +170,196 @@ class TestSuggestedRemovals:
 
 
 class TestGraphConfig:
-    def test_list_on_manager_router(self, monkeypatch, test_client):
-        """List endpoint is on manager_router so the manager-side
-        dashboard can render saved graphs. Admins should also work."""
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graphs_conf",
-            staticmethod(lambda: [{"id": "g-1"}]),
-        )
+    """The ``analytics`` row is ``id``/``title``/``subtitle``/``grouping``/
+    ``priority``/``x_axis_days`` — the shape the admin form writes."""
+
+    ROW = {
+        "id": "g-1",
+        "title": "Desktop usage",
+        "subtitle": "last quarter",
+        "grouping": "grp-1",
+        "priority": 3,
+        "x_axis_days": 90,
+    }
+    GROUPING = {"id": "grp-1", "name": "Desktop parameters"}
+
+    @classmethod
+    def _tables(cls, analytics=None):
+        return {
+            "analytics": analytics if analytics is not None else [dict(cls.ROW)],
+            "usage_grouping": [dict(cls.GROUPING)],
+            "usage_parameter": [],
+        }
+
+    @pytest.mark.clear_cache
+    def test_list_preserves_every_configured_field(self, test_client):
+        """Regression: the response model declared name/type/consumer/
+        item_type and dropped the real columns, so the analytics page
+        computed its window from an undefined x_axis_days and asked the
+        credits endpoint for "Invalid date"."""
         response = test_client(
-            url="/admin/items/analytics/graph", jwt=MockJWT(role_id="manager")
+            url="/admin/items/analytics/graph",
+            jwt=MockJWT(role_id="manager"),
+            db_tables_data=self._tables(),
         )
         assert response.status_code == 200
-        assert response.json()[0]["id"] == "g-1"
+        (graph,) = response.json()
+        assert graph["x_axis_days"] == 90
+        assert graph["priority"] == 3
+        assert graph["title"] == "Desktop usage"
+        assert graph["subtitle"] == "last quarter"
+        assert graph["grouping"] == "grp-1"
+        assert graph["grouping_name"] == "Desktop parameters"
 
-    def test_list_user_forbidden(self, monkeypatch, test_client):
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graphs_conf",
-            staticmethod(lambda: []),
-        )
+    @pytest.mark.clear_cache
+    def test_list_bare_row_survives_serialisation(self, test_client):
+        """Rows written while the create schema dropped the fields have
+        only id/grouping. They must serialise, not 500."""
         response = test_client(
-            url="/admin/items/analytics/graph", jwt=MockJWT(role_id="user")
+            url="/admin/items/analytics/graph",
+            jwt=MockJWT(role_id="manager"),
+            db_tables_data=self._tables([{"id": "g-2", "grouping": "grp-1"}]),
+        )
+        assert response.status_code == 200
+        (graph,) = response.json()
+        assert graph["id"] == "g-2"
+        assert graph["x_axis_days"] is None
+
+    @pytest.mark.clear_cache
+    def test_list_user_forbidden(self, test_client):
+        response = test_client(
+            url="/admin/items/analytics/graph",
+            jwt=MockJWT(role_id="user"),
+            db_tables_data=self._tables(),
         )
         assert response.status_code == 403
 
-    def test_get_on_admin_router(self, monkeypatch, test_client):
+    def test_get_on_admin_router(self, test_client):
         """Per-graph GET is admin-only. Pin so a future move to
         manager_router (which would let managers read each other's
         custom graphs) fails loud."""
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graph_conf",
-            staticmethod(lambda cid: {"id": cid}),
-        )
-        # admin allowed
         response = test_client(
-            url="/admin/item/analytics/graph/g-1", jwt=MockJWT(role_id="admin")
+            url="/admin/item/analytics/graph/g-1",
+            jwt=MockJWT(role_id="admin"),
+            db_tables_data=self._tables(),
         )
         assert response.status_code == 200
-        # manager blocked
+        assert response.json()["x_axis_days"] == 90
         response = test_client(
-            url="/admin/item/analytics/graph/g-1", jwt=MockJWT(role_id="manager")
+            url="/admin/item/analytics/graph/g-1",
+            jwt=MockJWT(role_id="manager"),
+            db_tables_data=self._tables(),
         )
         assert response.status_code == 403
 
-    def test_get_unknown_returns_404(self, monkeypatch, test_client):
-        def fail(cid):
-            raise Error("not_found", "Graph config not found")
-
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graph_conf",
-            staticmethod(fail),
-        )
+    def test_get_unknown_returns_404(self, test_client):
         response = test_client(
-            url="/admin/item/analytics/graph/ghost", jwt=MockJWT(role_id="admin")
+            url="/admin/item/analytics/graph/ghost",
+            jwt=MockJWT(role_id="admin"),
+            db_tables_data=self._tables(),
         )
         assert response.status_code == 404
 
-    def test_add(self, monkeypatch, test_client):
+    def test_add_persists_every_field(self, monkeypatch, test_client):
+        """Mocked at the DB boundary so the route and service run for real:
+        what reaches ``create_graph_config`` is what reaches RethinkDB."""
         captured = {}
         monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.add_usage_graph_conf",
+            "isardvdi_common.lib.analytics.analytics.AnalyticsProcessed"
+            ".create_graph_config",
             staticmethod(lambda data: captured.update(data=data)),
+        )
+        body = {
+            "grouping": "grp-1",
+            "priority": 3,
+            "x_axis_days": 90,
+            "title": "Desktop usage",
+            "subtitle": "last quarter",
+        }
+        response = test_client(
+            url="/admin/item/analytics/graph",
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body=body,
+        )
+        assert response.status_code == 204
+        assert captured["data"] == body
+
+    @pytest.mark.parametrize(
+        "missing", ["grouping", "priority", "x_axis_days", "title"]
+    )
+    def test_add_requires_every_configured_field(
+        self, monkeypatch, test_client, missing
+    ):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.analytics.analytics.AnalyticsProcessed"
+            ".create_graph_config",
+            staticmethod(lambda data: None),
+        )
+        body = {
+            "grouping": "grp-1",
+            "priority": 3,
+            "x_axis_days": 90,
+            "title": "Desktop usage",
+        }
+        del body[missing]
+        response = test_client(
+            url="/admin/item/analytics/graph",
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body=body,
+        )
+        assert response.status_code == 400
+        assert missing in response.json()["description"]
+
+    def test_add_rejects_zero_days(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.analytics.analytics.AnalyticsProcessed"
+            ".create_graph_config",
+            staticmethod(lambda data: None),
         )
         response = test_client(
             url="/admin/item/analytics/graph",
             method="POST",
             jwt=MockJWT(role_id="admin"),
-            body={"name": "Storage by month", "type": "line"},
+            body={
+                "grouping": "grp-1",
+                "priority": 3,
+                "x_axis_days": 0,
+                "title": "Desktop usage",
+            },
         )
-        assert response.status_code == 204
-        assert captured["data"] == {"name": "Storage by month", "type": "line"}
+        assert response.status_code == 400
+        assert "x_axis_days" in response.json()["description"]
 
-    def test_update(self, monkeypatch, test_client):
+    def test_update_sends_only_supplied_fields_and_drops_id(
+        self, monkeypatch, test_client
+    ):
+        """The edit form posts ``id`` in the body; it must not reach the
+        update, and untouched columns must be left alone."""
         captured = {}
         monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.update_usage_graph_conf",
+            "isardvdi_common.lib.analytics.analytics.AnalyticsProcessed"
+            ".update_graph_config",
             staticmethod(lambda cid, data: captured.update(cid=cid, data=data)),
         )
         response = test_client(
             url="/admin/item/analytics/graph/g-1",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
-            body={"name": "Renamed"},
+            body={"id": "g-1", "title": "Renamed", "x_axis_days": 30},
         )
         assert response.status_code == 204
-        assert captured == {"cid": "g-1", "data": {"name": "Renamed"}}
+        assert captured == {
+            "cid": "g-1",
+            "data": {"title": "Renamed", "x_axis_days": 30},
+        }
 
     def test_delete(self, monkeypatch, test_client):
         captured = {}
         monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.delete_usage_graph_conf",
+            "isardvdi_common.lib.analytics.analytics.AnalyticsProcessed"
+            ".delete_graph_config",
             staticmethod(lambda cid: captured.update(cid=cid)),
         )
         response = test_client(
@@ -269,38 +370,27 @@ class TestGraphConfig:
         assert response.status_code == 204
         assert captured["cid"] == "g-1"
 
-    def test_manager_forbidden_on_mutation(self, monkeypatch, test_client):
+    def test_manager_forbidden_on_mutation(self, test_client):
         """Mutations are admin-only. Verify manager is blocked on each
         mutating verb."""
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.add_usage_graph_conf",
-            staticmethod(lambda data: None),
-        )
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.update_usage_graph_conf",
-            staticmethod(lambda cid, data: None),
-        )
-        monkeypatch.setattr(
-            "api.routes.admin.analytics.AdminAnalyticsService.delete_usage_graph_conf",
-            staticmethod(lambda cid: None),
-        )
-        for method, url, body in [
-            ("POST", "/admin/item/analytics/graph", {"name": "x"}),
-            ("PUT", "/admin/item/analytics/graph/g-1", {"name": "y"}),
+        body = {
+            "grouping": "grp-1",
+            "priority": 3,
+            "x_axis_days": 90,
+            "title": "Desktop usage",
+        }
+        for method, url, payload in [
+            ("POST", "/admin/item/analytics/graph", body),
+            ("PUT", "/admin/item/analytics/graph/g-1", {"title": "y"}),
             ("DELETE", "/admin/item/analytics/graph/g-1", None),
         ]:
             response = test_client(
                 url=url,
                 method=method,
                 jwt=MockJWT(role_id="manager"),
-                body=body or {},
+                body=payload or {},
             )
             assert response.status_code == 403, f"{method} {url} should be 403"
-
-
-# ══════════════════════════════════════════════════════════════════════════
-#  POST /analytics/desktops/{less_used,recently_used,most_used}
-# ══════════════════════════════════════════════════════════════════════════
 
 
 class TestDesktopAnalytics:
