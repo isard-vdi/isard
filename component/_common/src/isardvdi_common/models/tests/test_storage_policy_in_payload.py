@@ -136,6 +136,55 @@ def test_convert_vmdk_measure_records_no_geometry():
     assert all("qcow2_geometry" not in m for m in measures)
 
 
+def test_create_new_storage_payload_carries_the_resolved_geometry():
+    """create_new_storage is the enqueue site behind every new blank/parented
+    desktop disk. Drive the real body and assert the RESOLVED values reach the
+    payload -- the AST test alone would stay green with a hardcoded literal."""
+    disk = _bare("disk-1")
+    with (
+        patch.object(
+            Storage, "create_task", return_value=MagicMock(id="job-1")
+        ) as mock_create,
+        patch.object(Storage, "new_dict", return_value=disk),
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "pool", new_callable=PropertyMock, return_value=MagicMock(id="pA")
+        ),
+        patch.object(Storage, "__setattr__", lambda self, name, value: None),
+    ):
+        Storage.create_new_storage(
+            user_id="u1", pool_usage="desktop", parent_id=None, size="10"
+        )
+    kwargs = mock_create.call_args.kwargs["job_kwargs"]["kwargs"]
+    for key, value in _EXPECTED_GEO.items():
+        assert kwargs[key] == value
+
+
+def test_mv_move_carries_the_resolved_floor():
+    """The mv move site (a same-fs rename skips the gate, but the payload must
+    still carry the enqueuer-resolved floor, not fall back to the worker env)."""
+    s = _bare()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "pool", new_callable=PropertyMock, return_value=MagicMock(id="pA")
+        ),
+        patch.object(
+            Storage, "domains", new_callable=PropertyMock, return_value=[], create=True
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+        patch(
+            "isardvdi_common.models.storage.get_queue_from_storage_pools",
+            return_value="pA",
+        ),
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="pA")
+        s.mv(user_id="u1", destination_path="/isard/templates")
+    kwargs = mock_create.call_args.kwargs["job_kwargs"]["kwargs"]
+    assert kwargs["min_free_bytes"] == 5368709120
+
+
 def test_a_malformed_floor_raises_before_flipping_maintenance(monkeypatch):
     """The resolve-before-maintenance ordering IS the fix: a malformed value must
     raise BEFORE the row is flipped, or the disk is stuck in maintenance with no

@@ -66,19 +66,20 @@ def _kwargs_dict(job_kwargs_node):
 
 
 def _carries_geometry(kwargs_node):
-    """True if the kwargs dict names all four geometry keys, or spreads them
-    with ``**geometry``.
+    """True only if the kwargs dict spreads ``**geometry``.
 
     A ``**spread`` is an ``ast.Dict`` entry whose key is ``None``; only a spread
     of a name called ``geometry`` counts -- an unrelated ``**parent_args`` must
-    not pass this off as carrying the policy."""
+    not pass this off. The old "names all four keys as constants" branch is
+    deliberately gone: it accepted hardcoded literal VALUES (``"cluster_size":
+    "4k"``), which is exactly the staled-policy regression the behavioural tests
+    in test_storage_policy_in_payload.py now guard the create sites against."""
     if not isinstance(kwargs_node, ast.Dict):
         return False
     for k, v in zip(kwargs_node.keys, kwargs_node.values):
         if k is None and isinstance(v, ast.Name) and v.id == "geometry":
             return True
-    named = {k.value for k in kwargs_node.keys if isinstance(k, ast.Constant)}
-    return set(qcow2_geometry.KEYS).issubset(named)
+    return False
 
 
 def _collect_sites():
@@ -120,6 +121,51 @@ def _collect_sites():
                     )
                 )
     return sites
+
+
+_MOVE_SITES = 3
+
+
+def test_every_move_site_carries_the_free_space_floor():
+    """move gates on the same floor as convert/disconnect, but "move" is not in
+    _DISK_TASKS so the geometry walk never sees it. Pin that every move payload
+    names min_free_bytes, so a new move site or a deleted floor is loud (a99aa13
+    fixed all three; only rsync had a behavioural test)."""
+    missing = []
+    found = 0
+    for node in ast.walk(_TREE):
+        job_kwargs = None
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "create_task"
+        ):
+            task = None
+            for kw in node.keywords:
+                if kw.arg == "task" and isinstance(kw.value, ast.Constant):
+                    task = kw.value.value
+                if kw.arg == "job_kwargs":
+                    job_kwargs = kw.value
+            if task != "move":
+                continue
+        elif isinstance(node, ast.Dict):
+            task_node = _dict_get(node, "task")
+            if not (isinstance(task_node, ast.Constant) and task_node.value == "move"):
+                continue
+            job_kwargs = _dict_get(node, "job_kwargs")
+        else:
+            continue
+        found += 1
+        kwargs = _kwargs_dict(job_kwargs)
+        keys = (
+            {k.value for k in kwargs.keys if isinstance(k, ast.Constant)}
+            if isinstance(kwargs, ast.Dict)
+            else set()
+        )
+        if "min_free_bytes" not in keys:
+            missing.append(node.lineno)
+    assert found == _MOVE_SITES, f"expected {_MOVE_SITES} move sites, found {found}"
+    assert not missing, f"move sites missing min_free_bytes: {missing}"
 
 
 def test_geometry_is_always_resolved_via_policy_not_hardcoded():

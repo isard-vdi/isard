@@ -110,25 +110,41 @@ class TestGeometryIsRequired:
             task.disconnect("/isard/g/d.qcow2", **geo)
         assert ran == []
 
-    def test_the_environment_is_never_consulted(self, monkeypatch, geo):
-        """Deleting every QCOW2_* var must not change the argv."""
+    @pytest.mark.parametrize("op", ["create", "convert", "disconnect"])
+    def test_the_payload_wins_over_a_conflicting_environment(
+        self, monkeypatch, geo, op
+    ):
+        """The whole point: a storage node with a STALE QCOW2_* in its own env
+        must NOT override the policy carried in the payload. Set env=2M and
+        payload=128k and assert the ARGV carries the payload's 128k -- deleting
+        the vars would only rule out an unconditional read, not an env-wins one."""
         import task
 
-        for var in (
-            "QCOW2_CLUSTER_SIZE",
-            "QCOW2_EXTENDED_L2",
-            "QCOW2_LAZY_REFCOUNTS",
-            "QCOW2_PREALLOCATION",
-        ):
-            monkeypatch.delenv(var, raising=False)
+        monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "2M")
+        monkeypatch.setenv("QCOW2_EXTENDED_L2", "off")
+        monkeypatch.setenv("QCOW2_LAZY_REFCOUNTS", "on")
+        monkeypatch.setenv("QCOW2_PREALLOCATION", "full")
         monkeypatch.setattr(task, "isdir", lambda p: True)
         monkeypatch.setattr(task, "isfile", lambda p: False)
+        monkeypatch.setattr(task, "_safe_unlink", lambda p: None)
+        monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
+        monkeypatch.setattr(task, "rename", lambda a, b: None)
         ran = []
         monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a[0]) or _Proc())
+        monkeypatch.setattr(
+            task, "run_with_progress", lambda *a, **k: ran.append(a[0]) or 0
+        )
         geo["cluster_size"] = "128k"
-        task.create("/isard/g/d.qcow2", "qcow2", **geo)
+        if op == "create":
+            task.create("/isard/g/d.qcow2", "qcow2", **geo)
+        elif op == "convert":
+            task.convert("/isard/s.qcow2", "/isard/d.qcow2", "qcow2", False, **geo)
+        else:
+            task.disconnect("/isard/g/d.qcow2", **geo)
         cmd = ran[0]
-        assert "cluster_size=128k" in cmd[cmd.index("-o") + 1]
+        opts = cmd[cmd.index("-o") + 1]
+        assert "cluster_size=128k" in opts  # payload wins
+        assert "cluster_size=2M" not in opts  # env ignored
 
 
 class TestMoveDelete:
