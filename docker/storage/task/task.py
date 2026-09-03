@@ -250,18 +250,29 @@ def _redis_connection():
 DEFAULT_MIN_FREE_BYTES = int(environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
 
 
-def _qemu_virtual_size(source_path):
-    """The VIRTUAL (logical) size of a qcow2 in bytes, or ``None`` if it cannot
-    be read. Used to size a preallocated destination, which physically consumes
-    the virtual size regardless of how little the source has written."""
+def _qemu_measure_required(source_path, options):
+    """Bytes a qcow2 destination written from ``source_path`` with ``-o
+    options`` will physically need, per ``qemu-img measure``, or ``None`` if it
+    cannot be read.
+
+    This is qemu's own estimate for the exact geometry about to be written, so
+    it is right for every preallocation mode: ``off`` and ``metadata`` stay
+    sparse (qemu downgrades metadata to off before the truncate, so it consumes
+    only its L1/L2/refcount tables), while ``falloc``/``full`` consume the whole
+    virtual size. The source format is PROBED (no ``-f``), so a vmdk source
+    measured for a qcow2 destination works -- forcing ``-f qcow2`` on a vmdk
+    would fail and refuse a runnable convert.
+    """
     try:
         completed = run(
             [
                 "qemu-img",
-                "info",
+                "measure",
                 "-U",
-                "-f",
+                "-O",
                 "qcow2",
+                "-o",
+                options,
                 "--output",
                 "json",
                 source_path,
@@ -274,13 +285,13 @@ def _qemu_virtual_size(source_path):
     if completed.returncode != 0:
         return None
     try:
-        return int(loads(completed.stdout)["virtual-size"])
+        return int(loads(completed.stdout)["required"])
     except (ValueError, KeyError, TypeError):
         return None
 
 
 def _require_free_space(
-    target_dir, source_path, min_free_bytes, action, verb, reserve_full=False
+    target_dir, source_path, min_free_bytes, action, verb, measure_options=None
 ):
     """Refuse ``action`` unless ``target_dir`` keeps ``min_free_bytes`` free
     after landing a full copy of ``source_path``.
@@ -292,11 +303,12 @@ def _require_free_space(
     — proceed when free space was unknown, reserve zero when the size was —
     removed the guard exactly where it mattered.
 
-    ``reserve_full`` is set by a caller whose destination is PREALLOCATED
-    (``preallocation`` other than ``off``): such a destination physically
-    consumes the disk's VIRTUAL size, not the source's apparent size, so the
-    apparent size would under-reserve by the whole sparse gap and let the copy
-    breach the floor. Fails closed if the virtual size cannot be read.
+    ``measure_options`` is the qcow2 ``-o`` option string a qcow2-writing caller
+    (convert/disconnect) will use: the space needed is then qemu's own
+    ``required`` for that exact geometry, which honours the preallocation mode
+    (metadata stays sparse, falloc/full consume the virtual size). A caller that
+    writes a raw copy (``move``) leaves it ``None`` and the apparent size is
+    used. Fails closed if the measure cannot be read.
 
     ``min_free_bytes=0`` disables the check; ``None`` means "use the default".
 
@@ -321,23 +333,19 @@ def _require_free_space(
             f"space at {target_dir} (statvfs failed), so the {min_free_bytes} "
             "byte floor cannot be honoured"
         )
-    if reserve_full:
-        # A preallocated destination lands at the disk's virtual size; the
-        # source's apparent size is no proxy for it.
-        needed = _qemu_virtual_size(source_path)
+    if measure_options is not None:
+        needed = _qemu_measure_required(source_path, measure_options)
         if needed is None:
             raise RuntimeError(
-                f"{action}: refusing to {verb} {source_path}: the geometry "
-                "preallocates the destination, so it will consume the disk's "
-                "virtual size, which cannot be read here"
+                f"{action}: refusing to {verb} {source_path}: cannot measure the "
+                "space the destination geometry needs (qemu-img measure failed)"
             )
     else:
         try:
-            # APPARENT size, not st_blocks: neither the rsync argv nor a
-            # preallocation=off qemu-img convert carries --sparse here, so a
-            # sparse qcow2 lands close to fully allocated at the destination.
-            # Reserving only the allocated size would let the copy breach the
-            # very floor this gate exists to hold.
+            # APPARENT size, not st_blocks: the rsync argv carries no --sparse,
+            # so a sparse qcow2 lands close to fully allocated at the
+            # destination. Reserving only the allocated size would let the copy
+            # breach the very floor this gate exists to hold.
             needed = os_stat(source_path).st_size
         except OSError as exc:
             raise RuntimeError(
@@ -1682,22 +1690,6 @@ def convert(
     if format not in ["qcow2", "vmdk"]:
         raise ValueError(f"{format} is not a valid disk format.")
 
-    # A convert writes a whole second copy of the disk, so on a tight pool it
-    # fills the destination filesystem. Checked BEFORE qemu-img starts: letting
-    # it run into ENOSPC costs the whole copy and leaves a partial destination
-    # for the failure branch to unlink. The destination is preallocated only on
-    # a qcow2 output whose policy preallocates AND is not compressed (compression
-    # drops preallocation below); reserve the virtual size in that case.
-    preallocates = format == "qcow2" and not compression and preallocation != "off"
-    _require_free_space(
-        dirname(dest_disk_path),
-        source_disk_path,
-        min_free_bytes,
-        "convert",
-        "convert",
-        reserve_full=preallocates,
-    )
-
     if compression and format == "qcow2":
         compress = ["-c"]
     else:
@@ -1705,8 +1697,10 @@ def convert(
 
     # convert writes a flat destination (no -B), so the geometry has no backing
     # file and preallocation applies. Only qcow2 destinations take an ``-o``:
-    # a vmdk cannot honour qcow2 options.
+    # a vmdk cannot honour qcow2 options. Built BEFORE the free-space gate so the
+    # gate can measure the destination for this exact geometry.
     geometry_opts = []
+    measure_options = None
     if format == "qcow2":
         # qemu-img convert -c rejects any preallocation != off (verified on
         # staging: "Compression and preallocation not supported at the same
@@ -1723,6 +1717,22 @@ def convert(
             with_preallocation=not compression,
         )
         geometry_opts = ["-o", options]
+        measure_options = options
+
+    # A convert writes a whole second copy of the disk, so on a tight pool it
+    # fills the destination filesystem. Checked BEFORE qemu-img starts: letting
+    # it run into ENOSPC costs the whole copy and leaves a partial destination
+    # for the failure branch to unlink. A qcow2 destination is measured for its
+    # exact geometry (so preallocation is honoured, and metadata is not treated
+    # as full); a vmdk falls back to the apparent size.
+    _require_free_space(
+        dirname(dest_disk_path),
+        source_disk_path,
+        min_free_bytes,
+        "convert",
+        "convert",
+        measure_options=measure_options,
+    )
 
     try:
         rc = run_with_progress(
@@ -2141,25 +2151,11 @@ def disconnect(
     disconnected_path = storage_path + ".wo_chain"
     _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
 
-    # The flattened sibling is written next to the live disk, so the filesystem
-    # this can fill is the one already holding it. Measured AFTER the unlink
-    # above: a stale sibling holds a whole disk image of the very space being
-    # measured, so probing first would refuse on space about to be released.
-    # The flattened destination is preallocated when the policy preallocates, so
-    # it consumes the disk's virtual size; reserve accordingly.
-    _require_free_space(
-        dirname(storage_path),
-        storage_path,
-        min_free_bytes,
-        "disconnect",
-        "disconnect",
-        reserve_full=preallocation != "off",
-    )
-
     # The output is the flattened disk with no backing file, so preallocation
     # applies. Written once here and rename()d over the live disk below, so
     # without this the disconnect silently rebuilt the disk at qemu-img
-    # defaults, discarding the install's geometry.
+    # defaults, discarding the install's geometry. Built before the gate so the
+    # gate can measure the destination for this exact geometry.
     options = qcow2_geometry.create_options(
         {
             "cluster_size": cluster_size,
@@ -2169,6 +2165,22 @@ def disconnect(
         },
         has_backing_file=False,
     )
+
+    # The flattened sibling is written next to the live disk, so the filesystem
+    # this can fill is the one already holding it. Measured AFTER the unlink
+    # above: a stale sibling holds a whole disk image of the very space being
+    # measured, so probing first would refuse on space about to be released.
+    # Measured for this exact geometry, so preallocation is honoured and metadata
+    # is not treated as full.
+    _require_free_space(
+        dirname(storage_path),
+        storage_path,
+        min_free_bytes,
+        "disconnect",
+        "disconnect",
+        measure_options=options,
+    )
+
     try:
         run(
             [
