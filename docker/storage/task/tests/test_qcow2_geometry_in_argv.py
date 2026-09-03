@@ -201,9 +201,32 @@ class TestDisconnectArgv:
         monkeypatch.setattr(task, "rename", lambda a, b: renamed.append((a, b)))
         task.disconnect("/isard/g/d.qcow2", **geo)
         cmd = calls[0]
-        assert "-o" in cmd
         assert cmd.index("-o") < cmd.index("/isard/g/d.qcow2")
+        # The FULL option string, not just presence: a flattened disconnect with
+        # no backing file always carries preallocation, and dropping it silently
+        # (e.g. flipping has_backing_file) must fail here.
+        assert _opts(cmd) == (
+            "cluster_size=4k,extended_l2=off,lazy_refcounts=off,preallocation=off"
+        )
         assert renamed == [("/isard/g/d.qcow2.wo_chain", "/isard/g/d.qcow2")]
+
+    def test_disconnect_carries_a_preallocating_policy(self, monkeypatch):
+        import task
+
+        monkeypatch.setattr(task, "_safe_unlink", lambda p: None)
+        monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
+        calls = _capture_run(monkeypatch)
+        monkeypatch.setattr(task, "rename", lambda a, b: None)
+        task.disconnect(
+            "/isard/g/d.qcow2",
+            cluster_size="16k",
+            extended_l2="on",
+            lazy_refcounts="on",
+            preallocation="metadata",
+        )
+        assert _opts(calls[0]) == (
+            "cluster_size=16k,extended_l2=on,lazy_refcounts=on,preallocation=metadata"
+        )
 
 
 # --- qemu_img_info_backing_chain stamping ------------------------------------

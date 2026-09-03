@@ -122,6 +122,31 @@ def _collect_sites():
     return sites
 
 
+def test_geometry_is_always_resolved_via_policy_not_hardcoded():
+    """``_carries_geometry`` accepts a ``**geometry`` spread without resolving
+    what ``geometry`` is bound to, so a refactor that hardcodes or stales the
+    policy at a site stays green. Pin that every ``geometry = ...`` assignment in
+    the module resolves ``qcow2_geometry.policy()`` -- never a literal or another
+    call -- so a hardcoded default cannot silently replace the resolved policy."""
+    bad = []
+    for node in ast.walk(_TREE):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "geometry" for t in node.targets
+        ):
+            value = node.value
+            is_policy = (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Attribute)
+                and value.func.attr == "policy"
+            )
+            if not is_policy:
+                bad.append(node.lineno)
+    assert not bad, (
+        "`geometry` must be assigned from qcow2_geometry.policy(), not hardcoded, "
+        f"at lines {bad}"
+    )
+
+
 def test_exactly_six_disk_writing_sites():
     sites = _collect_sites()
     assert len(sites) == _EXPECTED_SITES, (

@@ -136,6 +136,44 @@ def test_convert_vmdk_measure_records_no_geometry():
     assert all("qcow2_geometry" not in m for m in measures)
 
 
+def test_a_malformed_floor_raises_before_flipping_maintenance(monkeypatch):
+    """The resolve-before-maintenance ordering IS the fix: a malformed value must
+    raise BEFORE the row is flipped, or the disk is stuck in maintenance with no
+    task to clear it."""
+    monkeypatch.setenv("STORAGE_MIN_FREE_BYTES", "1G")  # human-readable typo
+    s = _bare()
+    flips = []
+    with (
+        patch.object(Storage, "create_task"),
+        patch.object(
+            Storage, "set_maintenance", lambda self, action: flips.append(action)
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        with pytest.raises(ValueError, match="STORAGE_MIN_FREE_BYTES"):
+            s.disconnect_chain(user_id="u1")
+    assert flips == []  # never flipped to maintenance
+
+
+def test_a_bad_geometry_raises_before_flipping_maintenance(monkeypatch):
+    monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "4k")
+    monkeypatch.setenv("QCOW2_EXTENDED_L2", "on")  # invalid with a 4k cluster
+    s = _bare()
+    flips = []
+    with (
+        patch.object(Storage, "create_task"),
+        patch.object(
+            Storage, "set_maintenance", lambda self, action: flips.append(action)
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        with pytest.raises(ValueError):
+            s.disconnect_chain(user_id="u1")
+    assert flips == []
+
+
 def test_rsync_move_carries_the_resolved_floor():
     """move is the third whole-disk copy and gates on the same floor; it must
     carry it from the enqueuer, not read it from the worker's own env."""
