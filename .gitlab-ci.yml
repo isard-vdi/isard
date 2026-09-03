@@ -483,21 +483,34 @@ unit-test-vmalert:
 
 unit-test-apiv4:
   extends: .python-test-job
-  # A real redis, because the retry guard that refuses a task whose direct
-  # dependent is CANCELED rests on rq's own admission rule, and that premise is
-  # proved by running rq rather than by asserting it. The service is declared
-  # here and NOT on ``.python-test-base``: sixteen other python jobs extend that
-  # base and none of them wants a redis container. Same image and digest the
-  # stack runs, so the proof exercises the redis we ship.
+  variables:
+    COVERAGE_DIR: component/apiv4/src
+    USAGE: "production"
+  script:
+    - make ci-test-apiv4
+
+# The premises our code rests on that belong to somebody else's library: an rq
+# admission rule, a Lua script's effect. Proved against the real dependency,
+# because a fake would be a second implementation of the thing under test.
+#
+# Blocking, like a unit job, and separate from one for the same reason it is
+# blocking: a test that needs a running server is not a unit test, and the unit
+# jobs should not be declaring services to accommodate it. No stack here, only
+# the dependency itself.
+contract-test-redis:
+  extends: .python-test-base
+  stage: unit-test
   services:
     - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
       alias: redis
   variables:
-    COVERAGE_DIR: component/apiv4/src
-    USAGE: "production"
     REDIS_HOST: redis
   script:
-    - make ci-test-apiv4
+    - make ci-test-contracts
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/contracts/report.xml
 
 unit-test-change-handler:
   # Real rq graphs: which members of a chain can be reached from its root.

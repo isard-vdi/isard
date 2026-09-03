@@ -894,6 +894,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 # - Loki port 3100 (if monitoring enabled)
 # - VictoriaMetrics port 9090 (if monitoring enabled)
 #
+# Set it on a hypervisor node too: there it PUBLISHES the ports the rest of the deployment dials
+# instead of exposing central services -- ssh 2022 (engine ssh-keyscans it to register and command
+# the hypervisor) and the geneve/wireguard tunnel port WG_HYPERS_PORT/udp. Without them the
+# hypervisor stays Offline and no desktop starts. On an all-in-one both stay with the vpn part.
+#
 # ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
 # remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).
 #
