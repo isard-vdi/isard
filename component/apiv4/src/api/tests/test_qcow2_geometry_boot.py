@@ -12,8 +12,10 @@ logs (does not raise) a bad policy, so a disk-shape typo cannot crash-loop the
 whole API.
 """
 
+import ast
 import inspect
 import logging
+import textwrap
 
 import api
 import pytest
@@ -94,8 +96,14 @@ def test_valid_min_free_is_silent(monkeypatch, caplog):
 
 
 def test_lifespan_calls_the_boot_reports():
-    """The reports are only useful if the lifespan invokes them; deleting the two
-    call lines must fail a test rather than pass silently."""
-    src = inspect.getsource(api.lifespan)
-    assert "_report_qcow2_geometry_at_boot()" in src
-    assert "_validate_storage_min_free_at_boot()" in src
+    """The reports are only useful if the lifespan actually invokes them.
+    Parse the AST and look for real Call nodes -- a substring check would pass on
+    a commented-out or `if False:`-wrapped call."""
+    tree = ast.parse(textwrap.dedent(inspect.getsource(api.lifespan)))
+    called = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "_report_qcow2_geometry_at_boot" in called
+    assert "_validate_storage_min_free_at_boot" in called
