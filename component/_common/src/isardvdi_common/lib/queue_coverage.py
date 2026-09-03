@@ -492,6 +492,12 @@ FLEET_GONE_GRACE_S = _env_int("STORAGE_FLEET_GONE_GRACE_S", 120)
 
 _FLEET_SEEN_KEY = f"{_COV_PREFIX}fleet_seen"
 
+# Only publish_lane throttles; a caller that has just observed consumers
+# records it unconditionally.
+FLEET_SEEN_MIN_INTERVAL_S = _env_int("STORAGE_FLEET_SEEN_MIN_INTERVAL_S", 5)
+
+_last_lane_fleet_note = 0.0
+
 
 def cov_key(pool, tier):
     """Redis key for the live (pool, tier) coverage zset."""
@@ -518,13 +524,17 @@ def fleet_last_seen(conn):
 
 def publish_lane(conn, pool, tier, worker, now, ttl):
     """Heartbeat this worker's membership in the lane's coverage zset."""
+    global _last_lane_fleet_note
     key = cov_key(pool, tier)
     conn.zadd(key, {worker: now})
     conn.expire(key, ttl)
     # Date the fleet from the worker side rather than from whoever happens to
     # ask: the shed gate needs to tell a restart gap from an absent fleet, and a
     # heartbeat is the one event that proves consumers exist.
-    note_fleet_seen(conn, now)
+    # One pass publishes every lane, all with the same timestamp.
+    if not 0 <= float(now) - _last_lane_fleet_note < FLEET_SEEN_MIN_INTERVAL_S:
+        note_fleet_seen(conn, now)
+        _last_lane_fleet_note = float(now)
 
 
 def unpublish_worker(conn, pool, tier, worker):
