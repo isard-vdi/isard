@@ -430,15 +430,22 @@ remove_part() {
 # trap. Fail loud so "everything is centralised" is checkable, not a promise.
 # Reads $parts and the QCOW2_* vars from the environment; $1 is the flavour name.
 _require_qcow2_only_on_apiv4() {
-	case " $parts " in
+	# $parts comes straight from WEB_PARTS/ALLINONE_PARTS, which are NEWLINE+TAB
+	# separated, so " $parts " has no literal spaces around the names. Collapse
+	# the whitespace (the $(echo) word-splitting does it) before matching, the
+	# same way the other part-membership checks in this file do it via grep \s.
+	case " $(echo $parts) " in
 		*" apiv4 "*) return 0 ;;
 	esac
+	# STORAGE_MIN_FREE_BYTES moved to the enqueuer for the same reason, so it is
+	# inert on a non-apiv4 node too.
 	if [ -n "${QCOW2_CLUSTER_SIZE:-}" ] || [ -n "${QCOW2_EXTENDED_L2:-}" ] || \
-	   [ -n "${QCOW2_LAZY_REFCOUNTS:-}" ] || [ -n "${QCOW2_PREALLOCATION:-}" ]
+	   [ -n "${QCOW2_LAZY_REFCOUNTS:-}" ] || [ -n "${QCOW2_PREALLOCATION:-}" ] || \
+	   [ -n "${STORAGE_MIN_FREE_BYTES:-}" ]
 	then
-		echo "ERROR: flavour $1 does not run apiv4, but its cfg still sets QCOW2_* keys." >&2
-		echo "       QCOW2_* are read only by isard-apiv4 (web/all-in-one) now; here they are inert." >&2
-		echo "       Move the qcow2 geometry to the web/all-in-one node's cfg." >&2
+		echo "ERROR: flavour $1 does not run apiv4, but its cfg still sets QCOW2_*/STORAGE_MIN_FREE_BYTES." >&2
+		echo "       These are read only by isard-apiv4 (web/all-in-one) now; here they are inert." >&2
+		echo "       Move the qcow2 geometry and the free-space floor to the web/all-in-one node's cfg." >&2
 		return 1
 	fi
 	return 0
