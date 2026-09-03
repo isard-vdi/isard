@@ -16,12 +16,10 @@ import pytest
 import redis
 from isardvdi_common.redis_stream import (
     DEAD_CONSUMER_IDLE_MS,
-    MAX_DELIVERIES,
     PAYLOAD_LOG_CHARS,
     RECLAIM_IDLE_MS,
     RedisStreamConsumer,
     _payload_summary,
-    dead_stream,
 )
 
 
@@ -271,13 +269,16 @@ class TestReclaimingWhatADeadConsumerLeft:
     consumer's own list, and the consumer name carries the pid. So a process
     killed between delivery and ACK orphans its entries under a name no live
     process will use again, and only a group-wide ``XAUTOCLAIM`` reaches them.
+
+    They are dropped, not re-delivered: an entry claimable here is at least
+    RECLAIM_IDLE_MS old and would land after every change delivered since, and
+    these handlers apply the envelope's values rather than re-reading the row.
     """
 
     @staticmethod
-    def _claiming(entries, deliveries=1):
+    def _claiming(entries):
         fake_r = MagicMock()
         fake_r.xautoclaim.return_value = ["0-0", entries]
-        fake_r.xpending_range.return_value = [{"times_delivered": deliveries}]
         return fake_r
 
     @patch("isardvdi_common.redis_stream.blocking_client")
@@ -286,7 +287,7 @@ class TestReclaimingWhatADeadConsumerLeft:
         c = RedisStreamConsumer(
             streams=["stream:a", "stream:b"], group="g1", consumer="w1"
         )
-        c._reclaim_pending(MagicMock())
+        c._reclaim_pending()
 
         assert mock_client.return_value.xautoclaim.call_count == 2
         for call in mock_client.return_value.xautoclaim.call_args_list:
@@ -296,7 +297,10 @@ class TestReclaimingWhatADeadConsumerLeft:
         )
 
     @patch("isardvdi_common.redis_stream.blocking_client")
-    def test_a_claimed_entry_reaches_the_handler_and_is_acked(self, mock_client):
+    def test_a_claimed_entry_is_acked_and_never_handed_to_the_handler(
+        self, mock_client
+    ):
+        """Replaying it would overwrite newer state with older."""
         payload = json.dumps({"table": "users", "change": {"new_val": {"id": "u-5"}}})
         fake_r = self._claiming([(b"3-0", {"data": payload})])
         mock_client.return_value = fake_r
@@ -305,104 +309,50 @@ class TestReclaimingWhatADeadConsumerLeft:
         c = RedisStreamConsumer(streams=["stream:a"], group="g1", consumer="w1")
         c._reclaim_pending(handler)
 
-        handler.assert_called_once_with(
-            {"table": "users", "change": {"new_val": {"id": "u-5"}}}
-        )
+        handler.assert_not_called()
         fake_r.xack.assert_called_once_with("stream:a", "g1", b"3-0")
 
     @patch("isardvdi_common.redis_stream.blocking_client")
-    def test_an_entry_the_stream_no_longer_has_is_just_acked(self, mock_client, caplog):
-        """A trimmed entry still sits in the PEL with no fields; nothing can be
-        done with it but drop it.
+    def test_the_dropped_change_is_reported_with_enough_to_identify_it(
+        self, mock_client, caplog
+    ):
+        payload = json.dumps({"table": "users", "change": {"new_val": {"id": "u-42"}}})
+        mock_client.return_value = self._claiming([(b"3-0", {"data": payload})])
 
-        Asserting only "the handler was not called" would not distinguish this
-        from falling through into the delivery path, where ``fields`` being
-        ``None`` raises before the handler and ``_deliver``'s except swallows it
-        and ACKs anyway. What separates them is that this path is not a failure
-        and must log nothing.
-        """
+        c = RedisStreamConsumer(streams=["stream:a"], group="vpn-wireguard")
+        with caplog.at_level(logging.WARNING):
+            c._reclaim_pending()
+
+        assert "3-0" in caplog.text
+        assert "stream:a" in caplog.text
+        assert "vpn-wireguard" in caplog.text
+        assert "u-42" in caplog.text
+
+    @patch("isardvdi_common.redis_stream.blocking_client")
+    def test_an_entry_the_stream_no_longer_has_is_acked_silently(
+        self, mock_client, caplog
+    ):
+        """A trimmed entry has no payload to report; it is not a loss to log."""
         fake_r = self._claiming([(b"4-0", None)])
         mock_client.return_value = fake_r
-        handler = MagicMock()
 
         c = RedisStreamConsumer(streams=["stream:a"], group="g1", consumer="w1")
-        with caplog.at_level(logging.ERROR):
-            c._reclaim_pending(handler)
+        with caplog.at_level(logging.WARNING):
+            c._reclaim_pending()
 
-        handler.assert_not_called()
         fake_r.xack.assert_called_once_with("stream:a", "g1", b"4-0")
         assert caplog.text == ""
-        fake_r.xpending_range.assert_not_called()
-
-    @patch("isardvdi_common.redis_stream.blocking_client")
-    def test_past_the_delivery_cap_it_is_dead_lettered_not_handed_out_again(
-        self, mock_client
-    ):
-        """One that keeps coming back is killing whatever picks it up, so it
-        must stop being picked up."""
-        payload = json.dumps({"table": "users", "change": {"new_val": {"id": "u-9"}}})
-        fake_r = self._claiming(
-            [(b"5-0", {"data": payload})], deliveries=MAX_DELIVERIES + 1
-        )
-        mock_client.return_value = fake_r
-        handler = MagicMock()
-
-        c = RedisStreamConsumer(streams=["stream:a"], group="g1", consumer="w1")
-        c._reclaim_pending(handler)
-
-        handler.assert_not_called()
-        fake_r.xadd.assert_called_once()
-        assert fake_r.xadd.call_args.args[0] == "stream:a:dead"
-        assert fake_r.xadd.call_args.args[1] == {"data": payload}
-        assert fake_r.xadd.call_args.kwargs["maxlen"] > 0
-        fake_r.xack.assert_called_once_with("stream:a", "g1", b"5-0")
-
-    @patch("isardvdi_common.redis_stream.blocking_client")
-    def test_exactly_at_the_cap_it_is_still_handed_out(self, mock_client):
-        payload = json.dumps({"table": "users"})
-        fake_r = self._claiming(
-            [(b"6-0", {"data": payload})], deliveries=MAX_DELIVERIES
-        )
-        mock_client.return_value = fake_r
-        handler = MagicMock()
-
-        c = RedisStreamConsumer(streams=["stream:a"], group="g1", consumer="w1")
-        c._reclaim_pending(handler)
-
-        handler.assert_called_once()
-        fake_r.xadd.assert_not_called()
-
-    @patch("isardvdi_common.redis_stream.blocking_client")
-    def test_a_dead_letter_that_fails_leaves_the_entry_pending(self, mock_client):
-        """Better retried than silently dropped: only an XADD that landed may
-        be followed by the ACK."""
-        fake_r = self._claiming(
-            [(b"7-0", {"data": "{}"})], deliveries=MAX_DELIVERIES + 1
-        )
-        fake_r.xadd.side_effect = redis.ResponseError("nope")
-        mock_client.return_value = fake_r
-
-        c = RedisStreamConsumer(streams=["stream:a"], group="g1", consumer="w1")
-        c._reclaim_pending(MagicMock())
-
-        fake_r.xack.assert_not_called()
 
     @patch("isardvdi_common.redis_stream.blocking_client")
     def test_one_stream_failing_does_not_stop_the_others(self, mock_client):
         fake_r = MagicMock()
-        fake_r.xautoclaim.side_effect = [
-            redis.ResponseError("NOGROUP"),
-            ["0-0", []],
-        ]
+        fake_r.xautoclaim.side_effect = [redis.ResponseError("NOGROUP"), ["0-0", []]]
         mock_client.return_value = fake_r
 
         c = RedisStreamConsumer(streams=["stream:a", "stream:b"], group="g1")
-        c._reclaim_pending(MagicMock())  # must not raise
+        c._reclaim_pending()  # must not raise
 
         assert fake_r.xautoclaim.call_count == 2
-
-    def test_the_dead_letter_name_is_derived_from_the_stream(self):
-        assert dead_stream("stream:users") == "stream:users:dead"
 
 
 class TestReapingDeadConsumers:

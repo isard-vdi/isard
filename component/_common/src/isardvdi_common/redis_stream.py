@@ -25,14 +25,7 @@ PAYLOAD_LOG_CHARS = 500
 RECLAIM_IDLE_MS = 60000
 RECLAIM_EVERY_S = 30
 RECLAIM_COUNT = 100
-MAX_DELIVERIES = 5
-DEAD_STREAM_MAXLEN = 10000
 DEAD_CONSUMER_IDLE_MS = 12 * 60 * 60 * 1000
-
-
-def dead_stream(stream):
-    """Where an entry goes when it has been delivered too many times."""
-    return f"{stream}:dead"
 
 
 def _payload_summary(fields):
@@ -132,14 +125,22 @@ class RedisStreamConsumer:
         finally:
             r.xack(stream_name, self.group, msg_id)
 
-    def _reclaim_pending(self, handler):
-        """Re-deliver entries a dead consumer of this group left un-ACKed.
+    def _reclaim_pending(self, handler=None):
+        """Claim and drop the entries a dead consumer of this group left.
 
         ``_process_pending`` reads ``{stream: "0"}``, which is only ever this
         consumer's own list, so a process killed between delivery and ACK
         orphans its entries under a consumer name no live process will ever use
         again. ``XAUTOCLAIM`` is group-wide and is the only thing that reaches
         them.
+
+        They are dropped rather than re-delivered. These handlers apply the
+        values carried in the envelope rather than re-reading the row, and an
+        entry claimable here is at least ``RECLAIM_IDLE_MS`` old and arrives
+        after every change delivered since — so replaying one overwrites newer
+        state with older, which is worse than the loss it repairs. The loss is
+        the same one that happened before this method existed; what is new is
+        that it is reported and that the consumer can be reaped.
         """
         r = self._connect()
         for stream in self.streams:
@@ -156,53 +157,17 @@ class RedisStreamConsumer:
                 continue
             entries = response[1] if len(response) >= 2 else []
             for msg_id, fields in entries:
-                if not fields:
-                    r.xack(stream, self.group, msg_id)
-                    continue
-                if self._delivery_count(stream, msg_id) > MAX_DELIVERIES:
-                    self._dead_letter(stream, msg_id, fields)
-                    continue
-                self._deliver(stream, msg_id, fields, handler)
-
-    def _delivery_count(self, stream, msg_id):
-        """How many times redis has delivered this PEL entry. 0 if unreadable."""
-        try:
-            pending = self._connect().xpending_range(
-                stream, self.group, min=msg_id, max=msg_id, count=1
-            )
-            if pending:
-                return int(pending[0]["times_delivered"])
-        except Exception:
-            log.exception("Could not read the delivery count of %s", msg_id)
-        return 0
-
-    def _dead_letter(self, stream, msg_id, fields):
-        """Park an entry that has survived too many deliveries, and ACK it.
-
-        One that keeps being reclaimed is killing whatever picks it up, so it
-        must stop being handed out; the copy is kept so the loss is inspectable.
-        """
-        r = self._connect()
-        try:
-            r.xadd(
-                dead_stream(stream),
-                fields,
-                maxlen=DEAD_STREAM_MAXLEN,
-                approximate=True,
-            )
-        except Exception:
-            log.exception("Dead-letter of %s from %s failed", msg_id, stream)
-            return
-        r.xack(stream, self.group, msg_id)
-        log.warning(
-            "Dead-lettered %s from %s (group %s) after more than %s deliveries. "
-            "Payload: %s",
-            msg_id,
-            stream,
-            self.group,
-            MAX_DELIVERIES,
-            _payload_summary(fields),
-        )
+                if fields:
+                    log.warning(
+                        "Dropping orphaned message %s from %s (group %s): a dead "
+                        "consumer left it un-ACKed and it is now older than the "
+                        "changes already applied. Payload: %s",
+                        msg_id,
+                        stream,
+                        self.group,
+                        _payload_summary(fields),
+                    )
+                r.xack(stream, self.group, msg_id)
 
     def _reap_dead_consumers(self):
         """Drop the consumers left behind by previous processes.
