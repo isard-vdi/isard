@@ -578,12 +578,6 @@ create_docker_compose_file(){
 		fi
 	fi
 
-	if [ -n "$REDIS_PASSWORD" ]
-	then
-		echo "REDIS_PASSWORD is true, adding redis password part"
-		parts="$parts redis.passwd"
-	fi
-
 	# apiv4 presence in $parts does not change below, so the qcow2/flavour guard
 	# can run here (and stays out of the storage-composition block the vdo-stats
 	# test extracts and runs in isolation).
