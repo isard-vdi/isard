@@ -52,7 +52,10 @@ import time
 import uuid
 
 import redis
-import redis.asyncio as aioredis
+from isardvdi_common.connections.redis_blocking import (
+    STREAM_BLOCK_MS,
+    async_blocking_client,
+)
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.lib import queue_coverage
@@ -64,6 +67,7 @@ from isardvdi_common.models.task import (
     was_canceled,
 )
 from redis.exceptions import ResponseError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from rq import Queue
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
@@ -84,7 +88,7 @@ _JOB_GONE = (InvalidJobOperation, NoSuchJobError)
 STREAM_KEY = RESULT_STREAM
 CONSUMER_GROUP = "change-handler"
 READ_COUNT = 32
-BLOCK_MS = 5000
+BLOCK_MS = STREAM_BLOCK_MS
 RECONNECT_DELAY_S = 5
 
 # At-least-once recovery: an entry whose handler failed is left in the
@@ -178,6 +182,11 @@ class _anchor_lock:
                     _anchor_locks.pop(anchor_id, None)
         self._held.clear()
         return False
+
+
+def _stream_client():
+    """The client every blocking read in this module goes through."""
+    return async_blocking_client(rq_url(), block_ms=BLOCK_MS, decode_responses=True)
 
 
 async def _ensure_consumer_group(redis, stream=STREAM_KEY):
@@ -844,13 +853,21 @@ async def _read_and_dispatch(redis, redis_manager, consumer_name):
     Returns ``True`` if any entries were processed (so the caller can
     skip the block-and-wait next iteration), ``False`` otherwise.
     """
-    response = await redis.xreadgroup(
-        groupname=CONSUMER_GROUP,
-        consumername=consumer_name,
-        streams={STREAM_KEY: ">"},
-        count=READ_COUNT,
-        block=BLOCK_MS,
-    )
+    try:
+        response = await redis.xreadgroup(
+            groupname=CONSUMER_GROUP,
+            consumername=consumer_name,
+            streams={STREAM_KEY: ">"},
+            count=READ_COUNT,
+            block=BLOCK_MS,
+        )
+    except RedisTimeoutError:
+        log.warning(
+            "task_results: read of %s exceeded its socket deadline with a %sms block",
+            STREAM_KEY,
+            BLOCK_MS,
+        )
+        return False
     if not response:
         return False
     for _stream, entries in response:
@@ -999,6 +1016,13 @@ async def _run_progress(redis, redis_manager, consumer_name):
             )
         except asyncio.CancelledError:
             raise
+        except RedisTimeoutError:
+            log.warning(
+                "task_results: read of %s exceeded its socket deadline with a %sms block",
+                PROGRESS_STREAM,
+                BLOCK_MS,
+            )
+            continue
         except Exception:
             log.exception("task_results: progress read failed")
             await asyncio.sleep(1)
@@ -1032,11 +1056,14 @@ async def run(redis_manager):
     """
     consumer_name = f"change-handler-{uuid.uuid4()}"
     log.warning("task_results: stream consumer starting as %s", consumer_name)
+    # Outside the reconnect loop: reconnecting more often than RECLAIM_EVERY_S
+    # would otherwise mean never reclaiming and never trimming.
+    last_reclaim = last_trim = time.monotonic()
     while True:
         redis = None
         progress_task = None
         try:
-            redis = aioredis.from_url(rq_url(), decode_responses=True)
+            redis = _stream_client()
             await redis.ping()
             await _ensure_consumer_group(redis, RESULT_STREAM)
             await _ensure_consumer_group(redis, PROGRESS_STREAM)
@@ -1051,7 +1078,6 @@ async def run(redis_manager):
             progress_task = asyncio.create_task(
                 _run_progress(redis, redis_manager, consumer_name)
             )
-            last_reclaim = last_trim = time.monotonic()
             while True:
                 await _read_and_dispatch(redis, redis_manager, consumer_name)
                 now = time.monotonic()
