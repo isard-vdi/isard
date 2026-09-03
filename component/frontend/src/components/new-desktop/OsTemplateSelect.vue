@@ -110,7 +110,7 @@ const handleSelect = (value: string) => {
         </button>
       </ComboboxTrigger>
     </ComboboxAnchor>
-    <ComboboxList align="start" class="p-0 w-(--reka-popper-anchor-width)">
+    <ComboboxList inline align="start" class="p-0 w-(--reka-popper-anchor-width)">
       <div class="flex items-center px-3.5 py-2.5 border-b border-gray-200">
         <Search class="mr-2 h-5 w-5 shrink-0 opacity-50" />
         <ComboboxInput
