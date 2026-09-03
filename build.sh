@@ -423,6 +423,27 @@ remove_part() {
     sed "s/\(^\|[[:blank:]]\)${part}\([[:blank:]]\|$\)/\1\2/g"
 }
 
+# Centralised qcow2 geometry: isard-apiv4 is the ONLY reader of the QCOW2_* vars
+# now (it resolves the policy at enqueue time and ships it in the task payload).
+# A flavour that does not run apiv4 declaring them means the operator thinks the
+# geometry applies there when it is inert -- exactly the silent-geometry-loss
+# trap. Fail loud so "everything is centralised" is checkable, not a promise.
+# Reads $parts and the QCOW2_* vars from the environment; $1 is the flavour name.
+_require_qcow2_only_on_apiv4() {
+	case " $parts " in
+		*" apiv4 "*) return 0 ;;
+	esac
+	if [ -n "${QCOW2_CLUSTER_SIZE:-}" ] || [ -n "${QCOW2_EXTENDED_L2:-}" ] || \
+	   [ -n "${QCOW2_LAZY_REFCOUNTS:-}" ] || [ -n "${QCOW2_PREALLOCATION:-}" ]
+	then
+		echo "ERROR: flavour $1 does not run apiv4, but its cfg still sets QCOW2_* keys." >&2
+		echo "       QCOW2_* are read only by isard-apiv4 (web/all-in-one) now; here they are inert." >&2
+		echo "       Move the qcow2 geometry to the web/all-in-one node's cfg." >&2
+		return 1
+	fi
+	return 0
+}
+
 create_docker_compose_file(){
 	config_file="$1"
 	create_env "$config_file"
@@ -579,6 +600,11 @@ create_docker_compose_file(){
 		echo "REDIS_PASSWORD is true, adding redis password part"
 		parts="$parts redis.passwd"
 	fi
+
+	# apiv4 presence in $parts does not change below, so the qcow2/flavour guard
+	# can run here (and stays out of the storage-composition block the vdo-stats
+	# test extracts and runs in isolation).
+	_require_qcow2_only_on_apiv4 "$FLAVOUR" || exit 1
 
 	# Normalised the way init.sh normalises it, so one cfg value cannot mean two
 	# things on the same node.

@@ -124,17 +124,17 @@ def _report_qcow2_geometry_at_boot():
     sources = qcow2_geometry.env_sources()
     log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
     if all(v == "default" for v in sources.values()):
-        # INFO, not WARNING: running the documented defaults is the correct,
-        # majority configuration (anything not on NFS), so a warning every boot
-        # is noise. Kept as a breadcrumb an operator debugging wrong geometry on
-        # a DISTRIBUTED install can find -- there the vars may have been set on
-        # the storage node instead of here.
-        log.info(
+        # WARNING, not INFO: apiv4 is now the ONLY reader of these vars, so an
+        # all-default resolution is indistinguishable from a distributed install
+        # whose operator set the geometry on the (old) storage node -- exactly
+        # the silent-geometry-loss trap. A build.sh check errors when a
+        # non-apiv4 flavour still declares them; this catches the apiv4 side.
+        log.warning(
             "all four QCOW2_* are absent from this apiv4 environment; using the "
             "defaults %s. On a distributed install the geometry must be set in "
             "the web/all-in-one node's cfg (the only node that enqueues disk "
             "tasks now), not the storage node's, or every new disk silently "
-            "takes the 4k/off default.",
+            "takes the default geometry.",
             geometry,
         )
 
