@@ -220,7 +220,7 @@ class UserAllowedTemplateFlatItem(BaseModel):
     group: Optional[str] = None
     group_name: Optional[str] = None
     icon: Optional[str] = None
-    image: Optional[Any] = None
+    image: Optional[DomainImage] = None
     user: Optional[Any] = None
     user_name: Optional[str] = None
     description: Optional[str] = None

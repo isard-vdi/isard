@@ -20,6 +20,7 @@
 
 from typing import List, Literal, Optional, Union
 
+from api.schemas.domains.hardware import DomainImage
 from isardvdi_common.schemas.shared.quotas import Limits, Quota
 from pydantic import BaseModel, Field
 
@@ -839,7 +840,7 @@ class AdminUserTemplateItem(BaseModel):
     id: str
     name: str
     icon: Optional[str] = None
-    image: Optional[str] = None
+    image: Optional[DomainImage] = None
     description: Optional[str] = None
 
 
@@ -854,7 +855,7 @@ class AdminUserDesktopItem(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
     icon: Optional[str] = None
-    image: Optional[str] = None
+    image: Optional[DomainImage] = None
     kind: Optional[str] = None
 
 

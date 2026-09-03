@@ -48,6 +48,13 @@ class DomainStatusEnum(str, Enum):
     failed = "Failed"
     paused = "Paused"
     unknown = "Unknown"
+    updating = "Updating"
+    maintenance = "Maintenance"
+    downloading = "Downloading"
+    download_starting = "DownloadStarting"
+    downloaded = "Downloaded"
+    download_failed = "DownloadFailed"
+    download_aborting = "DownloadAborting"
 
 
 class DesktopStatusEnum(str, Enum):
@@ -71,24 +78,24 @@ class DesktopStatusEnum(str, Enum):
     stopped = DomainStatusEnum.stopped.value
     failed = DomainStatusEnum.failed.value
     shutting_down = "Shutting-down"
-    downloading = "Downloading"
-    download_starting = "DownloadStarting"
-    downloaded = "Downloaded"
-    download_failed = "DownloadFailed"
-    download_aborting = "DownloadAborting"
+    downloading = DomainStatusEnum.downloading.value
+    download_starting = DomainStatusEnum.download_starting.value
+    downloaded = DomainStatusEnum.downloaded.value
+    download_failed = DomainStatusEnum.download_failed.value
+    download_aborting = DomainStatusEnum.download_aborting.value
     # Written for domains by the pre-merge engine download thread. The
     # thread is gone, but rows upgraded from those releases still carry
     # it and must not break the list they appear in.
     reset_downloading = "ResetDownloading"
     disk_new = "DiskNew"
     creating_disk_from_scratch = "CreatingDiskFromScratch"
-    updating = "Updating"
+    updating = DomainStatusEnum.updating.value
     deleting = "Deleting"
     deleting_domain_disk = "DeletingDomainDisk"
     disk_deleted = "DiskDeleted"
     force_deleting = "ForceDeleting"
     suspended = "Suspended"
-    maintenance = "Maintenance"
+    maintenance = DomainStatusEnum.maintenance.value
     stopping = "Stopping"
     paused = DomainStatusEnum.paused.value
     resetting = "Resetting"
@@ -107,6 +114,13 @@ class TemplateStatusEnum(str, Enum):
     failed = DomainStatusEnum.failed.value
     paused = DomainStatusEnum.paused.value
     unknown = DomainStatusEnum.unknown.value
+    updating = DomainStatusEnum.updating.value
+    maintenance = DomainStatusEnum.maintenance.value
+    downloading = DomainStatusEnum.downloading.value
+    download_starting = DomainStatusEnum.download_starting.value
+    downloaded = DomainStatusEnum.downloaded.value
+    download_failed = DomainStatusEnum.download_failed.value
+    download_aborting = DomainStatusEnum.download_aborting.value
 
 
 class DesktopTypeEnum(str, Enum):

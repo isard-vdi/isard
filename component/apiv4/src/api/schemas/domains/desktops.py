@@ -343,10 +343,22 @@ class UserDesktopScheduled(BaseModel):
 
 
 class UserDesktopProgress(BaseModel):
-    percentage: int = Field(default=0, description="Progress percentage")
-    throughput_average: str = Field(default="0", description="Average throughput")
-    time_left: str = Field(default="00:00:00", description="Estimated time remaining")
-    size: str = Field(default="0k", description="Size of the operation")
+    percentage: int | None = Field(
+        default=0,
+        description="Progress percentage",
+    )
+    throughput_average: str | None = Field(
+        default="0",
+        description="Average throughput",
+    )
+    time_left: str | None = Field(
+        default="00:00:00",
+        description="Estimated time remaining",
+    )
+    size: str | None = Field(
+        default="0k",
+        description="Size of the operation",
+    )
 
 
 class UserDesktop(BaseModel):
