@@ -322,6 +322,14 @@ SECTION_DEFS = [
         "multi": True,
     },
     {
+        "key": "serial",
+        "label": "Serial",
+        "group": "Devices",
+        "xpaths": [".//devices/serial"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
         "key": "console",
         "label": "Console",
         "group": "Devices",
@@ -334,6 +342,14 @@ SECTION_DEFS = [
         "label": "Sound",
         "group": "Devices",
         "xpaths": [".//devices/sound"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "audio",
+        "label": "Audio",
+        "group": "Devices",
+        "xpaths": [".//devices/audio"],
         "protectable": True,
         "multi": True,
     },
@@ -369,6 +385,37 @@ SECTION_DEFS = [
         "protectable": True,
         "multi": True,
     },
+    {
+        "key": "watchdog",
+        "label": "Watchdog",
+        "group": "Devices",
+        "xpaths": [".//devices/watchdog"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "panic",
+        "label": "Panic Device",
+        "group": "Devices",
+        "xpaths": [".//devices/panic"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "shmem",
+        "label": "Shared Memory",
+        "group": "Devices",
+        "xpaths": [".//devices/shmem"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "iommu",
+        "label": "IOMMU",
+        "group": "Devices",
+        "xpaths": [".//devices/iommu"],
+        "protectable": True,
+    },
     # --- Passthrough ---
     {
         "key": "hostdev",
@@ -379,6 +426,14 @@ SECTION_DEFS = [
         "multi": True,
     },
     # --- Security ---
+    {
+        "key": "tpm",
+        "label": "TPM",
+        "group": "Security",
+        "xpaths": [".//devices/tpm"],
+        "protectable": True,
+        "multi": True,
+    },
     {
         "key": "seclabel",
         "label": "Security Label",
@@ -422,12 +477,129 @@ SECTION_DEFS = [
         "xpaths": ["./metadata"],
         "protectable": False,
     },
+    # --- Catch-all: anything no named section claims ---
+    {
+        "key": "other_toplevel",
+        "label": "Other (top-level)",
+        "group": "Other",
+        "xpaths": [],
+        "protectable": True,
+        "multi": True,
+        "catchall": "toplevel",
+    },
+    {
+        "key": "other_devices",
+        "label": "Other Devices",
+        "group": "Other",
+        "xpaths": [],
+        "protectable": True,
+        "multi": True,
+        "catchall": "devices",
+    },
 ]
 
 
 def _elem_to_str(elem: ET.Element) -> str:
     """Convert an XML element to an indented string."""
     return ET.tostring(elem, encoding="unicode").strip()
+
+
+def _find_section_elements(root: ET.Element, sdef: dict) -> list[ET.Element]:
+    """Return the elements a non-catchall section's xpaths select."""
+    elems: list[ET.Element] = []
+    for xpath in sdef["xpaths"]:
+        if sdef.get("multi"):
+            elems.extend(root.findall(xpath))
+        else:
+            elem = root.find(xpath)
+            if elem is not None:
+                elems.append(elem)
+    return elems
+
+
+def _collect_claimed_elements(root: ET.Element) -> set[int]:
+    """Return the ids of every element some named section already selects."""
+    claimed: set[int] = set()
+    for sdef in SECTION_DEFS:
+        if sdef.get("catchall"):
+            continue
+        for elem in _find_section_elements(root, sdef):
+            claimed.add(id(elem))
+    return claimed
+
+
+def _get_unclaimed_children(
+    root: ET.Element, claimed: set[int], catchall_type: str
+) -> tuple[ET.Element | None, list[ET.Element]]:
+    """Return the parent and the children no named section claims. Comment
+    nodes are excluded: the catch-all re-parses to elements only, so returning
+    them here deletes every comment in the document on the next save."""
+    if catchall_type == "toplevel":
+        parent = root
+        devices_elem = root.find("./devices")
+        candidates = [c for c in list(parent) if c is not devices_elem]
+    elif catchall_type == "devices":
+        parent = root.find("./devices")
+        if parent is None:
+            return None, []
+        candidates = list(parent)
+    else:
+        return None, []
+    unclaimed = [c for c in candidates if id(c) not in claimed and not callable(c.tag)]
+    return parent, unclaimed
+
+
+def _parse_snippet(snippet_xml: str, sdef: dict) -> list[ET.Element]:
+    """Parse a snippet into elements. The wrapper declares libvirt's foreign
+    namespaces so a prefix bound on the <domain> root does not fail unbound."""
+    key = sdef["key"]
+    try:
+        ns_decls = " ".join(
+            f'xmlns:{p}="{u}"' for p, u in LIBVIRT_XML_NAMESPACES.items()
+        )
+        wrapper_xml = f"<_wrapper {ns_decls}>{snippet_xml}</_wrapper>"
+        new_elems = [e for e in _safe_fromstring(wrapper_xml) if not callable(e.tag)]
+    except ET.ParseError as e:
+        raise Error(
+            "bad_request",
+            f"Invalid XML in section '{key}': {e}",
+            traceback.format_exc(),
+        )
+    if not new_elems:
+        expected = sorted(_section_allowed_tags(sdef) or [])
+        hint = f" Wrap the value in one of: {expected}." if expected else ""
+        raise Error(
+            "bad_request",
+            f"Section '{sdef.get('label', key)}' must contain XML "
+            f"elements; got text only.{hint}",
+            traceback.format_exc(),
+        )
+    return new_elems
+
+
+def _merge_catchall_section(
+    root: ET.Element, sdef: dict, snippet_xml: str, claimed: set[int]
+) -> list[ET.Element]:
+    """Replace a catch-all's unclaimed elements with its edited snippet."""
+    parent, old_unclaimed = _get_unclaimed_children(root, claimed, sdef["catchall"])
+
+    if parent is None:
+        if not snippet_xml.strip():
+            return []
+        idx = _libvirt_toplevel_insert_index(root, "devices")
+        parent = ET.Element("devices")
+        root.insert(idx, parent)
+
+    insert_idx = (
+        list(parent).index(old_unclaimed[0]) if old_unclaimed else len(list(parent))
+    )
+    for elem in old_unclaimed:
+        parent.remove(elem)
+
+    if snippet_xml.strip():
+        for i, new_elem in enumerate(_parse_snippet(snippet_xml, sdef)):
+            parent.insert(insert_idx + i, new_elem)
+    return old_unclaimed
 
 
 def _section_allowed_tags(sdef: dict) -> set[str] | None:
@@ -598,28 +770,26 @@ def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict
         )
 
     protected_set = set(protected_sections)
+    claimed = _collect_claimed_elements(root)
     sections = []
 
     for sdef in SECTION_DEFS:
         snippets = []
-        for xpath in sdef["xpaths"]:
-            if sdef.get("multi"):
-                elems = root.findall(xpath)
-                for elem in elems:
-                    snippets.append(_elem_to_str(elem))
-            else:
-                elem = root.find(xpath)
-                if elem is not None:
-                    snippets.append(_elem_to_str(elem))
+        if sdef.get("catchall"):
+            _, unclaimed = _get_unclaimed_children(root, claimed, sdef["catchall"])
+            snippets.extend(_elem_to_str(child) for child in unclaimed)
+        else:
+            for elem in _find_section_elements(root, sdef):
+                snippets.append(_elem_to_str(elem))
 
-        # For domain_type extra_attrs (the type attribute on <domain>)
-        if sdef.get("extra_attrs"):
-            for path, attr in sdef["extra_attrs"]:
-                target = root if path == "." else root.find(path)
-                if target is not None and attr in target.attrib:
-                    snippets.insert(
-                        0, f'<!-- domain {attr}="{target.attrib[attr]}" -->'
-                    )
+            # For domain_type extra_attrs (the type attribute on <domain>)
+            if sdef.get("extra_attrs"):
+                for path, attr in sdef["extra_attrs"]:
+                    target = root if path == "." else root.find(path)
+                    if target is not None and attr in target.attrib:
+                        snippets.insert(
+                            0, f'<!-- domain {attr}="{target.attrib[attr]}" -->'
+                        )
 
         xml_snippet = "\n".join(snippets) if snippets else ""
         sections.append(
@@ -706,6 +876,7 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
         )
 
     protectable_keys = {s["key"] for s in SECTION_DEFS if s["protectable"]}
+    catchall_edits: list[tuple[dict, str]] = []
 
     for key, snippet_xml in edited_sections.items():
         if key not in protectable_keys:
@@ -735,6 +906,10 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
         if not sdef:
             continue
 
+        if sdef.get("catchall"):
+            catchall_edits.append((sdef, snippet_xml))
+            continue
+
         if sdef.get("extra_attrs"):
             snippet_xml = _apply_extra_attrs(root, sdef, snippet_xml)
 
@@ -754,38 +929,7 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
                         _remove_elem(root, elem)
             continue
 
-        # Wrap snippet in a temporary root for parsing. The wrapper declares
-        # libvirt's foreign namespaces (qemu/lxc) so a snippet that uses a
-        # prefix bound on the <domain> root in the real document — e.g. a
-        # natural <qemu:commandline> pasted into a top-level section — parses
-        # instead of failing with "unbound prefix". Comment nodes are dropped
-        # (they are not real elements for a section).
-        try:
-            ns_decls = " ".join(
-                f'xmlns:{p}="{u}"' for p, u in LIBVIRT_XML_NAMESPACES.items()
-            )
-            wrapper_xml = f"<_wrapper {ns_decls}>{snippet_xml}</_wrapper>"
-            new_elems = [
-                e for e in _safe_fromstring(wrapper_xml) if not callable(e.tag)
-            ]
-        except ET.ParseError as e:
-            raise Error(
-                "bad_request",
-                f"Invalid XML in section '{key}': {e}",
-                traceback.format_exc(),
-            )
-
-        # Reject plain-text snippets — without this guard the remove-old
-        # loop below would wipe existing elements with no replacement.
-        if not new_elems:
-            expected = sorted(_section_allowed_tags(sdef) or [])
-            hint = f" Wrap the value in one of: {expected}." if expected else ""
-            raise Error(
-                "bad_request",
-                f"Section '{sdef.get('label', key)}' must contain XML "
-                f"elements; got text only.{hint}",
-                traceback.format_exc(),
-            )
+        new_elems = _parse_snippet(snippet_xml, sdef)
 
         # Hard validation: reject snippets whose root tag does not belong to
         # this section (e.g. pasting <hostdev> into the redirdev section).
@@ -850,6 +994,13 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
         if first_parent is not None:
             for i, new_elem in enumerate(new_elems):
                 first_parent.insert(first_idx + i, new_elem)
+
+    if catchall_edits:
+        claimed = _collect_claimed_elements(root)
+        # Kept alive: a freed element's id() could be reused and read as claimed.
+        removed = []
+        for sdef, snippet_xml in catchall_edits:
+            removed.extend(_merge_catchall_section(root, sdef, snippet_xml, claimed))
 
     # Stable-sort top-level <domain> children into canonical libvirt order.
     # Heals XMLs already corrupted by an older editor on the next save and

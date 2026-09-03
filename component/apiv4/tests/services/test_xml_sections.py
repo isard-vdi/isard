@@ -771,3 +771,315 @@ def test_vgpu_mdev_hostdev_roundtrips():
         == "4b20d080-1b54-4048-85b3-a6a62d165c01"
     )
     assert _canonical(merged) == _canonical(_VGPU_MDEV_DOMAIN)
+
+
+# ---------------------------------------------------------------------------
+# d0aa6c18e6 port: seven named sections plus the two catch-alls
+# ---------------------------------------------------------------------------
+
+
+_WIN11_MANUAL_DOMAIN = """<domain type="kvm">
+  <name>win11</name>
+  <memory unit="KiB">4194304</memory>
+  <vcpu placement="static">2</vcpu>
+  <os>
+    <type arch="x86_64" machine="pc-q35-10.0">hvm</type>
+    <loader readonly="yes" secure="no" type="pflash">/usr/share/OVMF/OVMF_CODE.fd</loader>
+    <boot dev="hd"/>
+  </os>
+  <devices>
+    <tpm model="tpm-tis">
+      <backend type="emulator" version="2.0"/>
+    </tpm>
+    <audio id="1" type="spice"/>
+    <serial type="pty"><target port="0"/></serial>
+    <watchdog model="itco" action="reset"/>
+  </devices>
+</domain>"""
+
+
+_NAMED_KEYS = {"tpm", "audio", "serial", "watchdog", "panic", "shmem", "iommu"}
+_CATCHALL_KEYS = {"other_toplevel", "other_devices"}
+
+
+def test_section_defs_includes_the_seven_named_sections():
+    missing = _NAMED_KEYS - {s["key"] for s in SECTION_DEFS}
+    assert not missing, f"SECTION_DEFS missing entries: {missing}"
+
+
+def test_section_defs_includes_the_two_catchalls():
+    missing = _CATCHALL_KEYS - {s["key"] for s in SECTION_DEFS}
+    assert not missing, f"SECTION_DEFS missing catch-alls: {missing}"
+
+
+def test_section_defs_keeps_the_apiv4_only_sections():
+    """The reference lacks these ten; a wholesale replacement would drop them."""
+    kept = {
+        "description",
+        "max_memory",
+        "memory_backing",
+        "iothreads",
+        "cputune",
+        "numatune",
+        "sysinfo",
+        "resource",
+        "lifecycle",
+        "seclabel",
+    }
+    assert kept <= {s["key"] for s in SECTION_DEFS}
+
+
+def test_ported_sections_are_protectable():
+    """A non-protectable key renders a panel and then discards every edit."""
+    for key in sorted(_NAMED_KEYS | _CATCHALL_KEYS):
+        sdef = next(s for s in SECTION_DEFS if s["key"] == key)
+        assert sdef["protectable"] is True, key
+
+
+def test_ported_sections_are_not_derived():
+    assert (_NAMED_KEYS | _CATCHALL_KEYS) & _DERIVED_KEYS == set()
+
+
+@pytest.mark.parametrize("key", sorted(_NAMED_KEYS))
+def test_section_allowed_tags_for_named_sections(key):
+    sdef = next(s for s in SECTION_DEFS if s["key"] == key)
+    assert _section_allowed_tags(sdef) == {key}
+
+
+@pytest.mark.parametrize("key", sorted(_CATCHALL_KEYS))
+def test_catchall_sections_accept_any_tag(key):
+    sdef = next(s for s in SECTION_DEFS if s["key"] == key)
+    assert sdef["xpaths"] == []
+    assert _section_allowed_tags(sdef) is None
+
+
+def test_serial_and_console_sections_do_not_claim_each_other():
+    serial = next(s for s in SECTION_DEFS if s["key"] == "serial")
+    console = next(s for s in SECTION_DEFS if s["key"] == "console")
+    assert _section_allowed_tags(serial) == {"serial"}
+    assert _section_allowed_tags(console) == {"console"}
+    assert set(serial["xpaths"]).isdisjoint(console["xpaths"])
+
+
+def test_audio_and_sound_sections_do_not_claim_each_other():
+    audio = next(s for s in SECTION_DEFS if s["key"] == "audio")
+    sound = next(s for s in SECTION_DEFS if s["key"] == "sound")
+    assert set(audio["xpaths"]).isdisjoint(sound["xpaths"])
+
+
+def test_split_manual_win11_xml_surfaces_the_tpm_section():
+    sections = {s["key"]: s for s in split_xml_sections(_WIN11_MANUAL_DOMAIN, [])}
+    tpm_xml = sections["tpm"]["xml"]
+    assert '<tpm model="tpm-tis">' in tpm_xml
+    assert '<backend type="emulator" version="2.0"' in tpm_xml
+
+
+def test_split_manual_win11_xml_surfaces_audio_serial_and_watchdog():
+    sections = {s["key"]: s for s in split_xml_sections(_WIN11_MANUAL_DOMAIN, [])}
+    assert '<audio id="1" type="spice"' in sections["audio"]["xml"]
+    assert '<serial type="pty">' in sections["serial"]["xml"]
+    assert '<watchdog model="itco" action="reset"' in sections["watchdog"]["xml"]
+    assert sections["console"]["xml"] == ""
+    assert sections["sound"]["xml"] == ""
+
+
+def test_split_surfaces_panic_shmem_and_iommu():
+    base = _domain().replace(
+        "</devices>",
+        '<panic model="isa"/>'
+        '<shmem name="ivshmem"><model type="ivshmem-plain"/></shmem>'
+        '<iommu model="intel"/>'
+        "</devices>",
+    )
+    sections = {s["key"]: s for s in split_xml_sections(base, [])}
+    assert '<panic model="isa"' in sections["panic"]["xml"]
+    assert '<shmem name="ivshmem">' in sections["shmem"]["xml"]
+    assert '<iommu model="intel"' in sections["iommu"]["xml"]
+
+
+def test_saving_the_tpm_section_keeps_it_in_the_full_xml():
+    merged = _roundtrip(_WIN11_MANUAL_DOMAIN)
+    root = ET.fromstring(merged)
+    tpm = root.findall("./devices/tpm")
+    assert len(tpm) == 1
+    assert tpm[0].get("model") == "tpm-tis"
+    assert tpm[0].find("backend").get("version") == "2.0"
+
+
+def test_manual_win11_xml_roundtrips_unchanged():
+    merged = _roundtrip(_WIN11_MANUAL_DOMAIN)
+    assert _canonical(merged) == _canonical(_WIN11_MANUAL_DOMAIN)
+
+
+def test_editing_the_tpm_section_changes_the_model():
+    edit = '<tpm model="tpm-crb"><backend type="emulator" version="2.0"/></tpm>'
+    merged = _roundtrip(_WIN11_MANUAL_DOMAIN, {"tpm": edit})
+    assert ET.fromstring(merged).find("./devices/tpm").get("model") == "tpm-crb"
+
+
+def test_merge_inserts_tpm_into_a_domain_that_has_none():
+    snippet = '<tpm model="tpm-crb"><backend type="emulator" version="2.0"/></tpm>'
+    merged = merge_xml_sections(_domain(), {"tpm": snippet})
+    root = ET.fromstring(merged)
+    assert root.find("./devices/tpm") is not None
+    assert root.find("./tpm") is None
+
+
+def test_merge_removes_the_tpm_on_an_empty_snippet():
+    merged = merge_xml_sections(_WIN11_MANUAL_DOMAIN, {"tpm": ""})
+    root = ET.fromstring(merged)
+    assert root.find("./devices/tpm") is None
+    assert root.find("./devices/watchdog") is not None
+
+
+def test_merge_still_rejects_pasting_tpm_into_the_channels_section():
+    with pytest.raises(Error) as exc:
+        merge_xml_sections(_WIN11_MANUAL_DOMAIN, {"channels": "<tpm/>"})
+    assert exc.value.status_code == 400
+
+
+def test_merge_rejects_pasting_console_into_the_serial_section():
+    with pytest.raises(Error) as exc:
+        merge_xml_sections(_WIN11_MANUAL_DOMAIN, {"serial": '<console type="pty"/>'})
+    assert exc.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# The catch-alls: the class of silent loss, not the seven known cases
+# ---------------------------------------------------------------------------
+
+
+_UNCLAIMED_TOPLEVEL = '<memtune><hard_limit unit="KiB">9437184</hard_limit></memtune>'
+_UNCLAIMED_DEVICE = '<vsock model="virtio"><cid auto="no" address="3"/></vsock>'
+
+
+def _domain_with_unclaimed():
+    base = _domain(_UNCLAIMED_TOPLEVEL)
+    return base.replace("</devices>", _UNCLAIMED_DEVICE + "</devices>")
+
+
+def test_split_puts_an_unclaimed_toplevel_element_in_other_toplevel():
+    sections = {s["key"]: s for s in split_xml_sections(_domain_with_unclaimed(), [])}
+    assert "<memtune>" in sections["other_toplevel"]["xml"]
+
+
+def test_split_puts_an_unclaimed_device_in_other_devices():
+    sections = {s["key"]: s for s in split_xml_sections(_domain_with_unclaimed(), [])}
+    assert "<vsock" in sections["other_devices"]["xml"]
+
+
+def test_catchalls_do_not_duplicate_elements_a_named_section_already_claims():
+    sections = {s["key"]: s for s in split_xml_sections(_domain_with_unclaimed(), [])}
+    other_top = sections["other_toplevel"]["xml"]
+    other_dev = sections["other_devices"]["xml"]
+    for claimed in ("<name>", "<memory", "<os>", "<devices>"):
+        assert claimed not in other_top
+    assert "<disk" not in other_dev
+    win11 = {s["key"]: s for s in split_xml_sections(_WIN11_MANUAL_DOMAIN, [])}
+    assert win11["other_devices"]["xml"] == ""
+    assert win11["other_toplevel"]["xml"] == ""
+
+
+def _upload(uploaded_xml, target_xml):
+    """The admin upload path: the uploaded file is split into sections, those
+    fill the panels, and Save merges them into the target domain's xml."""
+    sections = split_xml_sections(uploaded_xml, [])
+    edited = {
+        s["key"]: s["xml"] for s in sections if s["protectable"] and not s["derived"]
+    }
+    return merge_xml_sections(target_xml, edited)
+
+
+def test_uploading_an_xml_carries_over_elements_no_named_section_claims():
+    """The class, not the seven cases. Anything the panels do not cover never
+    reaches the target domain, so uploading applies the file only in part."""
+    merged = _upload(_domain_with_unclaimed(), _domain())
+    root = ET.fromstring(merged)
+    assert root.find("./memtune/hard_limit") is not None
+    vsock = root.find("./devices/vsock")
+    assert vsock is not None
+    assert vsock.get("model") == "virtio"
+    assert vsock.find("cid").get("address") == "3"
+
+
+def test_an_element_no_named_section_claims_survives_split_save_split():
+    base = _domain_with_unclaimed()
+    merged = _roundtrip(base)
+    root = ET.fromstring(merged)
+    assert root.find("./memtune/hard_limit") is not None
+    assert root.find("./devices/vsock") is not None
+    again = {s["key"]: s for s in split_xml_sections(merged, [])}
+    assert "<memtune>" in again["other_toplevel"]["xml"]
+    assert "<vsock" in again["other_devices"]["xml"]
+
+
+def test_catchall_merge_places_a_new_toplevel_element_in_libvirt_order():
+    merged = merge_xml_sections(_domain(), {"other_toplevel": _UNCLAIMED_TOPLEVEL})
+    tags = [c.tag for c in ET.fromstring(merged) if not callable(c.tag)]
+    assert "memtune" in tags
+    assert tags.index("memory") < tags.index("memtune") < tags.index("devices")
+
+
+def test_catchall_roundtrip_preserves_comments_in_both_parents():
+    base = (
+        '<domain type="kvm">'
+        "<!-- top comment -->"
+        "<name>x</name>"
+        "<uuid>11111111-1111-1111-1111-111111111111</uuid>"
+        "<memory unit='KiB'>1048576</memory>"
+        "<os><type arch='x86_64'>hvm</type></os>"
+        "<devices>"
+        "<!-- device comment -->"
+        '<disk type="file" device="disk"><target dev="vda" bus="virtio"/></disk>'
+        "</devices>"
+        "</domain>"
+    )
+    merged = _roundtrip(base)
+    assert "<!-- top comment -->" in merged
+    assert "<!-- device comment -->" in merged
+
+
+def test_editing_other_devices_replaces_only_the_unclaimed_devices():
+    base = _domain_with_unclaimed()
+    merged = _roundtrip(
+        base, {"other_devices": '<vsock model="virtio-non-transitional"/>'}
+    )
+    root = ET.fromstring(merged)
+    assert root.find("./devices/vsock").get("model") == "virtio-non-transitional"
+    assert root.find('./devices/disk[@device="disk"]') is not None
+
+
+def test_emptying_a_catchall_removes_its_unclaimed_elements():
+    merged = merge_xml_sections(_domain_with_unclaimed(), {"other_devices": ""})
+    root = ET.fromstring(merged)
+    assert root.find("./devices/vsock") is None
+    assert root.find('./devices/disk[@device="disk"]') is not None
+    assert root.find("./memtune") is not None
+
+
+def test_catchall_rejects_a_plain_text_snippet():
+    with pytest.raises(Error) as exc:
+        merge_xml_sections(_domain_with_unclaimed(), {"other_devices": "oops"})
+    assert exc.value.status_code == 400
+
+
+_CANONICAL_WITH_UNCLAIMED = """<domain type="kvm">
+  <name>x</name>
+  <uuid>11111111-1111-1111-1111-111111111111</uuid>
+  <memory unit="KiB">1048576</memory>
+  <memtune><hard_limit unit="KiB">9437184</hard_limit></memtune>
+  <vcpu>2</vcpu>
+  <os><type arch="x86_64">hvm</type></os>
+  <devices>
+    <disk type="file" device="disk"><target dev="vda" bus="virtio"/></disk>
+    <vsock model="virtio"><cid auto="no" address="3"/></vsock>
+    <graphics type="spice" port="-1"/>
+  </devices>
+</domain>"""
+
+
+def test_catchall_noop_save_moves_nothing():
+    """No pre-existing fixture has a non-empty catch-all, so without this the
+    replace-in-place behaviour of _merge_catchall_section is untested."""
+    merged = _roundtrip(_CANONICAL_WITH_UNCLAIMED)
+    assert _canonical(merged) == _canonical(_CANONICAL_WITH_UNCLAIMED)
