@@ -314,8 +314,8 @@ do
     if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
         ping -c 1 $WG_HYPERS_GW >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
-            wg-quick down wg0  >/dev/null 2>&1
-            wg-quick up wg0  >/dev/null 2>&1
+            /isard/bin/wg-quick down wg0  >/dev/null 2>&1
+            /isard/bin/wg-quick up wg0  >/dev/null 2>&1
         fi
     fi
 

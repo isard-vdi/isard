@@ -2896,6 +2896,28 @@ def cmd_full_cleanup(args):
         else:
             log(f"\n  Optimizing {len(healthy_qcow)} healthy qcow2 files...")
 
+            # compress rewrites the disk in place, so it must use the install
+            # geometry (resolved centrally by apiv4, not this container's env) --
+            # writing at qemu-img's defaults would silently downgrade every disk
+            # the sweep touches. Fail HARD up front rather than per file. The -c
+            # rewrite forbids preallocation, so it is dropped from the options.
+            compress_options = None
+            if args.compress:
+                from isardvdi_common.helpers import qcow2_geometry
+                from storage_lib.api import fetch_qcow2_geometry
+
+                try:
+                    _geometry = fetch_qcow2_geometry()
+                    compress_options = qcow2_geometry.create_options(
+                        _geometry, has_backing_file=False, with_preallocation=False
+                    )
+                except Exception as e:
+                    log(
+                        f"ERROR: cannot resolve the qcow2 geometry from the API "
+                        f"({e}); refusing to compress with the wrong geometry."
+                    )
+                    return
+
             for i, f in enumerate(healthy_qcow, 1):
                 if args.sparsify:
                     ok, saved, err = sparsify_file(f)
@@ -2906,7 +2928,7 @@ def cmd_full_cleanup(args):
                         log(f"    sparsify skip {Path(f).name}: {err}")
 
                 if args.compress:
-                    ok, saved, err = compress_file(f)
+                    ok, saved, err = compress_file(f, compress_options)
                     if ok:
                         compressed_count += 1
                         total_saved += max(saved, 0)
@@ -3331,14 +3353,34 @@ def cmd_recover(args):
         log(f"Total execution time: {time()-t:.2f} seconds")
         return
 
-    # Fix: create incremental disks + trigger find
+    # Fix: create incremental disks + trigger find.
+    # The install geometry is resolved centrally by apiv4, not from this
+    # container's environment (which no longer carries QCOW2_*). Fail HARD if it
+    # cannot be fetched: an incremental disk recreated at qemu-img's own defaults
+    # would silently diverge from every sibling in its backing chain, and this
+    # runs over derived desktop disks where the geometry matters most.
+    from isardvdi_common.helpers import qcow2_geometry
+    from storage_lib.api import fetch_qcow2_geometry
+
+    try:
+        geometry = fetch_qcow2_geometry()
+        incremental_options = qcow2_geometry.create_options(
+            geometry, has_backing_file=True
+        )
+    except Exception as e:
+        log(
+            f"ERROR: cannot resolve the qcow2 geometry from the API ({e}); "
+            "refusing to recreate disks with the wrong geometry. Nothing written."
+        )
+        return
+
     print(f"\nRecovering {len(recoverable)} desktops...")
     task_map = {}
 
     for r in recoverable:
         log(f"  Creating incremental: {r['path']}")
         log(f"    backing: {r['parent_path']}")
-        ok, err = create_incremental(r["path"], r["parent_path"])
+        ok, err = create_incremental(r["path"], r["parent_path"], incremental_options)
         if not ok:
             log(f"    FAILED to create: {err}")
             continue

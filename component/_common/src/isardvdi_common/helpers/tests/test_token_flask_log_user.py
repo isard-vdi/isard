@@ -90,7 +90,7 @@ def test_log_user_actually_runs_logsusers_target(token_flask_module):
     invocations: list = []
     invoked_event = threading.Event()
 
-    def fake_logsusers(payload):
+    def fake_logsusers(payload, request_ip=None, request_user_agent=None):
         invocations.append(payload)
         invoked_event.set()
 
@@ -122,7 +122,7 @@ def test_log_user_does_not_block_caller(token_flask_module):
     started = threading.Event()
     blocking_finish = threading.Event()
 
-    def slow_logsusers(payload):
+    def slow_logsusers(payload, request_ip=None, request_user_agent=None):
         started.set()
         # Simulate a slow rdb write that the handler must NOT wait for
         blocking_finish.wait(timeout=5.0)
@@ -202,7 +202,7 @@ def test_log_user_logs_target_exception_does_not_lose_audit_row(
     """
     started = threading.Event()
 
-    def exploding_logsusers(payload):
+    def exploding_logsusers(payload, request_ip=None, request_user_agent=None):
         started.set()
         raise RuntimeError("rdb connection refused")
 

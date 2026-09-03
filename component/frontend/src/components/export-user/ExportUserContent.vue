@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
 import { migrationExportUserMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { apiErrorCodes } from '@/lib/api-errors'
+import { apiErrorCodes, describeErrorCode } from '@/lib/api-errors'
 import { useSessionStore } from '@/stores/session'
 import { useAuthStore } from '@/stores/auth'
 import { TokenType } from '@/lib/auth'
@@ -46,8 +46,12 @@ const { mutate: generateToken, isPending: isGenerating } = useMutation({
   },
   onError: (error) => {
     const [code] = apiErrorCodes(error)
-    const key = `api.user_migration.errors.${code}`
-    errorMessage.value = code && te(key) ? t(key) : t('views.export-user.error-generate')
+    errorMessage.value = describeErrorCode(
+      code,
+      { t, te },
+      'api.user_migration.errors',
+      'views.export-user.error-generate'
+    )
   }
 })
 

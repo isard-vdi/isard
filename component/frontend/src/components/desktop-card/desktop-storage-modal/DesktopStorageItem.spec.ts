@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 
+import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4'
+
 const queryData = ref<unknown>(undefined)
 const queryIsPending = ref(false)
 
@@ -15,7 +17,6 @@ vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   getStorageOptions: () => ({}),
   getStorageQueryKey: () => [{}],
   getStorageTaskQueryKey: () => [{}],
-  abortStorageOperationsMutation: () => ({}),
   increaseStorageSizeMutation: () => ({})
 }))
 
@@ -45,14 +46,15 @@ vi.mock('@/gen/oas/apiv4', () => ({
 }))
 
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (k: string) => k }),
+  useI18n: () => ({ t: (k: string) => k, te: () => true }),
   createI18n: () => ({
     install: () => undefined,
     global: { t: (k: string) => k }
   })
 }))
 
-vi.mock('@/lib/i18n', () => ({
+vi.mock('@/lib/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/i18n')>()),
   i18n: { global: { locale: { value: 'en-US' }, t: (k: string) => k } }
 }))
 
@@ -74,12 +76,6 @@ vi.mock('@/components/ui/skeleton/Skeleton.vue', () => ({
 vi.mock('@/components/badge/Badge.vue', () => ({
   default: { props: ['color'], template: '<span :data-color="color"><slot /></span>' }
 }))
-vi.mock('./CancelStorageOperationModal.vue', () => ({
-  default: {
-    props: ['open', 'storageId', 'desktopName'],
-    template: '<div data-test="cancel-modal" :data-open="open"></div>'
-  }
-}))
 vi.mock('./IncreaseStorageSizeModal.vue', () => ({
   default: {
     props: ['open', 'storageId'],
@@ -97,9 +93,9 @@ const stoppedDesktop = {
   storage: ['s-1'],
   viewers: [],
   description: ''
-} as unknown as Parameters<typeof DesktopStorageItem.props>[0]
+} as unknown as UserDesktop
 
-const startedDesktop = { ...stoppedDesktop, status: 'Started' } as typeof stoppedDesktop
+const startedDesktop = { ...stoppedDesktop, status: 'Started' } as UserDesktop
 
 const setRole = (role: string) => {
   userRef.value = { id: 'u-1', role_id: role }
@@ -166,55 +162,5 @@ describe('DesktopStorageItem', () => {
     const increaseBtn = wrapper.findAll('button').find((b) => b.attributes('data-icon') === 'plus')
     expect(increaseBtn).toBeTruthy()
     expect((increaseBtn?.element as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('hides Cancel when there is no running task', () => {
-    setRole('admin')
-    setStorage({ id: 's-1', status: 'ready', user_id: 'u-1', has_pending_task: false })
-    const wrapper = mount(DesktopStorageItem, {
-      props: { desktop: stoppedDesktop, storageId: 's-1' }
-    })
-    const cancelBtn = wrapper.findAll('button').find((b) => b.attributes('data-icon') === 'stop')
-    expect(cancelBtn).toBeFalsy()
-  })
-
-  it('shows Cancel for the storage owner when a task is running', () => {
-    setRole('user')
-    setStorage({ id: 's-1', status: 'maintenance', user_id: 'u-1', has_pending_task: true })
-    const wrapper = mount(DesktopStorageItem, {
-      props: { desktop: stoppedDesktop, storageId: 's-1' }
-    })
-    const cancelBtn = wrapper.findAll('button').find((b) => b.attributes('data-icon') === 'stop')
-    expect(cancelBtn).toBeTruthy()
-  })
-
-  it("hides Cancel when a non-owner user views someone else's task", () => {
-    setRole('user')
-    setStorage({
-      id: 's-1',
-      status: 'maintenance',
-      user_id: 'someone-else',
-      has_pending_task: true
-    })
-    const wrapper = mount(DesktopStorageItem, {
-      props: { desktop: stoppedDesktop, storageId: 's-1' }
-    })
-    const cancelBtn = wrapper.findAll('button').find((b) => b.attributes('data-icon') === 'stop')
-    expect(cancelBtn).toBeFalsy()
-  })
-
-  it('shows Cancel for admin even when not the task owner', () => {
-    setRole('admin')
-    setStorage({
-      id: 's-1',
-      status: 'maintenance',
-      user_id: 'someone-else',
-      has_pending_task: true
-    })
-    const wrapper = mount(DesktopStorageItem, {
-      props: { desktop: stoppedDesktop, storageId: 's-1' }
-    })
-    const cancelBtn = wrapper.findAll('button').find((b) => b.attributes('data-icon') === 'stop')
-    expect(cancelBtn).toBeTruthy()
   })
 })

@@ -121,7 +121,6 @@
       "hostname",
       "id",
       "only_forced",
-      "stats",
       "cap_status",
       "capabilities",
       "viewer_status",

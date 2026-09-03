@@ -1,12 +1,12 @@
 [project]
 name = "isardvdi-protobuf"
 version = "0.0.0"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-  "grpcio==1.66.2",
-  "grpcio-tools==1.66.2",
-  "grpcio-health-checking==1.66.2",
-  "protobuf==5.29.4",
+  "grpcio==1.82.1",
+  "grpcio-tools==1.82.1",
+  "grpcio-health-checking==1.82.1",
+  "protobuf==7.35.1",
 ]
 
 [build-system]

@@ -7,6 +7,8 @@ r = RethinkDB()
 import ipaddress
 import logging as log
 import subprocess
+import threading
+import time
 import traceback
 from subprocess import check_output
 
@@ -16,6 +18,31 @@ from db import vpn_rethink_conn
 from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 from simple_iptools import UserIpTools
+
+# Not /usr/bin/wg-quick: the host AppArmor profile attaches to that path.
+WG_QUICK = "/isard/bin/wg-quick"
+
+
+class WgQuickError(RuntimeError):
+    def __init__(self, interface, returncode, stderr):
+        self.returncode = returncode
+        self.stderr = stderr
+        hint = ""
+        if returncode == 126:
+            hint = (
+                " -- 126 is 'found but not executable': the host AppArmor profile"
+                " wg-quick is enforcing and confines this container. Check"
+                " 'grep ^wg-quick /sys/kernel/security/apparmor/profiles' on the host."
+            )
+        super().__init__(
+            f"wg-quick up {interface} failed with {returncode}: {stderr}{hint}"
+        )
+
+
+def _peer_field(peer, name):
+    if isinstance(peer, BaseModel):
+        return getattr(peer, name, None)
+    return (peer or {}).get(name)
 
 
 def _get_infra_mtu():
@@ -150,7 +177,7 @@ class Wg(object):
         # Get first one from range for us!
         self.server_ip = str(self.server_net[1])
 
-        self.clients_reserved_ips = [self.server_ip]
+        self.clients_reserved_ips = {self.server_ip}
         # Get existing users wireguard config and generate new one's if not exist.
         self.init_server()
         self.init_peers(reset_client_certs)
@@ -162,12 +189,17 @@ class Wg(object):
 
     def init_server(self):
         ## Server config
-        try:
-            subprocess.run(["ip", "address", "show", self.interface])
+        # Only tear down what is there: this runs inside wgadmin's retry loop.
+        if (
+            subprocess.run(
+                ["ip", "address", "show", self.interface],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        ):
             log.info("Bringing down wireguard " + self.interface + " interface")
-            subprocess.run(["/usr/bin/wg-quick", "down", self.interface])
-        except:
-            log.info("Wireguard interface " + self.interface + " already exists")
+            subprocess.run([WG_QUICK, "down", self.interface])
         if self.table == "hypervisors":
             # WG interface MTU = INFRASTRUCTURE_MTU - 60 (WireGuard overhead).
             # Same formula in both tunneling modes; in geneve-only the WG
@@ -190,8 +222,230 @@ class Wg(object):
         with open("/etc/wireguard/" + self.interface + ".conf", "w") as f:
             f.write(self.config)
         log.info("Bringing up wireguard " + self.interface + " interface")
-        check_output(("/usr/bin/wg-quick", "up", self.interface), text=True).strip()
+        up = subprocess.run(
+            [WG_QUICK, "up", self.interface], text=True, capture_output=True
+        )
+        if up.returncode != 0:
+            # check_output would raise with only the exit status; the reason is on stderr.
+            raise WgQuickError(self.interface, up.returncode, up.stderr.strip())
         ## End server config
+
+    _INIT_PEERS_BATCH = 100
+
+    # ------------------------------------------------------------------ #
+    # Applied-peer index
+    #
+    # This service is the only writer of its WireGuard interface, so it must not
+    # need the database to undo its own work: a squashed delete event carries no
+    # vpn subtree and would leave the peer orphaned. The row ``id`` is the one
+    # identifier such an event always carries, so the index is keyed by it.
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _applied_peers(self):
+        """``{row id: {public, address, extra_client_nets}}`` for this interface.
+
+        Created on first use rather than in ``__init__`` so an instance built
+        with ``Wg.__new__`` (tests, and any future partial construction) has it
+        too, and so each interface keeps its own -- a class attribute would
+        share one index between the users and hypers instances.
+        """
+        index = self.__dict__.get("_applied_peers_index")
+        if index is None:
+            index = {}
+            self.__dict__["_applied_peers_index"] = index
+        return index
+
+    def _remember_applied_peer(self, peer_id, wireguard):
+        """Record what ``up_peer`` just put on the interface for ``peer_id``."""
+        if not peer_id or not isinstance(wireguard, dict):
+            return
+        public = (wireguard.get("keys") or {}).get("public")
+        if not public:
+            return
+        self._applied_peers[peer_id] = {
+            "public": public,
+            "address": wireguard.get("Address"),
+            "extra_client_nets": wireguard.get("extra_client_nets"),
+        }
+
+    def _forget_applied_peer(self, peer_id):
+        self._applied_peers.pop(peer_id, None)
+
+    def _resolve_applied_peer(self, peer):
+        """What to take off the interface for ``peer``, or ``None``.
+
+        The event's own subtree wins when it is usable -- it is the freshest
+        view, and a key rotation writes the new key there. The index is the
+        fallback for exactly the case that motivated it: an ``old_val`` the
+        changefeed squashed down to a bare row.
+        """
+        wireguard = (peer.get("vpn") or {}).get("wireguard")
+        if isinstance(wireguard, dict):
+            public = (wireguard.get("keys") or {}).get("public")
+            if public:
+                return {
+                    "public": public,
+                    "address": wireguard.get("Address"),
+                    "extra_client_nets": wireguard.get("extra_client_nets"),
+                }
+        remembered = self._applied_peers.get(peer.get("id"))
+        if remembered is not None:
+            log.info(
+                "down_peer[%s]: %s arrived without a usable wireguard subtree; "
+                "resolving it from the applied-peer index (key %s)",
+                self.interface,
+                peer.get("id"),
+                remembered["public"],
+            )
+        return remembered
+
+    @staticmethod
+    def _peer_with_applied_wireguard(peer, applied):
+        """``peer`` for the iptables reaper, backfilled from ``applied``.
+
+        ``remove_matching_rules`` reaps by Address, which a squashed event does
+        not carry either -- without this the peer's ACCEPT pairs would survive
+        the removal of the peer itself.
+        """
+        if applied is None or (peer.get("vpn") or {}).get("wireguard"):
+            return peer
+        enriched = dict(peer)
+        enriched["vpn"] = dict(peer.get("vpn") or {})
+        enriched["vpn"]["wireguard"] = {
+            "Address": applied["address"],
+            "keys": {"public": applied["public"]},
+            "extra_client_nets": applied["extra_client_nets"],
+        }
+        return enriched
+
+    def _flush_peers_batch(self, table, batch, inserted, total_expected, started_at):
+        """Insert one chunk of generated peers into ``table`` and log
+        progress + ETA. Called from :meth:`init_peers` whenever
+        ``create_peers`` reaches ``_INIT_PEERS_BATCH`` (and once at the
+        end with the remainder). No-op if ``batch`` is empty.
+        """
+        if not batch:
+            return
+        with vpn_rethink_conn() as conn:
+            # update, not insert: a row deleted while the batch was generating
+            # configs must not be recreated as an {id, vpn} stub.
+            written = (
+                r.expr(batch)
+                .for_each(lambda peer: r.table(table).get(peer["id"]).update(peer))
+                .run(conn)
+            )
+        if written.get("skipped"):
+            # Nothing to undo (these come up later from the drain), but say so:
+            # a silently dropped config leaves a user with no vpn and no trace.
+            log.warning(
+                "init_peers[%s]: %d of %d rows vanished while their config was "
+                "generated; their peers were not written",
+                table,
+                written["skipped"],
+                len(batch),
+            )
+        elapsed = max(time.monotonic() - started_at, 1e-6)
+        rate = inserted / elapsed
+        remaining = max(total_expected - inserted, 0)
+        eta = remaining / rate if rate > 0 else 0.0
+        log.info(
+            "init_peers[%s]: db-backfill %d/%d (batch=%d, rate=%.0f/s, eta=%.0fs)",
+            table,
+            inserted,
+            total_expected,
+            len(batch),
+            rate,
+            eta,
+        )
+
+    def _start_background_up_peers(self, peers, remotevpn_peers):
+        """Launch the daemon thread that drains the collected up_peer
+        work. No-op if both lists are empty so we don't spawn idle
+        threads. Daemon=True so the thread dies with the process; the
+        wgadmin retry loop will create a new Wg() and a new thread on
+        the next iteration if the previous run crashed.
+        """
+        if not peers and not remotevpn_peers:
+            return
+        # A delete that lands while the queue drains must win: without this the
+        # queued up_peer puts the peer back and nothing takes it off again.
+        self._torn_down_while_draining = set()
+        thread = threading.Thread(
+            target=self._run_background_up_peers,
+            args=(list(peers), list(remotevpn_peers) if remotevpn_peers else []),
+            daemon=True,
+            name=f"init_peers_up_{self.table}_{self.interface}",
+        )
+        thread.start()
+
+    def _run_background_up_peers(self, peers, remotevpn_peers):
+        """Body of the background ``up_peer`` thread.
+
+        Walks ``peers`` first (the primary table), then any remotevpn
+        peers if this Wg instance owns the users table. Catches all
+        exceptions per-iteration so one bad peer doesn't poison the rest
+        of the batch.
+        """
+        try:
+            self._drain_up_peer_queue(self.table, peers)
+            if remotevpn_peers:
+                self._drain_up_peer_queue("remotevpn", remotevpn_peers)
+        except Exception:
+            log.exception(
+                "init_peers[%s]: background up_peer terminated unexpectedly",
+                self.table,
+            )
+        finally:
+            self._torn_down_while_draining = None
+
+    def _drain_up_peer_queue(self, table, peers):
+        """Run ``up_peer`` for every entry in ``peers`` and log progress +
+        ETA every ``_INIT_PEERS_BATCH`` (and once at the end).
+        """
+        total = len(peers)
+        if total == 0:
+            return
+        log.info("init_peers[%s]: background up_peer starting (%d peers)", table, total)
+        started_at = time.monotonic()
+        for i, peer in enumerate(peers, start=1):
+            try:
+                torn_down = getattr(self, "_torn_down_while_draining", None)
+                peer_id = peer.get("id") if isinstance(peer, dict) else None
+                if torn_down is not None and peer_id in torn_down:
+                    log.info(
+                        "init_peers[%s]: %s was taken down while the queue drained; "
+                        "not bringing it up",
+                        table,
+                        peer_id,
+                    )
+                    continue
+                self.up_peer(self._to_model(peer))
+            except Exception:
+                log.exception(
+                    "init_peers[%s]: up_peer failed for %s",
+                    table,
+                    peer.get("id", "?") if isinstance(peer, dict) else "?",
+                )
+            if i % self._INIT_PEERS_BATCH == 0 or i == total:
+                elapsed = max(time.monotonic() - started_at, 1e-6)
+                rate = i / elapsed
+                remaining = total - i
+                eta = remaining / rate if rate > 0 else 0.0
+                log.info(
+                    "init_peers[%s]: up_peer %d/%d (rate=%.1f/s, eta=%.0fs)",
+                    table,
+                    i,
+                    total,
+                    rate,
+                    eta,
+                )
+        log.info(
+            "init_peers[%s]: background up_peer complete (%d peers in %.0fs)",
+            table,
+            total,
+            time.monotonic() - started_at,
+        )
 
     def init_peers(self, reset=False):
         with vpn_rethink_conn() as conn:
@@ -224,20 +478,54 @@ class Wg(object):
                     r.table("remotevpn").pluck("id", "vpn").run(conn)
                 )
 
-        self.clients_reserved_ips = self.clients_reserved_ips + [
+        self.clients_reserved_ips.update(
             p["vpn"]["wireguard"]["Address"]
             for p in wglist
             if "vpn" in p.keys()
-            and isinstance(p.get("vpn", {}).get("wireguard"), dict)
+            and isinstance((p.get("vpn") or {}).get("wireguard"), dict)
             and "Address" in p["vpn"]["wireguard"]
-        ]
+        )
 
+        # Expected total up front so the progress log has an ETA. The lazy-init
+        # and key-rotation paths are mutually exclusive per peer.
+        lazy_init_expected = sum(
+            1
+            for p in wglist
+            if "vpn" not in p.keys()
+            or not isinstance((p.get("vpn") or {}).get("wireguard"), dict)
+        )
+        rotation_expected = sum(
+            1
+            for p in wglist
+            if "vpn" in p.keys()
+            and isinstance((p.get("vpn") or {}).get("wireguard"), dict)
+            and (
+                self.keys.update_clients == True
+                or not p["vpn"]["wireguard"].get("keys")
+            )
+        )
+        total_expected = lazy_init_expected + rotation_expected
+
+        peers_to_up = []
+        remotevpn_to_up = []
         create_peers = []
+        inserted = 0
+        started_at = time.monotonic()
         if self.keys.update_clients == True:
             log.info("Server key changed. Generating new client keys for all users...")
+        if total_expected:
+            log.info(
+                "init_peers[%s]: %d peers to backfill (%d lazy-init, %d key-rotation)",
+                self.table,
+                total_expected,
+                lazy_init_expected,
+                rotation_expected,
+            )
         for peer in wglist:
             new_peer = False
-            wg = peer.get("vpn", {}).get("wireguard")
+            # `or {}` (not a {} default) so a null vpn subtree (not just an
+            # absent one) is treated as "no config yet" instead of crashing.
+            wg = (peer.get("vpn") or {}).get("wireguard")
             wg_is_dict = isinstance(wg, dict)
             if self.keys.update_clients == True and "vpn" in peer.keys() and wg_is_dict:
                 new_peer = peer
@@ -253,43 +541,59 @@ class Wg(object):
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
-            if new_peer == False:
-                if self.table == "users":
-                    if peer.get("active") == True:
-                        self.up_peer(self._to_model(peer))
-                else:
-                    self.up_peer(self._to_model(peer))
+            # Deferred to a background thread, drained after the backfill, so the
+            # wgadmin loop starts serving changefeed events immediately.
+            target = peer if new_peer == False else new_peer
+            if self.table == "users":
+                # From the source row: gen_new_peer does not carry `active`, so a
+                # lazily provisioned user was written and never brought up.
+                if _peer_field(peer, "active") == True:
+                    peers_to_up.append(target)
             else:
-                if self.table == "users":
-                    if new_peer.get("active") == True:
-                        self.up_peer(self._to_model(new_peer))
-                else:
-                    self.up_peer(self._to_model(new_peer))
-            # if self.table=='users':
-            #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
-
-        with vpn_rethink_conn() as conn:
-            r.table(self.table).insert(create_peers, conflict="update").run(conn)
+                peers_to_up.append(target)
+            if len(create_peers) >= self._INIT_PEERS_BATCH:
+                inserted += len(create_peers)
+                self._flush_peers_batch(
+                    self.table, create_peers, inserted, total_expected, started_at
+                )
+                create_peers = []
+        if create_peers:
+            inserted += len(create_peers)
+            self._flush_peers_batch(
+                self.table, create_peers, inserted, total_expected, started_at
+            )
 
         ##### The same for remotevpn table
         if self.table == "users":
-            self.clients_reserved_ips = self.clients_reserved_ips + [
+            self.clients_reserved_ips.update(
                 a
                 for a in [
-                    p.get("vpn", {}).get("wireguard", {}).get("Address")
+                    ((p.get("vpn") or {}).get("wireguard") or {}).get("Address")
                     for p in wglist_remotevpn
                 ]
                 if a
-            ]
+            )
+
+            rv_lazy_expected = sum(1 for p in wglist_remotevpn if "vpn" not in p.keys())
+            rv_rotation_expected = (
+                sum(
+                    1 for p in wglist_remotevpn if (p.get("vpn") or {}).get("wireguard")
+                )
+                if self.keys.update_clients == True
+                else 0
+            )
+            rv_total_expected = rv_lazy_expected + rv_rotation_expected
 
             create_peers = []
+            inserted = 0
+            started_at = time.monotonic()
             if self.keys.update_clients == True:
                 log.info(
                     "Server key changed. Generating new client keys for all remotevpn..."
                 )
             for peer in wglist_remotevpn:
                 new_peer = False
-                if self.keys.update_clients == True and peer.get("vpn", {}).get(
+                if self.keys.update_clients == True and (peer.get("vpn") or {}).get(
                     "wireguard"
                 ):
                     new_peer = peer
@@ -304,12 +608,24 @@ class Wg(object):
                         peer, extra_client_nets=extra_client_nets
                     )
                     create_peers.append(new_peer)
-                if new_peer == False:
-                    self.up_peer(self._to_model(peer))
-                else:
-                    self.up_peer(self._to_model(new_peer))
-            with vpn_rethink_conn() as conn:
-                r.table("remotevpn").insert(create_peers, conflict="update").run(conn)
+                remotevpn_to_up.append(peer if new_peer == False else new_peer)
+                if len(create_peers) >= self._INIT_PEERS_BATCH:
+                    inserted += len(create_peers)
+                    self._flush_peers_batch(
+                        "remotevpn",
+                        create_peers,
+                        inserted,
+                        rv_total_expected,
+                        started_at,
+                    )
+                    create_peers = []
+            if create_peers:
+                inserted += len(create_peers)
+                self._flush_peers_batch(
+                    "remotevpn", create_peers, inserted, rv_total_expected, started_at
+                )
+
+        self._start_background_up_peers(peers_to_up, remotevpn_to_up)
 
     def gen_new_peer(self, peer, extra_client_nets=None):
         peer_dict = peer.model_dump() if isinstance(peer, BaseModel) else peer
@@ -458,6 +774,9 @@ class Wg(object):
                     "25",
                 ]
             )
+            # Recorded the moment it is on the wire, before the OVS work below
+            # can fail, so a later removal can name it even from a gutted row.
+            self._remember_applied_peer(peer.get("id"), peer["vpn"]["wireguard"])
             if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
                 subprocess.run(
                     [
@@ -576,7 +895,29 @@ class Wg(object):
             if table == False:
                 table = self.table
             with vpn_rethink_conn() as conn:
-                r.table(table).insert(new_peer, conflict="update").run(conn)
+                # update, not insert: up_peer() shells out, so the row can be
+                # deleted before we get here and an upsert would recreate it.
+                written = r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
+                if written.get("skipped"):
+                    # The row is gone and up_peer() already put the peer on the
+                    # interface: leaving it there orphans it until a restart.
+                    log.warning(
+                        "add_peer: %s no longer exists in %s; removing the peer "
+                        "just added to %s instead of resurrecting the row",
+                        new_peer["id"],
+                        table,
+                        self.interface,
+                    )
+                    try:
+                        self.down_peer(new_peer, table)
+                    except Exception:
+                        log.exception(
+                            "add_peer: could not remove the peer for the vanished "
+                            "row %s; it is now orphaned on %s",
+                            new_peer["id"],
+                            self.interface,
+                        )
+                    return
                 if table == "remotevpn":
                     r.table(table).get(new_peer["id"]).replace(
                         r.row.without("nets")
@@ -596,14 +937,18 @@ class Wg(object):
         peer = self._to_dict(peer)
         if table == False:
             table = self.table
-        if peer.get("vpn") is not None and "wireguard" in (peer.get("vpn") or {}):
-            if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
+        torn_down = getattr(self, "_torn_down_while_draining", None)
+        if torn_down is not None and peer.get("id"):
+            torn_down.add(peer["id"])
+        applied = self._resolve_applied_peer(peer)
+        if applied is not None:
+            if applied["extra_client_nets"]:
                 subprocess.run(
                     [
                         "ip",
                         "route",
                         "del",
-                        peer["vpn"]["wireguard"]["extra_client_nets"],
+                        applied["extra_client_nets"],
                         "dev",
                         self.interface,
                     ]
@@ -614,12 +959,24 @@ class Wg(object):
                     "set",
                     self.interface,
                     "peer",
-                    peer["vpn"]["wireguard"]["keys"]["public"],
+                    applied["public"],
                     "remove",
                 ),
                 text=True,
             ).strip()
-        self.uipt.remove_matching_rules(peer)
+            self._forget_applied_peer(peer.get("id"))
+        elif self.table != "hypervisors" or (peer.get("vpn") or {}).get("wireguard"):
+            # Neither the event nor our own record names a key, so there is
+            # nothing to remove -- but say so rather than orphan it in silence.
+            log.error(
+                "down_peer[%s]: cannot resolve a public key for %s from the "
+                "event or from the applied-peer index; no peer removed",
+                self.interface,
+                peer.get("id"),
+            )
+        self.uipt.remove_matching_rules(
+            self._peer_with_applied_wireguard(peer, applied)
+        )
         if table == "hypervisors":
             # Resolve the ofport BEFORE del-port so del-flows uses the numeric id
             # that matches how the rules were installed in up_peer().
@@ -668,7 +1025,7 @@ class Wg(object):
                 if str(host) not in self.clients_reserved_ips
             )
         )
-        self.clients_reserved_ips.append(next_ip)
+        self.clients_reserved_ips.add(next_ip)
 
         # if self.table == 'hypervisors':
         #    next_ip=next_ip+','+os.environ['WG_HYPER_GUESTNET']
@@ -686,8 +1043,10 @@ class Wg(object):
         )
 
     def set_iptables(self, peer):
+        # A null vpn subtree is a real state for a user row, and raising here is
+        # swallowed by the change handler, skipping the rest of the change.
         peer = self._to_dict(peer)
-        iptables = peer["vpn"]["iptables"]
+        iptables = (peer.get("vpn") or {}).get("iptables")
 
     def server_config(self, mtu, postup):
         return """[Interface]
@@ -734,6 +1093,52 @@ PostUp = %s
     #        [hypervisor]
     #        [IPv4Network('192.168.128.0/23'), IPv4Network('192.168.130.0/23'), IPv4Network('192.168.132.0/23'), IPv4Network('192.168.134.0/23'), IPv4Network('192.168.136.0/23'), IPv4Network('192.168.138.0/23'), IPv4Network('192.168.140.0/23'), IPv4Network('192.168.142.0/23')]
 
+    # ------------------------------------------------------------------ #
+    # Applied-desktop index
+    #
+    # The rules and the OVS flow are installed from an UPDATE event carrying
+    # viewer.guest_ip, and reaped from a later event that has to name the same
+    # ip. The changefeed squashes changes to a document inside 0.5 s, so a
+    # domain deleted right after its guest ip was written arrives with an
+    # old_val from before that write: no viewer, no ip, nothing to reap by.
+    # The service knows what it installed; it should not need the event to
+    # tell it.
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _applied_desktops(self):
+        index = self.__dict__.get("_applied_desktops_index")
+        if index is None:
+            index = {}
+            self.__dict__["_applied_desktops_index"] = index
+        return index
+
+    def _remember_applied_desktop(self, domain_id, user, guest_ip):
+        if domain_id and guest_ip:
+            self._applied_desktops[domain_id] = {"user": user, "guest_ip": guest_ip}
+
+    def _forget_applied_desktop(self, domain_id):
+        self._applied_desktops.pop(domain_id, None)
+
+    def _resolve_applied_desktop(self, old_val):
+        """What to reap for a deleted domain, or ``None`` if it had nothing.
+
+        The event wins when it carries the ip -- it is the freshest view. The
+        index is the fallback for a squashed delete.
+        """
+        guest_ip = (old_val.get("viewer") or {}).get("guest_ip")
+        if guest_ip:
+            return {"user": old_val.get("user"), "guest_ip": guest_ip}
+        remembered = self._applied_desktops.get(old_val.get("id"))
+        if remembered is not None:
+            log.info(
+                "desktop_iptables: domain %s was deleted without a viewer in the "
+                "event; reaping %s from the applied-desktop index",
+                old_val.get("id"),
+                remembered["guest_ip"],
+            )
+        return remembered
+
     def desktop_iptables(self, data):
         old_val = data.get("old_val")
         new_val = data.get("new_val")
@@ -741,11 +1146,23 @@ PostUp = %s
             # New. Do nothing as will not have ip yet.
             return
         elif new_val is None:
-            # Deleted. We should ensure that no rules are kept for this domain.
-            old_viewer = old_val.get("viewer", {})
-            guest_ip = old_viewer.get("guest_ip")
-            if guest_ip:
-                self._remove_table2_flow(guest_ip)
+            # Deleted. Reap everything desktop_add installed, not just the flow:
+            # a desktop deleted while still started never passes through the
+            # "viewer cleared" update below, so this is its only cleanup.
+            applied = self._resolve_applied_desktop(old_val)
+            if applied is None:
+                # Overwhelmingly the ordinary case: the domain never started, or
+                # it was stopped first and the "viewer cleared" update already
+                # reaped it. Debug, not error -- one line per deleted domain
+                # would only teach people to ignore this log.
+                log.debug(
+                    "desktop_iptables: nothing to reap for deleted domain %s",
+                    old_val.get("id"),
+                )
+                return
+            self.uipt.desktop_remove(applied["user"], applied["guest_ip"])
+            self._remove_table2_flow(applied["guest_ip"])
+            self._forget_applied_desktop(old_val.get("id"))
             return
         else:
             # Updated
@@ -757,10 +1174,14 @@ PostUp = %s
             if nv_status == "Started" and "guest_ip" in new_viewer:
                 # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
                 self.uipt.desktop_add(nv_user, new_viewer.get("guest_ip"))
+                self._remember_applied_desktop(
+                    new_val.get("id"), nv_user, new_viewer.get("guest_ip")
+                )
             elif not new_viewer and old_viewer.get("guest_ip"):
                 guest_ip = old_viewer.get("guest_ip")
                 self.uipt.desktop_remove(ov_user, guest_ip)
                 self._remove_table2_flow(guest_ip)
+                self._forget_applied_desktop(old_val.get("id"))
 
     def _remove_table2_flow(self, guest_ip):
         """Remove table 2 source IP pinning flow and ARP entry for a stopped domain."""
@@ -789,6 +1210,9 @@ PostUp = %s
         if data["status"] == "Started" and "guest_ip" in data.get("viewer", {}):
             # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
             self.uipt.desktop_add(data["user"], data["viewer"]["guest_ip"])
+
+    def refresh_remotevpn_allowed(self, entry):
+        self.uipt.refresh_remotevpn_allowed(entry)
 
     def set_user_rules(self, user_id):
         with vpn_rethink_conn() as conn:

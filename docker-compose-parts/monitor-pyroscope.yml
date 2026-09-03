@@ -5,7 +5,6 @@ services:
     user: root
     volumes:
       - /opt/isard/stats/pyroscope:/data
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"

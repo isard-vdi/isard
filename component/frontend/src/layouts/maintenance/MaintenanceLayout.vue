@@ -34,11 +34,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const cleanCookiesAndGoToLogin = () => {
+  // Clearing the cookie only tears the session down; the navigation has to
+  // happen either way or the first click leaves the user on this same page.
   if (getAuthToken(cookies)) {
     removeAuthToken(cookies)
-  } else {
-    router.push({ name: 'login' })
   }
+  router.push({ name: 'login' })
 }
 </script>
 

@@ -200,7 +200,7 @@ warm-uv-cache:
   cache:
     - <<: *cache_uv
       policy: pull-push
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache git make
   script:
@@ -220,7 +220,7 @@ warm-uv-cache:
   cache:
     - <<: *cache_uv
       policy: pull
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache make
     - uv sync --only-group dev
@@ -359,6 +359,9 @@ docker-compose-build:
     - echo "USAGE=build" >> isardvdi.build.cfg
     - echo "BASTION_ENABLED=true" >> isardvdi.build.cfg
     - echo "ENABLE_OPENAPI=true" >> isardvdi.build.cfg
+    # Its part is off by default, and a service absent from the compose is an
+    # image nothing can build.
+    - echo "STORAGE_POOL_VDO_STATS=true" >> isardvdi.build.cfg
     - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
     - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
@@ -434,7 +437,7 @@ unit-test-vmalert:
     - <<: *cache_uv
       policy: pull
   needs: ["gen-protobuf", "warm-uv-cache"]
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine@sha256:4116326f5dc6815abc4d0a5a3846b735488ceb00cd3dc16da2a78577d30d6e0b
+  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache git make
 
@@ -480,21 +483,34 @@ unit-test-vmalert:
 
 unit-test-apiv4:
   extends: .python-test-job
-  # A real redis, because the retry guard that refuses a task whose direct
-  # dependent is CANCELED rests on rq's own admission rule, and that premise is
-  # proved by running rq rather than by asserting it. The service is declared
-  # here and NOT on ``.python-test-base``: sixteen other python jobs extend that
-  # base and none of them wants a redis container. Same image and digest the
-  # stack runs, so the proof exercises the redis we ship.
+  variables:
+    COVERAGE_DIR: component/apiv4/src
+    USAGE: "production"
+  script:
+    - make ci-test-apiv4
+
+# The premises our code rests on that belong to somebody else's library: an rq
+# admission rule, a Lua script's effect. Proved against the real dependency,
+# because a fake would be a second implementation of the thing under test.
+#
+# Blocking, like a unit job, and separate from one for the same reason it is
+# blocking: a test that needs a running server is not a unit test, and the unit
+# jobs should not be declaring services to accommodate it. No stack here, only
+# the dependency itself.
+contract-test-redis:
+  extends: .python-test-base
+  stage: unit-test
   services:
     - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
       alias: redis
   variables:
-    COVERAGE_DIR: component/apiv4/src
-    USAGE: "production"
     REDIS_HOST: redis
   script:
-    - make ci-test-apiv4
+    - make ci-test-contracts
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/contracts/report.xml
 
 unit-test-change-handler:
   # Real rq graphs: which members of a chain can be reached from its root.
@@ -663,6 +679,45 @@ unit-test-anonymize-db:
     reports:
       junit: sysadm/anonymize-db/report.xml
 
+unit-test-backupninja:
+  # The nightly database backup path, run for real against a live RethinkDB.
+  #
+  # Nothing else in this pipeline ever executes a dump. docker-image builds the
+  # backupninja image and no later job runs rethinkdb-dump against a server, so
+  # a driver that cannot dump at all still produced a green pipeline — which is
+  # how the Python 3.14 multiprocessing breakage reached a release branch.
+  #
+  # The service is what makes the suite run at all, not what makes it pass:
+  # without ISARD_TEST_RETHINKDB the tests skip, and a skipped suite is the
+  # green-having-asserted-nothing outcome the tests exist to prevent. Same image
+  # and digest as the stack's own isard-db (docker/db/Dockerfile), so CI
+  # exercises the server version production runs. The image's default command is
+  # already `rethinkdb --bind all`, so no override is needed.
+  extends: .python-test-base
+  stage: unit-test
+  needs: []
+  services:
+    - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
+      alias: rethinkdb
+  variables:
+    ISARD_TEST_RETHINKDB: "rethinkdb:28015"
+  script:
+    - make ci-test-backupninja
+  artifacts:
+    when: always
+    reports:
+      junit: docker/backupninja/report.xml
+
+unit-test-webapp-js:
+  # The webapp admin JS is served as plain files, so its suites are standalone
+  # scripts run by the runtime rather than by a test framework.
+  stage: unit-test
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+  before_script:
+    - apk add --no-cache make
+  script:
+    - make ci-test-webapp-js
+
 unit-test-frontend:
   # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
@@ -768,6 +823,7 @@ docker-image:
           - stats-go
           - stats-rethinkdb
           - storage
+          - storage-vdo-stats
           - webapp
           - websockify
       - DOCKER_COMPOSE: build
@@ -1018,7 +1074,7 @@ integration-real:
         -e E2E_ADMIN_USER=admin_e2e_01 \
         -e E2E_ADMIN_PWD='IsardTest1!' \
         -e E2E_SKIP_VM_BOOT=1 \
-        ghcr.io/astral-sh/uv:0.11.23-python3.13-trixie-slim bash -c '
+        ghcr.io/astral-sh/uv:0.11.23-python3.14-trixie-slim bash -c '
           apt-get update -qq && apt-get install -y -qq curl > /dev/null
           bash /src/testing/integration/wait-for-stack.sh 240
           cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable

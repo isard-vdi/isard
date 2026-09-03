@@ -789,6 +789,23 @@ def task_index_backfill_entries(rows, job_scores):
     return entries
 
 
+def bastion_keys_to_keep(stored, profile_keys):
+    """The authorized_keys a target should still hold after the bastion moved
+    to resolving profile keys on connect.
+
+    An entry whose material is somebody's profile key is a copy the old
+    injection left behind: the bastion grants that key live now, if and only if
+    the user still has the access it came from, so the copy can only outlive a
+    permission. Anything else was typed by hand and is the only record of it.
+    """
+    keep = []
+    for entry in stored or []:
+        if isinstance(entry, str) and entry.strip() in profile_keys:
+            continue
+        keep.append(entry)
+    return keep
+
+
 """
 System upgrades
 """

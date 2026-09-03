@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useLocalStorage } from '@vueuse/core'
 import { useCookies } from '@vueuse/integrations/useCookies'
+import type { CookieSetOptions } from 'universal-cookie'
 
 import { getDesktopViewerByTypeOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { GetDesktopViewerByTypeData } from '@/gen/oas/apiv4'
@@ -11,6 +12,11 @@ type ViewerType = GetDesktopViewerByTypeData['path']['viewer_type']
 export interface FetchAndOpenViewerVariables {
   desktopId: string
   viewer: ViewerType
+}
+
+const cookieOpts: CookieSetOptions = {
+  path: '/',
+  sameSite: 'strict'
 }
 
 export function useFetchAndOpenViewer() {
@@ -41,7 +47,7 @@ export function useFetchAndOpenViewer() {
           // TODO: session cookie — preserved from original implementation
           alert('TODO: set session cookie for RDP viewer')
         }
-        cookies.set('browser_viewer', data.cookie)
+        cookies.set('browser_viewer', data.cookie, cookieOpts)
         window.open(data.viewer || undefined, '_blank')
       } else if (data.kind === 'file') {
         const el = document.createElement('a')

@@ -37,7 +37,7 @@ def test_get_deployment(monkeypatch, test_client):
 
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.get_deployment",
-        staticmethod(lambda deployment_id: deployment_data),
+        staticmethod(lambda deployment_id, user_id=None: deployment_data),
     )
 
     async def mock_owns_deployment_id(deployment_id: str = "dep-1"):
@@ -362,15 +362,9 @@ def test_recreate_deployment_unexpected_exception_returns_500(monkeypatch, test_
     assert response.status_code == 500
 
 
-def test_delete_deployment_allows_co_owners(monkeypatch, test_client):
-    """``DELETE /item/deployment/{id}`` regressed: v3
-    ``DeploymentsView.api_v3_deployments_delete`` calls
-    ``ownsDeploymentId(payload, id, check_co_owners=False)`` so that
-    co-owners (not just primary owners) can delete deployments. v4 was
-    using the default ``owns_deployment_id()`` which has
-    ``check_co_owner=True``. This test pins the fix by capturing the
-    ``check_co_owner`` flag passed through ``Helpers.owns_deployment_id``
-    and asserting it is ``False``.
+def test_delete_deployment_rejects_co_owners(monkeypatch, test_client):
+    """Only the owner may delete a deployment, so the route must pass
+    ``check_co_owner=False`` to ``Helpers.owns_deployment_id``.
     """
     from api import app
     from api.dependencies.domains import deployment_has_no_started_desktops

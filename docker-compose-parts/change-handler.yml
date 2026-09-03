@@ -15,12 +15,14 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.34
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'isardvdi_change-handler' || exit 1"]
+      # Exec form, not CMD-SHELL: a shell would carry the pattern in its own
+      # command line and pgrep would match the check instead of the process.
+      test: ["CMD", "pgrep", "-f", "isardvdi_change_handler"]
       start_period: 30s
       interval: 5s
     volumes:
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       LOG_LEVEL:
@@ -30,10 +32,17 @@ services:
       RETHINKDB_DB: ${RETHINKDB_DB:-isard}
       # Single-event-loop process consuming Redis stream events;
       # only modest concurrency. Default 10 was over-allocated.
-      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-5}
+      # The settle loop now has several entries in flight, each holding a
+      # connection for the duration of its query, so 5 became the ceiling on
+      # its own concurrency. Note the variable name is shared across services
+      # with different defaults: setting it in the environment moves them all.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-32}
+      # How many stream entries the change-handler settles at once. Declared
+      # here so an install can tune it; the code default matches this one.
+      SETTLE_CONCURRENCY: ${SETTLE_CONCURRENCY:-8}
       RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       REDIS_HOST: ${REDIS_HOST:-isard-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      DEBUG_WEBSOCKETS: "false"
+      DEBUG_WEBSOCKETS:
       API_ISARDVDI_SECRET:

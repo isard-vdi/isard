@@ -37,6 +37,9 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage.migration_run import DEFAULT_PRIORITY
+from isardvdi_common.lib.storage.storage_pools.storage_pools import (
+    StoragePoolsProcessed,
+)
 from isardvdi_common.models.storage import get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
@@ -75,17 +78,33 @@ _TERMINAL = {
 }
 
 
-def _tree_summaries(items):
+def _tree_summaries(items, order=None, budget=0):
+    """Per-tree rows for the preview, IN PLAN ORDER.
+
+    The rows are emitted in the order the job would start the trees, and each
+    one says whether it fits in this occurrence's byte budget. Without that the
+    admin sees the same list whatever the order, while the job would move a
+    different set of disks.
+    """
     by_tree = {}
     for it in items:
         by_tree.setdefault(it["tree_id"], []).append(it)
+    keys = {tid: tit[0].get("tree_order_key") for tid, tit in by_tree.items()}
+    ordered = mig.sort_tree_ids(keys, order)
+    bytes_of = {
+        tid: sum(int(it.get("size_bytes") or 0) for it in tit)
+        for tid, tit in by_tree.items()
+    }
+    within = set(mig.budget_prefix(ordered, bytes_of.get, budget))
     out = []
-    for tree_id, tit in by_tree.items():
-        s = mig.summarize_plan(tit)
+    for tree_id in ordered:
+        s = mig.summarize_plan(by_tree[tree_id])
         out.append(
             {
                 "tree_id": tree_id,
                 "root_storage_id": tree_id,
+                "order_key": keys[tree_id],
+                "within_budget": tree_id in within,
                 "derivative_templates": s["derivative_templates"],
                 "desktops": s["desktops"],
                 "media": s["media"],
@@ -213,18 +232,34 @@ class AdminStorageMigrationService:
         return StoragePool(dst_id)
 
     @classmethod
-    def plan(cls, selection: dict) -> dict:
+    def plan(cls, selection: dict, config: dict | None = None) -> dict:
         """Dry-run preview — resolve the selection, build the plan, summarise
         per tree. Nothing is persisted. Result is briefly cached per selection
         (see ``_PLAN_CACHE``); an invalid selection raises before caching."""
-        key = _plan_cache_key(selection)
+        config = config or {}
+        order = config.get("order")
+        budget = int(config.get("max_bytes_per_occurrence") or 0)
+        # the two config knobs that change the preview belong in the cache key,
+        # or toggling the order silently re-serves the previous ordering
+        key = _plan_cache_key({**selection, "_order": order, "_budget": budget})
         cached = _PLAN_CACHE.get(key)
         if cached is not None:
             return cached
         dst_pool = cls._dst_pool(selection)
         roots = mig.roots_for_selection(selection)
-        items, totals = mig.build_plan_for_roots("__preview__", roots, dst_pool)
-        result = {"trees": _tree_summaries(items), "totals": totals}
+        items, totals = mig.build_plan_for_roots(
+            "__preview__",
+            roots,
+            dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=order,
+        )
+        trees = _tree_summaries(items, order=order, budget=budget)
+        totals["trees_within_budget"] = sum(1 for t in trees if t["within_budget"])
+        totals["bytes_within_budget"] = sum(
+            t["bytes_total"] for t in trees if t["within_budget"]
+        )
+        result = {"trees": trees, "totals": totals}
         _PLAN_CACHE[key] = result
         return result
 
@@ -256,6 +291,20 @@ class AdminStorageMigrationService:
             if queue in seen:
                 continue
             seen.add(queue)
+            decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+            if decision == "reject" and ctx.get("reason") == "no_consumer":
+                # Declared but powered off is WAITING, not orphaned; only a pool
+                # nobody declares can never be drained.
+                try:
+                    declared = StoragePoolsProcessed._pool_coverage_declared(
+                        src_pool.id
+                    ) and StoragePoolsProcessed._pool_coverage_declared(dst_pool.id)
+                except Exception:
+                    # Fail closed, like the gate itself: not knowing is not the
+                    # same as knowing somebody will come back for this work.
+                    declared = 0
+                if declared:
+                    continue
             queue_coverage.check_no_consumer(Task._redis, queue)
 
     @classmethod
@@ -279,7 +328,9 @@ class AdminStorageMigrationService:
         # origin != destination for path/category: a plan that resolves entirely
         # in-place (every disk's dst == src) would move nothing while the release
         # move_deletes the live source. (Pool src==dst is rejected in _dst_pool.)
-        preview, _ = mig.build_plan_for_roots("__preview__", roots, dst_pool)
+        preview, _ = mig.build_plan_for_roots(
+            "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
+        )
         if mig.all_in_place(preview):
             raise Error(
                 "bad_request",
@@ -297,7 +348,13 @@ class AdminStorageMigrationService:
             created_at=now,
             updated_at=now,
         )
-        items, totals = mig.build_plan_for_roots(migration.id, roots, dst_pool)
+        items, totals = mig.build_plan_for_roots(
+            migration.id,
+            roots,
+            dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=config.get("order"),
+        )
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals

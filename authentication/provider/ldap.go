@@ -468,6 +468,10 @@ func (l *LDAP) String() string {
 }
 
 func (l *LDAP) Healthcheck() error {
+	if l.cfg.Cfg().Host == "" {
+		return ErrNotConfigured
+	}
+
 	conn, err := l.newConn()
 	if err != nil {
 		return fmt.Errorf("unable to connect to the LDAP server: %w", err)

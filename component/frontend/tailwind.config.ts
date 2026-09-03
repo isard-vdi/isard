@@ -209,12 +209,18 @@ export default {
           modal: 'var(--info-modal)'
         },
         'secondary-1': {
+          100: 'var(--secondary-1-100)',
+          200: 'var(--secondary-1-200)',
+          300: 'var(--secondary-1-300)',
           400: 'var(--secondary-1-400)',
           500: 'var(--secondary-1-500)',
           600: 'var(--secondary-1-600)',
           700: 'var(--secondary-1-700)'
         },
         'secondary-2': {
+          100: 'var(--secondary-2-100)',
+          200: 'var(--secondary-2-200)',
+          300: 'var(--secondary-2-300)',
           400: 'var(--secondary-2-400)',
           500: 'var(--secondary-2-500)',
           600: 'var(--secondary-2-600)',
@@ -223,6 +229,9 @@ export default {
           900: 'var(--secondary-2-900)',
         },
         'secondary-3': {
+          100: 'var(--secondary-3-100)',
+          200: 'var(--secondary-3-200)',
+          300: 'var(--secondary-3-300)',
           400: 'var(--secondary-3-400)',
           500: 'var(--secondary-3-500)',
           600: 'var(--secondary-3-600)',

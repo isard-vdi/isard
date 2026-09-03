@@ -33,7 +33,7 @@ from isardvdi_common.connections.rethink_dedicated_connection import (
     dedicated_async_connection,
 )
 from rethinkdb import r
-from rethinkdb.errors import ReqlDriverError
+from rethinkdb.errors import ReqlDriverError, ReqlRuntimeError
 
 
 def sanitize(obj):
@@ -179,7 +179,9 @@ class TableChangefeed(RethinkSharedConnection):
                 # the cursor.
                 await self._consume_cursor(changes_query)
                 self._retry_delay = 5
-            except ReqlDriverError:
+            except (ReqlDriverError, ReqlRuntimeError):
+                # sibling classes, neither a subclass of the other: the async
+                # transport raises the runtime one on a dropped socket.
                 log.warning("RethinkDB connection lost, attempting to reconnect...")
             except Exception:
                 log.exception("Unexpected error in changefeed loop")

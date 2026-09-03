@@ -47,9 +47,24 @@ def _int_env(name: str, default: int, *, lo: int, hi: int) -> int:
 _LEVEL = _int_env("ISARD_XML_ZSTD_LEVEL", 3, lo=1, hi=19)
 _MIN_BYTES = _int_env("ISARD_XML_ZSTD_MIN_BYTES", 512, lo=0, hi=10 * 1024 * 1024)
 
-_compressor = zstd.ZstdCompressor(level=_LEVEL)
-_decompressor = zstd.ZstdDecompressor()
 _lazy_lock = threading.Lock()
+# zstandard documents its contexts as NOT thread safe: no two methods of one
+# instance may run concurrently. Keep one per thread instead of one per process.
+_local = threading.local()
+
+
+def _thread_compressor():
+    compressor = getattr(_local, "compressor", None)
+    if compressor is None:
+        compressor = _local.compressor = zstd.ZstdCompressor(level=_LEVEL)
+    return compressor
+
+
+def _thread_decompressor():
+    decompressor = getattr(_local, "decompressor", None)
+    if decompressor is None:
+        decompressor = _local.decompressor = zstd.ZstdDecompressor()
+    return decompressor
 
 
 def is_compressed(value) -> bool:
@@ -92,7 +107,7 @@ def compress_xml(text):
         return text
     from rethinkdb import r
 
-    return r.binary(_compressor.compress(encoded))
+    return r.binary(_thread_compressor().compress(encoded))
 
 
 def decompress_xml(value):
@@ -132,7 +147,7 @@ def decompress_xml(value):
             return raw.decode("utf-8")
         except UnicodeDecodeError:
             return raw.decode("utf-8", errors="replace")
-    return _decompressor.decompress(raw).decode("utf-8")
+    return _thread_decompressor().decompress(raw).decode("utf-8")
 
 
 def lazy_compress_in_place(domain_id, plain_xml, *, conn):
@@ -156,7 +171,7 @@ def lazy_compress_in_place(domain_id, plain_xml, *, conn):
     try:
         from rethinkdb import r
 
-        compressed = _compressor.compress(encoded)
+        compressed = _thread_compressor().compress(encoded)
         with _lazy_lock:
             r.table("domains").get(domain_id).update(
                 lambda row: r.branch(

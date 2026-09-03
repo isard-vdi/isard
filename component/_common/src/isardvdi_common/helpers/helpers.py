@@ -422,8 +422,12 @@ class Helpers(RethinkSharedConnection):
                 .pluck("user", "name", "category", "group", "duplicate_parent_template")
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -498,30 +502,35 @@ class Helpers(RethinkSharedConnection):
         derivated_templates = cls._derivated_templates(template_id) + cls._duplicated(
             template_id
         )
-        derivated_template_ids = [t["id"] for t in derivated_templates]
+        derivated_template_ids = list({t["id"] for t in derivated_templates})
         with cls._rdb_context():
             deployments = list(
                 r.table("deployments")
                 .get_all(r.args(derivated_template_ids), index="template")
                 .pluck("id", "name", "user", "group")
+                # ``template`` is a multi index over create_dict, so a deployment
+                # with several desktops of the same template comes back once each
+                .distinct()
                 .merge(
                     lambda d: {
+                        # A deleted owner must not break the whole tree
                         "user_data": r.table("users")
                         .get(d["user"])
+                        .default({})
                         .pluck("username", "name", "category", "group")
                     }
                 )
                 .merge(
                     lambda d: {
-                        "username": d["user_data"]["username"],
-                        "user_name": d["user_data"]["name"],
-                        "category": d["user_data"]["category"],
-                        "category_name": r.table("categories").get(
-                            d["user_data"]["category"]
-                        )["name"],
-                        "group_name": r.table("groups").get(d["user_data"]["group"])[
-                            "name"
-                        ],
+                        "username": d["user_data"]["username"].default(None),
+                        "user_name": d["user_data"]["name"].default(None),
+                        "category": d["user_data"]["category"].default(None),
+                        "category_name": r.table("categories")
+                        .get(d["user_data"]["category"].default(""))["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["user_data"]["group"].default(""))["name"]
+                        .default(None),
                         "kind": "deployment",
                         "template_id": template_id,  # Return the origin template for the dependency tree
                     }
@@ -561,8 +570,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -593,8 +606,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -631,8 +648,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -656,8 +677,12 @@ class Helpers(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "username": r.table("users").get(d["user"])["username"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "username": r.table("users")
+                        .get(d["user"])["username"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -870,6 +895,15 @@ class Helpers(RethinkSharedConnection):
         if match:
             parts = {k: int(v) for k, v in match.groupdict().items() if v}
             return timedelta(**parts)
+
+    FRONTEND_MODES = ("deprecated", "actual", "all", "hidden")
+
+    @classmethod
+    def frontend_mode(cls):
+        """Which frontends the installation exposes. Unknown values fall back to
+        ``deprecated``."""
+        mode = os.getenv("FRONTEND_MODE", "deprecated")
+        return mode if mode in cls.FRONTEND_MODES else "deprecated"
 
     @classmethod
     def bastion_enabled(cls):
@@ -1549,6 +1583,37 @@ class Helpers(RethinkSharedConnection):
             "username": user["username"],
         }
 
+    @staticmethod
+    def _bytes_from_human_size(value):
+        """Bytes for a curl-style size string, or ``None`` when it cannot be read.
+
+        The hypervisor reports a media's size the way curl prints it —
+        ``"3408k"``, ``"1.2G"``, sometimes bare digits — and the row's
+        ``total_bytes`` has to be a number, because that is what quota,
+        analytics and the usage pipeline sum.
+
+        Returns ``None`` rather than a guess on anything it does not recognise.
+        A media with no ``total_bytes`` is counted as zero, which is what
+        happens today; a media with a WRONG one silently moves a quota, and
+        that is worse than the gap it would be papering over.
+        """
+        if isinstance(value, (int, float)):
+            return int(value)
+        if not isinstance(value, str):
+            return None
+        text = value.strip()
+        if not text:
+            return None
+        units = {"": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+        suffix = text[-1].lower()
+        number, unit = (
+            (text[:-1], suffix) if suffix in units and suffix != "" else (text, "")
+        )
+        try:
+            return int(float(number) * units[unit])
+        except (TypeError, ValueError):
+            return None
+
     @classmethod
     def generate_db_media(cls, path_downloaded, filesize):
         media_id = str(uuid.uuid4())
@@ -1617,6 +1682,15 @@ class Helpers(RethinkSharedConnection):
                 "time_total": "0:00:05",
                 "total": filesize,
                 "total_percent": 100,
+                # Without this the media is counted as ZERO by quota, analytics
+                # and the usage pipeline, which all read ``progress.total_bytes``
+                # — so every media discovered by a storage scan was invisible to
+                # the accounting that decides whether a user may create more.
+                **(
+                    {"total_bytes": total_bytes}
+                    if (total_bytes := cls._bytes_from_human_size(filesize)) is not None
+                    else {}
+                ),
                 "xferd": "0",
                 "xferd_percent": "0",
             },

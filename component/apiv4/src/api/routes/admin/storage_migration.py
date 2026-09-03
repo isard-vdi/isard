@@ -66,7 +66,9 @@ _ERRS = {400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
 async def admin_storage_migration_plan(request: Request, data: MigrationPlanData):
     try:
         return await asyncio.to_thread(
-            AdminStorageMigrationService.plan, data.selection.model_dump()
+            AdminStorageMigrationService.plan,
+            data.selection.model_dump(),
+            data.config.model_dump(),
         )
     except Error:
         raise

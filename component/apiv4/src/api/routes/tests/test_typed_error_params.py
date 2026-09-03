@@ -56,7 +56,7 @@ def _operations(spec):
 _EXPECTED = {
     "PasswordPolicyErrorResponse": ("400", 5),
     "DesktopNameExistsErrorResponse": ("409", 1),
-    "DesktopNotBookedErrorResponse": ("428", 2),
+    "DesktopNotBookedErrorResponse": ("428", 3),
     "RecycleBinRestoreErrorResponse": ("404", 1),
 }
 

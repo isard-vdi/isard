@@ -103,31 +103,35 @@ class NotificationsCompute(RethinkSharedConnection):
                                 payload["user_id"], "notified", notification["id"]
                             )
                         )
+                        desktop_vars = {
+                            "desktop_name": last_desktop_log["desktop_name"],
+                        }
                         # If the user has not been notified yet, we need to create the notification data
                         if not notification_data:
-                            notification_data = {
-                                "accepted_at": None,
-                                "created_at": datetime.now().astimezone(pytz.UTC),
-                                "item_id": last_desktop_log["desktop_id"],
-                                "item_type": "desktop",
-                                "notification_id": notification["id"],
-                                "notified_at": datetime.now().astimezone(pytz.UTC),
-                                "status": "notified",
-                                "user_id": payload["user_id"],
-                                "vars": {
-                                    "desktop_name": last_desktop_log["desktop_name"],
-                                },
-                                "ignore_after": notification["ignore_after"],
-                            }
                             NotificationsDataProcessed.add_notification_data(
-                                notification_data
+                                {
+                                    "accepted_at": None,
+                                    "created_at": datetime.now().astimezone(pytz.UTC),
+                                    "item_id": last_desktop_log["desktop_id"],
+                                    "item_type": "desktop",
+                                    "notification_id": notification["id"],
+                                    "notified_at": datetime.now().astimezone(pytz.UTC),
+                                    "status": "notified",
+                                    "user_id": payload["user_id"],
+                                    "vars": desktop_vars,
+                                    "ignore_after": notification["ignore_after"],
+                                }
                             )
                         # Otherwise, we need to update the notification data
                         else:
-                            notification_data = notification_data[0]
+                            # Re-point it at the desktop just started: keeping
+                            # the stored vars showed the name of the desktop
+                            # the user was first notified about.
                             NotificationsDataProcessed.update_notification_data(
                                 {
-                                    "id": notification_data["id"],
+                                    "id": notification_data[0]["id"],
+                                    "item_id": last_desktop_log["desktop_id"],
+                                    "vars": desktop_vars,
                                     "notified_at": datetime.now().astimezone(pytz.UTC),
                                 }
                             )
@@ -135,7 +139,7 @@ class NotificationsCompute(RethinkSharedConnection):
                             "id": "0000-000",
                             "title": notification_template_user_lang["title"],
                             "body": notification_template_user_lang["body"].format(
-                                **notification_data["vars"]
+                                **desktop_vars
                             ),
                             "footer": notification_template_user_lang["footer"],
                         }

@@ -57,6 +57,8 @@ Each stage logs `[N/total]` banners and per-table / per-row progress.
 | Same, plus restore into local `isard-db` | `... --restore-local --auto-stop-start --yes` |
 | Same, plus fake qcow2 chain + ISOs | `... --with-fake-storage` |
 | Use a custom default-output dir | `... --output /tmp/anon.tar.gz` |
+| Carry the big time-series tables empty | `... --empty-tables` |
+| Carry a specific list of tables empty | `... --empty-tables logs_users,bookings` |
 
 The anonymized tar.gz is **always** written. Default name: `./isard-anon-<UTC-timestamp>.tar.gz`.
 
@@ -151,6 +153,30 @@ Services like `isard-api` and `isard-engine` connect to `isard-db` and will misb
 - prints them with the exact `docker compose stop ...` / `start ...` commands,
 - with `--auto-stop-start`: stops them before the restore and starts them again after, **even if the restore fails** (uses a `try/finally`),
 - without `--auto-stop-start`: prompts for confirmation; `--yes` skips the prompt.
+
+---
+
+## Trimming what travels (opt-in)
+
+Three settings, from gentlest to bluntest, all off by default:
+
+| Flag | Effect |
+|------|--------|
+| `--prune-deleted-days [N]` | drop rows already in a deleted state older than N days (default 30): `recycle_bin`, `storage`, `media` |
+| `--cap-history-days [N]` | keep only the last N days (default 30) of `logs_desktops`, `logs_users`, `usage_consumption` |
+| `--empty-tables [T1,T2,...]` | carry the named tables with **no rows at all**; with no value, `logs_desktops`, `logs_users` and `usage_consumption` |
+
+`--empty-tables` keeps the table itself: the `.info` beside the rows carries the primary key and every
+secondary index, so a restore rebuilds it complete and it simply has nothing in it. The rows are never
+scrubbed, so the table is also skipped by the prune and by the cross-table rewrite — which is where
+most of the wall-clock goes on a large dump.
+
+On a production-shaped dump the three defaults are about 80% of the bytes. Naming a table that is not
+in the dump logs a warning instead of failing, so a shared command line stays usable across installs
+whose schemas differ.
+
+Do not use it when the admin users/desktops logs or the usage history are what you are testing;
+`--cap-history-days N` is the middle setting for that.
 
 ---
 

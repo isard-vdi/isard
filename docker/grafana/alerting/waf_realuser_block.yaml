@@ -1,0 +1,131 @@
+apiVersion: 1
+
+# WAF real-user-block alert, delivered via Grafana unified alerting.
+#
+# Fires when the isard-waf blocks a REAL external user on a legitimate
+# application path (a false positive 403'ing a genuine user), or when a 200002
+# body-parse hard-deny hits a legitimate path (the deny that is invisible in
+# DetectionOnly and only bites in blocking mode). The classification mirrors the
+# read-only Loki detector shipped in the WAF repo (utils/waf-monitor/detect.py):
+# a disruptive block / 200002 on a legit path, from a client that is NOT an
+# internal RFC1918/loopback address and whose path is NOT a scanner shape.
+#
+# WHY a central Grafana rule instead of a monitor per WAF: the raw isard-waf
+# match log is already shipped to Loki by grafana-alloy (service_name=isard-waf),
+# so the whole verdict can be computed centrally here — no per-WAF token, no
+# extra process. Installs whose WAF also runs the optional in-container monitor
+# (WAF_MONITOR=true) still work: this rule reads the same raw match lines, so it
+# does not depend on that monitor being present.
+#
+# INERT WHERE THERE IS NO WAF: on an install with no isard-waf, the Loki stream
+# does not exist, the query returns no series, and noDataState=OK keeps the rule
+# silent. It is therefore safe to provision fleet-wide (it only ships on the
+# `monitor` flavour anyway). The ONLY way it could misfire with no WAF is a
+# noDataState of Alerting — which is deliberately NOT used here.
+#
+# Telegram is OPT-IN, exactly like docker/grafana/alerting/storage_governor.yaml:
+# Grafana treats an empty bot token as a FATAL provisioning error and crash-loops
+# on startup, so the grafana entrypoint (docker/grafana/run.sh) removes this file
+# when GRAFANA_TELEGRAM_TOKEN / GRAFANA_TELEGRAM_CHAT_ID are unset.
+#
+# The Loki datasource uid P8E80F9AEF21F6940 is the deterministic uid Grafana
+# assigns to the provisioned Loki datasource (docker/grafana/datasources/stats.yml)
+# — the same uid the provisioned dashboards reference. This mirrors how
+# storage_governor.yaml references the Prometheus uid PBFA97CFB590B2093.
+#
+# PER-INSTALL TUNING: the client filter treats only RFC1918 + loopback as
+# internal. An install with known-good PUBLIC ranges (office egress, a NAT pool)
+# that should not page can extend the `client !~` alternation below. The legit
+# and scanner path regexes match the WAF `isardvdi` profile's surface; adjust
+# them when a WAF fronts a different app. NOTE: Loki label filters (=~ / !~) are
+# FULLY ANCHORED (^(?:...)$ , unlike Python re.search), so every path/client
+# regex is wrapped in .* to match a substring — do not drop the .* wrappers.
+
+contactPoints:
+  - orgId: 1
+    name: waf-telegram
+    receivers:
+      - uid: waf-telegram
+        type: telegram
+        settings:
+          bottoken: ${GRAFANA_TELEGRAM_TOKEN}
+          chatid: ${GRAFANA_TELEGRAM_CHAT_ID}
+        disableResolveMessage: false
+
+groups:
+  - orgId: 1
+    name: waf-security
+    folder: WAF
+    interval: 1m
+    rules:
+      # ------------------------------------------------------------------
+      # WafRealUserBlocked — a disruptive block (or a 200002 hard-deny) on a
+      # legitimate path from a real external client in the last 5m. One firing
+      # instance; the offending client/rule/uri are in Loki.
+      # ------------------------------------------------------------------
+      - uid: waf-realuser-block
+        title: WafRealUserBlocked
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: isard-waf
+        annotations:
+          summary: WAF blocked a real user on a legitimate path
+          description: >-
+            isard-waf issued a disruptive block (or a 200002 body-parse hard-deny)
+            against a real external client on a legitimate application path within
+            the last 5m — very likely a false positive 403'ing a genuine user.
+            Inspect Loki {service_name="isard-waf"} for the client IP, rule_id and
+            uri, and either add a targeted CRS exclusion or revert the offending
+            host to DetectionOnly.
+        notification_settings:
+          receiver: waf-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              editorMode: code
+              queryType: instant
+              expr: 'sum(count_over_time({service_name="isard-waf"} |~ `"disruptive":true|"rule_id":200002` | json uri="match.uri", client="match.client" | uri =~ `(?i).*/(authentication|isard-admin|socket\.io|viewer|websocket-tunnel|api/v[34]|monitor/api|monitor/user|monitor/d/|faro).*` | uri !~ `(?i).*(xmlrpc|\.env|\.git|\.php|/owa|/ecp|/RDWeb|/cgi-bin|/vendor/|/wp-|/\.[a-z]|\.tfstate|terraform|\.bak|\.old|\.swp|id_rsa|\.htpasswd|\.npmrc|\.dockercfg|\.aws).*` | client !~ `(10\.|172\.|192\.168\.|127\.|::1).*`[5m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

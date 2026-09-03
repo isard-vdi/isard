@@ -591,3 +591,86 @@ def test_change_template_owner(monkeypatch, test_client):
         "new_user_id": "user-target",
         "role_id": "admin",
     }
+
+
+# ─── Non-persistent desktop the template would reuse ─────────────────────
+# TODO(old-frontend-removal): the whole section goes with the endpoint. Only
+# while the old frontend is reachable: the Vue 3 wizard disables the temporal
+# option instead of silently handing back the existing desktop.
+
+
+def _templates_db_with_temporal(templates_db_factory, jwt, *desktops):
+    db_tables_data = templates_db_factory(jwt)
+    db_tables_data["domains"].extend(desktops)
+    return db_tables_data
+
+
+def _temporal(desktop_id, jwt, template_id="template-1"):
+    p = jwt.payload
+    return {
+        "id": desktop_id,
+        "kind": "desktop",
+        "user": p["user_id"],
+        "group": p["group_id"],
+        "category": p["category_id"],
+        "create_dict": {"hardware": {"isos": []}},
+        "name": desktop_id,
+        "description": "",
+        "status": "Started",
+        "persistent": False,
+        "from_template": template_id,
+    }
+
+
+def test_get_template_nonpersistent_desktop_returns_the_reused_one(
+    monkeypatch, test_client, templates_db_factory
+):
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    jwt = MockJWT(role_id="advanced")
+
+    response = test_client(
+        db_tables_data=_templates_db_with_temporal(
+            templates_db_factory, jwt, _temporal("desktop-np-1", jwt)
+        ),
+        url="/item/template/template-1/get-nonpersistent-desktop",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"desktop_id": "desktop-np-1"}
+
+
+def test_get_template_nonpersistent_desktop_none_without_one(
+    monkeypatch, test_client, templates_db_factory
+):
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    jwt = MockJWT(role_id="advanced")
+
+    response = test_client(
+        db_tables_data=_templates_db_with_temporal(
+            templates_db_factory, jwt, _temporal("desktop-np-1", jwt, "template-2")
+        ),
+        url="/item/template/template-1/get-nonpersistent-desktop",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"desktop_id": None}
+
+
+def test_get_template_nonpersistent_desktop_none_without_old_frontend(
+    monkeypatch, test_client, templates_db_factory
+):
+    monkeypatch.setenv("FRONTEND_MODE", "actual")
+    jwt = MockJWT(role_id="advanced")
+
+    response = test_client(
+        db_tables_data=_templates_db_with_temporal(
+            templates_db_factory, jwt, _temporal("desktop-np-1", jwt)
+        ),
+        url="/item/template/template-1/get-nonpersistent-desktop",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"desktop_id": None}

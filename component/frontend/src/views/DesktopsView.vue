@@ -1,12 +1,31 @@
 <script setup lang="ts">
-import { computed, readonly, ref, toValue, reactive } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  readonly,
+  ref,
+  shallowRef,
+  toValue,
+  reactive,
+  watch,
+  watchEffect
+} from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { useLocalStorage as vueuseLocalStorage, useWindowSize } from '@vueuse/core'
+import {
+  useLocalStorage as vueuseLocalStorage,
+  refDebounced,
+  useElementSize,
+  useEventListener,
+  useWindowSize,
+  useWindowScroll
+} from '@vueuse/core'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
+import { useWindowVirtualizer, type VirtualItem } from '@tanstack/vue-virtual'
 
 import {
   getUserDesktopsOptions,
@@ -25,16 +44,15 @@ import {
   createBookingEventMutation,
   startDesktopMutation,
   stopDesktopMutation,
-  checkQuotaNewDesktopOptions,
   checkQuotaNewTemplateOptions,
-  checkStoragePoolCreationAvailabilityOptions
+  checkStoragePoolCreationAvailabilityOptions,
+  getDesktopDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   startDesktop,
   stopDesktop,
   stopDesktops,
   getDesktopNetworks,
-  getDesktopDetails as getDesktopInfo,
   deleteDesktop,
   updateDesktopBastionAuthorizedKeys,
   getDesktopViewerByType as getDesktopViewer,
@@ -56,10 +74,11 @@ import { getEndTimeIntervals } from '@/lib/booking/end-time-intervals'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
+import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
-
-import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
+import { useUserStore } from '@/stores/user'
+import { canCreateAnyDesktop } from '@/lib/quotas'
 
 import { SinglePageLayout } from '@/layouts/single-page'
 
@@ -69,7 +88,7 @@ import {
   DesktopBastionInfoModal,
   DesktopNetworksModal
 } from '@/components/desktops'
-import { DesktopStorageModal } from '@/components/desktop-card/desktop-storage-modal'
+import { AdvancedOptionsModal } from '@/components/desktop-card/advanced-options-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { BadgeMini } from '@/components/badge/mini'
@@ -84,14 +103,7 @@ import {
   type CardSize
 } from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from '@/components/ui/empty'
+import { EmptyState } from '@/components/page'
 import {
   Field,
   FieldDescription,
@@ -119,20 +131,27 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
+import { AbortStorageOperationModal } from '@/components/AbortStorageOperationModal'
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useFastScroll } from '@/composables/useFastScroll'
+import { useSearchShortcuts } from '@/composables/useSearchShortcuts'
+import { Kbd } from '@/components/kbd'
 
-const { t, d } = useI18n()
+const { t, d, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const notificationModalStore = useNotificationModalStore()
+const userStore = useUserStore()
 
 const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
@@ -199,6 +218,10 @@ const QUOTA_EXCEEDED_MODAL_KEYS: Record<string, string> = {
 
 const showStartStorageUnavailableModal = ref(false)
 
+// Not every start failure has a quota modal: without this the mutation failed
+// with no feedback at all.
+const startErrorMessage = ref<string | null>(null)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -232,6 +255,8 @@ const {
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
+      } else {
+        startErrorMessage.value = describeApiError(error, { t, te }, 'start-desktop')
       }
     },
     onSuccess: async () => {
@@ -325,6 +350,14 @@ const networksModalData = ref<{
 const showDesktopInfoModal = ref(false)
 
 const storageModalDesktop = ref<UserDesktop | null>(null)
+
+const abortOperationModalData = ref<{
+  storageId: string
+  desktopName: string
+  operation: string
+} | null>(null)
+
+const advancedOptionsDesktop = ref<UserDesktop | null>(null)
 const {
   mutate: fetchDesktopDetails,
   isPending: fetchDesktopDetailsIsPending,
@@ -334,15 +367,15 @@ const {
   variables: desktopDetailsDesktopId,
   reset: resetDesktopDetails
 } = useMutation({
-  mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopInfo({
-      path: {
-        desktop_id: desktopId
-      },
-      throwOnError: true
-    })
-    return data
-  }
+  mutationFn: (desktopId: string) =>
+    queryClient.fetchQuery(
+      getDesktopDetailsOptions({
+        path: {
+          desktop_id: desktopId
+        },
+        throwOnError: true
+      })
+    )
 })
 
 const openDesktopInfoModal = async (desktopId: string) => {
@@ -363,15 +396,16 @@ const desktopDetailsKind = computed(() => {
 const deleteModalDesktopData = ref<{
   id: string
   name: string
+  persistent: boolean
 } | null>(null)
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
+
+const deleteDesktopErrorMessage = ref<string | null>(null)
 
 const {
   mutate: deleteDesktopMutate,
   mutateAsync: deleteDesktopAsync,
-  isPending: deleteDesktopIsPending,
-  isError: deleteDesktopIsError,
-  error: deleteDesktopError
+  isPending: deleteDesktopIsPending
 } = useMutation(
   withOptimisticItemRemoval<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
     queryClient,
@@ -381,6 +415,9 @@ const {
     baseMutation: deleteDesktopMutation(),
     onSuccess: () => {
       closeDeleteModal()
+    },
+    onError: (error) => {
+      deleteDesktopErrorMessage.value = describeApiError(error, { t, te }, 'delete-desktop')
     }
   })
 )
@@ -388,7 +425,17 @@ const {
 const closeDeleteModal = () => {
   deleteModalRecicleBinChecked.value = recycleBinDefaultDelete.value
   deleteModalDesktopData.value = null
+  deleteDesktopErrorMessage.value = null
 }
+
+// Temporal desktops are force-deleted by the backend: the recycle bin never
+// applies to them.
+const deleteIsPermanent = computed(
+  () =>
+    !deleteModalDesktopData.value?.persistent ||
+    recycleBinCutoffTime.value?.recycle_bin_cutoff_time === 0 ||
+    !deleteModalRecicleBinChecked.value
+)
 
 // --------------------------------------------------
 
@@ -479,9 +526,40 @@ const areDesktopFiltersActive = computed(() => {
   return JSON.stringify(desktopFilters.value) !== JSON.stringify(defaultDesktopFilters)
 })
 
+// Search has its own always-visible input; only the ones the panel hides count.
+const activeDesktopFilterCount = computed(() => {
+  const kinds = Object.values(desktopFilters.value.kind).filter(Boolean).length
+  return kinds + (desktopFilters.value.status === 'all' ? 0 : 1)
+})
+
+const desktopFiltersToggleLabel = computed(() =>
+  activeDesktopFilterCount.value
+    ? t('views.desktops.filters.toggle-active', { count: activeDesktopFilterCount.value })
+    : t('views.desktops.filters.toggle')
+)
+
+// Nothing to search or filter until the account holds a desktop.
+const isFirstRun = computed(
+  () => !desktopsIsPending.value && (desktops.value?.desktops.length ?? 0) === 0
+)
+
 const clearDesktopFilters = () => {
   desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
 }
+
+// The input keeps updating on every keystroke; only the filtering waits, so the
+// grid is not rebuilt (and the query re-run over every desktop) mid-word.
+const debouncedDesktopSearch = refDebounced(
+  computed(() => desktopFilters.value.search.trim().toLowerCase()),
+  150
+)
+
+const RUNNING_DESKTOP_STATUSES: DesktopStatusEnum[] = [
+  DesktopStatusEnum.STARTING,
+  DesktopStatusEnum.STARTED,
+  DesktopStatusEnum.SHUTTING_DOWN,
+  DesktopStatusEnum.WAITING_IP
+]
 
 const filteredDesktops = computed(() => {
   return (
@@ -493,10 +571,11 @@ const filteredDesktops = computed(() => {
 
 const isDesktopVisible = (desktop: UserDesktop) => {
   // Search filter
+  const search = debouncedDesktopSearch.value
   const matchesSearch =
-    desktopFilters.value.search.toLowerCase() === '' ||
-    desktop.name.toLowerCase().includes(desktopFilters.value.search.toLowerCase()) ||
-    desktop.description?.toLowerCase().includes(desktopFilters.value.search.toLowerCase())
+    search === '' ||
+    desktop.name.toLowerCase().includes(search) ||
+    !!desktop.description?.toLowerCase().includes(search)
 
   // Kind filter
   const matchesKind =
@@ -511,23 +590,9 @@ const isDesktopVisible = (desktop: UserDesktop) => {
   const matchesStatus =
     desktopFilters.value.status === 'all' ||
     (desktopFilters.value.status === 'started' &&
-      (
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status)) ||
+      RUNNING_DESKTOP_STATUSES.includes(desktop.status)) ||
     (desktopFilters.value.status === 'stopped' &&
-      !(
-        [
-          DesktopStatusEnum.STARTING,
-          DesktopStatusEnum.STARTED,
-          DesktopStatusEnum.SHUTTING_DOWN,
-          DesktopStatusEnum.WAITING_IP
-        ] as DesktopStatusEnum[]
-      ).includes(desktop.status))
+      !RUNNING_DESKTOP_STATUSES.includes(desktop.status))
 
   // ----------------------------------------------------
   return matchesSearch && matchesKind && matchesStatus
@@ -701,7 +766,7 @@ const startNowForm = useForm({
       desktopStart({ path: { desktop_id: startNowModalDesktopData.value!.id } })
       closeStartNowModal()
     } catch (bookingError) {
-      console.error('Error creating booking event:', bookingError)
+      toast.error(describeApiError(bookingError, { t, te }, 'booking'))
     }
   }
 })
@@ -730,12 +795,7 @@ const desktopCreationCheckIsPending = ref(false)
 
 const goToNewDesktop = async () => {
   desktopCreationCheckIsPending.value = true
-  try {
-    await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopOptions(),
-      staleTime: QUOTA_STALE_TIME
-    })
-  } catch {
+  if (!(await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false))) {
     desktopCreationCheckIsPending.value = false
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
@@ -794,17 +854,161 @@ const goToNewTemplate = async (desktopId: string) => {
 
 const viewMode = ref<'cards' | 'table'>('cards')
 
-const { width: windowWidth } = useWindowSize()
+const DESKTOP_SEARCH_INPUT_ID = 'desktops-search'
+
+useSearchShortcuts(DESKTOP_SEARCH_INPUT_ID)
+
+const DESKTOP_FILTERS_COOKIE_NAME = 'desktops_filters_state'
+const DESKTOP_FILTERS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+
+const cookies = vueuseCookies([DESKTOP_FILTERS_COOKIE_NAME])
+
+// useCookies auto-parses "true"/"false" to boolean, so check both types
+const desktopFiltersCookie = cookies.get(DESKTOP_FILTERS_COOKIE_NAME)
+const showDesktopFilters = ref(desktopFiltersCookie === true || desktopFiltersCookie === 'true')
+
+watch(showDesktopFilters, (newValue) => {
+  cookies.set(DESKTOP_FILTERS_COOKIE_NAME, String(newValue), {
+    path: '/',
+    maxAge: DESKTOP_FILTERS_COOKIE_MAX_AGE
+  })
+})
+
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+const { y: windowScrollY } = useWindowScroll()
+
+// Below `sm` the toolbar buttons drop their label, so a tooltip takes over
+const isSmallScreen = computed(() => windowWidth.value < 640)
 
 const cardSize = computed<CardSize>(() => {
   if (windowWidth.value < 1280) return 'md'
   return 'lg'
 })
 
-const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '412px'))
+const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? 250 : 412))
+const cardGridRowHeight = computed(() => (cardSize.value === 'md' ? 280 : 310))
+
+// Tailwind `gap-4`.
+const CARD_GRID_GAP = 16
+
+const cardGridRef = ref<HTMLElement | null>(null)
+const { width: cardGridWidth } = useElementSize(cardGridRef)
+
+const desktopToolbarRef = ref<HTMLElement | null>(null)
+// Border box: the toolbar's padding is part of what covers the curtain.
+const { height: desktopToolbarHeight } = useElementSize(desktopToolbarRef, undefined, {
+  box: 'border-box'
+})
+
+// Mirrors what `repeat(auto-fill, minmax(min, 1fr))` would have resolved to.
+const cardGridColumns = computed(() => {
+  if (!cardGridWidth.value) return 1
+  return Math.max(
+    1,
+    Math.floor((cardGridWidth.value + CARD_GRID_GAP) / (cardGridMinWidth.value + CARD_GRID_GAP))
+  )
+})
+
+const cardGridRows = computed(() => {
+  const rows: UserDesktop[][] = []
+  for (let i = 0; i < filteredDesktops.value.length; i += cardGridColumns.value) {
+    rows.push(filteredDesktops.value.slice(i, i + cardGridColumns.value))
+  }
+  return rows
+})
+
+// The grid starts partway down the document, so the virtualizer needs to know
+// how much page precedes it. Remeasured on anything that reflows the toolbar
+// above, but never on scroll — that would be the reflow-per-event we just left.
+const cardGridOffsetTop = ref(0)
+// Viewport-relative, so the fixed overlay does not cover the sidebar.
+const cardGridOffsetLeft = ref(0)
+const measureCardGridOffset = () => {
+  const el = cardGridRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  cardGridOffsetTop.value = rect.top + window.scrollY
+  cardGridOffsetLeft.value = rect.left
+}
+
+onMounted(measureCardGridOffset)
+useEventListener('resize', measureCardGridOffset)
+// Deliberately not watching the desktop count: more rows grow the grid
+// downwards but never move its top, so remeasuring per keystroke only bought a
+// forced reflow — and a costlier one the more cards the DOM held.
+watch([showDesktopFilters, cardGridColumns, cardGridWidth, viewMode], () =>
+  nextTick(measureCardGridOffset)
+)
+
+const cardGridVirtualizer = useWindowVirtualizer(
+  computed(() => ({
+    count: cardGridRows.value.length,
+    estimateSize: () => cardGridRowHeight.value + CARD_GRID_GAP,
+    overscan: 2,
+    scrollMargin: cardGridOffsetTop.value
+  }))
+)
+
+const { isFastScrolling } = useFastScroll()
+
+// The toolbar is sticky on top of the curtain, so the curtain starts where the
+// toolbar ends: anything higher is a first row cut in half. Then enough rows to
+// fill the rest of the viewport, plus the one it is scrolled into.
+const TOOLBAR_TOP = 64
+const curtainTop = computed(() => TOOLBAR_TOP + desktopToolbarHeight.value)
+const curtainRows = computed(
+  () =>
+    Math.ceil((windowHeight.value - curtainTop.value) / (cardGridRowHeight.value + CARD_GRID_GAP)) +
+    1
+)
+
+// The rows the cards render from lag the scroll by a frame, and stop moving
+// altogether once the curtain is up. Committing them straight from the scroll
+// event costs ~18ms a card in the very flush that has to reveal the curtain,
+// which is how the fling used to outrun it.
+const cardVirtualRows = shallowRef<VirtualItem[]>([])
+let commitScheduled = false
+
+const commitVirtualRows = () => {
+  cardVirtualRows.value = cardGridVirtualizer.value.getVirtualItems()
+}
+
+watchEffect(() => {
+  cardGridVirtualizer.value.getVirtualItems()
+  if (commitScheduled) return
+  commitScheduled = true
+  requestAnimationFrame(() => {
+    commitScheduled = false
+    if (!isFastScrolling.value) commitVirtualRows()
+  })
+})
+
+// Back in one go with the curtain: same flush, so the rows are on screen the
+// moment it lifts.
+watch(isFastScrolling, (fast) => {
+  if (!fast) commitVirtualRows()
+})
+
+// The curtain stands in for rows that are not built. Filter down to a handful
+// of desktops and every row on screen is already there, so a fling has nothing
+// to wait for and the curtain would be pure noise.
+const missingCardRows = computed(() => {
+  const built = new Set(cardVirtualRows.value.map((row) => row.index))
+  return cardGridVirtualizer.value.getVirtualItems().some((row) => !built.has(row.index))
+})
 </script>
 
 <template>
+  <!-- Abort Storage Operation Modal -->
+  <AbortStorageOperationModal
+    v-if="abortOperationModalData !== null"
+    :open="abortOperationModalData !== null"
+    :storage-id="abortOperationModalData?.storageId"
+    :desktop-name="abortOperationModalData?.desktopName"
+    @close="abortOperationModalData = null"
+  />
+
+  <!-- Direct Viewer Modal -->
   <DirectViewerModal
     :open="directLinkDesktopId !== null"
     :desktop-id="directLinkDesktopId"
@@ -853,6 +1057,22 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     </template>
   </AlertModal>
 
+  <!-- Start error modal -->
+  <AlertModal
+    :open="startErrorMessage !== null"
+    level="danger"
+    size="md"
+    :title="t('components.desktops.start-error-modal.title')"
+    :description="startErrorMessage ?? ''"
+    @close="startErrorMessage = null"
+  >
+    <template #footer>
+      <Button hierarchy="primary" @click="startErrorMessage = null">{{
+        t('components.desktops.start-error-modal.close')
+      }}</Button>
+    </template>
+  </AlertModal>
+
   <!-- Delete modal -->
   <AlertModal
     :open="deleteModalDesktopData !== null"
@@ -868,8 +1088,11 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
   >
     <!-- TODO: Delete modal component -->
     <template #description>
+      <Alert v-if="deleteDesktopErrorMessage" variant="destructive" class="mb-4">
+        <AlertDescription>{{ deleteDesktopErrorMessage }}</AlertDescription>
+      </Alert>
       <Label
-        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time"
+        v-if="recycleBinCutoffTime?.recycle_bin_cutoff_time && deleteModalDesktopData?.persistent"
         class="w-fit flex flex-row items-start gap-2"
       >
         <Checkbox v-model="deleteModalRecicleBinChecked" class="m-0.5" />
@@ -898,10 +1121,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         @click="
           deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
-            query: {
-              permanent:
-                recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
-            }
+            query: { permanent: deleteIsPermanent }
           })
         "
       >
@@ -912,7 +1132,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           stroke-color="currentColor"
         />
         {{
-          recycleBinCutoffTime?.recycle_bin_cutoff_time === 0 || !deleteModalRecicleBinChecked
+          deleteIsPermanent
             ? t('components.delete-confirmation-modal.confirm.permanent')
             : t('components.delete-confirmation-modal.confirm.recycle-bin')
         }}
@@ -932,8 +1152,9 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     :vcpu="desktopDetails?.vcpu"
     :ram="desktopDetails?.memory"
     :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
-    :disk-bus="desktopDetails?.disk_bus"
+    :disk-bus="desktopDetails?.disk_bus?.name"
     :vga="desktopDetails?.videos.map((vga) => vga.name)"
+    :interfaces="desktopDetails?.interfaces"
     :viewers="desktopDetails?.viewers"
     :isos="desktopDetails?.isos?.map((iso) => iso.name)"
     :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
@@ -1210,15 +1431,13 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     @submit="onChangeAndStartSubmit"
   />
 
-  <main v-if="route.params.desktopId" class="w-full h-full flex justify-center items-center">
-    <Empty>
-      <EmptyTitle class="text-display-md! font-bold text-gray-warm-800">{{
-        t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })
-      }}</EmptyTitle>
-      <EmptyDescription class="-mt-3 text-md text-gray-warm-600">{{
+  <main v-if="route.params.desktopId" class="flex w-full flex-1 items-center justify-center">
+    <EmptyState
+      :title="t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })"
+      :description="
         t(`views.desktops.${route.params.action}.description`, { kind: t('domains.desktops', 0) })
-      }}</EmptyDescription>
-
+      "
+    >
       <DesktopCard
         v-if="routeDesktop"
         class="mt-6 text-start"
@@ -1245,7 +1464,11 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
         @edit-desktop="goToEditDesktop(routeDesktop.id)"
         @show-delete-modal="
-          deleteModalDesktopData = { id: routeDesktop.id, name: routeDesktop.name }
+          deleteModalDesktopData = {
+            id: routeDesktop.id,
+            name: routeDesktop.name,
+            persistent: routeDesktop.type !== 'nonpersistent'
+          }
         "
         @show-bastion-modal="
           bastionModalData = { desktopId: routeDesktop.id, desktopName: routeDesktop.name }
@@ -1256,10 +1479,17 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         "
         @create-template="goToNewTemplate(routeDesktop.id)"
         @book-desktop="goToBookingDesktop(routeDesktop.id)"
-        @show-storage-modal="storageModalDesktop = routeDesktop"
+        @desktop-abort-operation="
+          abortOperationModalData = {
+            storageId: routeDesktop.storage?.[0]!,
+            desktopName: routeDesktop.name,
+            operation: 'abort'
+          }
+        "
+        @show-storage-modal="advancedOptionsDesktop = routeDesktop"
       />
 
-      <EmptyContent class="flex-row">
+      <template #actions>
         <Button hierarchy="link-color" :as="RouterLink" :to="{ name: 'desktops' }">{{
           t('views.desktops.go-to-desktops')
         }}</Button>
@@ -1269,153 +1499,247 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
           "
           :disabled="desktopCreationCheckIsPending"
+          size="lg"
           @click="goToNewDesktop"
         >
           {{ t('views.desktops.new-desktop') }}
         </Button>
-      </EmptyContent>
-    </Empty>
+      </template>
+    </EmptyState>
   </main>
 
-  <main v-else class="flex flex-col gap-3 p-3 w-full">
-    <div class="flex flex-row w-full gap-4 items-center flex-wrap">
-      <div class="flex flex-row gap-2 mr-auto">
-        <Toggle v-model="desktopFiltersKindAll" size="desktop" variant="desktops-all">
-          <template #default="slotProps">
-            {{ t('views.desktops.filters.kind.all') }}
-            <BadgeMini
-              name="all"
-              :value="desktops?.desktops.length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle
-          v-model="desktopFilters.kind.persistent"
-          size="desktop"
-          variant="desktops-persistent"
-        >
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.persistent',
-                desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-              )
-            }}
-            <BadgeMini
-              name="persistent"
-              :value="
-                desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-              "
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle v-model="desktopFilters.kind.volatile" size="desktop" variant="desktops-temporary">
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.nonpersistent',
-                desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0
-              )
-            }}
-            <BadgeMini
-              name="temporary"
-              :value="desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
-        <Toggle
-          v-model="desktopFilters.kind.deployment"
-          size="desktop"
-          variant="desktops-deployment"
-        >
-          <template #default="slotProps">
-            {{
-              t(
-                'views.desktops.filters.kind.deployment',
-                desktops?.desktops.filter((d) => d.tag).length || 0
-              )
-            }}
-            <BadgeMini
-              name="deployment"
-              :value="desktops?.desktops.filter((d) => d.tag).length || 0"
-              :selected="slotProps.pressed"
-            />
-          </template>
-        </Toggle>
+  <main v-else class="-mt-4 flex w-full flex-1 flex-col">
+    <div
+      v-if="!isFirstRun"
+      ref="desktopToolbarRef"
+      :class="
+        cn(
+          'sticky top-16 z-40 -mx-5 mb-1 flex flex-col gap-3 bg-base-background px-5 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-base-background',
+          windowScrollY > 0 && 'shadow-lg'
+        )
+      "
+    >
+      <div class="flex flex-row w-full gap-2 sm:gap-4 items-start flex-wrap">
+        <div class="flex flex-row gap-2 items-start flex-1 min-w-30 mr-auto">
+          <InputField
+            :id="DESKTOP_SEARCH_INPUT_ID"
+            v-model="desktopFilters.search"
+            :placeholder="t('views.desktops.filters.search.placeholder')"
+            icon="search-lg"
+            class="h-full w-full max-w-120 min-w-0"
+          >
+            <template #inline-end>
+              <Kbd class="max-sm:hidden">/</Kbd>
+            </template>
+          </InputField>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="filter-funnel-02"
+                  :aria-label="desktopFiltersToggleLabel"
+                  :class="
+                    cn(
+                      'relative shrink-0 max-sm:px-[10px]',
+                      showDesktopFilters && 'bg-gray-warm-50'
+                    )
+                  "
+                  @click="showDesktopFilters = !showDesktopFilters"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.filters.toggle') }}</span>
+                  <!-- Stays visible with the panel collapsed, and on small screens
+                       where the label is hidden. -->
+                  <span
+                    v-if="activeDesktopFilterCount"
+                    aria-hidden="true"
+                    class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-base-background"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="isSmallScreen || activeDesktopFilterCount"
+                :title="desktopFiltersToggleLabel"
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  :icon="viewMode === 'cards' ? 'rows-01' : 'grid-01'"
+                  class="p-[10px] shrink-0"
+                  @click="viewMode = viewMode === 'cards' ? 'table' : 'cards'"
+                />
+              </TooltipTrigger>
+              <TooltipContent
+                :title="
+                  viewMode === 'cards'
+                    ? t('views.desktops.view-mode.table')
+                    : t('views.desktops.view-mode.cards')
+                "
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        <div class="flex flex-row gap-2 sm:gap-4 items-start shrink-0">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="destructive"
+                  icon="stop"
+                  :aria-label="t('views.desktops.stop-all')"
+                  class="max-sm:px-[10px]"
+                  :disabled="!anyDesktopStarted"
+                  @click="showStopAllDesktopsModal = true"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.stop-all') }}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="!anyDesktopStarted || isSmallScreen"
+                :title="
+                  anyDesktopStarted
+                    ? t('views.desktops.stop-all')
+                    : t('views.desktops.stop-all-tooltip.title')
+                "
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
+                  :icon-class="
+                    cn(
+                      desktopCreationCheckIsPending &&
+                        'motion-safe:animate-[spin_2s_linear_infinite]'
+                    )
+                  "
+                  :aria-label="t('views.desktops.new-desktop')"
+                  class="max-sm:px-[10px]"
+                  :disabled="desktopCreationCheckIsPending"
+                  @click="goToNewDesktop"
+                >
+                  <span class="max-sm:hidden">{{ t('views.desktops.new-desktop') }}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                v-if="isSmallScreen"
+                :title="t('views.desktops.new-desktop')"
+                side="top"
+              />
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
+      <div v-show="showDesktopFilters" class="flex flex-row w-full gap-4 items-center flex-wrap">
+        <div class="flex flex-row gap-2 mr-auto">
+          <Toggle v-model="desktopFiltersKindAll" size="desktop" variant="desktops-all">
+            <template #default="slotProps">
+              {{ t('views.desktops.filters.kind.all') }}
+              <BadgeMini
+                name="all"
+                :value="desktops?.desktops.length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.persistent"
+            size="desktop"
+            variant="desktops-persistent"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.persistent',
+                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
+                )
+              }}
+              <BadgeMini
+                name="persistent"
+                :value="
+                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
+                "
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.volatile"
+            size="desktop"
+            variant="desktops-temporary"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.nonpersistent',
+                  desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0
+                )
+              }}
+              <BadgeMini
+                name="temporary"
+                :value="desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+          <Toggle
+            v-model="desktopFilters.kind.deployment"
+            size="desktop"
+            variant="desktops-deployment"
+          >
+            <template #default="slotProps">
+              {{
+                t(
+                  'views.desktops.filters.kind.deployment',
+                  desktops?.desktops.filter((d) => d.tag).length || 0
+                )
+              }}
+              <BadgeMini
+                name="deployment"
+                :value="desktops?.desktops.filter((d) => d.tag).length || 0"
+                :selected="slotProps.pressed"
+              />
+            </template>
+          </Toggle>
+        </div>
 
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button
-              hierarchy="destructive"
-              icon="stop"
-              :disabled="!anyDesktopStarted"
-              @click="showStopAllDesktopsModal = true"
-              >{{ t('views.desktops.stop-all') }}</Button
-            >
-          </TooltipTrigger>
-          <TooltipContent
-            v-if="!anyDesktopStarted"
-            :title="t('views.desktops.stop-all-tooltip.title')"
-            side="top"
-          />
-        </Tooltip>
-      </TooltipProvider>
-      <Button
-        :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
-        :icon-class="
-          cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
-        "
-        :disabled="desktopCreationCheckIsPending"
-        @click="goToNewDesktop"
-      >
-        {{ t('views.desktops.new-desktop') }}
-      </Button>
+        <ToggleGroup
+          v-model="desktopFilters.status"
+          :spacing="1"
+          type="single"
+          size="default"
+          class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
+        >
+          <ToggleGroupItem value="all" variant="gray-warm">{{
+            t('views.desktops.filters.status.all')
+          }}</ToggleGroupItem>
+          <ToggleGroupItem value="started" variant="success">{{
+            t('views.desktops.filters.status.started')
+          }}</ToggleGroupItem>
+          <ToggleGroupItem value="stopped" variant="error">{{
+            t('views.desktops.filters.status.stopped')
+          }}</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
     </div>
-    <div class="flex flex-row w-full gap-4 items-start flex-wrap">
-      <InputField
-        v-model="desktopFilters.search"
-        :placeholder="t('views.desktops.filters.search.placeholder')"
-        icon="search-lg"
-        class="h-full w-full max-w-120 mr-auto"
-      />
-      <!-- <Input class="max-w-120 mr-auto" placeholder="Search Desktop" /> -->
 
-      <Button
-        hierarchy="secondary-gray"
-        :icon="viewMode === 'cards' ? 'rows-01' : 'grid-01'"
-        class="p-[10px]"
-        @click="viewMode = viewMode === 'cards' ? 'table' : 'cards'"
-      />
-
-      <ToggleGroup
-        v-model="desktopFilters.status"
-        :spacing="1"
-        type="single"
-        size="default"
-        class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-      >
-        <ToggleGroupItem value="all" variant="gray-warm">{{
-          t('views.desktops.filters.status.all')
-        }}</ToggleGroupItem>
-        <ToggleGroupItem value="started" variant="success">{{
-          t('views.desktops.filters.status.started')
-        }}</ToggleGroupItem>
-        <ToggleGroupItem value="stopped" variant="error">{{
-          t('views.desktops.filters.status.stopped')
-        }}</ToggleGroupItem>
-      </ToggleGroup>
-    </div>
-
-    <div class="flex flex-col gap-2 flex-wrap w-full">
+    <div class="flex w-full flex-1 flex-col gap-2">
       <div
         v-if="desktopsIsPending"
         class="grid gap-4 w-full"
-        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}, 1fr))` }"
+        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}px, 1fr))` }"
       >
         <DesktopCardSkeleton variant="started" class="h-[310px]" />
         <DesktopCardSkeleton variant="stopped" class="h-[310px]" />
@@ -1427,38 +1751,29 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       </p>
 
       <template v-else>
-        <Empty v-show="filteredDesktops.length === 0">
-          <EmptyHeader>
-            <EmptyMedia variant="default" class="select-none pointer-events-none">
-              <img :src="desktopsEmptyImg" />
-            </EmptyMedia>
-          </EmptyHeader>
-          <EmptyTitle class="text-[30px] font-bold">{{
-            t('components.empty.title', { kind: t('domains.desktops', 0) })
-          }}</EmptyTitle>
-          <EmptyDescription class="text-[18px]!">{{
-            t('components.empty.description', { kind: t('domains.desktops', 0) })
-          }}</EmptyDescription>
-          <EmptyContent class="flex-row">
-            <Button
-              v-show="areDesktopFiltersActive && desktops?.desktops.length"
-              hierarchy="secondary-color"
-              icon="filter-funnel-02"
-              @click="clearDesktopFilters()"
-              >{{ t('components.empty.clear-filters') }}</Button
-            >
+        <EmptyState
+          v-show="filteredDesktops.length === 0"
+          kind="desktops"
+          :variant="isFirstRun ? 'first-run' : 'no-results'"
+          :searching="debouncedDesktopSearch.length > 0"
+          :active-filters="activeDesktopFilterCount"
+          @clear-search="desktopFilters.search = ''"
+          @clear-filters="clearDesktopFilters()"
+        >
+          <template v-if="isFirstRun" #actions>
             <Button
               :icon="desktopCreationCheckIsPending ? 'loading-02' : 'plus'"
               :icon-class="
                 cn(desktopCreationCheckIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
               "
               :disabled="desktopCreationCheckIsPending"
+              size="lg"
               @click="goToNewDesktop"
             >
               {{ t('views.desktops.new-desktop') }}
             </Button>
-          </EmptyContent>
-        </Empty>
+          </template>
+        </EmptyState>
 
         <DesktopsDataTable
           v-if="viewMode === 'table'"
@@ -1488,7 +1803,11 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           @edit-desktop="(dktp) => goToEditDesktop(dktp.id)"
           @show-delete-modal="
             (dktp) => {
-              deleteModalDesktopData = { id: dktp.id, name: dktp.name }
+              deleteModalDesktopData = {
+                id: dktp.id,
+                name: dktp.name,
+                persistent: dktp.type !== 'nonpersistent'
+              }
             }
           "
           @show-bastion-modal="
@@ -1504,64 +1823,133 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           "
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
           @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
-          @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
+          @desktop-abort-operation="
+            (dktp) => {
+              abortOperationModalData = {
+                storageId: dktp.storage?.[0]!,
+                desktopName: dktp.name,
+                operation: 'abort'
+              }
+            }
+          "
+          @show-storage-modal="(dktp: UserDesktop) => (advancedOptionsDesktop = dktp)"
         />
 
-        <div
-          v-else
-          class="grid gap-4 w-full"
-          :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardGridMinWidth}, 1fr))` }"
-        >
-          <template v-for="dktp in desktops?.desktops" :key="dktp.id">
-            <DesktopCard
-              v-show="isDesktopVisible(dktp)"
-              :size="cardSize"
-              fill
-              :desktop="dktp"
-              :preferred-viewer="preferedViewers[dktp.id]"
-              @desktop-start="desktopStart({ path: { desktop_id: dktp.id } })"
-              @desktop-stop="desktopStop({ path: { desktop_id: dktp.id } })"
-              @desktop-update-status="
-                submitDesktopUpdateStatus({
-                  path: { desktop_id: dktp.id }
-                })
-              "
-              @desktop-fetch-booking="
-                // handleStartNow(dktp)
-                fetchMaxBookingDate(dktp.id)
-              "
-              @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
-              @show-networks-modal="
-                networksModalData = {
-                  id: dktp.id,
-                  name: dktp.name,
-                  ip: dktp.ip,
-                  status: dktp.status
-                }
-              "
-              @show-info-modal="openDesktopInfoModal(dktp.id)"
-              @edit-desktop="goToEditDesktop(dktp.id)"
-              @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"
-              @show-bastion-modal="
-                bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
-              "
-              @show-direct-link-modal="showDirectLink(dktp.id)"
-              @show-recreate-modal="
-                recreateDesktopModalDesktopData = { id: dktp.id, name: dktp.name }
-              "
-              @create-template="goToNewTemplate(dktp.id)"
-              @book-desktop="goToBookingDesktop(dktp.id)"
-              @show-storage-modal="storageModalDesktop = dktp"
-            />
-          </template>
+        <div v-else ref="cardGridRef" class="w-full">
+          <!-- Fixed and never re-rendered: the compositor keeps it in place while
+               the main thread works, so the fling outruns nothing. Mounted from
+               the start, because building it once the fling is on is already
+               too late. -->
+          <div
+            v-show="isFastScrolling && missingCardRows"
+            aria-hidden="true"
+            class="bg-base-background pointer-events-none fixed bottom-0 z-20 overflow-hidden pt-4"
+            :style="{
+              top: `${curtainTop}px`,
+              left: `${cardGridOffsetLeft}px`,
+              width: `${cardGridWidth}px`
+            }"
+          >
+            <div
+              class="grid gap-4"
+              :style="{ gridTemplateColumns: `repeat(${cardGridColumns}, minmax(0, 1fr))` }"
+            >
+              <DesktopCardSkeleton
+                v-for="n in cardGridColumns * curtainRows"
+                :key="n"
+                :style="{ height: `${cardGridRowHeight}px` }"
+              />
+            </div>
+
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div
+                class="flex flex-col items-center gap-4 rounded-xl bg-base-white/90 px-10 py-8 shadow-lg"
+              >
+                <Spinner />
+                <p class="text-base font-medium text-gray-warm-600">
+                  {{ t('views.desktops.loading') }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="relative w-full"
+            :style="{ height: `${cardGridVirtualizer.getTotalSize()}px` }"
+          >
+            <div
+              v-for="virtualRow in cardVirtualRows"
+              :key="virtualRow.key"
+              class="absolute left-0 top-0 grid w-full gap-4"
+              :style="{
+                gridTemplateColumns: `repeat(${cardGridColumns}, minmax(0, 1fr))`,
+                transform: `translateY(${virtualRow.start - cardGridOffsetTop}px)`
+              }"
+            >
+              <DesktopCard
+                v-for="dktp in cardGridRows[virtualRow.index]"
+                :key="dktp.id"
+                :size="cardSize"
+                fill
+                :desktop="dktp"
+                :preferred-viewer="preferedViewers[dktp.id]"
+                @desktop-start="desktopStart({ path: { desktop_id: dktp.id } })"
+                @desktop-stop="desktopStop({ path: { desktop_id: dktp.id } })"
+                @desktop-update-status="
+                  submitDesktopUpdateStatus({
+                    path: { desktop_id: dktp.id }
+                  })
+                "
+                @desktop-fetch-booking="
+                  // handleStartNow(dktp)
+                  fetchMaxBookingDate(dktp.id)
+                "
+                @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
+                @show-networks-modal="
+                  networksModalData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    ip: dktp.ip,
+                    status: dktp.status
+                  }
+                "
+                @show-info-modal="openDesktopInfoModal(dktp.id)"
+                @edit-desktop="goToEditDesktop(dktp.id)"
+                @show-delete-modal="
+                  deleteModalDesktopData = {
+                    id: dktp.id,
+                    name: dktp.name,
+                    persistent: dktp.type !== 'nonpersistent'
+                  }
+                "
+                @show-bastion-modal="
+                  bastionModalData = { desktopId: dktp.id, desktopName: dktp.name }
+                "
+                @show-direct-link-modal="showDirectLink(dktp.id)"
+                @show-recreate-modal="
+                  recreateDesktopModalDesktopData = { id: dktp.id, name: dktp.name }
+                "
+                @create-template="goToNewTemplate(dktp.id)"
+                @book-desktop="goToBookingDesktop(dktp.id)"
+                @desktop-abort-operation="
+                  abortOperationModalData = {
+                    storageId: dktp.storage?.[0]!,
+                    desktopName: dktp.name,
+                    operation: 'abort'
+                  }
+                "
+                @show-storage-modal="advancedOptionsDesktop = dktp"
+              />
+            </div>
+          </div>
         </div>
       </template>
     </div>
 
-    <DesktopStorageModal
-      :open="storageModalDesktop !== null"
-      :desktop="storageModalDesktop ?? undefined"
-      @close="storageModalDesktop = null"
+    <AdvancedOptionsModal
+      :open="advancedOptionsDesktop !== null"
+      :desktop="advancedOptionsDesktop ?? undefined"
+      @close="advancedOptionsDesktop = null"
     />
   </main>
 </template>

@@ -15,6 +15,11 @@ import { cn } from '@/lib/utils'
 interface Props {
   title?: string
   description?: string
+  /**
+   * Keeps the title as the dialog's accessible name but drops it from view, for
+   * modals whose content already carries a heading of its own.
+   */
+  hideTitle?: boolean
   showCloseButton?: boolean
   closeButtonColor?: string
   open?: boolean
@@ -26,6 +31,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   title: '',
   description: '',
+  hideTitle: false,
   showCloseButton: true,
   closeButtonColor: 'secondary-2-500',
   open: false,
@@ -73,12 +79,23 @@ const sizeClasses = {
       @escape-key-down="emit('close')"
     >
       <slot name="image" />
-      <DialogHeader class="flex text-start justify-between items-start px-6 pt-6 shrink-0">
+      <DialogHeader
+        :class="[
+          'flex text-start justify-between items-start px-6 shrink-0',
+          props.hideTitle ? 'pt-4' : 'pt-6'
+        ]"
+      >
         <div>
-          <DialogTitle v-if="props.title" class="text-gray-warm-900 text-lg">
+          <DialogTitle
+            v-if="props.title"
+            :class="props.hideTitle ? 'sr-only' : 'text-gray-warm-900 text-lg'"
+          >
             {{ props.title }}
           </DialogTitle>
-          <DialogDescription v-if="props.description" class="text-gray-warm-600 text-sm mt-2">
+          <DialogDescription
+            v-if="props.description"
+            :class="props.hideTitle ? 'sr-only' : 'text-gray-warm-600 text-sm mt-2'"
+          >
             {{ props.description }}
           </DialogDescription>
         </div>

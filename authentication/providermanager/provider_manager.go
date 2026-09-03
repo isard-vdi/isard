@@ -565,7 +565,11 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 
 			watcherCtx, cancel := context.WithCancel(ctx)
 			scope.watcherCancels[p] = cancel
-			addLDAPWatcher(watcherCtx, wg, params.log, params.changesChans.ldapChanges, ldap)
+
+			loader := newProviderLoader(ldap, params.changesChans.ldapChanges)
+			wg.Go(func() {
+				loader.Watch(watcherCtx, params.log)
+			})
 
 			f.EnableProvider(ldap)
 		}
@@ -579,7 +583,11 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 
 		watcherCtx, cancel := context.WithCancel(ctx)
 		scope.watcherCancels[p] = cancel
-		addSAMLWatcher(watcherCtx, wg, params.log, params.changesChans.samlChanges, saml)
+
+		loader := newProviderLoader(saml, params.changesChans.samlChanges)
+		wg.Go(func() {
+			loader.Watch(watcherCtx, params.log)
+		})
 
 		scope.providers[p] = saml
 
@@ -588,7 +596,11 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 
 		watcherCtx, cancel := context.WithCancel(ctx)
 		scope.watcherCancels[p] = cancel
-		addGoogleWatcher(watcherCtx, wg, params.log, params.changesChans.googleChanges, google)
+
+		loader := newProviderLoader(google, params.changesChans.googleChanges)
+		wg.Go(func() {
+			loader.Watch(watcherCtx, params.log)
+		})
 
 		scope.providers[p] = google
 

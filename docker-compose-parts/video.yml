@@ -22,7 +22,6 @@ services:
       - /opt/isard/certs/acme:/etc/acme:rw
       - /opt/isard/certs/default:/certs:rw
       - /opt/isard-local/environment:/usr/local/etc/environment
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs

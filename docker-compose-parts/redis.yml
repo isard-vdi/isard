@@ -31,12 +31,13 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.12
     volumes:
       - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --port \"$$REDIS_PORT\" --requirepass \"$$REDIS_PASSWORD\""
+    # An explicit --save replaces the compiled-in save points rather than adding
+    # to them, so this line is the whole persistence policy.
+    command: /bin/sh -c "redis-server --port \"$$REDIS_PORT\" --requirepass \"$$REDIS_PASSWORD\" --save \"3600 1 300 100 60 10000\" --stop-writes-on-bgsave-error yes"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_ARGS: --port ${REDIS_PORT:-6379}
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -p $$REDIS_PORT ping | grep PONG"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then export REDISCLI_AUTH=\"$$REDIS_PASSWORD\"; fi; redis-cli -p $$REDIS_PORT ping | grep PONG"]
       start_period: 5m
       interval: 5s

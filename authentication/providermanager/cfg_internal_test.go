@@ -13,7 +13,6 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -201,6 +200,9 @@ func TestCfgWatcherWatch(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
 				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil)
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
@@ -221,12 +223,61 @@ func TestCfgWatcherWatch(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap2.test", Port: 389}).Return(nil)
 				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil)
 				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml2.test/metadata"}).Return(nil)
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "new-client-id"}).Return(nil)
+			},
+		},
+		"should notify watchers when a provider is enabled on reload without config changes": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: false, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					SAML:   model.SAML{Enabled: false, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+					Google: model.Google{Enabled: false, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
+				}, nil).Once()
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
+				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil).Once()
+				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil).Once()
+				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil).Once()
+			},
+		},
+		"should not notify watchers when a provider is disabled on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
+				}, nil).Once()
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP:   model.LDAP{Enabled: false, LDAPConfig: model.LDAPConfig{Host: "ldap2.test", Port: 389}},
+					SAML:   model.SAML{Enabled: false, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml2.test/metadata"}},
+					Google: model.Google{Enabled: false, GoogleConfig: model.GoogleConfig{ClientID: "new-client-id"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
+				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil).Once()
+				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil).Once()
+				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil).Once()
 			},
 		},
 		"should not notify watchers when config has not changed on reload": {
@@ -239,6 +290,9 @@ func TestCfgWatcherWatch(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
 				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil)
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
@@ -255,6 +309,9 @@ func TestCfgWatcherWatch(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
+				ldap.On("String").Return(types.ProviderLDAP)
+				saml.On("String").Return(types.ProviderSAML)
+				google.On("String").Return(types.ProviderGoogle)
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
 				saml.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil)
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
@@ -285,10 +342,20 @@ func TestCfgWatcherWatch(t *testing.T) {
 					tc.PrepareProviders(ctx, ldapMock, samlMock, googleMock)
 				}
 
+				ldapLoader := newProviderLoader(ldapMock, watcher.globalChanges.ldapChanges)
+				samlLoader := newProviderLoader(samlMock, watcher.globalChanges.samlChanges)
+				googleLoader := newProviderLoader(googleMock, watcher.globalChanges.googleChanges)
+
 				var watcherWg sync.WaitGroup
-				addLDAPWatcher(ctx, &watcherWg, logger, watcher.globalChanges.ldapChanges, ldapMock)
-				addSAMLWatcher(ctx, &watcherWg, logger, watcher.globalChanges.samlChanges, samlMock)
-				addGoogleWatcher(ctx, &watcherWg, logger, watcher.globalChanges.googleChanges, googleMock)
+				watcherWg.Go(func() {
+					ldapLoader.Watch(ctx, logger)
+				})
+				watcherWg.Go(func() {
+					samlLoader.Watch(ctx, logger)
+				})
+				watcherWg.Go(func() {
+					googleLoader.Watch(ctx, logger)
+				})
 
 				var watchWg sync.WaitGroup
 				watcher.Watch(ctx, &watchWg, dbMock)
@@ -425,142 +492,6 @@ func TestNotifyDisabledProviderChangeIfNeeded(t *testing.T) {
 				default:
 				}
 			}
-		})
-	}
-}
-
-func testAddProviderWatcher[T any](
-	t *testing.T,
-	addWatcher func(context.Context, *sync.WaitGroup, *zerolog.Logger, chan T, provider.ConfigurableProvider[T]),
-	getChan func(*cfgWatcher) chan T,
-	config *T,
-	prepareMock func(context.Context, *provider.MockConfigurableProvider[T]),
-) {
-	t.Helper()
-
-	synctest.Test(t, func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-
-		logger := log.New("test", "debug")
-		watcher := initCfgWatcher(logger)
-
-		mock := provider.NewMockConfigurableProvider[T](t)
-		if prepareMock != nil {
-			prepareMock(ctx, mock)
-		}
-
-		ch := getChan(watcher)
-
-		var wg sync.WaitGroup
-		addWatcher(ctx, &wg, logger, ch, mock)
-
-		if config != nil {
-			ch <- *config
-			synctest.Wait()
-		}
-
-		cancel()
-		synctest.Wait()
-		wg.Wait()
-	})
-}
-
-func TestCfgWatcherAddLDAPWatcher(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.LDAPConfig])
-		Config      *model.LDAPConfig
-	}{
-		"should call LoadConfig on config change": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.LDAPConfig]) {
-				m.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
-			},
-			Config: &model.LDAPConfig{Host: "ldap.test", Port: 636},
-		},
-		"should log error when LoadConfig fails": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.LDAPConfig]) {
-				m.On("LoadConfig", ctx, model.LDAPConfig{Host: "bad.test"}).Return(errors.New("invalid config"))
-			},
-			Config: &model.LDAPConfig{Host: "bad.test"},
-		},
-		"should stop when context cancelled": {},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			testAddProviderWatcher(t, addLDAPWatcher,
-				func(w *cfgWatcher) chan model.LDAPConfig { return w.globalChanges.ldapChanges },
-				tc.Config, tc.PrepareMock,
-			)
-		})
-	}
-}
-
-func TestCfgWatcherAddSAMLWatcher(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.SAMLConfig])
-		Config      *model.SAMLConfig
-	}{
-		"should call LoadConfig on config change": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.SAMLConfig]) {
-				m.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}).Return(nil)
-			},
-			Config: &model.SAMLConfig{MetadataURL: "https://saml.test/metadata"},
-		},
-		"should log error when LoadConfig fails": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.SAMLConfig]) {
-				m.On("LoadConfig", ctx, model.SAMLConfig{MetadataURL: "bad"}).Return(errors.New("invalid config"))
-			},
-			Config: &model.SAMLConfig{MetadataURL: "bad"},
-		},
-		"should stop when context cancelled": {},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			testAddProviderWatcher(t, addSAMLWatcher,
-				func(w *cfgWatcher) chan model.SAMLConfig { return w.globalChanges.samlChanges },
-				tc.Config, tc.PrepareMock,
-			)
-		})
-	}
-}
-
-func TestCfgWatcherAddGoogleWatcher(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.GoogleConfig])
-		Config      *model.GoogleConfig
-	}{
-		"should call LoadConfig on config change": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.GoogleConfig]) {
-				m.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
-			},
-			Config: &model.GoogleConfig{ClientID: "test-client-id"},
-		},
-		"should log error when LoadConfig fails": {
-			PrepareMock: func(ctx context.Context, m *provider.MockConfigurableProvider[model.GoogleConfig]) {
-				m.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "bad"}).Return(errors.New("invalid config"))
-			},
-			Config: &model.GoogleConfig{ClientID: "bad"},
-		},
-		"should stop when context cancelled": {},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			testAddProviderWatcher(t, addGoogleWatcher,
-				func(w *cfgWatcher) chan model.GoogleConfig { return w.globalChanges.googleChanges },
-				tc.Config, tc.PrepareMock,
-			)
 		})
 	}
 }
@@ -1909,6 +1840,116 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 			},
 			ExpectedLDAPConfigs: []model.LDAPConfig{
 				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should send LDAP config when transitioning from global to custom on reload without config changes": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "global",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "custom",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLDAP, Enabled: true},
+			},
+			ExpectedLDAPConfigs: []model.LDAPConfig{
+				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should send SAML config when transitioning from global to custom on reload without config changes": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "global",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
+			},
+			ExpectedSAMLConfigs: []model.SAMLConfig{
+				{MetadataURL: "https://saml.test/metadata"},
+			},
+		},
+		"should send Google config when transitioning from global to custom on reload without config changes": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "global",
+								"google_config": map[string]any{
+									"client_id": "test-client-id",
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "custom",
+								"google_config": map[string]any{
+									"client_id": "test-client-id",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderGoogle, Enabled: true},
+			},
+			ExpectedGoogleConfigs: []model.GoogleConfig{
+				{ClientID: "test-client-id"},
 			},
 		},
 		"should detect SAML transition from global to custom on reload": {

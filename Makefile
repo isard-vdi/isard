@@ -165,7 +165,7 @@ test-e2e-seed:
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.13-alpine \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
 	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py'
 
 .PHONY: test-e2e
@@ -267,6 +267,14 @@ ci-test-apiv4:
 	uv sync --no-dev --group test --package isardvdi-apiv4
 	cd component/apiv4/src && USAGE=$${USAGE:-production} uv run --no-dev --group test --package isardvdi-apiv4 pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
 
+# Contract suites: what a third-party dependency really does, proved against it.
+# Needs only that dependency, never the stack, so it does not belong in a unit
+# job and does not need the compose file the rest of testing/integration wants.
+.PHONY: ci-test-contracts
+ci-test-contracts:
+	uv sync --no-dev --group test --package isardvdi-testing
+	docker/lib/ci-with-redis.sh sh -c 'uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/contracts -q --tb=short --junitxml=testing/integration/contracts/report.xml'
+
 .PHONY: ci-test-common
 ci-test-common:
 	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
@@ -337,9 +345,18 @@ ci-test-anonymize-db:
 	uv sync --no-dev --group test --package isard-anonymize-db
 	cd sysadm/anonymize-db && uv run --no-dev --group test --package isard-anonymize-db pytest tests -q --tb=short --junitxml=report.xml
 
+.PHONY: ci-test-backupninja
+ci-test-backupninja:
+	uv sync --no-dev --group test --package isardvdi-backupninja
+	cd docker/backupninja && uv run --no-dev --group test --package isardvdi-backupninja pytest tests -q --tb=short --junitxml=report.xml
+
 .PHONY: ci-test-frontend
 ci-test-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
+
+.PHONY: ci-test-webapp-js
+ci-test-webapp-js:
+	for t in webapp/webapp/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
 
 .PHONY: ci-test-python
 ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp ci-test-apiv4-client ci-test-vpn ci-test-codegen ci-test-anonymize-db ci-test-storage

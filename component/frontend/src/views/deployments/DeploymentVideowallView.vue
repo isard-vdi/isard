@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/vue-query'
 import { ArrowLeft, Info, LayoutGrid, Maximize } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -20,6 +19,7 @@ import {
   type VideowallDesktop
 } from '@/components/deployment-videowall/types'
 import { TruncatedText } from '@/components/truncated-text'
+import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +43,7 @@ const deployment = computed<VideowallDeployment | undefined>(
 
 const viewMode = ref<'grid' | 'single'>('grid')
 const selectedDesktopId = ref<string | null>(null)
+const VIDEOWALL_SEARCH_INPUT_ID = 'deployment-videowall-search'
 const filterText = ref('')
 const showStartedOnly = ref(false)
 
@@ -82,19 +83,30 @@ function backToDeployment() {
 </script>
 
 <template>
-  <div class="container mx-auto p-4 space-y-4">
+  <PageContainer>
     <div class="flex items-center justify-between gap-4">
       <TruncatedText as="h1" :title="deployment?.name ?? ''" class="text-xl font-semibold" />
-      <div class="flex items-center gap-2">
-        <Input
+      <Button variant="outline" @click="backToDeployment">
+        <ArrowLeft class="h-4 w-4 mr-2" />
+        {{ t('views.deployment-videowall.back-to-deployment') }}
+      </Button>
+    </div>
+
+    <PageToolbar>
+      <template #search>
+        <SearchInput
+          :id="VIDEOWALL_SEARCH_INPUT_ID"
           v-model="filterText"
           :placeholder="t('views.deployment-videowall.filter-placeholder')"
-          class="w-56"
         />
-        <label class="flex items-center gap-2 text-sm">
+      </template>
+      <template #filters>
+        <label class="flex h-10 items-center gap-2 text-sm">
           <Checkbox v-model:checked="showStartedOnly" />
           {{ t('views.deployment-videowall.only-started') }}
         </label>
+      </template>
+      <template #actions>
         <Button
           variant="ghost"
           size="icon"
@@ -113,12 +125,8 @@ function backToDeployment() {
         >
           <Maximize class="h-4 w-4" />
         </Button>
-        <Button variant="outline" @click="backToDeployment">
-          <ArrowLeft class="h-4 w-4 mr-2" />
-          {{ t('views.deployment-videowall.back-to-deployment') }}
-        </Button>
-      </div>
-    </div>
+      </template>
+    </PageToolbar>
 
     <div
       class="flex items-start gap-2 rounded border border-blue-200 bg-blue-50 text-blue-900 p-3 text-sm"
@@ -178,5 +186,5 @@ function backToDeployment() {
         </p>
       </div>
     </div>
-  </div>
+  </PageContainer>
 </template>

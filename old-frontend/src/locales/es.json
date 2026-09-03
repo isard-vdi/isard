@@ -297,8 +297,8 @@
     "ssh-key": {
       "modal": {
         "title": "Clave SSH de bastión",
-        "description": "Añade una sola clave pública SSH a tu perfil. Se añade automáticamente al acceso SSH del bastión de cualquier escritorio que arranques (cuando el SSH del bastión esté habilitado en ese escritorio), así que no tienes que añadirla manualmente a cada escritorio.",
-        "label": "Tu clave pública SSH",
+        "description": "Añade a tu perfil la clave pública SSH del dispositivo desde el que te conectarás a IsardVDI. Esta clave permitirá que ese dispositivo se autentique para acceder mediante SSH, a través del bastión, a tus escritorios y a los escritorios de los despliegues de los que seas propietario o copropietario.\nSolo hace falta añadir la clave a tu perfil una vez; no es necesario configurarla manualmente en cada escritorio. Si eliminas la clave de tu perfil, el acceso mediante esta clave quedará revocado.",
+        "label": "Clave pública SSH de tu dispositivo:",
         "invalid": "La clave pública SSH proporcionada no es válida.",
         "buttons": {
           "save": "Guardar clave",
@@ -1416,7 +1416,6 @@
           "not-verified": "Dominio no verificado - haz clic en el escudo para verificar"
         },
         "own-key": {
-          "managed": "Tu propia clave se añade automáticamente desde tu perfil al arrancar este escritorio. Este campo es solo para las claves públicas de otras personas.",
           "missing": "Todavía no tienes una clave SSH de bastión en tu perfil, así que no obtendrás acceso SSH automáticamente.",
           "add-link": "Añádela en tu perfil"
         },
@@ -1510,6 +1509,7 @@
       "file-downloaded": "Fichero descargado",
       "creating-deployment": "Creando despliegue",
       "recreating-deployment": "Recreando despliegue",
+      "no-desktops-to-recreate": "'{name}': no hay ningún escritorio por crear. Todos los usuarios permitidos y habilitados ya tienen sus escritorios.",
       "deployment-desktops-created": "Escritorios del despliegue creados",
       "deployment-bastion-updated": "Configuración de bastión del despliegue actualizada",
       "bastion-not-configured": "El bastión no está habilitado para este escritorio",

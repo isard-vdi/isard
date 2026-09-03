@@ -317,6 +317,11 @@ export default {
         context.commit('add_desktop', desktop)
       }
     },
+    socket_desktopProgress (context, data) {
+      // The download tick never reaches the row, so it arrives on its own
+      // event carrying only the counters the card draws.
+      context.commit('update_desktop', JSON.parse(data))
+    },
     socket_desktopDelete (context, data) {
       const desktop = JSON.parse(data)
       context.commit('remove_desktop', desktop)

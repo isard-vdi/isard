@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from isardvdi_common.models.task import Task
+from isardvdi_common.models.task import _ENDED_AT_STAMP, Task
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
@@ -206,15 +206,16 @@ class TestCancelSettlesAndAnnounces:
         ):
             task.cancel()
 
+        # Select by SCRIPT, not by "everything that reached eval": the cancel
+        # path stamps an expiry through the same connection, and asserting over
+        # every eval call would make this test fail for a change it does not
+        # describe.
         stamped = {
-            call.args[2]
+            call.args[2].decode() if isinstance(call.args[2], bytes) else call.args[2]
             for call in fake_redis.eval.call_args_list
-            if len(call.args) > 2
+            if len(call.args) > 2 and call.args[0] is _ENDED_AT_STAMP
         }
-        assert stamped == {b"rq:job:root", b"rq:job:leaf"} or stamped == {
-            "rq:job:root",
-            "rq:job:leaf",
-        }
+        assert stamped == {"rq:job:root", "rq:job:leaf"}
 
     def test_canceled_event_published_for_the_chain_root(self):
         """The change-handler is the only executor of finalize handlers, so

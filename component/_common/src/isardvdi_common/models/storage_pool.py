@@ -88,9 +88,13 @@ class StoragePool(RethinkCustomBase):
             # An empty path list would make random.choices raise an opaque
             # IndexError. Surface a clear error instead: a pool that does not
             # define a path for this usage must not be selected for it.
-            raise Exception(
+            # Imported at raise time: the module-scope binding may predate apiv4.
+            from isardvdi_common.helpers import error_factory
+
+            raise error_factory.Error(
                 "bad_request",
                 f"Storage pool {self.id} has no '{usage}' path configured",
+                description_code="storage_pool_usage_without_path",
             )
         return choices(paths, weights=weights)[0]
 

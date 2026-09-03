@@ -36,6 +36,10 @@ class TestGetOwnedDeployments:
 
 class TestGetDeployment:
     @patch(
+        "api.services.deployments.Caches.get_document",
+        return_value=[],
+    )
+    @patch(
         "api.services.deployments.CommonDeploymentUsers.get_users_info",
         return_value=[{"id": "u1"}, {"id": "u2"}],
     )
@@ -44,7 +48,7 @@ class TestGetDeployment:
         return_value={"id": "d1", "create_dict": [1, 2]},
     )
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
-    def test_computes_totals(self, _exists, _retrieve, _users):
+    def test_computes_totals(self, _exists, _retrieve, _users, _cache):
         result = DeploymentService.get_deployment("d1")
         info = result["info"]
         assert info["total_users"] == 2
@@ -55,6 +59,37 @@ class TestGetDeployment:
     def test_raises_not_found(self, _exists):
         with pytest.raises(Error):
             DeploymentService.get_deployment("ghost")
+
+    @pytest.mark.parametrize(
+        "co_owners, user_id, expected",
+        [
+            (["u9"], "u9", True),  # requester is a co-owner
+            (["u9"], "owner", False),  # requester is the owner
+            ([], "u9", False),  # nobody co-owns it
+            (None, "u9", False),  # legacy row with no co_owners field
+            (["u9"], None, False),  # anonymous/unknown requester
+        ],
+    )
+    @patch(
+        "api.services.deployments.CommonDeploymentUsers.get_users_info",
+        return_value=[],
+    )
+    @patch(
+        "api.services.deployments.CommonDeployments.retrieve_deployment",
+        return_value={"id": "d1", "create_dict": [1]},
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_flags_co_owner(
+        self, _exists, _retrieve, _users, co_owners, user_id, expected
+    ):
+        """The detail payload must say whether the *requester* is a co-owner:
+        the frontend hides owner-only actions (managing co-owners, deleting)
+        on that flag, and PUT /co-owners is owner-only server-side."""
+        with patch(
+            "api.services.deployments.Caches.get_document", return_value=co_owners
+        ):
+            result = DeploymentService.get_deployment("d1", user_id)
+        assert result["info"]["co_owner"] is expected
 
 
 class TestDeleteDeployment:
@@ -191,6 +226,21 @@ class TestGetDeploymentDesktopBastion:
     def test_rejects_desktop_not_in_deployment(self, _exists, _tag):
         with pytest.raises(Error):
             DeploymentService.get_deployment_desktop_bastion("d1", "desk-x")
+
+
+class TestCountRecreateDesktops:
+    @patch(
+        "api.services.deployments.CommonDeployments.count_recreate_desktops",
+        return_value=3,
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_returns_the_common_count(self, _exists, _count):
+        assert DeploymentService.count_recreate_desktops(JWT_PAYLOAD, "d1") == 3
+
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
+    def test_raises_not_found(self, _exists):
+        with pytest.raises(Error):
+            DeploymentService.count_recreate_desktops(JWT_PAYLOAD, "ghost")
 
 
 class TestGetDeploymentUserDesktops:

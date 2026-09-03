@@ -31,7 +31,11 @@ if "rethinkdb.errors" not in sys.modules:
     class _ReqlDriverError(Exception):
         pass
 
+    class _ReqlRuntimeError(Exception):
+        pass
+
     errors_stub.ReqlDriverError = _ReqlDriverError  # type: ignore[attr-defined]
+    errors_stub.ReqlRuntimeError = _ReqlRuntimeError  # type: ignore[attr-defined]
     sys.modules["rethinkdb.errors"] = errors_stub
 
 # The dedicated-connection helper introduced in P7 imports

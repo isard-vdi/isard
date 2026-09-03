@@ -84,6 +84,8 @@ _get_domain_enrichment_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 
 MAX_VGPU_PROFILES_PER_DESKTOP = 4
 
+_BASTION_TARGETS_MISSING = object()
+
 
 def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
     """Validate a desktop's list of vGPU reservable ids.
@@ -186,6 +188,25 @@ def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
     return vgpus
 
 
+def download_progress(raw_progress):
+    """The card's download counters, taken from the row's ``progress`` dict.
+
+    A download that just started has not reported every counter yet: omit the
+    missing ones so the schema defaults apply instead of failing validation.
+    """
+    raw_progress = raw_progress or {}
+    return {
+        key: raw_progress[source]
+        for key, source in (
+            ("percentage", "received_percent"),
+            ("throughput_average", "speed_download_average"),
+            ("time_left", "time_left"),
+            ("size", "total"),
+        )
+        if raw_progress.get(source) is not None
+    }
+
+
 class DesktopsProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
 
@@ -270,14 +291,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 ]
 
         if desktop["status"] == DesktopStatusEnum.downloading.value:
-            progress = {
-                "percentage": desktop.get("progress", {}).get("received_percent"),
-                "throughput_average": desktop.get("progress", {}).get(
-                    "speed_download_average"
-                ),
-                "time_left": desktop.get("progress", {}).get("time_left"),
-                "size": desktop.get("progress", {}).get("total"),
-            }
+            progress = download_progress(desktop.get("progress"))
         else:
             progress = None
         editable = True
@@ -300,13 +314,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 desktop["permissions"] = permissions
                 desktop["permissions"].sort()
 
-        bastion_targets = desktop.pop("bastion_targets", None)
-        if (
-            bastion_targets
-            and isinstance(bastion_targets, list)
-            and len(bastion_targets) > 0
-        ):
-            desktop["bastion_target"] = bastion_targets[0]
+        bastion_targets = desktop.pop("bastion_targets", _BASTION_TARGETS_MISSING)
 
         parsed_desktop = {
             "id": desktop["id"],
@@ -347,8 +355,14 @@ class DesktopsProcessed(RethinkSharedConnection):
                 for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
             ],
             "permissions": desktop.get("permissions", []),
-            "bastion_target": desktop.get("bastion_target"),
         }
+
+        if bastion_targets is not _BASTION_TARGETS_MISSING:
+            parsed_desktop["bastion_target"] = (
+                bastion_targets[0]
+                if isinstance(bastion_targets, list) and bastion_targets
+                else None
+            )
 
         # The group and category name are only available if defined
         if desktop.get("group_name"):
@@ -906,7 +920,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "not_found",
                 "Not found domain to be updated",
                 traceback.format_exc(),
-                description="not_found",
+                description_code="not_found",
             )
         new_domain = {}
 
@@ -1237,6 +1251,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                                 "memory": True,
                                 "vcpus": True,
                                 "videos": True,
+                                "disk_bus": True,
                             },
                             "reservables": True,
                         },
@@ -1852,6 +1867,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "bad_request",
                 "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
                 traceback.format_exc(),
+                description_code="rdp_requires_wireguard",
             )
 
         if "none" in hardware["videos"] and (

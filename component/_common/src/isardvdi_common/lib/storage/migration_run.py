@@ -229,8 +229,18 @@ class MigrationRunner:
         key = get_queue_from_storage_pools(src_pool, self.dst_pool)
         return queue_tiers.retier_queue(f"storage.{key}.{DEFAULT_PRIORITY}", "move")
 
-    def _pool_queue(self, path):
-        return f"storage.{self._pool_of(path).id}.{DEFAULT_PRIORITY}"
+    def _pool_queue(self, path, action):
+        """Single-pool lane for this disk, tiered by the tier RULES.
+
+        Same reasoning as :meth:`_move_queue`, for the steps that stay inside one
+        pool. ``action`` is not optional: every task this runner enqueues has a
+        hard floor, and hand-building the tier here left rebase and verify on
+        ``default`` -- a lane that is neither fair-scheduled nor PSI-deferred --
+        while the release's ``move_delete`` skipped the reclaim floor entirely.
+        """
+        return queue_tiers.retier_queue(
+            f"storage.{self._pool_of(path).id}.{DEFAULT_PRIORITY}", action
+        )
 
     def _pool_of(self, path):
         pools = StoragePool.get_by_path(dirname(path))
@@ -405,7 +415,13 @@ class MigrationRunner:
         it, so a re-scan only ever ADDS newly-matching disks."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        items, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        items, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
+        )
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
             if item["storage_id"] not in existing:
@@ -420,7 +436,13 @@ class MigrationRunner:
         scope and never reappear; in-flight disks are left untouched."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
-        planned, _ = mig.build_plan_for_roots(self.migration_id, roots, self.dst_pool)
+        planned, _ = mig.build_plan_for_roots(
+            self.migration_id,
+            roots,
+            self.dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=self.config.get("order"),
+        )
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
         qafter = int(self.config.get("quarantine_after") or 3)
@@ -484,6 +506,31 @@ class MigrationRunner:
         audit = list(item.get("audit") or [])
         audit.append(record)
         self._set(item, audit=audit)
+
+    def _failure_reason(self, item):
+        """What the disk's failing task actually said, or None.
+
+        The three task slots are checked newest-phase-first because that is the
+        one that just failed; a task that raised keeps its traceback in
+        ``exc_info``, whose last line is the actionable sentence (e.g. a move
+        refused because the destination would drop below its free-space floor).
+        Best-effort by design: a missing or expired task must not stop the tree
+        from terminalizing, so anything unreadable falls back to the generic
+        wording rather than raising here.
+        """
+        for slot in ("verify_task_id", "rebase_task_id", "move_task_id"):
+            task_id = item.get(slot)
+            if not task_id:
+                continue
+            try:
+                if not Task.exists(task_id):
+                    continue
+                exc_info = Task(task_id).exc_info
+            except Exception:
+                continue
+            if exc_info:
+                return mig.task_error_line(exc_info, None)
+        return None
 
     def _tree_key(self, tree_items):
         """EWMA throughput key for a tree: ``<src_pool>:<dst_pool>`` using the
@@ -820,6 +867,18 @@ class MigrationRunner:
         self._set(item, state=MigrationItemState.MOVED.value)
 
     def _start_rebase(self, item):
+        # Before the claim, so a deferred tick leaves no fence behind and charges
+        # no abandon.
+        queue = self._pool_queue(item["dst_path"], "rebase")
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, deferring %s of %s",
+                self.migration_id,
+                queue,
+                "rebase",
+                item["storage_id"],
+            )
+            return
         observed = item.get("rebase_task_id")
         # Atomic single-writer claim: fence rebase_task_id (None fresh / the gone
         # id on resume) so exactly one driver (re-)enqueues. State stays ``moved``.
@@ -839,7 +898,7 @@ class MigrationRunner:
             return
         task_id = self._enqueue(
             "rebase",
-            self._pool_queue(item["dst_path"]),
+            queue,
             {
                 "child_path": item["dst_path"],
                 "new_backing_path": item["parent_dst_path"],
@@ -887,6 +946,18 @@ class MigrationRunner:
         # destination pool's worker (where the file lives). Read-only, so a lost
         # job is safe to re-enqueue. A root has no in-tree parent, so no backing
         # expectation; a non-root must back onto parent_dst_path.
+        # Before the claim, so a deferred tick leaves no fence behind and charges
+        # no abandon.
+        queue = self._pool_queue(item["dst_path"], "migration_verify_destination")
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, deferring %s of %s",
+                self.migration_id,
+                queue,
+                "verify",
+                item["storage_id"],
+            )
+            return
         observed = item.get("verify_task_id")
         # Atomic single-writer claim: fence verify_task_id (None fresh / the gone
         # id on resume) so exactly one driver (re-)enqueues. State stays ``rebased``.
@@ -909,7 +980,7 @@ class MigrationRunner:
             return
         task_id = self._enqueue(
             "migration_verify_destination",
-            self._pool_queue(item["dst_path"]),
+            queue,
             {
                 "dst_path": item["dst_path"],
                 "expect_backing": item.get("parent_dst_path"),
@@ -935,9 +1006,28 @@ class MigrationRunner:
         # Restore the storage to its ORIGINAL status (saga-5: not hardcoded
         # "ready"), then delete the source LAST.
         self._restore_storage_status(item)
+        queue = self._pool_queue(item["src_path"], "move_delete")
+        if not self.lane_is_drainable(Task._redis, queue):
+            # Mark, never defer: the tree is already committed, and holding the
+            # release hostage to a pool outage would keep its desktops down.
+            log.warning(
+                "migration %s: no consumer for %s, retaining source %s",
+                self.migration_id,
+                queue,
+                item["src_path"],
+            )
+            self._set(
+                item,
+                state=MigrationItemState.RELEASED.value,
+                move_delete_task_id=None,
+                source_retained=True,
+                source_retained_path=item["src_path"],
+            )
+            self._audit(item, "moved_ok")
+            return
         del_task_id = self._enqueue(
             "move_delete",
-            self._pool_queue(item["src_path"]),
+            queue,
             {"path": item["src_path"]},
         )
         self._set(
@@ -974,7 +1064,9 @@ class MigrationRunner:
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        changes = mig.plan_tree_failure(tree_items, item["storage_id"])
+        changes = mig.plan_tree_failure(
+            tree_items, item["storage_id"], reason=self._failure_reason(item)
+        )
         changed_ids = {it["id"] for it, _s, _r in changes}
         # The triggering disk may already be ``failed`` (generic exception
         # handler), so plan_tree_failure leaves it untouched and out of ``changes``
@@ -1042,6 +1134,15 @@ class MigrationRunner:
         trees = {}
         for it in items:
             trees.setdefault(it["tree_id"], []).append(it)
+        # The order the PLAN froze, not the ledger's: under a byte budget the
+        # tail does not move, so it must be the order the admin approved.
+        trees = {
+            tid: trees[tid]
+            for tid in mig.sort_tree_ids(
+                {tid: tis[0].get("tree_order_key") for tid, tis in trees.items()},
+                self.config.get("order"),
+            )
+        }
 
         # Parallelism gate (P2.3): bound concurrent trees to config.parallelism
         # so the storage worker is not oversubscribed. In-flight trees keep

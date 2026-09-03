@@ -27,13 +27,16 @@ from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.desktop_nonpersistent_events import (
     DesktopNonpersistentEvents,
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler
+from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.storage import Storage
@@ -48,33 +51,79 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
 
     @classmethod
-    def new_desktop(cls, user_id, template_id, *, name=None, description=None):
-        """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_"""
+    def new_desktop(
+        cls,
+        user_id,
+        template_id,
+        *,
+        name=None,
+        description=None,
+        new_data=None,
+        image=None,
+        allow_reuse=True,
+    ):
+        """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_
+
+        Several per template only where the old frontend is unreachable: it maps
+        each template card to a single desktop and couldn't show the rest.
+        ``allow_reuse=False`` opts out of that get-or-create: a caller that
+        submitted its own configuration would get it silently dropped.
+        """
         with cls._rdb_context():
             if r.table("users").get(user_id).run(cls._rdb_connection) is None:
                 raise Error("not_found", "User not found", traceback.format_exc())
-        # Has a desktop with this template? Then return it (start it if stopped)
+
+        # TODO(old-frontend-removal): drop this branch and _single_desktop_per_template.
+        if allow_reuse and Helpers.frontend_mode() != "actual":
+            return cls._single_desktop_per_template(
+                user_id, template_id, name, description, new_data, image
+            )
+
+        return cls._nonpersistent_desktop_create_and_start(
+            user_id, template_id, name, description, new_data, image
+        )
+
+    @classmethod
+    def user_template_desktops(cls, user_id, template_id):
+        """Non-persistent desktops this user already holds from a template.
+        TODO(old-frontend-removal): only the one-per-template rule reads this."""
         with cls._rdb_context():
-            desktops = list(
+            return list(
                 r.db("isard")
                 .table("domains")
                 .get_all(user_id, index="user")
                 .filter({"from_template": template_id, "persistent": False})
+                .pluck("id", "status")
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def _single_desktop_per_template(
+        cls, user_id, template_id, name, description, new_data=None, image=None
+    ):
+        """v3 ``New()``: reuse this template's desktop instead of creating a second one.
+        TODO(old-frontend-removal): the whole method goes with that frontend."""
+        desktops = cls.user_template_desktops(user_id, template_id)
         if len(desktops) == 1:
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]
             HypervisorsProcessed.check_virt_storage_pool_availability(desktops[0]["id"])
-            DesktopEvents.desktop_start(desktops[0]["id"], wait_seconds=1)
+            # No wait_seconds: wait_status polls every 2s, so v3's 1 raised a 500
+            # before the VM could ever be up.
+            DesktopEvents.desktop_start(desktops[0]["id"])
             Scheduler.add_desktop_timeouts(
                 Helpers.gen_payload_from_user(user_id), desktops[0]["id"]
             )
             return desktops[0]["id"]
 
-        # and get a new nonpersistent desktops from this template
+        if desktops:
+            # Leftovers from a period on FRONTEND_MODE=actual.
+            DesktopNonpersistentEvents.desktops_non_persistent_delete(
+                user_id, template_id
+            )
+
         return cls._nonpersistent_desktop_create_and_start(
-            user_id, template_id, name, description
+            user_id, template_id, name, description, new_data, image
         )
 
     @classmethod
@@ -83,8 +132,34 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         DesktopNonpersistentEvents.desktop_non_persistent_delete(desktop_id)
 
     @classmethod
+    def _unique_desktop_name(cls, user_id, base_name):
+        """Suffix the template name when the user already owns a desktop called
+        that: only the nameless instant-session path lands here, and the clash it
+        hits is with any existing desktop, which would then fail
+        ``check_user_duplicated_domain_name`` on any later create."""
+        with cls._rdb_context():
+            taken = set(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .get_field("name")
+                .run(cls._rdb_connection)
+            )
+        if base_name not in taken:
+            return base_name
+        suffix = 2
+        while f"{base_name} ({suffix})" in taken:
+            suffix += 1
+        return f"{base_name} ({suffix})"
+
+    @classmethod
     def _nonpersistent_desktop_create_and_start(
-        cls, user_id, template_id, name=None, description=None
+        cls,
+        user_id,
+        template_id,
+        name=None,
+        description=None,
+        new_data=None,
+        image=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_create_and_start()_"""
         with cls._rdb_context():
@@ -96,7 +171,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         )
         # Create the domain from that template
         desktop_id = cls._nonpersistent_desktop_from_tmpl(
-            user_id, template_id, name, description
+            user_id, template_id, name, description, new_data, image
         )
 
         # Disk is created by engine and not ready yet, thus commented this check
@@ -104,11 +179,17 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         DesktopEvents.desktop_start(desktop_id)
         payload = Helpers.gen_payload_from_user(user_id)
         Scheduler.add_desktop_timeouts(payload, desktop_id)
-        return {"id": desktop_id}
+        return desktop_id
 
     @classmethod
     def _nonpersistent_desktop_from_tmpl(
-        cls, user_id, template_id, name=None, description=None
+        cls,
+        user_id,
+        template_id,
+        name=None,
+        description=None,
+        new_data=None,
+        image=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_from_tmpl()_"""
         with cls._rdb_context():
@@ -134,7 +215,14 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             .get("storage_id")
         )
 
-        create_dict = template["create_dict"]
+        # Same template + form merge the persistent create does: without it
+        # everything the user configured is dropped for the template's values.
+        create_dict, guest_properties = DesktopsProcessed.merge_new_data_with_template(
+            template_id, new_data
+        )
+        create_dict["hardware"]["interfaces"] = Helpers.gen_interfaces_macs(
+            create_dict["hardware"]["interfaces"]
+        )
         # Path-shaped ``parent`` lineage marker is not written: see the
         # PR3 commit description. ``storage.parent`` UUID + qcow2 file
         # header are the load-bearing chain representations.
@@ -164,14 +252,17 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         )
         create_dict = Helpers._parse_media_info(create_dict)
 
-        template["create_dict"]["hardware"]["interfaces"] = [
-            i["id"] for i in template["create_dict"]["hardware"]["interfaces"]
-        ]
-
-        create_dict["hardware"] = {
-            **template["create_dict"]["hardware"],
-            **Helpers.parse_domain_insert(template["create_dict"])["hardware"],
-        }
+        # Only user-submitted hardware is trimmed to the user's allowance: the
+        # template-inherited path keeps the v3 behaviour the old frontend has.
+        if new_data:
+            create_dict = Quotas.limit_user_hardware_allowed(
+                Helpers.gen_payload_from_user(user_id), create_dict
+            )
+        # limit_user_hardware_allowed compares memory in GiB, the merge's unit.
+        if create_dict["hardware"].get("memory"):
+            create_dict["hardware"]["memory"] = Helpers.memory_gib_to_kib(
+                create_dict["hardware"]["memory"]
+            )
 
         # TODO: Evaluate reservables for non-persistent desktops, perhaps someday
         if (create_dict.get("reservables") or {}).get("vgpus"):
@@ -184,7 +275,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
         new_desktop = {
             "id": str(uuid.uuid4()),
-            "name": name or template["name"],
+            "name": name or cls._unique_desktop_name(user_id, template["name"]),
             "description": description or template["description"],
             "kind": "desktop",
             "user": user_id,
@@ -195,12 +286,12 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             "group": user["group"],
             "xml": None,
             "icon": template.get("icon", ""),
-            "image": template.get("image"),
+            "image": image or template.get("image"),
             "server": False,
             # Templates derived from from-media desktops don't carry
             # ``os`` until the engine writes it on first start.
             "os": template.get("os", ""),
-            "guest_properties": template["guest_properties"],
+            "guest_properties": guest_properties,
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],
@@ -240,6 +331,11 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         pending_storage.enqueue_disk_creation_chain_for_domain(
             domain_id=new_desktop["id"],
         )
+        if image:
+            if not image.get("file"):
+                Cards.update(new_desktop["id"], image["id"], image["type"])
+            else:
+                Cards.upload(new_desktop["id"], image)
         return new_desktop["id"]
 
     @classmethod

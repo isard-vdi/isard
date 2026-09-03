@@ -30,7 +30,7 @@ from isardvdi_common.helpers.token import Token
 log = logging.getLogger(__name__)
 
 
-def _logsusers_thread_target(payload):
+def _logsusers_thread_target(payload, request_ip=None, request_user_agent=None):
     """Run ``LogsUsers(payload)`` and log any exception.
 
     Without this wrapper, an exception raised inside ``LogsUsers``
@@ -45,7 +45,7 @@ def _logsusers_thread_target(payload):
     motivated the migration.
     """
     try:
-        LogsUsers(payload)
+        LogsUsers(payload, request_ip, request_user_agent)
     except Exception:
         log.warning("LogsUsers failed for payload=%r", payload, exc_info=True)
 
@@ -79,7 +79,7 @@ class TokenFlask(Token):
         return parts[1]  # Token
 
     @classmethod
-    def log_user(cls, payload):
+    def log_user(cls, payload, user_request=None):
         """Fire-and-forget write of an authenticated-request audit row.
 
         Was ``gevent.spawn(LogsUsers, payload)`` — appended a callback
@@ -118,11 +118,18 @@ class TokenFlask(Token):
 
         Both produce a ``log.warning`` so missing audit rows are
         observable, never silent.
+
+        The client IP and User-Agent are read HERE, not in the thread:
+        Flask's ``request`` is a context-local that is already torn down
+        by the time the daemon thread runs.
         """
         try:
+            request_ip, request_user_agent = cls.request_identity(
+                user_request if user_request is not None else request
+            )
             threading.Thread(
                 target=_logsusers_thread_target,
-                args=(payload,),
+                args=(payload, request_ip, request_user_agent),
                 daemon=True,
             ).start()
         except Exception:

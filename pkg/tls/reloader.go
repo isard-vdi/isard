@@ -5,16 +5,26 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog"
 )
 
+// pollInterval is how often the certificate files are checked for changes. fsnotify
+// doesn't fire for a certificate renewed on the server side of a network filesystem,
+// so the poll is the mechanism that actually catches a centrally renewed certificate.
+const pollInterval = 60 * time.Second
+
 type keypairReloader struct {
+	log *zerolog.Logger
+
 	mux     sync.RWMutex
 	watcher *fsnotify.Watcher
+	poll    *ChangeWatcher
 
 	cert *tls.Certificate
 
@@ -22,8 +32,9 @@ type keypairReloader struct {
 	keyPath  string
 }
 
-func NewKeyPairReloader(certPath, keyPath string) (*keypairReloader, error) {
+func NewKeyPairReloader(log *zerolog.Logger, certPath, keyPath string) (*keypairReloader, error) {
 	kpr := &keypairReloader{
+		log:      log,
 		certPath: certPath,
 		keyPath:  keyPath,
 	}
@@ -39,16 +50,40 @@ func NewKeyPairReloader(certPath, keyPath string) (*keypairReloader, error) {
 
 	kpr.watcher = watcher
 
+	files := func() ([]string, error) {
+		return []string{kpr.certPath, kpr.keyPath}, nil
+	}
+
+	onChange := func([]string) error {
+		if err := kpr.ReadCertificate(); err != nil {
+			return err
+		}
+
+		log.Info().Msg("tls certificate reloaded")
+
+		return nil
+	}
+
+	kpr.poll = NewChangeWatcher(log, pollInterval, files, onChange)
+
 	return kpr, nil
 }
 
-func (kpr *keypairReloader) Start(ctx context.Context, log *zerolog.Logger) error {
+func (kpr *keypairReloader) Start(ctx context.Context) error {
 	files := []string{kpr.certPath, kpr.keyPath}
 	for _, f := range files {
 		if err := kpr.watcher.Add(f); err != nil {
-			return fmt.Errorf("add '%s' to the filesystem watcher: %w", f, err)
+			err = fmt.Errorf("add '%s' to the filesystem watcher: %w", f, err)
+
+			if closeErr := kpr.watcher.Close(); closeErr != nil {
+				return fmt.Errorf("%w (also failed to close the filesystem watcher: %w)", err, closeErr)
+			}
+
+			return err
 		}
 	}
+
+	go kpr.poll.Start(ctx)
 
 	go func() {
 		for {
@@ -60,25 +95,26 @@ func (kpr *keypairReloader) Start(ctx context.Context, log *zerolog.Logger) erro
 
 				if event.Has(fsnotify.Remove) {
 					if err := kpr.watcher.Add(event.Name); err != nil {
-						log.Error().Err(err).Msg("rewatch certificate changes")
+						kpr.log.Error().Err(err).Msg("rewatch certificate changes")
 					}
 
 				} else if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Write) {
 					continue
 				}
 
-				if err := kpr.ReadCertificate(); err != nil {
-					log.Error().Err(err).Msg("reload certificate")
+				// The filesystem event is only a hint to check early: the watcher
+				// hashes the contents, so an event that doesn't change the
+				// certificate is a no-op and the poll never reloads it twice.
+				if _, err := kpr.poll.Check(); err != nil {
+					kpr.log.Error().Err(err).Msg("reload certificate")
 				}
-
-				log.Info().Msg("tls certificate reloaded")
 
 			case err, ok := <-kpr.watcher.Errors:
 				if !ok {
 					return
 				}
 
-				log.Error().Err(err).Msg("certificate filesystem watch error")
+				kpr.log.Error().Err(err).Msg("certificate filesystem watch error")
 			}
 		}
 	}()
@@ -96,6 +132,17 @@ func (kpr *keypairReloader) ReadCertificate() error {
 	if err != nil {
 		return fmt.Errorf("read tls certificate: %w", err)
 	}
+
+	// LoadX509KeyPair doesn't populate Leaf, and serving it saves the handshake a parse.
+	if len(cert.Certificate) > 0 {
+		leaf, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return fmt.Errorf("parse tls certificate: %w", err)
+		}
+
+		cert.Leaf = leaf
+	}
+
 	kpr.cert = &cert
 
 	return nil

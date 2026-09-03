@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -236,3 +237,79 @@ def wgtools_hyper(wgtools_module):
     instance.interface = "wg0"
     instance.uipt = MagicMock()
     return instance
+
+
+class FakeIptables:
+    """A FORWARD chain that answers like netfilter does, as ``check_output``.
+
+    The suites mock ``check_output`` to a bare Mock, which pins the commands
+    emitted and their order but says nothing about the chain they leave. This
+    keeps the rules, so a test can assert on the result instead.
+    """
+
+    OPS = ("-A", "-I", "-D", "-C", "-F", "-P", "-S")
+
+    def __init__(self):
+        self.forward = []
+
+    def __call__(self, argv, *args, **kwargs):
+        argv = list(argv)
+        op = next((token for token in argv if token in self.OPS), None)
+        rule = tuple(argv[argv.index(op) + 2 :]) if op else ()
+
+        if op == "-A":
+            self.forward.append(rule)
+        elif op == "-I":
+            self.forward.insert(0, rule)
+        elif op == "-D":
+            if rule not in self.forward:
+                raise subprocess.CalledProcessError(1, argv)
+            self.forward.remove(rule)
+        elif op == "-C":
+            if rule not in self.forward:
+                raise subprocess.CalledProcessError(1, argv)
+        elif op == "-F":
+            self.forward.clear()
+        elif op == "-S":
+            return "\n".join(
+                ["-P FORWARD DROP"]
+                + ["-A FORWARD " + " ".join(r) for r in self.forward]
+            )
+        return ""
+
+    def seed(self, *rule):
+        """Put a rule in the chain without going through the code under test."""
+        self.forward.append(tuple(rule))
+
+    def count(self, *rule):
+        return self.forward.count(tuple(rule))
+
+
+@pytest.fixture
+def fake_iptables():
+    return FakeIptables()
+
+
+@pytest.fixture
+def simple_iptools(monkeypatch):
+    """The real ``simple_iptools`` module, with only its database stubbed."""
+    db_stub = types.ModuleType("db")
+
+    class _FakeVpnRethinkConn:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, *args):
+            return False
+
+    db_stub.vpn_rethink_conn = _FakeVpnRethinkConn  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "db", db_stub)
+    monkeypatch.syspath_prepend(str(SRC_DIR))
+
+    spec = importlib.util.spec_from_file_location(
+        "simple_iptools_under_test", str(SRC_DIR / "simple_iptools.py")
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

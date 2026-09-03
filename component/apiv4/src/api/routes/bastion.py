@@ -237,7 +237,6 @@ async def update_bastion_authorized_keys(
             BastionService.update_bastion_authorized_keys,
             desktop_id,
             data.authorized_keys,
-            request.token_payload["user_id"],
         )
         return Response(status_code=204)
     except Error:

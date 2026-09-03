@@ -252,10 +252,16 @@ def scratch_redis():
 def task_on_scratch_redis(scratch_redis):
     """Point every ``Task`` (and the ``CoreStep`` views it hands out) at the
     scratch db for the duration of the test."""
+    import time as _time
+
+    from isardvdi_common.lib import queue_coverage
     from isardvdi_common.models.task import Task
 
     original = Task.__dict__.get("_redis")
     Task._redis = scratch_redis
+    # Date the fleet as seen just now: on a freshly flushed db every producer would
+    # refuse for want of a consumer, and these tests are about the ordinary case.
+    queue_coverage.note_fleet_seen(scratch_redis, _time.time())
     try:
         yield scratch_redis
     finally:

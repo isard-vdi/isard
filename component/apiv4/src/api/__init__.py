@@ -23,7 +23,10 @@ import concurrent.futures
 import logging as log
 import os
 from contextlib import asynccontextmanager
+from html import escape as html_escape
+from json import dumps as json_dumps
 
+import api.dependencies.log_config  # noqa: F401
 from api.dependencies.jwt_token import (
     has_email_verification_required_or_login_token,
     has_migration_required_or_login_token,
@@ -38,12 +41,15 @@ from api.dependencies.jwt_token import (
     is_admin_or_manager,
     is_not_user,
 )
+from api.dependencies.log_config import RequestContextMiddleware
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_redoc_html
+from fastapi.responses import HTMLResponse, JSONResponse
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.maintenance import Maintenance
@@ -91,6 +97,62 @@ def _wire_grpc_providers():
     _bastion.configure_haproxy_bastion_client(lambda: _haproxy_bastion_stub)
 
 
+def _report_qcow2_geometry_at_boot():
+    """Surface the installation-wide qcow2 policy once, at boot.
+
+    apiv4 is the sole reader of the four QCOW2_* vars now, so a distributed
+    install that set them on the storage node instead of here would silently
+    resolve to the 4k/off defaults -- the very silent-wrong-geometry defect this
+    change exists to remove. Log the resolved policy and, when all four fell back
+    to defaults, warn loudly that they may belong on this node's cfg.
+
+    A malformed policy is logged at ERROR but does NOT stop startup: the blast
+    radius of a disk-shape typo must not be the whole API (login, viewers,
+    sessions). The enqueue sites still call ``policy()`` and re-raise per
+    request, so a create/convert/disconnect fails loudly while everything else
+    keeps serving.
+    """
+    try:
+        geometry = qcow2_geometry.policy()
+    except qcow2_geometry.Qcow2PolicyError as exc:
+        log.error(
+            "qcow2 geometry policy is invalid; disk creation/convert/disconnect "
+            "will fail per request until it is fixed: %s",
+            exc,
+        )
+        return
+    sources = qcow2_geometry.env_sources()
+    log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
+    if all(v == "default" for v in sources.values()):
+        # Not a warning: the compose part supplies these defaults, so an all-default resolution
+        # is the normal state for an install that leaves the keys commented out.
+        log.info(
+            "no QCOW2_* override in this environment; using the compose defaults %s",
+            geometry,
+        )
+
+
+def _validate_storage_min_free_at_boot():
+    """Validate STORAGE_MIN_FREE_BYTES at boot, non-fatally.
+
+    Like the geometry policy it is now resolved by the enqueuer, but it is not
+    covered by the geometry validator. A malformed value (e.g. a human-readable
+    ``1G``) would otherwise raise only at enqueue time, after the row is already
+    in maintenance. Logged at ERROR, not raised, for the same reason the geometry
+    check is: a disk-floor typo must not take the whole API offline.
+    """
+    from isardvdi_common.models.storage import storage_min_free_bytes
+
+    try:
+        storage_min_free_bytes()
+    except ValueError as exc:
+        log.error(
+            "STORAGE_MIN_FREE_BYTES is invalid; convert/disconnect will fail per "
+            "request until it is fixed: %s",
+            exc,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -102,6 +164,10 @@ async def lifespan(app: FastAPI):
     # shared modules fetch the same long-lived stub on every call,
     # one channel per uvicorn worker process.
     _wire_grpc_providers()
+
+    # Log, never raise: a disk-shape typo must not take the API offline.
+    _report_qcow2_geometry_at_boot()
+    _validate_storage_min_free_at_boot()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()
@@ -213,7 +279,7 @@ async def lifespan(app: FastAPI):
         health_task.cancel()
         try:
             await health_task
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError, Exception:
             pass
     if haproxy_health_channel:
         await haproxy_health_channel.close()
@@ -221,7 +287,7 @@ async def lifespan(app: FastAPI):
         pool_sampler_task.cancel()
         try:
             await pool_sampler_task
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError, Exception:
             pass
     headroom = pool_size - pool_peak_state["peak_in_use"]
     log.info(
@@ -234,15 +300,41 @@ async def lifespan(app: FastAPI):
     await recycle_bin_queue.stop()
 
 
-_debug_mode = os.environ.get("USAGE", "production") != "production"
+_ENABLE_OPENAPI = os.environ.get("ENABLE_OPENAPI", "false").lower() == "true"
+SWAGGER_JS_URL = "/openapi/static/swagger-ui-bundle.js"
+SWAGGER_CSS_URL = "/openapi/static/swagger-ui.css"
+SWAGGER_INIT_URL = "/openapi/static/swagger-init.js"
+REDOC_JS_URL = "/openapi/static/redoc.standalone.js"
+FAVICON_URL = "/favicon.ico"
+
+
+def _swagger_ui_html(openapi_url, title, config=None):
+    """Swagger UI with no inline script, so `script-src 'self'` still renders it."""
+    cfg = html_escape(json_dumps({"url": openapi_url, **(config or {})}))
+    return HTMLResponse(
+        f"""<!DOCTYPE html>
+<html>
+  <head>
+    <title>{html_escape(title)}</title>
+    <link rel="stylesheet" type="text/css" href="{SWAGGER_CSS_URL}">
+    <link rel="shortcut icon" href="{FAVICON_URL}">
+  </head>
+  <body>
+    <div id="swagger-ui" data-config="{cfg}"></div>
+    <script src="{SWAGGER_JS_URL}"></script>
+    <script src="{SWAGGER_INIT_URL}"></script>
+  </body>
+</html>"""
+    )
+
 
 app = FastAPI(
     title="IsardVDI API",
     description="IsardVDI API v4",
     version="4.0.0-alpha1",
-    openapi_url="/api/v4/openapi.json" if _debug_mode else None,
-    docs_url="/api/v4/docs" if _debug_mode else None,
-    redoc_url="/api/v4/redoc" if _debug_mode else None,
+    openapi_url="/api/v4/openapi.json" if _ENABLE_OPENAPI else None,
+    docs_url=None,
+    redoc_url=None,
     lifespan=lifespan,
     swagger_ui_parameters={
         "docExpansion": "none",
@@ -262,6 +354,8 @@ if cors_origins:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+app.add_middleware(RequestContextMiddleware)
 
 
 def _error_response_body(
@@ -501,6 +595,29 @@ app.include_router(disclaimer_router)
 app.include_router(direct_viewer_router)
 app.include_router(migration_router)
 app.include_router(email_verification_router)
+
+
+if _ENABLE_OPENAPI:
+    app.add_route(
+        "/api/v4/docs",
+        _swagger_ui_html(
+            "/api/v4/openapi.json",
+            f"{app.title} - Swagger UI",
+            app.swagger_ui_parameters,
+        ),
+        include_in_schema=False,
+    )
+    app.add_route(
+        "/api/v4/redoc",
+        get_redoc_html(
+            openapi_url="/api/v4/openapi.json",
+            title=f"{app.title} - ReDoc",
+            redoc_js_url=REDOC_JS_URL,
+            redoc_favicon_url=FAVICON_URL,
+            with_google_fonts=False,
+        ),
+        include_in_schema=False,
+    )
 
 
 @app.exception_handler(Error)

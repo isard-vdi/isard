@@ -26,7 +26,16 @@ from typing import Literal
 
 import jwt
 from cachetools import Cache
+from fastapi.routing import APIRoute, iter_route_contexts
 from rethinkdb import r
+
+
+def iter_api_routes(app):
+    """Yield every ``APIRoute`` of ``app`` with its effective path. fastapi
+    >=0.139 keeps included routers lazy, so ``app.routes`` holds wrappers."""
+    for context in iter_route_contexts(app.routes):
+        if isinstance(context.original_route, APIRoute):
+            yield context
 
 
 class MockJWT:
@@ -112,6 +121,7 @@ def create_indexes(
                 r.table("domains").index_create("kind").run(conn)
                 r.table("domains").index_create("status").run(conn)
                 r.table("domains").index_create("tag").run(conn)
+                r.table("domains").index_create("user").run(conn)
                 r.table("domains").index_create(
                     "kind_user", [r.row["kind"], r.row["user"]]
                 ).run(conn)

@@ -1,5 +1,10 @@
 import { patchEntityList } from '@/lib/utils'
-import type { WsDeletePayload, WsTemplatePayload } from '@/types/ws-events'
+import type {
+  WsDeletePayload,
+  WsProgressPayload,
+  WsTemplatePayload,
+  WsTemplateProgress
+} from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
 import { getUserTemplatesOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
@@ -25,6 +30,19 @@ export const templateEventHandlers = {
       if (!old) {
         queryClient.setQueryDefaults(key, { staleTime: 0 })
       }
+      return {
+        ...old,
+        templates: patchEntityList(old?.templates || [], 'update', data)
+      }
+    })
+  },
+
+  // The move tick never reaches the row, so it arrives on its own event with
+  // nothing but the counters.
+  template_progress: (queryClient: QueryClient, payload: string) => {
+    const data: WsProgressPayload<WsTemplateProgress> = JSON.parse(payload)
+    queryClient.setQueryData(key, (old) => {
+      if (!old) return old
       return {
         ...old,
         templates: patchEntityList(old?.templates || [], 'update', data)

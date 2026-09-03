@@ -110,7 +110,18 @@ _RECLAIM_ACTIONS = frozenset({"delete", "move_delete"})
 # ``virt_win_reg`` is here (not ``standard``): virt-win-reg drives a libguestfs
 # appliance VM that mounts the disk (minutes; CPU/memory + a KVM slot), so it is
 # heavy node-loading work, not a quick foreground op.
-_MAINTENANCE_ACTIONS = frozenset({"sparsify", "convert", "disconnect", "virt_win_reg"})
+# The pool migration's two middle steps are as long as ``convert``, and without a
+# floor they resolve through ``default`` -- the lane desktops start on.
+_MAINTENANCE_ACTIONS = frozenset(
+    {
+        "sparsify",
+        "convert",
+        "disconnect",
+        "virt_win_reg",
+        "rebase",
+        "migration_verify_destination",
+    }
+)
 
 # The whole-disk ``move`` (rsync/qemu-img, job_timeout up to 12h): pool migration
 # AND template-from-desktop share this action. It must never touch a foreground

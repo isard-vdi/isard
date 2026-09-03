@@ -148,6 +148,14 @@ class Category(RethinkCustomBase):
             enabled = value.get("domain", {}).get("enabled")
             domain_name = value.get("domain", {}).get("name")
             if enabled and domain_name:
+                # A second certificate for the name the installation already
+                # serves is resolved non-deterministically by HAProxy.
+                main_domain = os.environ.get("DOMAIN")
+                if main_domain and domain_name.lower() == main_domain.lower():
+                    raise ValueError(
+                        f"Branding domain {domain_name} is the installation's own "
+                        "domain, which is already served"
+                    )
                 with self._rdb_context():
                     existing = list(
                         r.table("categories")

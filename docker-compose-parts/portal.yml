@@ -30,7 +30,6 @@ services:
     volumes:
       - /opt/isard/certs/acme:/etc/acme:rw
       - /opt/isard/certs/default:/certs:rw
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs

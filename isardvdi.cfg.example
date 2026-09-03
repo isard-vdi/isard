@@ -1,4 +1,4 @@
-# Isard main config v2.36.1
+# Isard main config v3.0.9
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -102,15 +102,6 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## - url
 DIRECTVIEWER_MODE=browser
 
-# ------ Notifier ------------------------------------------------------------
-## Email credentials that will be used to send email notifications.
-## DEPRECATED variables after migration 175. Please configure it via
-## administration web interface.
-# NOTIFY_EMAIL=True
-# NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
-# NOTIFY_EMAIL_SMTP_PORT=587
-# NOTIFY_EMAIL_USERNAME=example@isardvdi.com
-# NOTIFY_EMAIL_PASSWORD=IsardVDI
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
@@ -134,6 +125,14 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## - zerossl
 ## Full list is in the CA_NAMES variable: https://github.com/acmesh-official/acme.sh/blob/master/acme.sh#L40
 #ACME_SERVER="letsencrypt"
+## Additional names to put on this installation's certificate, comma separated
+## and without spaces. Use it when DOMAIN is a "www." name and the bare name
+## has to work too, or for any alias that must not raise a certificate warning.
+## The names are added to the certificate and accepted by the SNI filter, so
+## they also work with FORBID_DOMAIN_IP enabled. Nothing is redirected: every
+## name serves the same site, while links the webapp builds still use DOMAIN.
+## Changing this list makes the certificate be reissued on the next start.
+#ACME_EXTRA_DOMAINS=example.com,alias.example.com
 
 # ------ Sessions ------------------------------------------------------------
 # Maximum valid session time. If this duration is exceeded, the user won't be able to renew
@@ -171,11 +170,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS=10
 # The time duration that the user will be unable to login if gets rate limited
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
-# This factor will be powered against the RETRY_AFTER and the number of failed attempts after being rate limited.
-# So, for example, given
-# MAX_ATTEMPTS=10
-# RETRY_AFTER=1m
-# INCREMENT_FACTOR=2
 # And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
@@ -185,170 +179,6 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 # Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
-
-## Local
-### Local authentication against isard database
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true
-
-## LDAP
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED=false
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_LDAP_* after migration
-## 180. Please configure it via administration web interface.
-
-#AUTHENTICATION_AUTHENTICATION_LDAP_PROTOCOL=ldap
-#AUTHENTICATION_AUTHENTICATION_LDAP_HOST=
-#AUTHENTICATION_AUTHENTICATION_LDAP_PORT=389
-
-### Credentials used for querying the LDAP
-#AUTHENTICATION_AUTHENTICATION_LDAP_BIND_DN=
-#AUTHENTICATION_AUTHENTICATION_LDAP_PASSWORD=
-
-### Base Search is the DN that all the users share, e.g. ou=people,dc=example,dc=com
-#AUTHENTICATION_AUTHENTICATION_LDAP_BASE_SEARCH=
-### Filter is the actual filter used to search users. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-#AUTHENTICATION_AUTHENTICATION_LDAP_FILTER="(&(objectClass=person)(uid=%s))"
-
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_UID=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_USERNAME=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_NAME=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_EMAIL=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_PHOTO=.*
-
-### Auto Register the existing ldap users into IsardVDI
-#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER=false
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS=
-
-### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
-#AUTHENTICATION_AUTHENTICATION_LDAP_GUESS_CATEGORY=false
-### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
-### If this is configured, this will set a default group when autoregistering a user
-### This is only advised to be configured if you have users without a group, otherwise don't configure it
-### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUP_DEFAULT=
-### The base search for listing all the roles of a user
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_SEARCH_BASE=
-### Filter is the actual filter used to search all the roles of a user. The '%s' represents the user that is sent through the form
-### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
-# If this field is set to true, use the full DN instead of the user that is sent through the form to search for the user roles
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_USE_USE_DN=false
-### The field that contains the roles in the AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER search
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FIELD=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_REGEX=.*
-### All the users that are in at least one of the roles specified here, will be created in the admin role (comma separated)
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_IDS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_IDS=
-# This is the default role that users will have if they don't match in any of the previous roles.
-# Values can be 'admin', 'manager', 'advanced', 'user'
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
-# Save email provided by LDAP. Even if the email is not saved, it will be used to validate the domain during authentication.
-#AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL=true
-
-## SAML
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
-
-## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
-## 182. Please configure it via administration web interface.
-
-#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=
-## Optional: Local IdP metadata file (checked before fetching from URL)
-## If this file exists, it will be used instead of fetching from METADATA_URL
-## This allows the service to start without network access to the IdP
-## To create this file: curl -o /opt/isard/keys/idp-metadata.xml <METADATA_URL>
-#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE=/keys/idp-metadata.xml
-## Optional: Custom Entity ID for SAML Service Provider
-## If not set, defaults to the metadata URL (https://DOMAIN/authentication/saml/metadata)
-## Set this if your IdP requires a specific Entity ID (e.g., "vdi-pro")
-#AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID=
-## Optional: Signature method for signing SAML AuthnRequests
-## If not set, requests will NOT be signed (current default behavior)
-## Set this if your IdP requires signed requests (AuthnRequestsSigned="true")
-## Valid values (use full URI):
-##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha256 (recommended, SHA-256)
-##   - http://www.w3.org/2000/09/xmldsig#rsa-sha1 (legacy, SHA-1)
-##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha512 (strong, SHA-512)
-#AUTHENTICATION_AUTHENTICATION_SAML_SIGNATURE_METHOD=
-## If the key and cert files don't exist, they will be self signed automatically
-#AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
-#AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
-## DO NOT CHANGE THIS UNLESS YOU KNOW WHAT YOU'RE DOING
-## Set the maximum time between the initial login request and the response
-#AUTHENTICATION_AUTHENTICATION_SAML_MAX_ISSUE_DELAY=90s
-
-### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 
-### regex match tries to extract the first group, but if there's no group it will extract the whole match
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_UID=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_EMAIL=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_PHOTO=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_PHOTO=.*
-# TODO: We need to document this configuration options (see LDAP configuration options)
-#AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER=false
-### Only the users that belong to one of these groups will be autoregistered (comma separated)
-#AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER_ROLES=
-#AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY=false
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_CATEGORY=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_GROUP=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_GROUP=.*
-#AUTHENTICATION_AUTHENTICATION_SAML_GROUP_DEFAULT=default
-#AUTHENTICATION_AUTHENTICATION_SAML_GUESS_ROLE=false
-#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_ROLE=
-#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_ROLE=.*
-### All the users that match with the FIELD_ROLE in at least one of the IDs specified here, will be created in the admin role (comma separated)
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADMIN_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_MANAGER_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADVANCED_IDS=
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_USER_IDS=
-# This is the default role that users will have if they don't match in any of the previous groups.
-# Values can be 'admin', 'manager', 'advanced', 'user'
-#AUTHENTICATION_AUTHENTICATION_SAML_ROLE_DEFAULT=user
-# URL to redirect after logout
-#AUTHENTICATION_AUTHENTICATION_SAML_LOGOUT_REDIRECT_URL=
-# Save email provided by SAML. Even if the email is not saved, it will be used to validate the domain during authentication.
-#AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL=true
-
-## Google
-### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
-### Authorized redirect URIs: https://domain.tld/authentication/callback
-## DEPRECATED variables after migration 184. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
-## DEPRECATED variables after migration 183. Please configure it via
-## administration web interface.
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
-#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
 # ------ Backups -------------------------------------------------------------
 
@@ -417,15 +247,20 @@ DOCKER_IMAGE_TAG=main
 # Golang image used for building the Golang microservices images
 # Defaults are set in each Dockerfile ARG and compose-parts yml fallback.
 # Uncomment to override.
-#GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb
+#GOLANG_BUILD_IMAGE=golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587
 # Image used for running the images the Golang microservices images
-#GOLANG_RUN_IMAGE=alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+#GOLANG_RUN_IMAGE=alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
 HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22@sha256:3755973a59dd758b24d952649ca1f003d744b9e771f61f5e7db63e47baa68e3b
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
+
+## Log the API version endpoint (/api/v4/), which monitoring polls continuously.
+#DEBUG_STATS=false
+## Log websocket authentication failures and socket.io room joins/leaves.
+#DEBUG_WEBSOCKETS=false
 
 ## ------ HAPROXIES
 ## Comment/uncomment to deactivate/activate haproxy logging
@@ -443,32 +278,98 @@ HAPROXY_LOGGING=.
 #PROXY_PROTOCOL=false
 
 # ------ QCOW2 images --------------------------------------------------------
-## Cluster size used when creating qcow2 disk images
-## Default: 4k (maximum compatibility)
-## Recommended for NFS: 2M (500x less metadata overhead vs 4k)
+## Installation-wide geometry for every qcow2 IsardVDI writes itself.
+## Read by isard-apiv4 (the node running the web/all-in-one flavour) when the
+## task is enqueued, and carried inside the task payload, so every storage
+## node writes the same shape regardless of its own environment. Applies to
+## disk creation, ``convert`` (qcow2 destinations) and ``disconnect`` (which
+## rewrites the disk in place). Changing a value takes effect for disks written
+## AFTER the apiv4 restart; existing disks keep the geometry they were written
+## with (visible per storage row under ``qcow2_geometry``) until an operation
+## rewrites them, so changing them is a forward-only decision.
+## ROLLOUT NOTE: before this release ``convert`` and ``disconnect`` wrote at
+## qemu's own defaults (64k, no preallocation); from this release they honour the
+## policy below, so on an install that set ``preallocation=falloc`` or ``full``
+## those two operations now allocate the disk's full virtual size where they used
+## to write a sparse copy -- and can be refused outright if the pool lacks the
+## room. (``metadata`` stays sparse; see the preallocation note.) The default is
+## off, so most installs see no change.
+##
+## Recommended for shared storage (NFS) and just as good on local NVMe:
+##   QCOW2_CLUSTER_SIZE=128k  QCOW2_EXTENDED_L2=on
+##   QCOW2_LAZY_REFCOUNTS=off QCOW2_PREALLOCATION=off
+##
+## Cluster size used when creating qcow2 disk images.
+## Default: 128k
+## A larger cluster (the old default was 4k; 2M was previously suggested for
+## NFS to cut metadata overhead) trades away far more than it saves: every
+## small, scattered write that lands in a cluster never touched before in
+## this layer of the backing chain (registry hive flushes, the NTFS $LogFile
+## journal, a pagefile resize) copies the WHOLE cluster into the overlay,
+## even with extended_l2 sub-cluster tracking on, because the qcow2 host
+## allocation unit is still the full cluster. Measured on a real desktop:
+## 13.3GB allocated with cluster_size=2M, of which only ~4.6GB was ever
+## genuinely written (qemu-img check: 69% fragmented). 128k keeps that
+## amplification down to a single desktop-scale allocation unit instead of
+## a template-scale one, while its L2 metadata (~13MB for a 104G disk with
+## extended_l2 on) stays trivial to cache. It also happens to match a
+## typical XFS stripe width (verify with `xfs_info` on your NFS backing
+## filesystem) -- check that alignment on your own storage before deploying.
 ## Options: 512, 1k, 2k, 4k, 8k, 16k, 32k, 64k, 128k, 256k, 512k, 1M, 2M
 ## WARNING: extended_l2=on requires cluster_size >= 16k
-#QCOW2_CLUSTER_SIZE=4k
-## Enable use of extended l2 entries when creating qcow2 disk images
-## Default: off
-## Recommended for NFS with cluster_size >= 16k: on (64KB subclusters for better thin provisioning)
+#QCOW2_CLUSTER_SIZE=128k
+## Enable use of extended l2 entries when creating qcow2 disk images.
+## Default: on
+## Enables 64KB sub-cluster tracking (with cluster_size=128k, that's a 4KB
+## sub-cluster -- the same granularity as an NTFS cluster) and is what lets
+## `preallocation` below apply to incremental disks with a backing file,
+## not just root/template images. Requires cluster_size >= 16k and QEMU
+## >= 5.2 on every host that reads these images -- images written with
+## extended_l2 are NOT readable by older QEMU.
 ## Options: on / off
-## WARNING: requires cluster_size >= 16k, requires QEMU >= 5.2 on any host
-## that reads these images. Images with extended_l2 are NOT readable by older QEMU.
-#QCOW2_EXTENDED_L2=off
-## Enable lazy refcounts for better write performance
+#QCOW2_EXTENDED_L2=on
+## Enable lazy refcounts for better write performance.
 ## Default: off
-## Recommended for NFS: on (safe with crash-consistent filesystems like XFS/ext4)
-## NOTE: after an ungraceful host crash, qemu will automatically rebuild refcount
-## tables on next image open (qemu-img check -r all). This may slow desktop startup.
+## Measured with qemu-img bench on real NFS storage (scattered writes and
+## pure sequential writes, i.e. an ISO-style download): no measurable
+## difference between on and off in either pattern -- the gap between runs
+## of the SAME setting (NFS/network jitter) was consistently larger than
+## the gap between settings. Refcounts only matter for internal-snapshot
+## cluster sharing, which this project doesn't use, and cache='unsafe'
+## already removes the fsync that lazy_refcounts would otherwise defer, so
+## there's no synchronous write left to skip. Rebuild cost after an
+## ungraceful crash was also measured directly (qemu-img check -r all) at
+## 25-74ms even at realistic scale (80k-105k allocated clusters), so the
+## "on" side's crash-recovery-time argument doesn't hold either. Left off
+## for the simpler, more predictable crash behaviour (no dirty-image flag,
+## no rebuild-before-open) since neither option shows a measured benefit.
 ## Options: on / off
 #QCOW2_LAZY_REFCOUNTS=off
-## Preallocation mode for new disks
-## With extended_l2=on, preallocation is also applied to disks with backing files
+## Preallocation mode for new disks.
+## With extended_l2=on, preallocation also applies to disks WITH a backing
+## file (not just root/template images) -- see QCOW2_EXTENDED_L2 above.
 ## Default: off
-## Recommended for NFS: metadata (reduces fragmentation)
+## `metadata` was previously suggested to reduce fragmentation, but
+## measured on a real chain it doesn't pay for itself: it adds ~100-120ms
+## to every single disk creation (qemu-img create writes the full L1/L2/
+## refcount structure up front) to save, at most, the ~0.6ms qemu-img
+## bench measured per NEWLY-touched cluster region without it -- a cost
+## already spread across the disk's whole lifetime, not concentrated at
+## boot. It also makes every new disk's apparent file size jump to its
+## full virtual size immediately (still sparse on disk, but only as long
+## as every tool that copies/backs it up preserves holes -- cp --sparse,
+## rsync -S, tar --sparse; anything that doesn't turns a few MB of real
+## data into a full-size copy).
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
+## Free-space floor (bytes) left on the destination filesystem before a
+## convert, disconnect or move writes its full second copy of a disk; the
+## operation is refused rather than filling the pool. Like the geometry above, it
+## is an installation policy resolved by isard-apiv4 at enqueue time and carried
+## in the payload, so an identical operation is not refused on one storage node
+## and accepted on another. Must be an integer number of BYTES (not a
+## human-readable size like ``1G``). Default: 1073741824 (1 GiB).
+#STORAGE_MIN_FREE_BYTES=1073741824
 
 # ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
@@ -518,7 +419,9 @@ HAPROXY_LOGGING=.
 #HYPER_ENABLED=true
 ## Hypervisor with hypervisor capabilities
 #CAPABILITIES_HYPER=true
-## Disk capabilities
+## Disk capabilities. False removes isard-storage from the composition on the
+## next build: the node performs no disk operation and declares none, so it is
+## not counted among the nodes serving its storage pools.
 #CAPABILITIES_DISK=true
 
 ## Comma-separated virtualization pool ids that can be used to start desktops
@@ -528,6 +431,21 @@ HAPROXY_LOGGING=.
 
 ## Comma-separated storage pool ids that can be used for disk operations
 #CAPABILITIES_STORAGE_POOLS=00000000-0000-0000-0000-000000000000
+
+## Read the FILL of a thin (LVM-VDO) storage pool on this node. Off by default,
+## and needed nowhere else: isard-storage already publishes the space of every
+## mount it can measure on its own -- a thick pool in full, a network mount not
+## at all, and a thin one as thin, with its capacity and no fill. Turn this on
+## only where a pool IS thin, because there the filesystem figure is the
+## LOGICAL size and reads 5x to 17x more free space than the pool has.
+## It starts isard-storage-vdo-stats, which is granted /dev/mapper/control and
+## CAP_SYS_ADMIN -- an ioctl that also permits removing or suspending any volume
+## on the node, which is why it goes to a container that does nothing else and
+## never to isard-storage. While it runs, isard-storage stops publishing: two
+## writers on one key would leave the answer to whoever wrote last.
+## Ask a node what it sees, before and after:
+##   docker exec isard-storage storage-pool-physical --json
+#STORAGE_POOL_VDO_STATS=false
 
 # ------ Hypervisor options ---------------------------------------------------
 ## ONLY_FORCED_HYP enables only_forced option to only get domains with
@@ -584,6 +502,23 @@ HAPROXY_LOGGING=.
 ## peak ~ max under your load.
 #APIV4_EXECUTOR_MAX_WORKERS=128
 #RETHINKDB_POOL_SIZE=128
+## ⚠️ ONE name, EIGHT services. Every service declares this variable with its
+## own default (apiv4 128, engine 50, change-handler 32, socketio/scheduler/
+## webapp 5, changefeed 4), and those defaults only apply while the variable is
+## UNSET here. Uncommenting the line above sets all eight to 128 — including
+## the ones sized deliberately small — so set it only if that is what you mean.
+
+## How many task-results stream entries the change-handler settles at once.
+## Entries name different chains and are almost entirely waiting on the
+## database, so settling them one at a time left the loop idle; the marks of a
+## single chain are still serialised per finalize anchor.
+## Swept on a 25-VU burst against a clean install (lag / interactive p95):
+##   4 -> 347 / 30.5s (misses the 30s objective) · 8 -> 233 / 20.4s
+##   16 -> 232 / 20.6s (no gain over 8) · 24 -> 165 / 22.4s
+## 24 drains a backlog faster but serves each create worse. Raise it if what
+## you need is to empty an accumulated backlog; leave it if what you protect is
+## interactive latency.
+#SETTLE_CONCURRENCY=8
 ## Slow-query observer threshold (ms). Each rdb query slower than this
 ## emits an `rdb_query_slow` log line with pool stats — primary signal for
 ## identifying helpers that should migrate to async-native (W2).
@@ -752,12 +687,6 @@ HAPROXY_LOGGING=.
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
 
-# ------ Vide proxy settings -------------------------------------------------
-## This is the inactivity timeout when the proxy will close the RDP connection.
-## The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-## The duration will be trucated up to minutes
-#RDPGW_IDLE_TIMEOUT=30m
-#RDPGW_API_ADDR=isard-apiv4:5000
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
@@ -851,7 +780,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 #REDIS_PORT=6379
 
 # Redis workers
-## Amount of workers used by the isard-storage service
+## Amount of workers used by the isard-storage service. Whether the service
+## exists at all is CAPABILITIES_DISK; this is how many threads it runs, and 0
+## leaves the container in place serving nothing.
 ## WARNING: The increase of workers could lead to cpu overload
 #REDIS_WORKERS=1
 
@@ -895,16 +826,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 # Documentation: https://isard.gitlab.io/isardvdi-formacion/monitoring/alerts/#grafana-customizations
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_TOKEN=
-#GRAFANA_TELEGRAM_TOKEN_ORCHESTRATOR=
 #GRAFANA_TELEGRAM_CHAT_ID=
-#GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
 # ------ VictoriaMetrics -----------------------------------------------------
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
 
-# ------ Stats -----------------------------------------------------
-#STATS_DIRECTORY=/opt/isard/stats
 
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
@@ -920,7 +847,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 #
 #TEMPO=false
 #TEMPO_ADDRESS=http://isard-tempo:3200
-#TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
 
 # ------ Faro (Frontend errors) ------------------------------------------
 #
@@ -973,6 +899,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 # The last two are what lets apiv4 register a hypervisor (2022) and what carries its desktop
 # traffic (the tunnel port). A hypervisor with neither published is invisible to the platform;
 # with only 2022 it registers and then has no data plane.
+#
+# On a flavour that also runs isard-vpn (all-in-one) the tunnel port is left to the vpn part,
+# which already publishes that same udp port on this address; 2022 is still published, since
+# nothing else binds it. And if you keep a hand-written docker-compose-open-ports.yml, that file
+# keeps owning both ports: compose does not dedupe across syntaxes, so declaring them twice
+# leaves the container refusing to start. Remove it and they move into docker-compose.yml.
 #
 # WHAT IS DELIBERATELY *NOT* BOUND, because it is dialled by end users and not by other hosts:
 # - The portal / monitor-proxy HTTP_PORT and HTTPS_PORT

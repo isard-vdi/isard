@@ -17,6 +17,7 @@ import {
   expireUserApiKeyMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { generateApiKeyMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+import { describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -76,12 +77,12 @@ watch(
               ?.description_code
           : undefined
 
-      if (descriptionCode) {
-        const errorKey = `components.profile.api-key-modal.errors.${descriptionCode}`
-        errorMessage.value = t(errorKey, t('components.profile.api-key-modal.alert.error-fetch'))
-      } else {
-        errorMessage.value = t('components.profile.api-key-modal.alert.error-fetch')
-      }
+      errorMessage.value = describeErrorCode(
+        descriptionCode,
+        { t, te },
+        'components.profile.api-key-modal.errors',
+        'components.profile.api-key-modal.alert.error-fetch'
+      )
     }
   }
 )
@@ -125,12 +126,12 @@ const handleExpireKey = async () => {
             ?.description_code
         : undefined
 
-    if (descriptionCode) {
-      const errorKey = `components.profile.api-key-modal.errors.${descriptionCode}`
-      errorMessage.value = t(errorKey, t('components.profile.api-key-modal.alert.error-expire'))
-    } else {
-      errorMessage.value = t('components.profile.api-key-modal.alert.error-expire')
-    }
+    errorMessage.value = describeErrorCode(
+      descriptionCode,
+      { t, te },
+      'components.profile.api-key-modal.errors',
+      'components.profile.api-key-modal.alert.error-expire'
+    )
   }
 }
 
@@ -143,7 +144,7 @@ const minValue = computed(() => today(tz).add({ days: 1 }))
 const maxValue = computed(() => today(tz).add({ years: 1 }))
 const defaultPlaceholder = computed(() => today(tz).add({ months: 1 }))
 
-const { locale, t } = useI18n()
+const { locale, t, te } = useI18n()
 
 const formattedExpireDate = computed(() => {
   const expireDate = apiKeyExpireDate.value

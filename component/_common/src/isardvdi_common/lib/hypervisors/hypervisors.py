@@ -249,10 +249,13 @@ class HypervisorsProcessed(RethinkSharedConnection):
             }
         )
         if hyp_id:
-            try:
-                with cls._rdb_context():
-                    data = query.run(cls._rdb_connection)
-            except ReqlNonExistenceError:
+            # A missing row makes .pluck()/.merge() raise ReqlNonExistenceError,
+            # which the query observer logs as rdb_query_failed noise on every
+            # orchestrator poll of a hypervisor that is no longer in the table.
+            query = query.default(None)
+            with cls._rdb_context():
+                data = query.run(cls._rdb_connection)
+            if data is None:
                 raise Error(
                     "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
                 )
@@ -1963,6 +1966,32 @@ class HypervisorsProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             r.table("hypervisors").get(hyper_id).update(
                 {"numa_topology": numa_topology}
+            ).run(cls._rdb_connection)
+
+    @classmethod
+    def update_hyper_machine_types(cls, hyper_id, machine_types):
+        """Store what this hypervisor's emulator accepts as a machine type.
+
+        Written whole rather than merged: the row has to describe the emulator
+        running right now, and a qemu upgrade REMOVES types. Merging would keep
+        advertising the ones that just disappeared, which is the failure this
+        exists to prevent.
+
+        A report with no ``machines`` is refused. ``discover_machine_types``
+        answers a failed probe with a POPULATED dict whose list is empty, so
+        "we could not ask" arrives here looking like an answer -- and the
+        ``r.literal`` below replaces the whole subdocument, so writing it would
+        replace a good list with nothing. The engine reads an empty list as "do
+        not touch", which means one unanswered probe would silently switch off
+        the correction this feature exists to make.
+        """
+        if not isinstance(machine_types, dict):
+            return
+        if not machine_types.get("machines"):
+            return
+        with cls._rdb_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"machine_types": r.literal(machine_types)}
             ).run(cls._rdb_connection)
 
     @classmethod

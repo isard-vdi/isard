@@ -18,8 +18,27 @@ Anonymize an IsardVDI `rethinkdb-dump` archive so it can be safely used in devel
 | `users_migrations` | token |
 | `recycle_bin` | owner/agent names, nested name/email/ip/description fields |
 | `logs_users`, `logs_desktops` | PII fields blanked (owner names, IPs, agents); **rows kept** for realistic dev volume |
-| `config` | `auth.ldap` / `auth.saml` / `auth.google` credentials, top-level `smtp.*` (disabled), server wireguard, grafana hostname, resources url, maintenance text |
-| **all tables** | defensive recursive sweep clears any unhandled key matching `password\|passwd\|secret\|client_secret\|api_key\|api-key\|private_key\|access_key\|secret_key\|bearer\|auth_token\|access_token` |
+| `config` | the three `auth.{ldap,saml,google}.*_config` blocks (see below), top-level `smtp.*` including the pre-v175 `server`/`sender_address`/`sender_name` names (and SMTP disabled), `resources.url` + the `code` / `private_code` repository tokens, `engine.api.token`, server wireguard, grafana hostname + url, maintenance text, and the operator-authored login copy — `login.info.title`, both notification banners (title / description / button text + url) and the per-provider descriptions, plus the top-level `notification_form`; `enabled`, `icon`, `locale` and the `extra_styles` CSS stay |
+| `categories` | name, description, custom_url_name, uid, branding domain, `email_domain_restriction.allowed`, **its own copy of the `authentication.{ldap,saml,google}.*_config` blocks** (a category with `config_source: "custom"` carries the customer's directory host, service-account DN and IdP endpoints), its own `login_notification` banners (the per-category twin of `config.login`) and `bastion_domain` |
+| **all tables** | defensive recursive sweep clears any unhandled key matching `[<word>_]password\|passwd\|passphrase\|secret\|client_secret\|api_key\|api-key\|private_key\|private_code\|access_key\|secret_key\|bearer\|token\|auth_token\|access_token`. The optional `<word>_` / `<word>-` prefix is what makes it a net rather than a list — a fully anchored alternation misses every composite name a new field can be given (`smtp_password`, `bind_password`, `refresh_token`, `api_token`) |
+
+### Authentication providers
+
+The `{ldap,saml,google}_config` blocks appear **twice** — globally under `config.auth.<provider>`
+and per category under `categories[].authentication.<provider>` — and one routine
+(`Scrubber._scrub_provider_config`) handles both, walking the whole document so a future nesting
+change cannot silently drop coverage. Field names come from `authentication/model/config.go`
+(`LDAPConfig`, `SAMLConfig`, `GoogleConfig`), which is the authoritative shape; the pydantic
+schemas and the frontend name some of them differently.
+
+Replaced: `name`, LDAP `host` / `bind_dn` / `base_search` / `password` / `filter` /
+`role_list_search_base` / `role_list_filter`, SAML `metadata_url` / `metadata_file` / `entity_id` /
+`key_file` / `cert_file` / `logout_redirect_url`, Google `client_id` / `client_secret`, every
+`role_*_ids` list (real AD group DNs) and every `regex_*` (reset to `.*` — the one place org
+patterns get pasted).
+
+Kept: booleans, ports, enums, the `field_*` directory-attribute mappings and `role_default`. Those
+are schema shape rather than identity, so a dev restore still exercises the same code paths.
 
 Primary keys and FK relationships are preserved. Any value that is replaced and also
 appears in another table (user email / name / username / uid, category & group uid,
@@ -96,6 +115,34 @@ pass the flag with no value for 30 days, or a day count:
 ```
 anonymize-db --input prod.tar.gz --prune-deleted-days 30 --cap-history-days 30
 ```
+
+### Carrying tables empty (`--empty-tables`)
+
+A third, blunter option: carry a table with **no rows at all**. Its rows are dropped whole and never
+scrubbed, while the table itself is preserved — the `.info` beside it holds the primary key and every
+secondary index, so a restore rebuilds it complete and it simply has nothing in it. Same shape the
+drop-scrubbers already produce for `hypervisors`, `gpus` and friends.
+
+```
+anonymize-db --input prod.tar.gz --empty-tables                  # the default set
+anonymize-db --input prod.tar.gz --empty-tables logs_users,bookings
+```
+
+With no value the flag empties `logs_desktops`, `logs_users` and `usage_consumption`. On a
+production-shaped dump (4.79 GB of JSON across 59 tables) those three are **80.6% of the bytes** —
+45.9%, 27.1% and 7.6% — and none of them is needed to exercise the product. Naming a table that is
+not in the dump logs a warning rather than failing.
+
+The rest of the `usage_*` family is deliberately **not** in the default set: `usage_credit` and its
+siblings are the feature's configuration rather than its time series, and they cost kilobytes.
+
+The saving is not only bytes. An emptied table is skipped by the scrub, by the prune and by the
+cross-table rewrite pass — and that last one is where the time goes: on the dump above it took 17
+minutes to make 15,224 replacements, every one of them in `users` and `domains`, after walking 5.6
+million log and usage rows for nothing.
+
+**This empties the admin users/desktops logs and the usage history**, so don't use it when those are
+what you are testing. Between "everything" and "empty" sits `--cap-history-days N`.
 
 A summary of what was dropped is logged (e.g. `pruned 3296848 old/deleted rows:
 …`). The whole pipeline streams one document at a time, so peak RAM stays

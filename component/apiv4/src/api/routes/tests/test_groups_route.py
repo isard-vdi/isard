@@ -13,7 +13,7 @@ def test_get_users_in_group(monkeypatch, test_client):
 
     monkeypatch.setattr(
         "api.services.groups.GroupsService.get_users_in_group",
-        staticmethod(lambda group_id: expected_users),
+        staticmethod(lambda group_id, roles=None: expected_users),
     )
     monkeypatch.setattr(
         "isardvdi_common.helpers.helpers.Helpers.owns_domain_id",
@@ -37,7 +37,7 @@ def test_get_users_in_group_empty(monkeypatch, test_client):
     """Empty group → empty users list, not 404. Pin the no-users contract."""
     monkeypatch.setattr(
         "api.services.groups.GroupsService.get_users_in_group",
-        staticmethod(lambda group_id: []),
+        staticmethod(lambda group_id, roles=None: []),
     )
     monkeypatch.setattr(
         "isardvdi_common.helpers.helpers.Helpers.owns_domain_id",
@@ -54,8 +54,9 @@ def test_get_users_in_group_forwards_group_id(monkeypatch, test_client):
     """Pin the group_id boundary — service receives the path param verbatim."""
     captured = {}
 
-    def fake(group_id):
+    def fake(group_id, roles=None):
         captured["group_id"] = group_id
+        captured["roles"] = roles
         return []
 
     monkeypatch.setattr(
@@ -76,7 +77,7 @@ def test_get_users_in_group_rejects_user_role(monkeypatch, test_client):
     """advanced_router rejects role=user."""
     monkeypatch.setattr(
         "api.services.groups.GroupsService.get_users_in_group",
-        staticmethod(lambda group_id: []),
+        staticmethod(lambda group_id, roles=None: []),
     )
     jwt = MockJWT(role_id="user")
     response = test_client(url="/item/group/g1/get-users", jwt=jwt)
@@ -88,7 +89,7 @@ def test_get_users_in_group_unexpected_error_is_500(monkeypatch, test_client):
     """Uncaught service exceptions must fall through to the route's
     except Exception arm and return 500."""
 
-    def boom(group_id):
+    def boom(group_id, roles=None):
         raise RuntimeError("db unavailable")
 
     monkeypatch.setattr(
@@ -102,3 +103,30 @@ def test_get_users_in_group_unexpected_error_is_500(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     response = test_client(url="/item/group/g-err/get-users", jwt=jwt)
     assert response.status_code == 500
+
+
+@pytest.mark.clear_cache
+def test_get_users_in_group_forwards_roles(monkeypatch, test_client):
+    """``roles`` is a repeated query param; it must reach the service as a
+    list so pickers can restrict a group's members by role."""
+    captured = {}
+
+    def fake(group_id, roles=None):
+        captured["roles"] = roles
+        return []
+
+    monkeypatch.setattr(
+        "api.services.groups.GroupsService.get_users_in_group",
+        staticmethod(fake),
+    )
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.helpers.Helpers.owns_domain_id",
+        staticmethod(lambda payload, domain_id: domain_id),
+    )
+    jwt = MockJWT(role_id="advanced")
+    response = test_client(
+        url="/item/group/g1/get-users?roles=advanced&roles=manager",
+        jwt=jwt,
+    )
+    assert response.status_code == 200
+    assert captured["roles"] == ["advanced", "manager"]

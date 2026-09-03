@@ -6,6 +6,7 @@
 import json
 import logging as log
 import os
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -13,9 +14,13 @@ from typing import Any, Optional
 
 from api.services.error import Error
 from cachetools import cached
-from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
+from isardvdi_common.helpers.task_streams import (
+    DEAD_STREAM,
+    PROGRESS_STREAM,
+    RESULT_STREAM,
+)
 from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib.governed_worker import (
     _LIVE_STATUSES,
@@ -39,7 +44,7 @@ from isardvdi_common.lib.users.categories.categories import (
 )
 from isardvdi_common.models.config import Config
 from isardvdi_common.models.task import Task
-from redis import Redis
+from redis import ConnectionPool, Redis
 from rq import Queue
 from rq.defaults import DEFAULT_WORKER_TTL
 from rq.job import Job, parse_job_id
@@ -149,13 +154,30 @@ def clear_governor_caches() -> None:
     problem_tasks_cache.clear()
 
 
+_REDIS_POOL: Optional[ConnectionPool] = None
+_REDIS_POOL_LOCK = threading.Lock()
+REDIS_HEALTH_CHECK_INTERVAL = 30
+
+
+def _redis_pool() -> ConnectionPool:
+    global _REDIS_POOL
+    if _REDIS_POOL is None:
+        with _REDIS_POOL_LOCK:
+            if _REDIS_POOL is None:
+                _REDIS_POOL = ConnectionPool(
+                    host=os.environ.get("REDIS_HOST") or "isard-redis",
+                    port=int(os.environ.get("REDIS_PORT") or 6379),
+                    password=os.environ.get("REDIS_PASSWORD", ""),
+                    db=RQ_DB,
+                    health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+                )
+    return _REDIS_POOL
+
+
 def _connect_redis() -> Redis:
-    return Redis(
-        host=os.environ.get("REDIS_HOST") or "isard-redis",
-        port=int(os.environ.get("REDIS_PORT") or 6379),
-        password=os.environ.get("REDIS_PASSWORD", ""),
-        db=RQ_DB,
-    )
+    # The pool is passed in, so auto_close_connection_pool is False and the
+    # `with` blocks below return the connection instead of disconnecting it.
+    return Redis(connection_pool=_redis_pool())
 
 
 # =============================================================================
@@ -297,6 +319,70 @@ def _redis_health(conn) -> dict:
             else None
         ),
     }
+
+
+def _stream_health(conn) -> dict:
+    """Depth and per-group backlog of the task streams.
+
+    The queue gauges cannot express this. A task whose worker has finished has
+    already left its rq queue, so a chain waiting on the change-handler to run
+    its finalize handlers contributes to no backlog, no oldest-queued age and no
+    alert — measured on a clean install, the consumer group reached a lag of 892
+    while the deepest rq queue held 100 and nothing fired.
+
+    Best-effort on purpose: this is a diagnostic block on a document whose whole
+    contract is to degrade rather than raise, and a missing stream (a deployment
+    where nothing has published yet) is a normal state, not an error.
+    """
+    health = {
+        "up": False,
+        "results_length": 0,
+        "progress_length": 0,
+        "dead_length": 0,
+        "groups": [],
+    }
+    try:
+        for key, stream in (
+            ("results_length", RESULT_STREAM),
+            ("progress_length", PROGRESS_STREAM),
+            ("dead_length", DEAD_STREAM),
+        ):
+            try:
+                health[key] = int(conn.xlen(stream))
+            except Exception:
+                # A stream nobody has written to yet does not exist; that is a
+                # zero, not a failure to read.
+                pass
+        for stream in (RESULT_STREAM, PROGRESS_STREAM):
+            try:
+                groups = conn.xinfo_groups(stream)
+            except Exception:
+                continue
+            for group in groups:
+                health["groups"].append(
+                    {
+                        "stream": stream,
+                        "group": _as_text(group.get("name")),
+                        # ``lag`` is None when redis cannot compute it (entries
+                        # were trimmed away from under the group); report the
+                        # unknown as zero rather than dropping the row, so the
+                        # group's pending count still reaches the operator.
+                        "lag": int(group.get("lag") or 0),
+                        "pending": int(group.get("pending") or 0),
+                        "consumers": int(group.get("consumers") or 0),
+                    }
+                )
+        health["up"] = True
+    except Exception:
+        log.debug("governor: could not read stream health", exc_info=True)
+    return health
+
+
+def _as_text(value) -> str:
+    """Redis hands back bytes or str depending on the client's decoding."""
+    if isinstance(value, bytes):
+        return value.decode(errors="replace")
+    return "" if value is None else str(value)
 
 
 def _worker_kind(birth_tiers: set, gov_hash: dict) -> Optional[str]:
@@ -826,6 +912,7 @@ class AdminQueuesService:
             "config_mirrored": False,
             "psi_limit": STORAGE_SCHEDULER_DEFAULTS["psi_limit"],
             "redis": {"up": False},
+            "streams": {"up": False},
             "heavy": {"running": 0, "cap": 0, "at_cap": False, "leaked": 0},
             "shed": governor_counters.empty_counters(),
             "defer": governor_counters.empty_counters(),
@@ -875,6 +962,7 @@ class AdminQueuesService:
             # Redis health first — a dead connection raises here and the caller
             # degrades to redis.up=false.
             redis_health = _redis_health(conn)
+            stream_health = _stream_health(conn)
 
             lanes, truncated_lanes = _storage_lane_snapshot(conn)
             names = AdminQueuesService._category_name_map()
@@ -1194,6 +1282,7 @@ class AdminQueuesService:
             "config_mirrored": config_mirrored,
             "psi_limit": effective["psi_limit"],
             "redis": redis_health,
+            "streams": stream_health,
             "heavy": heavy,
             "shed": shed_counters,
             "defer": defer_counters,

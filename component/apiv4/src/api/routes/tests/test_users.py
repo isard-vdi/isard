@@ -343,6 +343,7 @@ def _stub_user_config() -> dict:
         "migrations_block": False,
         "session": {},
         "frontend_mode": "deprecated",
+        "multiple_temporal_desktops": False,
         "faro": {"enabled": False, "url": None, "http_sampling": 1.0},
     }
 
@@ -367,6 +368,7 @@ def test_get_user_config(monkeypatch, test_client):
     body = response.json()
     assert body["documentation_url"] == "https://docs.example"
     assert body["frontend_mode"] == "deprecated"
+    assert body["multiple_temporal_desktops"] is False
     assert body["faro"] == {"enabled": False, "url": None, "http_sampling": 1.0}
     assert captured["user_id"] == jwt.payload["user_id"]
 

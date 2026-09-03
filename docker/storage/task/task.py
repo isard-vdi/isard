@@ -28,7 +28,7 @@ import traceback
 from contextlib import contextmanager
 from functools import wraps
 from json import loads
-from os import environ, makedirs, remove, rename
+from os import makedirs, remove, rename
 from os import stat as os_stat
 from os import walk
 from os.path import basename, dirname, getmtime, isdir, isfile, join
@@ -45,6 +45,7 @@ from subprocess import (
 )
 from time import sleep, time
 
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
 from isardvdi_common.helpers.task_streams import (
     PROGRESS_STREAM,
@@ -180,16 +181,150 @@ def _free_space(path):
         return None
 
 
+def _physical_free_space(path):
+    """Physical free bytes behind ``path``, or ``None`` when statvfs is right.
+
+    Answers only for a thin-provisioned destination, the one case where the
+    filesystem figure is not the constraint: it reports the pool's logical size
+    and was 5x to 17x optimistic in the field. Everywhere else ``None`` means
+    "the caller's statvfs is already the truth".
+
+    Two sources, freshest first: measured here when this node owns the backing
+    store and holds the device-mapper ioctl, else the figure a node that does
+    published into redis -- the only source a worker mounting the pool over the
+    network can have. Redis, never a database: this container must not reach
+    RethinkDB. Staleness needs no handling because the published key expires on
+    its own; an absent key is simply no measurement.
+
+    Never raises: a probe that fails must not take the copy with it. A thin
+    destination that yields nothing says so and lets the caller fall back,
+    because refusing every move onto a thin pool the moment this ships would be
+    a regression nobody asked for -- but doing that silently would hide that
+    the guard is not guarding.
+    """
+    try:
+        from isardvdi_common.lib.storage.physical_usage import (
+            pool_physical_usage,
+            read_usage_for_path,
+        )
+
+        usage = pool_physical_usage(path)
+        if not usage.get("thin"):
+            return None
+        if usage.get("physical_free_bytes") is not None:
+            return usage["physical_free_bytes"]
+
+        published = read_usage_for_path(_redis_connection(), path)
+        if published and published.get("physical_free_bytes") is not None:
+            return published["physical_free_bytes"]
+        log.warning(
+            "%s is %s on %s and nobody publishes its fill, so the free-space "
+            "floor falls back to the LOGICAL figure and protects nothing: set "
+            "STORAGE_POOL_VDO_STATS=true on the node whose mount is local",
+            path,
+            usage.get("backend"),
+            usage.get("vpool"),
+        )
+    except Exception:
+        log.exception("could not read the physical free space at %s", path)
+    return None
+
+
+def _redis_connection():
+    """The worker's own redis connection, or a fresh one outside a job."""
+    job = get_current_job()
+    if job is not None and getattr(job, "connection", None) is not None:
+        return job.connection
+    from isardvdi_common.connections.redis_urls import rq_url
+    from redis import Redis
+
+    return Redis.from_url(rq_url())
+
+
 # Headroom every whole-copy action leaves on the destination filesystem, unless
 # the caller names its own. A floor that only applies when an operator has
 # configured one protects nobody by default, and the damage is not proportional
 # to the operation: a storage node with a full filesystem fails EVERY write on
 # it, not just the copy that filled it, and leaves rows mid-flight for someone
 # to reconcile. Pass ``min_free_bytes=0`` to switch it off deliberately.
-DEFAULT_MIN_FREE_BYTES = int(environ.get("STORAGE_MIN_FREE_BYTES") or 1 << 30)
+# Fallback only: the floor is installation policy, resolved by the enqueuer and carried in the payload.
+DEFAULT_MIN_FREE_BYTES = 1 << 30
 
 
-def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
+# measure walks the whole L2 map and backing chain, so it must not share QEMU_IMG_TIMEOUT.
+QEMU_MEASURE_TIMEOUT = int(os.environ.get("QCOW2_MEASURE_TIMEOUT") or 900)
+
+
+def _qemu_measure_required(source_path, options, source_format=None):
+    """Bytes a qcow2 destination written from ``source_path`` with ``-o
+    options`` will physically need, per ``qemu-img measure``, or ``None`` if it
+    cannot be read (logged with rc/stderr/timeout so a refused op is
+    diagnosable).
+
+    Only called where preallocation actually consumes space (``falloc``/
+    ``full``, and ``metadata`` which counts its metadata tables); ``off`` uses
+    the cheap ``os_stat`` proxy instead and never reaches here. ``source_format``
+    pins ``-f`` (``disconnect`` knows its source is qcow2); left ``None`` the
+    source format is probed, which ``convert`` needs for a vmdk source.
+    """
+    fmt = ["-f", source_format] if source_format else []
+    try:
+        completed = run(
+            [
+                "qemu-img",
+                "measure",
+                "-U",
+                *fmt,
+                "-O",
+                "qcow2",
+                "-o",
+                options,
+                "--output",
+                "json",
+                source_path,
+            ],
+            capture_output=True,
+            timeout=QEMU_MEASURE_TIMEOUT,
+        )
+    except TimeoutExpired:
+        log.error(
+            "qemu-img measure timed out after %ss for %s (options %s)",
+            QEMU_MEASURE_TIMEOUT,
+            source_path,
+            options,
+        )
+        return None
+    except OSError as exc:
+        log.error("qemu-img measure could not run for %s: %s", source_path, exc)
+        return None
+    if completed.returncode != 0:
+        log.error(
+            "qemu-img measure failed (rc=%s) for %s: %s",
+            completed.returncode,
+            source_path,
+            completed.stderr.decode(errors="replace")[-STDERR_TAIL_BYTES:],
+        )
+        return None
+    try:
+        return int(loads(completed.stdout)["required"])
+    except (ValueError, KeyError, TypeError) as exc:
+        log.error(
+            "qemu-img measure returned unparseable output for %s: %s",
+            source_path,
+            exc,
+        )
+        return None
+
+
+def _require_free_space(
+    target_dir,
+    source_path,
+    min_free_bytes,
+    action,
+    verb,
+    measure_options=None,
+    source_format=None,
+):
     """Refuse ``action`` unless ``target_dir`` keeps ``min_free_bytes`` free
     after landing a full copy of ``source_path``.
 
@@ -199,6 +334,14 @@ def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
     the worst moment to wave a whole-disk copy through. The previous behaviour
     — proceed when free space was unknown, reserve zero when the size was —
     removed the guard exactly where it mattered.
+
+    ``measure_options`` is the qcow2 ``-o`` option string a qcow2-writing caller
+    passes ONLY when its destination preallocates (``preallocation`` other than
+    ``off``): the space needed is then qemu's own ``required`` for that exact
+    geometry. Left ``None`` -- for a sparse ``preallocation=off`` destination and
+    for a raw copy (``move``) -- the cheap apparent size is used and the
+    expensive measure is skipped entirely. ``source_format`` pins ``-f`` for the
+    measure. Fails closed (logged) if the measure cannot be read.
 
     ``min_free_bytes=0`` disables the check; ``None`` means "use the default".
 
@@ -210,29 +353,41 @@ def _require_free_space(target_dir, source_path, min_free_bytes, action, verb):
     if not min_free_bytes:
         return
 
-    free = _free_space(target_dir)
+    # Physical first: on a thin destination the filesystem figure is the pool's
+    # LOGICAL size and enforcing the floor against it protects nothing.
+    free = _physical_free_space(target_dir)
+    basis = "physical"
+    if free is None:
+        free = _free_space(target_dir)
+        basis = "filesystem-level"
     if free is None:
         raise RuntimeError(
             f"{action}: refusing to {verb} {source_path}: cannot read the free "
             f"space at {target_dir} (statvfs failed), so the {min_free_bytes} "
             "byte floor cannot be honoured"
         )
-    try:
-        # APPARENT size, not st_blocks: neither the rsync argv nor qemu-img
-        # carries --sparse here, so a sparse qcow2 lands fully allocated at the
-        # destination. Reserving only the allocated size would let the copy
-        # breach the very floor this gate exists to hold.
-        needed = os_stat(source_path).st_size
-    except OSError as exc:
-        raise RuntimeError(
-            f"{action}: refusing to {verb} {source_path}: cannot size the "
-            "source, so the space the copy needs is unknown"
-        ) from exc
+    if measure_options is not None:
+        needed = _qemu_measure_required(source_path, measure_options, source_format)
+        if needed is None:
+            raise RuntimeError(
+                f"{action}: refusing to {verb} {source_path}: cannot measure the "
+                "space the preallocated destination needs (qemu-img measure "
+                "failed; see the log for rc/stderr/timeout)"
+            )
+    else:
+        try:
+            # Apparent size, not st_blocks: the rsync argv carries no --sparse.
+            needed = os_stat(source_path).st_size
+        except OSError as exc:
+            raise RuntimeError(
+                f"{action}: refusing to {verb} {source_path}: cannot size the "
+                "source, so the space the copy needs is unknown"
+            ) from exc
     if free - needed < min_free_bytes:
         raise RuntimeError(
             f"{action}: refusing to {verb} {source_path}: destination "
             f"{target_dir} would be left with {free - needed} bytes free, below "
-            f"the {min_free_bytes} byte floor (filesystem-level figure)"
+            f"the {min_free_bytes} byte floor ({basis} figure)"
         )
 
 
@@ -604,7 +759,18 @@ def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
 
 
 @_publishes_result
-def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
+def create(
+    storage_path,
+    storage_type,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    size=None,
+    parent_path=None,
+    parent_type=None,
+):
     """
     Create disk.
 
@@ -612,6 +778,14 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :type storage_path: str
     :param storage_type: Format of new disk
     :type storage_type: str
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param size: Size of new disk as qemu-img string format
     :type size: str
     :param parent_path: Path of backing file
@@ -650,46 +824,20 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
 
     options = ""
     if storage_type == "qcow2":
-        cluster_size = environ.get("QCOW2_CLUSTER_SIZE", "4k")
-        extended_l2 = environ.get("QCOW2_EXTENDED_L2", "off")
-        lazy_refcounts = environ.get("QCOW2_LAZY_REFCOUNTS", "off")
-        preallocation = environ.get("QCOW2_PREALLOCATION", "off")
-
-        if extended_l2 == "on":
-            _s = cluster_size.upper().strip()
-            _multipliers = {"K": 1024, "M": 1024**2}
-            _num = int("".join(c for c in _s if c.isdigit()))
-            _unit = "".join(c for c in _s if c.isalpha())
-            if _num * _multipliers.get(_unit, 1) < 16384:
-                raise ValueError(
-                    f"QCOW2_CLUSTER_SIZE={cluster_size} is too small for extended_l2=on "
-                    f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
-                )
-
-        options = (
-            f"cluster_size={cluster_size},"
-            f"extended_l2={extended_l2},"
-            f"lazy_refcounts={lazy_refcounts}"
+        options = qcow2_geometry.create_options(
+            {
+                "cluster_size": cluster_size,
+                "extended_l2": extended_l2,
+                "lazy_refcounts": lazy_refcounts,
+                "preallocation": preallocation,
+            },
+            has_backing_file=bool(parent_path),
         )
 
-        # Add preallocation if no backing file, or if extended_l2 is on (which supports
-        # preallocation with backing files via subcluster allocation bits)
-        if not parent_path or extended_l2 == "on":
-            options += f",preallocation={preallocation}"
-
-    command = [
-        "qemu-img",
-        "create",
-        "-f",
-        storage_type,
-        *backing_file,
-        storage_path,
-        *size,
-    ]
-
+    command = ["qemu-img", "create", "-f", storage_type]
     if options:
-        command.insert(6, "-o")
-        command.insert(7, options)
+        command += ["-o", options]
+    command += [*backing_file, storage_path, *size]
     return run(
         command,
         check=True,
@@ -734,7 +882,9 @@ def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
 
 
 @_publishes_result
-def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
+def qemu_img_info_backing_chain(
+    storage_id, storage_path, storage_type="qcow2", qcow2_geometry=None
+):
     """
     Get storage data with `qemu-img info` data updated.
 
@@ -753,6 +903,16 @@ def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
     :type storage_path: str
     :param storage_type: Format of the file on disk
     :type storage_type: str
+    :param qcow2_geometry: The installation geometry policy in effect when this
+        file was written, recorded alongside the measurement. ``preallocation``
+        is a create-time action ``qemu-img info`` does not report, so the policy
+        value is the record kept; note the applied value can differ (a compressed
+        convert, or a backing file with extended_l2 off, omits it from the argv).
+        Recorded only when the measure succeeds, so a non-qcow2 disk -- which
+        fails a qcow2 measure -- never carries a stamp. Optional: this task is
+        also enqueued from paths that write nothing (chain checks, find/touch,
+        engine re-measure), which pass ``None``.
+    :type qcow2_geometry: dict | None
     :return: Storage data to update
     :rtype: dict
     """
@@ -784,6 +944,9 @@ def qemu_img_info_backing_chain(storage_id, storage_path, storage_type="qcow2"):
         qemu_img_info_data[0].setdefault("backing-filename-format")
         qemu_img_info_data[0].setdefault("full-backing-filename")
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
+        # Only stamp on success: a failed measure must not record a geometry the disk may not have.
+        if qcow2_geometry:
+            storage_data["qcow2_geometry"] = qcow2_geometry
     else:
         match = search(
             rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
@@ -1328,14 +1491,11 @@ def move(
 
     # Destination free-space floor. Only a COPY can fill the destination: a
     # same-filesystem move is a rename, so it consumes nothing and must never be
-    # refused. Basis is the source's ALLOCATED size (st_blocks), which is what a
-    # copy actually lands, not the qcow2 virtual size.
+    # refused. Basis is the source's APPARENT size, not its allocated one: no
+    # copier here passes --sparse, so a sparse qcow2 lands fully allocated.
     #
-    # WARNING: this is a FILESYSTEM-level figure (statvfs f_bavail). On a
-    # thin-provisioned backing store (VDO) the filesystem reports LOGICAL space
-    # and the real constraint is the pool's PHYSICAL fill, which can be ~5x
-    # smaller. On such pools this floor gives no protection and must not be
-    # relied on until the probe learns to read the physical figure.
+    # On a thin backing store statvfs reports LOGICAL space, so the floor is held
+    # against the PHYSICAL fill where that is known; otherwise it protects nothing.
     if method != "mv":
         _require_free_space(
             dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
@@ -1517,7 +1677,18 @@ def migration_verify_destination(dst_path, expect_backing=None):
 
 
 @_publishes_result
-def convert(source_disk_path, dest_disk_path, format, compression, min_free_bytes=None):
+def convert(
+    source_disk_path,
+    dest_disk_path,
+    format,
+    compression,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    min_free_bytes=None,
+):
     """
     Convert disk.
 
@@ -1530,6 +1701,14 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
     :type format: str
     :param compression: True to compress the destination file. Only supported for qcow and qcow2 formats.
     :type compression: bool
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param min_free_bytes: Headroom to leave on the destination filesystem.
         ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
     :type min_free_bytes: int | None
@@ -1541,6 +1720,32 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
     if format not in ["qcow2", "vmdk"]:
         raise ValueError(f"{format} is not a valid disk format.")
 
+    if compression and format == "qcow2":
+        compress = ["-c"]
+    else:
+        compress = []
+
+    # Only a qcow2 destination takes ``-o``; a vmdk cannot honour qcow2 options. Built before the
+    # free-space gate so the gate measures the destination for this exact geometry.
+    geometry_opts = []
+    measure_options = None
+    if format == "qcow2":
+        # qemu-img convert -c rejects preallocation != off, so omit the term when compressing.
+        options = qcow2_geometry.create_options(
+            {
+                "cluster_size": cluster_size,
+                "extended_l2": extended_l2,
+                "lazy_refcounts": lazy_refcounts,
+                "preallocation": preallocation,
+            },
+            has_backing_file=False,
+            with_preallocation=not compression,
+        )
+        geometry_opts = ["-o", options]
+        # Only measure when the destination preallocates; off stays sparse, so os_stat suffices.
+        if preallocation != "off" and not compression:
+            measure_options = options
+
     # A convert writes a whole second copy of the disk, so on a tight pool it
     # fills the destination filesystem. Checked BEFORE qemu-img starts: letting
     # it run into ENOSPC costs the whole copy and leaves a partial destination
@@ -1551,12 +1756,8 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
         min_free_bytes,
         "convert",
         "convert",
+        measure_options=measure_options,
     )
-
-    if compression and format == "qcow2":
-        compress = ["-c"]
-    else:
-        compress = []
 
     try:
         rc = run_with_progress(
@@ -1567,6 +1768,7 @@ def convert(source_disk_path, dest_disk_path, format, compression, min_free_byte
                 *compress,
                 "-O",
                 format,
+                *geometry_opts,
                 source_disk_path,
                 dest_disk_path,
             ],
@@ -1940,12 +2142,28 @@ def sparsify(storage_path):
 
 
 @_publishes_result
-def disconnect(storage_path, min_free_bytes=None):
+def disconnect(
+    storage_path,
+    *,
+    cluster_size,
+    extended_l2,
+    lazy_refcounts,
+    preallocation,
+    min_free_bytes=None,
+):
     """
     Disconnect storage_id from backing file
 
     :param storage_id: Storage ID
     :type storage_id: str
+    :param cluster_size: qcow2 cluster size, resolved by the enqueuer
+    :type cluster_size: str
+    :param extended_l2: qcow2 extended_l2 (``on``/``off``), resolved by the enqueuer
+    :type extended_l2: str
+    :param lazy_refcounts: qcow2 lazy_refcounts (``on``/``off``), resolved by the enqueuer
+    :type lazy_refcounts: str
+    :param preallocation: qcow2 preallocation, resolved by the enqueuer
+    :type preallocation: str
     :param min_free_bytes: Headroom to leave on the filesystem holding the disk.
         ``None`` uses :data:`DEFAULT_MIN_FREE_BYTES`, ``0`` disables the check.
     :type min_free_bytes: int | None
@@ -1958,16 +2176,31 @@ def disconnect(storage_path, min_free_bytes=None):
     disconnected_path = storage_path + ".wo_chain"
     _safe_unlink(disconnected_path)  # clear a stale sibling from a prior crashed run
 
+    # The output is flat and rename()d over the live disk, so without ``-o`` the disconnect
+    # rebuilds it at qemu-img defaults.
+    options = qcow2_geometry.create_options(
+        {
+            "cluster_size": cluster_size,
+            "extended_l2": extended_l2,
+            "lazy_refcounts": lazy_refcounts,
+            "preallocation": preallocation,
+        },
+        has_backing_file=False,
+    )
+
     # The flattened sibling is written next to the live disk, so the filesystem
     # this can fill is the one already holding it. Measured AFTER the unlink
     # above: a stale sibling holds a whole disk image of the very space being
     # measured, so probing first would refuse on space about to be released.
+    # The source is a disk we control, so pin its format rather than probe a guest-writable header.
     _require_free_space(
         dirname(storage_path),
         storage_path,
         min_free_bytes,
         "disconnect",
         "disconnect",
+        measure_options=options if preallocation != "off" else None,
+        source_format="qcow2",
     )
 
     try:
@@ -1979,6 +2212,8 @@ def disconnect(storage_path, min_free_bytes=None):
                 "qcow2",
                 "-O",
                 "qcow2",
+                "-o",
+                options,
                 storage_path,
                 disconnected_path,
             ],

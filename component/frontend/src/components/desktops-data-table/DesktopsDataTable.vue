@@ -4,7 +4,12 @@ import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 
-import { desktopNeedsBooking, desktopActionsData, desktopNotificationText } from '@/lib/desktops'
+import {
+  desktopNeedsBooking,
+  desktopActionsData,
+  desktopHasMenuActions,
+  desktopNotificationText
+} from '@/lib/desktops'
 import { copyToClipboard } from '@/lib/utils'
 
 import {
@@ -55,6 +60,7 @@ const emit = defineEmits<{
   // --- Redirects ---
   editDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
   createTemplate: [ApiSchemasDomainsDesktopsUserDesktop]
+  bookDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
   showStorageModal: [ApiSchemasDomainsDesktopsUserDesktop]
   // goTo*: [ApiSchemasDomainsDesktopsUserDesktop]
 }>()
@@ -138,6 +144,7 @@ const headers = [
           @desktop-update-status="emit('desktopUpdateStatus', row)"
           @desktop-abort-operation="emit('desktopAbortOperation', row)"
           @desktop-fetch-booking="emit('desktopFetchBooking', row)"
+          @show-delete-modal="emit('showDeleteModal', row)"
         />
       </template>
     </template>
@@ -201,7 +208,7 @@ const headers = [
           <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
         </Tooltip>
 
-        <Tooltip>
+        <Tooltip v-if="desktopHasMenuActions(row)">
           <TooltipTrigger as-child>
             <span class="inline-flex">
               <DropdownMenu>
@@ -224,6 +231,7 @@ const headers = [
                     @show-direct-link-modal="emit('showDirectLinkModal', row)"
                     @show-recreate-modal="emit('showRecreateModal', row)"
                     @create-template="emit('createTemplate', row)"
+                    @book-desktop="emit('bookDesktop', row)"
                     @show-storage-modal="emit('showStorageModal', row)"
                   />
                 </DropdownMenuContent>

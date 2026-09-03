@@ -6,7 +6,6 @@ services:
     volumes:
       - /opt/isard/stats/tempo:/data
       - ${BUILD_ROOT_PATH}/docker/tempo/config.yaml:/etc/tempo.yaml
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"

@@ -26,6 +26,17 @@ The one case that still admits is a lane redis ANSWERS is momentarily empty
 while the fleet was seen recently — a rolling worker restart. That is knowledge,
 and it is graced, not ignored.
 
+Two postures
+------------
+The gate is mandatory on every producer; the VERB is not. A producer answering a
+request refuses, with a typed 429 the caller can render
+(:func:`check_no_consumer`, :func:`check_shed`). A producer running with nobody
+to answer declines instead (:func:`lane_has_consumer`), because an exception
+there is caught, logged as a traceback and the work is lost just as quietly as
+if it had been enqueued into the void. Both postures share one decision and one
+shed counter, so a lane that stops being fed still shows up as refused work
+rather than as silence.
+
 Coverage model
 --------------
 Each live worker contributes the ``(pool, tier)`` pairs it serves:
@@ -69,6 +80,28 @@ _RQ_WORKER_PREFIX = "rq:worker:"
 _RQ_QUEUE_PREFIX = "rq:queue:"
 _GOVERNOR_WORKER_PREFIX = "governor:worker:"
 _COV_PREFIX = "governor:cov:"
+
+REASON_NON_STORAGE_QUEUE = "non_storage_queue"
+REASON_FLEET_GAP = "fleet_gap"
+REASON_COVERAGE_UNREADABLE = "coverage_unreadable"
+REASON_NO_CONSUMER = "no_consumer"
+REASON_OVERLOADED = "overloaded"
+REASON_BACKLOG = "backlog"
+
+# Every reason the decision can carry. A consumer comparing against anything
+# outside this set is asking a question the producer never answers.
+DECISION_REASONS = frozenset(
+    {
+        REASON_NON_STORAGE_QUEUE,
+        REASON_FLEET_GAP,
+        REASON_COVERAGE_UNREADABLE,
+        REASON_NO_CONSUMER,
+        REASON_OVERLOADED,
+        REASON_BACKLOG,
+    }
+)
+
+BLIND_REASONS = frozenset({REASON_COVERAGE_UNREADABLE})
 
 # Interactive tiers: a user (or a system action on their behalf) is actively
 # waiting, so these — and only these — may be rejected with a "retry later".
@@ -254,7 +287,7 @@ def lane_shed_decision(conn, queue, now=None):
     answer at all sheds too, but under its own reason."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
-        return "ok", {"reason": "non_storage_queue"}
+        return "ok", {"reason": REASON_NON_STORAGE_QUEUE}
     pool, category, tier = parsed
     if now is None:
         now = time.time()
@@ -278,7 +311,7 @@ def lane_shed_decision(conn, queue, now=None):
                 seen = fleet_last_seen(conn)
                 if seen is not None and now - seen <= FLEET_GONE_GRACE_S:
                     return "ok", {
-                        "reason": "fleet_gap",
+                        "reason": REASON_FLEET_GAP,
                         "pool": pool,
                         "category": category,
                         "tier": tier,
@@ -297,7 +330,7 @@ def lane_shed_decision(conn, queue, now=None):
         # Both used to land in this except, which is what made the bias look
         # deliberate for a case nobody had decided.
         return "reject", {
-            "reason": "coverage_unreadable",
+            "reason": REASON_COVERAGE_UNREADABLE,
             "pool": pool,
             "category": category,
             "tier": tier,
@@ -319,15 +352,15 @@ def lane_shed_decision(conn, queue, now=None):
     # dead pool serves. A live-but-busy consumer is not stranded: foreground
     # gets the extra hard-cap rule below, governed tiers still accumulate.
     if stranded:
-        return "reject", {**ctx, "reason": "no_consumer"}
+        return "reject", {**ctx, "reason": REASON_NO_CONSUMER}
 
     if tier in FOREGROUND_TIERS:
         cap = hard_cap(tier)
         if cap is not None and backlog >= cap:
-            return "reject", {**ctx, "reason": "overloaded", "hard_cap": cap}
+            return "reject", {**ctx, "reason": REASON_OVERLOADED, "hard_cap": cap}
 
     if backlog >= warn_backlog(tier):
-        return "warn", {**ctx, "reason": "backlog", "warn": warn_backlog(tier)}
+        return "warn", {**ctx, "reason": REASON_BACKLOG, "warn": warn_backlog(tier)}
     return "ok", ctx
 
 
@@ -355,7 +388,7 @@ def _raise_lane_429(conn, ctx):
     # Same code, so nothing downstream has to learn a new one.
     code = (
         "storage_no_consumer_retry_later"
-        if ctx.get("reason") in ("no_consumer", "coverage_unreadable")
+        if ctx.get("reason") in (REASON_NO_CONSUMER, REASON_COVERAGE_UNREADABLE)
         else "storage_overloaded_retry_later"
     )
     raise Error(
@@ -388,6 +421,36 @@ def check_no_consumer(conn, queue):
         _raise_lane_429(conn, ctx)
 
 
+def lane_has_consumer(conn, queue):
+    """Non-raising twin of :func:`check_no_consumer`: ``(allowed, ctx)``.
+
+    Same :func:`lane_shed_decision`, same shed counter, so the two postures keep
+    ONE definition of "has a consumer" and one set of numbers behind it. Like
+    that gate it is fail-CLOSED on an unreadable index: not knowing is not the
+    same as knowing the lane is fine.
+
+    For producers whose right answer to a lane nothing can drain is to decline
+    rather than to refuse. Raising is only useful where somebody can hear it; in
+    a background consumer an exception is caught, logged as a traceback and the
+    work is lost just as quietly as if it had been enqueued into the void. A
+    caller that declines leaves the work in a state something already re-drives,
+    and the shed is still counted, so the fleet alarm keeps firing.
+    """
+    decision, ctx = lane_shed_decision(conn, queue)
+    allowed = not (
+        decision == "reject"
+        and ctx.get("reason") in ("no_consumer", "coverage_unreadable")
+    )
+    if not allowed:
+        governor_counters.record_shed(
+            conn,
+            ctx.get("reason"),
+            pool=ctx.get("pool"),
+            tier=ctx.get("tier"),
+        )
+    return allowed, ctx
+
+
 def check_shed(conn, queue):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
@@ -401,7 +464,12 @@ def check_shed(conn, queue):
 def enforce_shed(conn, kwargs):
     """create_task gate: refuse to enqueue on a lane with no live consumer (any tier)
     OR an overloaded foreground lane (per-lane, automatic). Governed lanes over backlog
-    accumulate and are never refused. Call BEFORE any state mutation."""
+    accumulate and are never refused. Call BEFORE any state mutation.
+
+    Root-only by design. A chain's dependents are retiered by their own action,
+    so they can sit on other lanes and other pools, and they are released hours
+    after this runs — asking here would answer about a lane that may be healthy
+    now and gone by then. They are asked where they are released instead."""
     kwargs.pop("shed", None)  # deprecated: overload shed is now mandatory, not opt-in
     queue = kwargs.get("queue")
     if not queue:
@@ -423,6 +491,12 @@ COV_HEARTBEAT_S = _env_int("STORAGE_COV_HEARTBEAT_S", 5)
 FLEET_GONE_GRACE_S = _env_int("STORAGE_FLEET_GONE_GRACE_S", 120)
 
 _FLEET_SEEN_KEY = f"{_COV_PREFIX}fleet_seen"
+
+# Only publish_lane throttles; a caller that has just observed consumers
+# records it unconditionally.
+FLEET_SEEN_MIN_INTERVAL_S = _env_int("STORAGE_FLEET_SEEN_MIN_INTERVAL_S", 5)
+
+_last_lane_fleet_note = 0.0
 
 
 def cov_key(pool, tier):
@@ -450,13 +524,17 @@ def fleet_last_seen(conn):
 
 def publish_lane(conn, pool, tier, worker, now, ttl):
     """Heartbeat this worker's membership in the lane's coverage zset."""
+    global _last_lane_fleet_note
     key = cov_key(pool, tier)
     conn.zadd(key, {worker: now})
     conn.expire(key, ttl)
     # Date the fleet from the worker side rather than from whoever happens to
     # ask: the shed gate needs to tell a restart gap from an absent fleet, and a
     # heartbeat is the one event that proves consumers exist.
-    note_fleet_seen(conn, now)
+    # One pass publishes every lane, all with the same timestamp.
+    if not 0 <= float(now) - _last_lane_fleet_note < FLEET_SEEN_MIN_INTERVAL_S:
+        note_fleet_seen(conn, now)
+        _last_lane_fleet_note = float(now)
 
 
 def unpublish_worker(conn, pool, tier, worker):
@@ -487,11 +565,13 @@ def _lane_health(conn, pool, tier):
             "tier": tier,
             "live": pool_live_workers(conn, pool, tier),
             "backlog": ctx.get("backlog", 0),
-            "no_consumer": decision == "reject" and ctx.get("reason") == "no_consumer",
-            "overloaded": decision == "reject" and ctx.get("reason") == "overloaded",
+            "no_consumer": decision == "reject"
+            and ctx.get("reason") == REASON_NO_CONSUMER,
+            "overloaded": decision == "reject"
+            and ctx.get("reason") == REASON_OVERLOADED,
             # Only an unreadable index is degraded; a readable one reporting an
             # empty fleet is a real no-consumer, not a blind spot.
-            "degraded": ctx.get("reason") == "coverage_error",
+            "degraded": ctx.get("reason") in BLIND_REASONS,
         }
     except Exception:
         return {

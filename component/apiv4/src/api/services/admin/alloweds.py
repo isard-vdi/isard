@@ -49,7 +49,6 @@ UNASSIGN_ON_ALLOWED_UPDATE_TABLES = [
 
 
 class AdminAllowedsService:
-
     @staticmethod
     def get_table_term(table: str, data: dict, payload: dict) -> list:
         """
@@ -90,6 +89,7 @@ class AdminAllowedsService:
                         "role",
                         "category_name",
                         "group_name",
+                        "photo",
                     ],
                     query_filter=lambda u: u["role"] != data["exclude_role"],
                 )
@@ -105,6 +105,7 @@ class AdminAllowedsService:
                         "role",
                         "category_name",
                         "group_name",
+                        "photo",
                     ],
                     index_key="category",
                     index_value=data["category"],
@@ -122,6 +123,7 @@ class AdminAllowedsService:
                         "role",
                         "category_name",
                         "group_name",
+                        "photo",
                     ],
                 )
         elif table == "media":
@@ -171,7 +173,7 @@ class AdminAllowedsService:
                     table,
                     "name",
                     data["term"],
-                    pluck=["id", "name", "category", "uid", "role"],
+                    pluck=["id", "name", "category", "uid", "role", "photo"],
                     index_key="category",
                     index_value=payload["category_id"],
                     query_filter=lambda u: u["role"] != data["exclude_role"],
@@ -181,7 +183,7 @@ class AdminAllowedsService:
                     table,
                     "name",
                     data["term"],
-                    pluck=["id", "name", "category", "uid"],
+                    pluck=["id", "name", "category", "uid", "photo"],
                     index_key="category",
                     index_value=payload["category_id"],
                 )

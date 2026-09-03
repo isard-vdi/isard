@@ -17,6 +17,8 @@ import router from '@/router'
 
 import { useI18n } from 'vue-i18n'
 
+import { PageContainer } from '@/components/page'
+
 const { t, te } = useI18n()
 const route = useRoute()
 
@@ -59,18 +61,13 @@ const errorMessage = computed(() => {
 const data = computed(() => notificationsData.value)
 </script>
 <template>
-  <div class="relative">
+  <PageContainer class="relative">
     <div class="flex justify-end w-full">
-      <Button icon="arrow-right" hierarchy="link-color" class="text-lg mr-10" @click="goToDesktops">
+      <Button icon="arrow-right" hierarchy="link-color" class="text-lg" @click="goToDesktops">
         {{ t('views.notifications.go-to-desktops') }}
       </Button>
     </div>
-    <div
-      v-if="isPending"
-      class="flex items-center justify-center mt-3"
-      role="status"
-      aria-busy="true"
-    >
+    <div v-if="isPending" class="flex items-center justify-center" role="status" aria-busy="true">
       <span class="sr-only">{{ t('views.notifications.loading') }}</span>
       <ul class="flex w-full max-w-2xl flex-col gap-3" aria-hidden="true">
         <li v-for="i in 3" :key="i">
@@ -98,7 +95,7 @@ const data = computed(() => notificationsData.value)
       <AlertTitle>{{ t('views.notifications.error.title') }}</AlertTitle>
       <AlertDescription>{{ errorMessage }}</AlertDescription>
     </Alert>
-    <div v-else class="mt-3 relative w-full">
+    <div v-else class="relative w-full">
       <div v-if="!data?.notifications?.length" class="text-center">
         <div
           class="flex gap-3 w-fit mx-auto items-center bg-brand-200 p-3 rounded-xl border border-brand-600/40"
@@ -110,7 +107,7 @@ const data = computed(() => notificationsData.value)
           </p>
         </div>
       </div>
-      <div v-else class="z-10 relative mt-3">
+      <div v-else class="z-10 relative">
         <NotificationList :notifications="data.notifications" class="mx-auto" />
       </div>
     </div>
@@ -119,5 +116,5 @@ const data = computed(() => notificationsData.value)
       class="-z-10 size-300 absolute opacity-50 -top-70 left-1/2 -translate-x-1/2"
       aria-hidden="true"
     />
-  </div>
+  </PageContainer>
 </template>

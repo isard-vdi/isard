@@ -12,6 +12,11 @@ import { hasWireguardRequiringViewer } from '@/lib/viewers'
 
 const { t } = useI18n()
 
+export interface DomainInfoInterface {
+  name: string
+  mac?: string | null
+}
+
 export interface Props {
   domainId?: string
   name: string
@@ -23,6 +28,7 @@ export interface Props {
   bootOrder?: string[]
   diskBus?: string
   vga?: string[]
+  interfaces?: DomainInfoInterface[]
   viewers?: string[]
   fullscreen?: boolean
   isos?: string[]
@@ -45,6 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
   bootOrder: undefined,
   diskBus: undefined,
   vga: undefined,
+  interfaces: undefined,
   viewers: undefined,
   fullscreen: undefined,
   isos: undefined,
@@ -67,9 +74,9 @@ const hasBothCredentials = computed(
 
 const tintBgClass = computed(() => {
   if (props.kind !== 'desktop') return 'bg-brand-100/40'
-  if (props.desktopKind === 'persistent') return 'bg-secondary-3-500/15'
-  if (props.desktopKind === 'nonpersistent') return 'bg-secondary-1-500/15'
-  if (props.desktopKind === 'deployment') return 'bg-secondary-2-500/15'
+  if (props.desktopKind === 'persistent') return 'bg-secondary-3-100'
+  if (props.desktopKind === 'nonpersistent') return 'bg-secondary-1-100'
+  if (props.desktopKind === 'deployment') return 'bg-secondary-2-100'
   return 'bg-brand-100/40'
 })
 
@@ -77,6 +84,11 @@ const hasHardware = computed(
   () =>
     props.vcpu != null || props.ram != null || !!props.bootOrder || !!props.diskBus || !!props.vga
 )
+const hasInterfaces = computed(() => !!props.interfaces?.length)
+
+// Names run long ("VLAN Aules Informàtica Planta 2"), so the badge truncates to
+// one line inside a fixed cell, which also lines the MACs up under each other.
+const interfaceNameClass = 'max-w-32 overflow-hidden [&>span]:truncate'
 const hasViewers = computed(
   () => !!(props.viewers && props.viewers.length > 0) || props.fullscreen != null
 )
@@ -85,7 +97,7 @@ const hasPeripherals = computed(
 )
 const hasReservables = computed(() => !!props.reservables?.length)
 
-type GridSectionKey = 'hardware' | 'viewers' | 'peripherals' | 'reservables'
+type GridSectionKey = 'hardware' | 'viewers' | 'peripherals' | 'reservables' | 'interfaces'
 
 const gridSections = computed<GridSectionKey[]>(() => {
   const sections: GridSectionKey[] = []
@@ -93,13 +105,22 @@ const gridSections = computed<GridSectionKey[]>(() => {
   if (hasViewers.value) sections.push('viewers')
   if (hasPeripherals.value) sections.push('peripherals')
   if (hasReservables.value) sections.push('reservables')
+  if (hasInterfaces.value) sections.push('interfaces')
   return sections
 })
 
-const showRow1Divider = computed(() => gridSections.value.length >= 2)
-const showRow2Divider = computed(() => gridSections.value.length >= 4)
+const gridSectionRowCount = computed(() => Math.ceil(gridSections.value.length / 2))
 
-const showRowDivider = computed(() => gridSections.value.length > 2)
+// a row only gets the middle divider when both of its columns are filled
+const verticalDividerRows = computed(() =>
+  Array.from({ length: gridSectionRowCount.value }, (_, row) => row).filter(
+    (row) => gridSections.value.length > row * 2 + 1
+  )
+)
+
+const horizontalDividerRows = computed(() =>
+  Array.from({ length: Math.max(gridSectionRowCount.value - 1, 0) }, (_, index) => index + 1)
+)
 
 const gridSectionSpanClass = (key: GridSectionKey): string => {
   const sections = gridSections.value
@@ -111,7 +132,8 @@ const gridSectionSpanClass = (key: GridSectionKey): string => {
 const gridSectionOrder = (key: GridSectionKey): number => {
   const index = gridSections.value.indexOf(key)
   if (index === -1) return 0
-  return index < 2 ? index : index + 1
+  // every row above this one pushes the section a slot further, for its divider
+  return index + Math.floor(index / 2)
 }
 </script>
 
@@ -274,16 +296,18 @@ const gridSectionOrder = (key: GridSectionKey): number => {
 
       <div class="relative grid grid-cols-2 gap-x-6 gap-y-4">
         <Separator
-          v-if="showRow1Divider"
+          v-for="row in verticalDividerRows"
+          :key="`column-divider-${row}`"
           orientation="vertical"
-          class="absolute top-0 left-1/2 -translate-x-1/2 [grid-row:1/2] [grid-column:1/3]"
+          class="absolute top-0 left-1/2 -translate-x-1/2 [grid-column:1/3]"
+          :style="{ gridRow: `${row * 2 + 1} / ${row * 2 + 2}` }"
         />
         <Separator
-          v-if="showRow2Divider"
-          orientation="vertical"
-          class="absolute top-0 left-1/2 -translate-x-1/2 [grid-row:3/4] [grid-column:1/3]"
+          v-for="row in horizontalDividerRows"
+          :key="`row-divider-${row}`"
+          class="col-span-2"
+          :style="{ order: row * 3 - 1 }"
         />
-        <Separator v-if="showRowDivider" class="col-span-2" style="order: 2" />
 
         <!-- Hardware -->
         <div
@@ -477,6 +501,55 @@ const gridSectionOrder = (key: GridSectionKey): number => {
               size="sm"
               role="listitem"
             />
+          </div>
+        </div>
+
+        <!-- Network interfaces -->
+        <div
+          v-if="hasInterfaces"
+          class="flex flex-col gap-1.5"
+          :class="gridSectionSpanClass('interfaces')"
+          :style="{ order: gridSectionOrder('interfaces') }"
+        >
+          <div class="flex items-center gap-1.5">
+            <Icon name="modem-02" size="md" stroke-color="brand-700" class="shrink-0" />
+            <h4 class="text-xs font-bold text-brand-700 uppercase tracking-wide">
+              {{ t('components.domain-info-modal.fields.interfaces.title') }}
+            </h4>
+          </div>
+          <!-- Flows into as many columns as the section is wide enough for. -->
+          <div
+            class="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-x-4 gap-y-1.5"
+            role="list"
+          >
+            <div
+              v-for="(iface, index) in props.interfaces"
+              :key="`${iface.name}-${index}`"
+              class="flex items-center gap-1.5 min-w-0"
+              role="listitem"
+            >
+              <div class="w-32 shrink-0 min-w-0">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Badge
+                      :content="iface.name"
+                      color="gray"
+                      shape="square"
+                      size="sm"
+                      :class="interfaceNameClass"
+                      tabindex="0"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent :title="iface.name" side="top" />
+                </Tooltip>
+              </div>
+              <template v-if="iface.mac">
+                <code class="font-mono text-xs text-gray-warm-600 whitespace-nowrap">{{
+                  iface.mac
+                }}</code>
+                <CopyIcon :value="iface.mac" size="sm" stroke-color="gray-warm-600" />
+              </template>
+            </div>
           </div>
         </div>
       </div>

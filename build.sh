@@ -458,15 +458,21 @@ flavour(){
 		# port. Until these parts existed both had to be added out of band, and
 		# a plain 'docker compose up -d' then silently dropped them.
 		if echo "$parts" | grep -q "\(^\|\s\)hypervisor\(\s\|$\)"; then
-			parts="$parts hypervisor.infrastructure-ports"
-			echo "      - Hypervisor SSH port 2022 exposed on $INFRASTRUCTURE_HOST_IP"
-			# The tunnel port only where isard-vpn is absent: on a flavour that
-			# runs both (all-in-one) the vpn container already publishes this very
-			# host port, and two services cannot bind one ip:port -- the second to
-			# start dies with "address already in use".
-			if ! echo "$parts" | grep -q "\(^\|\s\)vpn\(\s\|$\)"; then
-				parts="$parts hypervisor-tunnel.infrastructure-ports"
-				echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
+			if [ -f docker-compose-open-ports.yml ]; then
+				# compose does not dedupe across syntaxes: declaring these ports here too breaks 'up'.
+				echo "      - Hypervisor ports left to your docker-compose-open-ports.yml"
+				echo "        (now redundant: remove it and they move into docker-compose.yml)"
+			else
+				parts="$parts hypervisor.infrastructure-ports"
+				echo "      - Hypervisor SSH port 2022 exposed on $INFRASTRUCTURE_HOST_IP"
+				# Only the tunnel is gated: isard-vpn publishes that same host port, and
+				# two services cannot bind one ip:port. Nothing else binds 2022.
+				if echo "$parts" | grep -q "\(^\|\s\)vpn\(\s\|$\)"; then
+					echo "      - Hypervisor tunnel port left to the vpn part (same node)"
+				else
+					parts="$parts hypervisor-tunnel.infrastructure-ports"
+					echo "      - Hypervisor tunnel port ${WG_HYPERS_PORT:-4443}/udp exposed on $INFRASTRUCTURE_HOST_IP"
+				fi
 			fi
 		fi
 		echo ""
@@ -487,6 +493,10 @@ remove_part() {
     sed "s/\(^\|[[:blank:]]\)${part}\([[:blank:]]\|$\)/\1\2/g"
 }
 
+# now (it resolves the policy at enqueue time and ships it in the task payload).
+# A flavour that does not run apiv4 declaring them means the operator thinks the
+# geometry applies there when it is inert -- exactly the silent-geometry-loss
+# trap. Fail loud so "everything is centralised" is checkable, not a promise.
 create_docker_compose_file(){
 	config_file="$1"
 	create_env "$config_file"
@@ -638,10 +648,52 @@ create_docker_compose_file(){
 		fi
 	fi
 
-	if [ -n "$REDIS_PASSWORD" ]
+	# apiv4 presence in $parts does not change below, so the qcow2/flavour guard
+	# can run here (and stays out of the storage-composition block the vdo-stats
+	# test extracts and runs in isolation).
+
+	# Normalised the way init.sh normalises it, so one cfg value cannot mean two
+	# things on the same node.
+	case "$(printf '%s' "${CAPABILITIES_DISK:-true}" | tr '[:upper:]' '[:lower:]')" in
+		false|f|0|no|n|off) _cap_disk_enabled=0 ;;
+		*) _cap_disk_enabled=1 ;;
+	esac
+	if [ "$_cap_disk_enabled" -eq 0 ]
 	then
-		echo "REDIS_PASSWORD is true, adding redis password part"
-		parts="$parts redis.passwd"
+		if [ "$FLAVOUR" = "$STORAGE_KEY" ]
+		then
+			echo "ERROR: flavour $FLAVOUR serves storage; CAPABILITIES_DISK=false leaves it with nothing to do"
+			exit 1
+		fi
+		# Without the capability isard-storage starts and goes straight to sleeping.
+		echo "CAPABILITIES_DISK is false, removing storage part"
+		parts="$(echo $parts | remove_part "storage")"
+	fi
+
+	# The VDO fill needs a privileged container; everything else about the pools
+	# is measured and published by isard-storage without one.
+	case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+		true|t|1|yes|y|on) _vdo_stats_enabled=1 ;;
+		*) _vdo_stats_enabled=0 ;;
+	esac
+	# The sidecar runs the same publisher, so a node with no storage worker would
+	# publish its root disk under the pool's key from here instead.
+	if [ "$_vdo_stats_enabled" -eq 1 ] && { [ "${REDIS_WORKERS:-1}" = "0" ] || [ "$_cap_disk_enabled" -eq 0 ]; }
+	then
+		echo "STORAGE_POOL_VDO_STATS is true but this node serves no storage (REDIS_WORKERS=0 or CAPABILITIES_DISK=false); ignoring it"
+		_vdo_stats_enabled=0
+	fi
+	if [ "$_vdo_stats_enabled" -eq 1 ]
+	then
+		case " $(echo $parts) " in
+			*" storage "*)
+				echo "STORAGE_POOL_VDO_STATS is true, adding storage-vdo-stats part"
+				parts="$parts storage-vdo-stats"
+				;;
+			*)
+				echo "WARNING: STORAGE_POOL_VDO_STATS is true but flavour $FLAVOUR has no storage part; ignoring it"
+				;;
+		esac
 	fi
 
 	# Add openapi container
@@ -765,6 +817,19 @@ if [ -z "$CONFIG_FILES" ]; then
 	echo "ERROR: no isardvdi*.cfg found in $(pwd)." >&2
 	echo "Copy isardvdi.cfg.example to isardvdi.cfg and set USAGE=." >&2
 	exit 1
+fi
+
+# With no argument every isardvdi*.cfg is built, which is what the fleet's
+# upgrade path relies on. An argument selects one of them.
+if [ -n "$1" ]
+then
+	if ! echo "$CONFIG_FILES" | grep -qxF -- "$1"
+	then
+		echo "ERROR: '$1' is not an isardvdi*.cfg in $(pwd)." >&2
+		echo "Found: $(echo $CONFIG_FILES)" >&2
+		exit 1
+	fi
+	CONFIG_FILES="$1"
 fi
 
 for config_file in $CONFIG_FILES
@@ -915,71 +980,6 @@ EOF
 	exit 1
 }
 check_isard_network_mtu
-
-ensure_etc_timezone(){
-	# Ubuntu 26.04+ (and other modern systemd distros) ship NO /etc/timezone
-	# file -- only the /etc/localtime symlink. The generated compose bind-mounts
-	# `/etc/timezone:ro` into every container; when the host file is missing
-	# Docker auto-creates it as an empty DIRECTORY, which then cannot mount onto
-	# the container's /etc/timezone file and breaks every service at `up`.
-	# Materialize it from /etc/localtime (or timedatectl) so the existing mounts
-	# work on both old (file present) and new (file absent) hosts. Idempotent and
-	# best-effort: it never aborts the build if it cannot write.
-	[ -f /etc/timezone ] && return 0
-	_tz=""
-	if [ -L /etc/localtime ]; then
-		_tz=$(readlink -f /etc/localtime 2>/dev/null | sed -n 's@.*/zoneinfo/@@p')
-	fi
-	if [ -z "$_tz" ] && command -v timedatectl >/dev/null 2>&1; then
-		_tz=$(timedatectl show -p Timezone --value 2>/dev/null)
-	fi
-	[ -z "$_tz" ] && _tz="Etc/UTC"
-	# A prior failed Docker mount may have left /etc/timezone as an empty dir.
-	[ -d /etc/timezone ] && $SUDO rmdir /etc/timezone 2>/dev/null || true
-	if printf '%s\n' "$_tz" | $SUDO tee /etc/timezone >/dev/null 2>&1; then
-		echo "Created /etc/timezone ($_tz) for container bind-mounts (this host shipped none)."
-	else
-		echo "WARNING: /etc/timezone is missing and could not be created ($_tz). Containers that bind-mount it will fail to start; create it manually:  echo $_tz | sudo tee /etc/timezone" >&2
-	fi
-	return 0
-}
-ensure_etc_timezone
-
-disable_wgquick_apparmor(){
-	# Ubuntu >=25.04 ships an ENFORCING AppArmor profile 'wg-quick' in the
-	# `apparmor` package (/etc/apparmor.d/wg-quick; absent on <=24.04 LTS).
-	# AppArmor transitions by executable, so the profile also confines the
-	# wg-quick that runs INSIDE the isard-vpn container and denies exec of the
-	# container's /bin/busybox -> `wg-quick up` fails (exit 126) -> the WireGuard
-	# interface never comes up -> the hypervisor never registers Online ("No
-	# hypervisors online to execute next virt action"). The vpn container is
-	# privileged/unconfined, so this per-executable host profile is the ONLY
-	# thing blocking it (security_opt: apparmor=unconfined would NOT help -- an
-	# unconfined process still transitions into a named profile on exec).
-	# Disable the host profile so the VPN + hypervisor work. Reversible,
-	# non-fatal, best-effort -- same spirit as ensure_etc_timezone above.
-	# Opt out with SKIP_FIX_WGQUICK_APPARMOR=true.
-	[ "${SKIP_FIX_WGQUICK_APPARMOR:-false}" = "true" ] && return 0
-	[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = "Y" ] || return 0
-	# Only relevant when this deployment actually runs the WireGuard vpn container.
-	grep -q "isard-vpn" docker-compose.yml 2>/dev/null || return 0
-	if [ "$(id -u)" = 0 ]; then SUDO=""; else SUDO="sudo"; fi
-	# Enforcing? (complain/absent/unloaded -> nothing to do). Profiles list is root-only.
-	$SUDO grep -qE "^wg-quick \(enforce\)$" /sys/kernel/security/apparmor/profiles 2>/dev/null || return 0
-	echo "WARNING: host AppArmor profile 'wg-quick' is ENFORCING -- on Ubuntu >=25.04 it confines the" >&2
-	echo "         isard-vpn container's wg-quick and denies exec of its busybox, so WireGuard never comes" >&2
-	echo "         up and the hypervisor stays Offline. Disabling it on this host now (reversible)." >&2
-	echo "         Opt out: SKIP_FIX_WGQUICK_APPARMOR=true . Re-enable:  sudo rm /etc/apparmor.d/disable/wg-quick && sudo apparmor_parser -r /etc/apparmor.d/wg-quick" >&2
-	$SUDO mkdir -p /etc/apparmor.d/disable 2>/dev/null
-	$SUDO ln -sf /etc/apparmor.d/wg-quick /etc/apparmor.d/disable/wg-quick 2>/dev/null
-	if $SUDO apparmor_parser -R /etc/apparmor.d/wg-quick 2>/dev/null; then
-		echo "         -> 'wg-quick' profile disabled + unloaded. If isard-vpn is already up, restart it:  $DOCKER_COMPOSE restart isard-vpn" >&2
-	else
-		echo "         -> could not unload automatically; run:  sudo apparmor_parser -R /etc/apparmor.d/wg-quick && sudo $DOCKER_COMPOSE restart isard-vpn" >&2
-	fi
-	return 0
-}
-disable_wgquick_apparmor
 
 notify_prometheus_migration_pending() {
 	# Warn if the variable fallback still references the removed isard-prometheus container

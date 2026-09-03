@@ -725,13 +725,22 @@ class Quotas(RethinkCustomBase):
     @classmethod
     @cached(
         SynchronizedTTLCache(maxsize=100, ttl=5),
-        key=lambda cls, user_id, desktop_id: (user_id, desktop_id),
+        key=lambda cls, user_id, desktop_id, hardware=None: (
+            user_id,
+            desktop_id,
+            (hardware or {}).get("memory"),
+            (hardware or {}).get("vcpus"),
+        ),
     )
-    def desktop_start(cls, user_id, desktop_id):
+    def desktop_start(cls, user_id, desktop_id, hardware=None):
+        """``hardware`` (memory in KiB, as stored) overrides the row's own: a
+        create checks the desktop it is about to write while passing the
+        template it derives from as ``desktop_id``."""
         desktop = Caches.get_document("domains", desktop_id)
         user = Caches.get_cached_user_with_names(user_id)
         if user["role"] == "admin":
             return desktop
+        hardware = {**desktop["create_dict"]["hardware"], **(hardware or {})}
 
         # We get the user applied quota (either user, group or category quota) and currently used info to check the quota
         user_quota_data = cls.Get(user_id=user["id"], started_info=True)
@@ -750,8 +759,7 @@ class Quotas(RethinkCustomBase):
 
             # Add the desktop memory to check if starting it would exceed the quota
             user_quota_data["used"]["memory"] = (
-                user_quota_data["used"]["memory"]
-                + desktop["create_dict"]["hardware"]["memory"] / 1048576
+                user_quota_data["used"]["memory"] + hardware["memory"] / 1048576
             )
 
             cls.check_quota(
@@ -766,8 +774,7 @@ class Quotas(RethinkCustomBase):
 
             # Add the desktop vcpus to check if starting it would exceed the quota
             user_quota_data["used"]["vcpus"] = (
-                user_quota_data["used"]["vcpus"]
-                + desktop["create_dict"]["hardware"]["vcpus"]
+                user_quota_data["used"]["vcpus"] + hardware["vcpus"]
             )
 
             cls.check_quota(
@@ -803,10 +810,8 @@ class Quotas(RethinkCustomBase):
             started_desktops = cls.get_started_desktops(user["group"], "kind_group")
             desktops = {
                 "running": started_desktops["count"] + 1,  # Add the current desktop
-                "vcpus": started_desktops["vcpus"]
-                + desktop["create_dict"]["hardware"]["vcpus"],
-                "memory": started_desktops["memory"]
-                + desktop["create_dict"]["hardware"]["memory"] / 1048576,
+                "vcpus": started_desktops["vcpus"] + hardware["vcpus"],
+                "memory": started_desktops["memory"] + hardware["memory"] / 1048576,
             }
             # Check running limits
             cls.check_limits(
@@ -891,10 +896,8 @@ class Quotas(RethinkCustomBase):
         started_desktops = cls.get_started_desktops(user["category"], "kind_category")
         desktops = {
             "running": started_desktops["count"] + 1,  # Add the current desktop
-            "vcpus": started_desktops["vcpus"]
-            + desktop["create_dict"]["hardware"]["vcpus"],
-            "memory": started_desktops["memory"]
-            + desktop["create_dict"]["hardware"]["memory"] / 1048576,
+            "vcpus": started_desktops["vcpus"] + hardware["vcpus"],
+            "memory": started_desktops["memory"] + hardware["memory"] / 1048576,
         }
         # Check running limits
         cls.check_limits(

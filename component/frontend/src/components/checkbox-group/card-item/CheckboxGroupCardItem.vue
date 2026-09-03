@@ -12,6 +12,7 @@ export interface CardItem {
   title?: string
   image?: string
   description?: string
+  warning?: string
   value: string
   disabled?: boolean
   class?: HTMLAttributes['class']
@@ -77,7 +78,10 @@ const handleClick = () => {
         </h3>
       </header>
 
-      <div v-if="item.image || item.description" class="flex flex-col items-center p-4 gap-3">
+      <div
+        v-if="item.image || item.description || item.warning"
+        class="flex flex-col items-center p-4 gap-3"
+      >
         <img
           v-if="item.image"
           :src="item.image"
@@ -89,6 +93,12 @@ const handleClick = () => {
           class="text-base font-normal leading-6 text-gray-warm-600 text-center"
         >
           {{ item.description }}
+        </p>
+        <p
+          v-if="item.warning"
+          class="text-base font-semibold leading-6 text-gray-warm-700 text-center"
+        >
+          {{ item.warning }}
         </p>
       </div>
     </template>

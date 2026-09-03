@@ -8,7 +8,7 @@ envelope → dispatch to the right ``Wg`` helper).
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
@@ -17,6 +17,17 @@ from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 @pytest.fixture
 def process_change(wgadmin_module):
     return wgadmin_module._process_vpn_change
+
+
+@pytest.fixture
+def wg_spec(wgtools_module):
+    """Build a ``Wg`` stand-in that only answers to what ``Wg`` really has.
+
+    A bare MagicMock invents whatever attribute it is asked for, so a call
+    addressed to the wrong receiver passes a dispatch test and fails in
+    production. This raises AttributeError instead.
+    """
+    return lambda: create_autospec(wgtools_module.Wg, instance=True)
 
 
 def test_hypervisor_insert_routes_to_wg_hypers(process_change):
@@ -185,3 +196,124 @@ def test_hypervisor_delete_without_wg_hypers_uses_ovs(
     assert "ovs-vsctl" in invoked
     # wg_users must not have been touched — this is a hypervisor-only path.
     assert not wg_users.down_peer.called
+
+
+def test_remotevpn_allowed_change_reaches_the_wg_helper(process_change, wg_spec):
+    wg_users = wg_spec()
+    wg_hypers = MagicMock()
+
+    base = {
+        "id": "rvpn-1",
+        "table": "remotevpn",
+        "vpn": {"wireguard": {"Address": "10.0.0.3"}},
+    }
+    raw_msg = {
+        "table": "remotevpn",
+        "change": {
+            "old_val": {**base, "allowed": {"users": ["u1"]}},
+            "new_val": {**base, "allowed": {"users": ["u2"]}},
+        },
+    }
+    envelope = TABLE_TO_SUBSCRIBER["remotevpn"].parse_dict(raw_msg)
+
+    process_change(envelope.change, wg_users, wg_hypers)
+
+    wg_users.refresh_remotevpn_allowed.assert_called_once()
+    called_with = wg_users.refresh_remotevpn_allowed.call_args[0][0]
+    assert called_with["allowed"] == {"users": ["u2"]}
+
+
+def test_remotevpn_update_without_an_allowed_change_does_not_refresh(
+    process_change, wg_spec
+):
+    wg_users = wg_spec()
+
+    base = {
+        "id": "rvpn-1",
+        "table": "remotevpn",
+        "allowed": {"users": ["u1"]},
+        "vpn": {"wireguard": {"Address": "10.0.0.3"}},
+    }
+    raw_msg = {
+        "table": "remotevpn",
+        "change": {
+            "old_val": {**base, "description": "before"},
+            "new_val": {**base, "description": "after"},
+        },
+    }
+    envelope = TABLE_TO_SUBSCRIBER["remotevpn"].parse_dict(raw_msg)
+
+    process_change(envelope.change, wg_users, MagicMock())
+
+    assert not wg_users.refresh_remotevpn_allowed.called
+
+
+class TestFailureLoggingNamesTheChange:
+    """``_process_vpn_change`` swallows exceptions so one bad change cannot
+    stop the ones behind it. That is only tolerable if the log says WHICH
+    change was lost -- otherwise a peer silently never gets set up or torn
+    down and there is nothing to grep for.
+    """
+
+    def _delete_envelope(self, table="users", peer_id="u1"):
+        raw_msg = {
+            "table": table,
+            "change": {"old_val": {"id": peer_id, "table": table}, "new_val": None},
+        }
+        return TABLE_TO_SUBSCRIBER[table].parse_dict(raw_msg).change
+
+    def test_delete_failure_names_table_id_and_kind(self, process_change, caplog):
+        wg_users = MagicMock()
+        wg_users.down_peer.side_effect = RuntimeError("boom")
+
+        with caplog.at_level("ERROR"):
+            process_change(self._delete_envelope(peer_id="u-42"), wg_users, MagicMock())
+
+        assert "u-42" in caplog.text
+        assert "users" in caplog.text
+        assert "delete" in caplog.text
+        assert "boom" in caplog.text  # the traceback is still there
+
+    def test_insert_failure_is_labelled_insert(self, process_change, caplog):
+        raw_msg = {
+            "table": "users",
+            "change": {
+                "old_val": None,
+                "new_val": {"id": "u-new", "table": "users"},
+            },
+        }
+        change = TABLE_TO_SUBSCRIBER["users"].parse_dict(raw_msg).change
+        wg_users = MagicMock()
+        wg_users.add_peer.side_effect = RuntimeError("boom")
+
+        with caplog.at_level("ERROR"):
+            process_change(change, wg_users, MagicMock())
+
+        assert "insert" in caplog.text
+        assert "u-new" in caplog.text
+
+    def test_a_failure_before_the_values_are_parsed_does_not_raise(
+        self, process_change, caplog
+    ):
+        """The old handler read old_val/new_val in its own except block; if the
+        failure happened while building them, that raised NameError and buried
+        the real cause."""
+        exploding_change = MagicMock()
+        type(exploding_change).new_val = property(
+            lambda self: (_ for _ in ()).throw(RuntimeError("model_dump exploded"))
+        )
+
+        with caplog.at_level("ERROR"):
+            process_change(exploding_change, MagicMock(), MagicMock())  # must not raise
+
+        assert "unparsed" in caplog.text
+        assert "model_dump exploded" in caplog.text
+        assert "NameError" not in caplog.text
+
+    def test_a_change_that_succeeds_logs_no_error(self, process_change, caplog):
+        wg_users = MagicMock()
+        with caplog.at_level("ERROR"):
+            process_change(self._delete_envelope(), wg_users, MagicMock())
+
+        wg_users.down_peer.assert_called_once()
+        assert caplog.text == ""

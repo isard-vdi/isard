@@ -23,6 +23,15 @@ import contextlib
 
 import pytest
 
+# The geometry is now a required kwarg on convert/disconnect; its value is
+# irrelevant to these failure-path tests, so they pass the default policy.
+_GEO = {
+    "cluster_size": "4k",
+    "extended_l2": "off",
+    "lazy_refcounts": "off",
+    "preallocation": "off",
+}
+
 
 def _nullcontext(*args, **kwargs):
     return contextlib.nullcontext()
@@ -43,7 +52,12 @@ def test_convert_raises_and_unlinks_on_nonzero_rc(monkeypatch):
 
     with pytest.raises(task.CalledProcessError):
         task.convert(
-            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+            "/isard/src.qcow2",
+            "/isard/dst.qcow2",
+            "qcow2",
+            False,
+            min_free_bytes=0,
+            **_GEO
         )
     assert removed == ["/isard/dst.qcow2"]
 
@@ -61,7 +75,12 @@ def test_convert_raises_and_unlinks_on_abort(monkeypatch):
 
     with pytest.raises(task.CalledProcessError):
         task.convert(
-            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+            "/isard/src.qcow2",
+            "/isard/dst.qcow2",
+            "qcow2",
+            False,
+            min_free_bytes=0,
+            **_GEO
         )
     assert removed == ["/isard/dst.qcow2"]
 
@@ -76,7 +95,12 @@ def test_convert_returns_zero_and_keeps_dest_on_success(monkeypatch):
 
     assert (
         task.convert(
-            "/isard/src.qcow2", "/isard/dst.qcow2", "qcow2", False, min_free_bytes=0
+            "/isard/src.qcow2",
+            "/isard/dst.qcow2",
+            "qcow2",
+            False,
+            min_free_bytes=0,
+            **_GEO
         )
         == 0
     )
@@ -136,7 +160,7 @@ def test_disconnect_raises_on_failure(monkeypatch):
     monkeypatch.setattr(task, "isfile", lambda p: True)
     monkeypatch.setattr(task, "remove", lambda p: None)
     with pytest.raises(Exception):
-        task.disconnect("/isard/d.qcow2", min_free_bytes=0)
+        task.disconnect("/isard/d.qcow2", min_free_bytes=0, **_GEO)
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +318,7 @@ def test_disconnect_swaps_with_single_atomic_rename(monkeypatch):
     monkeypatch.setattr(task, "rename", lambda s, d: calls.append(("rename", s, d)))
     monkeypatch.setattr(task, "_safe_unlink", lambda p: calls.append(("unlink", p)))
 
-    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0)
+    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0, **_GEO)
 
     # the original is replaced by ONE atomic rename of the flattened sibling
     assert ("rename", "/isard/g/d.qcow2.wo_chain", "/isard/g/d.qcow2") in calls
@@ -310,7 +334,7 @@ def test_disconnect_cleans_stale_sibling_before_convert(monkeypatch):
     monkeypatch.setattr(task, "run", lambda *a, **k: order.append(("run",)))
     monkeypatch.setattr(task, "rename", lambda s, d: order.append(("rename",)))
 
-    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0)
+    task.disconnect("/isard/g/d.qcow2", min_free_bytes=0, **_GEO)
     # stale .wo_chain is unlinked BEFORE the convert runs
     assert order[0] == ("unlink", "/isard/g/d.qcow2.wo_chain")
     assert order.index(("run",)) > 0

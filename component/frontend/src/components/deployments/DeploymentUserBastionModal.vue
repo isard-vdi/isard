@@ -15,8 +15,10 @@ import { Icon, CopyIcon } from '@/components/icon'
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TruncatedText } from '@/components/truncated-text'
+import { desktopStatusLabel } from '@/lib/desktops'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 interface Props {
   open?: boolean
@@ -28,6 +30,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   open: false
 })
+
+const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
 
 const emit = defineEmits<{
   close: []
@@ -159,7 +163,7 @@ const closeModal = () => {
           >
             <div class="flex flex-col min-w-0">
               <TruncatedText :title="desktop.name" class="font-semibold text-gray-warm-700" />
-              <span class="text-xs text-gray-warm-500">{{ desktop.status }}</span>
+              <span class="text-xs text-gray-warm-500">{{ statusLabel(desktop.status) }}</span>
             </div>
             <Button
               hierarchy="secondary-color"

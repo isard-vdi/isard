@@ -19,7 +19,6 @@ services:
       - /opt/isard/media:/isard/media:rw
       - /opt/isard/volatile:/isard/volatile:rw
       - /opt/isard/storage_pools:/isard/storage_pools:rw
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/environment:/usr/local/etc/environment:ro
     environment:
@@ -32,13 +31,10 @@ services:
       REDIS_HOST: ${REDIS_HOST:-isard-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      QCOW2_CLUSTER_SIZE:
-      QCOW2_EXTENDED_L2:
-      QCOW2_LAZY_REFCOUNTS:
-      QCOW2_PREALLOCATION:
       CAPABILITIES_HYPER: ${CAPABILITIES_HYPER:-true}
       CAPABILITIES_DISK: ${CAPABILITIES_DISK:-true}
       CAPABILITIES_STORAGE_POOLS:
+      STORAGE_POOL_VDO_STATS: ${STORAGE_POOL_VDO_STATS:-false}
       REDIS_WORKERS:
       RETHINKDB_HOST:
       LOG_LEVEL:

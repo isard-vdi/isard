@@ -1,9 +1,12 @@
 import { computed } from 'vue'
+import type { Composer } from 'vue-i18n'
 
 import {
   DesktopStatusEnum,
   type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop
 } from '@/gen/oas/apiv4/'
+
+import { Locale } from '@/lib/i18n'
 
 export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 
@@ -14,9 +17,15 @@ export const resolveDesktopKind = (desktop: Pick<UserDesktop, 'tag' | 'type'>): 
   return desktop.type === 'persistent' ? 'persistent' : 'nonpersistent'
 }
 
+// Mirrors the action list of DesktopCardHeaderActionsDropdownContent: the
+// direct link covers every standalone desktop, recreate every other case.
+export const desktopHasMenuActions = (desktop: Pick<UserDesktop, 'tag' | 'permissions'>): boolean =>
+  !desktop.tag || desktop.permissions?.includes('recreate') === true
+
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',
+  Delete = 'showDeleteModal',
   Reset = 'desktopReset',
   AbortOperation = 'desktopAbortOperation',
   UpdateStatus = 'desktopUpdateStatus',
@@ -39,7 +48,48 @@ export interface DesktopActionsData {
     iconColor: string
   } | null
 }
+
+// `te` does not walk the fallback chain, so ask English: the guard is about
+// unknown statuses, not about locales that are still incomplete.
+export const desktopStatusLabel = (
+  status: string | undefined,
+  i18n: Pick<Composer, 't' | 'te'>
+) => {
+  const key = `components.desktops.desktop-card.status.${status?.toLowerCase()}.text`
+  return i18n.te(key, Locale.English)
+    ? i18n.t(key)
+    : i18n.t('components.desktops.desktop-card.status.unknown.text')
+}
+
 export const desktopActionsData = (
+  status: string,
+  needsBooking = false,
+  directViewer = false,
+  persistent = true
+): DesktopActionsData => {
+  const data = desktopActionsDataByStatus(status, needsBooking, directViewer)
+
+  // A temporal desktop is never reused: it is deleted rather than left stopped
+  // for a later start. The direct viewer never deletes.
+  if (persistent || directViewer) return data
+  if (
+    status === DesktopStatusEnum.STOPPED ||
+    data.actionButton?.action === DesktopActionsEnum.Stop
+  ) {
+    return {
+      ...data,
+      actionButton: {
+        icon: 'trash-04',
+        hierarchy: 'destructive',
+        action: DesktopActionsEnum.Delete,
+        label: 'components.desktops.desktop-card.actions.delete'
+      }
+    }
+  }
+  return data
+}
+
+const desktopActionsDataByStatus = (
   status: string,
   needsBooking = false,
   directViewer = false
@@ -145,11 +195,13 @@ export const desktopActionsData = (
 
     case DesktopStatusEnum.MAINTENANCE:
       return {
-        actionButton: {
-          icon: 'minus-circle',
-          hierarchy: 'destructive',
-          action: DesktopActionsEnum.AbortOperation
-        },
+        actionButton: directViewer
+          ? null
+          : {
+              icon: 'minus-circle',
+              hierarchy: 'destructive',
+              action: DesktopActionsEnum.AbortOperation
+            },
         viewers: false,
         text: {
           icon: 'tool-02',

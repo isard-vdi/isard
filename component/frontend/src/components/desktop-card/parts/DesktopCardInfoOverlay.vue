@@ -4,10 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
+import { desktopStatusLabel } from '@/lib/desktops'
 
-import { getDesktopInfoOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { DesktopDetailsResponse } from '@/gen/oas/apiv4/'
+import {
+  getDesktopDetailsOptions,
+  getDesktopDetailsFromTokenOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import type { Client } from '@/gen/oas/apiv4/client'
 
 import { Icon, CopyIcon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
@@ -20,7 +24,8 @@ import {
   cardOverlayLabelVariants
 } from '..'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 interface DesktopInfoTarget {
   id: string
@@ -30,64 +35,60 @@ interface DesktopInfoTarget {
 
 interface Props {
   desktop: DesktopInfoTarget
-  directViewer?: boolean
-  directViewerDetails?: DesktopDetailsResponse | null
-  directViewerDetailsPending?: boolean
+  // When provided, fetches the details via the direct-viewer token endpoint
+  // (using the supplied client's viewer JWT). Otherwise falls back to the
+  // standard user-authenticated endpoint keyed by desktopId.
+  directViewerToken?: string
+  directViewerClient?: Client
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  directViewer: false,
-  directViewerDetails: undefined,
-  directViewerDetailsPending: false
+  directViewerToken: undefined,
+  directViewerClient: undefined
 })
 const emit = defineEmits<{ showInfoModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const isDirectViewer = computed(() => props.directViewer)
+const isDirectViewer = !!props.directViewerToken && !!props.directViewerClient
+const tokenQuery = useQuery({
+  ...getDesktopDetailsFromTokenOptions({
+    path: { token: props.directViewerToken ?? '' },
+    client: props.directViewerClient
+  }),
+  enabled: isDirectViewer
+})
 
-const { data: info, isPending: isInfoPending } = useQuery({
-  ...getDesktopInfoOptions({
+const desktopIdQuery = useQuery({
+  ...getDesktopDetailsOptions({
     path: { desktop_id: props.desktop.id }
   }),
-  enabled: computed(() => !isDirectViewer.value)
+  enabled: !isDirectViewer
 })
 
-const hardware = computed(() => {
-  if (isDirectViewer.value) {
-    const details = props.directViewerDetails
-    return {
-      vcpus: details?.vcpu,
-      memory: details?.memory,
-      diskBus: details?.disk_bus ?? '',
-      bootOrder: details?.boot_order?.map((b) => b.id) ?? [],
-      videos: details?.videos?.map((v) => v.id) ?? [],
-      isos: details?.isos ?? [],
-      floppies: details?.floppies ?? [],
-      vgpus: details?.reservables?.vgpus ?? []
-    }
-  }
-  return {
-    vcpus: info.value?.hardware?.vcpus,
-    memory: info.value?.hardware?.memory,
-    diskBus: info.value?.hardware?.disk_bus ?? '',
-    bootOrder: info.value?.hardware?.boot_order ?? [],
-    videos: info.value?.hardware?.videos ?? [],
-    isos: info.value?.hardware?.isos ?? [],
-    floppies: info.value?.hardware?.floppies ?? [],
-    vgpus: info.value?.reservables?.vgpus ?? []
-  }
-})
+const active = computed(() => (isDirectViewer ? tokenQuery : desktopIdQuery))
+const info = computed(() => active.value.data.value)
 
-const isPending = computed(() =>
-  isDirectViewer.value ? !!props.directViewerDetailsPending : isInfoPending.value
-)
+const hardware = computed(() => ({
+  vcpus: info.value?.vcpu,
+  memory: info.value?.memory,
+  diskBus: info.value?.disk_bus?.name ?? '',
+  bootOrder: info.value?.boot_order?.map((b) => b.name) ?? [],
+  videos: info.value?.videos?.map((v) => v.name) ?? [],
+  isos: info.value?.isos ?? [],
+  floppies: info.value?.floppies ?? [],
+  vgpus: info.value?.reservables?.vgpus ?? []
+}))
 
-// get-info (non-direct-viewer) doesn't expose the desktop's live IP on
-// `desktop`, but the direct-viewer's separately-fetched details do.
-const desktopIp = computed(() =>
-  isDirectViewer.value ? props.directViewerDetails?.ip : props.desktop.ip
-)
+const isPending = computed(() => active.value.isPending.value)
+
+const desktopIp = computed(() => props.desktop.ip)
+
+// Same affordance as the networks overlay: the guest hasn't reported its
+// address yet, so an empty IP row is expected rather than missing data.
+const isWaitingIp = computed(() => props.desktop.status === DesktopStatusEnum.WAITING_IP)
+
+const statusLabel = computed(() => desktopStatusLabel(props.desktop.status, i18n))
 
 const statusBadge = computed(() => {
   const s = props.desktop.status
@@ -175,22 +176,25 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         :class="[statusBadge, cardOverlayLabelVariants({ size })]"
       >
         <span class="sr-only">{{ t('components.desktops.desktop-card.info.status') }}: </span>
-        {{ desktop.status }}
+        {{ statusLabel }}
       </span>
 
       <div
-        v-if="isPending || desktopIp"
+        v-if="isPending || desktopIp || isWaitingIp"
         class="flex items-center gap-1.5 min-w-0"
         :class="cardOverlayTextVariants({ size })"
       >
         <Icon
-          name="signal-01"
+          :name="isWaitingIp ? 'loading-02' : 'signal-01'"
           size="xs"
           stroke-color="base-white"
-          class="shrink-0"
+          :class="['shrink-0', isWaitingIp && 'motion-safe:animate-spin']"
           aria-hidden="true"
         />
-        <Skeleton v-if="isPending && !desktopIp" class="bg-base-white/20 h-3 w-24" />
+        <span v-if="isWaitingIp" class="italic truncate pr-0.5">
+          {{ t('components.desktops.desktop-card.status.waitingip.text') }}
+        </span>
+        <Skeleton v-else-if="isPending && !desktopIp" class="bg-base-white/20 h-3 w-24" />
         <template v-else-if="desktopIp">
           <span class="sr-only">
             {{ t('components.desktops.desktop-card.ip-address', { ip: desktopIp }) }}

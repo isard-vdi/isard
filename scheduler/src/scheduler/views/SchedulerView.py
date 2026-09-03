@@ -25,6 +25,7 @@ from flask import request
 from scheduler import app
 
 from ..lib.exceptions import Error
+from ..lib.rethink_jobstore import UNHEALTHY_AFTER_S
 from .decorators import (
     has_token,
     is_admin,
@@ -36,7 +37,28 @@ from .decorators import (
 
 @app.route("/scheduler/healthcheck", methods=["GET"])
 def healthcheck():
+    """Report unhealthy while nothing is actually being scheduled.
+
+    A bare 200 kept this container green through an outage in which no
+    scheduled job ran at all — the one signal every install already polls,
+    saying nothing about the only thing the component exists to do. Two ways
+    that happens: the job store cannot reach rethinkdb, or the loop itself
+    stopped. The grace period keeps a self-healed blip from flapping the
+    container, and the stall deadline comes from the wait APScheduler computed
+    for itself, so an install whose next job is hours away still reads healthy.
+    """
+    scheduler = getattr(app, "scheduler", None)
+    down_for = getattr(getattr(scheduler, "rStore", None), "disconnected_seconds", 0.0)
+    stalled_for = getattr(getattr(scheduler, "scheduler", None), "stalled_seconds", 0.0)
+    if down_for > UNHEALTHY_AFTER_S:
+        return _unhealthy(f"job store unreachable for {down_for:.0f}s")
+    if stalled_for > UNHEALTHY_AFTER_S:
+        return _unhealthy(f"job loop {stalled_for:.0f}s past its next run")
     return ""
+
+
+def _unhealthy(reason):
+    return reason, 503, {"Content-Type": "text/plain"}
 
 
 @app.route("/scheduler/actions", methods=["GET"])

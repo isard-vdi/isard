@@ -11,7 +11,7 @@
   >
     <b-row class="ml-2 mr-2">
       <b-col cols="12">
-        <p>
+        <p style="white-space: pre-line;">
           {{ $t('forms.ssh-key.modal.description') }}
         </p>
         <b-form-group
@@ -72,7 +72,7 @@ export default {
     const storedKey = computed(() => $store.getters.getUserBastionSshKey)
     const hasKey = computed(() => !!storedKey.value)
 
-    watch(showSshKeyModal, (open) => {
+    watch([showSshKeyModal, storedKey], ([open]) => {
       if (open) {
         sshKey.value = storedKey.value || ''
       }

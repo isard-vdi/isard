@@ -177,6 +177,54 @@ async def get_desktop_viewer(
 
 
 @open_router.get(
+    "/item/desktop/token/{token}/renew-viewer",
+    tags=[tag],
+    response_model=DesktopViewerResponse,
+    operation_id="renew_desktop_viewer_by_token",
+    summary="Renew the viewer JWT of a direct viewer share token",
+    description=(
+        "Returns the same payload as get-viewer with a freshly minted viewer "
+        "JWT, so a long-lived direct viewer page can keep working past the "
+        "token lifetime without a reload. Unlike get-viewer it never starts a "
+        "stopped desktop and does not log a viewer access."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": DesktopNotBookedErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def renew_desktop_viewer(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for renew request")
+        return await _timed_not_found(start_time)
+    try:
+        desktop = await asyncio.to_thread(
+            DesktopService.get_desktop_direct_viewer_from_token,
+            token,
+            request,
+            start_desktop=False,
+        )
+        return JSONResponse(
+            content=DesktopViewerResponse(**desktop).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer token renewal failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@open_router.get(
     "/item/desktop/get-viewers-docs",
     tags=[tag],
     response_model=ViewersDocsResponse,

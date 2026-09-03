@@ -1388,6 +1388,32 @@ func TestSAMLLoadConfigTogglesInsecureTransport(t *testing.T) {
 	}
 }
 
+func TestSAMLHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		ExpectedErr error
+	}{
+		"should return an error if the configuration has never been loaded": {
+			ExpectedErr: ErrNotConfigured,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			s := InitSAML("", "", nil, log.New("test", "debug"), nil, nil)
+
+			err := s.Healthcheck()
+
+			assert.ErrorIs(err, tc.ExpectedErr)
+		})
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

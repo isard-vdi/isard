@@ -155,6 +155,10 @@ function load_data(){
                     dtUpdateOnly(table['domains'],data);
                 });
 
+                socket.on('desktop_data_progress', function(data){
+                    dtMergeProgress(table['domains'],JSON.parse(data));
+                });
+
                 socket.on('desktop_delete', function(data){
                     var data = JSON.parse(data);
                     table['domains'].row('#'+data.id).remove().draw();
@@ -285,6 +289,10 @@ function load_data(){
                     socket.on('media_update', function(data){
                         var data = JSON.parse(data);
                         dtUpdateOnly(table['media'],data);
+                    });
+
+                    socket.on('media_progress', function(data){
+                        dtMergeProgress(table['media'],JSON.parse(data));
                     });
 
                     socket.on('media_delete', function(data){

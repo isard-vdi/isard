@@ -279,7 +279,7 @@ class ApiAdmin(RethinkSharedConnection):
 
     @classmethod
     def _validate_table(cls, table):
-        """_From api/libv2/validators.py \_validate_table()_"""
+        r"""_From api/libv2/validators.py \_validate_table()_"""
         from isardvdi_common.helpers.error_factory import Error
 
         if table not in cls.system_tables():
@@ -1273,10 +1273,12 @@ class ApiAdmin(RethinkSharedConnection):
                 .get(template_id)
                 .merge(
                     lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
+                        "category_name": r.table("categories")
+                        .get(d["category"])["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["group"])["name"]
+                        .default(None),
                     }
                 )
                 .pluck(
@@ -1354,10 +1356,12 @@ class ApiAdmin(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
+                        "category_name": r.table("categories")
+                        .get(d["category"])["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["group"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)
@@ -1388,10 +1392,12 @@ class ApiAdmin(RethinkSharedConnection):
                 )
                 .merge(
                     lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
+                        "category_name": r.table("categories")
+                        .get(d["category"])["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["group"])["name"]
+                        .default(None),
                     }
                 )
                 .run(cls._rdb_connection)

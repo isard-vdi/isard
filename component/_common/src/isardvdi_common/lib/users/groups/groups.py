@@ -33,7 +33,6 @@ from ....models.group import Group
 
 
 class GroupsProcessed(RethinkSharedConnection):
-
     _rdb_table = "groups"
 
     @classmethod
@@ -325,12 +324,16 @@ class GroupsProcessed(RethinkSharedConnection):
         return group[0]
 
     @classmethod
-    def get_users_in_group(cls, group_id: str) -> list[dict]:
+    def get_users_in_group(
+        cls,
+        group_id: str,
+        roles: list[str] | None = None,
+    ) -> list[dict]:
+        query = r.table("users").get_all(group_id, index="group")
+        if roles:
+            query = query.filter(lambda user: r.expr(roles).contains(user["role"]))
         with cls._rdb_context():
             users = list(
-                r.table("users")
-                .get_all(group_id, index="group")
-                .pluck("id", "name", "username", "photo")
-                .run(cls._rdb_connection)
+                query.pluck("id", "name", "username", "photo").run(cls._rdb_connection)
             )
         return users

@@ -555,7 +555,7 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
         return f"tid-{task}"
 
     r._enqueue = _enq
-    r._pool_queue = lambda path: "q"
+    r._pool_queue = lambda path, action: "q"
     r._move_queue = lambda path: "q"
     r._domains = lambda sid: []
     r._publish_progress = lambda: None

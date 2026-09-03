@@ -57,6 +57,15 @@ else
 fi
 
 GOVERNED_WORKER_CLASS="isardvdi_common.lib.governed_worker.GovernedWorker"
+# The ungoverned lanes used to run the stock RQ Worker. RQ only ever does its
+# SADD rq:workers at startup (register_birth <- bootstrap); heartbeat() re-creates
+# an expired rq:worker:<name> key with a single field and rejoins no set, and the
+# 10-min clean_worker_registry then evicts it for good. A stock Worker blocks up
+# to worker_ttl-15 (405 s) against a key expiring at worker_ttl+60 (480 s), so one
+# Redis blip is enough to fall out of discovery permanently while still consuming
+# jobs -- invisible to every dashboard. This class re-registers from its own
+# heartbeat. (The governed pools get the same cure via the mixin on GovernedWorker.)
+REGISTERED_WORKER_CLASS="isardvdi_common.lib.registered_worker.RegisteredWorker"
 
 # Build a space-separated queue list for a set of tiers, honouring the pool sort
 # order and the cross-pool storage.<src>:<dst>.<tier> move queues.
@@ -120,6 +129,23 @@ case "${_cap_disk}" in
     *) _cap_disk_enabled=1 ;;
 esac
 
+# --- Storage pool space ------------------------------------------------------
+# Where the VDO fill was asked for, isard-storage-vdo-stats measures instead:
+# two writers on one key would leave the answer to whoever wrote last.
+case "$(printf '%s' "${STORAGE_POOL_VDO_STATS:-false}" | tr '[:upper:]' '[:lower:]')" in
+    true|t|1|yes|y|on) _vdo_stats_sidecar=1 ;;
+    *) _vdo_stats_sidecar=0 ;;
+esac
+# A node that runs no storage worker holds no pool: its pool paths resolve to the
+# root disk. Both switches that stop the fleet below must stop this too.
+if [ "${REDIS_WORKERS:-1}" -eq 0 ] || [ "${_cap_disk_enabled}" -eq 0 ]; then
+    echo "storage: REDIS_WORKERS=0 or CAPABILITIES_DISK=false, this node serves no storage and publishes no pool space"
+elif [ "${_vdo_stats_sidecar}" -eq 0 ]; then
+    /utils/storage-pool-physical &
+else
+    echo "storage: pool space published by isard-storage-vdo-stats"
+fi
+
 if [ "${REDIS_WORKERS:-1}" -ne 0 ] && [ "${_cap_disk_enabled}" -eq 1 ]
 then
     # Wait for Redis to be ready before starting workers
@@ -152,8 +178,8 @@ then
     trap shutdown TERM INT
 
     # A pool count of 0 drops that pool (guard: seq semantics vary for 0/reverse).
-    _n=0; while [ "${_n}" -lt "${RESERVED_WORKERS}" ]; do start_worker reserved - $RESERVED_QUEUES; _n=$((_n + 1)); done
-    _n=0; while [ "${_n}" -lt "${STDLANE_WORKERS}" ]; do start_worker stdlane - $STDLANE_QUEUES; _n=$((_n + 1)); done
+    _n=0; while [ "${_n}" -lt "${RESERVED_WORKERS}" ]; do start_worker reserved "${REGISTERED_WORKER_CLASS}" $RESERVED_QUEUES; _n=$((_n + 1)); done
+    _n=0; while [ "${_n}" -lt "${STDLANE_WORKERS}" ]; do start_worker stdlane "${REGISTERED_WORKER_CLASS}" $STDLANE_QUEUES; _n=$((_n + 1)); done
     _n=0; while [ "${_n}" -lt "${TEMPLATE_WORKERS}" ]; do start_worker template "${GOVERNED_WORKER_CLASS}" $TEMPLATE_QUEUES; _n=$((_n + 1)); done
     _n=0; while [ "${_n}" -lt "${ELASTIC_WORKERS}" ]; do start_worker elastic "${GOVERNED_WORKER_CLASS}" $ELASTIC_QUEUES; _n=$((_n + 1)); done
     # bg-floor: FLOOR mode — runs the GovernedWorker but ungoverned (never

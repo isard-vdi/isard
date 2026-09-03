@@ -116,6 +116,15 @@ class StorageDerivativesResponse(BaseModel):
     derivatives: int
 
 
+class Qcow2GeometryResponse(BaseModel):
+    """The installation-wide qcow2 geometry policy resolved by apiv4."""
+
+    cluster_size: str
+    extended_l2: str
+    lazy_refcounts: str
+    preallocation: str
+
+
 class StorageParentItem(BaseModel):
     """Storage parent chain item"""
 

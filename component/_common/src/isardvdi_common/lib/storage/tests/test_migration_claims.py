@@ -247,7 +247,7 @@ def _simple_runner(monkeypatch, *, claim_result):
         return "real-tid"
 
     r._enqueue = _enq
-    r._pool_queue = lambda p: "q"
+    r._pool_queue = lambda p, action: "q"
     r._set = lambda it, **f: it.update(f)
     return r, caps
 

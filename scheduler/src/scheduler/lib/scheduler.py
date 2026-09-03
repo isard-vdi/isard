@@ -39,11 +39,14 @@ db.init_app(app)
 from datetime import datetime, timedelta
 from inspect import getmembers, isfunction
 
-from apscheduler.jobstores.rethinkdb import RethinkDBJobStore
-from apscheduler.schedulers.gevent import GeventScheduler
-
 from .actions import Actions
 from .exceptions import Error
+from .resilient_scheduler import ResilientGeventScheduler
+from .rethink_jobstore import ReconnectingRethinkDBJobStore
+
+# add_jobstore's signature is (jobstore, alias, **opts), so the store must be
+# the first argument and the alias a plain string.
+JOBSTORE_ALIAS = "rethinkdb"
 
 
 class Scheduler:
@@ -51,9 +54,15 @@ class Scheduler:
         """
         JOB SCHEDULER
         """
-        self.rStore = RethinkDBJobStore()
+        self.rStore = ReconnectingRethinkDBJobStore(
+            database="isard",
+            table="scheduler_jobs",
+            host=app.config["RETHINKDB_HOST"],
+            port=app.config["RETHINKDB_PORT"],
+            auth_key="",
+        )
 
-        self.scheduler = GeventScheduler(
+        self.scheduler = ResilientGeventScheduler(
             timezone=pytz.timezone("UTC"),
             job_defaults={
                 "misfire_grace_time": 3600,
@@ -62,15 +71,7 @@ class Scheduler:
             },
         )
         log.info("Attaching to rethinkdb job store")
-        self.scheduler.add_jobstore(
-            "rethinkdb",
-            self.rStore,
-            database="isard",
-            table="scheduler_jobs",
-            host=app.config["RETHINKDB_HOST"],
-            port=app.config["RETHINKDB_PORT"],
-            auth_key="",
-        )
+        self.scheduler.add_jobstore(self.rStore, JOBSTORE_ALIAS)
         # self.scheduler.remove_all_jobs()
         # self.scheduler.add_job(alarm, 'date', run_date=alarm_time, args=[datetime.now()])
         # app.sched.shutdown(wait=False)
@@ -267,7 +268,7 @@ class Scheduler:
                 kind,
                 hour=int(hour),
                 minute=int(minute),
-                jobstore=self.rStore,
+                jobstore=JOBSTORE_ALIAS,
                 replace_existing=True,
                 id=id,
                 kwargs=kwargs,
@@ -278,7 +279,7 @@ class Scheduler:
                 kind,
                 hours=int(hour),
                 minutes=int(minute),
-                jobstore=self.rStore,
+                jobstore=JOBSTORE_ALIAS,
                 replace_existing=True,
                 id=id,
                 kwargs=kwargs,
@@ -291,7 +292,7 @@ class Scheduler:
                 function,
                 kind,
                 run_date=alarm_time,
-                jobstore=self.rStore,
+                jobstore=JOBSTORE_ALIAS,
                 replace_existing=True,
                 id=id,
                 kwargs=kwargs,
@@ -361,7 +362,7 @@ class Scheduler:
             function,
             "date",
             run_date=date,
-            jobstore=self.rStore,
+            jobstore=JOBSTORE_ALIAS,
             replace_existing=True,
             id=id,
             kwargs=kwargs,

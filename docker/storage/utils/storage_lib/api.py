@@ -82,6 +82,29 @@ def _fetch_table(table, *, pluck=None, timeout=120.0):
     return rows
 
 
+def fetch_qcow2_geometry():
+    """Fetch the installation-wide qcow2 geometry policy from apiv4.
+
+    apiv4 is the single central resolver of the QCOW2_* policy; this container
+    no longer carries those env vars. The admin CLI's own qcow2 writers
+    (``create_incremental``, ``compress_file``) need the policy to write disks
+    coherent with their backing chain, so they ask here.
+
+    RAISES on any failure -- a bad connection, a non-2xx status, a malformed
+    body. Falling back to defaults, or writing at qemu-img's built-in geometry,
+    would silently diverge a recovered/compressed disk from its siblings, which
+    is exactly the defect this centralisation removes. A caller must let the
+    exception refuse the operation rather than proceed.
+
+    :return: ``{"cluster_size", "extended_l2", "lazy_refcounts", "preallocation"}``
+    :rtype: dict
+    """
+    with _client() as client:
+        resp = client.get_httpx_client().get("/api/v4/storage/qcow2-geometry")
+        resp.raise_for_status()
+        return resp.json()
+
+
 def fetch_storages(status_filter=None):
     """Fetch all storages from API.
 

@@ -32,7 +32,6 @@ services:
       # can take 24h+, blocking the next nightly borg create.
       - /opt/isard-local/backup/borg-cache:/root/.cache/borg
       - /opt/isard-local/backup/borg-config:/root/.config/borg
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       # Stats
       - /opt/isard/stats:/opt/isard/stats

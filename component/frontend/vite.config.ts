@@ -45,7 +45,9 @@ export default defineConfig({
   },
   plugins: [
     vue(),
-    vueDevTools(),
+    // The devtools client instruments every component; a dev tab left open for
+    // hours grows past 2 GB. Set VUE_DEVTOOLS=false to leave it out.
+    ...(process.env.VUE_DEVTOOLS === 'false' ? [] : [vueDevTools()]),
     tailwindcss(),
     svgLoader({
       defaultImport: 'url'

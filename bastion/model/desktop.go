@@ -23,6 +23,7 @@ func init() {
 type Desktop struct {
 	ID              string                 `rethinkdb:"id"`
 	Kind            string                 `rethinkdb:"kind"`
+	Tag             string                 `rethinkdb:"tag"` // null: "", false: "0"
 	Status          string                 `rethinkdb:"status"`
 	GuestProperties DesktopGuestProperties `rethinkdb:"guest_properties"`
 	Viewer          *DesktopViewer         `rethinkdb:"viewer,omitempty"`

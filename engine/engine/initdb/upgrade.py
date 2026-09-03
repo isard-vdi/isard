@@ -35,6 +35,7 @@ from .log import *
 from .upgrade_helpers import (
     _system_upgrades,
     add_keys,
+    bastion_keys_to_keep,
     check_done,
     del_keys,
     get_card,
@@ -49,7 +50,10 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 205
+release_version = 206
+# release 206: drop the profile keys the bastion used to copy into targets;
+#              they are resolved live now, so a stored copy is an access
+#              that survives losing the permission it came from
 # release 205: seed the per-owner Redis task index from the storage/media row
 #              pointers, so the index answers for rows whose last chain
 #              predates it, and drop the now-unread storage "task" secondary
@@ -8393,6 +8397,27 @@ password:s:%s"""
 
             # Remove the old domain field
             self.del_keys(table, ["domain"])
+
+        if version == 206:
+            # The bastion used to copy profile keys into every target it could
+            # reach and nothing ever took them out; it now resolves them live,
+            # so a stored copy only survives as an access nobody can revoke.
+            profile_keys = {
+                key.strip()
+                for key in r.table("users")
+                .has_fields("bastion_ssh_key")
+                .get_field("bastion_ssh_key")
+                .run(self.conn)
+                if isinstance(key, str) and key.strip()
+            }
+            if profile_keys:
+                for target in r.table(table).run(self.conn):
+                    stored = ((target.get("ssh") or {}).get("authorized_keys")) or []
+                    kept = bastion_keys_to_keep(stored, profile_keys)
+                    if len(kept) != len(stored):
+                        r.table(table).get(target["id"]).update(
+                            {"ssh": {"authorized_keys": kept}}
+                        ).run(self.conn)
 
         return True
 

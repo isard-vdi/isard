@@ -86,6 +86,9 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
     case DesktopActionsEnum.Start:
       emit('desktopStart')
       break
+    case DesktopActionsEnum.Delete:
+      emit('showDeleteModal')
+      break
     case DesktopActionsEnum.AbortOperation:
       emit('desktopAbortOperation')
       break
@@ -103,7 +106,12 @@ const desktopNeedsBooking = computed<boolean>(() => {
 })
 
 const mainButtonData = computed(() => {
-  return desktopActionsData(props.desktop.status, desktopNeedsBooking.value)
+  return desktopActionsData(
+    props.desktop.status,
+    desktopNeedsBooking.value,
+    false,
+    props.desktop.type !== 'nonpersistent'
+  )
 })
 
 const notificationText = computed<string | null>(() => {

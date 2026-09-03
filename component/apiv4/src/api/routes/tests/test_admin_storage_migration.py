@@ -422,6 +422,12 @@ class TestCreate:
                 {"reason": "no_consumer", "pool": "src:dst"},
             ),
         )
+        # and no node DECLARES the pool either, so nothing will ever drain it
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.storage_pools.storage_pools."
+            "StoragePoolsProcessed._pool_coverage_declared",
+            classmethod(lambda cls, pool_id: 0),
+        )
         resp = test_client(
             url="/admin/storage/migrations",
             method="POST",
@@ -441,6 +447,118 @@ class TestCreate:
         )
         # 429, not 400: "nothing drains this lane" is retryable, and the fleet
         # already answers it that way everywhere else
+        assert resp.status_code == 429
+
+    def test_create_waits_instead_of_refusing_when_the_nodes_are_only_asleep(
+        self, monkeypatch, test_client
+    ):
+        """An elastic fleet powers its nodes down. The lane has no LIVE consumer
+        but somebody declares it, so the work drains when a node returns and the
+        runner defers meanwhile: refusing here is refusing a valid migration for
+        a transient condition the admin cannot see."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda selection, **k: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/src/r.qcow2",
+                        dst_path="/isard/dst/r.qcow2",
+                    )
+                ],
+                {"items_total": 1},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue: (
+                "reject",
+                {"reason": "no_consumer", "pool": "src:dst"},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.storage_pools.storage_pools."
+            "StoragePoolsProcessed._pool_coverage_declared",
+            classmethod(lambda cls, pool_id: 2),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "src",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool("src"), _pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code != 429
+
+    def test_create_still_refuses_when_the_declaration_cannot_be_read(
+        self, monkeypatch, test_client
+    ):
+        """Fail closed, like the gate itself: not knowing is not the same as
+        knowing somebody will come back for this work."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda selection, **k: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/src/r.qcow2",
+                        dst_path="/isard/dst/r.qcow2",
+                    )
+                ],
+                {"items_total": 1},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue: (
+                "reject",
+                {"reason": "no_consumer", "pool": "src:dst"},
+            ),
+        )
+
+        def _boom(cls, pool_id):
+            raise RuntimeError("rethinkdb is unreachable")
+
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.storage_pools.storage_pools."
+            "StoragePoolsProcessed._pool_coverage_declared",
+            classmethod(_boom),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "src",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool("src"), _pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
         assert resp.status_code == 429
 
     def test_create_rejects_all_in_place_400(self, monkeypatch, test_client):

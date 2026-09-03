@@ -20,13 +20,18 @@ export interface WsDeletePayload {
 
 // ---------------------------------------------------------------------------
 // Desktops — emitted by DomainsThread via _parse_desktop()
+//
+// `bastion_target` is deliberately absent: it lives in the `targets` table,
+// which the domains changefeed row does not carry, so the emitter omits the
+// key rather than sending null over a shallow cache merge. Bastion state
+// arrives through the `targets_*` events below.
 // ---------------------------------------------------------------------------
 
 export interface WsDesktopProgress {
-  percentage: number | null
-  throughput_average: number | null
-  time_left: number | null
-  size: number | null
+  percentage?: number
+  throughput_average?: string
+  time_left?: string
+  size?: string
 }
 
 export interface WsDesktopScheduled {
@@ -143,7 +148,16 @@ export interface WsMediaProgress {
   speed: number
   speed_download_average: number
   received_percent?: number
+  total_percent?: number
   time_left?: string
+}
+
+/** ``{id, progress}`` on a ``*_progress`` event. The live download tick never
+ *  reaches the row, so it arrives on an event of its own instead of on the
+ *  row's ``_update``; handlers merge it into the row they already hold. */
+export interface WsProgressPayload<T> {
+  id: string
+  progress: T
 }
 
 export interface WsMediaPayload {
@@ -300,6 +314,34 @@ export interface WsSharedDeploymentDesktopPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Bastion targets — emitted by TargetsHandler with the raw `targets` row.
+// The delete frame carries the *target* id, not the desktop id.
+// See component/change-handler/src/isardvdi_change_handler/handlers/targets.py.
+// ---------------------------------------------------------------------------
+
+export interface WsTargetHttp {
+  enabled?: boolean
+  http_port?: number
+  https_port?: number
+  proxy_protocol?: boolean
+}
+
+export interface WsTargetSsh {
+  enabled?: boolean
+  port?: number
+  authorized_keys?: (string | null)[]
+}
+
+export interface WsTargetPayload {
+  id: string
+  desktop_id: string
+  user_id: string
+  http: WsTargetHttp
+  ssh: WsTargetSsh
+  domains?: string[]
+}
+
+// ---------------------------------------------------------------------------
 // Event name → payload type mapping
 // ---------------------------------------------------------------------------
 
@@ -308,10 +350,16 @@ export interface WsEventMap {
   desktop_update: WsDesktopPayload
   desktop_delete: WsDeletePayload
   desktops_queue: WsDesktopsQueuePayload
+  desktop_progress: WsProgressPayload<WsDesktopProgress>
+
+  targets_add: WsTargetPayload
+  targets_update: WsTargetPayload
+  targets_delete: WsDeletePayload
 
   template_add: WsTemplatePayload
   template_update: WsTemplatePayload
   template_delete: WsDeletePayload
+  template_progress: WsProgressPayload<WsTemplateProgress>
 
   deployment_add: WsDeploymentPayload
   deployment_update: WsDeploymentPayload
@@ -325,6 +373,7 @@ export interface WsEventMap {
   media_add: WsMediaPayload
   media_update: WsMediaPayload
   media_delete: WsDeletePayload
+  media_progress: WsProgressPayload<WsMediaProgress>
 
   add_recycle_bin: WsRecycleBinAddPayload
   update_recycle_bin: WsRecycleBinUpdatePayload

@@ -8,7 +8,7 @@ import Modal from '@/components/modal/Modal.vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { FieldError } from '@/components/ui/field'
+import { FieldError, FieldLabel } from '@/components/ui/field'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import {
   getUserBastionSshKeyOptions,
@@ -117,7 +117,7 @@ const handleRemove = async () => {
     @close="handleClose"
   >
     <div class="flex flex-col px-2 gap-6">
-      <p class="text-sm text-gray-warm-700">
+      <p class="text-sm text-gray-warm-700 whitespace-pre-line">
         {{ t('components.profile.ssh-key-modal.description') }}
       </p>
 
@@ -153,6 +153,9 @@ const handleRemove = async () => {
 
         <form.Field v-slot="{ field }" name="sshKey">
           <div class="space-y-2">
+            <FieldLabel class="mb-2">
+              {{ t('components.profile.ssh-key-modal.label') }}
+            </FieldLabel>
             <Textarea
               :id="field.name"
               :name="field.name"

@@ -34,7 +34,9 @@ def _build(**extra):
     ) as Queue:
         Job.create.side_effect = _create
         Queue.return_value.enqueue_job.side_effect = lambda job: job
-        Task(task="convert", queue="storage.pool.default", **extra)
+        # A generic storage task: "move" exercises the meta-stamping path
+        # without the qcow2 geometry a create/convert/disconnect now requires.
+        Task(task="move", queue="storage.pool.default", **extra)
     return created
 
 

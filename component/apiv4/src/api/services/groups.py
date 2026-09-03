@@ -32,5 +32,7 @@ class GroupsService:
         return GroupsProcessed.code_search(code)
 
     @staticmethod
-    def get_users_in_group(group_id: str) -> list[AvailableUser]:
-        return GroupsProcessed.get_users_in_group(group_id)
+    def get_users_in_group(
+        group_id: str, roles: list[str] | None = None
+    ) -> list[AvailableUser]:
+        return GroupsProcessed.get_users_in_group(group_id, roles)

@@ -1,5 +1,6 @@
 export { default as DirectViewerButton } from './DirectViewerButton.vue'
 export { default as DirectViewerHelpRDP } from './DirectViewerHelpRDP.vue'
+export { default as DirectViewerLoadingHint } from './DirectViewerLoadingHint.vue'
 export { default as DirectViewerHelpSpice } from './DirectViewerHelpSpice.vue'
 export { default as DirectViewerResetModal } from './DirectViewerResetModal.vue'
 export { default as DirectViewerSkeleton } from './DirectViewerSkeleton.vue'

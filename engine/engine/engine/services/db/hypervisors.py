@@ -415,6 +415,30 @@ def update_uri_hyp(hyp_id, uri):
     return out
 
 
+def get_hyp_machine_types(hyp_id):
+    """What the chosen hypervisor's emulator accepts as a machine type.
+
+    Written by apiv4 when the hypervisor enables itself and reports what its
+    libvirt says. Read here rather than threaded through the
+    balancer's ``extra_info`` because it is needed on every start, GPU or not.
+
+    Returns the accepted machine list, or ``[]`` when the row carries none --
+    an older hypervisor image that never reported, or one whose probe failed.
+    An empty list means "we do not know" and callers must leave the domain
+    alone; it never means the hypervisor supports nothing.
+    """
+    r_conn = new_rethink_connection()
+    try:
+        out = r.table("hypervisors").get(hyp_id).pluck("machine_types").run(r_conn)
+    except ReqlNonExistenceError:
+        return []
+    except Exception:
+        return []
+    finally:
+        close_rethink_connection(r_conn)
+    return ((out or {}).get("machine_types") or {}).get("machines") or []
+
+
 def get_hyp_info(hyp_id):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")

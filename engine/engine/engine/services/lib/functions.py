@@ -27,7 +27,6 @@ from engine.services.db.domains import (
     start_incomplete_starting_domains,
     stop_incomplete_starting_domains,
     unknown_started_domains,
-    update_domain_progress,
     update_domain_status,
 )
 from engine.services.log import log, logs
@@ -258,87 +257,6 @@ def exec_remote_cmd(
     except socket.timeout as e:
         raise SSHTimeoutError(
             f"SSH command timed out after {timeout}s on {hostname}: {command[:100]}"
-        ) from e
-    finally:
-        client.close()
-
-
-def exec_remote_updating_progress(
-    command,
-    hostname,
-    progress=None,
-    username="root",
-    port=22,
-    sudo=False,
-    id_domain=None,
-    timeout=300,
-):
-    """Execute a command on a remote host while tracking progress updates.
-
-    This function is used for long-running operations that report progress
-    via stdout (e.g., disk operations showing percentage complete).
-
-    Args:
-        command: The command to execute
-        hostname: Remote host to connect to
-        progress: List to track progress percentages (default: creates new list)
-        username: SSH username
-        port: SSH port
-        sudo: Whether to use sudo (not implemented)
-        id_domain: Domain ID to update progress for
-        timeout: Timeout in seconds for connection and command (default 300 for long operations)
-
-    Returns:
-        dict with 'out' and 'err' keys containing final command output
-
-    Raises:
-        SSHTimeoutError: If connection or command times out
-    """
-    if progress is None:
-        progress = []
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        client.connect(
-            hostname,
-            port=port,
-            username=username,
-            timeout=timeout,
-            banner_timeout=timeout,
-        )
-        stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
-
-        # Set channel timeout for read operations
-        channel = stdout.channel
-        channel.settimeout(timeout)
-
-        progress.append(0)
-
-        # Read progress updates line by line
-        log.debug("exec_remote_updating_progress: stdout type={}".format(type(stdout)))
-        while True:
-            out = stdout.readline(64)
-            if out.find("%") >= 0:
-                tmp = out[: str(out).find("%")]
-                percent = tmp[tmp.rfind(" ") + 1 :]
-                if len(percent) > 0:
-                    if percent.isdigit():
-                        percent = int(percent)
-                        if progress[-1] < percent:
-                            progress.append(percent)
-                            if id_domain != None:
-                                update_domain_progress(id_domain, percent)
-            log.debug(out)
-            if out == "":
-                break
-
-        out = stdout.read()
-        err = stderr.read()
-
-        return {"out": out, "err": err}
-    except socket.timeout as e:
-        raise SSHTimeoutError(
-            f"SSH connection timed out after {timeout}s to {hostname}"
         ) from e
     finally:
         client.close()
@@ -960,34 +878,6 @@ def execute_commands(
     }
     s_to_log = pformat(d_log)
     logs.main.debug(s_to_log)
-    return array_out_err
-
-
-def execute_command_with_progress(
-    hostname, ssh_command, id_domain=None, user="root", port=22, timeout=300
-):
-    before = int(time.time())
-    progress = []
-    array_out_err = exec_remote_updating_progress(
-        ssh_command,
-        hostname,
-        progress,
-        username=user,
-        port=port,
-        id_domain=id_domain,
-        timeout=timeout,
-    )
-    after = int(time.time())
-    time_elapsed = after - before
-    d_log = {
-        "time_elapsed": time_elapsed,
-        "host": hostname,
-        "commands": ssh_command,
-        "results": array_out_err,
-    }
-    s_to_log = pformat(d_log)
-    logs.main.debug(s_to_log)
-
     return array_out_err
 
 

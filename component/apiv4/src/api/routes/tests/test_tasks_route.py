@@ -21,7 +21,7 @@
 from types import SimpleNamespace
 
 import pytest
-from api.routes.tests.helpers import MockJWT
+from api.routes.tests.helpers import MockJWT, iter_api_routes
 from api.services.error import Error
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -585,15 +585,17 @@ TASK_ROUTE_RESPONSES = {
 }
 
 
-def _declared_statuses(method: str, path: str) -> set[int]:
+def _find_route(method: str, path: str):
     from api import app
 
-    for route in app.routes:
-        if getattr(route, "path", None) == path and method in getattr(
-            route, "methods", set()
-        ):
-            return set(route.responses or {})
+    for route in iter_api_routes(app):
+        if route.path == path and method in (route.methods or set()):
+            return route
     raise AssertionError(f"no route registered for {method} {path}")
+
+
+def _declared_statuses(method: str, path: str) -> set[int]:
+    return set(_find_route(method, path).responses or {})
 
 
 @pytest.mark.parametrize(
@@ -620,14 +622,7 @@ CANCEL_ROUTE_FACTS = {
 
 
 def _description(method: str, path: str) -> str:
-    from api import app
-
-    for route in app.routes:
-        if getattr(route, "path", None) == path and method in getattr(
-            route, "methods", set()
-        ):
-            return route.description or ""
-    raise AssertionError(f"no route registered for {method} {path}")
+    return _find_route(method, path).description or ""
 
 
 @pytest.mark.parametrize(("method", "path"), sorted(CANCEL_ROUTE_FACTS))
@@ -646,14 +641,7 @@ class TestDeclaredStatusesMatchTheOnesRaised:
 
     @staticmethod
     def _declared(path: str, method: str) -> set:
-        from api import app
-
-        for route in app.routes:
-            if getattr(route, "path", None) == path and method in getattr(
-                route, "methods", set()
-            ):
-                return set(route.responses or {})
-        raise AssertionError(f"route not found: {method} {path}")
+        return _declared_statuses(method, path)
 
     def test_retry_declares_the_precondition_code_it_actually_returns(self):
         declared = self._declared("/api/v4/admin/task/{task_id}/retry", "PUT")

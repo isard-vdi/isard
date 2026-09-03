@@ -90,6 +90,21 @@ prepare.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
 inotifyd haproxy-reload /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
+# Watch the certificates HAProxy serves and hot-update them when they change on disk.
+# inotify never fires for a certificate renewed on the server side of an NFS mount, so
+# the only portable way to notice it is to poll. CERT_WATCH=off disables it.
+if [ "$CERT_WATCH" != "off" ]; then
+        # Supervise cert-watch: it waits for the admin socket itself, and this
+        # loop restarts it if it ever exits.
+        (
+            while true; do
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting certificate watcher..."
+                cert-watch || echo "[$(date '+%Y-%m-%d %H:%M:%S')] cert-watch exited ($?), restarting in 1s..."
+                sleep 1
+            done
+        ) &
+fi
+
 
 # Load the ACME generated thumbprint (may not exist if ACME is not configured)
 if [ -f /etc/acme/account-thumbprint ]; then
@@ -97,6 +112,26 @@ if [ -f /etc/acme/account-thumbprint ]; then
 else
         export ACME_ACCOUNT_THUMBPRINT=""
 fi
+
+# Everything resolved above reaches the haproxy master alone; a `docker exec`
+# gets the container's configured environment and needs these from somewhere.
+write_haproxy_env() {
+        env_file="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
+
+        : > "$env_file"
+        chmod 600 "$env_file"
+
+        for name in DOMAIN HTTP_PORT HTTPS_PORT WEBAPP_HOST RETHINKDB_HOST \
+                    GRAFANA_HOST ACME_SERVER ACME_DOMAIN ACME_EMAIL \
+                    ACME_ACCOUNT_THUMBPRINT; do
+                eval "value=\${$name-}"
+                # Escape embedded quotes so the file is safe to source back.
+                escaped=$(printf '%s' "$value" | sed "s/'/'\\\\''/g")
+                printf "export %s='%s'\n" "$name" "$escaped" >> "$env_file"
+        done
+}
+
+write_haproxy_env
 
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then

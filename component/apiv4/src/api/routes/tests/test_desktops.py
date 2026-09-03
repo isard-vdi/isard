@@ -685,48 +685,39 @@ def test_create_desktop_from_media_accepts_payload_without_reservables(
     assert response.json() == {"id": "desktop-from-media-no-reservables"}
 
 
-def test_get_allowed_reservables_calls_alloweds_with_user_payload(
+def test_get_allowed_reservables_uses_the_creation_hardware_source(
     monkeypatch, test_client
 ):
-    """``GET /items/domains/get-allowed-reservables`` was a hard-coded
-    mock returning a single fake "No GPU" entry under ``open_router``
-    (no auth, no permission filtering). v3
-    ``CommonView.api_v3_domains_allowed_hardware_reservables`` calls
-    ``allowed.get_items_allowed(payload, "reservables_vgpus", ...)`` to
-    filter against the caller's role/category/group. This test pins
-    that v4 now (a) requires auth (``token_router``) and (b) forwards
-    the payload + table name to ``Alloweds.get_items_allowed``.
-    """
+    """The route feeding the GPU picker must list what creation accepts."""
     jwt = MockJWT()
     captured = {}
 
-    def fake_get_items_allowed(payload, table, **kwargs):
+    def fake_hardware_kind_allowed(payload, kind):
         captured["user_id"] = payload["user_id"]
-        captured["table"] = table
-        captured["query_pluck"] = kwargs.get("query_pluck")
-        captured["order"] = kwargs.get("order")
-        captured["query_merge"] = kwargs.get("query_merge")
-        return [
-            {
-                "id": "vgpu-1",
-                "name": "Tesla",
-                "description": "8GB",
-                "editable": True,
-                "allowed": {
-                    "categories": False,
-                    "groups": False,
-                    "roles": False,
-                    "users": False,
-                },
+        captured["kind"] = kind
+        return {
+            "reservables": {
+                "vgpus": [
+                    {
+                        "id": "vgpu-1",
+                        "name": "Tesla",
+                        "description": "8GB",
+                        "editable": True,
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": False,
+                            "users": False,
+                        },
+                    }
+                ]
             }
-        ]
+        }
 
     monkeypatch.setattr(
-        "isardvdi_common.helpers.alloweds.Alloweds.get_items_allowed",
+        "isardvdi_common.helpers.quotas.Quotas.get_hardware_kind_allowed",
         classmethod(
-            lambda cls, payload, table, **kwargs: fake_get_items_allowed(
-                payload, table, **kwargs
-            )
+            lambda cls, payload, kind: fake_hardware_kind_allowed(payload, kind)
         ),
     )
 
@@ -741,21 +732,18 @@ def test_get_allowed_reservables_calls_alloweds_with_user_payload(
     assert body["vgpus"][0]["id"] == "vgpu-1"
     assert captured == {
         "user_id": jwt.payload["user_id"],
-        "table": "reservables_vgpus",
-        "query_pluck": ["id", "name", "description"],
-        "order": "name",
-        "query_merge": False,
+        "kind": "reservables",
     }
 
 
 def test_get_allowed_reservables_requires_auth(test_client):
-    """Without a JWT the route must 403 — proves it's no longer
-    ``open_router``. ``has_token`` rejects missing tokens with 403
-    rather than 401."""
+    """Without a JWT the route must reject — proves it's no longer
+    ``open_router``. Missing credentials are rejected with 401
+    (fastapi >=0.139 returns 401, not 403, for missing auth)."""
     response = test_client(
         url="/items/domains/get-allowed-reservables",
     )
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_update_bastion_authorized_keys_requires_can_use_bastion(
@@ -1091,9 +1079,9 @@ def test_change_desktop_owner(monkeypatch, test_client):
 
 def test_create_nonpersistent_desktop(monkeypatch, test_client):
     """POST /item/desktop/new-nonpersistent — webapp TableList/Card
-    'instant session' flow. Takes JSON ``{template_id}`` and reuses
-    the existing non-persistent desktop (and starts it) if one already
-    exists."""
+    'instant session' flow. Takes JSON ``{template_id}`` and creates a
+    new non-persistent desktop, even if the user already holds others
+    from the same template."""
     from api import app
     from api.dependencies.storage_pools import check_create_storage_pool_availability
 

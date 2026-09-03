@@ -829,6 +829,62 @@ def test_health_says_no_consumer_not_degraded_when_fleet_down(monkeypatch):
     assert health["available"] is False
 
 
+class _AnswersEverythingButBacklog:
+    """Redis as it behaves when the fleet is readable and the lane is not.
+
+    The decision reads the coverage index first and the lane's own backlog
+    second. Failing only the second is what separates "we cannot see this lane"
+    from "redis is down" — the latter takes the health read's outer guard and
+    never reaches the flag under test.
+    """
+
+    def __init__(self):
+        self.sets = {}
+        self.hashes = {}
+        self.strings = {}
+
+    def zremrangebyscore(self, *_a, **_k):
+        return 0
+
+    def zcount(self, *_a, **_k):
+        return 1
+
+    def smembers(self, key):
+        return set(self.sets.get(key, ()))
+
+    def hgetall(self, key):
+        return dict(self.hashes.get(key, {}))
+
+    def get(self, key):
+        return self.strings.get(key)
+
+    def set(self, key, value, **_k):
+        self.strings[key] = value
+        return True
+
+    def llen(self, _key):
+        raise RuntimeError("lane unreadable")
+
+
+def test_a_lane_the_gate_refuses_is_not_reported_healthy(monkeypatch):
+    """The health read must not contradict the admission gate.
+
+    An unreadable lane is refused with a 429, so answering ``available`` for it
+    sends the user to a door that is shut.
+    """
+    monkeypatch.setattr(category_pools, "category_pool_ids", lambda cid: ["p1"])
+    conn = _AnswersEverythingButBacklog()
+
+    decision, ctx = qc.lane_shed_decision(conn, "storage.p1.interactive")
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
+
+    health = qc.category_storage_health(conn, "cat-a")
+    interactive = next(p for p in health["pools"] if p["tier"] == "interactive")
+    assert interactive["degraded"] is True
+    assert health["available"] is False
+
+
 def test_counter_failure_never_swallows_the_429():
     """The counter is observability, not a gate: a redis blip between the shed
     decision and the INCR must still leave the caller with the typed 429."""
@@ -1036,3 +1092,80 @@ class TestPlainWorkerDoesNotBlindItsPool:
         )
         assert covered[(DEF, "interactive")] == 1
         assert opaque == {DEF}
+
+
+# --- the heartbeat's own sighting is throttled, the explicit ones are not -----
+
+
+@pytest.fixture(autouse=True)
+def _reset_lane_fleet_note():
+    """Module state, so a leak between tests would make them lie."""
+    qc._last_lane_fleet_note = 0.0
+    yield
+    qc._last_lane_fleet_note = 0.0
+
+
+def _counting_set(fake):
+    """Record every SET so the test can count writes, not just read the value:
+    every lane in a pass writes the SAME timestamp, so asserting the value
+    cannot tell one write from ten."""
+    seen = []
+    original = fake.set
+
+    def counted(key, value, *args, **kwargs):
+        seen.append(key)
+        return original(key, value, *args, **kwargs)
+
+    fake.set = counted
+    return seen
+
+
+def test_publish_lane_records_the_sighting_the_first_time():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    assert qc.fleet_last_seen(r) == 1000.0
+
+
+def test_a_pass_over_many_lanes_records_the_sighting_once():
+    r = _FakeRedis()
+    writes = _counting_set(r)
+    tiers = ("standard", "high", "low", "bulk", "template")
+    for tier in tiers:
+        qc.publish_lane(r, DEF, tier, "w1", now=1000.0, ttl=60)
+
+    assert writes.count(qc._FLEET_SEEN_KEY) == 1
+    assert qc.fleet_last_seen(r) == 1000.0
+    for tier in tiers:
+        assert r.zscore(qc.cov_key(DEF, tier), "w1") == 1000.0
+
+
+def test_the_sighting_is_refreshed_once_the_interval_has_passed():
+    r = _FakeRedis()
+    writes = _counting_set(r)
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.publish_lane(
+        r, DEF, "standard", "w1", now=1000.0 + qc.FLEET_SEEN_MIN_INTERVAL_S, ttl=60
+    )
+    assert writes.count(qc._FLEET_SEEN_KEY) == 2
+    assert qc.fleet_last_seen(r) == 1000.0 + qc.FLEET_SEEN_MIN_INTERVAL_S
+
+
+def test_the_throttle_is_far_inside_the_window_that_reads_it():
+    """A sighting this coarse can never move the gap decision."""
+    assert qc.FLEET_SEEN_MIN_INTERVAL_S < qc.FLEET_GONE_GRACE_S / 10
+
+
+def test_a_clock_that_jumps_backwards_still_records():
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.publish_lane(r, DEF, "standard", "w1", now=900.0, ttl=60)
+    assert qc.fleet_last_seen(r) == 900.0
+
+
+def test_an_explicit_sighting_is_never_throttled():
+    """lane_shed_decision records a sighting it has just observed; throttling
+    that would date the fleet from the heartbeat instead of from the evidence."""
+    r = _FakeRedis()
+    qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
+    qc.note_fleet_seen(r, 1000.5)
+    assert qc.fleet_last_seen(r) == 1000.5

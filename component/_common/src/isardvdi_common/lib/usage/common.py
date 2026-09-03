@@ -436,7 +436,6 @@ def securize_eval(formula: str, safe_dict: dict):
         ast.operator,
         ast.unaryop,
         ast.cmpop,
-        ast.Num,
         ast.Constant,
     )
     denylist = (ast.Attribute, ast.Subscript, ast.Import, ast.ImportFrom)

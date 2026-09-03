@@ -53,7 +53,9 @@ def _build(**extra):
     ) as Queue:
         Job.create.side_effect = _create
         Queue.return_value.enqueue_job.side_effect = lambda job: job
-        task = Task(task="convert", queue="storage.pool.default", **extra)
+        # A generic storage root: "move" exercises the finalize-knot path
+        # without the qcow2 geometry a create/convert/disconnect now requires.
+        task = Task(task="move", queue="storage.pool.default", **extra)
     return task, created
 
 

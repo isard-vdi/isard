@@ -96,7 +96,20 @@ def ensure_geneve_port(hyper_id, hostname):
     return True
 
 
+def _change_kind(old_val, new_val):
+    if old_val is None and new_val is None:
+        return "unparsed"
+    if new_val is None:
+        return "delete"
+    if old_val is None:
+        return "insert"
+    return "update"
+
+
 def _process_vpn_change(change, wg_users, wg_hypers):
+    # Bound before the try so the handler below can still name the change even
+    # when the failure is the model_dump itself.
+    new_val = old_val = None
     try:
         new_val = change.new_val.model_dump() if change.new_val is not None else None
         old_val = change.old_val.model_dump() if change.old_val is not None else None
@@ -207,17 +220,39 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                     if old_val["table"] in ["users", "remotevpn"]:
                         wg_users.set_iptables(new_val)
 
+                # Permissions are evaluated when a desktop starts and nowhere
+                # else, so without this a withdrawn one kept working until the
+                # desktop stopped.
+                if old_val["table"] == "remotevpn" and old_val.get(
+                    "allowed"
+                ) != new_val.get("allowed"):
+                    log.info(
+                        f"Modified allowed on remotevpn item {new_val['id']}, "
+                        "re-evaluating running desktops..."
+                    )
+                    wg_users.refresh_remotevpn_allowed(new_val)
+
             elif old_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
 
     except Exception:
-        log.error("VPN change processing error: \n" + traceback.format_exc())
+        # Still swallowed so one bad change cannot stop the ones behind it, but
+        # named: otherwise a peer silently fails to come up with nothing to grep.
+        log.error(
+            "VPN change processing error for %s %s (%s):\n%s",
+            (old_val or new_val or {}).get("table", "unknown-table"),
+            (old_val or new_val or {}).get("id", "unknown-id"),
+            _change_kind(old_val, new_val),
+            traceback.format_exc(),
+        )
 
 
 log.info("Starting isard-vpn...")
 
 # Check infrastructure mode - when GENEVE_ONLY_INFRA=true, skip WireGuard for hypers
 geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+
+_failures = 0
 
 while True:
     try:
@@ -290,8 +325,18 @@ while True:
             envelope = subscriber.parse_dict(msg)
             _process_vpn_change(envelope.change, wg_users, wg_hypers)
 
+        _failures = 0
         consumer.run(handle_change)
 
     except Exception as e:
-        log.error("START: internal error: \n" + traceback.format_exc())
-        time.sleep(2)
+        _failures += 1
+        # Back off instead of hammering: a persistent error used to retry 30x/minute
+        # forever, which floods the log and re-runs the whole init on every pass.
+        delay = min(2 * 2 ** min(_failures - 1, 6), 120)
+        log.error(
+            "START: internal error (attempt %s, retrying in %ss): \n%s",
+            _failures,
+            delay,
+            traceback.format_exc(),
+        )
+        time.sleep(delay)

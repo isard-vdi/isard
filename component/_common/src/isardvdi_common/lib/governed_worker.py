@@ -10,8 +10,10 @@ dropped from the dequeue this round — so heavy work lands in low-load troughs 
 never overloads the node. Non-heavy jobs (bulk throughput / interactive /
 standard overflow) are unaffected.
 
-The reserved, standard-lane and bg-floor pools use the stock ``Worker`` (the
-bg-floor is intentionally ungoverned so >=1 heavy task always makes progress).
+The reserved and standard-lane pools run
+:class:`isardvdi_common.lib.registered_worker.RegisteredWorker` (ungoverned; the
+bg-floor runs THIS class in FLOOR mode, ungoverned too, so >=1 heavy task always
+makes progress). All of them share the self-re-registration mixin.
 
 RQ 2.3.2 detail that shapes this code: ``Worker.dequeue_job_and_maintain_ttl``
 owns a ``while True`` loop that reads ``dequeue_any(self._ordered_queues, …)``
@@ -67,6 +69,7 @@ from isardvdi_common.lib.queue_tiers import (
     effective_tier,
     parse_storage_queue,
 )
+from isardvdi_common.lib.registered_worker import SelfRegisteringWorkerMixin
 from rq import Worker
 from rq.exceptions import DequeueTimeout
 from rq.worker import WorkerStatus
@@ -319,7 +322,8 @@ def is_deferrable_queue(name):
     return parsed is not None and effective_tier(parsed[2]) in DEFERRABLE_TIERS
 
 
-class GovernedWorker(Worker):
+# The mixin goes FIRST so its heartbeat() wraps RQ's.
+class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Fallback defaults; the live governor:config DB block overrides per poll.

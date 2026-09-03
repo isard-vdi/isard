@@ -550,10 +550,17 @@ def rebase_file(file_path, new_backing_path):
         return False, "timeout"
 
 
-def create_incremental(file_path, backing_path):
+def create_incremental(file_path, backing_path, options):
     """Create a new empty qcow2 incremental disk with the given backing file.
 
-    qemu-img create -f qcow2 -b <backing> -F qcow2 <file>
+    qemu-img create -f qcow2 -b <backing> -F qcow2 -o <options> <file>
+
+    ``options`` is the qcow2 ``-o`` string for the install geometry. It is
+    REQUIRED and resolved centrally by the caller from the API: this container no
+    longer carries the QCOW2_* env vars, and a recovered incremental disk written
+    at qemu-img's own 64k/off defaults would diverge from every sibling in its
+    backing chain, silently. A caller that could not resolve the policy must not
+    reach here.
 
     Returns (success: bool, error: str or None).
     """
@@ -569,6 +576,8 @@ def create_incremental(file_path, backing_path):
                 str(backing_path),
                 "-F",
                 "qcow2",
+                "-o",
+                options,
                 str(file_path),
             ],
             stdout=subprocess.PIPE,
@@ -649,11 +658,17 @@ def has_backing_file(file_path):
     return bool(info.get("full-backing-filename") or info.get("backing-filename")), None
 
 
-def compress_file(file_path):
+def compress_file(file_path, options):
     """Compress a qcow2 file in-place using qemu-img convert -c.
 
-    Creates a compressed copy, then replaces the original.
-    Checks that the file is not in use by a hypervisor first.
+    Creates a compressed copy, then replaces the original. Checks that the file
+    is not in use by a hypervisor first.
+
+    ``options`` is the qcow2 ``-o`` string for the install geometry (without a
+    preallocation term -- ``convert -c`` rejects any preallocation != off). It is
+    REQUIRED and resolved centrally from the API: this container has no QCOW2_*
+    env vars, and a compressed-in-place disk written at qemu-img's defaults would
+    silently downgrade the geometry of every disk the sweep touches.
 
     Returns (success: bool, saved_bytes: int, error: str or None).
     """
@@ -691,6 +706,8 @@ def compress_file(file_path):
                 "-c",
                 "-O",
                 "qcow2",
+                "-o",
+                options,
                 file_path,
                 tmp_path,
             ],

@@ -1,7 +1,7 @@
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
 RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
 
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS mdevctl-build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS mdevctl-build
 RUN apk add --no-cache cargo git make py3-docutils uuidgen
 # mdevctl v1.2.0
 RUN cd /opt && git clone https://github.com/mdevctl/mdevctl && \
@@ -10,7 +10,36 @@ WORKDIR /opt/mdevctl
 RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
-FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS builder
+# Patched spice-server. Two defects in the packaged 0.16.0 hit every desktop:
+# JPEG compression is silently disabled (spice#97), and the net_test_id==0
+# sentinel collides with musl's first rand(), closing the first SPICE viewer of
+# each qemu process after 60s. See docker/hypervisor/spice-dev/fix-*.patch.
+# Plain alpine, not the python: base the runtime uses: meson needs the pyparsing
+# module that py3-parsing installs into Alpine's python3, and the python: image
+# shadows that interpreter with its own. Same Alpine release, repos and upgrade as
+# the runtime, so the .apk still links against the C libraries the runtime ships.
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS spice-build
+
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories && \
+    echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+RUN apk -U upgrade --no-cache
+RUN apk add --no-cache alpine-sdk sudo
+
+RUN adduser -D builder && addgroup builder abuild && \
+    echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+USER builder
+RUN abuild-keygen -ain
+
+# abuild names the repo after the APKBUILD's grandparent dir, so this lands in
+# /home/builder/packages/builder/x86_64/. Moving the dir moves the output path.
+COPY --chown=builder:builder docker/hypervisor/spice-dev/ /home/builder/spice/
+WORKDIR /home/builder/spice
+# apk update is required: the layers above use --no-cache, so no index is left
+# on disk and abuild's own `apk add` of the makedepends would find nothing.
+RUN sudo apk update && abuild -r
+
+FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs keep resolving after the cross-stage COPY.
@@ -22,14 +51,13 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 
-# Pin runtime to alpine 3.22 — alpine 3.23 ships qemu 10.1.3 which is
-# linked against libspice-server.so.1.15.0 (exports
-# spice_qxl_gl_scanout2). The custom spice-dev override below ships
-# 1.14.3 (no spice_qxl_gl_scanout2) → qemu fails to load the spice
-# module → "domain configuration does not support video model 'qxl'".
-# 3.22's qemu (9.2.x) is built against the older spice that the
-# custom override matches.
-FROM python:3.13-alpine3.22@sha256:e81548ac35b07a3bd4805f275107592ef458b1e893c0e04d45aedaa19416cca5 AS runtime
+# Runtime = python:3.14-alpine (Alpine 3.24) with qemu 11 from @edge, which needs
+# libspice-server's spice_qxl_gl_scanout2@@SPICE_SERVER_0.16; without that symbol
+# qemu cannot load its spice module and every qxl SPICE desktop fails to start
+# (8047b99695, caused by a stale hand-built 1.14.3 override). The spice-build stage
+# overrides the packaged spice with the SAME upstream 0.16.0 plus local patches, so
+# the symbol is preserved. Never override it with a different upstream version.
+FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
@@ -59,6 +87,15 @@ RUN apk add --no-cache \
     qemu-img qemu-modules qemu-system-x86_64 rsync shadow snappy speedtest-cli \
     spice-server swtpm tshark usbredir virglrenderer virtiofsd \
     wayland-libs-client wayland-libs-egl wayland-libs-server wireguard-tools
+
+# See docker/vpn/Dockerfile: the host wg-quick AppArmor profile attaches by path.
+RUN install -D /usr/bin/wg-quick /isard/bin/wg-quick
+
+# Swap in the patched spice-server. The package is named `spice` and declares
+# provides=spice-server, so apk replaces it without disturbing qemu's dependency.
+COPY --from=spice-build /home/builder/packages/builder/x86_64/ /tmp/spice-apks/
+RUN apk add --no-cache --allow-untrusted /tmp/spice-apks/spice-0.16.0-r*.apk && \
+    rm -rf /tmp/spice-apks
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
@@ -112,9 +149,6 @@ COPY --from=builder /.venv /.venv
 COPY docker/hypervisor/src /src
 COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
-
-RUN rm /usr/lib/libspice*
-COPY docker/hypervisor/spice-dev/* /usr/lib/
 
 ENV PATH="/.venv/bin:$PATH"
 ENV G_MESSAGES_DEBUG=all

@@ -147,6 +147,10 @@ class DesktopViewerResponse(BaseModel):
     status: DesktopStatusEnum = Field(
         description="Status of the desktop.",
     )
+    ip: Optional[str] = Field(
+        default=None,
+        description="IP address of the desktop. None until the guest reports it.",
+    )
     type: DesktopTypeEnum = Field(
         description="Type of the desktop.",
     )
@@ -172,6 +176,10 @@ class DesktopViewerResponse(BaseModel):
     next_booking_end: Optional[str] = Field(
         default=None,
         description="End time of the next booking.",
+    )
+    bastion: BastionDirectViewerResponse = Field(
+        default_factory=BastionDirectViewerResponse,
+        description="Read-only bastion access info for the desktop, if enabled.",
     )
 
 

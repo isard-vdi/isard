@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"os"
 	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -9,9 +10,10 @@ import (
 )
 
 type Cfg struct {
-	Log     cfg.Log
-	GRPC    cfg.GRPC
-	HAProxy HAProxy
+	Log       cfg.Log
+	GRPC      cfg.GRPC
+	HAProxy   HAProxy
+	CertWatch CertWatch `mapstructure:"cert_watch"`
 }
 
 type HAProxy struct {
@@ -32,6 +34,9 @@ type HAProxyDomains struct {
 	// CertsPath is the directory where individual PEM certificate files are stored.
 	// Each domain gets its own file (<domain>.pem) that is referenced by the crt-list.
 	CertsPath string `mapstructure:"certs_path"`
+	// BaseDomain is the deployment's own domain, the one the certificate the
+	// crt-list already points at is issued for.
+	BaseDomain string `mapstructure:"base_domain"`
 }
 
 type HAProxyBastion struct {
@@ -39,6 +44,11 @@ type HAProxyBastion struct {
 	SubdomainsMap string `mapstructure:"subdomains_map"`
 	// IndividualDomainsMap is the name of the bastion individual domains virtual map
 	IndividualDomainsMap string `mapstructure:"individual_domains_map"`
+}
+
+type CertWatch struct {
+	// Interval is how often the certificates referenced by the crt-list are checked for changes.
+	Interval time.Duration `mapstructure:"interval"`
 }
 
 func New() Cfg {
@@ -61,10 +71,16 @@ func setDefaults() {
 			// are registered at runtime for SNI-based selection.
 			"crt_list_path": "/certs/crt-list.cfg",
 			"certs_path":    "/certs",
+			// DOMAIN is what the entrypoint and the configuration use for it.
+			"base_domain": os.Getenv("DOMAIN"),
 		},
 		"bastion": map[string]any{
 			"subdomains_map":         "virt@subdomains",
 			"individual_domains_map": "virt@individual",
 		},
+	})
+
+	viper.SetDefault("cert_watch", map[string]any{
+		"interval": "60s",
 	})
 }

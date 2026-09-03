@@ -2186,3 +2186,29 @@ class TestPlainWorkerRowKnowsItsLanes:
         data = queues_service.AdminQueuesService.get_governor()
         stranded = [w for w in data["warnings"] if w["kind"] == "stranded_lane"]
         assert [w["tier"] for w in stranded] == ["reclaim"]
+
+
+class TestRedisConnectionReuse:
+    def test_every_client_shares_one_pool(self, monkeypatch):
+        monkeypatch.setattr(queues_service, "_REDIS_POOL", None)
+
+        first = queues_service._connect_redis()
+        second = queues_service._connect_redis()
+
+        assert first is not second
+        assert first.connection_pool is second.connection_pool
+
+    def test_leaving_a_with_block_does_not_disconnect_the_pool(self, monkeypatch):
+        monkeypatch.setattr(queues_service, "_REDIS_POOL", None)
+        disconnects = []
+        monkeypatch.setattr(
+            queues_service.ConnectionPool,
+            "disconnect",
+            lambda self, *args, **kwargs: disconnects.append(self),
+        )
+
+        pool = queues_service._redis_pool()
+        with queues_service._connect_redis() as conn:
+            assert conn.connection_pool is pool
+        assert conn.auto_close_connection_pool is False
+        assert disconnects == []

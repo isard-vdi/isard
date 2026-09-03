@@ -187,8 +187,10 @@ groups:
         annotations:
           summary: No storage workers available
           description: >-
-            sum(isardvdi_storage_governor_worker_up) == 0 for at least 2m: no
-            storage worker is serving any pool. All storage operations stall.
+            sum(isardvdi_storage_governor_worker_up{kind!=""}) == 0 for at least
+            2m: no storage worker is serving any pool. All storage operations
+            stall. kind!="" excludes the notifier's RQ worker, which shares
+            rq:workers but publishes no kind/pool label.
         notification_settings:
           receiver: storage-governor-telegram
         data:
@@ -200,7 +202,7 @@ groups:
             model:
               refId: A
               editorMode: code
-              expr: sum(isardvdi_storage_governor_worker_up) == bool 0
+              expr: sum(isardvdi_storage_governor_worker_up{kind!=""}) == bool 0
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200

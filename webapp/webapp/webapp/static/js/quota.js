@@ -32,22 +32,20 @@ $(document).ready(function() {
 })
 
 function drawUserQuota(data){
-  if( ! "user" in data ){
+  if( ! ("user" in data) ){
     console.log("Error in quota data")
     return
   }
 
-  if( "limits" in data && data.limits ){
-    if ( "dqp" in data.limits ){
+  if( data.limits ){
+    if ( data.limits.dqp != null ){
       $('.manager-status').show()
       drawCategoryLimits(data.limits)
     }else{
       $('.admin-status').show()
       drawAdminGlobals(data.limits)
     }
-  }
-
-  if( "global" in data ){
+  }else if( data.global ){
     $('.admin-status').show()
     drawAdminGlobals(data.global)
   }

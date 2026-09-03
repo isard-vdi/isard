@@ -33,6 +33,7 @@ def _chain(result):
 @pytest.fixture
 def driven(monkeypatch):
     import isardvdi_common.helpers.recycle_bin as mod
+    from isardvdi_common.lib import queue_coverage
 
     Real = mod.RecycleBin  # keep the real class; the factory below shadows the name
     captured = {}
@@ -56,6 +57,17 @@ def driven(monkeypatch):
     )
     monkeypatch.setattr(mod.r, "table", lambda name: _chain(["ready"]))
     monkeypatch.setattr(mod.r, "args", lambda x: x)
+
+    # A healthy lane, said out loud: the destination is only decided once the work
+    # is placeable, and this test has no opinion about the fixture Redis.
+    monkeypatch.setattr(
+        queue_coverage,
+        "lane_shed_decision",
+        lambda conn, queue, now=None: (
+            "ok",
+            {"reason": None, "has_consumer": True, "pool": "pool-1", "tier": "reclaim"},
+        ),
+    )
 
     # --- the inner RecycleBin(entry["id"]) load -> a controlled bare entry with
     #     one live storage; record the tasks it registers.
@@ -102,6 +114,8 @@ def driven(monkeypatch):
         t.status = "queued"
         return t
 
+    # The lane is asked through ``Task._redis``, so the stand-in needs that attribute.
+    fake_task._redis = MagicMock(name="redis")
     monkeypatch.setattr(mod, "Task", fake_task)
 
     # --- misc side-effect helpers -> no-ops.

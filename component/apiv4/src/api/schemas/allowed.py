@@ -52,15 +52,29 @@ class AvailableUser(BaseModel):
     photo: Optional[str] = Field(default="", description="User photo URL")
 
 
-class AvailableGroup(BaseModel):
+class BaseGroup(BaseModel):
     id: str = Field(description="Group ID")
     name: str = Field(description="Group name")
+    description: Optional[str] = Field(default=None, description="Group description")
+
+
+class AvailableGroup(BaseGroup):
+    pass
+
+
+class IndeterminateGroup(BaseGroup):
+    pass
 
 
 class AllowedResponse(BaseModel):
-    selected: SelectedAllowed
+    selected: SelectedAllowed = Field(
+        description="List of currently selected allowed users and groups"
+    )
     available_groups: bool | list[AvailableGroup] = Field(
         description="List of groups that the user is allowed to access and share items with"
+    )
+    indeterminate_groups: bool | list[IndeterminateGroup] = Field(
+        description="List of groups that have some, but not all, users allowed"
     )
 
 

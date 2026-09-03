@@ -358,6 +358,10 @@ $(document).ready(function() {
             }
         });
     
+        socket.on('media_progress', function(data){
+            dtMergeProgress(mediaOtherTable,JSON.parse(data));
+        });
+
         socket.on('media_delete', function(data){
             var data = JSON.parse(data);
             mediaReady.row('#'+data.id).remove().draw();

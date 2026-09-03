@@ -1,4 +1,4 @@
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS backupninja-src
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS backupninja-src
 RUN apk add --no-cache automake autoconf bash gcc git make
 RUN git clone https://gitlab.com/isard/backupninja.git && \
     cd backupninja && \
@@ -6,7 +6,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS builder
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -19,7 +19,7 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable
 
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS runtime
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS runtime
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     bash borgbackup coreutils curl envsubst flock jq libffi libjpeg-turbo \

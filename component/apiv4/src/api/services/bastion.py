@@ -25,86 +25,9 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.models.targets import Targets
-from isardvdi_common.models.user import User as RethinkUser
 
 
 class BastionService:
-
-    @staticmethod
-    def _get_user_bastion_key(user_id) -> str | None:
-        """Return the profile bastion SSH key of a user, or None.
-
-        Tolerant: missing user / missing field / blank value all yield None
-        so callers never have to special-case them.
-        """
-        if not user_id or not RethinkUser.exists(user_id):
-            return None
-        key = RethinkUser(user_id).bastion_ssh_key
-        if isinstance(key, str) and key.strip():
-            return key.strip()
-        return None
-
-    @staticmethod
-    def normalize_authorized_keys(
-        desktop_id: str,
-        other_keys=None,
-        ensure_user_ids=(),
-        strip_user_ids=(),
-    ) -> list:
-        """Re-assert the owner-first authorized_keys convention on a target.
-
-        Resulting list = ``[owner_profile_key?] + [ensured users' keys] +
-        other_keys`` with every entry unique. ``other_keys`` are the manually
-        managed "other people's" keys; when None the target's current keys are
-        kept as the body. Profile keys of ``strip_user_ids`` are removed from
-        the body (without being re-added unless they are also owner/ensured) —
-        used to drop the editor's own key on save. Writes only when the list
-        actually changes.
-        """
-        target = Targets.get_domain_target(desktop_id)
-        ssh = dict(target.get("ssh") or {})
-        original = list(ssh.get("authorized_keys") or [])
-
-        owner_key = BastionService._get_user_bastion_key(target.get("user_id"))
-
-        ensure_keys = []
-        for uid in ensure_user_ids:
-            key = BastionService._get_user_bastion_key(uid)
-            if key and key not in ensure_keys:
-                ensure_keys.append(key)
-
-        strip_keys = set()
-        for uid in strip_user_ids:
-            key = BastionService._get_user_bastion_key(uid)
-            if key:
-                strip_keys.add(key)
-
-        front = []
-        managed = set()
-        if owner_key:
-            front.append(owner_key)
-            managed.add(owner_key)
-        for key in ensure_keys:
-            if key not in managed:
-                front.append(key)
-                managed.add(key)
-
-        body = original if other_keys is None else other_keys
-        body = [k.strip() for k in body if isinstance(k, str) and k.strip()]
-
-        seen = set(managed) | strip_keys
-        rest = []
-        for key in body:
-            if key not in seen:
-                rest.append(key)
-                seen.add(key)
-
-        new_list = front + rest
-        if new_list != original:
-            ssh["authorized_keys"] = new_list
-            Targets.update_domain_target(desktop_id, {"ssh": ssh})
-        return new_list
-
     @staticmethod
     def apply_bastion_config(desktop_id: str, config: dict) -> None:
         """Apply a bastion config (ssh/http enable + ports) to a desktop's
@@ -146,75 +69,46 @@ class BastionService:
         Targets.update_domain_target(desktop_id, {"ssh": new_ssh, "http": new_http})
 
     @staticmethod
-    def _get_desktop_deployment(desktop_id: str):
-        """Return ``(owner_id, co_owner_ids, bastion_config)`` for the desktop's
-        deployment, or ``(None, [], None)`` when it is not in a deployment.
+    def _get_desktop_deployment_bastion(desktop_id: str):
+        """Return the bastion config of the desktop's deployment, or None when
+        it is not in a deployment (or the deployment has no bastion config).
 
         Deployment membership is the ``domains.tag`` field == deployment id.
         Tolerant: a missing domain/deployment doc (Caches raises ValueError)
-        yields the "no deployment" tuple.
+        yields None.
         """
         try:
             tag = Caches.get_document("domains", desktop_id, ["tag"])
         except ValueError:
-            return None, [], None
+            return None
         if not tag:
-            return None, [], None
+            return None
         try:
             deployment = Caches.get_document("deployments", tag)
         except ValueError:
-            return None, [], None
+            return None
         if not deployment:
-            return None, [], None
-        return (
-            deployment.get("user"),
-            deployment.get("co_owners") or [],
-            deployment.get("bastion"),
-        )
+            return None
+        return deployment.get("bastion")
 
     @staticmethod
-    def ensure_keys_on_start(desktop_id: str, actor_user_id) -> None:
-        """At desktop start: reconcile a deployment desktop's bastion config and
-        inject the relevant profile keys, re-asserting the owner-first convention.
+    def ensure_bastion_config_on_start(desktop_id: str) -> None:
+        """At desktop start: reconcile a deployment desktop's bastion target to
+        its deployment's bastion config.
 
-        - If the desktop belongs to a deployment that has a bastion config, the
-          target is reconciled to it first (this is how recreated/new deployment
-          desktops inherit bastion on their first start).
-        - Injects the desktop owner (index 0, via normalize), the acting user,
-          and — for deployment desktops — the deployment owner + co-owners.
-        - No-op when the (post-reconcile) target has no SSH bastion enabled.
+        This is how recreated/new deployment desktops inherit bastion (and get a
+        target at all) on their first start. No-op for desktops outside a
+        deployment or whose deployment has no bastion config.
 
-        ``actor_user_id`` is whoever performs the start (owner, or an
-        admin/manager/advanced user starting someone else's desktop).
+        No key material is written here: the bastion resolves the desktop
+        owner's and the deployment owner/co-owners' profile keys live at SSH
+        connection time.
         """
-        dep_owner, dep_co_owners, dep_bastion = BastionService._get_desktop_deployment(
-            desktop_id
-        )
+
+        dep_bastion = BastionService._get_desktop_deployment_bastion(desktop_id)
 
         if dep_bastion:
             BastionService.apply_bastion_config(desktop_id, dep_bastion)
-
-        try:
-            target = Targets.get_domain_target(desktop_id)
-        except Error as exc:
-            if getattr(exc, "status_code", None) == 404:
-                return
-            raise
-        if not (target.get("ssh") or {}).get("enabled"):
-            return
-
-        ensure_user_ids = [actor_user_id] if actor_user_id else []
-        if dep_owner and dep_owner not in ensure_user_ids:
-            ensure_user_ids.append(dep_owner)
-        for co_owner in dep_co_owners:
-            if co_owner not in ensure_user_ids:
-                ensure_user_ids.append(co_owner)
-
-        BastionService.normalize_authorized_keys(
-            desktop_id,
-            other_keys=None,
-            ensure_user_ids=ensure_user_ids,
-        )
 
     @staticmethod
     def get_desktop_bastion_active(desktop_id: str) -> dict:
@@ -417,22 +311,36 @@ class BastionService:
         }
 
     @staticmethod
-    def update_bastion_authorized_keys(
-        desktop_id: str, authorized_keys: list, editor_user_id=None
-    ) -> dict:
+    def update_bastion_authorized_keys(desktop_id: str, authorized_keys: list) -> dict:
         """Replace the "other people's" SSH keys for a desktop's bastion target.
 
-        The desktop owner's profile key is managed automatically: it is stripped
-        from the incoming list and re-prepended at index 0. The editor's own
-        profile key is likewise stripped (it is managed through their profile,
-        not this box). The frontend therefore only submits other people's keys;
-        an empty list simply means "no other keys".
+        The list is stored verbatim (blank entries dropped, duplicates removed,
+        order kept); an empty list simply means "no other keys". Nobody's
+        profile key belongs here — the bastion resolves the desktop owner's and
+        the deployment owner/co-owners' keys live at connection time.
+
+        Raises 404 when the desktop has no bastion target; unlike
+        ``Targets.update_domain_target`` this never creates one. Writes only
+        when the list actually changes.
         """
-        BastionService.normalize_authorized_keys(
-            desktop_id,
-            other_keys=authorized_keys or [],
-            strip_user_ids=[editor_user_id] if editor_user_id else [],
-        )
+        target = Targets.get_domain_target(desktop_id)
+        # Merge into the stored ssh subdocument: update_domain_target *replaces*
+        # target["ssh"] wholesale, so sending only authorized_keys would drop
+        # enabled/port and silently turn SSH off.
+        ssh = dict(target.get("ssh") or {})
+        original = list(ssh.get("authorized_keys") or [])
+
+        keys = []
+        for key in authorized_keys or []:
+            if not isinstance(key, str) or not key.strip():
+                continue
+            key = key.strip()
+            if key not in keys:
+                keys.append(key)
+
+        if keys != original:
+            ssh["authorized_keys"] = keys
+            Targets.update_domain_target(desktop_id, {"ssh": ssh})
         return {}
 
     @staticmethod

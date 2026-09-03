@@ -282,18 +282,6 @@ def unknown_started_domains(
     return results
 
 
-def update_domain_progress(id_domain, percent):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = (
-        rtable.get(id_domain)
-        .update({"progress": {"percent": percent, "when": int(time.time())}})
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return results
-
-
 def update_domain_parents(id_domain):
     with rethink_conn() as conn:
         d = (

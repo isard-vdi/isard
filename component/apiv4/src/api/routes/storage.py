@@ -29,6 +29,7 @@ from api.schemas.common import (
     SimpleResponse,
 )
 from api.schemas.storage import (
+    Qcow2GeometryResponse,
     StorageBatchIdsRequest,
     StorageConvertRequest,
     StorageConvertResponse,
@@ -298,6 +299,46 @@ async def get_user_ready_storages(request: Request):
             request,
             "internal_server",
             "Failed to retrieve ready storages",
+            traceback.format_exc(),
+        )
+
+
+@manager_router.get(
+    "/storage/qcow2-geometry",
+    tags=[tag],
+    response_model=Qcow2GeometryResponse,
+    summary="Get the installation qcow2 geometry policy",
+    description=(
+        "Returns the installation-wide qcow2 geometry policy (cluster_size, "
+        "extended_l2, lazy_refcounts, preallocation) that apiv4 resolves from its "
+        "environment and carries in every disk task payload. Read-only. Used by "
+        "the storage admin CLI, whose container no longer holds the QCOW2_* vars, "
+        "so its own qcow2 writers (recover --fix, --compress) can write disks "
+        "coherent with the install policy instead of qemu-img defaults."
+    ),
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_qcow2_geometry(request: Request):
+    from isardvdi_common.helpers import qcow2_geometry
+
+    try:
+        return Qcow2GeometryResponse(**qcow2_geometry.policy())
+    except qcow2_geometry.Qcow2PolicyError as exc:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"qcow2 geometry policy is invalid: {exc}",
+            traceback.format_exc(),
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to resolve the qcow2 geometry policy",
             traceback.format_exc(),
         )
 

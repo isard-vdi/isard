@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
-	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
 	"github.com/google/go-cmp/cmp"
@@ -146,14 +145,35 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
 			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
 
+			// notifyIfNeeded compares against the configuration the provider
+			// already has applied, so the previous read only stands in for it
+			// when the provider was enabled back then. Otherwise, on a
+			// disabled -> enabled change, it would compare against the last
+			// applied configuration instead of the empty one the provider was
+			// reinitialized with, and nothing would be sent.
 			if newCfg.LDAP.Enabled {
-				notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
+				var ldapCfg model.LDAPConfig
+				if cfg.LDAP.Enabled {
+					ldapCfg = cfg.LDAP.LDAPConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.ldapChanges, ldapCfg, newCfg.LDAP.LDAPConfig)
 			}
 			if newCfg.SAML.Enabled {
-				notifyIfNeeded(c.globalChanges.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
+				var samlCfg model.SAMLConfig
+				if cfg.SAML.Enabled {
+					samlCfg = cfg.SAML.SAMLConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.samlChanges, samlCfg, newCfg.SAML.SAMLConfig)
 			}
 			if newCfg.Google.Enabled {
-				notifyIfNeeded(c.globalChanges.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
+				var googleCfg model.GoogleConfig
+				if cfg.Google.Enabled {
+					googleCfg = cfg.Google.GoogleConfig
+				}
+
+				notifyIfNeeded(c.globalChanges.googleChanges, googleCfg, newCfg.Google.GoogleConfig)
 			}
 
 			cfg = newCfg
@@ -559,61 +579,4 @@ func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChang
 		Host:           newHost,
 		Authentication: auth,
 	}
-}
-
-func addLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.LDAPConfig, p provider.ConfigurableProvider[model.LDAPConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading LDAP configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new LDAP configuration")
-				} else {
-					log.Info().Msg("successfully reloaded LDAP configuration")
-				}
-			}
-		}
-	})
-}
-
-func addSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.SAMLConfig, p provider.ConfigurableProvider[model.SAMLConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading SAML configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new SAML configuration")
-				} else {
-					log.Info().Msg("successfully reloaded SAML configuration")
-				}
-			}
-		}
-	})
-}
-
-func addGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.GoogleConfig, p provider.ConfigurableProvider[model.GoogleConfig]) {
-	wg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case cfg := <-changesChan:
-				log.Debug().Msg("reloading Google configuration")
-				if err := p.LoadConfig(ctx, cfg); err != nil {
-					log.Error().Err(err).Msg("load new Google configuration")
-				} else {
-					log.Info().Msg("successfully reloaded Google configuration")
-				}
-			}
-		}
-	})
 }

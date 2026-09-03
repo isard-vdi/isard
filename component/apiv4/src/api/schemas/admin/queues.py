@@ -294,6 +294,35 @@ class GovernorCounters(BaseModel):
     last_worker: Optional[str] = None
 
 
+class StreamGroupGauge(BaseModel):
+    """One consumer group of one redis stream.
+
+    ``lag`` is the entries the group has never read; ``pending`` the ones it
+    read and has not ACKed. A backlog here is invisible to every queue gauge:
+    the job that produced the entry has already left its rq queue, so a chain
+    waiting to be finalized shows up nowhere else."""
+
+    stream: str
+    group: str
+    lag: int = 0
+    pending: int = 0
+    consumers: int = 0
+
+
+class StreamsGauge(BaseModel):
+    """The task streams' own health.
+
+    Not derivable from the queue gauges, and the failure it exposes — the
+    workers keeping up while nothing settles — is otherwise indistinguishable
+    from the change-handler being dead."""
+
+    up: bool = False
+    results_length: int = 0
+    progress_length: int = 0
+    dead_length: int = 0
+    groups: List[StreamGroupGauge] = []
+
+
 class GovernorGaugesResponse(BaseModel):
     """Composite storage-governor gauge document — the ``GET
     /admin/items/queues/governor`` payload AND the stats-go scrape source
@@ -310,6 +339,7 @@ class GovernorGaugesResponse(BaseModel):
     config_mirrored: bool = True
     psi_limit: float = 40.0
     redis: RedisHealth = RedisHealth()
+    streams: StreamsGauge = StreamsGauge()
     heavy: HeavyGauge = HeavyGauge()
     # shed 429s and worker defer edges — decisions that leave no other trace.
     shed: GovernorCounters = GovernorCounters()

@@ -220,7 +220,7 @@ class UserAllowedTemplateFlatItem(BaseModel):
     group: Optional[str] = None
     group_name: Optional[str] = None
     icon: Optional[str] = None
-    image: Optional[Any] = None
+    image: Optional[DomainImage] = None
     user: Optional[Any] = None
     user_name: Optional[str] = None
     description: Optional[str] = None
@@ -409,8 +409,8 @@ class TemplateDetailsResponse(BaseModel):
     boot_order: list[TemplateNamedResource] = Field(
         description="List of IDs and names with the boot order that will be followed when booting the template. Each ID will be a valid boot id.",
     )
-    disk_bus: str = Field(
-        description="Type of disk bus used by the desktop, e.g., 'virtio', 'scsi'.",
+    disk_bus: TemplateNamedResource = Field(
+        description="ID and name of the disk bus used by the template, e.g., 'virtio', 'scsi'.",
     )
     interfaces: list[TemplateNamedResource] = Field(
         description="List of IDs and names with the network interfaces that will be attached to the template. Each ID will be a valid network interface id.",
@@ -438,4 +438,12 @@ class TemplateDetailsResponse(BaseModel):
     )
     credentials: DomainGuestProperties._GuestPropertiesCredentials = Field(
         description="Credentials that will be set in the guest OS of the template.",
+    )
+
+
+# TODO(old-frontend-removal): goes with /item/template/{id}/get-nonpersistent-desktop.
+class TemplateNonpersistentDesktopResponse(BaseModel):
+    desktop_id: Optional[str] = Field(
+        default=None,
+        description="ID of the non-persistent desktop the user already has from this template and that would be reused instead of creating a new one. None when a new one would be created.",
     )

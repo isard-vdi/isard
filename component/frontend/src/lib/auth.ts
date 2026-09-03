@@ -6,6 +6,12 @@ import { type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 
 export type Role = 'admin' | 'manager' | 'advanced' | 'user'
 
+/** Roles the API lets through on its `@is_not_user` endpoints. */
+export const NOT_USER_ROLES: readonly Role[] = ['admin', 'manager', 'advanced']
+
+export const isNotUser = (role: string | undefined): boolean =>
+  NOT_USER_ROLES.includes(role as Role)
+
 /** The login providers the `/login/:provider?/:category?` route understands. */
 export enum Provider {
   Form = 'form',

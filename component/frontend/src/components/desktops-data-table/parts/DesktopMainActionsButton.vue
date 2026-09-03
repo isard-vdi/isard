@@ -27,6 +27,8 @@ const emit = defineEmits<{
   desktopUpdateStatus: []
   desktopAbortOperation: []
   desktopFetchBooking: []
+  // --- Modals ---
+  showDeleteModal: []
 }>()
 
 const desktopNeedsBooking = computed<boolean>(() => {
@@ -34,7 +36,12 @@ const desktopNeedsBooking = computed<boolean>(() => {
 })
 
 const mainButtonData = computed(() => {
-  return desktopActionsData(props.desktop.status, desktopNeedsBooking.value)
+  return desktopActionsData(
+    props.desktop.status,
+    desktopNeedsBooking.value,
+    false,
+    props.desktop.type !== 'nonpersistent'
+  )
 })
 
 const handleDesktopAction = (action: DesktopActionsEnum) => {
@@ -46,6 +53,9 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
       break
     case DesktopActionsEnum.Start:
       emit('desktopStart')
+      break
+    case DesktopActionsEnum.Delete:
+      emit('showDeleteModal')
       break
     case DesktopActionsEnum.AbortOperation:
       emit('desktopAbortOperation')

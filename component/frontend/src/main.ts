@@ -41,7 +41,8 @@ const vueQueryPluginOptions: VueQueryPluginOptions = {
       }
     }
   },
-  enableDevtoolsV6Plugin: true
+  // Dev only: the plugin tracks every query and mutation for the devtools panel.
+  enableDevtoolsV6Plugin: import.meta.env.DEV
 }
 
 const app = createApp(App)

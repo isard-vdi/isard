@@ -92,10 +92,13 @@ tag = "desktops"
     response_model=SimpleResponse,
     summary="Create (or reuse) a non-persistent desktop",
     description=(
-        "Creates a non-persistent desktop from a template. If the user "
-        "already has a non-persistent desktop derived from the same "
-        "template it is reused (and started if stopped). ``@has_token`` — "
-        "quota and allowlist checks are enforced server-side."
+        "Creates and starts a non-persistent desktop from a template. Where "
+        "the old frontend is still reachable an existing non-persistent "
+        "desktop derived from the same template is reused (and started if "
+        "stopped); only installations exposing the new frontend alone "
+        "(``FRONTEND_MODE=actual``) may hold several, bounded by the "
+        "``volatile`` quota. ``@has_token`` — quota and allowlist checks are "
+        "enforced server-side."
     ),
     responses={
         400: {"model": ErrorResponse},
@@ -351,7 +354,6 @@ async def update_desktop_bastion_authorized_keys(
             DesktopService.update_desktop_bastion_authorized_keys,
             desktop_id,
             data,
-            request.token_payload["user_id"],
         )
         return JSONResponse(
             content=SimpleResponse(id=desktop_id).model_dump(mode="json"),

@@ -1,46 +1,57 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { getStorageOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { DesktopStatusEnum, type UserDesktop } from '@/gen/oas/apiv4'
+import {
+  getStorageOptions,
+  getStorageQueryKey,
+  getStorageTaskQueryKey,
+  increaseStorageSizeMutation
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  DesktopStatusEnum,
+  type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop
+} from '@/gen/oas/apiv4'
 
+import { describeApiError } from '@/lib/api-errors'
+import { isNotUser } from '@/lib/auth'
+import { desktopStatusLabel } from '@/lib/desktops'
 import { useAuthStore } from '@/stores/auth'
 
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Badge from '@/components/badge/Badge.vue'
-import { TruncatedText } from '@/components/truncated-text'
-
-import CancelStorageOperationModal from './CancelStorageOperationModal.vue'
-import IncreaseStorageSizeModal from './IncreaseStorageSizeModal.vue'
+import { CopyIcon, Icon } from '@/components/icon'
+import InputField from '@/components/input-field/InputField.vue'
 
 interface Props {
   desktop: UserDesktop
   storageId: string
+  showId?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showId: false
+})
 
 const emit = defineEmits<{
   error: [message: string]
+  success: []
 }>()
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 const authStore = useAuthStore()
+const queryClient = useQueryClient()
 
 // Storage GET response is typed `unknown` by the codegen because the
-// apiv4 service returns the raw row dict. Narrow it to the fields the
-// modal actually reads — keep this minimal so a backend addition
-// doesn't force a frontend type churn.
+// apiv4 service returns the raw row dict.
 interface StorageDetail {
   id: string
   status?: string
   user_id?: string
-  task?: string | null
-  parent?: string | null
   type?: string
   ['qemu-img-info']?: {
     'virtual-size'?: number
@@ -59,30 +70,107 @@ const storage = computed<StorageDetail | undefined>(() =>
 )
 
 const userRole = computed(() => authStore.user?.role_id ?? 'user')
-const userId = computed(() => authStore.user?.id ?? '')
 
 const desktopIsStopped = computed(() => props.desktop.status === DesktopStatusEnum.STOPPED)
 
-// Show Increase iff the user is `advanced`/`manager`/`admin` (matches v3
-// `@is_not_user`) and the desktop is stopped. Disable visually when the
-// underlying storage row is not in `ready` state.
-const canSeeIncrease = computed(() => userRole.value !== 'user')
+// Same rule the storage option declares in the advanced options registry.
+const canSeeIncrease = computed(() => isNotUser(userRole.value))
 const increaseDisabled = computed(
   () => !desktopIsStopped.value || storage.value?.status !== 'ready'
 )
 
-// Show Cancel iff the storage is busy with a task. Server enforces
-// ownership (owner/admin always, manager when in same category) — we
-// hide for plain users on someone else's task to avoid a guaranteed 403.
-const canSeeCancel = computed(() => {
-  if (!storage.value?.has_pending_task) return false
-  if (userRole.value === 'admin' || userRole.value === 'manager') return true
-  return storage.value.user_id === userId.value
+const increaseDisabledReason = computed(() => {
+  if (!increaseDisabled.value) return ''
+  return !desktopIsStopped.value
+    ? t('components.desktops.desktop-storage-modal.actions.increase-needs-stopped')
+    : t('components.desktops.desktop-storage-modal.actions.increase-needs-ready')
 })
-const cancelDisabled = computed(() => !storage.value?.has_pending_task)
 
-const showCancelModal = ref(false)
-const showIncreaseModal = ref(false)
+const incrementFieldId = computed(() => `storage-increment-${props.storageId}`)
+const increment = ref<number>(10)
+
+const virtualSize = computed(() => storage.value?.['qemu-img-info']?.['virtual-size'])
+const virtualSizeGb = computed(() => (virtualSize.value ?? 0) / 1024 ** 3)
+
+const MAX_VIRTUAL_SIZE_GB = 2048
+
+// Without `qemu-img-info` the current size is unknown, so the ceiling
+// applies to the increment on its own.
+const availableGb = computed(() =>
+  Math.max(0, Math.floor(MAX_VIRTUAL_SIZE_GB - virtualSizeGb.value))
+)
+
+const badInput = ref(false)
+const onIncrementInput = (event: Event) => {
+  badInput.value = (event.target as HTMLInputElement).validity?.badInput ?? false
+}
+
+const incrementError = computed(() => {
+  const key = (name: string) => `components.desktops.desktop-storage-modal.increase.errors.${name}`
+  if (badInput.value) return t(key('not-a-number'))
+  if (!Number.isFinite(increment.value)) return t(key('required'))
+  if (!Number.isInteger(increment.value)) return t(key('not-an-integer'))
+  if (increment.value <= 0) return t(key('too-small'))
+  if (increment.value > availableGb.value) {
+    return t(key('too-large'), { max: MAX_VIRTUAL_SIZE_GB, available: availableGb.value })
+  }
+  return ''
+})
+
+// The endpoint takes the increment in GB and qemu resizes in GiB.
+const increasedVirtualSize = computed(() => {
+  if (!virtualSize.value || incrementError.value) return undefined
+  return virtualSize.value + increment.value * 1024 ** 3
+})
+
+const { mutate: increaseSize, isPending: increaseIsPending } = useMutation({
+  ...increaseStorageSizeMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: getStorageQueryKey({
+        path: { storage_id: props.storageId }
+      })
+    })
+    queryClient.invalidateQueries({
+      queryKey: getStorageTaskQueryKey({
+        path: { storage_id: props.storageId }
+      })
+    })
+    emit('success')
+  },
+  onError: (error) => {
+    emit('error', describeApiError(error, i18n, 'increase-storage'))
+  }
+})
+
+const submitIncrease = () => {
+  if (incrementError.value || increaseDisabled.value || increaseIsPending.value) return
+  increaseSize({
+    path: {
+      storage_id: props.storageId,
+      // The apiv4 endpoint forces priority="low" for non-admins and
+      // accepts "low"/"default"/"high" for admins. v1 always submits
+      // "low" to match v3's @is_not_user behaviour.
+      priority: 'low',
+      increment: increment.value
+    }
+  })
+}
+
+const desktopStatusText = computed(() => desktopStatusLabel(props.desktop.status, i18n))
+
+const desktopStatusColor = computed<'green' | 'red' | 'gray' | 'lightyellow'>(() => {
+  switch (props.desktop.status) {
+    case DesktopStatusEnum.STARTED:
+      return 'green'
+    case DesktopStatusEnum.FAILED:
+      return 'red'
+    case DesktopStatusEnum.STOPPED:
+      return 'gray'
+    default:
+      return 'lightyellow'
+  }
+})
 
 const statusBadgeColor = computed<'green' | 'red' | 'gray' | 'lightyellow'>(() => {
   switch (storage.value?.status) {
@@ -100,10 +188,6 @@ const statusBadgeColor = computed<'green' | 'red' | 'gray' | 'lightyellow'>(() =
   }
 })
 
-// Keep this Set in sync with the keys under
-// `components.desktops.desktop-storage-modal.status` in the locale
-// files. Anything outside this list renders the raw value verbatim
-// rather than the literal `status.<value>` key path.
 const knownStatuses = new Set([
   'ready',
   'maintenance',
@@ -137,99 +221,171 @@ const formatBytes = (n?: number): string => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col gap-3 rounded-md border border-gray-warm-200 bg-base-white p-4"
-    :data-testid="`desktop-storage-item-${props.storageId}`"
-  >
+  <section class="flex flex-col gap-5" :data-testid="`desktop-storage-item-${props.storageId}`">
     <div v-if="storageIsPending" class="flex flex-col gap-2">
       <Skeleton class="h-5 w-40" />
       <Skeleton class="h-4 w-32" />
     </div>
     <template v-else-if="storage">
-      <div class="flex items-start justify-between gap-3">
-        <div class="flex flex-col gap-1 min-w-0">
-          <TruncatedText :title="storage.id" class="text-xs text-gray-warm-500 font-mono" />
-          <div class="flex items-center gap-2">
-            <Badge :color="statusBadgeColor">{{ statusLabel }}</Badge>
-            <span v-if="storage.type" class="text-xs text-gray-warm-600 uppercase">{{
-              storage.type
-            }}</span>
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-4 my-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-wide text-gray-warm-500">
+              {{ t('components.desktops.desktop-storage-modal.desktop-status') }}
+            </span>
+            <Badge
+              :color="desktopStatusColor"
+              :content="desktopStatusText"
+              shape="square"
+              size="sm"
+            />
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-wide text-gray-warm-500">
+              {{ t('components.desktops.desktop-storage-modal.disk-status') }}
+            </span>
+            <Badge :color="statusBadgeColor" :content="statusLabel" shape="square" size="sm" />
+          </div>
+
+          <div v-if="props.showId" class="flex min-w-0 items-center gap-1.5">
+            <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+              {{ t('components.desktops.desktop-storage-modal.disk-id') }}
+            </span>
+            <div
+              class="flex min-w-0 items-center gap-2.5 rounded-lg border border-gray-warm-200 bg-gray-warm-25 px-2 py-1 shadow-xs"
+            >
+              <span class="truncate font-mono text-xs text-gray-warm-700">{{ storage.id }}</span>
+              <CopyIcon :value="storage.id" size="md" stroke-color="gray-warm-600" />
+            </div>
           </div>
         </div>
-        <div class="flex flex-col items-end shrink-0 text-xs text-gray-warm-600">
-          <span class="font-semibold">{{
-            t('components.desktops.desktop-storage-modal.virtual-size')
-          }}</span>
-          <span>{{ formatBytes(storage['qemu-img-info']?.['virtual-size']) }}</span>
-          <span class="font-semibold mt-1">{{
-            t('components.desktops.desktop-storage-modal.actual-size')
-          }}</span>
-          <span>{{ formatBytes(storage['qemu-img-info']?.['actual-size']) }}</span>
+
+        <div class="border border-gray-warm-200 rounded-lg py-2 px-4">
+          <dl class="grid grid-cols-3">
+            <div class="pr-5">
+              <dt class="text-xs font-semibold text-gray-warm-600">
+                {{ t('components.desktops.desktop-storage-modal.format') }}
+              </dt>
+              <dd class="text-md font-bold uppercase text-brand-700">
+                {{ storage.type ?? '—' }}
+              </dd>
+            </div>
+
+            <div class="border-l border-gray-warm-200 px-5 text-center">
+              <dt class="text-xs font-semibold text-gray-warm-600">
+                {{ t('components.desktops.desktop-storage-modal.virtual-size') }}
+              </dt>
+              <dd class="text-md font-bold text-brand-700">
+                {{ formatBytes(storage['qemu-img-info']?.['virtual-size']) }}
+              </dd>
+            </div>
+
+            <div class="border-l border-gray-warm-200 pl-5 text-right">
+              <dt class="text-xs font-semibold text-gray-warm-600">
+                {{ t('components.desktops.desktop-storage-modal.actual-size') }}
+              </dt>
+              <dd class="text-md font-bold text-brand-700">
+                {{ formatBytes(storage['qemu-img-info']?.['actual-size']) }}
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-warm-100">
-        <Tooltip v-if="canSeeCancel">
-          <TooltipTrigger as-child>
-            <Button
-              hierarchy="destructive"
-              size="sm"
-              icon="stop"
-              :disabled="cancelDisabled"
-              @click="showCancelModal = true"
+      <form
+        v-if="canSeeIncrease"
+        class="flex flex-col gap-4 bg-gray-warm-100 p-3 rounded-md border border-gray-warm-200 shadow-xs"
+        @submit.prevent="submitIncrease"
+      >
+        <div class="flex gap-2 flex-col">
+          <div class="flex items-center gap-1.5">
+            <label class="text-sm font-semibold text-gray-warm-700" :for="incrementFieldId">
+              {{ t('components.desktops.desktop-storage-modal.increase.field-label') }}
+            </label>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span
+                  class="inline-flex cursor-help text-gray-warm-500"
+                  :aria-label="t('components.desktops.desktop-storage-modal.increase.help-title')"
+                >
+                  <Icon name="info-circle" size="sm" stroke-color="currentColor" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                :title="t('components.desktops.desktop-storage-modal.increase.help-title')"
+                :subtitle="t('components.desktops.desktop-storage-modal.increase.help-subtitle')"
+              />
+            </Tooltip>
+          </div>
+          <div class="flex items-center gap-3">
+            <InputField
+              :id="incrementFieldId"
+              v-model="increment"
+              type="number"
+              class="w-32 shrink-0"
+              :min="1"
+              :max="availableGb"
+              :step="1"
+              :destructive="!!incrementError"
+              :disabled="increaseIsPending"
+              :aria-describedby="incrementError ? `${incrementFieldId}-error` : undefined"
+              @input="onIncrementInput"
+            />
+            <p
+              v-if="increasedVirtualSize"
+              class="flex min-w-0 items-center gap-3.5 text-sm text-gray-warm-600"
+              :aria-label="
+                t('components.desktops.desktop-storage-modal.increase.preview', {
+                  size: formatBytes(increasedVirtualSize)
+                })
+              "
             >
-              {{ t('components.desktops.desktop-storage-modal.actions.cancel') }}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            :title="t('components.desktops.desktop-storage-modal.actions.cancel-tooltip')"
-          />
-        </Tooltip>
+              <span aria-hidden="true">{{ formatBytes(virtualSize) }}</span>
+              <Icon
+                name="arrow-narrow-right"
+                size="sm"
+                stroke-color="currentColor"
+                aria-hidden="true"
+              />
+              <span class="font-semibold text-gray-warm-900" aria-hidden="true">
+                {{ formatBytes(increasedVirtualSize) }}
+              </span>
+            </p>
+          </div>
+          <p v-if="incrementError" :id="`${incrementFieldId}-error`" class="text-xs text-error-700">
+            {{ incrementError }}
+          </p>
+        </div>
+        <div class="flex items-center w-full">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- Wrapper: a disabled button emits no pointer events -->
+              <span class="inline-flex w-full">
+                <Button
+                  hierarchy="secondary-color"
+                  type="button"
+                  class="w-full"
+                  size="sm"
+                  icon="plus"
+                  :disabled="increaseDisabled || increaseIsPending || !!incrementError"
+                  @click="submitIncrease"
+                >
+                  {{ t('components.desktops.desktop-storage-modal.actions.increase') }}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent v-if="increaseDisabledReason" :title="increaseDisabledReason" />
+          </Tooltip>
+        </div>
+      </form>
 
-        <Tooltip v-if="canSeeIncrease">
-          <TooltipTrigger as-child>
-            <Button
-              hierarchy="secondary-color"
-              size="sm"
-              icon="plus"
-              :disabled="increaseDisabled"
-              @click="showIncreaseModal = true"
-            >
-              {{ t('components.desktops.desktop-storage-modal.actions.increase') }}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            :title="
-              !desktopIsStopped
-                ? t('components.desktops.desktop-storage-modal.actions.increase-needs-stopped')
-                : storage.status !== 'ready'
-                  ? t('components.desktops.desktop-storage-modal.actions.increase-needs-ready')
-                  : t('components.desktops.desktop-storage-modal.actions.increase-tooltip')
-            "
-          />
-        </Tooltip>
-
-        <span v-if="!canSeeCancel && !canSeeIncrease" class="text-xs text-gray-warm-500">
-          {{ t('components.desktops.desktop-storage-modal.actions.no-actions') }}
-        </span>
-      </div>
+      <p v-else class="text-xs text-gray-warm-500">
+        {{ t('components.desktops.desktop-storage-modal.actions.no-actions') }}
+      </p>
     </template>
     <div v-else class="text-sm text-error-700">
       {{ t('components.desktops.desktop-storage-modal.load-error') }}
     </div>
-
-    <CancelStorageOperationModal
-      :open="showCancelModal"
-      :storage-id="props.storageId"
-      :desktop-name="props.desktop.name"
-      @close="showCancelModal = false"
-      @error="(msg) => emit('error', msg)"
-    />
-    <IncreaseStorageSizeModal
-      :open="showIncreaseModal"
-      :storage-id="props.storageId"
-      @close="showIncreaseModal = false"
-      @error="(msg) => emit('error', msg)"
-    />
-  </div>
+  </section>
 </template>

@@ -1,6 +1,7 @@
 import type { ComponentPropsAndSlots, Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref, watch } from 'vue'
 import { SearchableTags } from '.'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const meta = {
   component: SearchableTags,
@@ -18,7 +19,8 @@ const meta = {
     invalid: { control: 'boolean' }
   },
   render: (args) => ({
-    components: { SearchableTags },
+    // TooltipProvider: supplied by App.vue in the app, needed here for the "+N" tooltip.
+    components: { SearchableTags, TooltipProvider },
     setup() {
       const modelValue = ref(args.modelValue)
 
@@ -35,17 +37,19 @@ const meta = {
         modelValue
       }
     },
-    template: `<SearchableTags
-      v-model="modelValue"
-      :tags="args.tags"
-      :placeholder="args.placeholder"
-      :preview-count="args.previewCount"
-      :max-results="args.maxResults"
-      :max-visible-tags="args.maxVisibleTags"
-      :tags-display="args.tagsDisplay"
-      :disabled="args.disabled"
-      :invalid="args.invalid"
-    />`
+    template: `<TooltipProvider>
+      <SearchableTags
+        v-model="modelValue"
+        :tags="args.tags"
+        :placeholder="args.placeholder"
+        :preview-count="args.previewCount"
+        :max-results="args.maxResults"
+        :max-visible-tags="args.maxVisibleTags"
+        :tags-display="args.tagsDisplay"
+        :disabled="args.disabled"
+        :invalid="args.invalid"
+      />
+    </TooltipProvider>`
   })
 } satisfies Meta<ComponentPropsAndSlots<typeof SearchableTags>>
 
@@ -81,7 +85,8 @@ export const ManyOptions = createStory({
   placeholder: 'Select tags'
 })
 
-/** Overflow collapsed into "+N" once more than `maxVisibleTags` are selected. */
+/** Overflow collapsed into "+N" once more than `maxVisibleTags` are selected;
+ *  hover or focus it to list the hidden ones in a tooltip. */
 export const WrapOverflow = createStory({
   modelValue: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5', 'tag6', 'tag7', 'tag8'],
   tags: manyTags,
@@ -105,6 +110,19 @@ export const LongLabels = createStory({
     { label: 'debian-12.5.0-amd64-netinst-extended-edition.iso', value: 'long2' },
     { label: 'windows-11-enterprise-evaluation-23h2-x64.iso', value: 'long3' },
     { label: 'fedora-workstation-live-x86_64-40-1.14.iso', value: 'long4' }
+  ],
+  placeholder: 'Select tags'
+})
+
+/** Tags bucketed via `group`, with a disabled item per group (mirrors the
+ *  vGPU profile selector's hypervisor/NUMA grouping + selection-limit disabling). */
+export const GroupedWithDisabledTags = createStory({
+  modelValue: ['tag1'],
+  tags: [
+    { label: 'Tag 1', value: 'tag1', group: 'Group A' },
+    { label: 'Tag 2', value: 'tag2', group: 'Group A', disabled: true },
+    { label: 'Tag 3', value: 'tag3', group: 'Group B' },
+    { label: 'Tag 4', value: 'tag4', group: 'Group B', disabled: true }
   ],
   placeholder: 'Select tags'
 })

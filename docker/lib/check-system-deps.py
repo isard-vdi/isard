@@ -56,8 +56,11 @@ DNF_RE = re.compile(r"dnf install(?:\s+-\S+)*\s+(.+?)(?:&&|$)", re.MULTILINE)
 
 
 def parse_pkg_list(raw: str) -> set[str]:
+    # a token with a path separator is a local package file, not a declared dep
     tokens = raw.replace("\\\n", " ").split()
-    return {t for t in tokens if not t.startswith("-") and t not in {"y"}}
+    return {
+        t for t in tokens if not t.startswith("-") and t not in {"y"} and "/" not in t
+    }
 
 
 def extract_dockerfile_packages(

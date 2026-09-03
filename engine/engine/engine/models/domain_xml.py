@@ -448,7 +448,7 @@ class DomainXML(object):
         if xml_tree.xpath("/domain/devices/video/model"):
             vm_dict["video"] = {}
             for key in ("type", "ram", "vram", "vgamem", "heads"):
-                if key in self.tree.xpath("/domain/devices/video/model")[0].keys():
+                if key in xml_tree.xpath("/domain/devices/video/model")[0].keys():
                     vm_dict["video"][key] = xml_tree.xpath(
                         "/domain/devices/video/model"
                     )[0].get(key)
@@ -1017,6 +1017,70 @@ class DomainXML(object):
         xpath_next = "/domain/clock"
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
+    def fix_hyperv_dependency_chain(self):
+        """Complete the Hyper-V enlightenments a domain asks for but did not declare.
+
+        qemu enforces the dependencies between these: ``stimer`` needs
+        ``synic``, and ``synic`` needs ``vpindex``. Before qemu 11 a missing
+        link was tolerated, so XMLs written against older emulators declare
+        ``synic`` and ``stimer`` alone -- including ``win10Virtio.xml``, which
+        this product has seeded into every installation since 2020. On qemu 11
+        the domain dies while connecting to the monitor, and the message names
+        the MSR rather than Hyper-V, so it reads as anything but this:
+
+            qemu-system-x86_64: Hyper-V synthetic interrupt controller
+            (hv-synic) requires Hyper-V VP_INDEX MSR (hv-vpindex)
+
+        The chain is a static rule of the emulator, not a per-host capability,
+        so nothing has to be asked of libvirt to apply it.
+
+        Only ADDS what is missing: an enlightenment the admin turned off stays
+        off, and a domain whose XML declares no ``<hyperv>`` block is left
+        alone. Returns the list of elements added, for the caller to log.
+        """
+        hyperv = self.tree.xpath("/domain/features/hyperv")
+        if not hyperv:
+            return []
+        hyperv = hyperv[0]
+
+        def _is_on(name):
+            node = hyperv.find(name)
+            return node is not None and node.get("state") == "on"
+
+        added = []
+        # Walk the chain from the leaf inwards, so enabling `stimer` pulls in
+        # `synic`, and that in turn pulls in `vpindex`, in one pass.
+        for needs, required in (("stimer", "synic"), ("synic", "vpindex")):
+            if _is_on(needs) and not _is_on(required):
+                node = hyperv.find(required)
+                if node is not None:
+                    node.set("state", "on")
+                else:
+                    hyperv.append(etree.Element(required, state="on"))
+                added.append(required)
+
+        # The chain leaves <hyperv> at its last link: `stimer` also needs the
+        # `hypervclock` TIMER, which lives under <clock>. libvirt refuses the
+        # domain with "'stimer' hyperv feature requires 'hypervclock' timer" --
+        # a third cryptic message for the same missing dependency, and one that
+        # completing the enlightenments alone does not answer. Both templates
+        # this product ships declare it, so a domain descended from them is
+        # fine; one written by hand or by an older tool may not be.
+        if _is_on("stimer"):
+            clock = self.tree.xpath("/domain/clock")
+            if clock:
+                clock = clock[0]
+                timer = clock.find("timer[@name='hypervclock']")
+                if timer is None:
+                    clock.append(
+                        etree.Element("timer", name="hypervclock", present="yes")
+                    )
+                    added.append("hypervclock")
+                elif timer.get("present") != "yes":
+                    timer.set("present", "yes")
+                    added.append("hypervclock")
+        return added
+
     def add_shared_folder(self):
         webdav_xml = """  <channel type='spiceport'>
                  <source channel='org.spice-space.webdav.0'/>
@@ -1038,43 +1102,51 @@ class DomainXML(object):
         xpath_next = "/domain/devices/memballoon"
         self.add_device(xpath_same, element, xpath_next, xpath_previous)
 
+    def _video_model_node(self):
+        """The <video><model> node, created when the XML carries none.
+
+        Returns None only when there is no <devices> to hang it from.
+        """
+        node = self.tree.xpath("/domain/devices/video/model")
+        if node:
+            return node[0]
+        video = self.tree.xpath("/domain/devices/video")
+        if not video:
+            devices = self.tree.xpath("/domain/devices")
+            if not devices:
+                return None
+            video = [etree.SubElement(devices[0], "video")]
+        return etree.SubElement(video[0], "model")
+
     def set_video_type(self, video):
+        model = self._video_model_node()
+        if model is None:
+            return
         if video.get("type", "none") != "qxl":
-            # remove all attributes like vram that have no sense if type_video is none
-            # libvirt xml parser launch an exception if these keys exists
-            for key in self.tree.xpath("/domain/devices/video/model")[0].keys():
+            # libvirt rejects the domain if vram and friends survive on a
+            # non-qxl model, so strip everything but the type.
+            for key in list(model.keys()):
                 if key != "type":
                     try:
-                        del self.tree.xpath("/domain/devices/video/model")[0].attrib[
-                            key
-                        ]
+                        del model.attrib[key]
                     except Exception as e:
                         logs.exception_id.debug("0023")
                         print(
                             f"Exception when remove attribute from video model none in xml: {e}"
                         )
-            # remove alivas
             if self.tree.xpath("/domain/devices/video/alias"):
                 self.tree.xpath("/domain/devices/video/alias")[-1].getparent().remove(
                     self.tree.xpath("//domain/devices/video/alias")[-1]
                 )
 
-        self.tree.xpath("/domain/devices/video/model")[0].set(
-            "type", str(video["type"])
-        )
+        model.set("type", str(video["type"]))
         if video.get("heads"):
-            self.tree.xpath("/domain/devices/video/model")[0].set(
-                "heads", str(video["heads"])
-            )
+            model.set("heads", str(video["heads"]))
         if video.get("vram"):
-            self.tree.xpath("/domain/devices/video/model")[0].set(
-                "vram", str(video["vram"])
-            )
+            model.set("vram", str(video["vram"]))
         if video["type"] == "qxl":
             if video.get("ram"):
-                self.tree.xpath("/domain/devices/video/model")[0].set(
-                    "ram", str(video["ram"])
-                )
+                model.set("ram", str(video["ram"]))
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
         xpath_same = "/domain/metadata"
@@ -2030,6 +2102,18 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
             else:
                 x.set_cpu_host_model(cpu_host_model)
 
+    # Hyper-V enlightenments: qemu refuses a partial chain. Not gated on a
+    # protected section -- there is none for <features>, and a domain missing a
+    # link cannot boot at all, so there is no admin intent to preserve here.
+    # An admin who wants the XML untouched has the `raw` sentinel, which
+    # returns above and keeps this from running.
+    hyperv_added = x.fix_hyperv_dependency_chain()
+    if hyperv_added:
+        log.info(
+            f"Domain {id_domain}: added missing Hyper-V enlightenments "
+            f"{hyperv_added} -- qemu requires the full dependency chain"
+        )
+
     # spice video compression
     if "graphics" not in protected:
         graphics_list = (
@@ -2347,6 +2431,97 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
+
+
+def _machine_family_and_version(machine):
+    """Split ``pc-i440fx-5.1`` into ``("pc-i440fx", (5, 1))``.
+
+    The chipset family is everything before the trailing version. A machine
+    whose tail is not a dotted number -- ``pc-i440fx-hirsute``, which a real
+    installation was found carrying -- sorts as the oldest of its family, which
+    is what we want: it is certainly older than any numbered revision.
+    """
+    if not machine:
+        return None, ()
+    head, _, tail = machine.rpartition("-")
+    if not head:
+        return machine, ()
+    try:
+        return head, tuple(int(p) for p in tail.split("."))
+    except ValueError:
+        return head, ()
+
+
+def normalize_machine_type(xml, accepted_machines):
+    """Move a domain's machine type onto one the target emulator accepts.
+
+    qemu removes machine types between majors -- qemu 11 dropped everything
+    below ``pc-i440fx-5.1`` -- and a domain that pins a removed one fails to
+    define, with a message that names the emulator rather than the desktop.
+
+    The replacement is always OF THE SAME CHIPSET: switching i440fx to q35
+    removes the floppy controller and turns IDE into SATA, so a domain carrying
+    either would stop booting for a brand new reason.
+
+    Within the chipset the target depends on WHICH WAY the pin is wrong. Too
+    old takes the OLDEST accepted revision, because it
+    changes least of what the guest sees. Too new takes the NEWEST revision
+    that is not newer than the pin, because there the oldest would be a
+    decade-wide downgrade applied silently, and a guest that was working is
+    worse off than it was when libvirt simply refused and named the type.
+
+    Args:
+        xml: the domain XML.
+        accepted_machines: what the chosen hypervisor reported it accepts. An
+            EMPTY list means the hypervisor could not tell us, and is treated
+            as "do not touch" -- never as "supports nothing", which would
+            rewrite every domain on the strength of a failed probe.
+
+    Returns:
+        (xml, old_machine, new_machine). ``new_machine`` is None when nothing
+        was changed, and ``old_machine`` is then whatever it already was.
+    """
+    if not accepted_machines:
+        return xml, None, None
+    try:
+        tree = etree.parse(StringIO(xml))
+    except Exception:
+        return xml, None, None
+    nodes = tree.xpath("/domain/os/type")
+    if not nodes:
+        return xml, None, None
+    current = nodes[0].get("machine")
+    # No machine attribute: libvirt picks its own default, which is by
+    # definition one the emulator has. Nothing to correct.
+    if not current or current in set(accepted_machines):
+        return xml, current, None
+
+    family, current_version = _machine_family_and_version(current)
+    candidates = [
+        m for m in accepted_machines if _machine_family_and_version(m)[0] == family
+    ]
+    if not candidates:
+        # Same chipset is gone entirely. Leave it: libvirt's own refusal names
+        # the machine type and is a better diagnosis than a silent chipset swap.
+        return xml, current, None
+
+    # Too old wants the oldest accepted revision; too new wants the newest one
+    # that is not newer than the pin.
+    not_newer = [
+        m
+        for m in candidates
+        if current_version and _machine_family_and_version(m)[1] <= current_version
+    ]
+    if not_newer:
+        replacement = max(not_newer, key=lambda m: _machine_family_and_version(m)[1])
+    else:
+        replacement = min(candidates, key=lambda m: _machine_family_and_version(m)[1])
+    nodes[0].set("machine", replacement)
+    return (
+        etree.tostring(tree, pretty_print=True).decode("utf-8"),
+        current,
+        replacement,
+    )
 
 
 def domain_is_raw(domain):

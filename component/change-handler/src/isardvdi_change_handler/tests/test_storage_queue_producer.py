@@ -146,3 +146,72 @@ def test_collect_drops_task_without_resolvable_storage_id():
     ), patch.object(sqp.queue_estimate, "estimate_task", lambda t, c=None: ests[t.id]):
         out = sqp._collect(conn)
     assert out == []
+
+
+def _owner_task(tid, user, *, storage_id=None, media_id=None, tier="maintenance"):
+    """A Task double that names its owner the way the real one does.
+
+    A task belongs to a disk OR to a media, never both: the disk id comes back
+    from ``Task.storage_id``, the media id is stamped on the job's own meta by
+    ``Media.create_task``, which never sets a storage id at all.
+    """
+    return SimpleNamespace(
+        id=tid,
+        user_id=user,
+        queue=f"storage.{DEF}.{tier}",
+        position=1,
+        task="download_url",
+        storage_id=storage_id,
+        job=SimpleNamespace(meta={"storage_id": storage_id, "media_id": media_id}),
+    )
+
+
+def _queued_est(position=3):
+    return {
+        "effective_position": position,
+        "eta_seconds": None,
+        "has_consumer": True,
+        "stranded": False,
+    }
+
+
+def test_a_queued_media_download_is_emitted_with_its_media_id():
+    """A media download shows no queue position at all while it waits.
+
+    A download is among the longest waits a user ever has, so it is exactly the
+    case a position is worth showing -- and the media row is the only handle the
+    frontend has to put it on, because a media task names no disk.
+    """
+    conn = _Conn({f"storage.{DEF}.maintenance"})
+    jobs = {f"storage.{DEF}.maintenance": ["t1"]}
+    tasks = {"t1": _owner_task("t1", "user-a", media_id="m-1")}
+    out = _run_collect(conn, jobs, tasks, {"t1": _queued_est(3)})
+    assert len(out) == 1
+    user, payload = out[0]
+    assert user == "user-a"
+    assert payload["media_id"] == "m-1"
+    assert payload["effective_position"] == 3
+    assert payload["status"] == "queued" and payload["pending"] is True
+
+
+def test_a_queued_disk_task_still_names_its_disk():
+    """The disk case is the one that already worked; teaching the sweep about
+    media must not cost it."""
+    conn = _Conn({f"storage.{DEF}.maintenance"})
+    jobs = {f"storage.{DEF}.maintenance": ["t1"]}
+    tasks = {"t1": _owner_task("t1", "user-a", storage_id="s-1")}
+    out = _run_collect(conn, jobs, tasks, {"t1": _queued_est(3)})
+    assert len(out) == 1
+    payload = out[0][1]
+    assert payload["storage_id"] == "s-1"
+    assert payload.get("media_id") is None
+
+
+def test_a_task_naming_neither_owner_is_still_dropped():
+    """Nothing on screen could carry it, so emitting it would only add a card-less
+    event to every sweep."""
+    conn = _Conn({f"storage.{DEF}.maintenance"})
+    jobs = {f"storage.{DEF}.maintenance": ["t1"]}
+    tasks = {"t1": _owner_task("t1", "user-a")}
+    out = _run_collect(conn, jobs, tasks, {"t1": _queued_est(3)})
+    assert out == []

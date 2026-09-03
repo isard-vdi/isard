@@ -2,6 +2,7 @@ import { deploymentEventHandlers } from './deployment'
 import { deploymentDesktopEventHandlers } from './deployment-desktop'
 import { sharedDeploymentEventHandlers } from './shared-deployment'
 import { desktopEventHandlers } from './desktop'
+import { targetEventHandlers } from './target'
 import { templateEventHandlers } from './template'
 import { mediaEventHandlers } from './media'
 import { recycleBinEventHandlers } from './recycle-bin'
@@ -23,6 +24,7 @@ type EventHandlerMap = {
 
 export const allEventHandlers: EventHandlerMap = {
   ...desktopEventHandlers,
+  ...targetEventHandlers,
   ...templateEventHandlers,
   ...deploymentEventHandlers,
   ...deploymentDesktopEventHandlers,

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { describeErrorCode } from '@/lib/api-errors'
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif']
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 // 5 MB
@@ -44,7 +45,7 @@ const emit = defineEmits<{
   select: [image: DomainImageOutput & { file?: DomainImageFile }]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const {
@@ -98,6 +99,9 @@ function selectImage(image: DomainImageOutput) {
 }
 
 const saveErrorCode = ref<string | undefined>(undefined)
+const saveErrorMessage = computed(() =>
+  describeErrorCode(saveErrorCode.value, { t, te }, 'components.change-image-modal.errors')
+)
 
 const { mutate: saveImage, isPending: saveIsPending } = useMutation({
   ...editDesktopMutation(),
@@ -144,6 +148,9 @@ function handleSave() {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploadErrorCode = ref<string | undefined>(undefined)
+const uploadErrorMessage = computed(() =>
+  describeErrorCode(uploadErrorCode.value, { t, te }, 'components.change-image-modal.upload-errors')
+)
 
 function triggerFilePicker() {
   fileInput.value?.click()
@@ -200,23 +207,13 @@ const anyPending = computed(() => saveIsPending.value)
       <Alert v-if="saveErrorCode" variant="destructive" class="mb-4">
         <FeaturedIconOutline kind="outline" color="error" />
         <AlertTitle>{{ t('components.change-image-modal.errors.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(
-            `components.change-image-modal.errors.${saveErrorCode}`,
-            t('components.change-image-modal.errors.generic')
-          )
-        }}</AlertDescription>
+        <AlertDescription>{{ saveErrorMessage }}</AlertDescription>
       </Alert>
 
       <Alert v-if="uploadErrorCode" variant="destructive" class="mb-4">
         <FeaturedIconOutline kind="outline" color="error" />
         <AlertTitle>{{ t('components.change-image-modal.upload-errors.title') }}</AlertTitle>
-        <AlertDescription>{{
-          t(
-            `components.change-image-modal.upload-errors.${uploadErrorCode}`,
-            t('components.change-image-modal.upload-errors.generic')
-          )
-        }}</AlertDescription>
+        <AlertDescription>{{ uploadErrorMessage }}</AlertDescription>
       </Alert>
 
       <Alert v-if="imagesError" variant="destructive" class="mb-4">
