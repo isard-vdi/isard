@@ -333,15 +333,35 @@ groups:
           summary: "Storage worker pinned by PSI pressure"
           description: "Worker {{ $labels.worker }} has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
 
-      # --- Worker heartbeat loss (catalog #9) -------------------------------
+      # --- Worker heartbeat loss --------------------------------------------
+      # GATED ON hash_present. A member of the rq:workers SET outlives its
+      # worker: the rq:worker hash expires at worker_ttl+60, SET membership has
+      # no TTL, and RQ's sweep only reaches a dead key through a queue some LIVE
+      # worker still serves -- so with every storage worker down nothing sweeps
+      # and the row stays for ever. Ungated, this stayed critical and firing for
+      # a worker that no longer exists. Drop the gate and the vmalert unit test
+      # worker_heartbeat_lost_silent_for_a_registration_with_no_worker fails.
       - alert: WorkerHeartbeatLost
-        expr: isardvdi_storage_governor_worker_up == 0
+        expr: |
+          (isardvdi_storage_governor_worker_up == 0)
+          and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
         for: 2m
         labels:
           severity: critical
         annotations:
           summary: "Storage worker lost its heartbeat"
-          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m (hash expired or heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+
+      # Long `for:` so an ordinary restart, swept within ~600s by any surviving
+      # worker on the same queue, never reaches it.
+      - alert: WorkerRegistrationStale
+        expr: isardvdi_storage_governor_worker_hash_present == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stale worker registration with no worker behind it"
+          description: "The rq:workers set has held a member for 30m whose rq:worker hash does not exist, so no worker is behind it. RQ only sweeps it through a queue a live worker still serves, so on a lane with no worker left it stays for ever: start a worker on that lane, or SREM the member. Until then every worker count that reads the set is too high by one."
 
       - alert: NoStorageWorkers
         expr: isardvdi_storage_governor:worker_up:sum == 0

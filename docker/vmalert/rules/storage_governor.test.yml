@@ -18,6 +18,8 @@
 #     cannot separate a healthy burst from a stall on this signal (measured
 #     healthy peaks 261-673, incident 892), so the rule discriminates on the 30m
 #     `for:`. Lower the `for:` and that case starts failing.
+#   * WorkerHeartbeatLost does NOT fire for a registration whose rq:worker hash
+#     is gone -- remove the hash_present gate and that case fails.
 #   * TaskStreamDeadLettering does not fire on a TRIM of the dead stream, the
 #     same anti-shrink guarantee FailedSpike has.
 #   * TaskStreamsUnreadable stays quiet while Redis is down (RedisDown's job).
@@ -321,11 +323,15 @@ tests:
   # ---------------------------------------------------------------------------
   # WorkerHeartbeatLost fires within its for: 2m window (up==0 held 3m).
   # ---------------------------------------------------------------------------
+  # hash_present is carried for every worker row, so a test without it describes
+  # no state the exporter can produce.
   - name: worker_heartbeat_lost_fires_within_2m
     interval: 1m
     input_series:
       - series: 'isardvdi_storage_governor_worker_up{worker="storage.default.background.def456",pool="default",kind="elastic"}'
         values: "0 0 0 0"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage.default.background.def456"}'
+        values: "1 1 1 1"
     alert_rule_test:
       - eval_time: 3m
         groupname: storage_governor_alerts
@@ -338,7 +344,7 @@ tests:
               kind: elastic
             exp_annotations:
               summary: "Storage worker lost its heartbeat"
-              description: "Worker storage.default.background.def456 (pool default, kind elastic) has reported up=0 for 2m (hash expired or heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+              description: "Worker storage.default.background.def456 (pool default, kind elastic) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
 
   # ---------------------------------------------------------------------------
   # NoStorageWorkers: every worker reporting up==0 -> sum==0 -> fires after 2m.
@@ -573,3 +579,73 @@ tests:
             exp_annotations:
               summary: "Task-stream health cannot be read while Redis is up"
               description: "The governor could not read the task streams for 15m even though the broker answers PING, so every stream gauge in this group is blind (their series are absent, not zero). Check XINFO/XLEN permissions and the stream keys."
+
+  # ===========================================================================
+  # STALE WORKER REGISTRATIONS — a corpse must not page for ever.
+  # ===========================================================================
+
+  # THE regression test: a registration with no worker behind it must not page.
+  # Removing the hash_present gate makes this case fail.
+  - name: worker_heartbeat_lost_silent_for_a_registration_with_no_worker
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:dead",pool="",kind=""}'
+        values: "0x20"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:dead"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+
+  # The case the alert is FOR, unchanged.
+  - name: worker_heartbeat_lost_fires_while_the_hash_is_present
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:abc123",pool="default",kind="reserved"}'
+        values: "0x20"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:abc123"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              worker: "storage-reserved:isard-storage:abc123"
+              pool: default
+              kind: reserved
+            exp_annotations:
+              summary: "Storage worker lost its heartbeat"
+              description: "Worker storage-reserved:isard-storage:abc123 (pool default, kind reserved) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+
+  # The corpse still reaches an operator, as a warning, after 30m.
+  - name: worker_registration_stale_fires_after_30m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:dead"}'
+        values: "0x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: WorkerRegistrationStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              worker: "storage-reserved:isard-storage:dead"
+            exp_annotations:
+              summary: "Stale worker registration with no worker behind it"
+              description: "The rq:workers set has held a member for 30m whose rq:worker hash does not exist, so no worker is behind it. RQ only sweeps it through a queue a live worker still serves, so on a lane with no worker left it stays for ever: start a worker on that lane, or SREM the member. Until then every worker count that reads the set is too high by one."
+
+  - name: worker_registration_stale_silent_while_the_hash_is_present
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:abc123"}'
+        values: "1x35"
+    alert_rule_test:
+      - eval_time: 31m
+        groupname: storage_governor_alerts
+        alertname: WorkerRegistrationStale
+        exp_alerts: []

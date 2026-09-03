@@ -1419,7 +1419,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Per-worker health: alive flag, heartbeat age, PSI CPU/IO and deferring flag. Dead = up==0 or heartbeat_age > 420s.",
+      "description": "Per-worker health: alive flag, registration presence, heartbeat age, PSI CPU/IO and deferring flag. Dead = up==0 or heartbeat_age > 420s. hash_present=NO WORKER is an rq:workers member whose rq:worker hash is gone -- a registration with nothing behind it, not a worker that is down.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1555,6 +1555,54 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hash_present"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "index": 0,
+                        "text": "NO WORKER"
+                      },
+                      "1": {
+                        "index": 1,
+                        "text": "present"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "orange",
+                      "value": null
+                    },
+                    {
+                      "color": "text",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
           }
         ]
       },
@@ -1644,6 +1692,18 @@
           "instant": true,
           "range": false,
           "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "max by (worker) (isardvdi_storage_governor_worker_hash_present)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "F"
         }
       ],
       "title": "Workers",
@@ -1669,7 +1729,8 @@
               "Value #B": "heartbeat_age",
               "Value #C": "psi_cpu",
               "Value #D": "psi_io",
-              "Value #E": "deferring"
+              "Value #E": "deferring",
+              "Value #F": "hash_present"
             }
           }
         }

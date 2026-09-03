@@ -696,6 +696,10 @@ func TestEveryGovernorSignalIsReadBySomeRule(t *testing.T) {
 			"isardvdi_storage_governor_streams_",
 			"the task streams are the ONLY place the finalize backlog is visible -- no queue gauge can express it -- so a stream signal no rule reads is the blindness this family was added to end",
 		},
+		{
+			"isardvdi_storage_governor_worker_hash_",
+			"a registration with no worker behind it must reach alerting as its own thing; unread, the only rule left is the heartbeat one, which then pages critically over a corpse for ever (that the GATE is still on WorkerHeartbeatLost is the vmalert unit test's job, not this one's -- this guard only proves some rule reads the metric)",
+		},
 	}
 
 	problems := []string{}

@@ -75,6 +75,7 @@ type StorageGovernor struct {
 	descStrandedLane       *prometheus.Desc
 
 	descWorkerUp           *prometheus.Desc
+	descWorkerHashPresent  *prometheus.Desc
 	descWorkerHeartbeatAge *prometheus.Desc
 	descWorkerPsiCPU       *prometheus.Desc
 	descWorkerPsiIo        *prometheus.Desc
@@ -140,6 +141,7 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descStrandedLane = d("stranded_lane", "Backlog on a lane with a live worker but no consumer coverage (coverage_known only)", "pool", "category", "tier")
 
 	s.descWorkerUp = d("worker_up", "Worker alive from heartbeat truth (SET member with a fresh hash) (1) or dead (0)", "worker", "pool", "kind")
+	s.descWorkerHashPresent = d("worker_hash_present", "The rq:worker:<name> hash behind this rq:workers member still exists (1); 0 is a registration with no worker behind it", "worker")
 	s.descWorkerHeartbeatAge = d("worker_heartbeat_age_seconds", "Seconds since the worker's last heartbeat", "worker")
 	s.descWorkerPsiCPU = d("worker_psi_cpu", "Worker-reported CPU pressure (PSI some avg)", "worker")
 	s.descWorkerPsiIo = d("worker_psi_io", "Worker-reported IO pressure (PSI some avg)", "worker")
@@ -200,9 +202,11 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descStartedOverTimeout
 	ch <- s.descStrandedLane
 	ch <- s.descWorkerUp
+	ch <- s.descWorkerHashPresent
 	ch <- s.descWorkerHeartbeatAge
 	ch <- s.descWorkerPsiCPU
 	ch <- s.descWorkerPsiIo
+	ch <- s.descWorkerPsiMem
 	ch <- s.descWorkerDeferring
 	ch <- s.descEventsTotal
 	ch <- s.descEventsTierTotal
@@ -365,6 +369,9 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 	// --- workers --------------------------------------------------------
 	for _, w := range gov.Workers {
 		gauge(s.descWorkerUp, boolToFloat(w.Up.Or(false)), w.Name, w.Pool.Or(""), w.Kind.Or(""))
+		// A row whose rq:worker hash is gone is a registration with no worker
+		// behind it, which nothing will ever set back to 1.
+		gauge(s.descWorkerHashPresent, boolToFloat(w.HashPresent.Or(false)), w.Name)
 		if v, ok := w.HeartbeatAgeSeconds.Get(); ok {
 			gauge(s.descWorkerHeartbeatAge, v, w.Name)
 		}
