@@ -357,7 +357,7 @@ const openDeploymentInfoModal = () => {
       />
 
       <div v-else class="flex flex-col gap-8 min-w-0">
-        <div class="relative w-full aspect-video shrink-0">
+        <div class="relative w-full aspect-video shrink-0 rounded-lg overflow-hidden">
           <NoVNC
             :key="fullScreen"
             :viewer="viewerData.values"
@@ -366,7 +366,7 @@ const openDeploymentInfoModal = () => {
           />
 
           <EmptyState
-            class="absolute inset-0 -z-10 min-h-0"
+            class="absolute inset-0 -z-10 min-h-0 gap-3 p-2! md:p-2!"
             kind="desktops"
             :title="t('views.view-deployment.sections.viewer.empty.not-available')"
             :description="''"
