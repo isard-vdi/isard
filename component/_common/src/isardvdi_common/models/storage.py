@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
 from enum import Enum
 from time import time
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -24,6 +25,7 @@ from uuid import uuid4
 
 from cachetools import cached
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
@@ -39,6 +41,33 @@ from rq.job import JobStatus
 from ..schemas.storage import *
 from . import domain
 from .task import Task
+
+
+# Installation policy, not a per-host fact: resolved by the enqueuer so an identical operation is
+# not refused on one storage node and accepted on another.
+def storage_min_free_bytes():
+    """Resolve STORAGE_MIN_FREE_BYTES to an int, validating it.
+
+    Raises ``ValueError`` on a malformed value (e.g. a human-readable ``1G`` --
+    a plausible typo, since the geometry vars two lines above it in the cfg ARE
+    human-readable). Callers resolve this BEFORE flipping the row to maintenance
+    and the apiv4 boot check calls it too, so a typo fails loudly instead of
+    500ing every convert/disconnect after the row is already stuck in
+    maintenance.
+    """
+    raw = os.environ.get("STORAGE_MIN_FREE_BYTES")
+    if raw in (None, ""):
+        return 1 << 30
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"STORAGE_MIN_FREE_BYTES={raw!r} is not an integer number of bytes"
+        )
+    if value < 0:
+        raise ValueError(f"STORAGE_MIN_FREE_BYTES={raw!r} must be >= 0")
+    return value
+
 
 # Owner category is resolved on every storage-task produce; cache per user so a
 # burst of produces for one owner does not re-hit rethinkdb.
@@ -124,6 +153,19 @@ class StorageModel(BaseModel):
     task: Optional[str]
     type: Literal["qcow2", "vmdk"]
     id: str = Field(default_factory=lambda: str(uuid4()))
+    qcow2_geometry: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "The installation geometry policy in effect when the disk was "
+            "written: {cluster_size, extended_l2, lazy_refcounts, preallocation}. "
+            "The applied preallocation can differ from the recorded one (a "
+            "compressed convert omits it). Absent on rows written before this "
+            "field existed, and on registry downloads -- a downloaded disk arrives "
+            "byte-for-byte over curl and qemu-img never touches it, so its geometry "
+            "is whatever the publisher wrote. Absence is an acceptable signal, not "
+            "an error."
+        ),
+    )
 
 
 def get_storage_id_from_path(path):
@@ -873,6 +915,8 @@ class Storage(RethinkCustomBase):
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
+        # Before set_maintenance so a malformed value raises first.
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
             blocking=True,
@@ -888,6 +932,7 @@ class Storage(RethinkCustomBase):
                     "method": "rsync",
                     "bwlimit": bwlimit,
                     "remove_source_file": remove_source_file,
+                    "min_free_bytes": min_free_bytes,
                 },
                 "timeout": timeout,
             },
@@ -973,6 +1018,7 @@ class Storage(RethinkCustomBase):
 
         queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
 
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
         return self.create_task(
             user_id=user_id,
@@ -985,6 +1031,7 @@ class Storage(RethinkCustomBase):
                     "origin_path": origin_path,
                     "destination_path": f"{destination_path}/{self.id}.{self.type}",
                     "method": "mv",
+                    "min_free_bytes": min_free_bytes,
                 }
             },
             dependents=[
@@ -1386,6 +1433,9 @@ class Storage(RethinkCustomBase):
         """
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
+        geometry = qcow2_geometry.policy()
+        # Before set_maintenance: a malformed value must raise before the row flips to maintenance.
+        min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("disconnect")
         return self.create_task(
             user_id=user_id,
@@ -1396,6 +1446,8 @@ class Storage(RethinkCustomBase):
             job_kwargs={
                 "kwargs": {
                     "storage_path": self.path,
+                    **geometry,
+                    "min_free_bytes": min_free_bytes,
                 },
             },
             dependents=[
@@ -1406,6 +1458,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": self.id,
                             "storage_path": self.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -1473,6 +1526,18 @@ class Storage(RethinkCustomBase):
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=new_storage.directory_path).id}.background"
         dest_type = new_storage_type.lower()
 
+        geometry = qcow2_geometry.policy()
+        # Before set_maintenance: a malformed value must raise before the rows are committed.
+        min_free_bytes = storage_min_free_bytes()
+        # Only a qcow2 destination carries the geometry; a vmdk cannot honour qcow2 options.
+        measure_kwargs = {
+            "storage_id": new_storage.id,
+            "storage_path": new_storage.path,
+            "storage_type": dest_type,
+        }
+        if dest_type == "qcow2":
+            measure_kwargs["qcow2_geometry"] = geometry
+
         self.set_maintenance("convert")
         return self.create_task(
             user_id=user_id,
@@ -1486,19 +1551,15 @@ class Storage(RethinkCustomBase):
                     "dest_disk_path": new_storage.path,
                     "format": dest_type,
                     "compression": compress,
+                    **geometry,
+                    "min_free_bytes": min_free_bytes,
                 },
             },
             dependents=[
                 {
                     "queue": queue_backing_chain,
                     "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": new_storage.id,
-                            "storage_path": new_storage.path,
-                            "storage_type": dest_type,
-                        }
-                    },
+                    "job_kwargs": {"kwargs": measure_kwargs},
                     "dependents": [
                         {
                             "queue": "core",
@@ -1614,6 +1675,7 @@ class Storage(RethinkCustomBase):
             new_storage.directory_path + "/" + new_storage.id + "." + new_storage.type
         )
 
+        geometry = qcow2_geometry.policy()
         self.set_maintenance("recreate")
         return self.create_task(
             user_id=user_id,
@@ -1625,6 +1687,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "storage_path": new_storage_path,
                     "storage_type": new_storage.type,
+                    **geometry,
                     **parent_args,
                 },
             },
@@ -1646,6 +1709,7 @@ class Storage(RethinkCustomBase):
                                 "kwargs": {
                                     "storage_id": new_storage.id,
                                     "storage_path": new_storage_path,
+                                    "qcow2_geometry": geometry,
                                 }
                             },
                             "dependents": [
@@ -1790,6 +1854,7 @@ class Storage(RethinkCustomBase):
         )
         storage.status_logs = [{"time": int(time()), "status": "created"}]
 
+        geometry = qcow2_geometry.policy()
         storage.set_maintenance("create")
         # ``create_task`` returns the root task id; the row's ``task`` scalar is
         # retired and no longer written, so it is the return value or nothing.
@@ -1804,6 +1869,7 @@ class Storage(RethinkCustomBase):
                     "storage_path": storage.path,
                     "storage_type": storage.type,
                     "size": size,
+                    **geometry,
                     **parent_args,
                 },
             },
@@ -1815,6 +1881,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": storage.id,
                             "storage_path": storage.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -1979,9 +2046,11 @@ class Storage(RethinkCustomBase):
                 )
             parent_args = {}
 
+        geometry = qcow2_geometry.policy()
         create_kwargs = {
             "storage_path": self.path,
             "storage_type": self.type,
+            **geometry,
             **parent_args,
         }
         if size is not None:
@@ -2033,6 +2102,7 @@ class Storage(RethinkCustomBase):
                         "kwargs": {
                             "storage_id": self.id,
                             "storage_path": self.path,
+                            "qcow2_geometry": geometry,
                         }
                     },
                     "dependents": [
@@ -2212,6 +2282,9 @@ class Storage(RethinkCustomBase):
                 "template disk",
             )
 
+        geometry = qcow2_geometry.policy()
+        # method="auto" is a real rsync copy across filesystems, so the move is gated too.
+        min_free_bytes = storage_min_free_bytes()
         template_storage.set_maintenance("create")
 
         return self.create_task(
@@ -2229,6 +2302,7 @@ class Storage(RethinkCustomBase):
                     "destination_path": template_storage.path,
                     "method": "auto",
                     "remove_source_file": True,
+                    "min_free_bytes": min_free_bytes,
                     # Surface rsync progress on the new template's row so
                     # the templates list in old-frontend / Vue 3 can render
                     # the same kind of progress bar Media downloads have.
@@ -2246,6 +2320,7 @@ class Storage(RethinkCustomBase):
                             "storage_type": self.type,
                             "parent_path": template_storage.path,
                             "parent_type": template_storage.type,
+                            **geometry,
                         }
                     },
                     "dependents": [
@@ -2287,6 +2362,7 @@ class Storage(RethinkCustomBase):
                                                 "kwargs": {
                                                     "storage_id": self.id,
                                                     "storage_path": self.path,
+                                                    "qcow2_geometry": geometry,
                                                 }
                                             },
                                             "dependents": [

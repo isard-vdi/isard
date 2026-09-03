@@ -21,36 +21,130 @@ class _Proc:
 
 
 class TestCreate:
-    def test_existing_dest_is_idempotent_and_never_runs_qemu(self, monkeypatch):
+    def test_existing_dest_is_idempotent_and_never_runs_qemu(self, monkeypatch, geo):
         import task
 
         monkeypatch.setattr(task, "isdir", lambda p: True)
         monkeypatch.setattr(task, "isfile", lambda p: True)  # already exists
         ran = []
         monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a) or _Proc())
-        assert task.create("/isard/g/d.qcow2", "qcow2") == 0
+        assert task.create("/isard/g/d.qcow2", "qcow2", **geo) == 0
         assert ran == []  # qemu-img create must NOT run over an existing disk
 
-    def test_extended_l2_cluster_too_small_rejected(self, monkeypatch):
+    def test_extended_l2_cluster_too_small_rejected(self, monkeypatch, geo):
         import task
 
         monkeypatch.setattr(task, "isdir", lambda p: True)
         monkeypatch.setattr(task, "isfile", lambda p: False)
-        monkeypatch.setenv("QCOW2_EXTENDED_L2", "on")
-        monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "4k")  # < 16k
+        # The worker no longer reads the environment: the bad policy arrives in
+        # the payload and is rejected by the shared validate().
+        geo["extended_l2"] = "on"
+        geo["cluster_size"] = "4k"  # < 16k
         with pytest.raises(ValueError):
-            task.create("/isard/g/d.qcow2", "qcow2")
+            task.create("/isard/g/d.qcow2", "qcow2", **geo)
 
-    def test_valid_create_runs_qemu(self, monkeypatch):
+    def test_valid_create_runs_qemu(self, monkeypatch, geo):
         import task
 
         monkeypatch.setattr(task, "isdir", lambda p: True)
         monkeypatch.setattr(task, "isfile", lambda p: False)
-        monkeypatch.setenv("QCOW2_EXTENDED_L2", "off")
         ran = []
         monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a[0]) or _Proc())
-        assert task.create("/isard/g/d.qcow2", "qcow2") == 0
+        assert task.create("/isard/g/d.qcow2", "qcow2", **geo) == 0
         assert ran and ran[0][:2] == ["qemu-img", "create"]
+
+
+class TestGeometryIsRequired:
+    @pytest.mark.parametrize(
+        "missing", ["cluster_size", "extended_l2", "lazy_refcounts", "preallocation"]
+    )
+    def test_create_without_the_geometry_is_a_typeerror(
+        self, monkeypatch, geo, missing
+    ):
+        """No environ.get, no defaults: a task enqueued by an older producer
+        must die naming the argument, not silently write qemu-img defaults."""
+        import task
+
+        monkeypatch.setattr(task, "isdir", lambda p: True)
+        monkeypatch.setattr(task, "isfile", lambda p: False)
+        ran = []
+        monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a) or _Proc())
+        geo.pop(missing)
+        with pytest.raises(TypeError, match=missing):
+            task.create("/isard/g/d.qcow2", "qcow2", **geo)
+        assert ran == []  # nothing was written
+
+    @pytest.mark.parametrize(
+        "missing", ["cluster_size", "extended_l2", "lazy_refcounts", "preallocation"]
+    )
+    def test_convert_without_the_geometry_is_a_typeerror(
+        self, monkeypatch, geo, missing
+    ):
+        import task
+
+        monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
+        ran = []
+        monkeypatch.setattr(
+            task, "run_with_progress", lambda *a, **k: ran.append(a) or 0
+        )
+        geo.pop(missing)
+        with pytest.raises(TypeError, match=missing):
+            task.convert("/isard/s.qcow2", "/isard/d.qcow2", "qcow2", False, **geo)
+        assert ran == []
+
+    @pytest.mark.parametrize(
+        "missing", ["cluster_size", "extended_l2", "lazy_refcounts", "preallocation"]
+    )
+    def test_disconnect_without_the_geometry_is_a_typeerror(
+        self, monkeypatch, geo, missing
+    ):
+        import task
+
+        monkeypatch.setattr(task, "_safe_unlink", lambda p: None)
+        monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
+        ran = []
+        monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a) or _Proc())
+        monkeypatch.setattr(task, "rename", lambda a, b: None)
+        geo.pop(missing)
+        with pytest.raises(TypeError, match=missing):
+            task.disconnect("/isard/g/d.qcow2", **geo)
+        assert ran == []
+
+    @pytest.mark.parametrize("op", ["create", "convert", "disconnect"])
+    def test_the_payload_wins_over_a_conflicting_environment(
+        self, monkeypatch, geo, op
+    ):
+        """The whole point: a storage node with a STALE QCOW2_* in its own env
+        must NOT override the policy carried in the payload. Set env=2M and
+        payload=128k and assert the ARGV carries the payload's 128k -- deleting
+        the vars would only rule out an unconditional read, not an env-wins one."""
+        import task
+
+        monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "2M")
+        monkeypatch.setenv("QCOW2_EXTENDED_L2", "off")
+        monkeypatch.setenv("QCOW2_LAZY_REFCOUNTS", "on")
+        monkeypatch.setenv("QCOW2_PREALLOCATION", "full")
+        monkeypatch.setattr(task, "isdir", lambda p: True)
+        monkeypatch.setattr(task, "isfile", lambda p: False)
+        monkeypatch.setattr(task, "_safe_unlink", lambda p: None)
+        monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
+        monkeypatch.setattr(task, "rename", lambda a, b: None)
+        ran = []
+        monkeypatch.setattr(task, "run", lambda *a, **k: ran.append(a[0]) or _Proc())
+        monkeypatch.setattr(
+            task, "run_with_progress", lambda *a, **k: ran.append(a[0]) or 0
+        )
+        geo["cluster_size"] = "128k"
+        if op == "create":
+            task.create("/isard/g/d.qcow2", "qcow2", **geo)
+        elif op == "convert":
+            task.convert("/isard/s.qcow2", "/isard/d.qcow2", "qcow2", False, **geo)
+        else:
+            task.disconnect("/isard/g/d.qcow2", **geo)
+        cmd = ran[0]
+        opts = cmd[cmd.index("-o") + 1]
+        assert "cluster_size=128k" in opts  # payload wins
+        assert "cluster_size=2M" not in opts  # env ignored
 
 
 class TestMoveDelete:
@@ -73,7 +167,7 @@ class TestMoveDelete:
 
 
 class TestConvertFormatGuard:
-    def test_invalid_format_rejected_before_running(self, monkeypatch):
+    def test_invalid_format_rejected_before_running(self, monkeypatch, geo):
         import task
 
         ran = []
@@ -81,7 +175,7 @@ class TestConvertFormatGuard:
             task, "run_with_progress", lambda *a, **k: ran.append(a) or 0
         )
         with pytest.raises(ValueError):
-            task.convert("/isard/s.qcow2", "/isard/d.raw", "raw", False)
+            task.convert("/isard/s.qcow2", "/isard/d.raw", "raw", False, **geo)
         assert ran == []  # rejected before any qemu-img convert
 
 

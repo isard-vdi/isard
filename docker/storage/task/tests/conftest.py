@@ -10,4 +10,17 @@ The worker runs as ``rq worker`` with ``docker/storage/task`` on the path
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+@pytest.fixture
+def geo():
+    """The four required geometry kwargs, default install policy."""
+    return {
+        "cluster_size": "4k",
+        "extended_l2": "off",
+        "lazy_refcounts": "off",
+        "preallocation": "off",
+    }

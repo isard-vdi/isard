@@ -49,6 +49,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse, JSONResponse
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.maintenance import Maintenance
@@ -96,6 +97,62 @@ def _wire_grpc_providers():
     _bastion.configure_haproxy_bastion_client(lambda: _haproxy_bastion_stub)
 
 
+def _report_qcow2_geometry_at_boot():
+    """Surface the installation-wide qcow2 policy once, at boot.
+
+    apiv4 is the sole reader of the four QCOW2_* vars now, so a distributed
+    install that set them on the storage node instead of here would silently
+    resolve to the 4k/off defaults -- the very silent-wrong-geometry defect this
+    change exists to remove. Log the resolved policy and, when all four fell back
+    to defaults, warn loudly that they may belong on this node's cfg.
+
+    A malformed policy is logged at ERROR but does NOT stop startup: the blast
+    radius of a disk-shape typo must not be the whole API (login, viewers,
+    sessions). The enqueue sites still call ``policy()`` and re-raise per
+    request, so a create/convert/disconnect fails loudly while everything else
+    keeps serving.
+    """
+    try:
+        geometry = qcow2_geometry.policy()
+    except qcow2_geometry.Qcow2PolicyError as exc:
+        log.error(
+            "qcow2 geometry policy is invalid; disk creation/convert/disconnect "
+            "will fail per request until it is fixed: %s",
+            exc,
+        )
+        return
+    sources = qcow2_geometry.env_sources()
+    log.info("qcow2 geometry policy resolved to %s (sources: %s)", geometry, sources)
+    if all(v == "default" for v in sources.values()):
+        # Not a warning: the compose part supplies these defaults, so an all-default resolution
+        # is the normal state for an install that leaves the keys commented out.
+        log.info(
+            "no QCOW2_* override in this environment; using the compose defaults %s",
+            geometry,
+        )
+
+
+def _validate_storage_min_free_at_boot():
+    """Validate STORAGE_MIN_FREE_BYTES at boot, non-fatally.
+
+    Like the geometry policy it is now resolved by the enqueuer, but it is not
+    covered by the geometry validator. A malformed value (e.g. a human-readable
+    ``1G``) would otherwise raise only at enqueue time, after the row is already
+    in maintenance. Logged at ERROR, not raised, for the same reason the geometry
+    check is: a disk-floor typo must not take the whole API offline.
+    """
+    from isardvdi_common.models.storage import storage_min_free_bytes
+
+    try:
+        storage_min_free_bytes()
+    except ValueError as exc:
+        log.error(
+            "STORAGE_MIN_FREE_BYTES is invalid; convert/disconnect will fail per "
+            "request until it is fixed: %s",
+            exc,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -107,6 +164,10 @@ async def lifespan(app: FastAPI):
     # shared modules fetch the same long-lived stub on every call,
     # one channel per uvicorn worker process.
     _wire_grpc_providers()
+
+    # Log, never raise: a disk-shape typo must not take the API offline.
+    _report_qcow2_geometry_at_boot()
+    _validate_storage_min_free_at_boot()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()

@@ -27,6 +27,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import task  # noqa: E402
 
+# The geometry is now a required kwarg on convert/disconnect; its value is
+# irrelevant to the free-space floor, so these tests pass the default policy.
+_GEO = {
+    "cluster_size": "4k",
+    "extended_l2": "off",
+    "lazy_refcounts": "off",
+    "preallocation": "off",
+}
+
 
 def _sized(tmp_path, name, nbytes):
     p = tmp_path / name
@@ -143,15 +152,16 @@ def test_convert_refuses_when_the_destination_would_breach_the_floor(
     src = _sized(tmp_path, "src.qcow2", 5000)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 10000)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o: 5000)
     called = {}
     monkeypatch.setattr(
         task, "run_with_progress", lambda *a, **k: called.setdefault("ran", True) or 0
     )
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.convert(src, dst, "qcow2", False, min_free_bytes=8000)
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8000, **_GEO)
 
-    assert "refusing to convert" in str(excinfo.value)
+    assert "would be left" in str(excinfo.value)  # the breach path, not a measure error
     assert "ran" not in called  # qemu-img was never started
     assert not Path(dst).exists()
 
@@ -163,7 +173,7 @@ def test_convert_refuses_when_free_space_is_unknown(tmp_path, monkeypatch):
     monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.convert(src, dst, "qcow2", False, min_free_bytes=8192)
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **_GEO)
 
     assert "cannot read the free space" in str(excinfo.value)
 
@@ -172,6 +182,7 @@ def test_convert_proceeds_when_there_is_room(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o: 1024)
     called = {}
 
     def _ran(*a, **k):
@@ -180,7 +191,7 @@ def test_convert_proceeds_when_there_is_room(tmp_path, monkeypatch):
 
     monkeypatch.setattr(task, "run_with_progress", _ran)
 
-    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192) == 0
+    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **_GEO) == 0
     assert called.get("ran") is True
 
 
@@ -191,11 +202,12 @@ def test_disconnect_refuses_when_the_sibling_would_breach_the_floor(
     the disk it can fill is the one holding the live disk."""
     disk = _sized(tmp_path, "disk.qcow2", 5000)
     monkeypatch.setattr(task, "_free_space", lambda p: 10000)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o: 5000)
     called = {}
     monkeypatch.setattr(task, "run", lambda *a, **k: called.setdefault("ran", True))
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.disconnect(disk, min_free_bytes=8000)
+        task.disconnect(disk, min_free_bytes=8000, **_GEO)
 
     assert "refusing to disconnect" in str(excinfo.value)
     assert "ran" not in called
@@ -209,7 +221,7 @@ def test_disconnect_refuses_when_free_space_is_unknown(tmp_path, monkeypatch):
     monkeypatch.setattr(task, "run", lambda *a, **k: None)
 
     with pytest.raises(RuntimeError) as excinfo:
-        task.disconnect(disk, min_free_bytes=8192)
+        task.disconnect(disk, min_free_bytes=8192, **_GEO)
 
     assert "cannot read the free space" in str(excinfo.value)
 
@@ -228,8 +240,278 @@ def test_disconnect_measures_after_clearing_a_stale_sibling(tmp_path, monkeypatc
         return 1 << 40
 
     monkeypatch.setattr(task, "_free_space", _free)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o: 1024)
     monkeypatch.setattr(task, "run", lambda *a, **k: stale.write_bytes(b"\0" * 8))
 
-    task.disconnect(disk, min_free_bytes=8192)
+    task.disconnect(disk, min_free_bytes=8192, **_GEO)
 
     assert seen["stale_gone"] is True
+
+
+# --------------------------------------------------------------------------
+# The gate reserves qemu-img measure's ``required`` for the exact option string,
+# not the virtual size: preallocation=metadata stays sparse.
+# --------------------------------------------------------------------------
+
+
+def _measure_by_options(mapping):
+    """Return a fake ``_qemu_measure_required`` that answers by the options seen,
+    and records every call so the option string can be asserted."""
+    seen = []
+
+    def _fake(source_path, options, source_format=None):
+        seen.append(options)
+        for needle, value in mapping.items():
+            if needle in options:
+                return value
+        return mapping.get("_default")
+
+    _fake.seen = seen
+    return _fake
+
+
+def test_off_preallocation_skips_the_measure_and_uses_apparent_size(
+    tmp_path, monkeypatch
+):
+    """preallocation=off (the default/recommended) writes a sparse destination,
+    so the cheap os_stat proxy is enough -- the expensive metadata walk of
+    qemu-img measure must NOT run in the common path."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    measured = {}
+
+    def _measure(*a, **k):
+        measured["ran"] = True
+        return 1000
+
+    monkeypatch.setattr(task, "_qemu_measure_required", _measure)
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "off"}
+    assert task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo) == 0
+    assert "ran" not in measured  # off never measures
+
+
+def test_disconnect_off_preallocation_skips_the_measure(tmp_path, monkeypatch):
+    disk = _sized(tmp_path, "disk.qcow2", 5000)
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    measured = {}
+    monkeypatch.setattr(
+        task,
+        "_qemu_measure_required",
+        lambda *a, **k: measured.setdefault("ran", True) or 1000,
+    )
+    monkeypatch.setattr(task, "run", lambda *a, **k: None)
+    monkeypatch.setattr(task, "rename", lambda a, b: None)
+    geo = {**_GEO, "preallocation": "off"}
+    assert task.disconnect(disk, min_free_bytes=8192, **geo) == 0
+    assert "ran" not in measured
+
+
+def test_measure_has_its_own_timeout_larger_than_header_reads():
+    # A full-image metadata walk is bounded work but far slower than a header
+    # read, so it must not share the 30 s QEMU_IMG_TIMEOUT.
+    assert task.QEMU_MEASURE_TIMEOUT > task.QEMU_IMG_TIMEOUT
+
+
+def test_disconnect_measure_forces_the_qcow2_source_format(tmp_path, monkeypatch):
+    """disconnect's source is always a qcow2 disk it controls, so its measure
+    must pin -f qcow2 rather than probe a guest-writable file's header."""
+    disk = _sized(tmp_path, "disk.qcow2", 5000)
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)
+    seen = {}
+
+    def _measure(source_path, options, source_format=None):
+        seen["source_format"] = source_format
+        return 1000
+
+    monkeypatch.setattr(task, "_qemu_measure_required", _measure)
+    monkeypatch.setattr(task, "run", lambda *a, **k: None)
+    monkeypatch.setattr(task, "rename", lambda a, b: None)
+    geo = {**_GEO, "preallocation": "full"}
+    task.disconnect(disk, min_free_bytes=8192, **geo)
+    assert seen["source_format"] == "qcow2"
+
+
+def test_convert_full_preallocation_reserves_the_measured_required(
+    tmp_path, monkeypatch
+):
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(
+        task, "_qemu_measure_required", _measure_by_options({"full": 1 << 40})
+    )
+    ran = {}
+    monkeypatch.setattr(
+        task, "run_with_progress", lambda *a, **k: ran.setdefault("ran", True) or 0
+    )
+    geo = {**_GEO, "preallocation": "full"}
+    with pytest.raises(RuntimeError, match="refusing to convert"):
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo)
+    assert "ran" not in ran
+
+
+def test_convert_metadata_reserves_the_measured_required_not_the_virtual_size(
+    tmp_path, monkeypatch
+):
+    """metadata stays sparse, so measure returns a small required. Free sits just
+    above it and far below the virtual size, so the test fails if the gate ever
+    reverts to reserving virtual."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 5_500_000)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o, f=None: 3_500_000)
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "metadata"}
+    assert task.convert(src, dst, "qcow2", False, min_free_bytes=1_000_000, **geo) == 0
+
+
+def test_disconnect_metadata_reserves_the_measured_required(tmp_path, monkeypatch):
+    disk = _sized(tmp_path, "disk.qcow2", 5000)
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 5_500_000)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o, f=None: 3_500_000)
+    monkeypatch.setattr(task, "run", lambda *a, **k: None)
+    monkeypatch.setattr(task, "rename", lambda a, b: None)
+    geo = {**_GEO, "preallocation": "metadata"}
+    assert task.disconnect(disk, min_free_bytes=1_000_000, **geo) == 0
+
+
+def test_disconnect_full_preallocation_is_refused_when_it_would_breach(
+    tmp_path, monkeypatch
+):
+    disk = _sized(tmp_path, "disk.qcow2", 5000)
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o, f=None: 1 << 40)
+    ran = {}
+    monkeypatch.setattr(task, "run", lambda *a, **k: ran.setdefault("ran", True))
+    geo = {**_GEO, "preallocation": "full"}
+    with pytest.raises(RuntimeError, match="refusing to disconnect"):
+        task.disconnect(disk, min_free_bytes=8192, **geo)
+    assert "ran" not in ran
+    assert Path(disk).exists()
+
+
+def test_gate_measures_with_the_exact_write_option_string(tmp_path, monkeypatch):
+    """The measure must use the SAME -o string the write uses -- including the
+    preallocation term, so the reserved footprint matches what qemu-img writes."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)
+    fake = _measure_by_options({"_default": 1000})
+    monkeypatch.setattr(task, "_qemu_measure_required", fake)
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "metadata"}
+    task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo)
+    assert fake.seen, "a preallocating convert must measure the destination"
+    assert "preallocation=metadata" in fake.seen[0]
+
+
+def test_convert_fails_closed_when_measure_fails(tmp_path, monkeypatch):
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.qcow2")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)  # plenty
+    monkeypatch.setattr(task, "_qemu_measure_required", lambda s, o, f=None: None)
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    geo = {**_GEO, "preallocation": "full"}
+    with pytest.raises(RuntimeError, match="measure"):
+        task.convert(src, dst, "qcow2", False, min_free_bytes=8192, **geo)
+
+
+def test_vmdk_destination_convert_uses_apparent_size(tmp_path, monkeypatch):
+    """A vmdk destination takes no -o and no qcow2 measure; it must not fail
+    closed on the measure path."""
+    src = _sized(tmp_path, "src.qcow2", 5000)
+    dst = str(tmp_path / "out" / "dst.vmdk")
+    monkeypatch.setattr(task, "_physical_free_space", lambda p: None)
+    monkeypatch.setattr(task, "_free_space", lambda p: 50_000)
+    monkeypatch.setattr(
+        task,
+        "_qemu_measure_required",
+        lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("must not measure a vmdk")
+        ),
+    )
+    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
+    assert task.convert(src, dst, "vmdk", False, min_free_bytes=8192, **_GEO) == 0
+
+
+# --------------------------------------------------------------------------
+# _qemu_measure_required: direct coverage (previously monkeypatched away)
+# --------------------------------------------------------------------------
+
+
+class _Measured:
+    def __init__(self, returncode=0, stdout=b"", stderr=b""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def test_qemu_measure_required_probes_the_source_without_forcing_qcow2(monkeypatch):
+    """It must NOT pin -f qcow2 on the source, or a vmdk->qcow2 convert measures
+    a vmdk as qcow2, fails, and the gate refuses a perfectly runnable convert."""
+    calls = []
+    monkeypatch.setattr(
+        task,
+        "run",
+        lambda cmd, **k: calls.append(cmd) or _Measured(stdout=b'{"required": 4096}'),
+    )
+    got = task._qemu_measure_required("/isard/g/d.vmdk", "cluster_size=64k")
+    assert got == 4096
+    cmd = calls[0]
+    assert cmd[:2] == ["qemu-img", "measure"]
+    assert "-O" in cmd and cmd[cmd.index("-O") + 1] == "qcow2"
+    assert "-f" not in cmd  # the SOURCE format is probed, not forced
+
+
+def test_qemu_measure_required_forces_the_source_format_when_given(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        task,
+        "run",
+        lambda cmd, **k: calls.append(cmd) or _Measured(stdout=b'{"required": 8}'),
+    )
+    task._qemu_measure_required("/isard/g/d.qcow2", "cluster_size=64k", "qcow2")
+    cmd = calls[0]
+    assert "-f" in cmd and cmd[cmd.index("-f") + 1] == "qcow2"
+
+
+def test_qemu_measure_required_uses_its_own_timeout(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(
+        task,
+        "run",
+        lambda cmd, **k: seen.update(k) or _Measured(stdout=b'{"required": 8}'),
+    )
+    task._qemu_measure_required("/isard/g/d.qcow2", "cluster_size=64k")
+    assert seen["timeout"] == task.QEMU_MEASURE_TIMEOUT
+
+
+def test_qemu_measure_required_returns_none_on_failure(monkeypatch):
+    monkeypatch.setattr(task, "run", lambda cmd, **k: _Measured(returncode=1))
+    assert task._qemu_measure_required("/isard/g/d.qcow2", "cluster_size=64k") is None
+
+
+def test_qemu_measure_required_returns_none_on_timeout(monkeypatch):
+    def _boom(cmd, **k):
+        raise task.TimeoutExpired(cmd, 1)
+
+    monkeypatch.setattr(task, "run", _boom)
+    assert task._qemu_measure_required("/isard/g/d.qcow2", "cluster_size=64k") is None
+
+
+def test_qemu_measure_required_returns_none_on_unparseable_output(monkeypatch):
+    monkeypatch.setattr(
+        task, "run", lambda cmd, **k: _Measured(stdout=b"not json at all")
+    )
+    assert task._qemu_measure_required("/isard/g/d.qcow2", "cluster_size=64k") is None

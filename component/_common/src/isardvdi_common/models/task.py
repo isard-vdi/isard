@@ -24,6 +24,7 @@ from types import SimpleNamespace
 
 from cachetools import cached
 from isardvdi_common.connections.redis_base import RedisBase
+from isardvdi_common.helpers import qcow2_geometry
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.task_streams import (
     publish_canceled_event,
@@ -841,6 +842,30 @@ _TO_DICT_OMITTED_PROPERTIES = {
     "storage_id",
 }
 
+#: Tasks whose worker writes a qcow2 with an explicit geometry; each must carry the four values.
+_GEOMETRY_TASKS = ("create", "convert", "disconnect")
+
+
+def _require_qcow2_geometry(task, task_kwargs):
+    """Reject a disk-writing task enqueued without its qcow2 geometry.
+
+    The worker signatures make the four values required keyword-only arguments,
+    so a task missing them would eventually die with a ``TypeError`` -- but only
+    on the worker, after ``retry`` attempts, with the failure event suppressed
+    while retries remain. Raising here instead fails the enqueuing request
+    immediately and names what is missing.
+    """
+    if task not in _GEOMETRY_TASKS:
+        return
+    kwargs = task_kwargs or {}
+    # Absent OR empty: a None/"" would pass a presence check and die later in the worker validate().
+    missing = [k for k in qcow2_geometry.KEYS if kwargs.get(k) in (None, "")]
+    if missing:
+        raise ValueError(
+            f"task {task!r} enqueued without qcow2 geometry {missing}; the "
+            "enqueuer must resolve the install policy and carry it in the payload"
+        )
+
 
 class Task(RedisBase):
     """
@@ -897,6 +922,9 @@ class Task(RedisBase):
             # ``timeout`` in job_kwargs -- setdefault keeps it.
             kwargs["job_kwargs"].setdefault(
                 "timeout", job_timeout_for(kwargs.get("task"))
+            )
+            _require_qcow2_geometry(
+                kwargs.get("task"), (kwargs["job_kwargs"].get("kwargs") or {})
             )
             dependencies = []
             for dependency in kwargs.get("dependencies", []):
