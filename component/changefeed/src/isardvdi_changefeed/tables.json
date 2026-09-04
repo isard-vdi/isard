@@ -89,13 +89,16 @@
       "accessed",
       "active",
       "category",
+      "disclaimer_acknowledged",
       "email",
       "email_verified",
       "group",
       "id",
       "name",
+      "provider",
       "role",
       "secondary_groups",
+      "uid",
       "username",
       {
         "vpn": {
