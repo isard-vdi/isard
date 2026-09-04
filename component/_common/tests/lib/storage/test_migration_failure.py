@@ -451,18 +451,49 @@ def test_cancel_skip_only_for_starting_actions_and_only_when_finishing():
 #     whose worker dies every time.
 # --------------------------------------------------------------------------- #
 class _FakeMig:
-    """Only the migration fields MigrationRunner.tick() reads/writes."""
+    """Only the migration fields tick() touches; ``status`` is what the driver read."""
 
-    def __init__(self, status):
-        self.status = status
+    def __init__(self, status, live_status=None):
+        self.id = "m"
+        object.__setattr__(self, "status", status)
+        self.live = {"status": live_status if live_status is not None else status}
         self.current_window = None
         self.last_occurrence = None
+
+    def __setattr__(self, name, value):
+        # The unguarded write must be VISIBLE on the live row, or a test that
+        # asserts the row was left alone passes without proving anything.
+        if name == "status":
+            self.live["status"] = value
+        object.__setattr__(self, name, value)
+
+    def _update_cache(self, **fields):
+        pass
 
     def recompute_totals(self):
         pass
 
 
-def _tick_runner(monkeypatch, items, status, job_status_fn):
+def _patch_status_claim(monkeypatch, mig_obj):
+    """Honour ``update_document_if`` against the live row of ``mig_obj``."""
+
+    def _claim(
+        cls, doc_id, update_data, *, field, values=None, excluding=None, validate=True
+    ):
+        held = mig_obj.live.get(field)
+        if (values is not None and held not in values) or (
+            excluding is not None and held in excluding
+        ):
+            return False
+        mig_obj.live.update(update_data)
+        for key, value in update_data.items():
+            object.__setattr__(mig_obj, key, value)
+        return True
+
+    monkeypatch.setattr(mr.StorageMigration, "update_document_if", classmethod(_claim))
+
+
+def _tick_runner(monkeypatch, items, status, job_status_fn, live_status=None):
     """A MigrationRunner whose ledger is the in-memory ``items`` list and whose
     Storage / DesktopEvents / enqueue are captured (no DB, no redis). Mirrors the
     boundary-stub pattern of test_terminalize_resets_storage_and_cascades; returns
@@ -552,7 +583,8 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
 
     r = _runner()
     r.migration_id = "m"
-    r.migration = _FakeMig(status)
+    r.migration = _FakeMig(status, live_status=live_status)
+    _patch_status_claim(monkeypatch, r.migration)
     r.config = {}
     r.user_id = "admin"
     r.dst_pool = None
