@@ -1066,6 +1066,7 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} has children storages that depend on it as backing file",
                     description_code="storage_has_children",
                 )
+        was = self.status
         if claimable is None:
             self.status = "maintenance"
         elif Storage.update_document_if(
@@ -1081,9 +1082,31 @@ class Storage(RethinkCustomBase):
                 description_code=refusal[1],
             )
         if action not in ("create", "download"):
-            for domain in self.domains:
-                domain.current_action = action
-                domain.status = "Maintenance"
+            # a domain may have moved on before the storage row closed: flip only while still Stopped
+            flipped = []
+            for item in self.domains:
+                if item.id in excluded:
+                    item.current_action = action
+                    item.status = "Maintenance"
+                    continue
+                if domain.Domain.update_document_if(
+                    item.id,
+                    {"status": "Maintenance", "current_action": action},
+                    field="status",
+                    values=("Stopped",),
+                    validate=False,
+                ):
+                    flipped.append(item)
+                    continue
+                for done in flipped:
+                    done.current_action = None
+                    done.status = "Stopped"
+                self.status = was
+                raise Error(
+                    "precondition_required",
+                    f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
+                    description_code="desktops_not_stopped",
+                )
 
     def set_ready(self):
         # Same reason as ``set_maintenance``: a precondition must not reach

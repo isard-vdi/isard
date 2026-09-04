@@ -27,41 +27,89 @@ The invariant still holds for everybody else: a *different* desktop running on
 the same disk must still block it.
 """
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
 import pytest
 from isardvdi_common.models.storage import Storage
 
 
-def _storage(domain_statuses):
-    """A Storage whose ``domains`` are mocks with the given id -> status."""
+def _domain(store, domain_id, read_status):
+    """A domain as the preconditions read it, over the row as it now is."""
+
+    class _Domain:
+        def __init__(self):
+            object.__setattr__(self, "id", domain_id)
+
+        @property
+        def status(self):
+            return read_status
+
+        def __setattr__(self, name, value):
+            store.setdefault(domain_id, {})[name] = value
+
+    return _Domain()
+
+
+def _storage(store, domain_statuses):
+    """A Storage whose ``domains`` report the given id -> status."""
     storage = Storage.__new__(Storage)
-    domains = []
-    for domain_id, status in domain_statuses.items():
-        domain = MagicMock(name=domain_id)
-        domain.id = domain_id
-        domain.status = status
-        domains.append(domain)
+    domains = [
+        _domain(store, domain_id, status)
+        for domain_id, status in domain_statuses.items()
+    ]
     return storage, domains
 
 
-def _run(domain_statuses, exclude_domains=None):
-    storage, domains = _storage(domain_statuses)
+def _guarded(store):
+    """Honour the guarded write against ``store``, which is the live row."""
+
+    def _update_document_if(
+        doc_id, update_data, *, field, values=None, excluding=None, validate=True
+    ):
+        held = store.get(doc_id, {}).get(field)
+        if (values is not None and held not in values) or (
+            excluding is not None and held in excluding
+        ):
+            return False
+        store.setdefault(doc_id, {}).update(update_data)
+        return True
+
+    return _update_document_if
+
+
+def _run(domain_statuses, exclude_domains=None, live_statuses=None, store=None):
+    """Run set_maintenance; ``live_statuses`` is what the rows hold when the writes land."""
+    store = {} if store is None else store
+    store["storage-1"] = {"status": "ready"}
+    for domain_id, status in domain_statuses.items():
+        store[domain_id] = {"status": status}
+    store.update({k: {"status": v} for k, v in (live_statuses or {}).items()})
+
+    storage, domains = _storage(store, domain_statuses)
     # ``Storage`` resolves its columns through ``__getattr__``, so they are set
     # on the instance rather than patched on the class.
     object.__setattr__(storage, "id", "storage-1")
     object.__setattr__(storage, "status", "ready")
+
+    from isardvdi_common.models import domain as domain_module
+
+    def _setattr(self, name, value):
+        store.setdefault(self.id, {})[name] = value
+        object.__setattr__(self, name, value)
+
     with patch.object(
         Storage, "domains", new_callable=PropertyMock, return_value=domains
     ), patch.object(
         Storage, "children", new_callable=PropertyMock, return_value=[]
     ), patch.object(
-        Storage, "__setattr__", object.__setattr__
+        Storage, "__setattr__", _setattr
+    ), patch.object(
+        Storage, "update_document_if", staticmethod(_guarded(store))
+    ), patch.object(
+        domain_module.Domain, "update_document_if", staticmethod(_guarded(store))
     ):
-        # ``__setattr__`` persists to rethinkdb; the assertions are on the
-        # domains, so keeping the write in memory is enough.
         storage.set_maintenance("delete", exclude_domains=exclude_domains)
-    return domains
+    return domains, store
 
 
 def _code(raised):
@@ -84,10 +132,33 @@ def _code(raised):
 
 
 def test_the_desktop_being_deleted_does_not_block_its_own_disk():
-    domains = _run({"desktop-1": "Started"}, exclude_domains=["desktop-1"])
+    _domains, store = _run({"desktop-1": "Started"}, exclude_domains=["desktop-1"])
     # And it is still parked, so the row says a task owns it while it happens.
-    assert domains[0].status == "Maintenance"
-    assert domains[0].current_action == "delete"
+    assert store["desktop-1"]["status"] == "Maintenance"
+    assert store["desktop-1"]["current_action"] == "delete"
+    assert store["storage-1"]["status"] == "maintenance"
+
+
+def test_a_desktop_that_starts_while_the_preconditions_run_still_blocks_it():
+    """The read said Stopped; the row says Starting when the write lands."""
+    with pytest.raises(Exception) as raised:
+        _run({"desktop-1": "Stopped"}, live_statuses={"desktop-1": "Starting"})
+
+    assert _code(raised) == "desktops_not_stopped"
+
+
+def test_a_refused_flip_puts_the_storage_back():
+    """The storage is closed first, so a refusal has to reopen it."""
+    store = {}
+    with pytest.raises(Exception):
+        _run(
+            {"desktop-1": "Stopped", "desktop-2": "Stopped"},
+            live_statuses={"desktop-2": "Starting"},
+            store=store,
+        )
+
+    assert store["storage-1"]["status"] == "ready"
+    assert store["desktop-1"]["status"] == "Stopped"
 
 
 def test_another_running_desktop_on_the_same_disk_still_blocks_it():
