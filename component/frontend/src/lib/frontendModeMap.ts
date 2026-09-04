@@ -37,6 +37,19 @@ export function hasVue2Equivalent(name: string | undefined): boolean {
   return name != null && name in VUE3_TO_VUE2
 }
 
+export function honoursPreferredFrontend(mode: FrontendMode | undefined): boolean {
+  return mode === 'all' || mode === 'hidden'
+}
+
+export function landingGoesToVue2(
+  mode: FrontendMode | undefined,
+  preferred: PreferredFrontend | null
+): boolean {
+  if (mode === 'hidden') return preferred !== 'vue3'
+  if (mode === 'all') return preferred === 'vue2'
+  return false
+}
+
 export const EDIT_FORM_ROUTES = new Set<string>([
   'new-desktop',
   'edit-desktop',

@@ -13,6 +13,7 @@ import ScrollToTop from '@/components/page/ScrollToTop.vue'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
+import { getPreferredFrontend } from '@/lib/frontendModeMap'
 import { DEFAULT_DOCS_URL, DEFAULT_VIEWERS_DOCS_URL, docsUrl } from '@/lib/docs'
 import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { cn } from '@/lib/utils'
@@ -39,9 +40,13 @@ const contentPadding = computed(() =>
 )
 
 // In `hidden` mode the login notifications page is a transitional landing that
-// must funnel the user back to the old frontend.
+// funnels the user back to the old frontend -- unless they opted into the new
+// one by reaching it via its URL.
 const redirectToOldFrontend = computed(
-  () => route.name === 'notifications' && userConfig?.value?.frontend_mode === 'hidden'
+  () =>
+    route.name === 'notifications' &&
+    userConfig?.value?.frontend_mode === 'hidden' &&
+    getPreferredFrontend() !== 'vue3'
 )
 
 // TODO: Uncomment if the TopBar is required

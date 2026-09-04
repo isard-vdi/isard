@@ -35,6 +35,10 @@ export function hasVue3Equivalent (name) {
   return Boolean(name && VUE2_TO_VUE3[name])
 }
 
+export function honoursPreferredFrontend (mode) {
+  return mode === 'all' || mode === 'hidden'
+}
+
 export function resolveVue3Path (route) {
   if (!route || !route.name) return null
   const template = VUE2_TO_VUE3[route.name]

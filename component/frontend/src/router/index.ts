@@ -10,6 +10,7 @@ import {
   clearPreferredFrontend,
   setPreferredFrontend,
   hasVue2Equivalent,
+  honoursPreferredFrontend,
   type FrontendMode
 } from '@/lib/frontendModeMap'
 import { ensureFaroInitialized, setFaroView } from '@/lib/faro-hook'
@@ -507,8 +508,8 @@ async function getFrontendMode(): Promise<FrontendMode> {
       void ensureFaroInitialized(data.faro)
     }
     cachedFrontendMode = data.frontend_mode ?? 'deprecated'
-    // A deployment can leave `all` after browsers already stored a preference.
-    if (cachedFrontendMode !== 'all') clearPreferredFrontend()
+    // A deployment can leave `all`/`hidden` after browsers already stored a preference.
+    if (!honoursPreferredFrontend(cachedFrontendMode)) clearPreferredFrontend()
     return cachedFrontendMode
   } catch {
     cachedFrontendMode = 'deprecated'
@@ -574,7 +575,7 @@ router.beforeEach(async (to, from, next) => {
       window.location.assign(vue2Path)
       return
     }
-    if (mode === 'all' && hasVue2Equivalent(to.name as string | undefined)) {
+    if (honoursPreferredFrontend(mode) && hasVue2Equivalent(to.name as string | undefined)) {
       setPreferredFrontend('vue3')
     }
   }

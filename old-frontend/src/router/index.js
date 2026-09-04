@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
-import { resolveVue3Path, clearPreferredFrontend, setPreferredFrontend, hasVue3Equivalent } from '@/shared/frontendModeMap'
+import { resolveVue3Path, clearPreferredFrontend, setPreferredFrontend, hasVue3Equivalent, honoursPreferredFrontend } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
 import { setFaroView } from '@/lib/faro'
@@ -434,8 +434,8 @@ router.beforeEach(async (to, from, next) => {
         if (isEmpty(store.getters.getConfig)) {
           await store.dispatch('fetchConfig')
         }
-        // A deployment can leave `all` after browsers already stored a preference.
-        if (store.getters.getConfig.frontendMode !== 'all') {
+        // A deployment can leave `all`/`hidden` after browsers already stored a preference.
+        if (!honoursPreferredFrontend(store.getters.getConfig.frontendMode)) {
           clearPreferredFrontend()
         }
         if (store.getters.getConfig.frontendMode === 'actual') {
@@ -443,7 +443,7 @@ router.beforeEach(async (to, from, next) => {
           window.location.assign(target)
           return
         }
-        if (store.getters.getConfig.frontendMode === 'all' && hasVue3Equivalent(to.name)) {
+        if (honoursPreferredFrontend(store.getters.getConfig.frontendMode) && hasVue3Equivalent(to.name)) {
           setPreferredFrontend('vue2')
         }
         if (!store.getters.getMaxTime) {

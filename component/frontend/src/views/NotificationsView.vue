@@ -5,7 +5,11 @@ import {
   getUserConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { NotificationDisplayEnum } from '@/gen/oas/apiv4'
-import { vue2PathForRouteName, getPreferredFrontend } from '@/lib/frontendModeMap'
+import {
+  vue2PathForRouteName,
+  getPreferredFrontend,
+  landingGoesToVue2
+} from '@/lib/frontendModeMap'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -42,10 +46,11 @@ const { data: userConfig } = useQuery({
 })
 
 function goToDesktops() {
-  // In `hidden` mode this page is a transitional login-flow landing: send the
-  // user to the old frontend instead of deeper into the (hidden) new one.
+  // This page is a transitional login-flow landing. Each mode has a default
+  // destination -- `hidden` funnels back to the old frontend because the new
+  // one is unadvertised, `all` stays here -- and an explicit choice wins.
   const mode = userConfig.value?.frontend_mode
-  if (mode === 'hidden' || (mode === 'all' && getPreferredFrontend() === 'vue2')) {
+  if (landingGoesToVue2(mode, getPreferredFrontend())) {
     window.location.assign(vue2PathForRouteName('desktops') ?? '/desktops')
     return
   }
