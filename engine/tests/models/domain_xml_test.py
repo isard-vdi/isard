@@ -267,48 +267,6 @@ def test_remove_memory_backing_keeps_virtiofs():
     assert mb[0].find("access") is not None
 
 
-def test_remove_memory_backing_round_trip():
-    """add_memory_backing then remove_memory_backing -> no <memoryBacking> (the
-    native 4K shape), guest RAM untouched. This is the start-path OOM fallback."""
-    xml = (
-        '<domain type="kvm">'
-        "<memory>16777216</memory>"
-        "<currentMemory>16777216</currentMemory>"
-        "<devices/>"
-        "</domain>"
-    )
-    backed = add_memory_backing(xml, "1", "G")
-    assert _parse(backed).xpath("/domain/memoryBacking/hugepages")  # sanity
-    stripped = remove_memory_backing(backed)
-    tree = _parse(stripped)
-    assert tree.xpath("/domain/memoryBacking") == []  # whole element dropped
-    assert tree.xpath("/domain/memory/text()")[0] == "16777216"  # RAM intact
-
-
-def test_remove_memory_backing_keeps_virtiofs():
-    """remove_memory_backing drops only hugepages/allocation/locked; a virtiofs
-    <source>/<access> memoryBacking must survive (just without hugepages)."""
-    xml = (
-        '<domain type="kvm">'
-        "<memory>8388608</memory>"
-        "<currentMemory>8388608</currentMemory>"
-        "<memoryBacking>"
-        '  <source type="memfd"/>'
-        '  <access mode="shared"/>'
-        "</memoryBacking>"
-        "<devices/>"
-        "</domain>"
-    )
-    backed = add_memory_backing(xml, "1", "G")  # adds hugepages alongside virtiofs
-    stripped = remove_memory_backing(backed)
-    tree = _parse(stripped)
-    mb = tree.xpath("/domain/memoryBacking")
-    assert len(mb) == 1  # kept (still has virtiofs children)
-    assert mb[0].find("hugepages") is None  # but hugepages stripped
-    assert mb[0].find("source").get("type") == "memfd"
-    assert mb[0].find("access").get("mode") == "shared"
-
-
 def test_set_memory_inserts_missing_currentmemory():
     """Regression: when <currentMemory> is absent, set_memory built the element
     with etree.parse() (an _ElementTree) and passed it to .addnext(), raising
