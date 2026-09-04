@@ -715,6 +715,33 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
+    def claim_status(cls, rb_id, expected, status):
+        """Flip the entry only while it still reads ``expected``.
+
+        Returns False when another writer moved it first, so the caller can
+        stop before doing work the entry is no longer entitled to.
+        """
+        with cls._rdb_context():
+            result = (
+                r.table("recycle_bin")
+                .get(rb_id)
+                .update(
+                    lambda doc: r.branch(
+                        doc["status"] == expected, {"status": status}, {}
+                    ),
+                    return_changes=True,
+                )
+                .run(cls._rdb_connection)
+            )
+        if not result.get("replaced"):
+            return False
+        cls.clear_get_item_count_cache()
+        cls.clear_get_count_cache()
+        cls.clear_get_user_amount_cache()
+        cls.clear_get_user_recycle_bin_ids_cache()
+        return True
+
+    @classmethod
     def update_status(cls, rb_id, owner_id, status):
         with cls._rdb_context():
             r.table("recycle_bin").get(rb_id).update({"status": status}).run(
@@ -796,7 +823,7 @@ class Helpers(RethinkSharedConnection):
                     .get(task["recycle_bin_id"])
                     .update(
                         lambda doc: r.branch(
-                            doc["status"] != "deleted",
+                            doc["status"] == "deleting",
                             {"status": "deleted"},
                             {},  # No update if already deleted
                         ),
@@ -1807,13 +1834,20 @@ class RecycleBin(RethinkSharedConnection):
         """
         Restore an entry including domains and storage. Call this function with RecycleBin object instanced with ID
         """
-        if self.status in [
-            RecycleBinStatusEnum.deleted.value,
-            RecycleBinStatusEnum.restored.value,
-        ]:
+        if self.status != RecycleBinStatusEnum.recycled.value:
             raise Error(
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
+            )
+        # The check above is a snapshot; only the server can see the row move.
+        if not Helpers.claim_status(
+            self.id,
+            RecycleBinStatusEnum.recycled.value,
+            RecycleBinStatusEnum.restored.value,
+        ):
+            raise Error(
+                "precondition_required",
+                "Entry is no longer restorable",
             )
         if self.item_type != "user":
             try:
@@ -1850,9 +1884,6 @@ class RecycleBin(RethinkSharedConnection):
                 ).run(self._rdb_connection)
         except Exception:
             raise Error("not found", "Invalid storage data")
-        Helpers.update_status(
-            self.id, self.owner_id, RecycleBinStatusEnum.restored.value
-        )
         Helpers.add_log(
             RecycleBinStatusEnum.restored.value,
             self.id,
