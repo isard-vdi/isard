@@ -170,6 +170,22 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         return data
 
     @classmethod
+    def _assert_subitem_enabled(cls, item_type, item_id, subitem_id):
+        """Refuse a plan for a profile the item does not have enabled."""
+        enabled = {
+            subitem["id"]
+            for subitem in (
+                cls.reservables.list_subitems_enabled(item_type, item_id) or []
+            )
+        }
+        if subitem_id not in enabled:
+            raise Error(
+                "bad_request",
+                f"Profile {subitem_id} is not enabled on {item_type} {item_id}",
+                description_code="subitem_not_enabled_on_item",
+            )
+
+    @classmethod
     def add_plan(
         cls,
         payload,
@@ -200,6 +216,10 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 "End date must be after start date.",
                 description_code="invalid_end_date",
             )
+
+        cls._assert_subitem_enabled(
+            data["item_type"], data["item_id"], data["subitem_id"]
+        )
 
         # Plan data structure
         try:

@@ -660,3 +660,33 @@ class TestBookingWindowBounds:
             "2026-01-31T00:00+0000",
         )
         assert len(bookings_stub["filter_calls"]) == 3
+
+    def test_empty_dimension_does_not_match_when_rule_restricts_another(
+        self, compute_stub
+    ):
+        """A rule that restricts one dimension must not match through an empty one."""
+        payload = _make_payload(user_id="u-alice", role_id="user")
+        rule = _make_rule(
+            priority=999,
+            allowed={
+                "users": [],
+                "groups": [],
+                "categories": [],
+                "roles": ["admin"],
+            },
+        )
+        assert compute_stub["Cls"].user_matches_priority_rule(payload, [rule]) is False
+
+    def test_restricting_rule_still_matches_the_user_it_names(self, compute_stub):
+        """The guard above must not stop the restricted dimension from matching."""
+        payload = _make_payload(user_id="u-alice", role_id="admin")
+        rule = _make_rule(
+            priority=999,
+            allowed={
+                "users": [],
+                "groups": [],
+                "categories": [],
+                "roles": ["admin"],
+            },
+        )
+        assert compute_stub["Cls"].user_matches_priority_rule(payload, [rule]) == rule
