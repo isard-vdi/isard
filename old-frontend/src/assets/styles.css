@@ -736,6 +736,9 @@
 
 /* Images */
 .image-wrapper img {
+  width: 250px;
+  height: 134px;
+  object-fit: cover;
   filter: brightness(80%);
   transition: all ease 0.3s;
 }
