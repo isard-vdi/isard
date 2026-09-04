@@ -10,6 +10,7 @@ tests pin the two idempotent passes and the safety gates (grace window,
 never finalize a storage whose task is still alive).
 """
 
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
@@ -275,6 +276,88 @@ def _domain(did="d1", *, status="Maintenance", storages=None, disks=None):
     d.storages = storages if storages is not None else []
     d.create_dict = {"hardware": {"disks": disks if disks is not None else []}}
     return d
+
+
+class _DomainRows:
+    """The domains table: what the scan read, and what it holds now."""
+
+    class _Row:
+        def __init__(self, rows, base):
+            object.__setattr__(self, "_rows", rows)
+            object.__setattr__(self, "_base", base)
+            object.__setattr__(self, "id", base.id)
+
+        def __getattr__(self, name):
+            return getattr(self._base, name)
+
+        def __setattr__(self, name, value):
+            self._rows.store.setdefault(self.id, {})[name] = value
+
+    def __init__(self, *doubles, live_status=None):
+        self.store = {
+            double.id: {
+                "status": live_status if live_status else double.status,
+                "current_action": double.current_action,
+            }
+            for double in doubles
+        }
+        self.doubles = {double.id: self._Row(self, double) for double in doubles}
+        self.fresh = {}
+
+    def refresh(self, double):
+        """What a fresh read returns, when the scan's copy is out of date."""
+        self.fresh[double.id] = double
+        return double
+
+    def scanned(self, doc_id):
+        return self.doubles[doc_id]
+
+    def build(self, doc_id):
+        base = self.fresh.get(doc_id, self.doubles.get(doc_id))
+        if base is None:
+            return None
+        return self._Row(
+            self,
+            _domain(
+                doc_id,
+                status=self.store[doc_id]["status"],
+                storages=base.storages,
+                disks=base.create_dict["hardware"]["disks"],
+            ),
+        )
+
+    def update_document_if(
+        self, doc_id, update_data, *, field, values=None, excluding=None, validate=True
+    ):
+        held = self.store.get(doc_id, {}).get(field)
+        if (values is not None and held not in values) or (
+            excluding is not None and held in excluding
+        ):
+            return False
+        self.store.setdefault(doc_id, {}).update(update_data)
+        return True
+
+    @contextmanager
+    def patched(self, reconcile):
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch.object(reconcile.Domain, "build", staticmethod(self.build))
+            )
+            stack.enter_context(
+                patch.object(
+                    reconcile.Domain,
+                    "update_document_if",
+                    staticmethod(self.update_document_if),
+                )
+            )
+            stack.enter_context(
+                patch.object(
+                    reconcile.Domain,
+                    "get_index",
+                    return_value=list(self.doubles.values()),
+                )
+            )
+            yield self
 
 
 @pytest.mark.asyncio
@@ -562,14 +645,15 @@ async def test_pass3_re_observes_instead_of_promoting_from_the_rows_status():
     dom = _domain(
         status="CreatingTemplate", storages=[storage], disks=[{"storage_id": "s1"}]
     )
+    rows = _DomainRows(dom)
     with (
-        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        rows.patched(reconcile),
         patch.object(reconcile, "_task_alive", return_value=False),
     ):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
     assert healed == 0
-    assert dom.status == "CreatingTemplate"
+    assert rows.store["d1"]["status"] == "CreatingTemplate"
     storage.find.assert_called_once()
     assert storage.find.call_args.kwargs["blocking"] is False
 
@@ -583,14 +667,15 @@ async def test_pass3_leaves_a_domain_whose_storage_chain_is_still_live():
     dom = _domain(
         status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
     )
+    rows = _DomainRows(dom)
     with (
-        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        rows.patched(reconcile),
         patch.object(reconcile, "_task_alive", return_value=True),
     ):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
     assert healed == 0
-    assert dom.status == "Maintenance"
+    assert rows.store["d1"]["status"] == "Maintenance"
     storage.find.assert_not_called()
 
 
@@ -620,12 +705,13 @@ async def test_pass3_fails_domain_whose_storage_row_is_gone():
     from isardvdi_change_handler.streams import reconcile
 
     dom = _domain(status="Maintenance", storages=[], disks=[{"storage_id": "gone"}])
-    with patch.object(reconcile.Domain, "get_index", return_value=[dom]):
+    rows = _DomainRows(dom)
+    with rows.patched(reconcile):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
     assert healed == 1
-    assert dom.status == "Failed"
-    assert dom.current_action is None
+    assert rows.store["d1"]["status"] == "Failed"
+    assert rows.store["d1"]["current_action"] is None
 
 
 @pytest.mark.asyncio
@@ -645,9 +731,58 @@ async def test_pass3_fails_domain_with_only_some_storage_rows_left():
         storages=[survivor],
         disks=[{"storage_id": "s1"}, {"storage_id": "s2-gone"}],
     )
+    rows = _DomainRows(domain)
 
-    assert reconcile._finalize_stuck_domain(domain) == 1
-    assert domain.status == "Failed"
+    with rows.patched(reconcile):
+        assert reconcile._finalize_stuck_domain(rows.scanned("d1")) == 1
+
+    assert rows.store["d1"]["status"] == "Failed"
+
+
+@pytest.mark.asyncio
+async def test_pass3_does_not_fail_a_domain_a_chain_settled_while_it_scanned():
+    """The recreate finished between the index scan and the write."""
+    from isardvdi_change_handler.streams import reconcile
+
+    dom = _domain(status="Maintenance", storages=[], disks=[{"storage_id": "old"}])
+    rows = _DomainRows(dom, live_status="Stopped")
+
+    with rows.patched(reconcile):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert (
+        rows.store["d1"]["status"] == "Stopped"
+    ), f"a settled domain was rewritten to Failed: {rows.store['d1']}"
+
+
+@pytest.mark.asyncio
+async def test_pass3_decides_from_a_fresh_read_not_the_scan_cache():
+    """``build_from`` seeded the attribute cache during the index scan."""
+    from isardvdi_change_handler.streams import reconcile
+
+    survivor = _storage("new", status="ready", task=None)
+    dom = _domain(status="Maintenance", storages=[], disks=[{"storage_id": "old"}])
+    rows = _DomainRows(dom)
+    # What a fresh read says: rewired, and the storage row is there.
+    rows.refresh(
+        _domain(
+            "d1",
+            status="Maintenance",
+            storages=[survivor],
+            disks=[{"storage_id": "new"}],
+        )
+    )
+
+    with (
+        rows.patched(reconcile),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert rows.store["d1"]["status"] == "Maintenance"
+    survivor.find.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -660,14 +795,15 @@ async def test_pass3_leaves_domain_whose_storage_task_is_alive():
     dom = _domain(
         status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
     )
+    rows = _DomainRows(dom)
     with (
-        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        rows.patched(reconcile),
         patch.object(reconcile, "_task_alive", return_value=True),
     ):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
     assert healed == 0
-    assert dom.status == "Maintenance"
+    assert rows.store["d1"]["status"] == "Maintenance"
 
 
 @pytest.mark.asyncio
@@ -680,14 +816,15 @@ async def test_pass3_leaves_domain_whose_storage_still_in_maintenance():
     dom = _domain(
         status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
     )
+    rows = _DomainRows(dom)
     with (
-        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        rows.patched(reconcile),
         patch.object(reconcile, "_task_alive", return_value=False),
     ):
         healed = await reconcile._reconcile_stuck_domains(AsyncMock())
 
     assert healed == 0
-    assert dom.status == "Maintenance"
+    assert rows.store["d1"]["status"] == "Maintenance"
 
 
 # ---------------------------------------------------------------------------
