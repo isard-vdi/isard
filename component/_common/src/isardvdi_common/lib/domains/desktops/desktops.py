@@ -43,7 +43,10 @@ from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
-from isardvdi_common.helpers.isard_viewer import default_guest_properties
+from isardvdi_common.helpers.isard_viewer import (
+    default_guest_properties,
+    with_default_credentials,
+)
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
@@ -588,7 +591,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 guest_properties.update(new_data["guest_properties"])
                 guest_properties["viewers"] = new_data["guest_properties"]["viewers"]
 
-        return create_dict, guest_properties
+        return create_dict, with_default_credentials(guest_properties)
 
     @classmethod
     def new_from_template(
@@ -1727,8 +1730,8 @@ class DesktopsProcessed(RethinkSharedConnection):
             ),
             "image": Cards.get_domain_stock_card(data["id"]),
             "os": "win",
-            "guest_properties": data.get(
-                "guest_properties", default_guest_properties()
+            "guest_properties": with_default_credentials(
+                data.get("guest_properties") or default_guest_properties()
             ),
             "hypervisors_pools": ["default"],
             "accessed": int(time.time()),

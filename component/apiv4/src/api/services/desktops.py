@@ -42,6 +42,7 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
     DesktopNonpersistentEvents,
 )
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.isard_viewer import with_default_credentials
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
@@ -415,7 +416,9 @@ class DesktopService:
             "group": user.group,
             "icon": "",
             "image": image_data,
-            "guest_properties": data.guest_properties.model_dump(exclude_unset=True),
+            "guest_properties": with_default_credentials(
+                data.guest_properties.model_dump(exclude_unset=True)
+            ),
             "create_dict": {
                 "create_from_virt_install_xml": data.os_template,
                 "hardware": hardware,

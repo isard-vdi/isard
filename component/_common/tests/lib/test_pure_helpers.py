@@ -11,7 +11,10 @@ by apiv4 + engine + change-handler and run on every request / event.
 import portion as P
 import pytest
 from isardvdi_common.helpers.error_factory import Error
-from isardvdi_common.helpers.isard_viewer import default_guest_properties
+from isardvdi_common.helpers.isard_viewer import (
+    default_guest_properties,
+    with_default_credentials,
+)
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     _sorted_atomic_items,
 )
@@ -193,7 +196,7 @@ class TestDefaultGuestProperties:
         a = default_guest_properties()
         a["credentials"]["password"] = "mutated"
         b = default_guest_properties()
-        assert b["credentials"]["password"] == "pirineus"
+        assert b["credentials"]["password"] == ""
 
     def test_has_every_viewer_kind_with_null_options(self):
         gp = default_guest_properties()
@@ -211,6 +214,56 @@ class TestDefaultGuestProperties:
 
     def test_fullscreen_default_is_false(self):
         assert default_guest_properties()["fullscreen"] is False
+
+    def test_credentials_are_empty(self):
+        """Nothing invents guest credentials: a domain created without them
+        must not come out with a username/password somebody has to guess."""
+        assert default_guest_properties()["credentials"] == {
+            "username": "",
+            "password": "",
+        }
+
+
+# -------------------------------------------------------------------------
+# with_default_credentials — the keys are always written on create
+# -------------------------------------------------------------------------
+
+
+class TestWithDefaultCredentials:
+    EMPTY = {"username": "", "password": ""}
+
+    @pytest.mark.parametrize(
+        "guest_properties",
+        [
+            pytest.param({"fullscreen": False}, id="key-absent"),
+            pytest.param({"credentials": None}, id="key-null"),
+            pytest.param({"credentials": {}}, id="key-empty-dict"),
+            pytest.param(None, id="whole-object-null"),
+            pytest.param({}, id="whole-object-empty"),
+        ],
+    )
+    def test_fills_the_keys(self, guest_properties):
+        """Every domain row carries the credentials keys, so readers can index
+        into them instead of guessing whether the sub-object exists."""
+        assert with_default_credentials(guest_properties)["credentials"] == self.EMPTY
+
+    def test_leaves_a_real_value_alone(self):
+        """Filling a gap must never overwrite credentials somebody set."""
+        stored = {"username": "alice", "password": "s3cret"}
+        result = with_default_credentials({"credentials": stored})
+        assert result["credentials"] == stored
+
+    def test_keeps_the_other_keys(self):
+        gp = {"fullscreen": True, "viewers": {"browser_vnc": {"options": None}}}
+        result = with_default_credentials(gp)
+        assert result["fullscreen"] is True
+        assert result["viewers"] == {"browser_vnc": {"options": None}}
+
+    def test_does_not_mutate_the_caller(self):
+        """Two of the three call sites pass a dict they do not own."""
+        gp = {"fullscreen": False}
+        with_default_credentials(gp)
+        assert gp == {"fullscreen": False}
 
 
 # -------------------------------------------------------------------------

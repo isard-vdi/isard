@@ -240,11 +240,9 @@ export default {
               desktop_name: domain.value.name,
               desktop_description: domain.value.description,
               description: deploymentDescription.value || null,
+              // No credentials form on this page, so there is nothing of the
+              // user's to send: leave the key out and keep the stored ones.
               guest_properties: {
-                credentials: {
-                  username: domain.value.guestProperties.credentials.username,
-                  password: domain.value.guestProperties.credentials.password
-                },
                 fullscreen: domain.value.guestProperties.fullscreen,
                 viewers: viewers
               },

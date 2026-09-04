@@ -2167,12 +2167,14 @@
         "credentials": {
           "username": {
             "label": "Nombre de usuario",
-            "placeholder": "Introduce el nombre de usuario"
+            "placeholder": "Introduce el nombre de usuario",
+            "required": "Introduce un nombre de usuario para acceder al escritorio"
           },
           "password": {
             "label": "Contraseña",
             "placeholder": "Introduce la contraseña",
-            "help": "AVISO: La contraseña se guardará sin cifrar en la base de datos."
+            "help": "AVISO: La contraseña se guardará sin cifrar en la base de datos.",
+            "required": "Introduce una contraseña para acceder al escritorio"
           }
         },
         "fullscreen": {

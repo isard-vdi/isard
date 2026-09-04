@@ -2155,12 +2155,14 @@
         "credentials": {
           "username": {
             "label": "Nom d'usuari",
-            "placeholder": "Introdueix el nom d'usuari"
+            "placeholder": "Introdueix el nom d'usuari",
+            "required": "Introdueix un nom d'usuari per accedir a l'escriptori"
           },
           "password": {
             "label": "Contrasenya",
             "placeholder": "Introdueix la contrasenya",
-            "help": "AVÍS: La contrasenya es desarà sense xifrar a la base de dades."
+            "help": "AVÍS: La contrasenya es desarà sense xifrar a la base de dades.",
+            "required": "Introdueix una contrasenya per accedir a l'escriptori"
           }
         },
         "fullscreen": {

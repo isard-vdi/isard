@@ -38,12 +38,22 @@ from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
 
+def default_credentials():
+    """The guest credentials a domain gets when the caller sends none."""
+    return {"username": "", "password": ""}
+
+
+def with_default_credentials(guest_properties):
+    """Guarantee `guest_properties.credentials` exists"""
+    guest_properties = dict(guest_properties or {})
+    if not guest_properties.get("credentials"):
+        guest_properties["credentials"] = default_credentials()
+    return guest_properties
+
+
 def default_guest_properties():
     return {
-        "credentials": {
-            "username": "isard",
-            "password": "pirineus",
-        },
+        "credentials": default_credentials(),
         "fullscreen": False,
         "viewers": {
             "file_spice": {"options": None},
@@ -53,6 +63,10 @@ def default_guest_properties():
             "browser_rdp": {"options": None},
         },
     }
+
+
+def guest_credentials(domain):
+    return (domain.get("guest_properties") or {}).get("credentials") or {}
 
 
 class IsardViewer(RethinkSharedConnection):
@@ -128,7 +142,7 @@ class IsardViewer(RethinkSharedConnection):
         ]:
             raise Error(
                 "precondition_required",
-                f'Unable to get viewer for non started ({domain.get("status")}) desktop {id}',
+                f"Unable to get viewer for non started ({domain.get('status')}) desktop {id}",
                 description_code="unable_to_get_viewer",
             )
         if not domain.get("viewer", {}).get("base_port"):
@@ -189,8 +203,8 @@ class IsardViewer(RethinkSharedConnection):
                 "mime": "application/x-rdp",
                 "content": self.get_rdp_file(
                     domain["viewer"]["guest_ip"],
-                    domain["guest_properties"]["credentials"]["username"],
-                    domain["guest_properties"]["credentials"]["password"],
+                    guest_credentials(domain).get("username", ""),
+                    guest_credentials(domain).get("password", ""),
                 ),
             }
 
@@ -224,8 +238,8 @@ class IsardViewer(RethinkSharedConnection):
                         ),
                         admin_role,
                     ),
-                    domain["guest_properties"]["credentials"]["username"],
-                    domain["guest_properties"]["credentials"]["password"],
+                    guest_credentials(domain).get("username", ""),
+                    guest_credentials(domain).get("password", ""),
                 ),
             }
 
@@ -318,8 +332,8 @@ class IsardViewer(RethinkSharedConnection):
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["guest_ip"],
-                "vmUsername": domain["guest_properties"]["credentials"]["username"],
-                "vmPassword": domain["guest_properties"]["credentials"]["password"],
+                "vmUsername": guest_credentials(domain).get("username", ""),
+                "vmPassword": guest_credentials(domain).get("password", ""),
                 "host": domain["viewer"]["static"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
                 "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),

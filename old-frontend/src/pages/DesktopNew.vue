@@ -381,11 +381,9 @@ export default {
         template_id: selected.value[0].id,
         name: domain.value.name,
         description: domain.value.description,
+        // No credentials form on this page, so there is nothing of the
+        // user's to send: leave the key out rather than invent a pair.
         guest_properties: {
-          credentials: {
-            username: domain.value.guestProperties.credentials.username,
-            password: domain.value.guestProperties.credentials.password
-          },
           fullscreen: domain.value.guestProperties.fullscreen,
           viewers: viewers
         },
