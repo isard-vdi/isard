@@ -265,7 +265,9 @@ class TestStartMediaDownload:
         kwargs = media.enqueue_download_chain.call_args.kwargs
         assert kwargs["url"] == "https://example.org/x.iso"
         assert kwargs["headers"] == []
-        assert media.status == "DownloadStarting"
+        assert mock_media.update_document_if.call_args.args[1] == {
+            "status": "DownloadStarting"
+        }
 
     @patch("api.services.media.RethinkMedia")
     def test_registry_media_restarts_from_the_registry(self, mock_media, monkeypatch):
@@ -288,4 +290,4 @@ class TestStartMediaDownload:
 
         assert exc_info.value.error["description_code"] == "media_url_not_valid"
         media.enqueue_download_chain.assert_not_called()
-        assert media.status == "DownloadFailed"
+        mock_media.update_document_if.assert_not_called()

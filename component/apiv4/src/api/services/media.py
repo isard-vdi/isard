@@ -389,8 +389,6 @@ class MediaService:
                 f"Media with ID {media_id} not found.",
             )
 
-        media = RethinkMedia(media_id)
-
         allowed_statuses = [
             MediaStatusEnum.downloading.value,
             MediaStatusEnum.download_starting.value,
@@ -400,20 +398,22 @@ class MediaService:
             MediaStatusEnum.download_aborting.value,
             MediaStatusEnum.reset_downloading.value,
         ]
-        if media.status not in allowed_statuses:
+        # persistent flag for the publish-before-subscribe race in download_url's initial_check
+        if not RethinkMedia.update_document_if(
+            media_id,
+            {"status": MediaStatusEnum.download_aborting.value},
+            field="status",
+            values=allowed_statuses,
+        ):
             raise Error(
                 "bad_request",
-                f"Cannot abort download for media in status '{media.status}'. "
+                f"Cannot abort download for media in status "
+                f"'{RethinkMedia(media_id).status}'. "
                 f"Only allowed for statuses: {', '.join(allowed_statuses)}",
                 description_code="media_status_invalid_for_abort",
             )
 
-        # Persistent flag: covers the publish-before-subscribe race in
-        # ``download_url``'s initial_check. The pub/sub signal is the
-        # primary mechanism once the watcher is live.
-        media.status = MediaStatusEnum.download_aborting.value
-
-        task_id = current_task_id(Task._redis, media.id, kind=MEDIA)
+        task_id = current_task_id(Task._redis, media_id, kind=MEDIA)
         if task_id and Task.exists(task_id) and Task(task_id).pending:
             try:
                 Task(task_id).cancel()
@@ -423,9 +423,13 @@ class MediaService:
                 # update_status will finalize the row when curl exits.
                 pass
         else:
-            # Nothing is running, so no chain will ever finalize this
-            # row: settle it here instead of leaving it aborting forever.
-            media.status = MediaStatusEnum.download_failed.value
+            # no chain will finalize this row, but keep a status one settled on since
+            RethinkMedia.update_document_if(
+                media_id,
+                {"status": MediaStatusEnum.download_failed.value},
+                field="status",
+                values=[MediaStatusEnum.download_aborting.value],
+            )
 
     @staticmethod
     def start_media_download(media_id: str) -> None:
@@ -451,14 +455,7 @@ class MediaService:
             # too — same UX as legacy engine path.
             MediaStatusEnum.download_failed_invalid_format.value,
         ]
-        if media.status not in allowed_statuses:
-            raise Error(
-                "bad_request",
-                f"Cannot start download for media in status '{media.status}'. "
-                f"Only allowed for statuses: {', '.join(allowed_statuses)}",
-                description_code="media_status_invalid_for_start",
-            )
-
+        # resolved first so a row with no source is refused before the DownloadStarting write
         url, headers = AdminDownloadsService.registry_download_source(
             "media",
             {
@@ -473,7 +470,20 @@ class MediaService:
                 description_code="media_url_not_valid",
             )
 
-        media.status = MediaStatusEnum.download_starting.value
+        # guarded so two retries cannot both enqueue a download into the same path
+        if not RethinkMedia.update_document_if(
+            media_id,
+            {"status": MediaStatusEnum.download_starting.value},
+            field="status",
+            values=allowed_statuses,
+        ):
+            raise Error(
+                "bad_request",
+                f"Cannot start download for media in status '{media.status}'. "
+                f"Only allowed for statuses: {', '.join(allowed_statuses)}",
+                description_code="media_status_invalid_for_start",
+            )
+
         # Reset progress so the UI doesn't show stale percentages.
         media.progress = {
             "received": "0",
