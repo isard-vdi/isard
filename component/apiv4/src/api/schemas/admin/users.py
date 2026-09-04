@@ -831,11 +831,7 @@ class AdminDeleteChecksResponse(BaseModel):
 
 
 class AdminUserTemplateItem(BaseModel):
-    """Row shape for ``GET /admin/items/user/{user_id}/templates``.
-
-    The service builds each row as ``{id, name, icon, image,
-    description}`` from a ``DomainsProcessed.list_by_kind_user`` pluck.
-    ``image`` is hard-coded to ``""`` for now."""
+    """Row shape for ``GET /admin/items/user/{user_id}/templates``."""
 
     id: str
     name: str
