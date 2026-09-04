@@ -11,6 +11,10 @@ by status. The routes are manager-level; the default ``MockJWT()``
 (admin) satisfies the ``is_admin_or_manager`` dependency.
 """
 
+import warnings
+
+from api import app
+from fastapi.openapi.utils import get_openapi
 from tests.routes.helpers import MockJWT
 
 
@@ -531,3 +535,77 @@ def test_admin_logs_users_allows_manager_with_category_scope(monkeypatch, test_c
 
     assert response.status_code == 200, response.text
     assert captured["payload_role"] == "manager"
+
+
+# ─── Declared request bodies on the xml-sections routes ────────────────
+
+
+_XML_BODY_ROUTES = (
+    "/api/v4/admin/item/domains/xml_sections/parse",
+    "/api/v4/admin/item/domains/xml_sections/{domain_id}/save_virt_install",
+    "/api/v4/admin/item/virt_install/xml_sections/{virt_id}",
+)
+
+
+def _spec():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        return get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            routes=app.routes,
+        )
+
+
+def _property_types(spec, ref, prop):
+    schema = spec["components"]["schemas"][ref]["properties"][prop]
+    if "anyOf" in schema:
+        return {member.get("type") for member in schema["anyOf"]}
+    return {schema.get("type")}
+
+
+def test_xml_section_routes_declare_their_request_body():
+    """Each route that reads a body must publish one in the spec."""
+    paths = _spec()["paths"]
+    undeclared = [p for p in _XML_BODY_ROUTES if "requestBody" not in paths[p]["post"]]
+    assert (
+        not undeclared
+    ), f"routes that read a body without declaring one: {undeclared}"
+
+
+def test_domain_xml_update_body_is_typed_as_a_string():
+    """The domain XML travels as a string, so the schema must say string."""
+    types = _property_types(_spec(), "AdminDomainXmlData", "xml")
+    assert "string" in types, f"AdminDomainXmlData.xml is typed {types}"
+    assert "object" not in types
+
+
+def test_admin_domain_xml_update_accepts_a_string_body(monkeypatch, test_client):
+    """POST /admin/item/domain/{id}/xml — the client sends the XML as a string."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_update(domain_id, data):
+        captured["domain_id"] = domain_id
+        captured["data"] = data
+        return "<domain>updated</domain>"
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.update_domain_xml",
+        staticmethod(fake_update),
+    )
+
+    response = test_client(
+        url="/admin/item/domain/desktop-1/xml",
+        method="POST",
+        body={"xml": "<domain><name>d1</name></domain>"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["xml"] == "<domain>updated</domain>"
+    assert captured == {
+        "domain_id": "desktop-1",
+        "data": {"xml": "<domain><name>d1</name></domain>"},
+    }
