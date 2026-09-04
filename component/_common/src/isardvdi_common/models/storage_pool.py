@@ -234,6 +234,12 @@ class StoragePool(RethinkCustomBase):
                 and sp.get("paths", {}).get(kind)
             ):
                 return cls.build_from(sp)
+        if not default:
+            raise Error(
+                "precondition_required",
+                f"No storage pool available for kind '{kind}'",
+                description_code="no_storage_pool_available",
+            )
         return cls.build_from(default)
 
     @classmethod
