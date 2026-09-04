@@ -5,7 +5,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
 import { getUserConfig } from '@/gen/oas/apiv4'
-import { resolveVue2Path, clearPreferredFrontend, type FrontendMode } from '@/lib/frontendModeMap'
+import {
+  resolveVue2Path,
+  clearPreferredFrontend,
+  setPreferredFrontend,
+  hasVue2Equivalent,
+  type FrontendMode
+} from '@/lib/frontendModeMap'
 import { ensureFaroInitialized, setFaroView } from '@/lib/faro-hook'
 
 const router = createRouter({
@@ -567,6 +573,9 @@ router.beforeEach(async (to, from, next) => {
       const vue2Path = resolveVue2Path(to) ?? '/'
       window.location.assign(vue2Path)
       return
+    }
+    if (mode === 'all' && hasVue2Equivalent(to.name as string | undefined)) {
+      setPreferredFrontend('vue3')
     }
   }
 

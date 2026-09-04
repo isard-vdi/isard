@@ -31,6 +31,10 @@ export function clearPreferredFrontend () {
   localStorage.removeItem(PREFERRED_FRONTEND_KEY)
 }
 
+export function hasVue3Equivalent (name) {
+  return Boolean(name && VUE2_TO_VUE3[name])
+}
+
 export function resolveVue3Path (route) {
   if (!route || !route.name) return null
   const template = VUE2_TO_VUE3[route.name]

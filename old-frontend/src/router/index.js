@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
-import { resolveVue3Path, clearPreferredFrontend } from '@/shared/frontendModeMap'
+import { resolveVue3Path, clearPreferredFrontend, setPreferredFrontend, hasVue3Equivalent } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
 import { setFaroView } from '@/lib/faro'
@@ -442,6 +442,9 @@ router.beforeEach(async (to, from, next) => {
           const target = resolveVue3Path(to) || '/frontend/desktops'
           window.location.assign(target)
           return
+        }
+        if (store.getters.getConfig.frontendMode === 'all' && hasVue3Equivalent(to.name)) {
+          setPreferredFrontend('vue2')
         }
         if (!store.getters.getMaxTime) {
           store.dispatch('fetchMaxTime')

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   EDIT_FORM_ROUTES,
-  VUE3_TO_VUE2,
+  hasVue2Equivalent,
   resolveVue2Path,
   setPreferredFrontend
 } from '@/lib/frontendModeMap'
@@ -29,10 +29,7 @@ const visible = computed(() => {
 })
 
 const target = computed(() => resolveVue2Path(route))
-const hasEquivalent = computed(() => {
-  const name = route.name as string | undefined
-  return name != null && name in VUE3_TO_VUE2
-})
+const hasEquivalent = computed(() => hasVue2Equivalent(route.name as string | undefined))
 
 function switchFrontend() {
   if (!target.value) return

@@ -33,6 +33,10 @@ export const VUE3_TO_VUE2: Record<string, string> = {
   profile: '/profile'
 }
 
+export function hasVue2Equivalent(name: string | undefined): boolean {
+  return name != null && name in VUE3_TO_VUE2
+}
+
 export const EDIT_FORM_ROUTES = new Set<string>([
   'new-desktop',
   'edit-desktop',

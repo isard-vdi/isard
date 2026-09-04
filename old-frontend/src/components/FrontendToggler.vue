@@ -13,7 +13,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { EDIT_FORM_ROUTES, VUE2_TO_VUE3, resolveVue3Path, setPreferredFrontend } from '@/shared/frontendModeMap'
+import { EDIT_FORM_ROUTES, hasVue3Equivalent, resolveVue3Path, setPreferredFrontend } from '@/shared/frontendModeMap'
 
 export default {
   name: 'FrontendToggler',
@@ -26,8 +26,7 @@ export default {
       return !EDIT_FORM_ROUTES.has(name)
     },
     hasEquivalent () {
-      const name = this.$route && this.$route.name
-      return Boolean(name && VUE2_TO_VUE3[name])
+      return hasVue3Equivalent(this.$route && this.$route.name)
     }
   },
   methods: {
