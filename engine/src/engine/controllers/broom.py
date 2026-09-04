@@ -299,6 +299,7 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                                 hyp_id,
                                 f"hyp_started updated by broom, paused in hypervisor: {hyp_detail}",
                                 "Paused",
+                                expected_status=domain_status,
                             )
                         else:
                             log_broom_action(
@@ -315,6 +316,7 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                                 hyp_id,
                                 "hyp_started updated by broom",
                                 "Started",
+                                expected_status=domain_status,
                             )
                     result["domains_handled"].append(domain_id)
 
@@ -581,6 +583,7 @@ class ThreadBroom(threading.Thread):
                         "Unknown",
                         db_domain["id"],
                         detail="starting or stoping status without hypervisor",
+                        expected_status=db_domain["status"],
                     )
                 t_broom_data.append(
                     {
@@ -640,6 +643,7 @@ class ThreadBroom(threading.Thread):
                                             hyp_id,
                                             "State and hyp_started updated by broom",
                                             domain_status,
+                                            expected_status=db_domain_status,
                                         )
                                 elif domain_status == "Paused":
                                     if domain_status_detail == "paused on user request":
@@ -655,6 +659,7 @@ class ThreadBroom(threading.Thread):
                                                 hyp_id,
                                                 "State and hyp_started updated by broom",
                                                 domain_status,
+                                                expected_status=db_domain_status,
                                             )
                                     else:
                                         logs.broom.info(
@@ -692,6 +697,7 @@ class ThreadBroom(threading.Thread):
                             "Stopped",
                             domain_id,
                             detail="Stopped by broom thread because has not hypervisor",
+                            expected_status=status,
                         )
                         update_vgpu_info_if_stopped(domain_id)
                 t_broom_data.append(
@@ -741,7 +747,9 @@ class ThreadBroom(threading.Thread):
                                         domain_id, hyp_started, active_status
                                     )
                                 )
-                                update_domain_hyp_started(domain_id, hyp_started)
+                                update_domain_hyp_started(
+                                    domain_id, hyp_started, expected_status=status
+                                )
                             else:
                                 logs.broom.debug(
                                     "DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} ".format(
@@ -773,6 +781,7 @@ class ThreadBroom(threading.Thread):
                                     "Stopped",
                                     domain_id,
                                     detail="Stopped by broom thread",
+                                    expected_status=status,
                                 )
                                 update_vgpu_info_if_stopped(domain_id)
                         elif status == "Resetting":
@@ -790,6 +799,7 @@ class ThreadBroom(threading.Thread):
                                     "Failed",
                                     domain_id,
                                     detail="Failed from Resetting state by broom thread",
+                                    expected_status=status,
                                 )
                         elif status == "Shutting-down":
                             logs.broom.debug(
@@ -807,6 +817,7 @@ class ThreadBroom(threading.Thread):
                                     "Stopped",
                                     domain_id,
                                     detail="Stopped by broom thread, domain no longer active in libvirt",
+                                    expected_status=status,
                                 )
                                 update_vgpu_info_if_stopped(domain_id)
                                 log_broom_action(
@@ -827,6 +838,7 @@ class ThreadBroom(threading.Thread):
                                     domain_id,
                                     keep_hyp_id=True,
                                     detail=f"Stopping by broom thread after {BROOM_SHUTDOWN_TIMEOUT}s in Shutting-down",
+                                    expected_status=status,
                                 )
                                 log_broom_action(
                                     "force_stop_after_shutdown_timeout",
