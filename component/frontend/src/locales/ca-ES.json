@@ -1935,7 +1935,7 @@
       }
     },
     "deployment-bastion-modal": {
-      "title": "Bastió — {name}",
+      "title": "Configuració del bastió per a {name}",
       "description": "Activeu o desactiveu l'accés per bastió per a tots els escriptoris d'aquest desplegament. Els escriptoris en marxa s'actualitzen immediatament; els escriptoris nous i recreats hereten aquesta configuració quan s'inicien per primer cop.",
       "error-loading": "No s'ha pogut carregar la configuració del bastió del desplegament",
       "error-saving": "No s'ha pogut desar la configuració del bastió del desplegament",
@@ -1945,7 +1945,7 @@
       }
     },
     "deployment-user-bastion-modal": {
-      "title": "Accés per bastió — {name}",
+      "title": "Accés per bastió per a {name}",
       "description": "Seleccioneu un escriptori per veure'n els detalls d'accés per bastió.",
       "error-loading": "No s'han pogut carregar els escriptoris de l'usuari",
       "no-desktops": "Aquest usuari no té escriptoris en aquest desplegament",
@@ -1967,14 +1967,16 @@
             "alert": {
               "description": "Afegeix un registre CNAME al teu proveïdor de DNS que apunti a: {cname-url}",
               "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió."
-            }
+            },
+            "success": "El domini personalitzat s'ha actualitzat correctament"
           }
         },
         "ssh": {
           "title": "SSH",
           "authorized-keys": {
             "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
-            "title": "Claus SSH autoritzades (una per línia)"
+            "title": "Claus SSH autoritzades (una per línia)",
+            "success": "Les claus SSH autoritzades s'han actualitzat correctament"
           }
         },
         "target-id": {

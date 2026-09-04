@@ -1947,7 +1947,7 @@
       }
     },
     "deployment-bastion-modal": {
-      "title": "Bastión — {name}",
+      "title": "Configuración del bastión para {name}",
       "description": "Active o desactive el acceso por bastión para todos los escritorios de este despliegue. Los escritorios en marcha se actualizan inmediatamente; los escritorios nuevos y recreados heredan esta configuración cuando se inician por primera vez.",
       "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
       "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
@@ -1957,7 +1957,7 @@
       }
     },
     "deployment-user-bastion-modal": {
-      "title": "Acceso por bastión — {name}",
+      "title": "Acceso por bastión para {name}",
       "description": "Seleccione un escritorio para ver sus detalles de acceso por bastión.",
       "error-loading": "No se han podido cargar los escritorios del usuario",
       "no-desktops": "Este usuario no tiene escritorios en este despliegue",
@@ -1979,14 +1979,16 @@
             "alert": {
               "description": "Añade un registro CNAME a tu proveedor de DNS que apunte a: {cname-url}",
               "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión."
-            }
+            },
+            "success": "El dominio personalizado se ha actualizado correctamente"
           }
         },
         "ssh": {
           "title": "SSH",
           "authorized-keys": {
             "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
-            "title": "Claves SSH autorizadas (una por línea)"
+            "title": "Claves SSH autorizadas (una por línea)",
+            "success": "Las claves SSH autorizadas se han actualizado correctamente"
           }
         },
         "target-id": {

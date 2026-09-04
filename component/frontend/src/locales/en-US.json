@@ -1847,7 +1847,7 @@
       "confirm": "Stop all"
     },
     "deployment-bastion-modal": {
-      "title": "Bastion — {name}",
+      "title": "Bastion settings for {name}",
       "description": "Enable or disable bastion access for every desktop in this deployment. Running desktops are updated immediately; new and recreated desktops inherit this configuration when they first start.",
       "error-loading": "Could not load the deployment bastion configuration",
       "error-saving": "Could not save the deployment bastion configuration",
@@ -1857,7 +1857,7 @@
       }
     },
     "deployment-user-bastion-modal": {
-      "title": "Bastion access — {name}",
+      "title": "Bastion access for {name}",
       "description": "Select a desktop to see its bastion access details.",
       "error-loading": "Could not load the user's desktops",
       "no-desktops": "This user has no desktops in this deployment",
@@ -1865,7 +1865,7 @@
       "back": "Back to desktops"
     },
     "bastion-info-modal": {
-      "title": "Bastion access — {name}",
+      "title": "Bastion information for desktop '{name}'",
       "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
       "description-read-only": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command.",
       "no-bastion-configured": "Bastion is not enabled for this desktop",
@@ -1889,14 +1889,16 @@
             "alert": {
               "title": "You can use your own domain name to access this desktop via bastion.",
               "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}"
-            }
+            },
+            "success": "Custom domain updated successfully"
           }
         },
         "ssh": {
           "title": "SSH",
           "authorized-keys": {
             "title": "Authorized SSH Keys (one per line)",
-            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+            "success": "Authorized SSH keys updated successfully"
           }
         }
       }
