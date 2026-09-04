@@ -276,7 +276,7 @@ class DeploymentService:
         return CommonDeployments.count_recreate_desktops(payload, deployment_id)
 
     @staticmethod
-    def stop_all_desktops(deployment_id: str) -> None:
+    def stop_all_desktops(deployment_id: str, force: bool = False) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -285,7 +285,7 @@ class DeploymentService:
                 traceback.format_exc(),
             )
 
-        DesktopEvents.desktops_stop(desktops)
+        DesktopEvents.desktops_stop(desktops, force=force)
 
     @staticmethod
     def stop_user_desktops(deployment_id: str, user_id: str) -> None:

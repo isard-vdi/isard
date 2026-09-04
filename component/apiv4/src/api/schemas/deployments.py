@@ -679,6 +679,17 @@ class DeploymentEditUsersRequest(BaseModel):
     )
 
 
+class DeploymentStopRequest(BaseModel):
+    force: bool = Field(
+        default=False,
+        description=(
+            "If true, started desktops in the deployment are stopped forcefully "
+            "(straight to Stopping). If false, they are stopped gracefully "
+            "(Shutting-down first)."
+        ),
+    )
+
+
 class ToggleVisibilityRequest(BaseModel):
     """Optional body for /item/deployment/{id}/toggle-visibility.
 

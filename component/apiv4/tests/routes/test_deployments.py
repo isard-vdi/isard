@@ -88,7 +88,7 @@ def test_stop_all_desktops_in_deployment(monkeypatch, test_client):
     calls = []
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.stop_all_desktops",
-        staticmethod(lambda deployment_id: calls.append(deployment_id)),
+        staticmethod(lambda deployment_id, force: calls.append((deployment_id, force))),
     )
     _bypass_owns_deployment_id(monkeypatch)
 
@@ -99,7 +99,27 @@ def test_stop_all_desktops_in_deployment(monkeypatch, test_client):
     )
 
     assert response.status_code == 204
-    assert calls == ["dep-1"]
+    assert calls == [("dep-1", False)]
+
+
+def test_stop_all_desktops_in_deployment_force(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.stop_all_desktops",
+        staticmethod(lambda deployment_id, force: calls.append((deployment_id, force))),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/stop",
+        method="PUT",
+        jwt=jwt,
+        body={"force": True},
+    )
+
+    assert response.status_code == 204
+    assert calls == [("dep-1", True)]
 
 
 def test_toggle_deployment_visibility(monkeypatch, test_client):
