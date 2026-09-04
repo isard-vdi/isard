@@ -4,6 +4,7 @@
     "no_equivalent": "Sense equivalent a la interfície antiga"
   },
   "router": {
+    "notification-title-template": "({n}) {title}",
     "login": {
       "title": "Iniciar sessió"
     },

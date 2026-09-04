@@ -4,6 +4,7 @@
     "no_equivalent": "No legacy equivalent"
   },
   "router": {
+    "notification-title-template": "({n}) {title}",
     "login": {
       "title": "Login"
     },

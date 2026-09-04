@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
 
@@ -39,6 +39,8 @@ const onExtend = () => {
 const onUpdateOpen = (value: boolean) => {
   if (!value) clearDesktopTimeout()
 }
+
+onUnmounted(clearDesktopTimeout)
 </script>
 
 <template>
