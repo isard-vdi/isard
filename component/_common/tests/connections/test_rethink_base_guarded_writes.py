@@ -149,6 +149,62 @@ class TestUpdateDocumentIf:
         assert predicate(_Row({"status": "maintenance"}))["status_time"] == 1.0
 
 
+class TestUpdateDocumentIfExcluding:
+    """The negative form, since the storage status set is open."""
+
+    def test_it_updates_a_row_the_exclusion_does_not_name(self, stub_rdb):
+        stub_rdb["table"].get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        applied = stub_rdb["Cls"].update_document_if(
+            "s1",
+            {"status": "orphan"},
+            field="status",
+            excluding=("deleted",),
+            validate=False,
+        )
+        assert applied is True
+        predicate = _update_predicate(stub_rdb)
+        assert predicate(_Row({"status": "broken_chain"}))["status"] == "orphan"
+
+    def test_it_writes_nothing_to_a_row_the_exclusion_names(self, stub_rdb):
+        stub_rdb["table"].get.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        applied = stub_rdb["Cls"].update_document_if(
+            "s1",
+            {"status": "orphan"},
+            field="status",
+            excluding=("deleted",),
+            validate=False,
+        )
+        assert applied is False
+        predicate = _update_predicate(stub_rdb)
+        assert predicate(_Row({"status": "deleted"})) == {}
+
+    def test_a_missing_field_is_not_excluded(self, stub_rdb):
+        stub_rdb["table"].get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        stub_rdb["Cls"].update_document_if(
+            "s1",
+            {"status": "orphan"},
+            field="status",
+            excluding=("deleted",),
+            validate=False,
+        )
+        predicate = _update_predicate(stub_rdb)
+        assert predicate(_Row({}))["status"] == "orphan"
+
+    def test_naming_both_tests_or_neither_is_refused(self, stub_rdb):
+        with pytest.raises(ValueError):
+            stub_rdb["Cls"].update_document_if("s1", {"a": 1}, field="status")
+        with pytest.raises(ValueError):
+            stub_rdb["Cls"].update_document_if(
+                "s1", {"a": 1}, field="status", values=("x",), excluding=("y",)
+            )
+
+
 class TestDeleteDocumentIf:
     def test_it_deletes_a_row_whose_field_is_still_admitted(self, stub_rdb):
         stub_rdb["table"].get.return_value.replace.return_value.run.return_value = {

@@ -700,12 +700,15 @@ def test_orphan_propagation_walks_through_already_deleted_rows():
         mock_storage_cls.write_reading.return_value = "orphan"
         mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
+        orphaned = mock_storage_cls.update_document_if
 
     assert storage_obj.asked_with == [True]
-    # The row that is already gone is left alone; the live disk behind it
-    # is the one that has just lost its chain.
-    assert bin_copy.status == "deleted"
-    assert live_below.status == "orphan"
+    # both are asked; the server leaves the one already deleted alone
+    assert [c.args[0] for c in orphaned.call_args_list] == [bin_copy.id, live_below.id]
+    for c in orphaned.call_args_list:
+        assert c.args[1] == {"status": "orphan"}
+        assert c.kwargs["field"] == "status"
+        assert c.kwargs["excluding"] == ("deleted",)
 
 
 def test_orphan_propagation_is_skipped_for_a_healthy_status():
@@ -754,10 +757,11 @@ def test_orphan_propagation_fails_domains_behind_a_deleted_row():
         mock_storage_cls.write_reading.return_value = "orphan"
         mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
+        orphaned = mock_storage_cls.update_document_if
 
     assert ("domains", True) in storage_obj.asked_with
     assert ("storages", True) in storage_obj.asked_with
-    assert live.status == "orphan"
+    assert live.id in [c.args[0] for c in orphaned.call_args_list]
     assert dom_live.status == "Failed"
 
 

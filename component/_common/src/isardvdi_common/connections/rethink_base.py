@@ -506,15 +506,13 @@ class RethinkBase(ABC):
         update_data: dict,
         *,
         field: str,
-        values,
+        values=None,
+        excluding=None,
         validate: bool = True,
     ) -> bool:
-        """Update ``doc_id`` only while its ``field`` is still one of ``values``.
-
-        One round trip, so nothing can change the row between the test and the
-        write - unlike reading it, deciding, and writing the decision back.
-        Returns whether the update applied.
-        """
+        """Update ``doc_id`` only while ``field`` is in ``values`` or not in ``excluding``; returns whether it applied."""
+        if (values is None) == (excluding is None):
+            raise ValueError("pass exactly one of values or excluding")
         if validate:
             pydantic_model = cls._rdb_table_schema(**update_data)
             update_data = pydantic_model.model_dump(mode="json", exclude_unset=True)
@@ -522,16 +520,16 @@ class RethinkBase(ABC):
         # the same field has to agree with it or the row loses its clock.
         if "status" in update_data:
             update_data.setdefault("status_time", time())
-        allowed = list(values)
+        listed = list(values if values is not None else excluding)
         with cls._rdb_context():
             result = (
                 r.table(cls._rdb_table)
                 .get(doc_id)
                 .update(
                     lambda row: r.branch(
-                        r.expr(allowed).contains(row[field].default(None)),
-                        update_data,
-                        {},
+                        r.expr(listed).contains(row[field].default(None)),
+                        {} if values is None else update_data,
+                        update_data if values is None else {},
                     ),
                     return_changes=True,
                 )

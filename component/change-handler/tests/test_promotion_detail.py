@@ -30,6 +30,7 @@ class _Domain:
     """A row that records what is assigned to it, in order."""
 
     def __init__(self, status, detail=None):
+        self.id = "d1"
         self.status = status
         self.detail = detail
         self.current_action = "something"
@@ -42,36 +43,46 @@ class _Domain:
 
 
 def _promote(domain):
+    """Run the promotion and return the guarded write it issued, if any."""
     storage = MagicMock()
     storage.domains = [domain]
-    _promote_domains_to_stopped(storage)
-    return domain
+    with patch(
+        "isardvdi_change_handler.task_results.storage.Domain.update_document_if"
+    ) as write:
+        _promote_domains_to_stopped(storage)
+    if not write.called:
+        return None
+    assert write.call_args.kwargs["field"] == "status"
+    assert write.call_args.kwargs["values"] == (domain.status,)
+    return write.call_args.args[1]
 
 
 class TestWhatTheRowSaysAfterwards:
     def test_a_promoted_row_names_the_promotion(self):
-        domain = _promote(_Domain("CreatingDomain", "waiting for the disk"))
+        written = _promote(_Domain("CreatingDomain", "waiting for the disk"))
 
-        assert domain.status == "Stopped"
-        assert domain.detail.startswith(PROMOTED_DETAIL)
+        assert written["status"] == "Stopped"
+        assert written["current_action"] is None
+        assert written["detail"].startswith(PROMOTED_DETAIL)
 
     def test_it_keeps_the_previous_reason(self):
-        domain = _promote(_Domain("Maintenance", "sparsify in progress"))
+        written = _promote(_Domain("Maintenance", "sparsify in progress"))
 
-        assert "was Maintenance" in domain.detail
-        assert "sparsify in progress" in domain.detail
+        assert "was Maintenance" in written["detail"]
+        assert "sparsify in progress" in written["detail"]
 
-    def test_the_detail_is_written_before_the_status(self):
-        """Otherwise the previous status is already gone when it is read."""
-        domain = _promote(_Domain("Maintenance", "a reason"))
+    def test_status_and_detail_land_in_one_write_guarded_on_the_read_status(self):
+        """The engine and the chain's later steps write these statuses too."""
+        domain = _Domain("Maintenance", "a reason")
+        written = _promote(domain)
 
-        names = [name for name, _value in domain.writes]
-        assert names.index("detail") < names.index("status")
+        assert set(written) == {"status", "current_action", "detail"}
+        assert domain.writes == []
 
     def test_a_row_with_no_previous_detail_says_only_what_happened(self):
-        domain = _promote(_Domain("DiskNew", None))
+        written = _promote(_Domain("DiskNew", None))
 
-        assert domain.detail == f"{PROMOTED_DETAIL} (was DiskNew)"
+        assert written["detail"] == f"{PROMOTED_DETAIL} (was DiskNew)"
 
     def test_a_failed_desktop_stays_failed(self):
         """The promotion fires on the disk's news and cannot know whether the
@@ -82,23 +93,22 @@ class TestWhatTheRowSaysAfterwards:
         a ``Stopped`` desktop with no ``xml`` — one that cannot start and no
         longer says so.
         """
-        domain = _promote(_Domain("Failed", "Engine failed to build XML for start"))
+        domain = _Domain("Failed", "Engine failed to build XML for start")
 
+        assert _promote(domain) is None
         assert domain.writes == []
-        assert domain.status == "Failed"
-        assert domain.detail == "Engine failed to build XML for start"
 
     def test_a_running_domain_is_not_touched_at_all(self):
-        domain = _promote(_Domain("Started", "running"))
+        domain = _Domain("Started", "running")
 
+        assert _promote(domain) is None
         assert domain.writes == []
-        assert domain.detail == "running"
 
     def test_a_very_long_previous_detail_is_bounded(self):
-        domain = _promote(_Domain("Maintenance", "x" * 500))
+        written = _promote(_Domain("Maintenance", "x" * 500))
 
-        assert len(domain.detail) < 300
-        assert domain.detail.endswith("…")
+        assert len(written["detail"]) < 300
+        assert written["detail"].endswith("…")
 
 
 class TestTheHelperOnItsOwn:
