@@ -125,3 +125,40 @@ class TestDesktopStop:
             stub["Cls"].desktop_stop("d1")
         assert exc.value.error["description_code"] == "unable_to_stop_desktop_from"
         _no_update(stub)
+
+
+class TestGetDesktopQosDiskId:
+    """A `qos_disk` row with no `allowed` key must not break every start.
+
+    `pluck` omits absent keys rather than yielding None, and the create
+    endpoint drops `allowed` when the caller omits it, so such rows reach
+    this code in the field.
+    """
+
+    @staticmethod
+    def _rows(stub, rows):
+        stub["mp"].setattr(stub["Cls"], "get_qos_disks", classmethod(lambda cls: rows))
+
+    def test_row_without_allowed_is_skipped_not_raised(self, stub):
+        self._rows(
+            stub, [{"id": "broken"}, {"id": "default", "allowed": {"roles": []}}]
+        )
+        assert stub["Cls"].get_desktop_qos_disk_id({"role": "user"}) == "default"
+
+    def test_row_without_allowed_does_not_become_the_global_default(self, stub):
+        self._rows(stub, [{"id": "broken"}])
+        assert stub["Cls"].get_desktop_qos_disk_id({"role": "user"}) is False
+
+    def test_row_without_allowed_does_not_shadow_a_role_match(self, stub):
+        self._rows(
+            stub, [{"id": "broken"}, {"id": "mgr", "allowed": {"roles": ["manager"]}}]
+        )
+        assert stub["Cls"].get_desktop_qos_disk_id({"role": "manager"}) == "mgr"
+
+    def test_allowed_none_is_treated_like_absent(self, stub):
+        self._rows(stub, [{"id": "nulled", "allowed": None}])
+        assert stub["Cls"].get_desktop_qos_disk_id({"role": "user"}) is False
+
+    def test_empty_roles_still_wins_as_the_global_default(self, stub):
+        self._rows(stub, [{"id": "any", "allowed": {"roles": []}}])
+        assert stub["Cls"].get_desktop_qos_disk_id({"role": "user"}) == "any"
