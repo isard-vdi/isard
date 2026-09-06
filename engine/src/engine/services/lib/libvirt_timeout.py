@@ -339,6 +339,21 @@ def _shutdown_all_executors():
 atexit.register(_shutdown_all_executors)
 
 
+def submit_libvirt_call(
+    func: Callable[..., Any],
+    args: tuple = (),
+    kwargs: dict = None,
+    operation_name: str = "unknown",
+    hyp_id: str = "unknown",
+):
+    """Start a libvirt call on the key's single-threaded executor and return its Future without waiting."""
+    if kwargs is None:
+        kwargs = {}
+    executor = _executor_registry.get_executor(hyp_id)
+    logs.workers.debug(f"[{hyp_id}] submitted {operation_name} without waiting")
+    return executor.submit(func, *args, **kwargs)
+
+
 def execute_with_timeout(
     func: Callable[..., Any],
     args: tuple = (),

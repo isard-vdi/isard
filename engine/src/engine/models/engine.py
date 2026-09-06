@@ -820,6 +820,24 @@ class Engine(object):
         d_mains["alive"] = alive
         d_mains["dead"] = dead
         d_mains["not_defined"] = not_defined
+        # kept out of dead/not_defined, which decide status_all_threads
+        try:
+            d_mains["events_subscriptions"] = self.t_events.subscription_report()
+        except Exception as e:
+            # not an empty report: that is what a healthy engine says
+            d_mains["events_subscriptions"] = {
+                "probe": "unavailable",
+                "error": str(e),
+            }
+            # This runs ten times a second; only say it when it changes.
+            if getattr(self, "_events_probe_warned", None) != str(e):
+                self._events_probe_warned = str(e)
+                logs.main.warning(
+                    "EVREC_PROBE_UNAVAILABLE error={} - the engine cannot tell "
+                    "which hypervisors are receiving libvirt events".format(e)
+                )
+        else:
+            self._events_probe_warned = None
         self.threads_info_main = d_mains.copy()
 
         d_hyps = {}
