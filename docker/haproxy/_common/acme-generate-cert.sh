@@ -32,6 +32,20 @@ export LE_WORKING_DIR="$ACME_HOME"
 
 mkdir -p "$ACME_HOME"
 
+# ACME_SERVER is defaulted by the entrypoint, which a `docker exec` of this
+# script does not inherit; read it from the saved env so an explicit argument
+# or environment value still wins, and refuse an empty one rather than let
+# acme.sh fall back to whichever authority its client defaults to.
+haproxy_env="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
+if [ -z "$acme_server" ] && [ -r "$haproxy_env" ]; then
+    acme_server="$(. "$haproxy_env"; printf '%s' "$ACME_SERVER")"
+fi
+
+if [ -z "$acme_server" ]; then
+    echo "ACME_SERVER is empty and '$haproxy_env' does not provide it, refusing to pick a certificate authority at random"
+    exit 1
+fi
+
 # Build the acme.sh argument list, turning each name into its own -d pair.
 # Every name stays a separate argv element: joining them into one string would
 # make a name containing whitespace an argument-injection vector into acme.sh.
@@ -99,7 +113,14 @@ DEPLOY_HAPROXY_HOT_UPDATE=yes \
     DEPLOY_HAPROXY_PEM_NAME="$acme_pem_name" \
     DEPLOY_HAPROXY_PEM_PATH="$ACME_CERTS_DIR" \
     acme.sh --deploy --deploy-hook haproxy -d "$acme_domain"
+DEPLOY_EXIT_CODE="$?"
 set -e
+
+# Reported, not fatal: the caller's retry loop runs under `set -e`, and the
+# check below passes anyway on a deployment that never ran.
+if [ "$DEPLOY_EXIT_CODE" != 0 ]; then
+    echo "WARNING: the deployment hook exited $DEPLOY_EXIT_CODE, HAProxy may still be serving the previous certificate for $acme_domain"
+fi
 
 if [ ! -f "$ACME_CERTS_DIR/$acme_pem_name" ]; then
     echo "ACME deployment failed: certificate file not created"

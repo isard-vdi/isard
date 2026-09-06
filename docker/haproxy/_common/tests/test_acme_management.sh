@@ -233,9 +233,12 @@ check "generate without ACME_EMAIL/ACME_DOMAIN succeeds" \
     '[ "$RUN_RC" -eq 0 ]' "rc=$RUN_RC out=$RUN_OUT"
 check "generate without ACME config still writes the renewal crontab" \
     '[ -f "$CRONTAB_FILE" ]' "out=$RUN_OUT"
-check "the crontab entry runs acme.sh --cron over the whole ACME home" \
-    'grep -q -- "--cron" "$CRONTAB_FILE" && grep -q -- "--home" "$CRONTAB_FILE"' \
+check "the crontab entry runs the acme renewal wrapper" \
+    'grep -q -- "acme-cron.sh" "$CRONTAB_FILE"' \
     "crontab=$( [ -f "$CRONTAB_FILE" ] && cat "$CRONTAB_FILE")"
+check "the renewal wrapper runs acme.sh --cron over the whole ACME home" \
+    'grep -q -- "--cron" "$TESTS_DIR/../acme-cron.sh" && grep -q -- "--home" "$TESTS_DIR/../acme-cron.sh"' \
+    "wrapper=$( [ -f "$TESTS_DIR/../acme-cron.sh" ] && cat "$TESTS_DIR/../acme-cron.sh")"
 check "generate without ACME config starts crond" 'log_has crond.log'
 check "generate without ACME config issues no main-domain certificate" \
     '! log_has acme-generate-cert.sh.log'
