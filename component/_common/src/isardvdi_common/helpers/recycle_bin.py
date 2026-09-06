@@ -1345,22 +1345,6 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    def delete_dependants_recycle_bin_from_templates(cls, templates):
-        """
-        Permanent delete the recycle bin entries that contain storages that are dependant on a list of templates
-        """
-        dependent_storages = cls.get_template_dependant_recycle_bin_entries(
-            templates, "parents"
-        ) + cls.get_template_dependant_recycle_bin_entries(
-            templates, "duplicate_parent_template"
-        )
-        unique_rcb_templates = list(
-            {rcb["id"]: rcb for rcb in dependent_storages}.values()
-        )
-        for rcb in unique_rcb_templates:
-            RecycleBin(rcb["id"]).delete_storage(rcb["agent_id"])
-
-    @classmethod
     def delete_items_from_migration_exceptions(cls, item_id, kind):
         with cls._rdb_context():
             # Delete exemption for this item
@@ -1951,6 +1935,7 @@ class RecycleBin(RethinkSharedConnection):
 
         start = absolute_start = time.time()
         tasks = []
+        deleted_entries = []
 
         self._update_agent(user_id)
         log.debug(
@@ -1969,6 +1954,7 @@ class RecycleBin(RethinkSharedConnection):
                 self.id,
                 time.time() - start,
             )
+            deleted_entries.append(self)
         else:
             try:
                 start = time.time()
@@ -2034,6 +2020,7 @@ class RecycleBin(RethinkSharedConnection):
                             rb.id,
                             time.time() - start,
                         )
+                        deleted_entries.append(rb)
                     else:
                         # All or none: an entry only reaches ``deleted`` once every one of its
                         # storages finished, so a partial enqueue strands it in ``deleting``.
@@ -2104,6 +2091,7 @@ class RecycleBin(RethinkSharedConnection):
                             rb.id,
                             time.time() - start,
                         )
+                        deleted_entries.append(rb)
                         start = time.time()
                         Helpers.add_log(
                             "deleting",
@@ -2267,31 +2255,36 @@ class RecycleBin(RethinkSharedConnection):
                     traceback.format_exc(),
                 )
 
-        if self.categories:
-            start = time.time()
-            groups = [group["id"] for group in self.groups]
-            UserStorage.isard_user_storage_remove_categories(self.categories, groups)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed categories in %s seconds",
-                self.id,
-                time.time() - start,
-            )
-        elif self.groups:
-            start = time.time()
-            UserStorage.isard_user_storage_remove_groups(self.groups)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed groups in %s seconds",
-                self.id,
-                time.time() - start,
-            )
-        elif self.users:
-            start = time.time()
-            UserStorage.isard_user_storage_remove_users(self.users)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed users in %s seconds",
-                self.id,
-                time.time() - start,
-            )
+        # The guard at the top of this method refuses an adopted dependant for
+        # good, so this loop is the only chance to take its personal unit down.
+        for entry_rb in deleted_entries:
+            if entry_rb.categories:
+                start = time.time()
+                groups = [group["id"] for group in entry_rb.groups]
+                UserStorage.isard_user_storage_remove_categories(
+                    entry_rb.categories, groups
+                )
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed categories in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
+            elif entry_rb.groups:
+                start = time.time()
+                UserStorage.isard_user_storage_remove_groups(entry_rb.groups)
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed groups in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
+            elif entry_rb.users:
+                start = time.time()
+                UserStorage.isard_user_storage_remove_users(entry_rb.users)
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed users in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
 
         log.debug(
             "RecycleBin %s delete_storage: Finished in %s seconds",
