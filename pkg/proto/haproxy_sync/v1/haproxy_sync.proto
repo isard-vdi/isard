@@ -9,14 +9,8 @@ service HaproxySyncService {
   // accept and manage.
   rpc DomainSync(DomainSyncRequest) returns (DomainSyncResponse) {}
 
-  // IssueMainDomain issues (or renews) the certificate the whole deployment is served with,
-  // and deploys it to the default PEM the crt-list points at. Unlike DomainSync it touches
-  // neither the domain map nor the crt-list: the main domain is already routed by the base
-  // ACL, and its certificate is already the crt-list default.
-  //
-  // Safe to call repeatedly. The issuance script exits early when a valid certificate is
-  // already in place, so startup and reconnect pushes do not spend certificate-authority
-  // rate limit.
+  // IssueMainDomain issues/renews the deployment's main certificate to the crt-list default,
+  // touching neither the domain map nor the crt-list. Safe to call repeatedly (idempotent).
   rpc IssueMainDomain(IssueMainDomainRequest) returns (IssueMainDomainResponse) {}
 
   // BastionAddSubdomain adds a subdomain to subdomains.map
@@ -48,14 +42,8 @@ message DomainSyncRequest {
 }
 
 // IssueMainDomainRequest describes the certificate the deployment is served with.
-//
-// names is ordered and names[0] is the primary: acme.sh indexes a certificate by its first
-// name, which decides the on-disk state directory and the deploy key, so reordering the
-// list describes a different certificate.
-//
-// Field numbers 4 to 7 are being left free on purpose for the acme-dns (DNS-01) credentials
-// that follow in a separate change. They are NOT declared reserved, which would forbid ever
-// assigning them; this is a note to whoever adds the next field, not a prohibition.
+// names is ordered; names[0] is the primary acme.sh indexes the certificate by.
+// Field numbers 4-7 are intentionally left free for forthcoming acme-dns (DNS-01) fields.
 message IssueMainDomainRequest {
   repeated string names = 1;
   string acme_email = 2;

@@ -19,23 +19,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Deployment-wide certificate configuration in ``config[1].certificates``.
 
-Mirrors :mod:`api_viewers_config`: read, write and invalidate the singleton
-``config`` row. Holds the main-domain certificate configuration, e.g.::
-
-    config[1].certificates.main_domain = {
-        "names": ["vdi.example.com"],       # ordered; names[0] is the primary
-        "certificate_source": "acme",
-        "email": "ops@example.com",
-        "acme_server": "letsencrypt",
-    }
-
-``names`` is a list rather than a single string because the shape is what is
-expensive to change later, not the feature: a stored string would need a
-migration over live data plus a compatibility window in every reader. It is
-ordered, and ``names[0]`` carries weight — acme.sh indexes a certificate by its
-first name, which decides the on-disk directory and the deploy key.
-
-This helper only persists configuration. Issuance is driven elsewhere.
+Canonical note on the config shape: ``main_domain.names`` is ordered and
+``names[0]`` is the primary. acme.sh indexes a certificate by its first name,
+which decides the on-disk directory and the deploy key, so reordering describes
+a different certificate. This helper only persists configuration; issuance is
+driven elsewhere.
 """
 
 from isardvdi_common.helpers.caches import Caches
@@ -56,12 +44,8 @@ class CertificatesConfig(RethinkSharedConnection):
 
     @classmethod
     def update_certificates_config(cls, certificates: dict) -> None:
-        """Merge-write ``config[1].certificates`` and invalidate the cache.
-
-        RethinkDB's ``update`` is a deep merge, so this persists a subset
-        without disturbing sibling keys. It can never remove one — use
-        :meth:`replace_certificates_config` when a block has to shrink.
-        """
+        """Merge-write ``config[1].certificates`` (deep merge; cannot remove keys,
+        use :meth:`replace_certificates_config` to shrink)."""
         with cls._rdb_context():
             r.table("config").get(1).update({"certificates": certificates}).run(
                 cls._rdb_connection
@@ -70,13 +54,8 @@ class CertificatesConfig(RethinkSharedConnection):
 
     @classmethod
     def replace_certificates_config(cls, certificates: dict) -> None:
-        """Replace ``config[1].certificates`` wholesale, dropping removed keys.
-
-        ``r.literal`` forces a replace of the whole subtree, which is the only
-        way a nested block can actually shrink. The flip side is that every key
-        the caller does not resend is deleted, so callers must hand over the
-        complete document they want to end up with.
-        """
+        """Replace ``config[1].certificates`` wholesale via ``r.literal``: every key
+        the caller does not resend is deleted, so hand over the complete document."""
         with cls._rdb_context():
             r.table("config").get(1).update(
                 {"certificates": r.literal(certificates)}

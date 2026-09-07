@@ -2,10 +2,7 @@
 
 set -e
 
-# Filesystem locations. Overridable so the test suite
-# (docker/haproxy/_common/tests/test_acme_management.sh) can drive this script
-# without touching the host's /etc; the defaults are the container paths and
-# are what production always uses.
+# Overridable for the test suite; the defaults are the container paths used in production.
 ACME_HOME="${ACME_HOME:-/etc/acme}"
 ACME_CRONTAB="${ACME_CRONTAB:-/etc/crontabs/root}"
 
@@ -21,15 +18,8 @@ touch "$ACME_HOME/account-thumbprint"
 # This is done to prevent acme.sh from throwing weird error messages
 LOG_LEVEL=""
 
-# Configure the renewal cron.
-#
-# `acme.sh --cron` renews EVERY certificate under the ACME home: the main
-# domain and every per-category branding domain that haproxy-sync issued over
-# HTTP-01. This must therefore run on every boot, before any branching and
-# regardless of whether the main domain itself uses ACME. It used to sit inside
-# the `generate` branch, which in turn sat inside a guard on ACME_DOMAIN and
-# ACME_EMAIL: an install whose main domain did not use ACME configured no crond
-# at all, and its branding certificates silently expired after 90 days.
+# `acme.sh --cron` renews every cert under the ACME home (branding domains too),
+# so it must run on every boot regardless of whether the main domain uses ACME.
 setup_cron() {
     echo "Configuring acme.sh renewal cron"
     mkdir -p "$(dirname "$ACME_CRONTAB")"
@@ -43,12 +33,9 @@ setup_cron
 
 case "$1" in
     register)
-        # HTTP-01 account registration. The resulting thumbprint is what
-        # HAProxy serves to answer the stateless challenge, so it is only
-        # meaningful when the deployment configured an ACME account.
+        # HTTP-01 account registration; the thumbprint answers stateless challenges.
         if [ -n "$ACME_EMAIL" ]; then
-            # The thumbprint answers every stateless http-01 challenge and outlives
-            # the container, so redirecting into it would truncate it on a failure.
+            # Capture first: redirecting straight into the file would truncate it on failure.
             echo "Registering ACME account '$ACME_EMAIL' for $ACME_SERVER"
             thumbprint="$(acme.sh --register-account --email "$ACME_EMAIL" --server "$ACME_SERVER" \
                 | grep ACCOUNT_THUMBPRINT \
@@ -66,40 +53,26 @@ case "$1" in
         ;;
 
     generate)
-        # The cron is already armed above, which is the whole point: the branch
-        # below only covers the MAIN domain, and it is skipped entirely on the
-        # installs that configure no ACME account.
+        # Cron is armed above; this branch covers only the MAIN domain.
         if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
-            # Generate the main domain certificate, retrying until HAProxy
-            # serves it. Bounded: the exit-code-2 fast path already makes an
-            # already-valid certificate a no-op, so the retry only exists to
-            # ride out a slow start, and a persistent failure must fall back to
-            # the self-signed certificate and let the renewal cron try later
-            # rather than spin here forever holding the boot sequence.
+            # Generate the main domain cert, retrying (bounded) until HAProxy serves it.
+            # A persistent failure must fall back to self-signed and let the cron retry,
+            # not block boot.
             attempts=0
             max_attempts=30
             served=false
             while [ "$attempts" -lt "$max_attempts" ]; do
                 attempts=$((attempts + 1))
 
-                # A failed attempt must not abort the loop: `set -e` would
-                # otherwise kill the whole script on the first CA hiccup.
+                # A failed attempt must not abort the loop (set -e would kill the script).
                 if ! acme-generate-cert.sh "$ACME_DOMAIN"; then
                     echo "Main-domain certificate issuance attempt $attempts failed"
                 fi
 
-                # Ask whether the certificate HAProxy is serving actually
-                # covers the domain we just asked for. Checking only that TLS
-                # answers is useless here: auto-generate-certs.sh has already
-                # put a locally-signed *.localdomain certificate in place, so
-                # something always answers.
-                #
-                # -checkhost does the full name match, SANs included, and reads
-                # the certificate the server presents without validating its
-                # chain. That last part is deliberate: chain validation would
-                # break every install issuing from a non-public CA -- a
-                # letsencrypt_test deployment, or a client's internal CA --
-                # which would then burn the whole retry budget on every boot.
+                # Check the served cert actually covers the domain: a self-signed
+                # *.localdomain cert always answers TLS. -checkhost matches the name
+                # without validating the chain, deliberately -- chain validation would
+                # break installs issuing from a non-public CA (letsencrypt_test, internal CA).
                 if echo | openssl s_client -connect "127.0.0.1:$HTTPS_PORT" -servername "$ACME_DOMAIN" 2>/dev/null \
                     | openssl x509 -noout -checkhost "$ACME_DOMAIN" > /dev/null 2>&1; then
                     echo "Main-domain certificate is being served"
@@ -118,9 +91,7 @@ case "$1" in
         ;;
 
     ""|cron)
-        # Cron-only invocation: nothing to issue, but the renewal cron above is
-        # armed. Used by flavours and configs that serve no main-domain ACME
-        # certificate yet still need branding certificates to renew.
+        # Cron-only: nothing to issue, but the renewal cron above is armed.
         ;;
 
     *)

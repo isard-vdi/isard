@@ -28,13 +28,8 @@ _MAX_NAMES = 100
 
 
 class MainDomainCertificate(BaseModel):
-    """The deployment main-domain certificate configuration.
-
-    ``names`` is an ordered list and ``names[0]`` is the primary. That is
-    structural rather than cosmetic: acme.sh indexes a certificate by its first
-    name, which decides the on-disk state directory and the deploy key, so
-    reordering the list is a different certificate.
-    """
+    """The deployment main-domain certificate config (names ordered, names[0]
+    primary; see certificates_config)."""
 
     names: Optional[List[str]] = None
     certificate_source: Optional[Literal["acme"]] = None

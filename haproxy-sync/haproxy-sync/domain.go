@@ -98,8 +98,7 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		desiredDomains[d.Name] = true
 	}
 
-	// Add the missing domains, and re-issue the ones whose certificate source
-	// changed since they were last materialized.
+	// Add the missing domains, and re-issue the ones whose certificate changed.
 	for _, d := range wanted {
 		fingerprint := domainFingerprint(d)
 
@@ -123,9 +122,8 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 
 		previous, known := h.Domains.specs[d.Name]
 		if !known {
-			// First time this process sees an already-served domain, e.g. right
-			// after a restart. Adopt its current state instead of re-issuing,
-			// so a restart does not hit the CA once per branding domain.
+			// First sync after a restart: adopt the already-served state instead
+			// of re-issuing, or a restart hits the CA once per branding domain.
 			h.Domains.specs[d.Name] = fingerprint
 			continue
 		}
@@ -139,9 +137,8 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 				Domain: d.Name,
 				Error:  err.Error(),
 			})
-			// Leave the remembered fingerprint alone: recording the one we
-			// failed to reach would make the next sync believe the domain is
-			// already up to date and never retry.
+			// Leave the fingerprint unset on failure, or the next sync believes
+			// the domain is up to date and never retries.
 			continue
 		}
 
@@ -151,11 +148,8 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		}
 	}
 
-	// Remove the extra domains, reporting failures per domain the way the add
-	// path does. Aborting the sync instead would be unrecoverable rather than
-	// transient: the entry stays in HAProxy's map, so the next sync rebuilds
-	// the same desired set, reaches the same domain and fails at the same
-	// point, leaving DomainSync wedged for the whole installation.
+	// Remove the extra domains, reporting failures per domain rather than
+	// aborting: aborting would wedge DomainSync for the whole installation.
 	for d := range h.Domains.domains {
 		if desiredDomains[d] {
 			continue
@@ -223,26 +217,13 @@ func (h *HAproxySync) isBaseDomain(d string) bool {
 	return h.Domains.BaseDomain != "" && strings.EqualFold(d, h.Domains.BaseDomain)
 }
 
-// defaultAccountThumbprintPath is where acme.sh stores the HTTP-01 account
-// thumbprint. Init copies it onto the service so a test can point one instance
-// somewhere else without reaching for a package-level variable, which parallel
-// tests in this package would share.
+// defaultAccountThumbprintPath is where acme.sh stores the HTTP-01 account thumbprint.
 const defaultAccountThumbprintPath = "/etc/acme/account-thumbprint"
 
-// pushAccountThumbprint puts the HTTP-01 account thumbprint into the running
-// HAProxy's process variable, so the challenge responder answers with the
-// account we are about to issue under.
-//
-// HAProxy seeds that variable from the environment, and the environment is read
-// at PARSE time: a reload resets it to whatever it said when the container
-// started, which on an install that had no ACME account then is the empty
-// string. Doing this before each issuance is what makes it self-correcting --
-// whatever happened in between, the responder is put back in step immediately
-// before the certificate authority is asked to validate.
-//
-// Never fatal. The account file not existing is the normal state of an install
-// that does not use ACME for its main domain, and a push that fails leaves an
-// issuance that may still succeed; refusing to try guarantees it cannot.
+// pushAccountThumbprint writes the HTTP-01 account thumbprint into HAProxy's
+// proc var before each issuance: a reload resets it to the parse-time env
+// value, so it must be re-pushed. Never fatal (no account file is the normal
+// state of an install that does not use ACME for its main domain).
 func (h *HAproxySync) pushAccountThumbprint() {
 	raw, err := os.ReadFile(h.Domains.accountThumbprintPath)
 	if err != nil {
@@ -258,10 +239,8 @@ func (h *HAproxySync) pushAccountThumbprint() {
 	}
 }
 
-// domainFingerprint is a stable signature of what certificate a domain is
-// asking for. When it differs from the one last materialized, the desired
-// certificate is not the one on disk and the domain must be re-issued even
-// though HAProxy is already serving that name.
+// domainFingerprint is a stable signature of the certificate a domain asks for;
+// a change means it must be re-issued even though HAProxy already serves the name.
 func domainFingerprint(d DomainSyncDomain) string {
 	if len(d.Certificate) > 0 {
 		sum := sha256.Sum256(d.Certificate)
@@ -271,8 +250,8 @@ func domainFingerprint(d DomainSyncDomain) string {
 	return "http01"
 }
 
-// materializeCert produces the PEM bytes for a domain: writing the uploaded
-// certificate, or issuing one over ACME and reading the result back.
+// materializeCert produces the PEM bytes for a domain, writing the uploaded
+// certificate or issuing one over ACME.
 func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) ([]byte, error) {
 	pemName := domainPemName(d.Name)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
@@ -298,10 +277,8 @@ func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) (
 	return pemData, nil
 }
 
-// reissueDomain swaps the certificate of a domain HAProxy already serves. It
-// deliberately does not touch the crt-list or the domain map, which already
-// contain the domain: that is what lets a certificate source change take effect
-// in place, without a reload.
+// reissueDomain swaps the certificate of an already-served domain, deliberately
+// not touching the crt-list or domain map so the change takes effect without a reload.
 func (h *HAproxySync) reissueDomain(ctx context.Context, d DomainSyncDomain) error {
 	certPath := domainCertPath(h.Domains.CertsPath, domainPemName(d.Name))
 
@@ -322,14 +299,9 @@ func (h *HAproxySync) reissueDomain(ctx context.Context, d DomainSyncDomain) err
 }
 
 // removeDomain stops HAProxy serving a domain and deregisters its certificate
-// from acme.sh.
-//
-// The acme.sh deregistration is deliberately tolerant. By the time it runs,
-// HAProxy has already stopped serving the domain, so the removal has succeeded
-// in the way the caller cares about; reporting a failure here would make the
-// domain look un-removed and invite a retry of work that is already done. It
-// is worth knowing about, though -- acme.sh will keep renewing a certificate
-// nothing serves -- so it is logged rather than dropped.
+// from acme.sh. The acme.sh deregistration failure is logged, not returned:
+// HAProxy has already stopped serving, so the removal the caller cares about
+// has succeeded.
 func (h *HAproxySync) removeDomain(ctx context.Context, d string) error {
 	pemName := domainPemName(d)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
@@ -354,20 +326,15 @@ func (h *HAproxySync) removeDomain(ctx context.Context, d string) error {
 	return nil
 }
 
-// mainDomainPemName is the certificate the crt-list points at by default, and
-// therefore the one the deployment is served with.
+// mainDomainPemName is the crt-list default, i.e. what the deployment is served with.
 const mainDomainPemName = "chain.pem"
 
-// customPortalPemName is an operator-supplied certificate that, when present,
-// the boot-time crt-list prefers over the ACME one.
+// customPortalPemName, when present, is preferred by the boot-time crt-list over the ACME one.
 const customPortalPemName = "custom-portal-chain.pem"
 
-// IssueMainDomain issues the certificate the whole deployment is served with.
-//
-// Deliberately unlike every other domain here: the main domain is routed by the
-// base ACL rather than the domain map, and its certificate is the crt-list
-// default rather than a crt-list entry, so this deploys to that default and
-// touches nothing else.
+// IssueMainDomain issues the deployment's main certificate. Unlike other domains
+// it is routed by the base ACL and its cert is the crt-list default, so this
+// deploys to that default and touches neither the domain map nor the crt-list.
 func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error {
 	if len(names) == 0 {
 		return fmt.Errorf("%w: no names given for the main domain", ErrInvalidDomain)
@@ -382,12 +349,8 @@ func (h *HAproxySync) IssueMainDomain(ctx context.Context, names []string, accou
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	// The crt-list is rebuilt on every boot and prefers an operator-supplied
-	// certificate, falling back to the ACME one only when that file is absent.
-	// While it exists, anything issued here is written, deployed and logged as
-	// successful, and never served. Refuse instead: an operator watching a
-	// certificate they just configured do nothing, with every log line saying
-	// it worked, is the worst outcome available.
+	// Refuse if the operator-supplied cert exists: the boot-time crt-list prefers
+	// it, so anything issued here would be logged as successful but never served.
 	shadow := domainCertPath(h.Domains.CertsPath, customPortalPemName)
 	if _, err := os.Stat(shadow); err == nil {
 		return fmt.Errorf(
