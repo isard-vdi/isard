@@ -20,6 +20,8 @@ from engine.models.domain_xml import (
     recreate_xml_if_gpu,
     recreate_xml_to_start_raw,
     remove_memory_backing,
+    resolve_qos_disk_iotune,
+    usable_qos_disk_id,
 )
 
 
@@ -1913,3 +1915,59 @@ class TestSetVideoTypeWithoutAVideoDevice:
         model = self._model(x)
         assert model.get("type") == "none"
         assert model.get("ram") is None and model.get("vram") is None
+
+
+class TestUsableQosDiskId:
+    @pytest.mark.parametrize(
+        "stored", [None, "", "null", "None", "false", "False", False, 0]
+    )
+    def test_a_stored_non_value_is_not_an_id(self, stored):
+        assert usable_qos_disk_id({"id": "pool-1", "qos_disk_id": stored}) is None
+
+    def test_a_pool_without_the_key_or_no_pool_at_all(self):
+        assert usable_qos_disk_id({"id": "pool-1"}) is None
+        assert usable_qos_disk_id(None) is None
+
+    @pytest.mark.parametrize("stored", ["unlimited", "limit50MBps", "16f766aa-80b0"])
+    def test_a_real_id_survives(self, stored):
+        assert usable_qos_disk_id({"id": "pool-1", "qos_disk_id": stored}) == stored
+
+
+class TestResolveQosDiskIotune:
+    IOTUNE = {"total_bytes_sec": 100}
+
+    def _lookup(self, known):
+        return lambda qos_id: self.IOTUNE if qos_id in known else False
+
+    def test_a_pool_that_resolves_wins(self):
+        iotune, unresolved = resolve_qos_disk_iotune(
+            {"id": "p", "qos_disk_id": "unlimited"},
+            {"qos_disk_id": "limit50MBps"},
+            self._lookup({"unlimited", "limit50MBps"}),
+        )
+        assert iotune == self.IOTUNE
+        assert unresolved == []
+
+    def test_a_pool_storing_the_string_null_falls_through_silently(self):
+        iotune, unresolved = resolve_qos_disk_iotune(
+            {"id": "p", "qos_disk_id": "null"},
+            {"qos_disk_id": "limit50MBps"},
+            self._lookup({"limit50MBps"}),
+        )
+        assert iotune == self.IOTUNE
+        assert unresolved == []
+
+    def test_a_pool_naming_a_missing_qos_disk_still_honours_the_domain(self):
+        iotune, unresolved = resolve_qos_disk_iotune(
+            {"id": "p", "qos_disk_id": "gone"},
+            {"qos_disk_id": "limit50MBps"},
+            self._lookup({"limit50MBps"}),
+        )
+        assert iotune == self.IOTUNE
+        assert unresolved == [("gone", "p")]
+
+    def test_nothing_to_apply_reports_nothing_missing(self):
+        assert resolve_qos_disk_iotune({"id": "p"}, {}, self._lookup(set())) == (
+            None,
+            [],
+        )
