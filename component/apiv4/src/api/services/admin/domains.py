@@ -70,6 +70,7 @@ class AdminDomainsService:
         payload: dict,
         categories: Optional[str] = None,
         filters: Optional[dict] = None,
+        negated: Optional[set] = None,
     ) -> list[dict]:
         """List desktops, optionally filtered by categories and indexed filters."""
         filters = filters or {}
@@ -86,7 +87,10 @@ class AdminDomainsService:
             )
         if filters or categories:
             return ApiAdmin.list_desktops_with_filters(
-                categories=categories, filters=filters, placement=placement
+                categories=categories,
+                filters=filters,
+                placement=placement,
+                negated=negated,
             )
         return ApiAdmin.list_desktops(categories, placement=placement)
 

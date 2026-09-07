@@ -549,27 +549,10 @@ $(document).ready(function() {
         data: function () {
             var categories = [];
             categories = $('#filter-category #category').val();
-            var requestData = {
+            var requestData = $.extend({
                 'kind': "desktop",
                 'categories': JSON.stringify(categories || [])
-            };
-
-            // Add indexed filters to request for server-side filtering
-            indexed_filters.forEach(function(field) {
-                var filterBox = $('#filter-' + field + ' #' + field);
-                if (filterBox.length && filterBox.val() && filterBox.val().length) {
-                    var val = filterBox.val();
-                    if (field === 'name') {
-                        // 'name' is multi-select: send every selected value
-                        requestData[field] = Array.isArray(val) ? val : [val];
-                    } else if (Array.isArray(val) && val.length > 0) {
-                        // Other indexed filters are single-value
-                        requestData[field] = val[0];
-                    } else if (val) {
-                        requestData[field] = val;
-                    }
-                }
-            });
+            }, currentIndexedFilters());
 
             return JSON.stringify(requestData);
         }
@@ -631,20 +614,28 @@ $(document).ready(function() {
     // Snapshot of indexed filters last sent to the API, to detect changes
     var appliedIndexedFilters = '{}';
 
+    // Indexed filters and their operators, as sent in the request body
     function currentIndexedFilters() {
         var state = {};
+        var operators = {};
         indexed_filters.forEach(function(field) {
             var filterBox = $('#filter-' + field + ' #' + field);
             if (filterBox.length && filterBox.val() && filterBox.val().length) {
                 var val = filterBox.val();
                 if (field === 'name') {
+                    // 'name' is multi-select: send every selected value
                     state[field] = Array.isArray(val) ? val : [val];
                 } else {
+                    // Other indexed filters are single-value
                     state[field] = Array.isArray(val) ? val[0] : val;
                 }
+                operators[field] = $('#filter-' + field + ' #operator-' + field).val() || 'is';
             }
         });
-        return JSON.stringify(state);
+        if (Object.keys(operators).length) {
+            state.operators = operators;
+        }
+        return state;
     }
 
     $("#btn-search").on("click", function () {
@@ -652,7 +643,7 @@ $(document).ready(function() {
         var needsReload = false;
 
         // Reload if the set of indexed filters changed (added, modified or removed)
-        var currentIndexed = currentIndexedFilters();
+        var currentIndexed = JSON.stringify(currentIndexedFilters());
         if (currentIndexed !== appliedIndexedFilters) {
             appliedIndexedFilters = currentIndexed;
             needsReload = true;
@@ -689,10 +680,11 @@ $(document).ready(function() {
     function applyClientSideFilters(table) {
         $("#filter-boxes .filter-item").each(function () {
             var operator = $(this).find(".operator-select").val();
+            var name = $(this).find(".filter-box").attr("id");
             var title = $(this).find(".filter-box").attr("index");
 
             // Skip indexed filters (they are handled server-side) and category
-            if (indexed_filters.includes(title) || title === "category") {
+            if (indexed_filters.includes(name) || name === "category") {
                 return;
             }
 
