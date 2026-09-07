@@ -21,6 +21,7 @@ from datetime import datetime
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
+from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
 from rethinkdb import r
 
 
@@ -356,20 +357,13 @@ class AnalyticsProcessed(RethinkSharedConnection):
     @classmethod
     def list_graph_configs(cls) -> list[dict]:
         """Return every graph config row with its grouping name resolved."""
+        names = GroupingsUsageProcessed.names_by_id()
         with cls._rdb_context():
-            return list(
-                r.table("analytics")
-                .merge(
-                    lambda conf: {
-                        "grouping_name": r.branch(
-                            r.table("usage_grouping").get(conf["grouping"]).ne(None),
-                            r.table("usage_grouping").get(conf["grouping"])["name"],
-                            conf["grouping"],
-                        )
-                    }
-                )
-                .run(cls._rdb_connection)
-            )
+            configs = list(r.table("analytics").run(cls._rdb_connection))
+        for config in configs:
+            grouping = config.get("grouping")
+            config["grouping_name"] = names.get(grouping, grouping)
+        return configs
 
     @classmethod
     def get_graph_config(cls, graph_conf_id: str) -> dict:
