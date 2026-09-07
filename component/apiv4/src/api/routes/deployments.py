@@ -72,7 +72,7 @@ from api.schemas.deployments import (
 from api.schemas.domains.desktops import DesktopDetailsResponse
 from api.services.deployments import DeploymentService
 from api.services.error import Error
-from fastapi import Depends, Query, Request, Security
+from fastapi import Body, Depends, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from fastapi.security.api_key import APIKeyHeader
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
@@ -321,7 +321,7 @@ async def create_deployment(
     status_code=204,
     response_class=Response,
     summary="Stop all desktops from a deployment",
-    description="Stop all started desktops from a deployment",
+    description="Stop all started desktops from a deployment.",
     responses={
         204: {"description": "Desktops stopped successfully"},
         404: {"model": ErrorResponse, "description": "No dekstops found in deployment"},
@@ -334,18 +334,15 @@ async def create_deployment(
 async def stop_all_desktops_in_deployment(
     request: Request,
     deployment_id: str,
-    deployment_stop_request: DeploymentStopRequest | None = None,
+    deployment_stop_request: DeploymentStopRequest = Body(
+        default_factory=DeploymentStopRequest
+    ),
 ):
     try:
-        force_stop_deployment_desktops = (
-            deployment_stop_request.force
-            if deployment_stop_request is not None
-            else False
-        )
         await asyncio.to_thread(
             DeploymentService.stop_all_desktops,
             deployment_id,
-            force_stop_deployment_desktops,
+            deployment_stop_request.force,
         )
         return Response(status_code=204)
     except Error:

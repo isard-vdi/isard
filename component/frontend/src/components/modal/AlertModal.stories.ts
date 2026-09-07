@@ -27,7 +27,7 @@ const meta = {
     },
     size: {
       control: 'select',
-      options: ['md', 'lg'],
+      options: ['md', 'lg', 'xl'],
       description: 'Modal width'
     },
     loading: {

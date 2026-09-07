@@ -5,6 +5,7 @@ export { default as DesktopTimeoutModal } from './DesktopTimeoutModal.vue'
 export { default as ChangeViewerModal } from './ChangeViewerModal.vue'
 export { default as Modal } from './Modal.vue'
 export { default as QuotaExceededModal } from './QuotaExceededModal.vue'
+export { default as StopAllDesktopsModal } from './StopAllDesktopsModal.vue'
 
 export const modalVariants = cva('', {
   variants: {
@@ -16,7 +17,8 @@ export const modalVariants = cva('', {
     },
     size: {
       md: 'min-w-96',
-      lg: 'min-w-140'
+      lg: 'min-w-140',
+      xl: 'min-w-150'
     }
   },
   defaultVariants: {

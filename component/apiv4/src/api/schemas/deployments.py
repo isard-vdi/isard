@@ -684,8 +684,10 @@ class DeploymentStopRequest(BaseModel):
         default=False,
         description=(
             "If true, started desktops in the deployment are stopped forcefully "
-            "(straight to Stopping). If false, they are stopped gracefully "
-            "(Shutting-down first)."
+            "(straight to Stopping), and desktops already shutting down are "
+            "killed too. If false, started desktops are stopped gracefully "
+            "(Shutting-down first) and the ones already shutting down are left "
+            "alone."
         ),
     )
 

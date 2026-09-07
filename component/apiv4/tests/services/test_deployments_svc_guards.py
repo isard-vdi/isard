@@ -2,6 +2,8 @@
 
 """Membership / state guards of ``DeploymentService`` (services/deployments.py).
 
+* ``stop_all_desktops`` -- an empty deployment -> not_found; force is forwarded
+  and decides whether desktops already shutting down are killed too.
 * ``stop_user_desktops`` -- unknown deployment -> not_found; a user_id not in an
   explicit ``allowed.users`` list -> forbidden (blocks probing arbitrary users);
   a member with no desktops -> not_found; a member with desktops is stopped.
@@ -18,6 +20,41 @@ from unittest.mock import MagicMock, patch
 import pytest
 from api.services.deployments import DeploymentService
 from api.services.error import Error
+
+
+class TestStopAllDesktops:
+    def test_empty_deployment_not_found(self):
+        with patch(
+            "api.services.deployments.CommonDeploymentDesktops.get_desktop_ids",
+            return_value=[],
+        ):
+            with pytest.raises(Error) as exc:
+                DeploymentService.stop_all_desktops("dep1")
+        assert exc.value.error["error"] == "not_found"
+
+    def test_graceful_leaves_shutting_down_alone(self):
+        with (
+            patch(
+                "api.services.deployments.CommonDeploymentDesktops.get_desktop_ids",
+                return_value=["d1", "d2"],
+            ),
+            patch("api.services.deployments.DesktopEvents.desktops_stop") as stop,
+        ):
+            DeploymentService.stop_all_desktops("dep1")
+        stop.assert_called_once_with(
+            ["d1", "d2"], force=False, include_shutting_down=False
+        )
+
+    def test_force_kills_shutting_down_too(self):
+        with (
+            patch(
+                "api.services.deployments.CommonDeploymentDesktops.get_desktop_ids",
+                return_value=["d1"],
+            ),
+            patch("api.services.deployments.DesktopEvents.desktops_stop") as stop,
+        ):
+            DeploymentService.stop_all_desktops("dep1", True)
+        stop.assert_called_once_with(["d1"], force=True, include_shutting_down=True)
 
 
 class TestStopUserDesktops:

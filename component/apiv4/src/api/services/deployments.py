@@ -285,7 +285,7 @@ class DeploymentService:
                 traceback.format_exc(),
             )
 
-        DesktopEvents.desktops_stop(desktops, force=force)
+        DesktopEvents.desktops_stop(desktops, force=force, include_shutting_down=force)
 
     @staticmethod
     def stop_user_desktops(deployment_id: str, user_id: str) -> None:

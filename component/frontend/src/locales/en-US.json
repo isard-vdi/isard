@@ -778,10 +778,9 @@
         "loading": "Recreating the deployment…"
       },
       "stop-all": {
-        "title": "Stop all desktops",
-        "description": "This will stop every started desktop in the deployment. Users may lose unsaved work.",
         "error": "Could not stop the deployment desktops",
-        "loading": "Stopping the deployment desktops…"
+        "no-started-tooltip": "There are no started desktops now",
+        "stopping-tooltip": "The desktops are stopping"
       },
       "stop-user": {
         "title": "Stop user desktops",
@@ -1843,6 +1842,30 @@
       "title": "Stop all desktops",
       "description": "This action will stop all your running desktops. Are you sure you want to proceed?",
       "force": "Force stop desktops",
+      "cancel": "Cancel",
+      "confirm": "Stop all"
+    },
+    "stop-all-desktops-modal": {
+      "title": "Stop all desktops",
+      "description": "{n} desktop will be stopped. | {n} desktops will be stopped.",
+      "skipped": "{n} desktop is already shutting down and will be left alone; only a forced stop reaches it. | {n} desktops are already shutting down and will be left alone; only a forced stop reaches them.",
+      "error": "Could not stop the desktops",
+      "loading": "Stopping the desktops…",
+      "mode": {
+        "graceful": {
+          "title": "Stop all",
+          "description": "Asks the system to shut down",
+          "disabled": "No desktop is started"
+        },
+        "force": {
+          "title": "Force stop",
+          "description": "Stops it without shutting down, may corrupt the desktop"
+        }
+      },
+      "force-only": {
+        "description": "{n} desktop is already stopping. Only a forced stop affects it. | {n} desktops are already stopping. Only a forced stop affects them.",
+        "confirm": "Force stop"
+      },
       "cancel": "Cancel",
       "confirm": "Stop all"
     },

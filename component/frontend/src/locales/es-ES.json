@@ -770,10 +770,9 @@
         "loading": "Recreando el despliegue…"
       },
       "stop-all": {
-        "title": "Parar todos los escritorios",
-        "description": "Se pararán todos los escritorios iniciados del despliegue. Los usuarios pueden perder el trabajo no guardado.",
         "error": "No se han podido parar los escritorios del despliegue",
-        "loading": "Parando los escritorios del despliegue…"
+        "no-started-tooltip": "Ahora mismo no hay ningún escritorio iniciado",
+        "stopping-tooltip": "Los escritorios se están parando"
       },
       "stop-user": {
         "title": "Parar los escritorios del usuario",
@@ -1740,6 +1739,30 @@
       "description": "Esta acción detendrá todos los escritorios iniciados. ¿Estás seguro/a que quieres continuar?",
       "title": "Parar todos los escritorios",
       "force": "Forzar la parada de los escritorios"
+    },
+    "stop-all-desktops-modal": {
+      "title": "Parar todos los escritorios",
+      "description": "Se parará {n} escritorio. | Se pararán {n} escritorios.",
+      "skipped": "Hay {n} escritorio parándose que se dejará como está; solo le afecta una parada forzada. | Hay {n} escritorios parándose que se dejarán como están; solo les afecta una parada forzada.",
+      "error": "No se han podido parar los escritorios",
+      "loading": "Parando los escritorios…",
+      "mode": {
+        "graceful": {
+          "title": "Parar todos",
+          "description": "Pide al sistema que se apague",
+          "disabled": "Ningún escritorio iniciado"
+        },
+        "force": {
+          "title": "Forzar parada",
+          "description": "Lo para sin apagarlo, puede corromper el escritorio"
+        }
+      },
+      "force-only": {
+        "description": "Hay {n} escritorio parándose. Solo le afecta una parada forzada. | Hay {n} escritorios parándose. Solo les afecta una parada forzada.",
+        "confirm": "Forzar parada"
+      },
+      "cancel": "Cancelar",
+      "confirm": "Parar todos"
     },
     "desktop-networks-modal": {
       "title": "Redes del escritorio '{name}'",

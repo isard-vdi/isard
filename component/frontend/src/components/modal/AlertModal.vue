@@ -56,8 +56,9 @@ const handleClose = () => {
 }
 
 const widthClass = computed(() => {
-  if (props.size === 'lg') return 'w-140'
-  return 'w-96'
+  if (props.size === 'xl') return 'w-150 max-w-[95vw]'
+  if (props.size === 'lg') return 'w-140 max-w-[95vw]'
+  return 'w-96 max-w-[95vw]'
 })
 </script>
 

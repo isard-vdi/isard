@@ -770,10 +770,9 @@
         "loading": "S'està recreant el desplegament…"
       },
       "stop-all": {
-        "title": "Atura tots els escriptoris",
-        "description": "S'aturaran tots els escriptoris iniciats del desplegament. Els usuaris poden perdre la feina no desada.",
         "error": "No s'han pogut aturar els escriptoris del desplegament",
-        "loading": "S'estan aturant els escriptoris del desplegament…"
+        "no-started-tooltip": "Ara mateix no hi ha cap escriptori iniciat",
+        "stopping-tooltip": "Els escriptoris s'estan aturant"
       },
       "stop-user": {
         "title": "Atura els escriptoris de l'usuari",
@@ -1740,6 +1739,30 @@
       "description": "Aquesta acció aturarà tots els escriptoris iniciats. Estàs segur/a que vols continuar?",
       "title": "Atura tots els escriptoris",
       "force": "Força l'aturada dels escriptoris"
+    },
+    "stop-all-desktops-modal": {
+      "title": "Atura tots els escriptoris",
+      "description": "S'aturarà {n} escriptori. | S'aturaran {n} escriptoris.",
+      "skipped": "Hi ha {n} escriptori aturant-se que es deixarà tal com està; només l'afecta una aturada forçada. | Hi ha {n} escriptoris aturant-se que es deixaran tal com estan; només els afecta una aturada forçada.",
+      "error": "No s'han pogut aturar els escriptoris",
+      "loading": "S'estan aturant els escriptoris…",
+      "mode": {
+        "graceful": {
+          "title": "Atura'ls tots",
+          "description": "Demana al sistema que s'apagui",
+          "disabled": "Cap escriptori iniciat"
+        },
+        "force": {
+          "title": "Forçar aturada",
+          "description": "L'atura sense apagar-lo, pot corrompre l'escriptori"
+        }
+      },
+      "force-only": {
+        "description": "Hi ha {n} escriptori aturant-se. Només l'afecta una aturada forçada. | Hi ha {n} escriptoris aturant-se. Només els afecta una aturada forçada.",
+        "confirm": "Forçar aturada"
+      },
+      "cancel": "Cancel·la",
+      "confirm": "Atura'ls tots"
     },
     "desktop-networks-modal": {
       "title": "Xarxes de l'escriptori '{name}'",
