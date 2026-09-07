@@ -54,8 +54,7 @@ type DomainSyncDomain struct {
 	Certificate []byte // PEM. If empty, issued via ACME.
 
 	// acme-dns (DNS-01) credentials, all four or none. One registration per
-	// domain: an acme-dns account holds a bounded number of TXT records, so
-	// domains sharing one would evict each other's challenges.
+	// domain (see haproxy_sync.proto).
 	ACMEDNSBaseURL   string
 	ACMEDNSUsername  string
 	ACMEDNSPassword  string
@@ -68,12 +67,9 @@ func (d DomainSyncDomain) IsACMEDNS() bool {
 }
 
 // hasPartialACMEDNS reports a credential set that is started but not finished.
-//
-// Worth distinguishing from both of the other two states. Nothing set is a
-// plain HTTP-01 domain; all four set is a DNS-01 one; some set is a
-// configuration that cannot work, and quietly treating it as HTTP-01 would
-// attempt the very challenge the operator moved away from and report its
-// failure, which says nothing about the field they left blank.
+// A partial set is not a degraded mode: nothing set is HTTP-01, all four is
+// DNS-01, some set cannot work and must fail rather than silently fall back to
+// HTTP-01 (which would attempt the challenge the operator moved away from).
 func (d DomainSyncDomain) hasPartialACMEDNS() bool {
 	c := d.acmeDNSCredentials()
 	any := c.BaseURL != "" || c.Username != "" || c.Password != "" || c.Subdomain != ""

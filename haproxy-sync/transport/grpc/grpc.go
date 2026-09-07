@@ -102,11 +102,9 @@ func (h *HAProxySyncServer) IssueMainDomain(ctx context.Context, req *haproxysyn
 		Subdomain: req.GetAcmeDnsSubdomain(),
 	}
 
-	// Which challenge to use is decided by what the request carries, so a
-	// deployment that has never configured acme-dns keeps taking exactly the
-	// path it took before. A partial credential set is passed on rather than
-	// silently treated as HTTP-01: the layer below refuses it with a message
-	// naming what is missing, which HTTP-01's failure would not.
+	// Any acme-dns field routes to the DNS path, so a partial set is refused
+	// there with a clear message rather than silently attempted as HTTP-01.
+	// No fields keeps the exact HTTP-01 path as before.
 	var err error
 	if creds != (acme.ACMEDNSCredentials{}) {
 		err = h.haproxysync.IssueMainDomainDNS(ctx, req.GetNames(), account, creds)

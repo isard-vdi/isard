@@ -369,9 +369,7 @@ class Bastion(RethinkSharedConnection):
                 )
                 return None
             if not acmedns.get("verified"):
-                # Absent counts as not verified: a block written by a manual
-                # save carries no flag, and nobody has looked at that
-                # delegation.
+                # Absent counts as not verified: a manual save carries no flag.
                 log.info(
                     "Main-domain certificate not issued: the acme-dns "
                     "delegation is not verified"

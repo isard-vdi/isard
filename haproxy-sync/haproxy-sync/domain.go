@@ -248,13 +248,9 @@ func domainFingerprint(d DomainSyncDomain) string {
 	}
 
 	if d.IsACMEDNS() {
-		// The account that answers the challenge, deliberately not the
-		// password that reaches it. Rotating a credential does not change what
-		// certificate the domain is asking for, so re-issuing on one would
-		// spend certificate-authority rate limit to install a byte-identical
-		// certificate -- and rate limit is the resource that runs out quietly
-		// and takes a week to come back. Leaving the secret out also keeps a
-		// hash of it from sitting in memory keyed by domain.
+		// Password left out on purpose: rotating it must not trigger re-issue
+		// of a byte-identical cert (wastes CA rate limit), and it keeps the
+		// secret out of an in-memory hash keyed by domain.
 		sum := sha256.Sum256([]byte(strings.Join(
 			[]string{d.ACMEDNSBaseURL, d.ACMEDNSUsername, d.ACMEDNSSubdomain}, "\x00")))
 		return "acmedns:" + hex.EncodeToString(sum[:])
@@ -284,8 +280,7 @@ func (h *HAproxySync) materializeCert(ctx context.Context, d DomainSyncDomain) (
 	}
 
 	if d.IsACMEDNS() {
-		// No account thumbprint: that is what HAProxy answers a stateless
-		// HTTP-01 challenge from, and a DNS-01 challenge never reaches HAProxy.
+		// No account thumbprint: a DNS-01 challenge never reaches HAProxy.
 		if err := h.acme.IssueCertDNS(ctx, d.Name, pemName, d.acmeDNSCredentials()); err != nil {
 			return nil, fmt.Errorf("issue certificate: %w", err)
 		}
@@ -451,12 +446,9 @@ func (h *HAproxySync) addDomain(ctx context.Context, d DomainSyncDomain) error {
 	return nil
 }
 
-// IssueMainDomainDNS issues the deployment's certificate over DNS-01.
-//
-// Same guards as the HTTP-01 path, and one thing left out: the account
-// thumbprint is not pushed. That thumbprint is what HAProxy answers a
-// stateless HTTP-01 challenge from, and a DNS-01 challenge is answered by
-// acme-dns without ever reaching HAProxy.
+// IssueMainDomainDNS issues the deployment's certificate over DNS-01. Same
+// guards as the HTTP-01 path, but no account thumbprint: a DNS-01 challenge
+// never reaches HAProxy.
 func (h *HAproxySync) IssueMainDomainDNS(ctx context.Context, names []string, account acme.ACMEAccount, creds acme.ACMEDNSCredentials) error {
 	if err := checkMainDomainNames(names); err != nil {
 		return err

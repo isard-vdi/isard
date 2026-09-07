@@ -32,17 +32,10 @@ service HaproxySyncService {
   rpc BastionGetCurrentMaps(BastionGetCurrentMapsRequest) returns (BastionGetCurrentMapsResponse) {}
 }
 
-// DomainSyncDomain describes one per-category branding domain and how its certificate
-// is obtained.
-//
-// The three sources are distinguished by which fields are set. A certificate means the
-// operator supplied the PEM. All four acme_dns fields together mean DNS-01 through an
-// acme-dns account, which is the only way to certify a name that does not point at this
-// deployment. Neither means HTTP-01, which stays the default.
-//
-// The acme-dns fields are all-or-nothing on purpose: three of four cannot issue anything,
-// and treating a partial set as "use DNS-01" turns a half-filled form into a failure deep
-// inside acme.sh that talks about DNS rather than about configuration.
+// DomainSyncDomain describes one per-category branding domain and how its certificate is
+// obtained. The source is distinguished by which fields are set: a certificate means the
+// operator supplied the PEM; all four acme_dns fields mean DNS-01; neither means HTTP-01
+// (the default). The acme_dns fields are all-or-nothing.
 message DomainSyncDomain {
   string name = 1;
   bytes certificate = 2; // PEM. If empty and no acme_dns fields, issued via ACME HTTP-01.

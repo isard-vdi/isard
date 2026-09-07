@@ -28,17 +28,9 @@ _MAX_NAMES = 100
 
 
 class AcmeDnsCredentials(BaseModel):
-    """One acme-dns registration.
-
-    Every field is optional because the operator fills this in stages: the
-    auto-register flow writes the account it was handed before any password is
-    typed, and a manual save may touch one field. Whether a set is complete
-    enough to issue with is decided where issuance happens, not here.
-
-    ``password`` is write-only and ``password_set`` is read-only. The stored
-    value is never returned -- it would end up in the browser's history and in
-    the logs of anything in between, which is not where the rest of this
-    product's credentials go -- so the form is told whether one exists instead.
+    """One acme-dns registration. All fields optional: the operator fills this
+    in stages. password is write-only and never returned; password_set is the
+    read-only flag telling the form whether one is stored.
     """
 
     base_url: Optional[str] = None
@@ -95,9 +87,8 @@ class AcmeDnsRegisterRequest(BaseModel):
     """Request body for ``POST /admin/config/certificates/acmedns/register``."""
 
     base_url: str
-    # acme-dns cannot delete or update an account, so registering a second one
-    # abandons the first and invalidates any CNAME already created for it.
-    # Saying so explicitly is what separates that from a double click.
+    # Required to overwrite: re-registering abandons the first account (acme-dns
+    # cannot delete it) and breaks any CNAME created for it.
     replace: bool = False
 
 

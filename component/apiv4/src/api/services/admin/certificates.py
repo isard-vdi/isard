@@ -45,17 +45,11 @@ def _derive_main_domain_challenge(certs: dict) -> dict:
 
 
 def _strip_main_domain_secret(certs: dict) -> dict:
-    """Replace the stored acme-dns password with a flag saying one exists.
+    """Replace the stored acme-dns password with a password_set flag for GET
+    responses; the password is never returned.
 
-    The credentials live in the database in the clear, like the rest of this
-    product's. Returning one in a GET is a different exposure: it lands in the
-    browser's history and in the logs of whatever proxies the call, which are
-    places the others do not reach. The form is told whether a password is
-    stored so it can say "leave blank to keep it" rather than guessing.
-
-    Operates on a copy. The document this is handed comes from a cache, and
-    emptying the password in place would take it away from the issuance path
-    that reads the same entry.
+    Operates on a copy: the document comes from a shared cache, and emptying the
+    password in place would take it from the issuance path reading the same entry.
     """
     main = (certs or {}).get("main_domain")
     if not isinstance(main, dict):
@@ -75,18 +69,12 @@ def _strip_main_domain_secret(certs: dict) -> dict:
 
 
 def _preserve_main_domain_secret(new_certs: dict, existing_certs: dict) -> None:
-    """Keep the stored acme-dns password when the payload leaves it blank.
+    """Keep the stored acme-dns password when the payload leaves it blank: the
+    form cannot resend a value it never received, and the write replaces the
+    whole subtree, so a blank would otherwise destroy the credential.
 
-    The other half of never returning it: the form cannot resend a value it was
-    never given, and the write replaces the whole subtree, so a blank would
-    destroy the credential on any save that touched anything else.
-
-    Blank with nothing stored is the case the two existing helpers for
-    authentication secrets disagree about -- one raises as required, the other
-    drops the key and says nothing. This field is the required kind: without a
-    password there is no issuance at all, so accepting the save would store a
-    configuration that cannot work and report success. Only when the source is
-    actually acme_dns, so a deployment on HTTP-01 is never asked for one.
+    Blank with nothing stored raises, but only when the source is acme_dns:
+    without a password issuance cannot work, so the save must not report success.
     """
     new_main = (new_certs or {}).get("main_domain")
     if not isinstance(new_main, dict):
@@ -149,9 +137,8 @@ def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
     if isinstance(main, dict):
         main.pop("acme_challenge", None)
 
-        # The acme-dns block merges field by field for the same reason the
-        # main-domain block does: the form does not render all of it, and the
-        # write drops every key it is not handed.
+        # Field-by-field merge: the form does not render the whole acme-dns
+        # block, and the write drops every key it is not handed.
         incoming_main = (new_certs or {}).get("main_domain")
         if isinstance(incoming_main, dict) and isinstance(
             incoming_main.get("acmedns"), dict
@@ -223,16 +210,9 @@ class AdminCertificatesService:
 
     @staticmethod
     def register_acmedns(base_url: str, replace: bool = False) -> dict:
-        """Register a fresh acme-dns account for the main domain.
-
-        Refuses to overwrite credentials that are already stored unless told
-        to. acme-dns has no update and no delete, so a second registration does
-        not replace the first: it strands it and returns a different subdomain.
-        If the customer has already created the CNAME, it now points at an
-        account this deployment no longer holds credentials for, and what
-        surfaces later is an issuance failing on DNS -- nowhere near a button
-        that got pressed twice. Making the caller say it means to replace turns
-        that from an accident into a decision.
+        """Register a fresh acme-dns account for the main domain. Refuses to
+        overwrite stored credentials unless replace is set (see acmedns.register
+        on why a second registration cannot be undone).
         """
         certs = CertificatesConfig.get_certificates_config()
         name = _main_domain_name(certs)
@@ -263,9 +243,8 @@ class AdminCertificatesService:
                 description_code="acmedns_register_failed",
             )
 
-        # verified is false whatever it was: the account is seconds old and
-        # nobody has delegated anything to it yet. Carrying the previous value
-        # over would let issuance run against a delegation that is not there.
+        # verified reset to false: the account is new, nothing is delegated yet;
+        # a stale true would let issuance run against a missing record.
         AdminCertificatesService.update_certificates(
             {
                 "main_domain": {
@@ -288,13 +267,9 @@ class AdminCertificatesService:
     def verify_acmedns() -> dict:
         """Check the delegation and record whether it is in place.
 
-        The result is returned rather than raised even when negative: this is
-        pressed repeatedly while DNS propagates, and "not visible yet" is the
-        answer, not a failure.
-
-        The flag is written in both directions. One that only ever goes true
-        records that something was once the case, which is not what a caller
-        deciding whether to attempt issuance is asking.
+        Negative is returned, not raised (polled while DNS propagates). The flag
+        is written in both directions: a stale true would let issuance run
+        against a delegation that is no longer there.
         """
         certs = CertificatesConfig.get_certificates_config()
         name = _main_domain_name(certs)
