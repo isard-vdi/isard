@@ -15,10 +15,9 @@ const (
 	removeScriptPath = "/usr/local/bin/acme-remove-cert.sh"
 )
 
-// ACMEAccount identifies the certificate authority and the account to issue
-// under. Per-category branding domains inherit whatever account the container
-// was started with; the main domain carries its own, because it is configured
-// in the database and can be changed without restarting anything.
+// ACMEAccount identifies the CA and account to issue under. The main domain
+// carries its own (configured in the database); branding domains inherit the
+// container's.
 type ACMEAccount struct {
 	Server string
 	Email  string
@@ -93,13 +92,9 @@ func (a *ACME) RemoveCert(ctx context.Context, domain, pemName string) error {
 	return nil
 }
 
-// IssueMainDomain issues the certificate the deployment is served with, under
-// the account it names rather than the one baked into the container's
-// environment.
-//
-// Every name is passed as its own argument. Joining them would make a name
-// containing whitespace an argument-injection vector into acme.sh, and the
-// names come from the database.
+// IssueMainDomain issues the deployment's certificate under the given account.
+// Each name is a separate argument: joining them would make a name containing
+// whitespace an argument-injection vector into acme.sh.
 func (a *ACME) IssueMainDomain(ctx context.Context, names []string, pemName string, account ACMEAccount) error {
 	if len(names) == 0 {
 		return fmt.Errorf("issue main domain certificate: no names given")

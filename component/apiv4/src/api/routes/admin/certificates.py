@@ -35,11 +35,6 @@ from fastapi.responses import JSONResponse, Response
 tag = "admin-certificates"
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Main-domain certificate configuration (admin only)
-# ══════════════════════════════════════════════════════════════════════════
-
-
 @admin_router.get(
     "/admin/config/certificates",
     tags=[tag],

@@ -24,8 +24,7 @@ type Interface interface {
 	//
 	DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error)
 
-	// IssueMainDomain issues the certificate the whole deployment is served with and
-	// deploys it to the crt-list default, touching neither the domain map nor the crt-list.
+	// IssueMainDomain issues the deployment's main certificate (see domain.go).
 	IssueMainDomain(ctx context.Context, names []string, account acme.ACMEAccount) error
 
 	//
@@ -103,22 +102,13 @@ type HAProxySyncDomains struct {
 	// domains is the presence set, rebuilt from HAProxy's map on every sync.
 	domains map[string]bool
 
-	// specs remembers the certificate fingerprint last materialized for each
-	// domain, so a sync can tell "already served" apart from "already served
-	// with the certificate we want". Without it, DomainSync only ever compared
-	// names and a change of certificate source was silently dropped.
-	//
-	// It lives in memory for the process lifetime and is deliberately NOT
-	// persisted: on startup every already-served domain is unknown and gets
-	// adopted as-is, because re-issuing all of them would hit the CA once per
-	// branding domain on every restart. The cost is that a change made while
-	// this process was down is adopted rather than applied — the next real
-	// change is picked up normally. Deriving the fingerprint from the
-	// certificate HAProxy actually serves would remove that gap.
+	// specs remembers the fingerprint last materialized per domain, so a sync
+	// tells "already served" apart from "served with the cert we want". In
+	// memory and deliberately NOT persisted: on startup every served domain is
+	// adopted as-is rather than re-issued, which would hit the CA per domain.
 	specs map[string]string
 
-	// accountThumbprintPath is where acme.sh keeps the HTTP-01 account
-	// thumbprint that the challenge responder answers with.
+	// accountThumbprintPath is where acme.sh keeps the HTTP-01 account thumbprint.
 	accountThumbprintPath string
 }
 

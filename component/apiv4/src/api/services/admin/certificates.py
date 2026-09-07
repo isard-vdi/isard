@@ -17,12 +17,7 @@
 #   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Admin service for the deployment-wide main-domain certificate configuration.
-
-Mirrors :class:`AdminViewersConfigService`: global, admin-only, and a thin
-layer over an ``isardvdi_common`` accessor. It persists configuration only;
-issuance is driven elsewhere.
-"""
+"""Admin service for the deployment-wide main-domain certificate configuration."""
 
 import copy
 import logging as log
@@ -32,9 +27,7 @@ import traceback
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.certificates_config import CertificatesConfig
 
-# Derived on read from certificate_source, never stored: it is a function of
-# another persisted field, so writing it would create a second source of truth
-# that can disagree with the first.
+# Derived on read from certificate_source, never stored (single source of truth).
 _CHALLENGE_BY_SOURCE = {"acme": "http-01"}
 
 
@@ -52,15 +45,9 @@ def _derive_main_domain_challenge(certs: dict) -> dict:
 def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
     """Return the full document to persist, merged over what is stored.
 
-    Two things make this necessary rather than optional. The route builds its
-    payload with ``model_dump(exclude_none=True)``, so a field the admin form
-    does not render is simply absent; and the write goes through
-    ``replace_certificates_config``, which uses ``r.literal`` and therefore
-    deletes every key it is not handed. Without this merge, saving the domain
-    name alone would silently discard the ACME account e-mail and server.
-
-    ``acme_challenge`` is dropped from both sides, so a value that reached the
-    database before it was display-only does not survive a round trip.
+    Necessary because the route sends only rendered fields (``exclude_none``) and
+    the write uses ``r.literal`` (deletes unsent keys); without merging, saving
+    one field discards the rest. ``acme_challenge`` is dropped, being display-only.
     """
     merged = copy.deepcopy(existing_certs or {})
     incoming = copy.deepcopy(new_certs or {})
@@ -82,12 +69,8 @@ def _merge_main_domain(new_certs: dict, existing_certs: dict) -> dict:
 
 
 def _issue_main_domain_now() -> None:
-    """Run the issuance and swallow whatever it does.
-
-    By the time this runs the configuration is already saved, so a failure here
-    is not a failed save and must not be reported as one. It is also running
-    with nobody to return an error to.
-    """
+    """Run the issuance and swallow errors: the config is already saved, so a
+    failure here is not a failed save and there is nobody to return it to."""
     try:
         Bastion.issue_main_domain_certificate()
     except Exception:
@@ -97,14 +80,9 @@ def _issue_main_domain_now() -> None:
 
 
 def _dispatch_main_domain_issuance() -> None:
-    """Start the issuance without waiting for it.
-
-    A certificate authority round trip regularly outlives the 30s per-call
-    timeout of the gRPC retry helper, which then retries up to 60 times with
-    delays capped at 30s. Inline, that is a browser waiting on an admin save, or
-    apiv4's startup stalled behind a slow or absent haproxy-sync. The work is
-    idempotent and its result is observable through the GET, so nothing is lost
-    by letting the caller go.
+    """Start the issuance in a daemon thread, off the request path: a CA round
+    trip regularly outlives the gRPC retry budget, which would stall an admin
+    save or apiv4 startup. The work is idempotent and observable through the GET.
     """
     threading.Thread(
         target=_issue_main_domain_now,

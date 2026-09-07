@@ -63,10 +63,8 @@ from .schemas.common import ErrorResponse
 def _sync_haproxy_maps():
     """Sync bastion maps and category branding domains to HAProxy (blocking).
 
-    The main-domain certificate is dispatched rather than issued here: this runs
-    inside lifespan startup and again on every haproxy-sync reconnection, and a
-    certificate authority round trip behind the gRPC retry budget would stall
-    both.
+    The main-domain certificate is dispatched, not issued here: this runs in
+    startup and on every reconnect, where a CA round trip would stall.
     """
     Bastion.update_bastion_haproxy_map()
     Bastion.sync_category_branding_domains()

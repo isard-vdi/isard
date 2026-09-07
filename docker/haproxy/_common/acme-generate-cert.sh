@@ -3,25 +3,15 @@
 set -e
 
 # Usage: acme-generate-cert.sh <primary-name> [pem-name] [acme-server] [acme-email] [extra-name...]
-#
-# Only the primary name is required, and the first two positions keep the
-# meaning they have always had, so the existing callers -- the portal boot path
-# and haproxy-sync's per-branding-domain issuance -- are unaffected. Everything
-# past the fourth argument is an additional name to put on the same
-# certificate; the primary stays first because acme.sh indexes the certificate
-# by its first -d.
+# Names past the fourth arg go on the same cert; the primary stays first, acme.sh indexes by first -d.
 acme_domain="$1"
 acme_pem_name="${2:-chain.pem}"
 acme_server="${3:-$ACME_SERVER}"
 acme_email="${4:-}"
 
 if [ "$#" -gt 4 ]; then shift 4; else shift "$#"; fi
-# "$@" now holds the additional names, if any.
 
-# Filesystem locations. Overridable so the test suite
-# (docker/haproxy/_common/tests/test_acme_generate_cert.sh) can drive this
-# script without touching the container paths, which are the defaults and are
-# what production always uses.
+# Overridable for the test suite; the defaults are the container paths used in production.
 ACME_HOME="${ACME_HOME:-/etc/acme}"
 ACME_CERTS_DIR="${ACME_CERTS_DIR:-/certs}"
 
@@ -32,10 +22,8 @@ export LE_WORKING_DIR="$ACME_HOME"
 
 mkdir -p "$ACME_HOME"
 
-# ACME_SERVER is defaulted by the entrypoint, which a `docker exec` of this
-# script does not inherit; read it from the saved env so an explicit argument
-# or environment value still wins, and refuse an empty one rather than let
-# acme.sh fall back to whichever authority its client defaults to.
+# A `docker exec` of this script does not inherit the entrypoint's ACME_SERVER,
+# so read it from the saved env; refuse an empty one rather than let acme.sh pick a CA.
 haproxy_env="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
 if [ -z "$acme_server" ] && [ -r "$haproxy_env" ]; then
     acme_server="$(. "$haproxy_env"; printf '%s' "$ACME_SERVER")"
@@ -46,9 +34,8 @@ if [ -z "$acme_server" ]; then
     exit 1
 fi
 
-# Build the acme.sh argument list, turning each name into its own -d pair.
-# Every name stays a separate argv element: joining them into one string would
-# make a name containing whitespace an argument-injection vector into acme.sh.
+# Turn each name into its own -d pair. Each name stays a separate argv element:
+# joining them would make a name with whitespace an argument-injection vector into acme.sh.
 extra_names=$#
 set -- "$@" --issue --stateless --server "$acme_server" -d "$acme_domain"
 while [ "$extra_names" -gt 0 ]; do
@@ -58,25 +45,16 @@ while [ "$extra_names" -gt 0 ]; do
     extra_names=$((extra_names - 1))
 done
 
-# Generate the certificate.
-#
-# Serialized on a lock under the ACME home, because two independent callers
-# drive this same script against the same acme.sh account: the portal boot path
-# (acme-management.sh) for the main domain, and haproxy-sync once per
-# per-category branding domain on every DomainSync push. acme.sh keeps its
-# account and per-domain state as plain files under the ACME home and is not
-# concurrency-safe, so overlapping runs can corrupt that state or spend CA rate
-# limit on duplicate orders.
+# Serialized on a lock under the ACME home: two callers (portal boot and
+# haproxy-sync per branding domain) drive the same acme.sh state, which is not
+# concurrency-safe.
 echo "Generating ACME certificate for $acme_domain"
 set +e
 (
     flock 9
 
-    # Register the account when one was requested and we do not have its
-    # thumbprint yet. HAProxy answers the stateless HTTP-01 challenge from that
-    # thumbprint, so an account we cannot name is an account whose challenges
-    # nobody can satisfy. Guarded on the stored value rather than run every
-    # time, to keep issuance from spending an ACME round trip per call.
+    # Register the account when requested and not yet stored. Guarded on the
+    # stored thumbprint to avoid an ACME round trip per call.
     if [ -n "$acme_email" ] && [ ! -s "$ACME_HOME/account-thumbprint" ]; then
         echo "Registering ACME account '$acme_email' for $acme_server"
         acme_thumbprint=$(acme.sh --register-account --email "$acme_email" --server "$acme_server" 2>/dev/null \
@@ -96,16 +74,14 @@ set -e
 if [ "$ACME_EXIT_CODE" = 0 ]; then
     echo "ACME certificate generated successfully"
 elif [ "$ACME_EXIT_CODE" = 2 ]; then
-    # acme.sh's "a valid certificate already exists". This no-op fast path is
-    # what makes repeated startup and reconnect pushes harmless.
+    # acme.sh's "valid cert already exists": the no-op fast path that makes repeated pushes harmless.
     echo "Skipping certificate renewal, there's a valid one already"
 else
     echo "ACME certificate generation failed with exit code $ACME_EXIT_CODE"
     exit "$ACME_EXIT_CODE"
 fi
 
-# Deploy the certificate to HAProxy. Keyed on the primary name: acme.sh looks
-# the certificate up by the name it was indexed under, not by the whole set.
+# Deploy to HAProxy, keyed on the primary name acme.sh indexed the cert under.
 echo "Deploying certificate to HAProxy..."
 set +e
 DEPLOY_HAPROXY_HOT_UPDATE=yes \
@@ -116,8 +92,7 @@ DEPLOY_HAPROXY_HOT_UPDATE=yes \
 DEPLOY_EXIT_CODE="$?"
 set -e
 
-# Reported, not fatal: the caller's retry loop runs under `set -e`, and the
-# check below passes anyway on a deployment that never ran.
+# Reported, not fatal: the caller's retry loop runs under set -e.
 if [ "$DEPLOY_EXIT_CODE" != 0 ]; then
     echo "WARNING: the deployment hook exited $DEPLOY_EXIT_CODE, HAProxy may still be serving the previous certificate for $acme_domain"
 fi
