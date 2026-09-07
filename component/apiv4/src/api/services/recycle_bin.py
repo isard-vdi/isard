@@ -46,7 +46,6 @@ log = logging.getLogger(__name__)
 
 
 class RecycleBinService:
-
     @staticmethod
     def get_default_delete_config() -> bool:
         return RecycleBinHelpers.get_default_delete()
@@ -448,7 +447,7 @@ class RecycleBinService:
         return RecycleBinHelpers.get_user_amount(user_id=user_id)
 
     @staticmethod
-    def set_old_entries_max_time(max_time: str) -> dict:
+    def set_old_entries_max_time(max_time: int) -> dict:
         return CommonRecycleBin.set_old_entries_max_time(max_time)
 
     @staticmethod
@@ -461,6 +460,8 @@ class RecycleBinService:
 
     @staticmethod
     def delete_old_entries() -> None:
+        if not RecycleBinHelpers.old_entries_purge_enabled():
+            return
         # Indexed range scan (one rdb roundtrip, IDs-only). The
         # pre-fix path materialised every deleted-entry row via
         # ``get_item_count(status="deleted")`` (full count merge) and

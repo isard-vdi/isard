@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import pytest
 from api.routes.tests.helpers import MockJWT
 
 
@@ -353,7 +354,81 @@ def test_set_old_entries_max_time(monkeypatch, test_client):
     )
 
     assert response.status_code == 204
-    assert calls == ["2592000"]
+    assert calls == [2592000]
+
+
+def test_set_old_entries_max_time_refuses_a_value_the_read_cannot_return(
+    monkeypatch, test_client
+):
+    """The write must not accept what ``GET old-entries/config`` cannot answer.
+
+    The route used to declare ``max_time`` as a string and the helper stored it
+    verbatim, while the read model types it as an integer. Anything non-numeric
+    therefore persisted and every later read raised, leaving the configuration
+    unreadable until someone wrote a valid value over it. Rejecting at the edge
+    keeps the two sides of the same field in agreement.
+    """
+    jwt = MockJWT()
+    calls = []
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.set_old_entries_max_time",
+        staticmethod(lambda max_time: calls.append(max_time) or {}),
+    )
+
+    response = test_client(
+        url="/item/recycle-bin/old-entries/max-time/{max_time}",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    # 400, not 422: the app maps a request-validation failure to its own
+    # error contract (see the ``RequestValidationError`` handler).
+    assert response.status_code == 400
+    assert calls == []
+
+
+@pytest.mark.parametrize("max_time", ["-1", "-5"])
+def test_set_old_entries_max_time_refuses_a_negative_window(
+    monkeypatch, test_client, max_time
+):
+    """A retention window cannot be negative: that cutoff is in the future."""
+    jwt = MockJWT()
+    calls = []
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.set_old_entries_max_time",
+        staticmethod(lambda max_time: calls.append(max_time) or {}),
+    )
+
+    response = test_client(
+        url=f"/item/recycle-bin/old-entries/max-time/{max_time}",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 400
+    assert calls == []
+
+
+@pytest.mark.parametrize("max_time,expected", [("0", 0), ("1", 1)])
+def test_set_old_entries_max_time_accepts_a_window_the_admin_page_offers(
+    monkeypatch, test_client, max_time, expected
+):
+    """0 is the admin page's "Immediately" and 1 its shortest real window."""
+    jwt = MockJWT()
+    calls = []
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.set_old_entries_max_time",
+        staticmethod(lambda max_time: calls.append(max_time) or {}),
+    )
+
+    response = test_client(
+        url=f"/item/recycle-bin/old-entries/max-time/{max_time}",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 204
+    assert calls == [expected]
 
 
 def test_set_old_entries_action(monkeypatch, test_client):
