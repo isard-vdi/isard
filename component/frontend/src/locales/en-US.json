@@ -4,6 +4,7 @@
     "no_equivalent": "No legacy equivalent"
   },
   "router": {
+    "notification-title-template": "({n}) {title}",
     "login": {
       "title": "Login"
     },
@@ -1733,13 +1734,10 @@
         "go-to-login": "Go to login"
       }
     },
-    "message-modal": {
+    "desktop-timeout-modal": {
       "title": "Important information",
-      "extend-time": "Extend {minutes} min",
-      "messages": {
-        "desktop-time-limit": "The '{name}' desktop will be stopped at {date}.",
-        "searching-resources": "We are looking for resources for the desktop. It will be started in a few minutes, please wait."
-      }
+      "description": "The '{name}' desktop will be stopped at {date}.",
+      "extend-time": "Extend {minutes} min"
     },
     "datatable": {
       "empty": "No desktops available",
@@ -2989,6 +2987,17 @@
     "start-desktop": {
       "errors": {
         "generic": "The desktop could not be started. Please try again."
+      }
+    },
+    "extend-desktop": {
+      "errors": {
+        "generic": "The desktop time could not be extended. Please try again.",
+        "desktop_not_started": "The desktop is not running.",
+        "desktop_no_scheduled_shutdown": "The desktop has no scheduled shutdown.",
+        "desktop_no_timeout_rule": "No shutdown rule applies to this desktop.",
+        "desktop_extend_not_allowed": "Extending this desktop's time is not allowed.",
+        "desktop_max_extensions_reached": "You have reached the maximum number of extensions for this desktop.",
+        "desktop_extend_time_too_short": "The configured extension is too short to notify you again. Contact your administrator."
       }
     },
     "delete-deployment": {

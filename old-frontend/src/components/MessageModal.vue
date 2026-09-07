@@ -74,8 +74,10 @@ export default {
     const extendTimeout = async () => {
       extending.value = true
       try {
-        await $store.dispatch('extendDesktopTimeout', messageModal.value.desktopId)
-        closeMessageModal()
+        const extended = await $store.dispatch('extendDesktopTimeout', messageModal.value.desktopId)
+        if (extended) {
+          closeMessageModal()
+        }
       } finally {
         extending.value = false
       }

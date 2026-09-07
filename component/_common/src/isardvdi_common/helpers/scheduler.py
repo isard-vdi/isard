@@ -178,6 +178,147 @@ class Scheduler(RethinkSharedConnection):
             ).run(cls._rdb_connection)
 
     @classmethod
+    def extend_desktop_timeout(cls, payload, desktop_id):
+        with cls._rdb_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("name", "user", "status", "scheduled")
+                .run(cls._rdb_connection)
+            )
+
+        if not desktop or desktop.get("status") != "Started":
+            raise Error(
+                "precondition_required",
+                "Desktop is not running",
+                description_code="desktop_not_started",
+            )
+
+        current_shutdown = desktop.get("scheduled", {}).get("shutdown")
+        if not current_shutdown:
+            raise Error(
+                "precondition_required",
+                "Desktop has no scheduled shutdown",
+                description_code="desktop_no_scheduled_shutdown",
+            )
+
+        timeouts = Quotas.get_shutdown_timeouts(payload, desktop_id)
+        if not timeouts:
+            raise Error(
+                "precondition_required",
+                "No timeout rule found for this desktop",
+                description_code="desktop_no_timeout_rule",
+            )
+
+        if not timeouts.get("extend_enabled", False):
+            raise Error(
+                "forbidden",
+                "Extending desktop timeout is not allowed",
+                description_code="desktop_extend_not_allowed",
+            )
+
+        max_extensions = timeouts.get("max_extensions", 1)
+        extensions_used = desktop.get("scheduled", {}).get("extensions", 0)
+        if extensions_used >= max_extensions:
+            raise Error(
+                "precondition_required",
+                "Maximum number of extensions reached",
+                description_code="desktop_max_extensions_reached",
+            )
+
+        extend_minutes = min(timeouts.get("extend_time", 0), MAX_SHUTDOWN_MINUTES)
+
+        notify_intervals = timeouts.get("notify_intervals") or []
+        notify_offsets = [
+            abs(interval["time"])
+            for interval in notify_intervals
+            if interval.get("time", 0) != 0
+        ]
+        if notify_offsets and extend_minutes <= max(notify_offsets):
+            # Every notification would land in the past, so the user would
+            # never be warned again about the extended deadline.
+            raise Error(
+                "precondition_required",
+                f"Extend time ({extend_minutes} min) must be greater than the "
+                f"earliest notification offset ({max(notify_offsets)} min)",
+                description_code="desktop_extend_time_too_short",
+            )
+
+        extensions_used += 1
+        extensions_remaining = max_extensions - extensions_used
+
+        current_end = datetime.strptime(
+            current_shutdown, "%Y-%m-%dT%H:%M%z"
+        ).astimezone(pytz.UTC)
+        new_end = current_end + timedelta(minutes=extend_minutes)
+        absolute_end_time = new_end.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+
+        cls.remove_scheduler_startswith_id(desktop_id)
+
+        now = datetime.now(pytz.utc)
+        data = {
+            "kwargs": {
+                "user_id": desktop["user"],
+                "desktop_id": desktop_id,
+                "desktop_name": desktop["name"],
+                "msg": {
+                    "type": "info",
+                    "msg_code": "desktop-time-limit",
+                },
+            },
+        }
+
+        for interval in notify_intervals:
+            if interval["time"] == 0:
+                # The "now" notification only makes sense when the desktop starts.
+                continue
+            notify_date = new_end + timedelta(
+                minutes=max(interval["time"], -MAX_SHUTDOWN_MINUTES)
+            )
+            if notify_date <= now:
+                continue
+            data["id"] = desktop_id + ".shutdown-" + str(interval["time"]) + "m"
+            data["date"] = notify_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+            data["kwargs"]["msg"]["params"] = {
+                "date": absolute_end_time,
+                "minutes": int((new_end - notify_date).total_seconds() / 60),
+                "name": desktop.get("name"),
+                "desktop_id": desktop_id,
+                "extend_enabled": extensions_remaining > 0,
+                "extend_time": extend_minutes,
+            }
+            data["kwargs"]["msg"]["type"] = interval["type"]
+            data["kwargs"]["msg"][
+                "msg_lang"
+            ] = "en"  # TODO Needs to be the frontend user lang
+            _post_advanced_date("desktop", "desktop_notify", data)
+
+        # Stop desktop (Shutting down)
+        stop_date = new_end + timedelta(minutes=1)
+        data["id"] = desktop_id + ".shutdown"
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        _post_advanced_date("desktop", "desktop_stop", data)
+
+        # Stop desktop (Force down)
+        data["id"] = desktop_id + ".shutdown-force"
+        stop_date = stop_date + timedelta(minutes=1)
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        _post_advanced_date("desktop", "desktop_stop", data)
+
+        with cls._rdb_context():
+            r.table("domains").get(desktop_id).update(
+                {
+                    "scheduled": {
+                        "shutdown": absolute_end_time,
+                        "extensions": extensions_used,
+                    }
+                }
+            ).run(cls._rdb_connection)
+        return {"shutdown": absolute_end_time}
+
+    @classmethod
     def add_desktop_timeouts(cls, payload, desktop_id, reset_existing=True):
         if reset_existing:
             cls.remove_desktop_timeouts(desktop_id)
@@ -286,6 +427,9 @@ class Scheduler(RethinkSharedConnection):
         if not timeouts:
             return
 
+        extend_enabled = bool(timeouts.get("extend_enabled", False))
+        extend_time = timeouts.get("extend_time", 0)
+
         # Send now notification only to web. Clamp against stale out-of-range rules.
         time_remaining = min(timeouts["max"], MAX_SHUTDOWN_MINUTES)
         stop_date = start_date + timedelta(minutes=time_remaining)
@@ -294,6 +438,10 @@ class Scheduler(RethinkSharedConnection):
         data["kwargs"]["msg"]["params"] = {
             "date": absolute_end_time,
             "minutes": time_remaining,
+            "name": desktop.get("name"),
+            "desktop_id": desktop_id,
+            "extend_enabled": extend_enabled,
+            "extend_time": extend_time,
         }
         if timeouts.get("notify_intervals"):
             for interval in timeouts["notify_intervals"]:
@@ -306,6 +454,9 @@ class Scheduler(RethinkSharedConnection):
                             "date": absolute_end_time,
                             "time_remaining": time_remaining,
                             "name": desktop.get("name"),
+                            "desktop_id": desktop_id,
+                            "extend_enabled": extend_enabled,
+                            "extend_time": extend_time,
                         },
                     )
                     notify_desktop(
@@ -316,6 +467,9 @@ class Scheduler(RethinkSharedConnection):
                             "date": absolute_end_time,
                             "time_remaining": time_remaining,
                             "name": desktop.get("name"),
+                            "desktop_id": desktop_id,
+                            "extend_enabled": extend_enabled,
+                            "extend_time": extend_time,
                         },
                     )
                 else:
@@ -333,6 +487,9 @@ class Scheduler(RethinkSharedConnection):
                         "date": absolute_end_time,
                         "minutes": time_remaining,
                         "name": desktop.get("name"),
+                        "desktop_id": desktop_id,
+                        "extend_enabled": extend_enabled,
+                        "extend_time": extend_time,
                     }
                     data["kwargs"]["msg"]["type"] = interval["type"]
                     data["kwargs"]["msg"][
@@ -354,10 +511,10 @@ class Scheduler(RethinkSharedConnection):
         data["kwargs"] = {"desktop_id": desktop_id}
         _post_advanced_date("desktop", "desktop_stop", data)
 
-        # Update end time in domain
+        # Update end time in domain and reset the extension count
         with cls._rdb_context():
             r.table("domains").get(desktop_id).update(
-                {"scheduled": {"shutdown": absolute_end_time}}
+                {"scheduled": {"shutdown": absolute_end_time, "extensions": 0}}
             ).run(cls._rdb_connection)
         return {"shutdown": absolute_end_time}
 

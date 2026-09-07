@@ -59,7 +59,6 @@ from isardvdi_common.lib.domains.desktops.desktops import (
 from isardvdi_common.lib.domains.desktops.desktops_nonpersistent import (
     DesktopsNonpersistentProcessed as CommonDesktopsNonpersistent,
 )
-from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.domains.templates.templates import (
     TemplatesProcessed as CommonTemplates,
 )
@@ -963,24 +962,9 @@ class DesktopService:
         return desktop_id
 
     @staticmethod
-    def extend_desktop_timeout(payload: dict, desktop_id: str) -> None:
+    def extend_desktop_timeout(payload: dict, desktop_id: str) -> dict:
         """Extend the remaining time before automatic desktop shutdown."""
-        desktop = DomainsProcessed.get_status_and_scheduled(desktop_id)
-        if not desktop or desktop.get("status") != "Started":
-            raise Error(
-                "precondition_required",
-                "Desktop is not running",
-                description_code="desktop_not_started",
-            )
-        current_shutdown = desktop.get("scheduled", {}).get("shutdown")
-        if not current_shutdown:
-            raise Error(
-                "precondition_required",
-                "Desktop has no scheduled shutdown",
-                description_code="desktop_no_scheduled_shutdown",
-            )
-        # Re-add timeouts from current time
-        SchedulerHelper.add_desktop_timeouts(payload, desktop_id, reset_existing=True)
+        return SchedulerHelper.extend_desktop_timeout(payload, desktop_id)
 
     @staticmethod
     def desktop_update_status(desktop_id: str) -> str:

@@ -8,7 +8,7 @@ import { Header } from '@/components/header'
 import { Sidebar } from '@/components/sidebar'
 import { FrontendToggler } from '@/components/frontend-toggler'
 import SessionModal from '@/components/modal/SessionModal.vue'
-import { MessageModal } from '@/components/modal'
+import { DesktopTimeoutModal } from '@/components/modal'
 import ScrollToTop from '@/components/page/ScrollToTop.vue'
 
 import { useSessionStore } from '@/stores/session'
@@ -165,7 +165,7 @@ onUnmounted(() => {
     @go-to-login="sessionStore.redirectToLogin"
   />
 
-  <MessageModal />
+  <DesktopTimeoutModal />
 
   <!-- Both float in the same corner, so they stack instead of overlapping when both are up. -->
   <div class="pointer-events-none fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">

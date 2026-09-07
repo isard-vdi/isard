@@ -6,30 +6,30 @@ import { appTitle } from './lib/constants'
 import { isString } from './lib/utils'
 import { useI18n } from 'vue-i18n'
 import { i18n } from './lib/i18n'
+import { desktopTimeout } from '@/lib/desktop-timeout'
 import NotificationModal from '@/components/modal/NotificationModal.vue'
 import { Toaster } from '@/components/ui/toast'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, n } = useI18n()
 
 const updateTitle = () => {
-  if (route.meta.title && isString(route.meta.title)) {
-    document.title = `${appTitle} - ${t(route.meta.title)}`
-  } else {
-    document.title = appTitle
-  }
+  const base =
+    route.meta.title && isString(route.meta.title)
+      ? `${appTitle} - ${t(route.meta.title)}`
+      : appTitle
+
+  const title = desktopTimeout.value
+    ? t('router.notification-title-template', {
+        n: n(1),
+        title: base
+      })
+    : base
+
+  document.title = title
 }
 
-watch(
-  () => route.meta.title,
-  () => {
-    updateTitle()
-  }
-)
-
-watch(i18n.global.locale, () => {
-  updateTitle()
-})
+watch([() => route.meta.title, i18n.global.locale, desktopTimeout], updateTitle)
 </script>
 
 <template>

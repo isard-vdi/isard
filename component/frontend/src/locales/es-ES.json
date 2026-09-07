@@ -4,6 +4,7 @@
     "no_equivalent": "Sin equivalente en la interfaz antigua"
   },
   "router": {
+    "notification-title-template": "({n}) {title}",
     "login": {
       "title": "Iniciar sesión"
     },
@@ -1922,13 +1923,10 @@
     "notification-modal": {
       "title": "Notificaciones"
     },
-    "message-modal": {
+    "desktop-timeout-modal": {
       "title": "Información importante",
-      "extend-time": "Ampliar {minutes} min",
-      "messages": {
-        "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
-        "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
-      }
+      "description": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+      "extend-time": "Ampliar {minutes} min"
     },
     "delete-confirmation-modal": {
       "cancel": "Cancelar",
@@ -3002,6 +3000,17 @@
     "start-desktop": {
       "errors": {
         "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo."
+      }
+    },
+    "extend-desktop": {
+      "errors": {
+        "generic": "No se ha podido ampliar el tiempo del escritorio. Inténtalo de nuevo.",
+        "desktop_not_started": "El escritorio no se está ejecutando.",
+        "desktop_no_scheduled_shutdown": "El escritorio no tiene ningún apagado programado.",
+        "desktop_no_timeout_rule": "No hay ninguna regla de apagado que se aplique a este escritorio.",
+        "desktop_extend_not_allowed": "No se permite ampliar el tiempo de este escritorio.",
+        "desktop_max_extensions_reached": "Has alcanzado el número máximo de ampliaciones de este escritorio.",
+        "desktop_extend_time_too_short": "La ampliación configurada es demasiado corta para volver a avisarte. Contacta con el administrador."
       }
     },
     "delete-deployment": {

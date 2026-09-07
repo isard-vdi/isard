@@ -81,7 +81,9 @@ UNASSIGN_ON_ALLOWED_UPDATE_TABLES = [
 
 
 def _validate_desktops_priority(table: str, data: dict) -> None:
-    """Bound shutdown values: max in (0, MAX], interval time in [-MAX, -1].
+    """Bound shutdown values: max in (0, MAX], interval time in [-MAX, -1],
+    and, when extending is enabled, max_extensions >= 1 with an extend_time
+    longer than the earliest notification offset.
 
     apiv3 enforced this via Cerberus; the apiv4 raw-dict path re-asserts it.
     """
@@ -104,6 +106,25 @@ def _validate_desktops_priority(table: str, data: dict) -> None:
                 "shutdown notify interval time must be between "
                 f"{-MAX_SHUTDOWN_MINUTES} and -1 minutes",
             )
+    if not shutdown.get("extend_enabled"):
+        return
+    if shutdown.get("max_extensions", 0) < 1:
+        raise Error(
+            "bad_request",
+            "shutdown max_extensions must be at least 1 when extending is enabled",
+        )
+    notify_offsets = [
+        abs(interval["time"])
+        for interval in shutdown.get("notify_intervals") or []
+        if interval.get("time", 0) != 0
+    ]
+    if notify_offsets and shutdown.get("extend_time", 0) <= max(notify_offsets):
+        raise Error(
+            "bad_request",
+            f"shutdown extend_time ({shutdown.get('extend_time', 0)} min) must be "
+            f"greater than the earliest notification offset ({max(notify_offsets)} "
+            "min) so all notifications fire again after extending",
+        )
 
 
 def _net_range_includes_4095(net) -> bool:
