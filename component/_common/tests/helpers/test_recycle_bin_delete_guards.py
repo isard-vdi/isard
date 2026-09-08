@@ -11,8 +11,11 @@ through. A missing guard here is data loss or a cross-tenant leak, so each of
 these tests must go red when its guard is inverted.
 
 The status guard has a second face, covered at the bottom of this file: it
-refuses an entry the cascade already marked, so any per-entry work the cascade
-skipped can never be done later. Personal-unit removal is that work.
+refuses an entry the cascade already marked, so per-entry work the cascade
+skipped is not merely late for every caller that reaches this method directly.
+Personal-unit removal is that work. (The API path re-queues through
+``RecycleBinDeleteQueue``, which resets the status to ``queued`` first and so
+slips past the guard — see the test at the bottom for what was measured.)
 """
 
 from unittest.mock import MagicMock
@@ -377,3 +380,103 @@ class TestCascadeCarriesTheUserStorageRemoval:
         rb.delete_storage("agent-user")
 
         assert [name for name, _ in events] == ["recycled", "recycled"]
+
+    def test_the_dependant_the_cascade_marked_is_refused_a_second_run(self, cascade):
+        """The other face of the guard, for the callers it actually reaches.
+
+        The cascade leaves the entry ``deleted``, so a direct
+        ``delete_storage`` on that same entry is refused with a 428 and must
+        not run the body a second time — no second account taken down.
+
+        Measured on a live stack 2026-09-08: this holds for the direct callers
+        (``desktop_events``, ``deployments``, ``Helpers``), NOT for the API
+        path. ``RecycleBinDeleteQueue.enqueue`` writes ``queued`` over the
+        status before the worker calls this method, so an entry re-driven
+        through ``DELETE /item/recycle-bin/{id}`` walks straight past this
+        guard and repeats the removal. That is true of ``main`` too — the fix
+        neither causes it nor cures it — but it means the guard is not the
+        one-shot the cascade's removal is sometimes argued from.
+
+        ``dep.status`` is set by hand here because ``update_status`` is the
+        stub that records ``events``; the real cascade writes it to the row.
+        """
+        mod, events, rb, tables, lane = cascade
+
+        rb.delete_storage("agent-user")
+        assert _removed_users(events) == [["u-self"], ["u-dep"]]
+
+        dep = mod.RecycleBin("rb-dep")
+        dep.status = "deleted"
+        settled = list(events)
+
+        with pytest.raises(mod.Error) as exc:
+            dep.delete_storage("agent-user")
+
+        assert exc.value.status_code == 428
+        # Not one further event: no status write, no task, no second removal.
+        assert events == settled
+
+    def test_a_dependant_reached_by_both_indexes_is_removed_once(self, cascade):
+        """``dependent_storages`` concatenates two index lookups (``parents``
+        and ``duplicate_parent_template``), so an entry that hangs off the
+        template both ways arrives twice. The de-duplication upstream is what
+        keeps this loop from destroying the same account twice — assert the
+        count, not just the presence."""
+        mod, events, rb, tables, lane = cascade
+
+        rb.delete_storage("agent-user")
+
+        # The fixture's table answers both lookups, so the raw list held
+        # rb-dep twice; exactly one removal must come out of it.
+        assert _removed_users(events).count(["u-dep"]) == 1
+
+    def test_the_entry_with_no_storages_still_loses_its_personal_unit(self, cascade):
+        """The empty path: no disks to delete, so the cascade never runs and
+        the entry goes straight to ``deleted``. It is still a permanent delete,
+        so it still owes the owner's personal unit."""
+        mod, events, rb, tables, lane = cascade
+        rb.storages = []
+
+        rb.delete_storage("agent-user")
+
+        assert events == [("deleted", "rb-self"), ("remove_users", ["u-self"])]
+
+    def test_an_entry_that_owns_nobody_removes_nothing(self, cascade):
+        """No users, groups or categories on either entry: the loop has to fall
+        through all three branches and call nothing. A removal driven off an
+        empty list would be an OCS call with no subject."""
+        mod, events, rb, tables, lane = cascade
+        rb.users = []
+        mod.RecycleBin("rb-dep").users = []
+
+        rb.delete_storage("agent-user")
+
+        assert [name for name, _ in events] == [
+            "deleting",
+            "task",
+            "deleting",
+            "task",
+        ]
+
+    def test_a_cascade_that_fails_partway_destroys_no_account(
+        self, cascade, monkeypatch
+    ):
+        """Second step after the first already failed. The removal sits after
+        the ``try``, and the ``except`` re-raises, so a cascade that dies on its
+        second entry must leave both accounts standing: the caller is invited
+        to retry, and a retry cannot undo a destroyed cloud account."""
+        mod, events, rb, tables, lane = cascade
+        real_update = mod.Helpers.update_status
+
+        def explode(rb_id, owner_id, status):
+            if rb_id == "rb-dep":
+                raise RuntimeError("rethink went away mid-cascade")
+            return real_update(rb_id, owner_id, status)
+
+        monkeypatch.setattr(mod.Helpers, "update_status", staticmethod(explode))
+
+        with pytest.raises(mod.Error) as exc:
+            rb.delete_storage("agent-user")
+
+        assert exc.value.status_code == 500
+        assert _removed_users(events) == []
