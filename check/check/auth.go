@@ -2,7 +2,6 @@ package check
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -35,10 +34,10 @@ type AuthToken struct {
 }
 
 // auth returns a bearer token for the given authentication method.
-func (c *Check) auth(ctx context.Context, host string, ignoreCerts bool, method AuthMethod, auth Auth) (string, error) {
+func (c *Check) auth(ctx context.Context, host string, httpCli *http.Client, method AuthMethod, auth Auth) (string, error) {
 	switch method {
 	case AuthMethodForm:
-		return authForm(ctx, host, ignoreCerts, auth.Form)
+		return authForm(ctx, host, httpCli, auth.Form)
 
 	case AuthMethodToken:
 		return auth.Token.Token, nil
@@ -50,7 +49,7 @@ func (c *Check) auth(ctx context.Context, host string, ignoreCerts bool, method 
 
 // authForm performs a form login against the authentication endpoint and returns
 // the bearer token.
-func authForm(ctx context.Context, host string, ignoreCerts bool, form *AuthForm) (string, error) {
+func authForm(ctx context.Context, host string, httpCli *http.Client, form *AuthForm) (string, error) {
 	u, err := url.Parse(host)
 	if err != nil {
 		return "", fmt.Errorf("parse host: %w", err)
@@ -72,15 +71,6 @@ func authForm(ctx context.Context, host string, ignoreCerts bool, form *AuthForm
 		return "", fmt.Errorf("build login request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	httpCli := http.DefaultClient
-	if ignoreCerts {
-		httpCli = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // Caller opted in.
-			},
-		}
-	}
 
 	rsp, err := httpCli.Do(req)
 	if err != nil {

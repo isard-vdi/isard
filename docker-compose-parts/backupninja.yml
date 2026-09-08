@@ -60,6 +60,7 @@ services:
       # API settings for backup reporting
       - API_DOMAIN=${API_DOMAIN-isard-apiv4}
       - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
+      - API_CLIENT_POOL_TIMEOUT_SEC=${API_CLIENT_POOL_TIMEOUT_SEC:-10}
       # Preflight threshold: minimum free percentage required on the
       # backup target for a session to start. Below this the preflight
       # script fails fast and the report is marked CRITICAL (default 10).

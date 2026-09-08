@@ -44,7 +44,7 @@ services:
       nofile:
         soft: 16384
         hard: 16384
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "120"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
       start_period: 30s
@@ -95,6 +95,7 @@ services:
       RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       APIV4_POOL_SAMPLE_INTERVAL_S: ${APIV4_POOL_SAMPLE_INTERVAL_S:-1.0}
       API_ISARDVDI_SECRET:
+      API_CLIENT_POOL_TIMEOUT_SEC: ${API_CLIENT_POOL_TIMEOUT_SEC:-10}
       API_HYPERVISORS_SECRET:
       BACKUP_RETENTION: ${BACKUP_RETENTION:-30}
       # Container-side path the apiv4 background task reads. Always

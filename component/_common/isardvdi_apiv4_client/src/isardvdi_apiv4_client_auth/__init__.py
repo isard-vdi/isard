@@ -1,10 +1,10 @@
 """Hand-written helpers for the generated apiv4 client.
 
 ``build_client(service)`` assembles an ``AuthenticatedClient`` with a
-fresh service JWT and the correct base URL. Long-running loops should
-wrap it in ``with build_client(...) as c:`` for httpx connection
-pooling; the minted token has a 20s TTL, so re-enter the context every
-iteration or implement a per-request httpx.Auth if TTL matters.
+fresh service JWT and the correct base URL. A fresh client is cheap:
+every one of them borrows the process-wide connection pool from
+``_transport``, so the minted token can keep its 20s TTL without paying
+for a handshake per call.
 
 ``raise_for_status(response)`` / ``ApiV4Error`` are re-exported for
 convenience.
@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Literal, Optional
 
 from ._errors import ApiV4Error, raise_for_status
 from ._jwt import Role, mint_service_token
+from ._transport import POOL_TIMEOUT, shared_transport
 from ._url import resolve_base_url
 
 if TYPE_CHECKING:
@@ -51,4 +52,6 @@ def build_client(
         token=token,
         verify_ssl=verify_ssl,
         raise_on_unexpected_status=False,
+        timeout=POOL_TIMEOUT,
+        httpx_args={"transport": shared_transport(verify=verify_ssl)},
     )

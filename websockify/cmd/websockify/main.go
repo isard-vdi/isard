@@ -26,6 +26,7 @@ var (
 	apiAddr           string
 	apiIgnoreCerts    = true
 	apiProtocol       = "https"
+	apiCli            apiv4.Invoker
 	allowedHosts      []string
 	allowedPortRanges []portRange
 )
@@ -196,24 +197,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var clientOpts []ogenclient.Option
-	if apiIgnoreCerts {
-		clientOpts = append(clientOpts, ogenclient.WithIgnoreCerts())
-	}
-	httpClient := ogenclient.NewHTTPClient(clientOpts...)
-	cli, err := apiv4.NewClient(
-		fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
-		ogenclient.APIv4Static{Token: tkn},
-		apiv4.WithClient(httpClient),
-	)
-	if err != nil {
-		logger.Error().Err(err).Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Error creating API client")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	logger.Debug().Str("hypervisor", hyper).Int("port", port).Str("client_ip", clientIP).Msg("Validating user ownership")
-	res, err := cli.UserOwnsDesktop(r.Context(), &apiv4.UserOwnsDesktopRequest{
+	ctx := ogenclient.ContextWithAPIv4Token(r.Context(), tkn)
+	res, err := apiCli.UserOwnsDesktop(ctx, &apiv4.UserOwnsDesktopRequest{
 		ProxyVideo:     apiv4.NewOptNilString(r.Host),
 		ProxyHyperHost: apiv4.NewOptNilString(hyper),
 		Port:           apiv4.NewOptNilInt(port),
@@ -395,6 +381,21 @@ func connQuality(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	logger.Info().Msg("Starting websockify server on :8080")
+
+	opts := []ogenclient.Option{ogenclient.WithUserAgent("isardvdi-websockify")}
+	if apiIgnoreCerts {
+		opts = append(opts, ogenclient.WithIgnoreCerts())
+	}
+
+	var err error
+	apiCli, err = apiv4.NewClient(
+		apiProtocol+"://"+apiAddr,
+		ogenclient.APIv4Context{},
+		apiv4.WithClient(ogenclient.NewHTTPClient(opts...)),
+	)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("create the API client")
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/conn-quality", connQuality)

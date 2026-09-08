@@ -28,4 +28,4 @@ COPY component/frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.s
 COPY component/frontend/src/assets/logo-collapsed.svg /usr/share/nginx/html/default_logo_collapsed.svg
 ENV PATH="/.venv/bin:$PATH"
 EXPOSE 5000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-keep-alive", "120"]

@@ -21,8 +21,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
+	gw, err := rdpgw.Init(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create the rdpgw gateway")
+	}
+
 	http := &http.RDPGwServer{
-		Gateway: rdpgw.Init(cfg),
+		Gateway: gw,
 		Addr:    cfg.HTTP.Addr(),
 		Log:     log,
 		WG:      &wg,

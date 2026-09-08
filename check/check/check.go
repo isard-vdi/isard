@@ -5,17 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/teris-io/shortid"
 	"gitlab.com/isard/isardvdi/check/cfg"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	sshExec "gitlab.com/isard/isardvdi/pkg/ssh"
+
+	"github.com/rs/zerolog"
+	"github.com/teris-io/shortid"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -49,10 +52,24 @@ type DependenciesVersions struct {
 type Check struct {
 	log *zerolog.Logger
 	cfg cfg.Check
+
+	// One client per TLS configuration, kept for the life of the
+	// service: check runs on every hypervisor that comes up, and a
+	// client per run is a connection pool per run.
+	httpCli         *http.Client
+	insecureHTTPCli *http.Client
 }
 
 func NewCheck(cfg cfg.Check, log *zerolog.Logger) *Check {
-	return &Check{log, cfg}
+	opts := []ogenclient.Option{ogenclient.WithUserAgent("isardvdi-check")}
+	insecureOpts := append(slices.Clone(opts), ogenclient.WithIgnoreCerts())
+
+	return &Check{
+		log:             log,
+		cfg:             cfg,
+		httpCli:         ogenclient.NewHTTPClient(opts...),
+		insecureHTTPCli: ogenclient.NewHTTPClient(insecureOpts...),
+	}
 }
 
 func (c *Check) Check(ctx context.Context) error {
@@ -60,18 +77,18 @@ func (c *Check) Check(ctx context.Context) error {
 }
 
 func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	token, err := c.auth(ctx, host, !failSelfSigned, authMethod, auth)
+	httpCli := c.httpCli
+	if !failSelfSigned {
+		httpCli = c.insecureHTTPCli
+	}
+
+	token, err := c.auth(ctx, host, httpCli, authMethod, auth)
 	if err != nil {
 		return CheckResult{}, err
 	}
 	c.log.Debug().Msg("authenticated with api key")
 
-	var clientOpts []ogenclient.Option
-	if !failSelfSigned {
-		clientOpts = append(clientOpts, ogenclient.WithIgnoreCerts())
-	}
-	httpClient := ogenclient.NewHTTPClient(clientOpts...)
-	cli, err := apiv4.NewClient(host, ogenclient.APIv4Static{Token: token}, apiv4.WithClient(httpClient))
+	cli, err := apiv4.NewClient(host, ogenclient.APIv4Static{Token: token}, apiv4.WithClient(httpCli))
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}
@@ -160,17 +177,17 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 }
 
 func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth Auth, host, hyperID, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	token, err := c.auth(ctx, host, !failSelfSigned, authMethod, auth)
+	httpCli := c.httpCli
+	if !failSelfSigned {
+		httpCli = c.insecureHTTPCli
+	}
+
+	token, err := c.auth(ctx, host, httpCli, authMethod, auth)
 	if err != nil {
 		return CheckResult{}, err
 	}
 
-	var clientOpts []ogenclient.Option
-	if !failSelfSigned {
-		clientOpts = append(clientOpts, ogenclient.WithIgnoreCerts())
-	}
-	httpClient := ogenclient.NewHTTPClient(clientOpts...)
-	cli, err := apiv4.NewClient(host, ogenclient.APIv4Static{Token: token}, apiv4.WithClient(httpClient))
+	cli, err := apiv4.NewClient(host, ogenclient.APIv4Static{Token: token}, apiv4.WithClient(httpCli))
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}

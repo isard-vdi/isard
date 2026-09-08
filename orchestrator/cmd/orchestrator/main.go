@@ -26,7 +26,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+	opts := []ogenclient.Option{
+		ogenclient.WithUserAgent("isardvdi-orchestrator"),
+		ogenclient.WithIgnoreCerts(),
+	}
+
+	httpClient := ogenclient.NewHTTPClient(opts...)
 	api, err := apiv4.NewClient(
 		cfg.Orchestrator.APIAddress,
 		ogenclient.APIv4Source{Secret: cfg.Orchestrator.APISecret},

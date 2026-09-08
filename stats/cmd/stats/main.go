@@ -160,9 +160,19 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 		collectors = append(collectors, s)
 	}
 
-	if isardvdiAPI {
-		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
-		cli, err := apiv4.NewClient(
+	// Both collectors talk to the same api with the same credentials, so
+	// they share one client and therefore one connection pool.
+	var apiCli apiv4.Invoker
+	if isardvdiAPI || storageGovernor {
+		opts := []ogenclient.Option{
+			ogenclient.WithUserAgent("isardvdi-stats"),
+			ogenclient.WithIgnoreCerts(),
+		}
+
+		httpClient := ogenclient.NewHTTPClient(opts...)
+
+		var err error
+		apiCli, err = apiv4.NewClient(
 			cfg.Collectors.IsardVDIAPI.Addr,
 			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
 			apiv4.WithClient(httpClient),
@@ -170,23 +180,15 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
+	}
 
-		a := collector.NewIsardVDIAPI(ctx, log, cli)
+	if isardvdiAPI {
+		a := collector.NewIsardVDIAPI(ctx, log, apiCli)
 		collectors = append(collectors, a)
 	}
 
 	if storageGovernor {
-		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
-		cli, err := apiv4.NewClient(
-			cfg.Collectors.IsardVDIAPI.Addr,
-			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
-			apiv4.WithClient(httpClient),
-		)
-		if err != nil {
-			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create storage governor API client")
-		}
-
-		g := collector.NewStorageGovernor(ctx, log, cli)
+		g := collector.NewStorageGovernor(ctx, log, apiCli)
 		collectors = append(collectors, g)
 	}
 
