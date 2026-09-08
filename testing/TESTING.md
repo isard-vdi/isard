@@ -36,6 +36,7 @@ Classical pyramid: many unit, some integration, a thin contract net (only the ty
 component/<pkg>/tests/                # unit — beside the package, outside it
 testing/integration/                  # integration — needs a live stack
 testing/integration/redis/            # integration — needs only the stack's redis
+testing/integration/rethinkdb/        # integration — needs only a rethinkdb
 testing/contract/                     # contract — planned; only pipeline blind-spot endpoints
 testing/e2e/                          # e2e — Playwright UI flows
 testing/src/isardvdi_testing/         # shared seed (used by e2e today;

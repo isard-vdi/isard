@@ -251,10 +251,20 @@ $(foreach r,$(PY_PKGS),$(eval $(call CI_TEST_RULE,$(subst :, ,$(r)))))
 # job and does not need the compose file the rest of testing/integration wants.
 # The suites live under testing/integration/redis/, whose conftest shadows the
 # parent's stack login, and the job that runs this declares the redis itself.
-.PHONY: ci-test-contracts
-ci-test-contracts:
+.PHONY: ci-test-contracts-redis
+ci-test-contracts-redis:
 	uv sync --frozen --no-dev --group test --package isardvdi-testing
 	uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/redis -q --tb=short --junitxml=testing/integration/redis/report.xml
+
+# The dump suite proves what the rethinkdb driver backupninja ships really does,
+# so it runs in that package's environment: every production member pins the
+# isard fork of the driver and only isardvdi-testing is on the PyPI build.
+# --confcutdir keeps the parent integration conftest out of the run, since it
+# imports generated apiv4 clients this environment does not carry.
+.PHONY: ci-test-contracts-rethinkdb
+ci-test-contracts-rethinkdb:
+	uv sync --frozen --no-dev --group test --package isardvdi-backupninja
+	uv run --no-dev --group test --package isardvdi-backupninja pytest --confcutdir=testing/integration/rethinkdb testing/integration/rethinkdb -q --tb=short --junitxml=testing/integration/rethinkdb/report.xml
 
 .PHONY: ci-test-frontend
 ci-test-frontend:

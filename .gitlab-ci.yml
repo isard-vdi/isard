@@ -465,9 +465,7 @@ unit-test-vmalert:
 # They are in testing/integration/redis/ and run against the stack's own
 # isard-redis through integration-real, so no row below needs a Redis service.
 #
-# One row per Makefile PY_PKGS entry, except backupninja: its suite asserts
-# against a real RethinkDB, and a service declared here would be attached to
-# every row, so it keeps the job of its own below.
+# One row per Makefile PY_PKGS entry.
 unit-test-python:
   extends: .python-test-template
   parallel:
@@ -502,6 +500,8 @@ unit-test-python:
         COVERAGE_DIR: sysadm/anonymize-db
       - COMPONENT: hypervisor
         COVERAGE_DIR: docker/hypervisor
+      - COMPONENT: backupninja
+        COVERAGE_DIR: docker/backupninja
       - COMPONENT: engine
         COVERAGE_DIR: engine
         EXTRA_APK_PACKAGES: "build-base libvirt-dev musl-dev openssl-dev pciutils pkgconfig"
@@ -524,13 +524,13 @@ contract-test-redis:
   variables:
     REDIS_HOST: redis
   script:
-    - make ci-test-contracts
+    - make ci-test-contracts-redis
   artifacts:
     when: always
     reports:
       junit: testing/integration/redis/report.xml
 
-unit-test-backupninja:
+contract-test-rethinkdb:
   # The nightly database backup path, run for real against a live RethinkDB.
   #
   # Nothing else in this pipeline ever executes a dump. docker-image builds the
@@ -545,15 +545,17 @@ unit-test-backupninja:
   # exercises the server version production runs. The image's default command is
   # already `rethinkdb --bind all`, so no override is needed.
   extends: .python-test-template
-  needs: []
   services:
     - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
       alias: rethinkdb
   variables:
-    COVERAGE_DIR: docker/backupninja
     ISARD_TEST_RETHINKDB: "rethinkdb:28015"
   script:
-    - make ci-test-backupninja
+    - make ci-test-contracts-rethinkdb
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/rethinkdb/report.xml
 
 unit-test-webapp-js:
   # The webapp admin JS is served as plain files, so its suites are standalone
