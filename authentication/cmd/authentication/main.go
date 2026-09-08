@@ -32,7 +32,9 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	httpClient := ogenclient.NewHTTPClient()
+	opts := []ogenclient.Option{ogenclient.WithUserAgent("isardvdi-authentication")}
+
+	httpClient := ogenclient.NewHTTPClient(opts...)
 	apiCli, err := apiv4.NewClient(cfg.API.Address, ogenclient.APIv4Source{Secret: cfg.Authentication.Secret}, apiv4.WithClient(httpClient))
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the API client")

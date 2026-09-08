@@ -161,7 +161,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	}
 
 	if isardvdiAPI {
-		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithUserAgent("isardvdi-stats"), ogenclient.WithIgnoreCerts())
 		cli, err := apiv4.NewClient(
 			cfg.Collectors.IsardVDIAPI.Addr,
 			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
@@ -176,7 +176,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	}
 
 	if storageGovernor {
-		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithUserAgent("isardvdi-stats"), ogenclient.WithIgnoreCerts())
 		cli, err := apiv4.NewClient(
 			cfg.Collectors.IsardVDIAPI.Addr,
 			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
