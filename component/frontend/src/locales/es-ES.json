@@ -1798,7 +1798,9 @@
       "kind": {
         "persistent": "Escritorio persistente",
         "nonpersistent": "Escritorio temporal",
-        "deployment": "Escritorio de despliegue"
+        "deployment": "Escritorio de despliegue",
+        "desktop": "Escritorio",
+        "template": "Plantilla"
       },
       "fields": {
         "description": {

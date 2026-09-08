@@ -1787,7 +1787,9 @@
       "kind": {
         "persistent": "Persistent desktop",
         "nonpersistent": "Temporary desktop",
-        "deployment": "Deployment desktop"
+        "deployment": "Deployment desktop",
+        "desktop": "Desktop",
+        "template": "Template"
       },
       "fields": {
         "description": {

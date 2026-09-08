@@ -1798,7 +1798,9 @@
       "kind": {
         "persistent": "Escriptori persistent",
         "nonpersistent": "Escriptori temporal",
-        "deployment": "Escriptori de desplegament"
+        "deployment": "Escriptori de desplegament",
+        "desktop": "Escriptori",
+        "template": "Plantilla"
       },
       "fields": {
         "description": {

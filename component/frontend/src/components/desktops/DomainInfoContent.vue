@@ -9,6 +9,7 @@ import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
 import { TruncatedText } from '@/components/truncated-text'
 import { hasWireguardRequiringViewer } from '@/lib/viewers'
+import { domainKindStyle, resolveDomainKind, type DesktopKind } from '@/lib/domainKind'
 
 const { t } = useI18n()
 
@@ -38,7 +39,7 @@ export interface Props {
   kind: 'desktop' | 'template'
   template?: DesktopTemplate | null
   showId?: boolean
-  desktopKind?: 'persistent' | 'nonpersistent' | 'deployment' | null
+  desktopKind?: DesktopKind | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -72,13 +73,9 @@ const hasBothCredentials = computed(
   () => !!(props.credentials?.username && props.credentials?.password)
 )
 
-const tintBgClass = computed(() => {
-  if (props.kind !== 'desktop') return 'bg-brand-100/40'
-  if (props.desktopKind === 'persistent') return 'bg-secondary-3-100'
-  if (props.desktopKind === 'nonpersistent') return 'bg-secondary-1-100'
-  if (props.desktopKind === 'deployment') return 'bg-secondary-2-100'
-  return 'bg-brand-100/40'
-})
+const tintBgClass = computed(
+  () => domainKindStyle(resolveDomainKind(props.kind, props.desktopKind)).tint
+)
 
 const hasHardware = computed(
   () =>

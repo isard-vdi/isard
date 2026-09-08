@@ -3,8 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type * as z from 'zod'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import DomainInfoSection, {
-  type DomainInfoPreview,
-  type DomainKind
+  type DomainInfoPreview
 } from '@/components/domain/DomainInfoSection.vue'
 import DomainConfigurationSection, {
   type DomainConfigurationContext,
@@ -12,6 +11,7 @@ import DomainConfigurationSection, {
 } from '@/components/domain/DomainConfigurationSection.vue'
 import type { DomainSummaryData } from '@/components/domain/DomainSummary.vue'
 import type { DomainInfoSource } from '@/composables/useDomainInfoForm'
+import type { DesktopKind } from '@/lib/domainKind'
 import type { DomainImageFile, DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
 
@@ -38,7 +38,7 @@ const props = withDefaults(
     infoExtraDefaults?: Record<string, string>
     infoExtraSchema?: z.ZodRawShape
     showKindSelector?: boolean
-    kind?: DomainKind
+    kind?: DesktopKind
     persistentQuotaExceeded?: boolean
     temporalQuotaExceeded?: boolean
     entity?: 'desktops' | 'templates'

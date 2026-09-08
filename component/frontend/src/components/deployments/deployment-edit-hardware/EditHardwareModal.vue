@@ -101,6 +101,7 @@ const handleSubmit = () => {
           ref="configurationRef"
           always-open
           context="deployment-desktop"
+          kind="deployment"
           :defaults="defaults"
           :limited-hardware="desktopData.limited_hardware"
           :initial-removed-viewers="desktopData.removed_viewers ?? undefined"

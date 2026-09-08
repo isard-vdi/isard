@@ -3,6 +3,7 @@ import { computed, type HTMLAttributes } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SummaryRow from '@/components/domain/SummaryRow.vue'
 import SummaryValue from '@/components/domain/SummaryValue.vue'
+import { domainKindStyle, type DomainKind } from '@/lib/domainKind'
 import { cn } from '@/lib/utils'
 import { hasWireguardRequiringViewer } from '@/lib/viewers'
 
@@ -33,13 +34,11 @@ export interface DomainSummaryData {
   interfaces?: string[]
 }
 
-export type DomainSummaryKind = 'persistent' | 'nonpersistent' | 'deployment' | 'template'
-
 interface Props extends DomainSummaryData {
   // Card
   title?: string
   loading?: boolean
-  kind?: DomainSummaryKind
+  kind?: DomainKind
   /** What the fields held before the edits, when the card tracks live forms. */
   previous?: DomainSummaryData
   class?: HTMLAttributes['class']
@@ -67,20 +66,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n()
 
-const accent = computed(() => {
-  switch (props.kind) {
-    case 'nonpersistent':
-      return 'border-l-6 border-l-secondary-1-500'
-    case 'deployment':
-      return 'border-l-6 border-l-secondary-2-500'
-    case 'persistent':
-      return 'border-l-6 border-l-secondary-3-500'
-    case 'template':
-      return 'border-l-6 border-l-brand-700'
-    default:
-      return ''
-  }
-})
+// An unset kind is a card with nothing to accent, not a template.
+const accent = computed(() => (props.kind ? domainKindStyle(props.kind).accent : ''))
 
 const NO_VALUE = '—'
 
