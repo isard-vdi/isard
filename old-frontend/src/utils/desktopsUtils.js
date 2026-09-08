@@ -144,6 +144,10 @@ export class DesktopUtils {
     return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying, desktopStates.updating, desktopStates.creatingTemplate].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
+  static templateNeedsBooking (item) {
+    return !item.state && !!((item.reservables && item.reservables.vgpus) || []).length
+  }
+
   static viewerNeedsIp (viewer) {
     return ['file-rdpgw', 'file-rdpvpn', 'browser-rdp'].includes(viewer)
   }
