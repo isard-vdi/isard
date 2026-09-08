@@ -136,6 +136,10 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
     ]
 
     if domains_to_delete:
+        r.table("bookings").get_all(
+            r.args([["desktop", domain_id] for domain_id in domains_to_delete]),
+            index="item_type-id",
+        ).delete().run(r_conn)
         results = (
             rtable.get_all(r.args(domains_to_delete), index="id").delete().run(r_conn)
         )

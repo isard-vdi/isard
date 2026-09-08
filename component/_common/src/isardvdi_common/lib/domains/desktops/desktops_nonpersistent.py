@@ -441,11 +441,3 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             else:
                 Cards.upload(new_desktop["id"], image)
         return new_desktop["id"]
-
-    @classmethod
-    def delete_template_desktops_non_persistent(cls, template_id):
-        """_From api/libv2/api_templates.py delete_desktops_non_persistent()_"""
-        with cls._rdb_context():
-            r.table("domains").get_all(template_id, index="parents").filter(
-                {"persistent": False}
-            ).update({"status": "ForceDeleting"}).run(cls._rdb_connection)

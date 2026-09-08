@@ -1154,6 +1154,19 @@ class Helpers(RethinkSharedConnection):
                     {**user_data["new_user"], "booking_id": False}
                 ).run(cls._rdb_connection)
 
+        # Imported here, not at module scope: `helpers.bookings` imports this module.
+        from isardvdi_common.helpers.bookings import Bookings
+
+        for desktop_id in nonpersistent_ids:
+            try:
+                Bookings.delete_item_bookings("desktop", desktop_id)
+            except Exception:
+                log.warning(
+                    "Could not delete the bookings of desktop %s",
+                    desktop_id,
+                    exc_info=True,
+                )
+
         # request engine teardown of the volatile domains (deletes storage too)
         for i in range(0, len(nonpersistent_ids), 100):
             batch_domain_ids = nonpersistent_ids[i : i + 100]
