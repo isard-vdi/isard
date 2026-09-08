@@ -152,6 +152,68 @@ def test_an_unscoped_sweep_runs_only_the_fleet_wide_query(ran, sweep):
     assert isinstance(_targets(ran)[0], _Args)
 
 
+class _EmptyQuery(_Query):
+    """Same recorder, but ``run`` answers with an empty result set.
+
+    ``delete_incomplete_creating_domains`` — the fourth sweep, the one the
+    parametrization above cannot take because it reads rows instead of updating
+    them — wraps its scoped read in ``list()`` and then walks the rows. The dict
+    ``_Query.run`` returns would be read as a list of key strings and blow up on
+    ``.get``. No row is needed here: what is pinned is the index each query
+    reached for.
+    """
+
+    def _then(self, name, *args, **kwargs):
+        return _EmptyQuery(self._recorder, self.steps + [(name, args, kwargs)])
+
+    def delete(self, *a, **kw):
+        return self._then("delete", *a, **kw)
+
+    def pluck(self, *a, **kw):
+        return self._then("pluck", *a, **kw)
+
+    def run(self, conn):
+        self._recorder.append(self.steps)
+        return []
+
+
+class _EmptyR(_R):
+    def table(self, name):
+        return _EmptyQuery(self._recorder)
+
+
+@pytest.fixture
+def ran_rows():
+    recorder = []
+    with patch.object(mod, "r", _EmptyR(recorder)), patch.object(
+        mod, "new_rethink_connection", _MagicMock()
+    ), patch.object(mod, "close_rethink_connection", _MagicMock()):
+        yield recorder
+
+
+def test_the_fourth_sweep_is_scoped_too(ran_rows):
+    """``delete_incomplete_creating_domains`` is the sweep the parametrization
+    above cannot take, and the only one that DELETES rows rather than
+    restamping them — so it is the one where a lost ``else`` costs the most.
+
+    ``clean_intermediate_status`` runs it first, on the same
+    ``only_domain_id``, which is why it belongs to the same set. It has its
+    ``else`` today; this pins it, since the regression it guards against is
+    exactly the one its neighbour suffered.
+    """
+    mod.delete_incomplete_creating_domains(only_domain_id="d-1")
+
+    assert _indexes(ran_rows) == ["id"]
+    assert _targets(ran_rows) == ["d-1"]
+
+
+def test_the_fourth_sweep_unscoped_is_fleet_wide(ran_rows):
+    mod.delete_incomplete_creating_domains(only_domain_id=None)
+
+    assert _indexes(ran_rows) == ["status"]
+    assert isinstance(_targets(ran_rows)[0], _Args)
+
+
 def test_the_scoped_sweep_never_reaches_the_status_index(ran):
     """The regression itself, stated as the caller experiences it.
 
