@@ -42,6 +42,7 @@ def stub(monkeypatch):
         new_data=None,
         image=None,
         booking_end=None,
+        reservables=None,
     ):
         created.append((user_id, template_id, name, description, new_data, image))
         return f"d-{len(created)}"

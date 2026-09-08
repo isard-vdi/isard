@@ -1088,10 +1088,11 @@ def test_create_nonpersistent_desktop(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
 
-    def fake_create(payload, template_id, booking_end=None):
+    def fake_create(payload, template_id, booking_end=None, reservables=None):
         captured["user_id"] = payload["user_id"]
         captured["template_id"] = template_id
         captured["booking_end"] = booking_end
+        captured["reservables"] = reservables
         return "desktop-np-1"
 
     monkeypatch.setattr(
@@ -1122,6 +1123,8 @@ def test_create_nonpersistent_desktop(monkeypatch, test_client):
         "template_id": "template-1",
         # Nothing to book: the v3-parity body carries only a template.
         "booking_end": None,
+        # No alternative profile picked, so the template's are inherited.
+        "reservables": None,
     }
 
 
@@ -1142,7 +1145,7 @@ def test_create_nonpersistent_desktop_forwards_the_booking_end(
         second=0, microsecond=0
     )
 
-    def fake_create(payload, template_id, booking_end=None):
+    def fake_create(payload, template_id, booking_end=None, reservables=None):
         captured["booking_end"] = booking_end
         return "desktop-np-2"
 
@@ -1169,6 +1172,55 @@ def test_create_nonpersistent_desktop_forwards_the_booking_end(
 
     assert response.status_code == 200
     assert captured["booking_end"] == end
+
+
+def test_create_nonpersistent_desktop_forwards_the_picked_profiles(
+    monkeypatch, test_client
+):
+    """When the template's own vGPU profile has no free slot, the user picks an
+    available one and it travels with the create instead of being inherited."""
+    from datetime import datetime, timedelta, timezone
+
+    from api import app
+    from api.dependencies.storage_pools import check_create_storage_pool_availability
+
+    jwt = MockJWT()
+    captured = {}
+    end = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(
+        second=0, microsecond=0
+    )
+
+    def fake_create(payload, template_id, booking_end=None, reservables=None):
+        captured["reservables"] = reservables
+        return "desktop-np-3"
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.create_nonpersistent_desktop",
+        staticmethod(fake_create),
+    )
+
+    async def mock_check_storage():
+        return None
+
+    app.dependency_overrides[check_create_storage_pool_availability] = (
+        mock_check_storage
+    )
+    try:
+        response = test_client(
+            url="/item/desktop/new-nonpersistent",
+            method="POST",
+            body={
+                "template_id": "template-1",
+                "booking_end": end.isoformat(),
+                "reservables": {"vgpus": ["NVIDIA-L40-4Q"]},
+            },
+            jwt=jwt,
+        )
+    finally:
+        app.dependency_overrides.pop(check_create_storage_pool_availability, None)
+
+    assert response.status_code == 200
+    assert captured["reservables"].vgpus == ["NVIDIA-L40-4Q"]
 
 
 def test_create_nonpersistent_desktop_rejects_a_past_booking_end(test_client):

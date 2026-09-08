@@ -255,6 +255,10 @@ class NewNonpersistentDesktopRequest(BaseModel):
     template_id: str = Field(
         description="ID of the template to create a non-persistent desktop from.",
     )
+    reservables: Optional[Reservables] = Field(
+        default=None,
+        description="vGPU profiles to use instead of the template's.",
+    )
     booking_end: Optional[datetime] = Field(
         default=None,
         description="End of the booking to create when the template has a vGPU.",

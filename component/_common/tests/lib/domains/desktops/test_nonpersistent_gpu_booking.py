@@ -90,6 +90,8 @@ def stub(monkeypatch):
 
     booking = MagicMock(side_effect=lambda *a, **kw: calls.append("booking"))
     monkeypatch.setattr(mod.BookingsProcessed, "add", staticmethod(booking))
+    validate = MagicMock(side_effect=lambda vgpus, **kw: vgpus)
+    monkeypatch.setattr(mod, "validate_reservables_vgpus", validate)
     delete_bookings = MagicMock()
     monkeypatch.setattr(
         mod.BookingsProcessed, "delete_item_bookings", staticmethod(delete_bookings)
@@ -108,6 +110,7 @@ def stub(monkeypatch):
         "storage_delete": storage_delete,
         "calls": calls,
         "reservables": reservables,
+        "validate": validate,
     }
 
 
@@ -197,4 +200,84 @@ def test_a_quota_stripped_vgpu_needs_no_booking(stub, monkeypatch):
         "u-1", "t-1", name="plain", new_data={"hardware": {}}, booking_end=END
     )
 
+    stub["booking"].assert_not_called()
+
+
+def test_a_picked_profile_overrides_the_templates(stub):
+    """The recovery path: the template's own profile had no free slot, so the
+    user picked one that did. That choice is what the desktop must carry."""
+    DNP._nonpersistent_desktop_from_tmpl(
+        "u-1",
+        "t-1",
+        name="gpu",
+        booking_end=END,
+        reservables={"vgpus": ["NVIDIA-L40-4Q"]},
+    )
+
+    assert _inserted(stub)["create_dict"]["reservables"] == {"vgpus": ["NVIDIA-L40-4Q"]}
+    stub["validate"].assert_called_once()
+    args, kwargs = stub["validate"].call_args
+    assert args[0] == ["NVIDIA-L40-4Q"]
+    # With a payload, the validator also enforces that the caller may attach
+    # these profiles -- a crafted request cannot pick a forbidden one.
+    assert "payload" in kwargs
+
+
+def test_a_picked_profile_is_what_gets_booked(stub):
+    DNP._nonpersistent_desktop_from_tmpl(
+        "u-1",
+        "t-1",
+        name="gpu",
+        booking_end=END,
+        reservables={"vgpus": ["NVIDIA-L40-4Q"]},
+    )
+
+    stub["booking"].assert_called_once()
+    assert stub["calls"] == ["booking", "chain"]
+
+
+def test_no_picked_profile_leaves_the_template_alone(stub):
+    DNP._nonpersistent_desktop_from_tmpl("u-1", "t-1", name="gpu", booking_end=END)
+
+    assert _inserted(stub)["create_dict"]["reservables"] == {"vgpus": ["NVIDIA-A16-2Q"]}
+    # Inherited profiles are validated too: a template naming a profile is not
+    # authority for this user to attach it.
+    stub["validate"].assert_called_once()
+    assert stub["validate"].call_args.args[0] == ["NVIDIA-A16-2Q"]
+
+
+def test_an_inherited_profile_the_user_may_not_attach_is_refused(stub):
+    stub["validate"].side_effect = Error("forbidden", "not allowed")
+
+    with pytest.raises(Error):
+        DNP._nonpersistent_desktop_from_tmpl("u-1", "t-1", name="gpu", booking_end=END)
+
+    stub["domains"].insert.assert_not_called()
+    stub["booking"].assert_not_called()
+
+
+def test_clearing_the_profiles_drops_the_booking_requirement(stub):
+    # ``{"vgpus": None}`` is the "no GPU" answer, and a desktop without a
+    # reservable needs no booking at all.
+    DNP._nonpersistent_desktop_from_tmpl(
+        "u-1", "t-1", name="plain", reservables={"vgpus": None}
+    )
+
+    assert _inserted(stub)["create_dict"]["reservables"] == {"vgpus": None}
+    stub["booking"].assert_not_called()
+
+
+def test_a_forbidden_profile_is_refused_before_anything_is_created(stub):
+    stub["validate"].side_effect = Error("forbidden", "not allowed")
+
+    with pytest.raises(Error):
+        DNP._nonpersistent_desktop_from_tmpl(
+            "u-1",
+            "t-1",
+            name="gpu",
+            booking_end=END,
+            reservables={"vgpus": ["NVIDIA-L40-4Q"]},
+        )
+
+    stub["domains"].insert.assert_not_called()
     stub["booking"].assert_not_called()

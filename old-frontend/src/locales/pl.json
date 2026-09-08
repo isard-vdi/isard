@@ -443,7 +443,8 @@
             },
             "title": {
                 "available-profile": "Model karty graficznej tego pulpitu ({profile}) jest obecnie niedostępny",
-                "no-available-profile": "Obecnie nie jest dostępny żaden inny model karty graficznej"
+                "no-available-profile": "Obecnie nie jest dostępny żaden inny model karty graficznej",
+                "template-available-profile": "Model(e) karty graficznej tego szablonu są obecnie niedostępne"
             },
             "go-to-bookings": {
                 "button": "Zarezerwuj pulpit",

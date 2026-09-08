@@ -346,7 +346,8 @@
     "cant-start-now-modal": {
       "title": {
         "available-profile": "Els models de targeta gràfica d'aquest escriptori no estan disponibles en aquest moment",
-        "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment"
+        "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment",
+        "template-available-profile": "El/s model(s) de targeta gràfica d'aquesta plantilla no estan disponibles actualment"
       },
       "change-desktop-gpu": {
         "text": "Es poden canviar a models de targeta gràfica disponibles ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",

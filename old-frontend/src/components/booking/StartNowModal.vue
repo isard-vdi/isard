@@ -282,7 +282,8 @@ export default {
       if (newDesktopTemplateId.value) {
         $store.dispatch('createDesktop', {
           template: newDesktopTemplateId.value,
-          bookingEnd: modal.value.selected.endDate
+          bookingEnd: modal.value.selected.endDate,
+          reservables: modal.value.showProfileDropdown ? { vgpus: profiles.value } : undefined
         })
         closeModal()
         return

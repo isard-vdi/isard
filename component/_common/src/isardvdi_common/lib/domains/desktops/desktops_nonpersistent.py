@@ -39,7 +39,10 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
-from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+from isardvdi_common.lib.domains.desktops.desktops import (
+    DesktopsProcessed,
+    validate_reservables_vgpus,
+)
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import Domain, DomainModel
 from isardvdi_common.models.storage import Storage
@@ -64,6 +67,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         image=None,
         allow_reuse=True,
         booking_end=None,
+        reservables=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_
 
@@ -86,6 +90,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
                 new_data,
                 image,
                 booking_end,
+                reservables,
             )
 
         return cls._nonpersistent_desktop_create_and_start(
@@ -96,6 +101,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             new_data,
             image,
             booking_end,
+            reservables,
         )
 
     @classmethod
@@ -128,6 +134,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         new_data=None,
         image=None,
         booking_end=None,
+        reservables=None,
     ):
         """v3 ``New()``: reuse this template's desktop instead of creating a second one.
         TODO(old-frontend-removal): the whole method goes with that frontend."""
@@ -164,6 +171,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             new_data,
             image,
             booking_end,
+            reservables,
         )
 
     @classmethod
@@ -254,6 +262,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         new_data=None,
         image=None,
         booking_end=None,
+        reservables=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_create_and_start()_"""
         with cls._rdb_context():
@@ -272,6 +281,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             new_data,
             image,
             booking_end,
+            reservables,
         )
 
         # Disk is created by engine and not ready yet, thus commented this check
@@ -291,6 +301,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         new_data=None,
         image=None,
         booking_end=None,
+        reservables=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_from_tmpl()_"""
         with cls._rdb_context():
@@ -321,6 +332,9 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         create_dict, guest_properties = DesktopsProcessed.merge_new_data_with_template(
             template_id, new_data
         )
+
+        if reservables is not None:
+            create_dict["reservables"] = {"vgpus": reservables.get("vgpus") or None}
         create_dict["hardware"]["interfaces"] = Helpers.gen_interfaces_macs(
             create_dict["hardware"]["interfaces"]
         )
@@ -360,6 +374,12 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             create_dict = Quotas.limit_user_hardware_allowed(
                 Helpers.gen_payload_from_user(user_id), create_dict
             )
+
+        validate_reservables_vgpus(
+            (create_dict.get("reservables") or {}).get("vgpus"),
+            payload=Helpers.gen_payload_from_user(user_id),
+        )
+
         # limit_user_hardware_allowed compares memory in GiB, the merge's unit.
         if create_dict["hardware"].get("memory"):
             create_dict["hardware"]["memory"] = Helpers.memory_gib_to_kib(

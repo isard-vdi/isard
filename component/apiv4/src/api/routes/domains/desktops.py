@@ -119,6 +119,7 @@ async def create_nonpersistent_desktop(
             payload=request.token_payload,
             template_id=data.template_id,
             booking_end=data.booking_end,
+            reservables=data.reservables,
         )
         return JSONResponse(
             content=SimpleResponse(id=desktop_id).model_dump(mode="json"),

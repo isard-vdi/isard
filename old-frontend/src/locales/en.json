@@ -652,7 +652,8 @@
         "cant-start-now-modal": {
             "title": {
                 "available-profile": "The graphic card model(s) of this desktop are not currently available",
-                "no-available-profile": "There's no other card model currently available"
+                "no-available-profile": "There's no other card model currently available",
+                "template-available-profile": "The graphic card model(s) of this template are not currently available"
             },
             "change-desktop-gpu": {
                 "text": "They can be changed to available graphic card models now and start it (it could affect the desktop performance)",

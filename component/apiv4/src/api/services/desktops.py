@@ -212,7 +212,7 @@ class DesktopService:
 
     @staticmethod
     def create_nonpersistent_desktop(
-        payload: dict, template_id: str, booking_end=None
+        payload: dict, template_id: str, booking_end=None, reservables=None
     ) -> str:
         """Create and start a non-persistent desktop from a template.
         ``@has_token`` — takes only ``template_id`` and delegates quota +
@@ -240,6 +240,9 @@ class DesktopService:
             user_id=user_id,
             template_id=template_id,
             booking_end=DesktopService._booking_end_str(booking_end),
+            reservables=(
+                reservables.model_dump(exclude_unset=True) if reservables else None
+            ),
         )
 
     @staticmethod

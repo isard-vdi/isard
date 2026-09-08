@@ -295,7 +295,8 @@
       },
       "title": {
         "no-available-profile": "Gaur egun ez dago beste txartel-eredurik",
-        "available-profile": "Gaur egun ez dago mahai honen karta-eredu grafikorik ({profile})"
+        "available-profile": "Gaur egun ez dago mahai honen karta-eredu grafikorik ({profile})",
+        "template-available-profile": "Txantiloi honen txartel grafikoaren modeloa(k) ez daude erabilgarri une honetan"
       },
       "go-to-bookings": {
         "button": "Mahaigain erreserbatu",
