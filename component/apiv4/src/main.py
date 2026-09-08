@@ -29,5 +29,7 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8000,
+        # Kept in step with the container CMD in component/apiv4/docker/Dockerfile.
+        timeout_keep_alive=120,
         reload=os.environ.get("UVICORN_RELOAD", "false").lower() == "true",
     )
