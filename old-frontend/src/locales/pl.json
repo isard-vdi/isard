@@ -565,7 +565,8 @@
         "incorrect_new_plan_body_data": "Nieprawidłowe dane nowego planu",
         "no_reservables": "Element nie ma możliwości rezerwacji",
         "media_should_not_be_downloading": "Nośnik nie powinien być pobierany",
-        "temporal_new_reservable": "Nie można utworzyć pulpitu tymczasowego na podstawie szablonu z elementem do rezerwacji"
+        "no_available_profile": "Obecnie nie ma dostępnego procesora GPU.",
+        "temporal_reservable_needs_booking": "Pulpit tymczasowy z procesorem GPU wymaga czasu zakończenia. Spróbuj ponownie i wybierz, do kiedy będzie używany."
     },
     "router": {
         "titles": {

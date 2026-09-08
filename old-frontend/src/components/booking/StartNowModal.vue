@@ -272,9 +272,19 @@ export default {
       endDate
     })
 
+    const newDesktopTemplateId = computed(() => modal.value.data.newDesktopTemplateId)
+
     const startDesktop = () => {
       v$.value.$touch()
       if (v$.value.$invalid) {
+        return
+      }
+      if (newDesktopTemplateId.value) {
+        $store.dispatch('createDesktop', {
+          template: newDesktopTemplateId.value,
+          bookingEnd: modal.value.selected.endDate
+        })
+        closeModal()
         return
       }
       if (modal.value.showProfileDropdown) {

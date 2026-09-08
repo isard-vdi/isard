@@ -236,7 +236,7 @@
               :spinner-active="false"
               :butt-text="$t('views.select-template.status.notCreated.action')"
               :icon-name="desktop.buttonIconName"
-              @buttonClicked="chooseDesktop(desktop.id)"
+              @buttonClicked="chooseDesktop(desktop)"
             />
             <!-- Main action button persistent-->
             <DesktopButton
@@ -535,6 +535,7 @@ export default {
       'deleteNonpersistentDesktop',
       'openDesktop',
       'createDesktop',
+      'checkCanStartNewNonpersistent',
       'navigate',
       'goToEditDomain',
       'fetchDirectLink',
@@ -557,10 +558,13 @@ export default {
       this.$snotify.clear()
 
       const yesAction = () => {
-        const data = new FormData()
-        data.append('template', template)
         this.$snotify.clear()
-        this.createDesktop(data)
+        const vgpus = (template.reservables && template.reservables.vgpus) || []
+        if (vgpus.length) {
+          this.checkCanStartNewNonpersistent({ templateId: template.id, profileIds: vgpus })
+        } else {
+          this.createDesktop({ template: template.id })
+        }
       }
 
       const noAction = (toast) => {

@@ -38,7 +38,7 @@ export class BookingUtils {
   }
 
   static parseStartNowModal (item) {
-    const { max_booking_date: maxBookingDate, showProfileDropdown, reservables_available: availableProfiles, desktopProfiles, show, action } = item
+    const { max_booking_date: maxBookingDate, showProfileDropdown, reservables_available: availableProfiles, desktopProfiles, show, action, newDesktopTemplateId } = item
     const formattedProfiles = showProfileDropdown ? this.formatAvailableProfilesDropdown(availableProfiles) : []
     // Recovery: pre-seed with the desktop's current profiles that are still
     // available now (the rest the user re-picks from the available set).
@@ -59,7 +59,8 @@ export class BookingUtils {
         availableTimes: showProfileDropdown
           ? []
           : DateUtils.breakTimeInChunks(DateUtils.dateToMoment(new Date()), DateUtils.stringToDate(DateUtils.utcToLocalTime(maxBookingDate)), 30, 'minutes'),
-        maxBookingDate
+        maxBookingDate,
+        newDesktopTemplateId: newDesktopTemplateId || null
       }
     }
   }

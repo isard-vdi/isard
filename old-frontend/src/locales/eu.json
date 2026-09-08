@@ -1275,7 +1275,6 @@
     "template_failed": "Akats bat dela eta, txantiloi hau ezin da erabili mahaigain berri bat sortzeko. Mesedez, jarri harremanetan administratzailearekin",
     "desktop_storage_not_ready": "Mahaigaineko biltegia ez dago prest",
     "cant_edit_booked_deployment": "Ezin dira editatu erreserba programatua duen hedapen baten erreserbak",
-    "temporal_new_reservable": "Ezin da aldi baterako mahaigainirik sortu erreserba duen txantiloi batetik abiatuta",
     "password_uppercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra larriz",
     "not_enough_advanced_time": "Ez dago denbora aurreraturik mahaigaina hasteko",
     "one_viewer_minimum": "Bisore bat hautatu behar da gutxienez",
@@ -1286,7 +1285,9 @@
     "password_username": "Pasahitzak ezin du bere erabiltzaile-izena izan",
     "current_plan_doesnt_match": "Ez dago GPU erabilgarririk mahaigaineko profilarekin",
     "password_special_characters": "Pasahitzak karaktere berezi hau {num} izan behar du gutxienez: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
-    "password_lowercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra txikiz"
+    "password_lowercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra txikiz",
+    "no_available_profile": "Ez dago GPUrik erabilgarri orain.",
+    "temporal_reservable_needs_booking": "GPUdun aldi baterako mahaigain batek amaiera ordu bat behar du. Saiatu berriro eta hautatu noiz arte erabiliko den."
   },
   "message-modal": {
     "extend-time": "Luzatu {minutes} min",

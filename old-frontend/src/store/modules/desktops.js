@@ -354,9 +354,12 @@ export default {
       // single ``template`` field. The v4 endpoint expects JSON, so we
       // extract the template id and send a minimal ``{template_id}`` body.
       const templateId = data instanceof FormData ? data.get('template') : data.template
+      const bookingEnd = data instanceof FormData ? data.get('booking_end') : data.bookingEnd
+      const body = { template_id: templateId }
+      if (bookingEnd) body.booking_end = bookingEnd
       axios.post(
         `${apiV3Segment}/item/desktop/new-nonpersistent`,
-        { template_id: templateId },
+        body,
         { timeout: 25000 }
       ).then(response => {
         this._vm.$snotify.clear()
