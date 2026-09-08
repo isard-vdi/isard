@@ -42,6 +42,7 @@ export interface HardwareFormData {
   floppies?: DomainHardwareResource[]
   interfaces: string[]
   reservables: { vgpus?: string[] | null }
+  bookingEnd: string | null
 }
 
 export function toGuestProperties(

@@ -95,13 +95,18 @@ export const desktopActionsData = (
   status: string,
   needsBooking = false,
   directViewer = false,
-  persistent = true
+  persistent = true,
+  hasReservables = false
 ): DesktopActionsData => {
   const data = desktopActionsDataByStatus(status, needsBooking, directViewer)
 
   // A temporal desktop is never reused: it is deleted rather than left stopped
   // for a later start. The direct viewer never deletes.
   if (persistent || directViewer) return data
+  // Except a GPU one. It is stopped when its booking ends, and can be booked
+  // again and restarted until the inactivity limit removes it.
+  // Delete stays available from the card's dropdown.
+  if (status === DesktopStatusEnum.STOPPED && hasReservables) return data
   if (
     status === DesktopStatusEnum.STOPPED ||
     data.actionButton?.action === DesktopActionsEnum.Stop
@@ -304,6 +309,10 @@ export const desktopKindStyle = (desktop: UserDesktop) => {
       }
   }
 }
+
+/** A desktop that reserves a vGPU, and so is booked rather than freely started. */
+export const desktopHasReservables = (desktop: UserDesktop) =>
+  Boolean(desktop.reservables?.vgpus?.length)
 
 export const desktopNeedsBooking = (desktop: UserDesktop) => {
   if (!desktop.needs_booking) {

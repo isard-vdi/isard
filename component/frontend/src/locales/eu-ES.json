@@ -853,7 +853,25 @@
         },
         "vgpus": {
           "label": "vGPU",
-          "placeholder": "Hautatu vGPU bat"
+          "placeholder": "Hautatu vGPU bat",
+          "booking": {
+            "end-time": {
+              "label": "Amaiera-ordua",
+              "placeholder": "Hautatu noiz arte erabiliko den",
+              "hint": "GPUa oraintxe erreserbatzen da. Gehienezko amaiera: {time}.",
+              "too-late": "Amaiera-ordu hau jada ez dago erabilgarri. Hautatu lehenagoko bat."
+            },
+            "unavailable-now": "Ez dago erabilgarri orain",
+            "selected-unavailable": "{names} ez dago erabilgarri orain. Kendu edo hautatu beste profil bat. | {names} ez daude erabilgarri orain. Kendu edo hautatu beste profil batzuk.",
+            "none-available": {
+              "title": "Ez dago GPUrik erabilgarri orain",
+              "description": "Ez dago leku libreak dituen GPU profilik une honetan. Kendu GPUa mahaigaina hura gabe sortzeko, edo sortu mahaigain iraunkor bat eta erreserbatu geroago erabiltzeko."
+            },
+            "failed": {
+              "title": "Ezin izan da GPUen erabilgarritasuna egiaztatu",
+              "description": "Saiatu berriro geroxeago, edo kendu GPUa mahaigaina hura gabe sortzeko."
+            }
+          }
         },
         "networks": {
           "label": "Sareak",
@@ -1691,10 +1709,6 @@
           "title": "Ez dago biltegiratze-pool erabilgarririk",
           "description": "Ez dago biltegiratze-pool erabilgarririk mahaigaina sortzeko. Mesedez, jarri administratzaile batekin harremanetan edo saiatu berriro geroago."
         },
-        "temporal_new_reservable": {
-          "title": "Aldi baterako mahaigainek ezin dute erreserbagarririk izan",
-          "description": "Aldi baterako mahaigainek ezin dute erreserbagarririk esleituta izan. Mesedez, kendu erreserbagarriak eta saiatu berriro."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Mahaigainak abiarazteko kuota gaindituta",
           "description": "Abian dauden mahaigainen gehienezko kopurura iritsi zara. Mahaigain bat gelditu behar duzu hau sortu ahal izateko."
@@ -1714,6 +1728,18 @@
         "template_storage_not_ready": {
           "title": "Txantiloiaren biltegia ez dago prest",
           "description": "Txantiloi honen biltegia ez dago prest, eta ezin da mahaigainik sortu. Mesedez, jarri harremanetan administratzailearekin."
+        },
+        "booking_does_not_fit_date": {
+          "title": "GPU erreserbak jada ez du lekurik",
+          "description": "Erabilgarritasuna aldatu da aukeratzen ari zinen bitartean. Saiatu berriro eta hautatu lehenago amaitzen den ordu bat."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Gehienezko erreserba kopurura iritsi zara",
+          "description": "Gehienezko erreserba kopurura iritsi zara. Ezabatu erreserba bat GPUdun mahaigain bat sortu aurretik."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "GPUak amaiera ordu bat behar du",
+          "description": "GPUdun aldi baterako mahaigain bat sortzean erreserbatzen da. Saiatu berriro eta hautatu noiz arte erabiliko den."
         }
       }
     },
