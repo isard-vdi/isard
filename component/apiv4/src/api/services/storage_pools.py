@@ -23,7 +23,10 @@ from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin import ApiAdmin
-from isardvdi_common.lib.storage.physical_usage import read_usage
+from isardvdi_common.lib.storage.physical_usage import (
+    pool_usage_paths,
+    read_pool_devices,
+)
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
@@ -52,15 +55,29 @@ class StoragePoolService:
         database legitimately is. A pool nobody publishes simply has no
         ``physical_usage`` -- the key expired or was never written -- and the
         reader must not substitute a filesystem figure for it.
+
+        A pool is read across every device its disk types land on, not only the
+        one its mountpoint is on. ``physical_usage`` stays the single figure it
+        always was -- the tightest device, the one that fails writes first.
         """
         pools = StoragePoolsProcessed.get_storage_pools()
         connection = _redis()
         if connection is None:
+            for pool in pools:
+                pool["physical_usage_reason"] = (
+                    "The API cannot reach redis, so no published measurement "
+                    "could be read for any pool."
+                )
             return pools
         for pool in pools:
-            usage = read_usage(connection, pool.get("mountpoint") or "")
-            if usage:
-                pool["physical_usage"] = usage
+            devices = read_pool_devices(
+                connection, pool.get("mountpoint") or "", pool.get("paths")
+            )
+            if devices:
+                pool["physical_usage"] = devices[0]
+                pool["physical_usage_devices"] = devices
+            else:
+                pool["physical_usage_reason"] = _no_measurement_reason(pool)
         return pools
 
     @staticmethod
@@ -136,6 +153,26 @@ class StoragePoolService:
         return StoragePoolsProcessed.check_category_storage_pool_availability(
             categories, storage_pool_id
         )
+
+
+def _no_measurement_reason(pool: dict) -> str:
+    """Why a pool has no space figure, in the words the admin needs.
+
+    The two causes need different actions, so they get different sentences.
+    """
+    mountpoint = pool.get("mountpoint") or ""
+    if not mountpoint:
+        return (
+            "This pool has no mountpoint, so there is nothing to measure. "
+            "Give it one before expecting a space figure."
+        )
+    looked = pool_usage_paths(mountpoint, pool.get("paths"))
+    return (
+        "No node publishes a measurement for this pool. Looked under "
+        + ", ".join(looked)
+        + ". Set STORAGE_POOL_VDO_STATS on the node holding those mounts, and "
+        "check it can still see them."
+    )
 
 
 def _redis():

@@ -82,7 +82,15 @@ class StoragePoolResponse(BaseModel):
     qos_disk_id: Optional[str] = None
     #: What the node holding the mounts last measured of the BACKING store;
     #: absent where nobody publishes it. On a thin pool statvfs is the logical size.
+    #: Of a pool spanning several devices this is the TIGHTEST of them, the one
+    #: that fails writes first -- see ``physical_usage_devices`` for the rest.
     physical_usage: Optional[dict[str, Any]] = None
+    #: Every distinct device the pool's disk types land on, tightest first.
+    #: One entry for a single-device pool; absent where nothing is published.
+    physical_usage_devices: Optional[list[dict[str, Any]]] = None
+    #: Why there is no measurement: no mountpoint and nobody publishing one are
+    #: different problems with different fixes.
+    physical_usage_reason: Optional[str] = None
 
 
 class StoragePoolListResponse(BaseModel):

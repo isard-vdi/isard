@@ -103,4 +103,63 @@ const TiB = 1024 ** 4;
   assert.ok(!html.includes("<img"), "reason must be escaped into the attribute");
 }
 
+// --- a pool spread over several devices -------------------------------------
+{
+  const GiB = 1024 ** 3;
+  const devices = [
+    { path: "/isard/storage_pools/p/media", usages: ["media"],
+      physical_total_bytes: 200 * GiB, physical_free_bytes: 3 * GiB },
+    { path: "/isard/storage_pools/p", usages: ["pool", "groups", "templates"],
+      physical_total_bytes: 4000 * GiB, physical_free_bytes: 3000 * GiB }
+  ];
+  const html = spSpaceCell({
+    kind: "local-thick", path: devices[0].path, usages: devices[0].usages,
+    physical_total_bytes: devices[0].physical_total_bytes,
+    physical_free_bytes: devices[0].physical_free_bytes,
+    measured_at: NOW - 5, node: "storage-1", source: "statvfs"
+  }, NOW, devices);
+
+  assert.ok(html.includes("3.0 GB free"), "leads with the constraining device");
+  assert.ok(!/>\s*2\.9 TB free/.test(html), "the roomy device must not be the headline");
+  assert.ok(html.includes("of 2 devs"), "says the figure is one of several");
+  assert.ok(html.includes("spans 2 devices"), "the tooltip explains the spread");
+  assert.ok(html.includes("/isard/storage_pools/p/media"), "names the constraint");
+  assert.ok(html.includes("/isard/storage_pools/p ("), "names the other device too");
+}
+
+// --- one device: nothing about the cell may change --------------------------
+{
+  const usage = {
+    kind: "local-thick", physical_total_bytes: 10 * TiB,
+    physical_free_bytes: 9.81 * TiB, measured_at: NOW - 5,
+    node: "storage-1", source: "statvfs"
+  };
+  const alone = spSpaceCell(usage, NOW);
+  const withOne = spSpaceCell(usage, NOW, [Object.assign({ path: "/isard", usages: ["pool"] }, usage)]);
+  assert.strictEqual(withOne, alone, "a one-device pool must render exactly as before");
+  assert.ok(!withOne.includes("devs"), "and must not mention a spread it does not have");
+}
+
+// --- not reported: say WHICH problem it is ----------------------------------
+{
+  const why = "This pool has no mountpoint, so there is nothing to measure.";
+  const html = spSpaceCell(null, NOW, null, why);
+  assert.ok(html.includes("not reported"), "still says it is not reported");
+  assert.ok(html.includes("no mountpoint"), "carries the reason the API gave");
+  assert.ok(!html.includes("STORAGE_POOL_VDO_STATS"),
+    "must not send this admin to configure a node that was never the problem");
+}
+
+// --- and keeps the old wording when the API says nothing --------------------
+{
+  const html = spSpaceCell(null, NOW, null, null);
+  assert.ok(html.includes("STORAGE_POOL_VDO_STATS"), "falls back to the generic advice");
+}
+
+// --- a hostile reason cannot break out of the title attribute either --------
+{
+  const html = spSpaceCell(null, NOW, null, '"><img src=x onerror=alert(1)>');
+  assert.ok(!html.includes("<img"), "the API-supplied reason must be escaped too");
+}
+
 console.log("storage_pools_space.test.js: all assertions passed");
