@@ -691,6 +691,113 @@ def test_aggregate_vfio_variant_sums_vf_capacity(monkeypatch, tmp_path):
     assert sorted(sub_paths) == [f"{base}/{v}" for v in vf_bdfs]
 
 
+# A16 reports 15356 MiB per GPU: dividing by the profile gives 15 x 1Q, the catalogue says 16.
+_A16_VGPU_CATALOGUE = """\
+GPU 00000000:05:00.0
+    vGPU Type ID                          : 0x2c5
+        Name                              : NVIDIA A16-1B
+        Class                             : NVS
+        Max Instances                     : 16
+        Max Instances Per VM              : 1
+        FB Memory                         : 1024 MiB
+    vGPU Type ID                          : 0x2c7
+        Name                              : NVIDIA A16-1Q
+        Class                             : Quadro
+        Max Instances                     : 16
+        Max Instances Per VM              : 16
+        FB Memory                         : 1024 MiB
+    vGPU Type ID                          : 0x2c8
+        Name                              : NVIDIA A16-2Q
+        Class                             : Quadro
+        Max Instances                     : 8
+        Max Instances Per VM              : 16
+        FB Memory                         : 2048 MiB
+    vGPU Type ID                          : 0x2c9
+        Name                              : NVIDIA A16-4Q
+        Class                             : Quadro
+        Max Instances                     : 4
+        Max Instances Per VM              : 16
+        FB Memory                         : 4096 MiB
+    vGPU Type ID                          : 0x2cb
+        Name                              : NVIDIA A16-16Q
+        Class                             : Quadro
+        Max Instances                     : 1
+        Max Instances Per VM              : 16
+        FB Memory                         : 16384 MiB
+    vGPU Type ID                          : 0x2cc
+        Name                              : NVIDIA A16-1A
+        Class                             : NVS
+        Max Instances                     : 16
+        Max Instances Per VM              : 1
+        FB Memory                         : 1024 MiB
+"""
+
+
+def _fake_vgpu_catalogue(monkeypatch, text):
+    from isardvdi_hypervisor import gpu_discovery as gd
+
+    class _R:
+        returncode = 0
+        stdout = text
+
+    def fake_run(cmd, *a, **kw):
+        assert cmd[:4] == ["nvidia-smi", "vgpu", "-s", "-v"]
+        return _R()
+
+    monkeypatch.setattr(gd.subprocess, "run", fake_run)
+
+
+def test_get_vgpu_types_smi_reads_max_instances_from_catalogue(monkeypatch):
+    """Only Q/C types are bookable; B/A types are left out."""
+    from isardvdi_hypervisor import gpu_discovery as gd
+
+    _fake_vgpu_catalogue(monkeypatch, _A16_VGPU_CATALOGUE)
+
+    types = gd._get_vgpu_types_smi("00000000:05:00.0")
+
+    assert {n: t["max_instances"] for n, t in types.items()} == {
+        "A16-1Q": 16,
+        "A16-2Q": 8,
+        "A16-4Q": 4,
+        "A16-16Q": 1,
+    }
+    assert types["A16-2Q"]["framebuffer_mb"] == 2048
+    assert types["A16-2Q"]["type_id"] == str(0x2C8)
+
+
+def test_aggregate_vfio_variant_reports_catalogue_max_instances(monkeypatch, tmp_path):
+    """Discovery hands over the catalogue ceiling, not a framebuffer division."""
+    from isardvdi_hypervisor import gpu_discovery as gd
+
+    base = _redirect_sysfs(monkeypatch, tmp_path)
+    vf_bdfs = ["0000:05:00.4", "0000:05:00.5"]
+    for vf in vf_bdfs:
+        nvidia_dir = tmp_path / vf / "nvidia"
+        nvidia_dir.mkdir(parents=True)
+        _write(
+            nvidia_dir / "creatable_vgpu_types",
+            "712 : NVIDIA A16-2Q\n711 : NVIDIA A16-1Q\n",
+        )
+
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_vgpu_host_driver_present", lambda *a, **k: False)
+    monkeypatch.setattr(
+        gd, "_enumerate_sriov_vf_paths", lambda _p: [f"{base}/{v}" for v in vf_bdfs]
+    )
+    _fake_vgpu_catalogue(monkeypatch, _A16_VGPU_CATALOGUE)
+
+    profiles, _sub, _parent, framework = gd._aggregate_subdevice_profiles(
+        "00000000:05:00.0"
+    )
+
+    assert framework == "vfio_variant"
+    by_name = {p["name"]: p for p in profiles}
+    assert by_name["A16-1Q"]["max_instances"] == 16
+    assert by_name["A16-2Q"]["max_instances"] == 8
+    assert by_name["A16-16Q"]["max_instances"] == 1
+
+
 def test_sriov_manage_usable(monkeypatch):
     from isardvdi_hypervisor import gpu_discovery as gd
 
