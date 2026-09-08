@@ -144,11 +144,11 @@ Tests expect a populated RethinkDB with the fixtures in
 `testing/src/isardvdi_testing/data/*.json` — in particular `admin_e2e_01..15` and
 `user_e2e_01` for parallel-worker isolation.
 
-`make test-e2e` auto-runs `test-e2e-seed` first, but you can seed
+`make test-e2e` auto-runs `seed-test-db` first, but you can seed
 separately:
 
 ```bash
-make test-e2e-seed
+make seed-test-db
 # or, direct:
 python3 testing/src/isardvdi_testing/populate_test_db.py
 ```
@@ -428,7 +428,7 @@ Seed JSON files in `testing/src/isardvdi_testing/data/`:
 - `authentication.json` — per-category auth policy.
 
 To add a new fixture, update the matching JSON and re-run `make
-test-e2e-seed`.
+seed-test-db`.
 
 ## Linting
 

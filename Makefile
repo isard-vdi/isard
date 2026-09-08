@@ -4,39 +4,25 @@ ISARDVDI_SRC := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 # on high-core CI runners (= 128 threads → OOM). Override with e.g.
 export PYTEST_XDIST_AUTO_NUM_WORKERS ?= 16
 
+_docker_tty := $(if $(CI),,-it)
+
+# ---------------------------------------------------------------------------
+# Entry points
+# Everything below is reachable from one of these.
+# ---------------------------------------------------------------------------
+
 .PHONY: all
 all: build up test
 
-.PHONY: tidy
-tidy:
-	go mod tidy
+.PHONY: ci
+ci: ci-lint ci-test
 
-.PHONY: build
-build: build-cfg build-compose
+.PHONY: ci-all
+ci-all: ci ci-e2e
 
-.PHONY: build-cfg
-build-cfg:
-	bash build.sh
-
-.PHONY: build-compose
-build-compose:
-	docker compose build
-
-.PHONY: pull
-pull:
-	docker compose pull
-
-.PHONY: up
-up:
-	@echo Makeup 💄💅💁✨
-	docker compose up -d
-
-.PHONY: down
-down:
-	docker compose down --remove-orphans
-
-.PHONY: reset
-reset: down up
+# ---------------------------------------------------------------------------
+# Lint and format
+# ---------------------------------------------------------------------------
 
 .PHONY: lint
 lint: lint-python lint-system-deps lint-go lint-frontend lint-old-frontend lint-protobuf lint-alloy
@@ -104,23 +90,22 @@ lint-alloy:
 	find . -iname "*.alloy" | xargs -n1 alloy fmt -t
 	alloy validate docker/grafana-alloy
 
+.PHONY: ci-lint
+ci-lint: lint
+
+# ---------------------------------------------------------------------------
+# Testing
+# Unit suites: no network, no DB. Each topic carries both flavours, the dev
+# `test-*` and the `ci-test-*` the pipeline runs. The CI ones emit JUnit +
+# Cobertura XML so GitLab can consume them via artifacts.reports.*, and their
+# paths must match .gitlab-ci.yml byte-identical.
+# ---------------------------------------------------------------------------
+
 .PHONY: test
 test: test-go test-python test-e2e
 
-.PHONY: test-go
-test-go:
-	go test -race -cover ./...
-
-# Behavioural unit tests for the vmalert storage-governor rules, under the same
-# vmalert engine (MetricsQL) the stack runs. The vmalert-tool version is DERIVED
-# from the runtime vmalert pin in docker-compose-parts/monitor.yml, so it cannot
-# drift from what the stack runs.
-.PHONY: test-vmalert
-test-vmalert:
-	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
-	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
-	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
-	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+.PHONY: ci-test
+ci-test: ci-test-go ci-test-python
 
 # Python test matrix — single source of truth for both the dev (`test-*`)
 # and CI (`ci-test-*`) targets. One row per workspace package:
@@ -168,78 +153,6 @@ $(foreach r,$(PY_PKGS),$(eval $(call TEST_RULE,$(subst :, ,$(r)))))
 .PHONY: test-python
 test-python: $(addprefix test-,$(PY_PKG_NAMES))
 
-_e2e_tty := $(if $(CI),,-it)
-
-# Usage:
-#   make test-e2e                                          # run all specs
-#   make test-e2e E2E_ARGS=tests/webapp/login.spec.js      # single spec
-#   make test-e2e E2E_ARGS='tests/vue2/'                   # one directory
-#   make test-e2e E2E_ARGS='--grep "should login"'         # by test name
-.PHONY: test-e2e-seed
-test-e2e-seed:
-	docker run $(_e2e_tty) --rm \
-	--network=isard-network \
-	--volumes-from isard-storage \
-	-e RETHINKDB_HOST=isard-db \
-	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
-	-e UV_CACHE_DIR=/tmp/uv-cache \
-	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
-
-.PHONY: test-e2e
-test-e2e: test-e2e-seed
-	cd ${ISARDVDI_SRC}/testing/e2e && bun ci
-	docker run $(_e2e_tty) \
-	--rm --ipc=host \
-	--network=isard-network \
-	-e DOCKER=1 \
-	-e CI \
-	-e E2E_WORKERS \
-	-e E2E_RETRIES \
-	-e E2E_SCREENSHOT \
-	-e E2E_TRACE \
-	-e E2E_TIMEOUT \
-	-e E2E_BASE_URL=$${E2E_BASE_URL:-https://isard-portal} \
-	-e E2E_REPORTER \
-	-e E2E_VIDEO \
-	-e E2E_BROWSER \
-	-v "${ISARDVDI_SRC}/testing/e2e:/e2e" \
-	-w "/e2e" \
-	mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 yarn playwright test $(E2E_ARGS)
-
-# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, so pytest
-# never sees it, and it needs real qcow2 images and a live lock holder: qemu-img
-# and qemu-io must exist.
-.PHONY: test-sparsify
-test-sparsify:
-	bash docker/storage/tests/test_sparsify_recover_backup.sh
-
-.PHONY: test-integration
-test-integration: test-e2e-seed
-	docker run $(_e2e_tty) --rm --network=isard-network \
-	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
-	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real
-
-.PHONY: ci-test-integration
-ci-test-integration: test-e2e-seed
-	docker run $(_e2e_tty) --rm --network=isard-network \
-	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
-	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
-
-# CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
-# via artifacts.reports.*. Paths must match .gitlab-ci.yml byte-identical.
-
-.PHONY: ci-test-go
-ci-test-go:
-	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
-	go tool cover -func coverage.out | grep '^total:'
-	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
-
 # ci-test-* targets generated entirely from PY_PKGS (the matrix above). No
 # suite here needs a running service: the ones that assert on a real Redis live
 # in testing/integration/redis/ and run against the stack.
@@ -252,6 +165,94 @@ ci-test-$(word 1,$1):
 	cd $(word 3,$1) && uv run --no-dev --group test --package isardvdi-$(word 1,$1) pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=$(word 2,$1) --cov-report=term --cov-report=xml:coverage.xml
 endef
 $(foreach r,$(PY_PKGS),$(eval $(call CI_TEST_RULE,$(subst :, ,$(r)))))
+
+.PHONY: ci-test-python
+ci-test-python: $(addprefix ci-test-,$(PY_PKG_NAMES))
+
+# Every package the ci-test-* rows need, minus the ones whose dependencies do
+# not build in the uv image: engine pulls libvirt-python and libpci, which want
+# headers it does not carry, and its suite runs in a different image anyway.
+UV_WARM_PKGS := $(filter-out engine,$(PY_PKG_NAMES))
+
+.PHONY: ci-warm-uv-cache
+ci-warm-uv-cache:
+	uv sync --frozen --no-dev --group test $(addprefix --package isardvdi-,$(UV_WARM_PKGS))
+	uv sync --frozen --only-group dev
+
+.PHONY: test-go
+test-go:
+	go test -race -cover ./...
+
+.PHONY: ci-test-go
+ci-test-go:
+	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
+	go tool cover -func coverage.out | grep '^total:'
+	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
+
+# Behavioural unit tests for the vmalert storage-governor rules, under the same
+# vmalert engine (MetricsQL) the stack runs. The vmalert-tool version is DERIVED
+# from the runtime vmalert pin in docker-compose-parts/monitor.yml, so it cannot
+# drift from what the stack runs.
+.PHONY: test-vmalert
+test-vmalert:
+	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
+	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
+	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
+	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+
+# Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, so pytest
+# never sees it, and it needs real qcow2 images and a live lock holder: qemu-img
+# and qemu-io must exist.
+.PHONY: test-sparsify
+test-sparsify:
+	bash docker/storage/tests/test_sparsify_recover_backup.sh
+
+.PHONY: ci-test-frontend
+ci-test-frontend:
+	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
+
+.PHONY: ci-test-webapp-js
+ci-test-webapp-js:
+	for t in webapp/src/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
+
+# ---------------------------------------------------------------------------
+# Integration
+# Suites that need a real dependency: the stack, a redis or a rethinkdb.
+# `seed-test-db` is shared with the end-to-end section below.
+# ---------------------------------------------------------------------------
+
+# Usage:
+#   make test-e2e                                          # run all specs
+#   make test-e2e E2E_ARGS=tests/webapp/login.spec.js      # single spec
+#   make test-e2e E2E_ARGS='tests/vue2/'                   # one directory
+#   make test-e2e E2E_ARGS='--grep "should login"'         # by test name
+.PHONY: seed-test-db
+seed-test-db:
+	docker run $(_docker_tty) --rm \
+	--network=isard-network \
+	--volumes-from isard-storage \
+	-e RETHINKDB_HOST=isard-db \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-e UV_CACHE_DIR=/tmp/uv-cache \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
+
+.PHONY: test-integration
+test-integration: seed-test-db
+	docker run $(_docker_tty) --rm --network=isard-network \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real
+
+.PHONY: ci-test-integration
+ci-test-integration: seed-test-db
+	docker run $(_docker_tty) --rm --network=isard-network \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
 
 # Contract suites: what a third-party dependency really does, proved against it.
 # Needs only that dependency, never the stack, so it does not belong in a unit
@@ -273,93 +274,33 @@ ci-test-contracts-rethinkdb:
 	uv sync --frozen --no-dev --group test --package isardvdi-backupninja
 	uv run --no-dev --group test --package isardvdi-backupninja pytest --confcutdir=testing/integration/rethinkdb testing/integration/rethinkdb -q --tb=short --junitxml=testing/integration/rethinkdb/report.xml
 
-.PHONY: ci-test-frontend
-ci-test-frontend:
-	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
+# ---------------------------------------------------------------------------
+# End to end
+# ---------------------------------------------------------------------------
 
-.PHONY: ci-test-webapp-js
-ci-test-webapp-js:
-	for t in webapp/src/webapp/static/admin/js/tests/*.test.js; do echo "== $$t"; bun "$$t" || exit 1; done
-
-.PHONY: ci-test-python
-ci-test-python: $(addprefix ci-test-,$(PY_PKG_NAMES))
-
-# Every package the ci-test-* rows need, minus the ones whose dependencies do
-# not build in the uv image: engine pulls libvirt-python and libpci, which want
-# headers it does not carry, and its suite runs in a different image anyway.
-UV_WARM_PKGS := $(filter-out engine,$(PY_PKG_NAMES))
-
-.PHONY: ci-warm-uv-cache
-ci-warm-uv-cache:
-	uv sync --frozen --no-dev --group test $(addprefix --package isardvdi-,$(UV_WARM_PKGS))
-	uv sync --frozen --only-group dev
-
-.PHONY: setup-hooks
-setup-hooks:
-	git config core.hooksPath .githooks
-	@echo "Git hooks installed from .githooks/"
-
-.PHONY: ci-lint
-ci-lint: lint
-
-.PHONY: ci-test
-ci-test: ci-test-go ci-test-python
-
-.PHONY: ci-fix
-ci-fix: format
+.PHONY: test-e2e
+test-e2e: seed-test-db
+	cd ${ISARDVDI_SRC}/testing/e2e && bun ci
+	docker run $(_docker_tty) \
+	--rm --ipc=host \
+	--network=isard-network \
+	-e DOCKER=1 \
+	-e CI \
+	-e E2E_WORKERS \
+	-e E2E_RETRIES \
+	-e E2E_SCREENSHOT \
+	-e E2E_TRACE \
+	-e E2E_TIMEOUT \
+	-e E2E_BASE_URL=$${E2E_BASE_URL:-https://isard-portal} \
+	-e E2E_REPORTER \
+	-e E2E_VIDEO \
+	-e E2E_BROWSER \
+	-v "${ISARDVDI_SRC}/testing/e2e:/e2e" \
+	-w "/e2e" \
+	mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 yarn playwright test $(E2E_ARGS)
 
 .PHONY: ci-e2e
-ci-e2e: test-e2e-seed test-e2e
-
-# Builds+runs the isolated e2e stack that mirrors .gitlab-ci.yml's
-# test-e2e job (CI == local guarantee). Because both stacks share
-# container names (isard-portal, isard-db, …) the dev stack must
-# be DOWN before this target runs. Use `make test-e2e-stack-restore`
-# to bring the dev stack back afterwards.
-#
-# Prereq: run `make down` first to stop the dev stack.
-.PHONY: test-e2e-stack
-test-e2e-stack:
-	@if docker ps --format '{{.Names}}' | grep -q '^isard-portal$$'; then \
-		echo "❌ Dev stack is up. Run 'make down' first, then retry."; \
-		exit 1; \
-	fi
-	@echo "🎭 Generating isardvdi.e2e.cfg from cfg.example + e2e template…"
-	cp ${ISARDVDI_SRC}isardvdi.cfg.example ${ISARDVDI_SRC}isardvdi.e2e.cfg
-	cat ${ISARDVDI_SRC}testing/config/isardvdi.e2e.cfg.template >> ${ISARDVDI_SRC}isardvdi.e2e.cfg
-	@# Inherit dev stack's image prefix+tag so we reuse already-built images.
-	@DEV_PREFIX=$$(grep -E '^DOCKER_IMAGE_PREFIX=' ${ISARDVDI_SRC}isardvdi.cfg | cut -d= -f2-) && \
-	DEV_TAG=$$(grep -E '^DOCKER_IMAGE_TAG=' ${ISARDVDI_SRC}isardvdi.cfg | cut -d= -f2-) && \
-	echo "DOCKER_IMAGE_PREFIX=$$DEV_PREFIX" >> ${ISARDVDI_SRC}isardvdi.e2e.cfg && \
-	echo "DOCKER_IMAGE_TAG=$$DEV_TAG" >> ${ISARDVDI_SRC}isardvdi.e2e.cfg && \
-	echo "📌 Pinned to $$DEV_PREFIX*:$$DEV_TAG"
-	CODEGEN=false bash ${ISARDVDI_SRC}build.sh
-	@echo "🚢 Bringing up e2e stack (reusing local images)…"
-	docker compose -f docker-compose.e2e.yml up -d
-	@echo "⏳ Waiting for stack…"
-	bash ${ISARDVDI_SRC}testing/integration/wait-for-stack.sh 240 || true
-	$(MAKE) test-e2e-seed
-	@echo "🧪 Running Playwright…"
-	cd ${ISARDVDI_SRC}testing/e2e && yarn install --frozen-lockfile
-	PORTAL_IP="$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' isard-portal | tr -d '\n')" && \
-	NETWORK_ID="$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')" && \
-	docker run --rm --ipc=host \
-		--network="$$NETWORK_ID" \
-		--add-host="host.docker.internal:$$PORTAL_IP" \
-		-e DOCKER=1 -e CI=1 \
-		-e E2E_WORKERS=2 -e E2E_RETRIES=2 \
-		-e E2E_SCREENSHOT=only-on-failure \
-		-e E2E_TRACE=on-first-retry \
-		-e E2E_BASE_URL=https://host.docker.internal \
-		-e E2E_RATE_LIMITS_ENABLED=false \
-		-v "${ISARDVDI_SRC}testing/e2e:/e2e" -w "/e2e" \
-		mcr.microsoft.com/playwright:v1.57.0-jammy@sha256:6aca677c27a967caf7673d108ac67ffaf8fed134f27e17b27a05464ca0ace831 \
-		yarn playwright test $(E2E_ARGS)
-
-.PHONY: test-e2e-stack-down
-test-e2e-stack-down:
-	-docker compose -f docker-compose.e2e.yml down --remove-orphans
-	-rm -f ${ISARDVDI_SRC}isardvdi.e2e.cfg ${ISARDVDI_SRC}docker-compose.e2e.yml
+ci-e2e: seed-test-db test-e2e
 
 # Run the Vue 2 (old-frontend) Playwright suite against the
 # currently-running stack. ``BASE_URL`` defaults to https://localhost
@@ -418,19 +359,45 @@ test-e2e-old-frontend-spec:
 	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
 	cd ${ISARDVDI_SRC}old-frontend && bun run test:e2e -- --project=chromium $(SPEC)
 
-# Convenience: tears down e2e stack, removes generated artefacts,
-# and brings dev stack back up from isardvdi.cfg.
-.PHONY: test-e2e-stack-restore
-test-e2e-stack-restore: test-e2e-stack-down up
+# ---------------------------------------------------------------------------
+# Operations
+# ---------------------------------------------------------------------------
 
-.PHONY: ci
-ci: ci-lint ci-test
+.PHONY: tidy
+tidy:
+	go mod tidy
 
-.PHONY: ci-all
-ci-all: ci ci-e2e
+.PHONY: build
+build: build-cfg build-compose
 
-.PHONY: ci-fix-and-test
-ci-fix-and-test: ci-fix ci-lint ci-test
+.PHONY: build-cfg
+build-cfg:
+	bash build.sh
+
+.PHONY: build-compose
+build-compose:
+	docker compose build
+
+.PHONY: pull
+pull:
+	docker compose pull
+
+.PHONY: up
+up:
+	@echo Makeup 💄💅💁✨
+	docker compose up -d
+
+.PHONY: down
+down:
+	docker compose down --remove-orphans
+
+.PHONY: reset
+reset: down up
+
+.PHONY: setup-hooks
+setup-hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks installed from .githooks/"
 
 .PHONY: shell
 shell:
