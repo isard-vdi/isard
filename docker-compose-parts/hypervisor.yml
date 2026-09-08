@@ -64,3 +64,4 @@ services:
       WG_HYPERS_PORT: ${WG_HYPERS_PORT:-4443}
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
+      API_CLIENT_POOL_TIMEOUT_SEC: ${API_CLIENT_POOL_TIMEOUT_SEC:-10}

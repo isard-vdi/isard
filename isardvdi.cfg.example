@@ -1,4 +1,4 @@
-# Isard main config v3.0.8
+# Isard main config v3.0.9
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -507,6 +507,13 @@ HAPROXY_LOGGING=.
 ## webapp 5, changefeed 4), and those defaults only apply while the variable is
 ## UNSET here. Uncommenting the line above sets all eight to 128 — including
 ## the ones sized deliberately small — so set it only if that is what you mean.
+
+## How long a call to the API may wait for a free connection from the pool the
+## Python services share process-wide. Once every client draws from one pool
+## its connections are a budget, and httpx would otherwise wait for one
+## forever, wedging the caller instead of failing. Raise it if a busy service
+## logs httpx PoolTimeout under load.
+#API_CLIENT_POOL_TIMEOUT_SEC=10
 
 ## How many task-results stream entries the change-handler settles at once.
 ## Entries name different chains and are almost entirely waiting on the
