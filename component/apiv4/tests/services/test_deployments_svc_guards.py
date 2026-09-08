@@ -6,7 +6,8 @@
   and decides whether desktops already shutting down are killed too.
 * ``stop_user_desktops`` -- unknown deployment -> not_found; a user_id not in an
   explicit ``allowed.users`` list -> forbidden (blocks probing arbitrary users);
-  a member with no desktops -> not_found; a member with desktops is stopped.
+  a member with no desktops -> not_found; a member with desktops is stopped, and
+  force decides whether the ones already shutting down are killed too.
 * ``toggle_domain_visibility`` -- unknown domain -> not_found; a desktop with no
   deployment tag -> bad_request/not_in_deployment; a tagged one toggles.
 
@@ -95,7 +96,22 @@ class TestStopUserDesktops:
             patch("api.services.deployments.DesktopEvents.desktops_stop") as stop,
         ):
             DeploymentService.stop_user_desktops("dep1", "alice")
-        stop.assert_called_once_with(["d1", "d2"])
+        stop.assert_called_once_with(
+            ["d1", "d2"], force=False, include_shutting_down=False
+        )
+
+    def test_force_kills_shutting_down_too(self):
+        dep = {"allowed": {"users": ["alice"]}}
+        with (
+            patch("api.services.deployments.Caches.get_document", return_value=dep),
+            patch(
+                "api.services.deployments.CommonDeploymentDesktops.get_user_desktop_ids",
+                return_value=["d1"],
+            ),
+            patch("api.services.deployments.DesktopEvents.desktops_stop") as stop,
+        ):
+            DeploymentService.stop_user_desktops("dep1", "alice", True)
+        stop.assert_called_once_with(["d1"], force=True, include_shutting_down=True)
 
 
 class TestToggleDomainVisibility:

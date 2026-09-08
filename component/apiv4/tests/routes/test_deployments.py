@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from api.dependencies.alloweds import owns_deployment_id
+from api.dependencies.alloweds import (
+    is_allowed_deployment_id_and_user_id,
+    owns_deployment_id,
+)
 from tests.routes.helpers import MockJWT
 
 
@@ -120,6 +123,52 @@ def test_stop_all_desktops_in_deployment_force(monkeypatch, test_client):
 
     assert response.status_code == 204
     assert calls == [("dep-1", True)]
+
+
+def _stop_user_desktops(monkeypatch, test_client, body=None):
+    from api import app
+
+    calls = []
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.stop_user_desktops",
+        staticmethod(
+            lambda deployment_id, user_id, force: calls.append(
+                (deployment_id, user_id, force)
+            )
+        ),
+    )
+
+    async def mock_is_allowed(deployment_id: str = "dep-1"):
+        return deployment_id
+
+    app.dependency_overrides[is_allowed_deployment_id_and_user_id] = mock_is_allowed
+    try:
+        response = test_client(
+            url="/item/deployment/dep-1/user/user-1/stop",
+            method="PUT",
+            jwt=MockJWT(),
+            body=body,
+        )
+    finally:
+        app.dependency_overrides.pop(is_allowed_deployment_id_and_user_id, None)
+
+    return response, calls
+
+
+def test_stop_user_desktops_in_deployment(monkeypatch, test_client):
+    response, calls = _stop_user_desktops(monkeypatch, test_client)
+
+    assert response.status_code == 204
+    assert calls == [("dep-1", "user-1", False)]
+
+
+def test_stop_user_desktops_in_deployment_force(monkeypatch, test_client):
+    response, calls = _stop_user_desktops(
+        monkeypatch, test_client, body={"force": True}
+    )
+
+    assert response.status_code == 204
+    assert calls == [("dep-1", "user-1", True)]
 
 
 def test_toggle_deployment_visibility(monkeypatch, test_client):

@@ -288,7 +288,9 @@ class DeploymentService:
         DesktopEvents.desktops_stop(desktops, force=force, include_shutting_down=force)
 
     @staticmethod
-    def stop_user_desktops(deployment_id: str, user_id: str) -> None:
+    def stop_user_desktops(
+        deployment_id: str, user_id: str, force: bool = False
+    ) -> None:
         # Ownership is already checked by the route, but not that user_id
         # belongs to the deployment; without this, an owner could probe
         # arbitrary user_ids via the 404-vs-success response. Enforce
@@ -316,7 +318,7 @@ class DeploymentService:
                 traceback.format_exc(),
             )
 
-        DesktopEvents.desktops_stop(desktops)
+        DesktopEvents.desktops_stop(desktops, force=force, include_shutting_down=force)
 
     @staticmethod
     def get_shared_deployments(user_payload: dict) -> list[dict]:
