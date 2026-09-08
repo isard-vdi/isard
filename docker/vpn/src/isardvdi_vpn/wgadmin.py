@@ -32,6 +32,11 @@ from isardvdi_vpn.wgtools import Wg
 from rethinkdb.errors import ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError
 
 VM_MAC_MATCH = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+GUESTS_GW = str(
+    ipaddress.ip_network(os.environ.get("WG_GUESTS_NETS", "10.2.0.0/16"), strict=False)[
+        1
+    ]
+)
 
 
 def ensure_geneve_port(hyper_id, hostname):
@@ -82,9 +87,12 @@ def ensure_geneve_port(hyper_id, hostname):
     port = check_output(
         ("ovs-vsctl", "get", "interface", hyper_id, "ofport"), text=True
     ).strip()
+    # OVS 4.0 drops the internal vlan-wg from NORMAL's flood under RSTP; deliver
+    # guest DHCP and the gateway ARP to it explicitly, not via NORMAL.
     for flow in (
+        f"priority=452,arp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},arp_op=1,arp_tpa={GUESTS_GW},actions=strip_vlan,output:vlan-wg",
         f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=NORMAL",
-        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},tp_src=68,tp_dst=67,actions=NORMAL",
+        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},tp_src=68,tp_dst=67,actions=strip_vlan,output:vlan-wg",
         f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=resubmit(,2)",
         f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
     ):

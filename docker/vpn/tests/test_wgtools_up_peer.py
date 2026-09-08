@@ -36,11 +36,12 @@ def test_up_peer_new_geneve_port_adds_bfd_and_flows(wgtools_hyper):
         # BFD must be enabled even on the fresh-port path.
         assert any("bfd:enable=true" in c for c in cmds)
 
-        # All 4 flow rules (priorities 451/451/450/449) must be installed,
+        # All 5 flow rules (priorities 452/451/451/450/449) must be installed,
         # keyed off the numeric ofport "42".
         flow_cmds = [c for c in cmds if "add-flow" in c]
-        assert len(flow_cmds) == 4
+        assert len(flow_cmds) == 5
         assert all("in_port=42" in c for c in flow_cmds)
+        assert any("priority=452,arp" in c and "output:vlan-wg" in c for c in flow_cmds)
         assert any("priority=451,arp" in c for c in flow_cmds)
         assert any("priority=451,udp" in c for c in flow_cmds)
         assert any("priority=450,ip" in c for c in flow_cmds)
@@ -67,7 +68,7 @@ def test_up_peer_existing_geneve_port_adds_bfd_and_flows(wgtools_hyper):
 
         assert any("bfd:enable=true" in c for c in cmds)
         flow_cmds = [c for c in cmds if "add-flow" in c]
-        assert len(flow_cmds) == 4
+        assert len(flow_cmds) == 5
         assert all("in_port=42" in c for c in flow_cmds)
 
 
@@ -124,10 +125,11 @@ def test_up_peer_wg_geneve_installs_flows_on_fresh_port(wgtools_hyper):
         # liveness signal; OVS BFD is reserved for the plain-geneve path).
         assert not any("bfd:enable=true" in c for c in cmds)
 
-        # All 4 flow rules (priorities 451/451/450/449) must be installed.
+        # All 5 flow rules (priorities 452/451/451/450/449) must be installed.
         flow_cmds = [c for c in cmds if "add-flow" in c]
-        assert len(flow_cmds) == 4
+        assert len(flow_cmds) == 5
         assert all("in_port=42" in c for c in flow_cmds)
+        assert any("priority=452,arp" in c and "output:vlan-wg" in c for c in flow_cmds)
         assert any("priority=451,arp" in c for c in flow_cmds)
         assert any("priority=451,udp" in c for c in flow_cmds)
         assert any("priority=450,ip" in c for c in flow_cmds)
@@ -167,7 +169,7 @@ def test_up_peer_wg_geneve_installs_flows_on_existing_port(wgtools_hyper):
         # BFD intentionally not enabled on the WG+geneve path.
         assert not any("bfd:enable=true" in c for c in cmds)
         flow_cmds = [c for c in cmds if "add-flow" in c]
-        assert len(flow_cmds) == 4
+        assert len(flow_cmds) == 5
         assert all("in_port=42" in c for c in flow_cmds)
         # Legacy p201/p200 rules should be gone (superseded by p450/p449).
         assert not any("priority=201" in c for c in flow_cmds)

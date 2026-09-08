@@ -21,6 +21,11 @@ from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 # Not /usr/bin/wg-quick: the host AppArmor profile attaches to that path.
 WG_QUICK = "/isard/bin/wg-quick"
+GUESTS_GW = str(
+    ipaddress.ip_network(os.environ.get("WG_GUESTS_NETS", "10.2.0.0/16"), strict=False)[
+        1
+    ]
+)
 
 
 class WgQuickError(RuntimeError):
@@ -709,6 +714,16 @@ class Wg(object):
                     text=True,
                 ).strip()
                 vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                # OVS 4.0 drops the internal vlan-wg from NORMAL's flood under RSTP;
+                # deliver guest DHCP and the gateway ARP to it explicitly, not via NORMAL.
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=452,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},arp_op=1,arp_tpa={GUESTS_GW},actions=strip_vlan,output:vlan-wg",
+                    ]
+                )
                 subprocess.run(
                     [
                         "ovs-ofctl",
@@ -722,7 +737,7 @@ class Wg(object):
                         "ovs-ofctl",
                         "add-flow",
                         "ovsbr0",
-                        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
+                        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=strip_vlan,output:vlan-wg",
                     ]
                 )
                 subprocess.run(
@@ -835,6 +850,18 @@ class Wg(object):
                     text=True,
                 ).strip()
                 vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                # OVS 4.0 drops the internal vlan-wg from NORMAL's flood under RSTP;
+                # deliver guest DHCP and the gateway ARP to it explicitly, not via NORMAL.
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=452,arp,in_port={port},dl_vlan=4095,"
+                        f"dl_src={vm_mac_match},arp_op=1,arp_tpa={GUESTS_GW},"
+                        f"actions=strip_vlan,output:vlan-wg",
+                    ]
+                )
                 subprocess.run(
                     [
                         "ovs-ofctl",
@@ -851,7 +878,7 @@ class Wg(object):
                         "ovsbr0",
                         f"priority=451,udp,in_port={port},dl_vlan=4095,"
                         f"dl_src={vm_mac_match},tp_src=68,tp_dst=67,"
-                        f"actions=NORMAL",
+                        f"actions=strip_vlan,output:vlan-wg",
                     ]
                 )
                 subprocess.run(
