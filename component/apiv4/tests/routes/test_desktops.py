@@ -1088,9 +1088,10 @@ def test_create_nonpersistent_desktop(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
 
-    def fake_create(payload, template_id):
+    def fake_create(payload, template_id, booking_end=None):
         captured["user_id"] = payload["user_id"]
         captured["template_id"] = template_id
+        captured["booking_end"] = booking_end
         return "desktop-np-1"
 
     monkeypatch.setattr(
@@ -1119,7 +1120,94 @@ def test_create_nonpersistent_desktop(monkeypatch, test_client):
     assert captured == {
         "user_id": jwt.payload["user_id"],
         "template_id": "template-1",
+        # Nothing to book: the v3-parity body carries only a template.
+        "booking_end": None,
     }
+
+
+def test_create_nonpersistent_desktop_forwards_the_booking_end(
+    monkeypatch, test_client
+):
+    """A template that reserves a vGPU makes a desktop that is started on
+    creation, so the old frontend asks for an end time first and sends it
+    along. The service receives it as an aware datetime."""
+    from datetime import datetime, timedelta, timezone
+
+    from api import app
+    from api.dependencies.storage_pools import check_create_storage_pool_availability
+
+    jwt = MockJWT()
+    captured = {}
+    end = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(
+        second=0, microsecond=0
+    )
+
+    def fake_create(payload, template_id, booking_end=None):
+        captured["booking_end"] = booking_end
+        return "desktop-np-2"
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.create_nonpersistent_desktop",
+        staticmethod(fake_create),
+    )
+
+    async def mock_check_storage():
+        return None
+
+    app.dependency_overrides[check_create_storage_pool_availability] = (
+        mock_check_storage
+    )
+    try:
+        response = test_client(
+            url="/item/desktop/new-nonpersistent",
+            method="POST",
+            body={"template_id": "template-1", "booking_end": end.isoformat()},
+            jwt=jwt,
+        )
+    finally:
+        app.dependency_overrides.pop(check_create_storage_pool_availability, None)
+
+    assert response.status_code == 200
+    assert captured["booking_end"] == end
+
+
+def test_create_nonpersistent_desktop_rejects_a_past_booking_end(test_client):
+    """The planner treats an end-before-start window as empty, and an empty
+    interval "fits" anywhere -- it would book successfully and reserve
+    nothing. Refused at the schema boundary instead."""
+    from datetime import datetime, timedelta, timezone
+
+    from api import app
+    from api.dependencies.storage_pools import check_create_storage_pool_availability
+
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+
+    # The route's storage-pool guard is a dependency, and FastAPI solves
+    # dependencies before it validates the body -- without the override the
+    # request never reaches the schema this test is about.
+    async def mock_check_storage():
+        return None
+
+    app.dependency_overrides[check_create_storage_pool_availability] = (
+        mock_check_storage
+    )
+    try:
+        response = test_client(
+            url="/item/desktop/new-nonpersistent",
+            method="POST",
+            body={"template_id": "template-1", "booking_end": past},
+            jwt=MockJWT(),
+        )
+    finally:
+        app.dependency_overrides.pop(check_create_storage_pool_availability, None)
+
+    # 400, not FastAPI's default 422: the app maps every request-validation
+    # failure onto the legacy validation_error envelope.
+    assert response.status_code == 400
+    body = response.json()
+    assert body["error"] == "validation_error"
+    # Pinned to the field, so an unrelated 400 cannot pass this test.
+    assert "booking_end" in body["description"]
 
 
 # ─── Toggle deployment desktop visibility by desktop id ───────────────

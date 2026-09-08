@@ -19,9 +19,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import logging as log
 import time
 import traceback
 import uuid
+from datetime import datetime, timezone
 
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -36,9 +38,10 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler
+from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
-from isardvdi_common.models.domain import DomainModel
+from isardvdi_common.models.domain import Domain, DomainModel
 from isardvdi_common.models.storage import Storage
 from rethinkdb import r
 from socketio import RedisManager
@@ -47,7 +50,6 @@ socketio = RedisManager(socketio_url(), write_only=True)
 
 
 class DesktopsNonpersistentProcessed(RethinkSharedConnection):
-
     _rdb_table = "domains"
 
     @classmethod
@@ -61,6 +63,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         new_data=None,
         image=None,
         allow_reuse=True,
+        booking_end=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.New()_
 
@@ -76,16 +79,29 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         # TODO(old-frontend-removal): drop this branch and _single_desktop_per_template.
         if allow_reuse and Helpers.frontend_mode() != "actual":
             return cls._single_desktop_per_template(
-                user_id, template_id, name, description, new_data, image
+                user_id,
+                template_id,
+                name,
+                description,
+                new_data,
+                image,
+                booking_end,
             )
 
         return cls._nonpersistent_desktop_create_and_start(
-            user_id, template_id, name, description, new_data, image
+            user_id,
+            template_id,
+            name,
+            description,
+            new_data,
+            image,
+            booking_end,
         )
 
     @classmethod
     def user_template_desktops(cls, user_id, template_id):
         """Non-persistent desktops this user already holds from a template.
+
         TODO(old-frontend-removal): only the one-per-template rule reads this."""
         with cls._rdb_context():
             return list(
@@ -93,28 +109,46 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
                 .table("domains")
                 .get_all(user_id, index="user")
                 .filter({"from_template": template_id, "persistent": False})
-                .pluck("id", "status")
+                .pluck(
+                    "id",
+                    "status",
+                    "booking_id",
+                    {"create_dict": {"reservables": "vgpus"}},
+                )
                 .run(cls._rdb_connection)
             )
 
     @classmethod
     def _single_desktop_per_template(
-        cls, user_id, template_id, name, description, new_data=None, image=None
+        cls,
+        user_id,
+        template_id,
+        name,
+        description,
+        new_data=None,
+        image=None,
+        booking_end=None,
     ):
         """v3 ``New()``: reuse this template's desktop instead of creating a second one.
         TODO(old-frontend-removal): the whole method goes with that frontend."""
         desktops = cls.user_template_desktops(user_id, template_id)
         if len(desktops) == 1:
-            if desktops[0]["status"] == "Started":
-                return desktops[0]["id"]
-            HypervisorsProcessed.check_virt_storage_pool_availability(desktops[0]["id"])
+            desktop = desktops[0]
+            if desktop["status"] == "Started":
+                return desktop["id"]
+            HypervisorsProcessed.check_virt_storage_pool_availability(desktop["id"])
+            if ((desktop.get("create_dict") or {}).get("reservables") or {}).get(
+                "vgpus"
+            ) and not desktop.get("booking_id"):
+                cls._require_booking_end(booking_end)
+                cls._book_reservables_now(user_id, desktop["id"], booking_end)
             # No wait_seconds: wait_status polls every 2s, so v3's 1 raised a 500
             # before the VM could ever be up.
-            DesktopEvents.desktop_start(desktops[0]["id"])
+            DesktopEvents.desktop_start(desktop["id"])
             Scheduler.add_desktop_timeouts(
-                Helpers.gen_payload_from_user(user_id), desktops[0]["id"]
+                Helpers.gen_payload_from_user(user_id), desktop["id"]
             )
-            return desktops[0]["id"]
+            return desktop["id"]
 
         if desktops:
             # Leftovers from a period on FRONTEND_MODE=actual.
@@ -123,13 +157,72 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             )
 
         return cls._nonpersistent_desktop_create_and_start(
-            user_id, template_id, name, description, new_data, image
+            user_id,
+            template_id,
+            name,
+            description,
+            new_data,
+            image,
+            booking_end,
         )
 
     @classmethod
     def delete_desktop(cls, desktop_id):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.Delete()_"""
         DesktopNonpersistentEvents.desktop_non_persistent_delete(desktop_id)
+
+    @classmethod
+    def _require_booking_end(cls, booking_end):
+        if not booking_end:
+            raise Error(
+                "bad_request",
+                "A temporal desktop with a reservable needs a booking end time",
+                traceback.format_exc(),
+                description_code="temporal_reservable_needs_booking",
+            )
+
+    @classmethod
+    def _book_reservables_now(cls, user_id, desktop_id, booking_end):
+        """Reserve the desktop's vGPUs from now until `booking_end`."""
+        BookingsProcessed.add(
+            Helpers.gen_payload_from_user(user_id),
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M%z"),
+            booking_end,
+            "desktop",
+            desktop_id,
+            now=True,
+        )
+
+    @classmethod
+    def _discard_uncommitted_desktop(cls, desktop_id, storage_id):
+        """Undo an insert that never reached the engine."""
+        try:
+            BookingsProcessed.delete_item_bookings("desktop", desktop_id)
+        except Exception:
+            log.warning(
+                "Could not delete the bookings of discarded desktop %s",
+                desktop_id,
+                exc_info=True,
+            )
+        try:
+            Domain.delete_document_if(
+                desktop_id, field="status", values=["CreatingAndStarting"]
+            )
+        except Exception:
+            log.error(
+                "Could not delete discarded desktop %s", desktop_id, exc_info=True
+            )
+        try:
+            Storage.delete_document_if(
+                storage_id, field="status", values=["non_existing"]
+            )
+        except Exception:
+            log.warning(
+                "Could not delete the pending storage %s of discarded desktop %s",
+                storage_id,
+                desktop_id,
+                exc_info=True,
+            )
 
     @classmethod
     def _unique_desktop_name(cls, user_id, base_name):
@@ -160,6 +253,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         description=None,
         new_data=None,
         image=None,
+        booking_end=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_create_and_start()_"""
         with cls._rdb_context():
@@ -171,7 +265,13 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         )
         # Create the domain from that template
         desktop_id = cls._nonpersistent_desktop_from_tmpl(
-            user_id, template_id, name, description, new_data, image
+            user_id,
+            template_id,
+            name,
+            description,
+            new_data,
+            image,
+            booking_end,
         )
 
         # Disk is created by engine and not ready yet, thus commented this check
@@ -190,6 +290,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         description=None,
         new_data=None,
         image=None,
+        booking_end=None,
     ):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent._nonpersistent_desktop_from_tmpl()_"""
         with cls._rdb_context():
@@ -223,6 +324,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         create_dict["hardware"]["interfaces"] = Helpers.gen_interfaces_macs(
             create_dict["hardware"]["interfaces"]
         )
+
         # Path-shaped ``parent`` lineage marker is not written: see the
         # PR3 commit description. ``storage.parent`` UUID + qcow2 file
         # header are the load-bearing chain representations.
@@ -264,14 +366,9 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
                 create_dict["hardware"]["memory"]
             )
 
-        # TODO: Evaluate reservables for non-persistent desktops, perhaps someday
-        if (create_dict.get("reservables") or {}).get("vgpus"):
-            raise Error(
-                "bad_request",
-                "Can't create temporal desktop from a template with a reservable",
-                traceback.format_exc(),
-                "temporal_new_reservable",
-            )
+        reservable_vgpus = (create_dict.get("reservables") or {}).get("vgpus")
+        if reservable_vgpus:
+            cls._require_booking_end(booking_end)
 
         new_desktop = {
             "id": str(uuid.uuid4()),
@@ -295,6 +392,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],
+                "reservables": create_dict.get("reservables") or {"vgpus": None},
             },
             "hypervisors_pools": template["hypervisors_pools"],
             "allowed": {
@@ -328,9 +426,15 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             r.table("domains").insert(new_desktop).run(cls._rdb_connection)
 
-        pending_storage.enqueue_disk_creation_chain_for_domain(
-            domain_id=new_desktop["id"],
-        )
+        try:
+            if reservable_vgpus:
+                cls._book_reservables_now(user_id, new_desktop["id"], booking_end)
+            pending_storage.enqueue_disk_creation_chain_for_domain(
+                domain_id=new_desktop["id"],
+            )
+        except Exception:
+            cls._discard_uncommitted_desktop(new_desktop["id"], pending_storage.id)
+            raise
         if image:
             if not image.get("file"):
                 Cards.update(new_desktop["id"], image["id"], image["type"])
