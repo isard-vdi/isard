@@ -119,6 +119,10 @@ HYP_STATUS_NOT_ALIVE = -10
 MAX_GET_KVM_RETRIES = 3
 
 
+GPU_VFIO_APPLY_RETRIES = 3
+GPU_VFIO_APPLY_RETRY_WAIT = 5
+
+
 class HypStats(object):
     def __init__(self):
         self.hyper_stats_history = {}
@@ -924,6 +928,13 @@ class hyp(object):
                             f"re-initialization or rediscovery."
                         )
                         update_table_field(
+                            "vgpus",
+                            gpu_id,
+                            "last_apply_error",
+                            f"profile {new_profile!r} is not among the card's "
+                            "discovered types; it may need rediscovery",
+                        )
+                        update_table_field(
                             "vgpus", gpu_id, "changing_to_profile", False
                         )
                         return False
@@ -1229,6 +1240,28 @@ class hyp(object):
                 report = self._apply_via_cli(
                     gpu_id, pci_info, new_profile, mig_profile_id, mig_count
                 )
+                # The first apply triggers the vfio-pci -> nvidia rebind and can
+                # return before it settles; the framework exposes nothing to wait on.
+                _retries = 0
+                while (
+                    pci_info.get("framework") == "vfio_variant"
+                    and _retries < GPU_VFIO_APPLY_RETRIES
+                    and (
+                        report is None
+                        or report.get("result")
+                        not in ("applied", "noop", "teardown_blocked")
+                    )
+                ):
+                    _retries += 1
+                    time.sleep(GPU_VFIO_APPLY_RETRY_WAIT)
+                    logs.main.warning(
+                        f"gpu_apply_cli retry {_retries}/{GPU_VFIO_APPLY_RETRIES} "
+                        f"for vfio card {gpu_id} -> {new_profile}: the driver "
+                        "rebind may still be settling"
+                    )
+                    report = self._apply_via_cli(
+                        gpu_id, pci_info, new_profile, mig_profile_id, mig_count
+                    )
                 if report is not None and report.get("result") in ("applied", "noop"):
                     self._ingest_cli_report(gpu_id, pci_id, new_profile, report)
                     update_table_field("vgpus", gpu_id, "changing_to_profile", False)
