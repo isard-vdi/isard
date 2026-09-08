@@ -5,6 +5,7 @@ import { isardVdiUrl } from '@/lib/constants'
 import { LocaleSwitch } from '@/components/locale-switch'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BrandLogo } from '@/components/logo'
 import {
   getToken as getAuthToken,
   removeToken as removeAuthToken,
@@ -60,12 +61,7 @@ const cleanCookiesAndGoToLogin = () => {
           class="bg-dots-img w-[480px] h-[480px] absolute top-[calc(-100px)] left-[-60px] z-[-1]"
         />
 
-        <img
-          v-if="!loading && !props.hideLogo"
-          class="self-start max-h-[150px]"
-          :src="'/api/v4/logo'"
-          alt="IsardVDI logo"
-        />
+        <BrandLogo v-if="!loading && !props.hideLogo" class="self-start max-h-[150px]" />
         <Skeleton v-if="loading" class="h-6 w-1/3 mt-[46px] mb-[32px]" />
         <h1
           v-if="!loading"

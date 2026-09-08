@@ -58,7 +58,7 @@ import { DirectViewerLoadingHint } from '@/components/direct-viewer'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
-import LogoSvg from '@/assets/logo.svg?url'
+import { BrandLogo } from '@/components/logo'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -258,11 +258,6 @@ const notificationText = computed<string | null>(() => {
 
 const isViewerChangeModalOpen = ref(false)
 
-const logoSrc = ref('/custom/logo.svg')
-const handleLogoError = () => {
-  logoSrc.value = LogoSvg
-}
-
 const showResetModal = ref(false)
 
 // Both direct-viewer mutations are addressed by the share token, not a desktop id.
@@ -353,11 +348,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
 
 <template>
   <div class="flex flex-col min-h-screen bg-base-background relative z-0 overflow-hidden">
-    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-warm-200">
+    <header
+      class="flex h-16 items-center justify-between px-6 border-b border-gray-warm-300 bg-base-background"
+    >
       <h1 class="text-display-xs font-semibold text-gray-warm-900">
         {{ t('views.direct-viewer.title') }}
       </h1>
-      <img :src="logoSrc" alt="IsardVDI logo" class="h-[40px]" @error="handleLogoError" />
+      <BrandLogo class="max-h-10 max-w-[180px] w-auto object-contain" />
     </header>
     <main class="flex-1 flex flex-col items-center justify-center px-2">
       <div class="w-full grid place-items-center">

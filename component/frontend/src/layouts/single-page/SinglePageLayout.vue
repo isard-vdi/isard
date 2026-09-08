@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import Button from '@/components/ui/button/Button.vue'
 import { AvatarLabel } from '@/components/avatar-label'
+import { BrandLogo } from '@/components/logo'
 import {
   removeToken as removeAuthToken,
   useCookies as useAuthCookies,
@@ -65,11 +66,7 @@ const logOut = () => {
       v-if="props.avatar"
       class="hidden sm:flex flex-col justify-between items-center w-[80px] h-full p-4 pl-8"
     >
-      <img
-        :src="'/api/v4/logo'"
-        alt="IsardVDI logo"
-        class="self-start max-h-[150px] max-w-min h-[50px] m-"
-      />
+      <BrandLogo class="self-start max-h-[150px] max-w-min h-[50px] m-" />
       <div class="flex flex-col w-full self-end mb-[24px] ml-[20px] items-start">
         <div class="flex items-center gap-4">
           <AvatarLabel

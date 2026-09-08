@@ -32,8 +32,7 @@ import SidebarItem from '@/components/sidebar/SidebarItem.vue'
 import SidebarToggle from '@/components/sidebar/SidebarToggle.vue'
 import type { SidebarItem as SidebarItemType } from '@/lib/navigation'
 import type { UserResponse } from '@/gen/oas/apiv4/types.gen'
-import LogoSvg from '@/assets/logo.svg?url'
-import LogoCollapsedSvg from '@/assets/logo-collapsed.svg?url'
+import { BrandLogo } from '@/components/logo'
 
 interface Props extends PrimitiveProps {
   items?: SidebarItemType[]
@@ -70,9 +69,6 @@ const emit = defineEmits(['logout'])
 
 const { t } = useI18n()
 
-const logoSrc = ref('/api/v4/logo')
-const logoCollapsedSrc = ref('/api/v4/logo-collapsed')
-
 const logoWidth = ref(0)
 const logoHeight = ref(0)
 
@@ -91,14 +87,6 @@ const expandedLogoClass = computed(() => {
   }
   return 'max-h-30'
 })
-
-const handleLogoError = () => {
-  logoSrc.value = LogoSvg
-}
-
-const handleLogoCollapsedError = () => {
-  logoCollapsedSrc.value = LogoCollapsedSvg
-}
 </script>
 
 <template>
@@ -118,12 +106,7 @@ const handleLogoCollapsedError = () => {
             v-if="!open"
             class="flex flex-col items-center justify-center gap-6 h-full"
           >
-            <img
-              :src="logoCollapsedSrc"
-              alt="IsardVDI"
-              class="mx-auto hidden md:flex"
-              @error="handleLogoCollapsedError"
-            />
+            <BrandLogo variant="collapsed" class="mx-auto hidden md:flex" />
             <Tooltip>
               <TooltipTrigger as-child>
                 <SidebarToggle :open="open" @click="toggleSidebar" />
@@ -134,13 +117,7 @@ const handleLogoCollapsedError = () => {
           </SidebarMenuItem>
           <SidebarMenuItem v-else class="flex flex-row items-center justify-between min-h-26">
             <div class="flex items-center justify-center flex-1">
-              <img
-                :src="logoSrc"
-                alt="IsardVDI Logo"
-                :class="expandedLogoClass"
-                @load="checkLogoDimensionas"
-                @error="handleLogoError"
-              />
+              <BrandLogo :class="expandedLogoClass" @load="checkLogoDimensionas" />
             </div>
             <Tooltip>
               <TooltipTrigger as-child>

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import mountainsSvg from '@/assets/img/mountains.svg'
 import { Separator } from '@/components/ui/separator'
-import LogoSvg from '@/assets/logo.svg?url'
+import { BrandLogo } from '@/components/logo'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -130,9 +130,6 @@ const reject = () => {
   authStore.logout()
   router.push({ name: 'login' })
 }
-
-const logoSrc = ref('/api/v4/logo')
-const handleLogoError = () => (logoSrc.value = LogoSvg)
 </script>
 
 <template>
@@ -144,12 +141,7 @@ const handleLogoError = () => (logoSrc.value = LogoSvg)
       <div class="h-full overflow-y-auto pt-5 px-5 text-justify md:px-12 md:pt-10">
         <div class="mx-auto md:w-3/4">
           <!-- Logo -->
-          <img
-            class="mb-8 flex m-auto max-h-30"
-            :src="logoSrc"
-            @error="handleLogoError"
-            alt="logo"
-          />
+          <BrandLogo class="mb-8 flex m-auto max-h-30" />
           <!-- Loading -->
           <div v-if="isPending" class="flex flex-col gap-4">
             <div class="h-8 w-3/4 bg-gray-warm-200 rounded animate-pulse" />

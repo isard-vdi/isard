@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { isardVdiUrl } from '@/lib/constants'
 import { LocaleSwitch } from '@/components/locale-switch'
+import { BrandLogo } from '@/components/logo'
 
 const { t } = useI18n()
 
@@ -9,7 +10,7 @@ interface Props {
   loading?: boolean
   hideLocaleSwitch?: boolean
   hideLogo?: boolean
-  logoSrc?: string
+  logoCategoryId?: string
   title?: string
   description?: string
 }
@@ -18,7 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   hideLocaleSwitch: false,
   hideLogo: false,
-  logoSrc: '/api/v4/logo',
+  logoCategoryId: undefined,
   title: undefined,
   description: undefined
 })
@@ -44,11 +45,10 @@ const props = withDefaults(defineProps<Props>(), {
 
       <!-- Login form -->
       <div class="self-center flex flex-col w-[360px]">
-        <img
+        <BrandLogo
           v-if="!loading && !props.hideLogo"
           class="self-center max-h-[150px]"
-          :src="props.logoSrc"
-          alt="IsardVDI logo"
+          :category-id="props.logoCategoryId"
         />
         <h1
           v-if="!loading"
