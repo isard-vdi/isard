@@ -1,3 +1,6 @@
+import type { useCookies } from '@vueuse/integrations/useCookies'
+import type { CookieSetOptions } from 'universal-cookie'
+
 /** Interface id the RDP viewers need attached to the domain. */
 export const WIREGUARD_INTERFACE_ID = 'wireguard'
 
@@ -35,4 +38,22 @@ export function viewerLabels(viewers: readonly string[], t: (key: string) => str
   return viewers.map((viewer) =>
     VIEWER_LABEL_KEYS[viewer] ? t(VIEWER_LABEL_KEYS[viewer]) : viewer
   )
+}
+
+// The viewer pages (noVNC, guacamole) are served outside the `/frontend` base, so their cookies must be set at the root path.
+const VIEWER_COOKIE_OPTS: CookieSetOptions = {
+  path: '/',
+  sameSite: 'strict'
+}
+
+type Cookies = ReturnType<typeof useCookies>
+
+/** Security token the noVNC and guacamole pages read from `document.cookie`. */
+export function setViewerToken(cookies: Cookies, token: string) {
+  cookies.set('viewerToken', token, VIEWER_COOKIE_OPTS)
+}
+
+/** Connection parameters the browser viewers read from `document.cookie`. */
+export function setBrowserViewerCookie(cookies: Cookies, cookie: string) {
+  cookies.set('browser_viewer', cookie, VIEWER_COOKIE_OPTS)
 }

@@ -2,10 +2,11 @@ import { computed } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useLocalStorage } from '@vueuse/core'
 import { useCookies } from '@vueuse/integrations/useCookies'
-import type { CookieSetOptions } from 'universal-cookie'
 
 import { getDesktopViewerByTypeOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { GetDesktopViewerByTypeData } from '@/gen/oas/apiv4'
+import { getBearer, sessionTokenName } from '@/lib/auth'
+import { setBrowserViewerCookie, setViewerToken } from '@/lib/viewers'
 
 type ViewerType = GetDesktopViewerByTypeData['path']['viewer_type']
 
@@ -14,14 +15,9 @@ export interface FetchAndOpenViewerVariables {
   viewer: ViewerType
 }
 
-const cookieOpts: CookieSetOptions = {
-  path: '/',
-  sameSite: 'strict'
-}
-
 export function useFetchAndOpenViewer() {
   const queryClient = useQueryClient()
-  const cookies = useCookies(['viewerToken', 'browser_viewer'])
+  const cookies = useCookies(['viewerToken', 'browser_viewer', sessionTokenName])
   const localStorage = useLocalStorage('viewers', '')
 
   const preferedViewers = computed<Record<string, ViewerType>>(() =>
@@ -44,10 +40,12 @@ export function useFetchAndOpenViewer() {
 
       if (data.kind === 'browser') {
         if (data.protocol === 'rdp') {
-          // TODO: session cookie — preserved from original implementation
-          alert('TODO: set session cookie for RDP viewer')
+          const bearer = getBearer(cookies)
+          if (bearer) {
+            setViewerToken(cookies, bearer)
+          }
         }
-        cookies.set('browser_viewer', data.cookie, cookieOpts)
+        setBrowserViewerCookie(cookies, data.cookie)
         window.open(data.viewer || undefined, '_blank')
       } else if (data.kind === 'file') {
         const el = document.createElement('a')

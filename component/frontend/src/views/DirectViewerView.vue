@@ -31,6 +31,7 @@ import {
 } from '@/lib/desktops'
 
 import { withOptimisticStatus } from '@/lib/optimistic'
+import { setBrowserViewerCookie, setViewerToken } from '@/lib/viewers'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 import { useJwtRenewal } from '@/composables/useJwtRenewal'
@@ -64,9 +65,6 @@ const { t, d } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
-
-// Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
-const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
 
 const CARD_SIZE: CardSize = 'xl'
 
@@ -158,7 +156,7 @@ watch(
     viewerJwt.value = jwt
     if (jwt) {
       // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
-      cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
+      setViewerToken(cookies, jwt)
       if (!isConnected.value) {
         connectSocket(() => viewerJwt.value)
       }
@@ -322,7 +320,11 @@ const openViewer = (viewerId: string) => {
 
   if (viewer.kind === 'browser') {
     if (viewer.cookie) {
-      cookies.set('browser_viewer', viewer.cookie, VIEWER_COOKIE_OPTS)
+      setBrowserViewerCookie(cookies, viewer.cookie)
+    }
+    // The guacamole page drops `viewerToken` on unload, so re-set it on every open or the next noVNC has no security token.
+    if (viewerJwt.value) {
+      setViewerToken(cookies, viewerJwt.value)
     }
     if (viewer.viewer) {
       // `direct=1` flips noVNC's cookie precedence to `viewerToken` (no session cookie exists in the direct-viewer flow).

@@ -520,6 +520,28 @@ describe('DirectViewerView', () => {
     vi.unstubAllGlobals()
   })
 
+  it('re-sets the viewerToken cookie on every browser viewer open', async () => {
+    const openSpy = vi.fn()
+    vi.stubGlobal('open', openSpy)
+    viewerData.value = startedDesktop({
+      viewers: { 'browser-vnc': { kind: 'browser', cookie: 'ck', viewer: '/viewer/vnc' } }
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    // The guacamole page removes the cookie on unload; reopening a viewer has to write it back.
+    cookieSetMock.mockClear()
+
+    const groupButtons = wrapper.find('[data-test="button-group"]').findAll('[data-test="btn"]')
+    await groupButtons[0].trigger('click')
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      'viewerToken',
+      'tok-jwt',
+      expect.objectContaining({ path: '/' })
+    )
+    vi.unstubAllGlobals()
+  })
+
   it('opens the networks modal from the networks overlay overflow', async () => {
     viewerData.value = startedDesktop()
     const wrapper = mountView()
