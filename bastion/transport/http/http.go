@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/bastion/cfg"
@@ -26,14 +25,16 @@ import (
 )
 
 type bastion struct {
-	log *zerolog.Logger
-	db  r.QueryExecutor
+	log        *zerolog.Logger
+	db         r.QueryExecutor
+	cfgWatcher *db.Watcher[model.Config]
 }
 
-func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.QueryExecutor, cfg cfg.HTTP) {
+func Serve(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, cfgWatcher *db.Watcher[model.Config], cfg cfg.HTTP) {
 	b := &bastion{
-		log: log,
-		db:  db,
+		log:        log,
+		db:         db,
+		cfgWatcher: cfgWatcher,
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for HTTP connections")
@@ -72,7 +73,6 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	<-ctx.Done()
 
 	lis.Close()
-	wg.Done()
 }
 
 func (b *bastion) handleConn(ctx context.Context, conn net.Conn) {
@@ -294,18 +294,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 			return
 		}
 
-		currentConfig := &model.Config{}
-		if err := currentConfig.Load(ctx, b.db); err != nil {
-			proxyLog.Error().Err(err).Msg("Failed to load config")
-			if errors.Is(err, db.ErrNotFound) {
-				return
-			}
-			if attempt == maxAttempts-1 {
-				return
-			}
-			continue
-		}
-
+		currentConfig := b.cfgWatcher.Current()
 		if !currentConfig.Bastion.Enabled {
 			proxyLog.Error().Msg("Bastion not enabled in the config")
 			return

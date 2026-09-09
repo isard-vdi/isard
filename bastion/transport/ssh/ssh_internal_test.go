@@ -1,11 +1,16 @@
 package ssh
 
 import (
+	"context"
 	"crypto/ed25519"
 	"errors"
+	"net"
+	"sync"
 	"testing"
+	"time"
 
 	"gitlab.com/isard/isardvdi/bastion/model"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/stretchr/testify/assert"
@@ -575,6 +580,105 @@ func TestBastionCheckAuthorizedKeys(t *testing.T) {
 			}
 
 			assert.Equal(tc.Expected, ok)
+
+			mock.AssertExpectations(t)
+		})
+	}
+}
+
+// testConnMetadata is the minimum of ssh.ConnMetadata that handleAuth reads.
+type testConnMetadata struct {
+	user string
+}
+
+func (c testConnMetadata) User() string {
+	return c.user
+}
+
+func (c testConnMetadata) SessionID() []byte {
+	return nil
+}
+
+func (c testConnMetadata) ClientVersion() []byte {
+	return nil
+}
+
+func (c testConnMetadata) ServerVersion() []byte {
+	return nil
+}
+
+func (c testConnMetadata) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222}
+}
+
+func (c testConnMetadata) LocalAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2022}
+}
+
+func TestBastionHandleAuth(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	key, _ := testKey(t, 3)
+
+	cases := map[string]struct {
+		Enabled     bool
+		PrepareDB   func(*r.Mock)
+		Target      string
+		ExpectedErr string
+	}{
+		"should refuse the authentication if the bastion is disabled": {
+			PrepareDB:   func(m *r.Mock) {},
+			Target:      "11111111-1111-1111-1111-111111111111",
+			ExpectedErr: "authentication failed\n",
+		},
+		"should keep authenticating if the bastion is enabled, so the guard is not just always false": {
+			Enabled: true,
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("targets").Get("22222222-2222-2222-2222-222222222222")).Once().Return([]any{
+					map[string]any{
+						"id":         "22222222-2222-2222-2222-222222222222",
+						"desktop_id": "desktop-of-disabled-ssh",
+						"ssh": map[string]any{
+							"enabled": false,
+						},
+					},
+				}, nil)
+			},
+			Target:      "22222222-2222-2222-2222-222222222222",
+			ExpectedErr: "SSH is not enabled for this target\n",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			mock := r.NewMock()
+			tc.PrepareDB(mock)
+
+			logger := log.New("test", "debug")
+
+			var wg sync.WaitGroup
+
+			cfgWatcher := db.NewWatcher(logger, time.Hour, 0, func(context.Context) (model.Config, error) {
+				return model.Config{
+					Bastion: model.Bastion{Enabled: tc.Enabled},
+				}, nil
+			})
+			require.NoError(t, cfgWatcher.Start(t.Context(), &wg))
+
+			b := &bastion{
+				log:        logger,
+				db:         mock,
+				cfgWatcher: cfgWatcher,
+			}
+
+			perms, err := b.handleAuth(t.Context(), testConnMetadata{user: tc.Target}, key)
+
+			assert.Nil(perms)
+			assert.EqualError(err, tc.ExpectedErr)
 
 			mock.AssertExpectations(t)
 		})

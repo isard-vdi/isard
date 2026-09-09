@@ -3,22 +3,11 @@ package model
 import (
 	"context"
 	"errors"
-	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 
-	"github.com/jellydator/ttlcache/v3"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-var configCache = ttlcache.New(
-	ttlcache.WithTTL[int, Config](30*time.Second),
-	ttlcache.WithDisableTouchOnHit[int, Config](),
-)
-
-func init() {
-	go configCache.Start()
-}
 
 type Config struct {
 	Bastion Bastion `rethinkdb:"bastion"`
@@ -31,13 +20,7 @@ type Bastion struct {
 }
 
 func (c *Config) Load(ctx context.Context, sess r.QueryExecutor) error {
-	cached := configCache.Get(1)
-	if cached != nil {
-		*c = cached.Value()
-		return nil
-	}
-
-	res, err := r.Table("config").Get(1).Run(sess)
+	res, err := r.Table("config").Get(1).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -55,8 +38,6 @@ func (c *Config) Load(ctx context.Context, sess r.QueryExecutor) error {
 			Err: err,
 		}
 	}
-
-	configCache.Set(1, *c, ttlcache.DefaultTTL)
 
 	return nil
 }

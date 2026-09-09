@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"time"
 
 	"gitlab.com/isard/isardvdi/bastion/cfg"
+	"gitlab.com/isard/isardvdi/bastion/model"
 	"gitlab.com/isard/isardvdi/bastion/transport/http"
 	"gitlab.com/isard/isardvdi/bastion/transport/ssh"
 	"gitlab.com/isard/isardvdi/pkg/db"
@@ -19,7 +21,7 @@ func main() {
 
 	log := log.New("bastion", cfg.Log.Level)
 
-	db, err := db.New(cfg.DB)
+	dbSess, err := db.New(cfg.DB)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create DB connection")
 	}
@@ -27,13 +29,29 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
+	cfgLog := log.With().Str("config", "bastion").Logger()
+	cfgWatcher := db.NewWatcher(&cfgLog, 30*time.Second, 0, func(ctx context.Context) (model.Config, error) {
+		cfg := model.Config{}
+		if err := cfg.Load(ctx, dbSess); err != nil {
+			return model.Config{}, err
+		}
+
+		return cfg, nil
+	})
+
+	if err := cfgWatcher.Start(ctx, &wg); err != nil {
+		log.Fatal().Err(err).Msg("load initial bastion configuration")
+	}
+
 	httpLog := log.With().Str("transport", "http").Logger()
-	go http.Serve(ctx, &wg, &httpLog, db, cfg.HTTP)
-	wg.Add(1)
+	wg.Go(func() {
+		http.Serve(ctx, &httpLog, dbSess, cfgWatcher, cfg.HTTP)
+	})
 
 	sshLog := log.With().Str("transport", "ssh").Logger()
-	go ssh.Serve(ctx, &wg, &sshLog, db, cfg.SSH)
-	wg.Add(1)
+	wg.Go(func() {
+		ssh.Serve(ctx, &sshLog, dbSess, cfgWatcher, cfg.SSH)
+	})
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
