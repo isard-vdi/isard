@@ -146,9 +146,7 @@ async def admin_qos_disk_add(
     data: QosDiskCreateRequest,
 ):
     try:
-        await asyncio.to_thread(
-            AdminResourcesService.add_qos_disk, data.model_dump(exclude_none=True)
-        )
+        await asyncio.to_thread(AdminResourcesService.add_qos_disk, data.model_dump())
         return Response(status_code=204)
     except Error:
         raise
@@ -180,7 +178,7 @@ async def admin_qos_disk_update(
 ):
     try:
         await asyncio.to_thread(
-            AdminResourcesService.update_qos_disk, data.model_dump(exclude_none=True)
+            AdminResourcesService.update_qos_disk, data.model_dump(exclude_unset=True)
         )
         return Response(status_code=204)
     except Error:

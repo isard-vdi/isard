@@ -20,20 +20,18 @@
 
 from typing import Optional
 
+from api.schemas.allowed import Allowed
 from pydantic import BaseModel, Field
 
 
 class QosDiskCreateRequest(BaseModel):
     """Request body for creating a QoS disk profile."""
 
-    id: Optional[str] = Field(default=None, description="QoS disk profile ID")
     name: str = Field(description="QoS disk profile name")
-    description: Optional[str] = Field(
-        default=None, description="QoS disk profile description"
-    )
+    description: str = Field(default="", description="QoS disk profile description")
     iotune: dict = Field(description="IO tune parameters")
-    allowed: Optional[dict] = Field(
-        default=None, description="Allowed access configuration"
+    allowed: Allowed = Field(
+        default_factory=Allowed, description="Allowed access configuration"
     )
 
 
@@ -42,12 +40,10 @@ class QosDiskUpdateRequest(BaseModel):
 
     id: str = Field(description="QoS disk profile ID")
     name: str = Field(description="QoS disk profile name")
-    description: Optional[str] = Field(
-        default=None, description="QoS disk profile description"
-    )
-    iotune: Optional[dict] = Field(default=None, description="IO tune parameters")
-    allowed: Optional[dict] = Field(
-        default=None, description="Allowed access configuration"
+    description: str = Field(default="", description="QoS disk profile description")
+    iotune: dict = Field(default={}, description="IO tune parameters")
+    allowed: Allowed = Field(
+        default_factory=Allowed, description="Allowed access configuration"
     )
 
 
