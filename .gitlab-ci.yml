@@ -50,7 +50,7 @@ default:
   retry: 1
 
 include:
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.17.2
     inputs:
       max-scan-depth: -1
       include-dev-dependencies: false
@@ -65,47 +65,47 @@ include:
       secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,.codegen-go,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
       enable-static-reachability: true
       stage: unit-test
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.15.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.17.2
     inputs:
       extra-command: 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.15.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.15.0
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.17.2
     inputs:
       unit-test: false
       dependencies: "libvirt-dev"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.17.2
     inputs:
       allow-failure: $[[ inputs.allow-protobuf-lint-failure ]]
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
       job-prefix: "old-frontend:"
       project-directory: "old-frontend"
       bun-script: "lint --no-fix --max-warnings 0"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
       job-prefix: "frontend:lint-"
       project-directory: "component/frontend"
       bun-script: "lint --format gitlab"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
       job-prefix: "frontend:format-"
       project-directory: "component/frontend"
       bun-script: "format --write=false --check"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
       job-prefix: "frontend:type-check-"
       project-directory: "component/frontend"
       bun-script: "type-check"
       allow-failure: true
   # Included only for the bun cache mixin that test-e2e extends.
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
       job-prefix: "e2e:"
       project-directory: "testing/e2e"
       lint: false
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.15.0
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.17.2
     inputs:
       job-prefix: "build-codegen:"
       build-stage: build-codegen
