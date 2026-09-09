@@ -26,11 +26,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class SmtpConfigRequest(BaseModel):
     """Request for SMTP configuration"""
 
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
     host: Optional[str] = None
     port: Optional[int] = None
     username: Optional[str] = None
     password: Optional[str] = None
     enabled: Optional[bool] = None
+    from_: Optional[str] = Field(default=None, alias="from")
 
 
 class SmtpConfigResponse(BaseModel):
