@@ -317,6 +317,14 @@ func TestCfgWatcherWatch(t *testing.T) {
 				google.On("LoadConfig", ctx, model.GoogleConfig{ClientID: "test-client-id"}).Return(nil)
 			},
 		},
+		"should not send a provider config if the initial config is the zero value": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					LDAP: model.LDAP{Enabled: true},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+		},
 	}
 
 	for name, tc := range cases {
