@@ -50,6 +50,7 @@ from isardvdi_apiv4_client.models.quota import Quota
 
 from .helpers.client import IsardClient
 from .helpers.responses import created_id, expect
+from .helpers.seed import derivable
 
 USER01_USERNAME = os.environ.get("E2E_USER01_USERNAME", "user01")
 USER01_PASSWORD = os.environ.get("E2E_USER01_PASSWORD", "a?)49hgT")
@@ -215,6 +216,7 @@ def test_desktop_quota_gate_flips_when_exhausted(
         )
     )
     assert isinstance(templates, list)
+    templates = derivable(templates)
     if not templates:
         # Make the seeded admin template allowed-for-all temporarily so
         # user01 can derive a desktop. ``/admin/items/templates`` is
@@ -225,6 +227,7 @@ def test_desktop_quota_gate_flips_when_exhausted(
             admin_get_templates.sync_detailed(client=admin_client.apiv4())
         )
         assert isinstance(admin_templates, list)
+        admin_templates = derivable(admin_templates)
         if not admin_templates:
             pytest.skip("no admin templates seeded; cannot exhaust quota")
         seed_template = admin_templates[0]
@@ -254,6 +257,7 @@ def test_desktop_quota_gate_flips_when_exhausted(
             )
         )
         assert isinstance(templates, list)
+        templates = derivable(templates)
         assert (
             templates
         ), "after relaxing template allowed, user01 still sees no templates"

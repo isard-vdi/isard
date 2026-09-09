@@ -481,7 +481,6 @@
         },
         "booking_id": false,
         "category": "default",
-        "current_action": "increase",
         "create_dict": {
             "create_from_virt_install_xml": "win7Virtio",
             "hardware": {
@@ -559,7 +558,7 @@
         "os": "win",
         "persistent": true,
         "server": false,
-        "status": "Maintenance",
+        "status": "Stopped",
         "tag": false,
         "tag_name": false,
         "tag_visible": false,

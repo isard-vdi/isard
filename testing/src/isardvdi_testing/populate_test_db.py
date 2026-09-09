@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
 import time
 
 from rethinkdb import r
@@ -33,6 +34,24 @@ RESET_TABLES = ["notifications_data"]
 # these up at the start of each run without touching the seeded records.
 E2E_PREFIX_TABLES = ["notifications", "notification_tmpls"]
 
+# Virtual size for a seeded disk with no ``virtual_size`` of its own. qcow2 is
+# sparse, so the file this leaves on the volume is a few hundred KB.
+SEED_DISK_SIZE = "1G"
+
+# The one chain that stays fileless on purpose. A clone of a template whose
+# backing file does not exist wedges in CreatingDisk, and that is the only
+# state the engine accepts force_failed from, so e2e S4 (desktops.spec.js,
+# "Retry on a Failed desktop") derives from this template to reach Failed
+# deterministically. Its cross-category child is here too: the tests that use
+# it (templates.spec.js S9) only read rows, and a standalone file under a row
+# that declares a parent would contradict the chain it claims.
+# Everything else gets a real file — claiming ``ready`` without one is what
+# left the integration suite waiting for desktops that could never be created.
+DISKLESS_STORAGE_IDS = {
+    "storage-template-s9-seed",
+    "storage-desktop-s9-cross-cat-01",
+}
+
 
 def materialize_media_files(media_rows):
     """Create placeholder files for media seeded as already Downloaded.
@@ -64,6 +83,60 @@ def materialize_media_files(media_rows):
             print(f"Created placeholder media file '{path}'")
         except OSError as e:
             print(f"Could not create media file '{path}': {e}")
+
+
+def materialize_storage_files(storage_rows):
+    """Create the qcow2 files behind storage rows seeded as ``ready``.
+
+    Same gap as ``materialize_media_files``, one layer down: the seed
+    inserts storage rows claiming ``ready`` but writes no disk. Deriving
+    a desktop from a seeded template then fails in the storage worker
+    with ``qemu-img: Could not open '<parent>': No such file or
+    directory``, and the domain sits in ``CreatingDisk`` until the
+    change-handler reconcile flips it to ``Failed`` — every template the
+    seed ships is unusable. An empty file is not enough here: qemu-img
+    must be able to open the parent as qcow2, so the file is created
+    with qemu-img itself. No-op when the volume isn't mounted or
+    qemu-img isn't installed.
+    """
+
+    def _path(storage):
+        return os.path.join(
+            storage["directory_path"], f"{storage['id']}.{storage.get('type', 'qcow2')}"
+        )
+
+    by_id = {
+        s["id"]: s for s in storage_rows if s.get("id") and s.get("directory_path")
+    }
+    # Parents first: a row that declares one is created as a real overlay on
+    # it, so the file on disk carries the chain the row claims.
+    for storage in sorted(storage_rows, key=lambda s: bool(s.get("parent"))):
+        if storage.get("status") != "ready":
+            continue
+        directory = storage.get("directory_path")
+        storage_id = storage.get("id")
+        if not directory or not storage_id:
+            continue
+        if storage_id in DISKLESS_STORAGE_IDS:
+            print(f"Leaving '{storage_id}' fileless on purpose")
+            continue
+        if not os.path.isdir(directory):
+            print(f"Storage dir '{directory}' not mounted; skipping '{storage_id}'")
+            continue
+        path = _path(storage)
+        if os.path.exists(path):
+            continue
+        parent = by_id.get(storage.get("parent"))
+        argv = ["qemu-img", "create", "-f", "qcow2"]
+        if parent and os.path.exists(_path(parent)):
+            argv += ["-b", _path(parent), "-F", "qcow2", path]
+        else:
+            argv += [path, str(storage.get("virtual_size") or SEED_DISK_SIZE)]
+        try:
+            subprocess.run(argv, check=True, capture_output=True)
+            print(f"Created placeholder storage file '{path}'")
+        except (OSError, subprocess.CalledProcessError) as e:
+            print(f"Could not create storage file '{path}': {e}")
 
 
 def wait_for_hypervisor_online(dbconn, timeout=HYPER_READY_TIMEOUT):
@@ -135,6 +208,8 @@ def main():
             print(f"Result: {result}")
             if table_name == "media":
                 materialize_media_files(data)
+            if table_name == "storage":
+                materialize_storage_files(data)
         except Exception as e:
             print(f"Error inserting into '{table_name}': {e}")
 

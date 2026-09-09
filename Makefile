@@ -238,7 +238,7 @@ seed-test-db:
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
+	sh -c 'apk add --no-cache git qemu-img && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
 
 .PHONY: test-integration
 test-integration: seed-test-db

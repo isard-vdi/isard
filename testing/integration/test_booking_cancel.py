@@ -43,6 +43,7 @@ from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopReq
 
 from .helpers.client import IsardClient
 from .helpers.responses import created_id, expect
+from .helpers.seed import DISKLESS_TEMPLATE_ID, derivable
 
 # Give the server plenty of buffer from "now"; a booking that overlaps
 # the current second can race the planner and 428 for reasons unrelated
@@ -59,18 +60,24 @@ def _iso(dt: datetime) -> str:
 
 
 def _find_simple_template_id(client: IsardClient) -> str:
-    """Pick any template the admin can derive a desktop from.
+    """Pick a template the admin can derive a *working* desktop from.
 
     The populate seed always ships at least one reference template. Use
     the admin-scoped ``/admin/items/templates`` listing: the plain
     ``/items/templates`` filters by the caller's allowed-list and the
     seeded admin is on no template's allowed-list, so it would see
     nothing.
+
+    The listing is unordered, so taking the first entry could hand back
+    the diskless template and turn this into a 90 s poll for a status the
+    desktop can never reach.
     """
     templates = expect(admin_get_templates.sync_detailed(client=client.apiv4()))
     assert isinstance(templates, list), f"unexpected templates response: {templates!r}"
     assert templates, "no templates available — is the stack seeded?"
-    return templates[0].id
+    usable = derivable(templates)
+    assert usable, f"only {DISKLESS_TEMPLATE_ID} is available — is the stack seeded?"
+    return usable[0].id
 
 
 @pytest.mark.real
