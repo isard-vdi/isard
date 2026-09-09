@@ -231,6 +231,29 @@ class Config(RethinkCustomBase):
         cls.clear_get_config_cache()
 
     @classmethod
+    def get_orchestrator_enabled(cls) -> bool:
+        """Read ``config[1].orchestrator.enabled``.
+
+        Defaults to ``False`` when the field is unset, which matches the
+        migration default.
+        """
+        with cls._rdb_context():
+            cfg = r.table(cls._rdb_table).get(1).run(cls._rdb_connection) or {}
+        return bool((cfg.get("orchestrator") or {}).get("enabled"))
+
+    @classmethod
+    def set_orchestrator_enabled(cls, value: bool) -> None:
+        """Persist ``config[1].orchestrator.enabled = value``.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"orchestrator": {"enabled": value}}
+            ).run(cls._rdb_connection)
+        cls.clear_get_config_cache()
+
+    @classmethod
     def enable_login_notification(cls, notification_type: str, enable: bool) -> None:
         """Toggle ``login.notification_<type>.enabled`` on/off.
 

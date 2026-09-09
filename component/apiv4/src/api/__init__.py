@@ -565,6 +565,7 @@ from .routes.admin import media as admin_media
 from .routes.admin import notifications as admin_notifications
 from .routes.admin import notify as admin_notify
 from .routes.admin import operations as admin_operations
+from .routes.admin import orchestrator_config as admin_orchestrator_config
 from .routes.admin import queues as admin_queues
 from .routes.admin import resources as admin_resources
 from .routes.admin import roles as admin_roles
