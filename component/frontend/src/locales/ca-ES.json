@@ -357,8 +357,10 @@
       "new-desktop": "Escriptori nou",
       "loading": "S'estan carregant els escriptoris…",
       "stop-all": "Atura tots els escriptoris",
+      "stop-all-error": "No s'han pogut aturar els escriptoris",
       "stop-all-tooltip": {
-        "title": "No hi ha escriptoris iniciats ara mateix"
+        "title": "No hi ha escriptoris iniciats ara mateix",
+        "stopping": "Els escriptoris s'estan aturant"
       },
       "filters": {
         "kind": {
@@ -771,7 +773,7 @@
       },
       "stop-all": {
         "error": "No s'han pogut aturar els escriptoris del desplegament",
-        "no-started-tooltip": "Ara mateix no hi ha cap escriptori iniciat",
+        "no-started-tooltip": "No hi ha escriptoris iniciats ara mateix",
         "stopping-tooltip": "Els escriptoris s'estan aturant"
       },
       "stop-user": {
@@ -1743,26 +1745,29 @@
     "stop-all-desktops-modal": {
       "title": "Atura tots els escriptoris",
       "description": "S'aturarà {n} escriptori. | S'aturaran {n} escriptoris.",
-      "skipped": "Hi ha {n} escriptori aturant-se que es deixarà tal com està; només l'afecta una aturada forçada. | Hi ha {n} escriptoris aturant-se que es deixaran tal com estan; només els afecta una aturada forçada.",
+      "skipped": "Hi ha {n} escriptori apagant-se que es deixarà tal com està; només l'afecta una aturada forçada. | Hi ha {n} escriptoris apagant-se que es deixaran tal com estan; només els afecta una aturada forçada.",
+      "nothing-to-stop": "No hi ha escriptoris iniciats ara mateix",
       "error": "No s'han pogut aturar els escriptoris",
       "loading": "S'estan aturant els escriptoris…",
       "mode": {
         "graceful": {
-          "title": "Atura'ls tots",
-          "description": "Demana al sistema que s'apagui",
+          "title": "Apaga",
+          "description": "Demana l'apagada als escriptoris; els que ja s'estan apagant es deixen tal com estan",
           "disabled": "Cap escriptori iniciat"
         },
         "force": {
-          "title": "Forçar aturada",
-          "description": "L'atura sense apagar-lo, pot corrompre l'escriptori"
+          "title": "Força l'aturada",
+          "description": "Talla el corrent a l'instant, també als que ja s'estan apagant; pot corrompre l'escriptori"
         }
       },
       "force-only": {
-        "description": "Hi ha {n} escriptori aturant-se. Només l'afecta una aturada forçada. | Hi ha {n} escriptoris aturant-se. Només els afecta una aturada forçada.",
-        "confirm": "Forçar aturada"
+        "description": "Hi ha {n} escriptori apagant-se. Només l'afecta una aturada forçada. | Hi ha {n} escriptoris apagant-se. Només els afecta una aturada forçada."
       },
       "cancel": "Cancel·la",
-      "confirm": "Atura'ls tots"
+      "confirm": {
+        "graceful": "Apaga els escriptoris",
+        "force": "Força l'aturada"
+      }
     },
     "desktop-networks-modal": {
       "title": "Xarxes de l'escriptori '{name}'",

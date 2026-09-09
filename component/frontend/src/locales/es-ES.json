@@ -357,8 +357,10 @@
       "new-desktop": "Nuevo escritorio",
       "loading": "Cargando escritorios…",
       "stop-all": "Parar todos los escritorios",
+      "stop-all-error": "No se han podido parar los escritorios",
       "stop-all-tooltip": {
-        "title": "No hay escritorios iniciados ahora"
+        "title": "No hay escritorios iniciados ahora",
+        "stopping": "Los escritorios se están parando"
       },
       "filters": {
         "kind": {
@@ -771,7 +773,7 @@
       },
       "stop-all": {
         "error": "No se han podido parar los escritorios del despliegue",
-        "no-started-tooltip": "Ahora mismo no hay ningún escritorio iniciado",
+        "no-started-tooltip": "No hay escritorios iniciados ahora",
         "stopping-tooltip": "Los escritorios se están parando"
       },
       "stop-user": {
@@ -1743,26 +1745,29 @@
     "stop-all-desktops-modal": {
       "title": "Parar todos los escritorios",
       "description": "Se parará {n} escritorio. | Se pararán {n} escritorios.",
-      "skipped": "Hay {n} escritorio parándose que se dejará como está; solo le afecta una parada forzada. | Hay {n} escritorios parándose que se dejarán como están; solo les afecta una parada forzada.",
+      "skipped": "Hay {n} escritorio apagándose que se dejará como está; solo le afecta una parada forzada. | Hay {n} escritorios apagándose que se dejarán como están; solo les afecta una parada forzada.",
+      "nothing-to-stop": "No hay escritorios iniciados ahora",
       "error": "No se han podido parar los escritorios",
       "loading": "Parando los escritorios…",
       "mode": {
         "graceful": {
-          "title": "Parar todos",
-          "description": "Pide al sistema que se apague",
+          "title": "Apagar",
+          "description": "Pide el apagado a los escritorios; los que ya se están apagando se dejan como están",
           "disabled": "Ningún escritorio iniciado"
         },
         "force": {
           "title": "Forzar parada",
-          "description": "Lo para sin apagarlo, puede corromper el escritorio"
+          "description": "Corta la corriente al momento, también a los que ya se están apagando; puede corromper el escritorio"
         }
       },
       "force-only": {
-        "description": "Hay {n} escritorio parándose. Solo le afecta una parada forzada. | Hay {n} escritorios parándose. Solo les afecta una parada forzada.",
-        "confirm": "Forzar parada"
+        "description": "Hay {n} escritorio apagándose. Solo le afecta una parada forzada. | Hay {n} escritorios apagándose. Solo les afecta una parada forzada."
       },
       "cancel": "Cancelar",
-      "confirm": "Parar todos"
+      "confirm": {
+        "graceful": "Apagar escritorios",
+        "force": "Forzar la parada"
+      }
     },
     "desktop-networks-modal": {
       "title": "Redes del escritorio '{name}'",
