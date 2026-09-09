@@ -8,8 +8,10 @@ import (
 	"sync"
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
+	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
@@ -25,6 +27,25 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+
+	dbSess, err := db.New(cfg.DB)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create DB connection")
+	}
+
+	cfgLog := log.With().Str("config", "orchestrator").Logger()
+	cfgWatcher := db.NewWatcher(&cfgLog, cfg.Orchestrator.PollingInterval, 0, func(ctx context.Context) (model.Orchestrator, error) {
+		c := model.Config{}
+		if err := c.Load(ctx, dbSess); err != nil {
+			return model.Orchestrator{}, err
+		}
+
+		return c.Orchestrator, nil
+	})
+
+	if err := cfgWatcher.Start(ctx, &wg); err != nil {
+		log.Fatal().Err(err).Msg("load initial orchestrator configuration")
+	}
 
 	opts := []ogenclient.Option{
 		ogenclient.WithUserAgent("isardvdi-orchestrator"),
@@ -68,6 +89,7 @@ func main() {
 	orchestrator := orchestrator.New(&orchestrator.NewOrchestratorOpts{
 		Log:               log,
 		WG:                &wg,
+		CfgWatcher:        cfgWatcher,
 		DryRun:            cfg.DryRun,
 		PollingInterval:   cfg.Orchestrator.PollingInterval,
 		OperationsTimeout: cfg.Orchestrator.OperationsTimeout,
@@ -79,8 +101,9 @@ func main() {
 		APISecret:         cfg.Orchestrator.APISecret,
 		APICli:            api,
 	})
-	go orchestrator.Start(ctx)
-	wg.Add(1)
+	wg.Go(func() {
+		orchestrator.Start(ctx)
+	})
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)

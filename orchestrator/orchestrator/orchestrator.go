@@ -8,7 +8,9 @@ import (
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
+	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
@@ -36,13 +38,16 @@ type Orchestrator struct {
 	scaleMux sync.Mutex
 	scaling  bool
 
-	log *zerolog.Logger
-	wg  *sync.WaitGroup
+	log        *zerolog.Logger
+	wg         *sync.WaitGroup
+	cfgWatcher *db.Watcher[model.Orchestrator]
 }
 
 type NewOrchestratorOpts struct {
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
+
+	CfgWatcher *db.Watcher[model.Orchestrator]
 
 	DryRun            bool
 	PollingInterval   time.Duration
@@ -76,8 +81,9 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
-		log: &log2,
-		wg:  cfg.WG,
+		log:        &log2,
+		wg:         cfg.WG,
+		cfgWatcher: cfg.CfgWatcher,
 	}
 }
 
@@ -85,11 +91,16 @@ func (o *Orchestrator) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			o.wg.Done()
 			return
 
 		default:
 			time.Sleep(o.pollingInterval)
+
+			if !o.cfgWatcher.Current().Enabled {
+				o.log.Info().Msg("orchestrator disabled, skipping cycle")
+
+				continue
+			}
 
 			res, err := o.apiCli.AdminOrchestratorHypervisorsList(ctx)
 			if err != nil {

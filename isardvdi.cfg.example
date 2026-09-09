@@ -1,4 +1,4 @@
-# Isard main config v3.0.9
+# Isard main config v3.0.10
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -915,6 +915,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 #INFRASTRUCTURE_HOST_IP=
 
 # ------ Orchestrator -----------------------------------------------------
+# Where is the database reacheable from isard-orchestrator?
+# Not needed for remote hypervisors, only to split main web install.
+#ORCHESTRATOR_DB_HOST=isard-db
+#ORCHESTRATOR_DB_PORT=28015
+#ORCHESTRATOR_DB_USR=
+#ORCHESTRATOR_DB_PWD=
+#ORCHESTRATOR_DB_DB=isard
+
 # The interval at which the infrastructure status is going to be checked
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 #ORCHESTRATOR_ORCHESTRATOR_POLLING_INTERVAL=30s

@@ -9,6 +9,7 @@ import (
 
 type Cfg struct {
 	Log          cfg.Log
+	DB           cfg.DB
 	Orchestrator Orchestrator
 	DryRun       bool `mapstructure:"dry_run"`
 }
@@ -68,6 +69,8 @@ func New() Cfg {
 }
 
 func setDefaults() {
+	cfg.SetDBDefaults()
+
 	viper.BindEnv("orchestrator.api_secret", "API_ISARDVDI_SECRET")
 	viper.BindEnv("dry_run", "INFRASTRUCTURE_DRY_RUN")
 
