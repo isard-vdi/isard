@@ -81,6 +81,8 @@ class RecycleBinHandler(BaseHandler):
         old_status = self._prop(old_val, "status")
         new_status = self._prop(new_val, "status")
         if old_status != new_status:
+            if new_status == "deleted":
+                RecycleBinHelpers.free_vgpu_pool(self._prop(new_val, "id"))
             event = (
                 "delete_recycle_bin"
                 if new_status == "deleted"

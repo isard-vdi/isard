@@ -21,6 +21,7 @@ from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
 )
+from isardvdi_common.lib.vgpu_state import vgpu_pool_frees_for_domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.targets import Targets
@@ -906,6 +907,67 @@ class Helpers(RethinkSharedConnection):
         cls.clear_get_count_cache()
         cls.clear_get_user_amount_cache()
         cls.clear_get_user_recycle_bin_ids_cache()
+
+    @classmethod
+    def free_vgpu_pool(cls, recycle_bin_id):
+        """Release the vGPU pool places of the desktops an entry has deleted for good.
+
+        Takes the id, not the entry: the recycle_bin changefeed is plucked down to
+        ``id``/``owner_id``/``status``, so the caller has no ``desktops`` to hand over.
+        Called on the status flip to ``deleted``, the only point every delete path
+        passes through — an entry whose desktops had no storage yet never reaches
+        ``update_task_status``. Never on binning — a binned desktop can
+        still be restored, and binning does not stop it, so freeing earlier could hand
+        a live domain's mdev to another desktop.
+        """
+        try:
+            with cls._rdb_context():
+                entry = (
+                    r.table("recycle_bin")
+                    .get(recycle_bin_id)
+                    .pluck("desktops")
+                    .default(None)
+                    .run(cls._rdb_connection)
+                )
+        except Exception as e:
+            log.error(
+                "RecycleBin %s: reading the entry to free its pool failed: %s",
+                recycle_bin_id,
+                e,
+            )
+            return
+        dom_ids = [
+            d.get("id") for d in ((entry or {}).get("desktops") or []) if d.get("id")
+        ]
+        if not dom_ids:
+            return
+        try:
+            with cls._rdb_context():
+                cards = list(
+                    r.table("vgpus").pluck("id", "mdevs").run(cls._rdb_connection)
+                )
+            for card in cards:
+                frees = {}
+                for dom_id in dom_ids:
+                    for profile, uuids in vgpu_pool_frees_for_domain(
+                        card.get("mdevs"), dom_id
+                    ).items():
+                        frees.setdefault(profile, {}).update(uuids)
+                if frees:
+                    with cls._rdb_context():
+                        r.table("vgpus").get(card["id"]).update({"mdevs": frees}).run(
+                            cls._rdb_connection
+                        )
+                    log.info(
+                        "RecycleBin %s: freed vgpu pool entries on %s: %s",
+                        recycle_bin_id,
+                        card["id"],
+                        [u for us in frees.values() for u in us],
+                    )
+        except Exception as e:
+            log.error(
+                "RecycleBin %s: freeing the vgpu pool failed: %s", recycle_bin_id, e
+            )
 
     @classmethod
     def update_task_status(cls, task):
