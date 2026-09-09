@@ -202,6 +202,20 @@ def owns_deployment_id(
     return checker
 
 
+def _manages_deployment(payload: dict, deployment_id: str) -> bool:
+    """
+    Check if the user owns, co-owns or administers the deployment.
+    """
+    try:
+        return Helpers.owns_deployment_id(
+            payload=payload,
+            deployment_id=deployment_id,
+            check_co_owner=True,
+        )
+    except Error:
+        return False
+
+
 async def is_allowed_deployment_id_and_user_id(
     payload: str = Depends(has_token),
     deployment_id: str = Path(...),
@@ -222,9 +236,10 @@ async def is_allowed_deployment_id_and_user_id(
             f"User {payload['user_id']} is not allowed to access the user {user_id} desktops from deployment {deployment_id}.",
         )
 
-    # Check if the deployment is visible to the user
     if payload["user_id"] == user_id:
-        if not deployment["tag_visible"]:
+        if not deployment["tag_visible"] and not _manages_deployment(
+            payload, deployment_id
+        ):
             raise Error(
                 "forbidden",
                 f" The deployment {deployment_id} is not visible to the user {user_id}.",
