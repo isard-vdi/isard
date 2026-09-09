@@ -67,6 +67,7 @@ const handleSubmit = () => {
 
 defineExpose({
   handleSubmit,
+  name: computed(() => panelRef.value?.name ?? ''),
   areFormsValid,
   isDirty
 })

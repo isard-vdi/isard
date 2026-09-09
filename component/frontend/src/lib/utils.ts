@@ -99,6 +99,15 @@ export function isInvalid(field: { state: { meta: { isTouched: any; isValid: any
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
 
+export function validateOnBlur(field: {
+  handleBlur: () => void
+  validate: (cause: 'change') => unknown
+}) {
+  // `validate` is a no-op until the field is touched, which `handleBlur` does.
+  field.handleBlur()
+  field.validate('change')
+}
+
 export const formatHoursToHumanReadable = (input: number | { time?: number }, locale = 'en-US') => {
   const hours = typeof input === 'number' ? input : input?.time
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
@@ -22,7 +22,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
-import { describeErrorCode } from '@/lib/api-errors'
+import { describeErrorCode, isNameConflictError } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
 
@@ -117,6 +117,7 @@ const createTemplateErrorMessage = computed(() =>
 )
 const {
   mutate: createTemplate,
+  reset: resetCreateTemplate,
   isPending: createTemplateIsPending,
   isError: createTemplateIsError
 } = useMutation({
@@ -136,6 +137,18 @@ const {
     }
   }
 })
+
+// The conflict answers the name that was sent, so a different one makes the
+// banner stale: the field keeps the message while the name stays the rejected one.
+watch(
+  () => infoRef.value?.values.name,
+  (name, previous) => {
+    if (name === undefined || previous === undefined) return
+    if (!isNameConflictError(createTemplateErrorCode.value)) return
+    createTemplateErrorCode.value = undefined
+    resetCreateTemplate()
+  }
+)
 
 const isPending = computed(() => {
   return (
