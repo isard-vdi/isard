@@ -255,6 +255,10 @@ class AdminStorageMigrationService:
             item_kinds=selection.get("item_kinds"),
             order=order,
         )
+        items = items + mig.build_media_plan(
+            "__preview__", selection, dst_pool, item_kinds=selection.get("item_kinds")
+        )
+        totals = mig.summarize_plan(items, order=order)
         trees = _tree_summaries(items, order=order, budget=budget)
         totals["trees_within_budget"] = sum(1 for t in trees if t["within_budget"])
         totals["bytes_within_budget"] = sum(
@@ -324,7 +328,10 @@ class AdminStorageMigrationService:
         cls._check_no_overlap(selection, config)
         recurring = bool(config.get("recurring"))
         roots = mig.roots_for_selection(selection)
-        if not roots and not recurring:
+        media = mig.build_media_plan(
+            "__preview__", selection, dst_pool, item_kinds=selection.get("item_kinds")
+        )
+        if not roots and not media and not recurring:
             raise Error("bad_request", "Selection matched no migratable disks")
         # origin != destination for path/category: a plan that resolves entirely
         # in-place (every disk's dst == src) would move nothing while the release
@@ -332,6 +339,7 @@ class AdminStorageMigrationService:
         preview, _ = mig.build_plan_for_roots(
             "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
         )
+        preview = preview + media
         if mig.all_in_place(preview):
             raise Error(
                 "bad_request",
@@ -349,13 +357,17 @@ class AdminStorageMigrationService:
             created_at=now,
             updated_at=now,
         )
-        items, totals = mig.build_plan_for_roots(
+        items, _ = mig.build_plan_for_roots(
             migration.id,
             roots,
             dst_pool,
             item_kinds=selection.get("item_kinds"),
             order=config.get("order"),
         )
+        items = items + mig.build_media_plan(
+            migration.id, selection, dst_pool, item_kinds=selection.get("item_kinds")
+        )
+        totals = mig.summarize_plan(items, order=config.get("order"))
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals

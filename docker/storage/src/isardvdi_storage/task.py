@@ -1624,7 +1624,7 @@ def rebase(child_path, new_backing_path, verify=False):
 
 
 @_publishes_result
-def migration_verify_destination(dst_path, expect_backing=None):
+def migration_verify_destination(dst_path, expect_backing=None, expect_bytes=None):
     """UNCONDITIONAL pre-release destination gate for the migration saga.
 
     A migrated disk's source must NEVER be ``move_delete``d until its destination
@@ -1660,6 +1660,17 @@ def migration_verify_destination(dst_path, expect_backing=None):
     qcow = _storage_qcow()
     if not isfile(dst_path):
         raise RuntimeError(f"migration: destination {dst_path} does not exist")
+    if expect_bytes is not None:
+        # An opaque read-only blob (an ISO) has no qcow2 header and no chain, so
+        # the size IS the check: it catches the truncated copy this gate exists
+        # for, and qemu-img would fail on a perfectly good file.
+        actual = os.path.getsize(dst_path)
+        if actual != int(expect_bytes):
+            raise RuntimeError(
+                f"migration: destination {dst_path} is {actual} bytes, "
+                f"expected {expect_bytes}"
+            )
+        return 0
     if not qcow.qemu_img_check(dst_path):
         raise RuntimeError(
             f"migration: destination {dst_path} did not pass qemu-img check"
