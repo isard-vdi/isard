@@ -185,7 +185,9 @@ test-go:
 
 .PHONY: ci-test-go
 ci-test-go:
-	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
+	go tool -modfile=tools/go.mod gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.full.out -covermode atomic
+	# Drop the generated code from the coverage profile.
+	grep -vE '^gitlab\.com/isard/isardvdi/(pkg/gen/|.*/testing_[a-z_]*_mock\.go:)' coverage.full.out > coverage.out
 	go tool cover -func coverage.out | grep '^total:'
 	go tool -modfile=tools/go.mod gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
 

@@ -43,6 +43,7 @@ __pycache__
 # don't pile up across runs.
 coverage.xml
 coverage.out
+coverage.full.out
 report.xml
 
 # Crash artifacts (e.g. chromium coredumps from Playwright runs).
