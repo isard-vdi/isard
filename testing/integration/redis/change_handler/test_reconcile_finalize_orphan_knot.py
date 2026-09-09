@@ -29,8 +29,6 @@ from rq.job import Job, JobStatus
 from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
 from .._chain_harness import DESKTOP_STORAGE_ID, first_core_step, template_chain_kwargs
 
-pytestmark = pytest.mark.contract
-
 # Comfortably past the consumer's redelivery envelope (5 reclaims of 60s).
 AGED_S = 5000
 MIN_AGE_S = 900

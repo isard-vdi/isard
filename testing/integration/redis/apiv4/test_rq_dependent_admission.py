@@ -24,8 +24,6 @@ import uuid
 import pytest
 from rq.job import JobStatus
 
-pytestmark = pytest.mark.contract
-
 
 class TestRqDependentAdmission:
     @staticmethod

@@ -26,8 +26,6 @@ from isardvdi_common.lib.task_index import current_task_id, index_key
 from isardvdi_common.models.task import Task
 from rq import Queue
 
-pytestmark = pytest.mark.contract
-
 
 def _redis():
     url = os.environ.get("ISARD_TEST_REDIS")

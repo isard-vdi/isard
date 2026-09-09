@@ -29,8 +29,6 @@ from .._chain_harness import (
     template_chain_kwargs,
 )
 
-pytestmark = pytest.mark.contract
-
 
 @pytest.mark.asyncio
 async def test_finalize_marks_persist_on_the_anchor_that_carries_them(

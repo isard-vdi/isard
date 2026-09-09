@@ -54,8 +54,6 @@ from .._chain_harness import (
     template_chain_kwargs,
 )
 
-pytestmark = pytest.mark.contract
-
 
 async def _dispatch_cancel_event(connection, ran=None):
     """Hand the consumer the cancel event ``Task.cancel`` already published."""

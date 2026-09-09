@@ -114,7 +114,9 @@ make ci-all
 | changefeed unit | — | `make test-changefeed` | `unit-test-python: changefeed` |
 | Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `unit-test-go` |
 | Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `test-e2e` |
-| Integration (real stack) | — | `make test-e2e-stack` | `test-integration` |
+| Integration (real stack) | — | `make test-integration` | `test-integration` |
+| Integration (redis only) | 64 | `make test-integration-redis` | `test-integration-redis` |
+| Integration (rethinkdb only) | 3 | `make test-integration-rethinkdb` | `test-integration-rethinkdb` |
 
 ### E2E scenario breakdown (76 total)
 
@@ -339,14 +341,6 @@ docker run --rm --ipc=host --network=host \
   -v "$(pwd):/e2e" -w "/e2e" \
   mcr.microsoft.com/playwright:v1.57.0-jammy \
   yarn playwright test --reporter=list
-```
-
-### Isolated e2e stack (CI parity)
-
-```bash
-make down                  # stop dev stack
-make test-e2e-stack        # build + bring up docker-compose.e2e.yml + seed + Playwright
-make test-e2e-stack-restore  # tear everything down and bring dev stack back
 ```
 
 ### Environment variables

@@ -24,8 +24,6 @@ from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
 
-pytestmark = pytest.mark.contract
-
 
 class _StuckMedia(Media):
     """A real ``Media`` whose row lives in memory.

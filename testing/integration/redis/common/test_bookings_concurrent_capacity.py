@@ -32,8 +32,6 @@ import redis as redis_lib
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.lib.bookings import bookings as mod
 
-pytestmark = pytest.mark.contract
-
 PROFILE_ID = "NVIDIA-L40S-8Q"
 REQUESTS = 8
 

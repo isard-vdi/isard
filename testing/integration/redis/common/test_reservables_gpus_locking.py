@@ -20,11 +20,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytestmark = pytest.mark.contract
-
-
-import pytest
-
 
 @pytest.fixture
 def gpu_stub(monkeypatch):

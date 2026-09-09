@@ -16,8 +16,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytestmark = pytest.mark.contract
-
 
 def _make_booking(start_h=11, end_h=12):
     return {

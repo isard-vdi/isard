@@ -356,25 +356,26 @@ unit-test-python:
 # admission rule, a Lua script's effect. Proved against the real dependency,
 # because a fake would be a second implementation of the thing under test.
 #
-# Blocking, like a unit job, and separate from one for the same reason it is
-# blocking: a test that needs a running server is not a unit test, and the unit
-# jobs should not be declaring services to accommodate it. No stack here, only
-# the dependency itself.
-contract-test-redis:
+# A test that needs a running server is not a unit test, so this sits in `test`
+# with the other integration jobs rather than in `unit-test`. Unlike those, it
+# is automatic and blocking: it asks for one container, not a stack on a
+# gpu-tagged runner, so there is nothing to play and nothing to wait for.
+test-integration-redis:
   extends: .python-test-template
+  stage: test
   services:
     - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
       alias: redis
   variables:
     REDIS_HOST: redis
   script:
-    - make ci-test-contracts-redis
+    - make ci-test-integration-redis
   artifacts:
     when: always
     reports:
       junit: testing/integration/redis/report.xml
 
-contract-test-rethinkdb:
+test-integration-rethinkdb:
   # The nightly database backup path, run for real against a live RethinkDB.
   #
   # Nothing else in this pipeline ever executes a dump. docker-image builds the
@@ -389,13 +390,14 @@ contract-test-rethinkdb:
   # exercises the server version production runs. The image's default command is
   # already `rethinkdb --bind all`, so no override is needed.
   extends: .python-test-template
+  stage: test
   services:
     - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
       alias: rethinkdb
   variables:
     ISARD_TEST_RETHINKDB: "rethinkdb:28015"
   script:
-    - make ci-test-contracts-rethinkdb
+    - make ci-test-integration-rethinkdb
   artifacts:
     when: always
     reports:

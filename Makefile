@@ -254,23 +254,32 @@ ci-test-integration: seed-test-db
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
 	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
 
-# Contract suites: what a third-party dependency really does, proved against it.
-# Needs only that dependency, never the stack, so it does not belong in a unit
-# job and does not need the compose file the rest of testing/integration wants.
-# The suites live under testing/integration/redis/, whose conftest shadows the
-# parent's stack login, and the job that runs this declares the redis itself.
-.PHONY: ci-test-contracts-redis
-ci-test-contracts-redis:
+# What rq's job graph really does, what a Lua script really writes: a mocked
+# connection cannot report on any of it without the mock becoming the thing
+# under test, so these run against a real Redis. They want that and nothing
+# else, so their conftest shadows the parent's stack login and the job declares
+# the one service. Point REDIS_HOST/REDIS_PORT at a local server to run them.
+.PHONY: test-integration-redis
+test-integration-redis:
+	uv run --group test --package isardvdi-testing pytest testing/integration/redis -v
+
+.PHONY: ci-test-integration-redis
+ci-test-integration-redis:
 	uv sync --frozen --no-dev --group test --package isardvdi-testing
 	uv run --no-dev --group test --package isardvdi-testing pytest testing/integration/redis -q --tb=short --junitxml=testing/integration/redis/report.xml
 
-# The dump suite proves what the rethinkdb driver backupninja ships really does,
-# so it runs in that package's environment: every production member pins the
-# isard fork of the driver and only isardvdi-testing is on the PyPI build.
-# --confcutdir keeps the parent integration conftest out of the run, since it
-# imports generated apiv4 clients this environment does not carry.
-.PHONY: ci-test-contracts-rethinkdb
-ci-test-contracts-rethinkdb:
+# The dump suite runs in backupninja's own environment, because what it proves
+# is what the rethinkdb driver that image ships really does: every production
+# member pins the isard fork of that driver and only isardvdi-testing is on the
+# PyPI build. --confcutdir keeps the parent integration conftest out of the run,
+# since it imports generated apiv4 clients this environment does not carry.
+# ISARD_TEST_RETHINKDB names the server; without it the suite skips.
+.PHONY: test-integration-rethinkdb
+test-integration-rethinkdb:
+	uv run --group test --package isardvdi-backupninja pytest --confcutdir=testing/integration/rethinkdb testing/integration/rethinkdb -v
+
+.PHONY: ci-test-integration-rethinkdb
+ci-test-integration-rethinkdb:
 	uv sync --frozen --no-dev --group test --package isardvdi-backupninja
 	uv run --no-dev --group test --package isardvdi-backupninja pytest --confcutdir=testing/integration/rethinkdb testing/integration/rethinkdb -q --tb=short --junitxml=testing/integration/rethinkdb/report.xml
 

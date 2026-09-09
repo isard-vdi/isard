@@ -19,8 +19,6 @@ import os
 import pytest
 import redis as redis_lib
 
-pytestmark = pytest.mark.contract
-
 
 def _redis():
     """The one criterion for "is there a real Redis here", shared with every

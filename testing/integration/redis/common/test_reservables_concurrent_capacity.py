@@ -34,8 +34,6 @@ import redis as redis_lib
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.lib.bookings import reservables as mod
 
-pytestmark = pytest.mark.contract
-
 PROFILE_ID = "NVIDIA-L40S-8Q"
 UNITS_PER_CARD = 4
 CARDS = 6

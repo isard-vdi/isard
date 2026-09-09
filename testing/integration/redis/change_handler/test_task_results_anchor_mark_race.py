@@ -31,8 +31,6 @@ from .._chain_harness import (
     template_chain_kwargs,
 )
 
-pytestmark = pytest.mark.contract
-
 # A ContextVar because ``asyncio.to_thread`` carries the calling task's
 # context, so each dispatch's own delay reaches its own save.
 _SAVE_DELAY = contextvars.ContextVar("save_delay", default=0.0)

@@ -39,8 +39,6 @@ from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
 from .._chain_harness import first_core_step, template_chain_kwargs
 from .test_task_results_canceled_template_chain import _dispatch_cancel
 
-pytestmark = pytest.mark.contract
-
 
 def _settle_real_jobs(connection, root, status=JobStatus.FINISHED):
     for job in _chain_closure(root.job, connection).values():

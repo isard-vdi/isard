@@ -54,13 +54,10 @@ from rethinkdb import r
 # the exact green-having-asserted-nothing outcome this file exists to prevent.
 RETHINKDB_ADDRESS = os.environ.get("ISARD_TEST_RETHINKDB", "")
 
-pytestmark = [
-    pytest.mark.contract,
-    pytest.mark.skipif(
-        not RETHINKDB_ADDRESS,
-        reason="ISARD_TEST_RETHINKDB is unset; no server to dump from",
-    ),
-]
+pytestmark = pytest.mark.skipif(
+    not RETHINKDB_ADDRESS,
+    reason="ISARD_TEST_RETHINKDB is unset; no server to dump from",
+)
 
 # Table name -> number of rows to seed. Deliberately uneven, and deliberately
 # including an empty table: the archive must report 0 for it rather than omit

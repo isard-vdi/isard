@@ -24,8 +24,6 @@ import pytest
 from isardvdi_change_handler.streams import reconcile
 from isardvdi_common.lib.task_index import MEDIA, STORAGE, index_key
 
-pytestmark = pytest.mark.contract
-
 
 class _Row:
     """A media/storage row as the pass reads it.

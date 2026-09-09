@@ -23,8 +23,6 @@ from rq.job import Job, JobStatus
 from .._chain_harness import repair_storage_new_slot  # noqa: F401  (fixture)
 from .._chain_harness import first_core_step, template_chain_kwargs
 
-pytestmark = pytest.mark.contract
-
 
 async def _build_chain_and_enqueue_the_knot_child(connection):
     """Build the real chain and run the real code that creates the knot child,

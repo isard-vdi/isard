@@ -25,8 +25,6 @@ from isardvdi_common.models.task import Task
 from rq.job import Job, JobStatus
 from rq.registry import StartedJobRegistry
 
-pytestmark = pytest.mark.contract
-
 # a queue NO worker consumes, so the real storage worker never runs our probe job
 QUEUE = "storage.orphan-resume-test.default"
 

@@ -40,8 +40,6 @@ import redis as redis_lib
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.lib.bookings import reservables_planner as mod
 
-pytestmark = pytest.mark.contract
-
 # One card, one profile, one unit: the capacity the four racing plans
 # blew through. Card ids are minted per test so a leftover lease from
 # a previous run can never be what makes one of these pass.
