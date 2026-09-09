@@ -36,7 +36,7 @@ RUN apk add --no-cache \
     conntrack-tools dnsmasq guacamole-server@community \
     guacamole-server-dev@community guacamole-server-rdp@community \
     iptables libffi openssh openssl \
-    openvswitch@community wireguard-tools
+    openvswitch wireguard-tools
 
 # The host AppArmor profile attaches to /usr/bin/wg-quick and Docker does not
 # namespace AppArmor, so we call a copy the profile does not match.
