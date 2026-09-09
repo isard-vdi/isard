@@ -21,20 +21,6 @@ workflow:
 
 # https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker
 variables:
-  # When you use the dind service, you must instruct Docker to talk with
-  # the daemon started inside of the service. The daemon is available
-  # with a network connection instead of the default
-  # /var/run/docker.sock socket. Docker 19.03 does this automatically
-  # by setting the DOCKER_HOST in
-  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
-  #
-  # The 'docker' hostname is the alias of the service container as described at
-  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
-  #
-  # Specify to Docker where to create the certificates. Docker
-  # creates them automatically on boot, and creates
-  # `/certs/client` to share between the service and job
-  # container, thanks to volume mount from config.toml
   DOCKER_HOST: tcp://docker:2376
   DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
@@ -231,14 +217,10 @@ docker-compose-build:
       # Cache from the branch we are merging into (apiv4-integration today, main
       # after the apiv4->main cutover — self-adjusting), with :main as fallback.
       CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
-      # This job runs on ONE runner but the compose files it publishes are an
-      # artifact consumed by every `docker-image` job, on EVERY runner. Writing
-      # this runner's own BUILDKIT_CACHE_REGISTRY into cache_from therefore sent
-      # the other runner's builds to a registry it has no insecure entry for,
-      # which fails as `http: server gave HTTP response to HTTPS client` and
-      # drops them to pulling cache manifests over the internet. Emit a
-      # placeholder instead; each build resolves it to its OWN registry, which is
-      # also the one it pushes to at the end of the job.
+      # The compose files this job publishes are an artifact every docker-image
+      # job consumes, on every runner. Writing this runner's own cache registry
+      # into cache_from therefore sent other runners to a registry they cannot
+      # reach. Emit a placeholder; each build resolves it to its OWN registry.
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
         yq -i '.services |= map_values(.build.cache_from = [ "LOCAL_BUILDKIT_CACHE/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
@@ -247,43 +229,6 @@ docker-compose-build:
     paths:
       - docker-compose*.yml
       - no-cache-docker-compose*.yml
-
-unit-test-go:
-  extends: .go-cache
-  stage: unit-test
-  needs: ["codegen"]
-  image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
-  before_script:
-    - apt-get update && apt-get install -y libvirt-dev make
-  script:
-    - make ci-test-go
-  artifacts:
-    when: always
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-      junit: report.xml
-  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
-
-# Behavioural unit tests for the storage-governor alert rules, run under the SAME
-# engine the stack runs (vmalert / MetricsQL) — promtool green is not vmalert
-# green, and the Go test above only checks that the rules NAME real metrics, not
-# what they DO. Pinned to the vmalert-tool matching the runtime vmalert in
-# docker-compose-parts/monitor.yml; the guard fails CI if the two ever drift, so
-# this pin cannot silently diverge from what the stack actually runs.
-unit-test-vmalert:
-  stage: unit-test
-  needs: []
-  image:
-    name: victoriametrics/vmalert-tool:v1.147.0
-    entrypoint: [""]
-  script:
-    - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
-    - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-    - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
-    - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
-    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
 
 # Shared Python test config.
 .python-test-template:
@@ -303,12 +248,6 @@ unit-test-vmalert:
       junit: ${COVERAGE_DIR}/report.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
 
-# The suites that assert on Redis's own behaviour — an rq job graph (hashes,
-# dependency links, registries, Job.cancel), or a Lua script whose effect a
-# mocked connection cannot report — are not unit tests and no longer live here.
-# They are in testing/integration/redis/ and run against the stack's own
-# isard-redis through test-integration, so no row below needs a Redis service.
-#
 # One row per Makefile PY_PKGS entry.
 unit-test-python:
   extends: .python-test-template
@@ -352,71 +291,47 @@ unit-test-python:
   script:
     - make ci-test-$COMPONENT
 
-# The premises our code rests on that belong to somebody else's library: an rq
-# admission rule, a Lua script's effect. Proved against the real dependency,
-# because a fake would be a second implementation of the thing under test.
-#
-# A test that needs a running server is not a unit test, so this sits in `test`
-# with the other integration jobs rather than in `unit-test`. Unlike those, it
-# is automatic and blocking: it asks for one container, not a stack on a
-# gpu-tagged runner, so there is nothing to play and nothing to wait for.
-test-integration-redis:
-  extends: .python-test-template
-  stage: test
-  services:
-    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
-      alias: redis
-  variables:
-    REDIS_HOST: redis
-  script:
-    - make ci-test-integration-redis
-  artifacts:
-    when: always
-    reports:
-      junit: testing/integration/redis/report.xml
-
-test-integration-rethinkdb:
-  # The nightly database backup path, run for real against a live RethinkDB.
-  #
-  # Nothing else in this pipeline ever executes a dump. docker-image builds the
-  # backupninja image and no later job runs rethinkdb-dump against a server, so
-  # a driver that cannot dump at all still produced a green pipeline — which is
-  # how the Python 3.14 multiprocessing breakage reached a release branch.
-  #
-  # The service is what makes the suite run at all, not what makes it pass:
-  # without ISARD_TEST_RETHINKDB the tests skip, and a skipped suite is the
-  # green-having-asserted-nothing outcome the tests exist to prevent. Same image
-  # and digest as the stack's own isard-db (docker/db/Dockerfile), so CI
-  # exercises the server version production runs. The image's default command is
-  # already `rethinkdb --bind all`, so no override is needed.
-  extends: .python-test-template
-  stage: test
-  services:
-    - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
-      alias: rethinkdb
-  variables:
-    ISARD_TEST_RETHINKDB: "rethinkdb:28015"
-  script:
-    - make ci-test-integration-rethinkdb
-  artifacts:
-    when: always
-    reports:
-      junit: testing/integration/rethinkdb/report.xml
-
-unit-test-webapp-js:
-  # The webapp admin JS is served as plain files, so its suites are standalone
-  # scripts run by the runtime rather than by a test framework.
+unit-test-go:
+  extends: .go-cache
   stage: unit-test
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+  needs: ["codegen"]
+  image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
   before_script:
-    - apk add --no-cache make
+    - apt-get update && apt-get install -y libvirt-dev make
   script:
-    - make ci-test-webapp-js
+    - make ci-test-go
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: report.xml
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+
+unit-test-vmalert:
+  stage: unit-test
+  needs: []
+  image:
+    name: victoriametrics/vmalert-tool:v1.147.0
+    entrypoint: [""]
+  script:
+    - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
+    - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
+    - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
+    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
+
+unit-test-sparsify:
+  stage: unit-test
+  needs: []
+  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  before_script:
+    - apk add --no-cache bash make qemu-img
+  script:
+    - make test-sparsify
 
 unit-test-frontend:
-  # Vue 3 (component/frontend) vitest unit suites. The specs vi.mock the
-  # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
-  # codegen-produced component/frontend/src/gen tree must be present.
   extends:
     - ".bun-cache:component/frontend"
     - .base-bun
@@ -431,17 +346,13 @@ unit-test-frontend:
     reports:
       junit: component/frontend/report.xml
 
-unit-test-sparsify:
-  # Recovery-trap suite for the sparsify utility (docker/storage/tests). Plain
-  # bash, so the storage matrix row's pytest never collects it, and it drives
-  # real qcow2 files and a live lock holder: it needs qemu-img and qemu-io.
+unit-test-webapp-js:
   stage: unit-test
-  needs: []
-  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
-    - apk add --no-cache bash make qemu-img
+    - apk add --no-cache make
   script:
-    - make test-sparsify
+    - make ci-test-webapp-js
 
 docker-image:
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
@@ -582,6 +493,49 @@ docker-image:
   after_script:
     - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
 
+test-integration:
+  extends: .real-deployment
+  before_script:
+    - !reference [.real-deployment, before_script]
+  script:
+    - make ci-test-integration
+  artifacts:
+    when: always
+    paths:
+      - docker-compose.log
+    reports:
+      junit: testing/integration/report.xml
+
+test-integration-redis:
+  extends: .python-test-template
+  stage: test
+  services:
+    - name: redis:7.4-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+      alias: redis
+  variables:
+    REDIS_HOST: redis
+  script:
+    - make ci-test-integration-redis
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/redis/report.xml
+
+test-integration-rethinkdb:
+  extends: .python-test-template
+  stage: test
+  services:
+    - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
+      alias: rethinkdb
+  variables:
+    ISARD_TEST_RETHINKDB: "rethinkdb:28015"
+  script:
+    - make ci-test-integration-rethinkdb
+  artifacts:
+    when: always
+    reports:
+      junit: testing/integration/rethinkdb/report.xml
+
 test-e2e:
   extends:
     - .real-deployment
@@ -591,7 +545,7 @@ test-e2e:
     E2E_WORKERS: "4"
   before_script:
     - !reference [.real-deployment, before_script]
-    ## Download bun
+    # Download bun
     - docker create --name bun-bin $E2E_BUN_IMAGE
     - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
     - docker rm bun-bin
@@ -613,23 +567,6 @@ test-e2e:
       - testing/e2e/playwright-report/
     reports:
       junit: testing/e2e/test-results/junit.xml
-
-test-integration:
-  extends: .real-deployment
-  # The shared scaffolding caches what test-e2e reads; this job runs no
-  # `bun install` and does read the uv cache, through the project directory it
-  # mounts into the uv container. `cache:` is a list, so this replaces rather
-  # than extends the one .real-deployment declares.
-  before_script:
-    - !reference [.real-deployment, before_script]
-  script:
-    - make ci-test-integration
-  artifacts:
-    when: always
-    paths:
-      - docker-compose.log
-    reports:
-      junit: testing/integration/report.xml
 
 release:
   # semantic-release pushes the tag and creates the release; cancelling it
