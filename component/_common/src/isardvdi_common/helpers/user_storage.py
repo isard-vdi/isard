@@ -419,6 +419,18 @@ class UserStorage(RethinkSharedConnection):
     ## ADMIN PROVIDERS
 
     @classmethod
+    def _get_provider_row(cls, provider_id):
+        # The public getter strips the password on purpose: it answers the admin
+        # API. Callers that have to authenticate against the provider need this.
+        if not provider_id:
+            return None
+        try:
+            with cls._rdb_context():
+                return r.table("user_storage").get(provider_id).run(cls._rdb_connection)
+        except Exception:
+            return None
+
+    @classmethod
     def isard_user_storage_get_provider(cls, provider_id):
         if not provider_id:
             return None
@@ -918,7 +930,7 @@ class UserStorage(RethinkSharedConnection):
     @classmethod
     @cached(cache_provider)
     def _get_provider(cls, provider_id, user_id=None):
-        provider_cfg = cls.isard_user_storage_get_provider(provider_id)
+        provider_cfg = cls._get_provider_row(provider_id)
         if not provider_cfg:
             return None
         if not provider_cfg.get("enabled"):
