@@ -213,11 +213,11 @@ console errors — all console-clean specs fail and `networkidle` waits
 time out. A 40-failure suite run on 2026-06-11 was 100% this.
 
 ```bash
-E2E_BASE_URL=https://$(grep ^DOMAIN= isardvdi.cfg | cut -d= -f2)   make test-e2e-old-frontend
+E2E_BASE_URL=https://$(grep ^DOMAIN= isardvdi.cfg | cut -d= -f2)   make test-e2e
 ```
 
 `USAGE=test` stacks (built images, no dev servers) are fine with the
-default `https://localhost`.
+default `https://isard-portal`.
 
 ### 6. Optional identity providers
 

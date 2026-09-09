@@ -313,63 +313,6 @@ test-e2e: seed-test-db
 .PHONY: ci-e2e
 ci-e2e: seed-test-db test-e2e
 
-# Run the Vue 2 (old-frontend) Playwright suite against the
-# currently-running stack. ``BASE_URL`` defaults to https://localhost
-# matching ``old-frontend/playwright.config.js``. The suite expects:
-#   * Stack running with images current to the branch — ``make build &&
-#     make up`` if you've added/changed Vue 2 or apiv4 since last bring-up.
-#   * Seed templates available — typically by restoring an anon dump
-#     (``/opt/load-testing/scripts/restore-dump.sh``) plus running
-#     ``/opt/load-testing/scripts/seed-fixtures.py``.
-# Specs that need template fixtures will ``test.skip(...)`` cleanly
-# rather than fail when the stack is empty.
-# Reproducible regression gate (default mode).
-# * 1 worker — eliminates parallel races on a single-instance stack.
-# * 2 retries — flakes classified as "flaky", true regressions
-#   surface as a real failure.
-# * Auto-seeded admin pool isolates sessions across runs.
-#
-# Usage:
-#   make test-e2e-old-frontend                  # serial, retries on
-#   make test-e2e-old-frontend E2E_ARGS='--grep="Bug #47"'
-#
-# For parallel iteration mode, use the ``-parallel`` target below.
-.PHONY: test-e2e-old-frontend
-test-e2e-old-frontend:
-	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
-	cd ${ISARDVDI_SRC}old-frontend && \
-		E2E_ADMIN_USERNAME=$${E2E_ADMIN_USERNAME:-admin} \
-		E2E_ADMIN_PASSWORD=$${E2E_ADMIN_PASSWORD:-IsardVDI} \
-		E2E_WORKERS=1 \
-		E2E_RETRIES=$${E2E_RETRIES:-2} \
-		bun run test:e2e $(E2E_ARGS)
-
-# Fast parallel mode — opt-in. Useful for "did my fix touch these
-# specific tests" iteration, NOT for regression gating: parallel
-# may flake transiently on this dev stack.
-#
-# Usage:
-#   make test-e2e-old-frontend-parallel                  # auto worker count
-#   make test-e2e-old-frontend-parallel E2E_WORKERS=8    # explicit
-.PHONY: test-e2e-old-frontend-parallel
-test-e2e-old-frontend-parallel:
-	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
-	cd ${ISARDVDI_SRC}old-frontend && \
-		E2E_ADMIN_USERNAME=$${E2E_ADMIN_USERNAME:-admin} \
-		E2E_ADMIN_PASSWORD=$${E2E_ADMIN_PASSWORD:-IsardVDI} \
-		E2E_WORKERS=$${E2E_WORKERS:-4} \
-		E2E_RETRIES=$${E2E_RETRIES:-2} \
-		bun run test:e2e $(E2E_ARGS)
-
-# Single-spec convenience: ``make test-e2e-old-frontend-spec
-# SPEC=tests/e2e/vue2-coowner-modal.spec.js``. Useful when iterating
-# on a regression test against a known-bad stack.
-.PHONY: test-e2e-old-frontend-spec
-test-e2e-old-frontend-spec:
-	@if [ -z "$(SPEC)" ]; then echo "usage: make test-e2e-old-frontend-spec SPEC=tests/e2e/<file>.spec.js"; exit 2; fi
-	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
-	cd ${ISARDVDI_SRC}old-frontend && bun run test:e2e -- --project=chromium $(SPEC)
-
 # ---------------------------------------------------------------------------
 # Operations
 # ---------------------------------------------------------------------------
