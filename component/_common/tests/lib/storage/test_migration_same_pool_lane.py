@@ -8,7 +8,7 @@ from isardvdi_common.models.storage import get_queue_from_storage_pools
 
 
 class _Pool(SimpleNamespace):
-    """Stands in for StoragePool: equality by id, which is what the queue"""
+    """Stands in for StoragePool: equality by id, which is what the queue helper compares."""
 
     def __eq__(self, other):
         return isinstance(other, _Pool) and self.id == other.id

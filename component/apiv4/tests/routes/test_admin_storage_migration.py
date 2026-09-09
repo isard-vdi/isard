@@ -278,7 +278,7 @@ class TestPlan:
     def test_plan_allows_same_pool_because_its_paths_can_differ(
         self, monkeypatch, test_client
     ):
-        """A pool with several weighted paths per usage can move a disk WITHIN"""
+        """A pool with several weighted paths per usage can move a disk within itself."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda sel: ["r"],
@@ -355,7 +355,8 @@ class TestCreate:
     def test_create_refuses_a_plan_that_resolves_entirely_in_place(
         self, monkeypatch, test_client
     ):
-        """The real hazard is not "same pool", it is "nothing moves": the release"""
+        """The hazard is not the pool being the same but nothing moving: the release
+        would delete the live source."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda sel: ["r"],
@@ -395,7 +396,7 @@ class TestCreate:
     def test_create_allows_same_pool_when_a_disk_changes_path(
         self, monkeypatch, test_client
     ):
-        """Draining one weighted path into another inside the same pool: the"""
+        """Draining one weighted path into another inside the same pool is a real move."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda sel: ["r"],
@@ -476,7 +477,7 @@ class TestCreate:
     def test_create_rejects_destination_no_worker_serves_the_move_lane(
         self, monkeypatch, test_client
     ):
-        """A pool->pool migration whose cross-pool move lane has no live consumer"""
+        """A cross-pool move lane with no live consumer would leave the job queued for ever."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda sel: ["r"],
@@ -533,7 +534,8 @@ class TestCreate:
     def test_create_waits_instead_of_refusing_when_the_nodes_are_only_asleep(
         self, monkeypatch, test_client
     ):
-        """An elastic fleet powers its nodes down. The lane has no LIVE consumer"""
+        """An elastic fleet powers its nodes down: no live consumer, but the pool is
+        still declared, so the job waits instead of being refused."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda selection, **k: ["r"],
@@ -585,7 +587,7 @@ class TestCreate:
     def test_create_still_refuses_when_the_declaration_cannot_be_read(
         self, monkeypatch, test_client
     ):
-        """Fail closed, like the gate itself: not knowing is not the same as"""
+        """Fail closed, like the gate itself: an unreadable declaration is not a served lane."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda selection, **k: ["r"],
