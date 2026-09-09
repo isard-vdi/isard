@@ -50,7 +50,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 208
+release_version = 209
+# release 209: backfill parents/tag_name/detail/server on desktops inserted through a DesktopFromTemplate schema
 # release 208: seed the orchestrator "enabled" flag, so the orchestrator can be
 #              switched on and off from the administration
 # release 207: backfill x_axis_days and priority on analytics graph rows that lost them
@@ -4076,6 +4077,91 @@ password:s:%s"""
                     )
             except Exception as e:
                 log.error(f"v204: domains kind repair failed: {e}")
+
+        if version == 209:
+            try:
+                ids = list(
+                    r.table(table)
+                    .get_all("desktop", index="kind")
+                    .filter(
+                        lambda d: d.keys().contains("parents").not_()
+                        | d.keys().contains("tag_name").not_()
+                        | d.keys().contains("detail").not_()
+                        | d.keys().contains("server").not_()
+                    )["id"]
+                    .run(self.conn)
+                )
+                log.info(
+                    f"--- Domains missing-field backfill: {len(ids)} rows to migrate ---"
+                )
+                if ids:
+                    template_parents = r.expr(
+                        {
+                            t["id"]: (t.get("parents") or [])
+                            for t in r.table(table)
+                            .get_all("template", index="kind")
+                            .pluck("id", "parents")
+                            .run(self.conn)
+                        }
+                    )
+                    deployment_names = r.expr(
+                        {
+                            d["id"]: d.get("name")
+                            for d in r.table("deployments")
+                            .pluck("id", "name")
+                            .run(self.conn)
+                        }
+                    )
+                    processed = 0
+                    for start in range(0, len(ids), 10_000):
+                        chunk = ids[start : start + 10_000]
+                        result = (
+                            r.table(table)
+                            .get_all(r.args(chunk))
+                            .update(
+                                lambda d: {
+                                    "parents": r.branch(
+                                        d.keys().contains("parents"),
+                                        d["parents"],
+                                        r.branch(
+                                            # from_template survived the sieve (it IS a schema field), so it is the source of
+                                            # truth. convert_template_to_desktop reuses the template id as the desktop
+                                            # id, so a row can point at itself -- never make it its own parent.
+                                            d["from_template"].default(False).ne(False)
+                                            & d["from_template"]
+                                            .default(False)
+                                            .ne(d["id"]),
+                                            template_parents[d["from_template"]]
+                                            .default([])
+                                            .append(d["from_template"]),
+                                            [],
+                                        ),
+                                    ),
+                                    "tag_name": r.branch(
+                                        d.keys().contains("tag_name"),
+                                        d["tag_name"],
+                                        r.branch(
+                                            d["tag"].default(False).ne(False),
+                                            deployment_names[d["tag"]].default(False),
+                                            False,
+                                        ),
+                                    ),
+                                    "detail": r.branch(
+                                        d.keys().contains("detail"), d["detail"], None
+                                    ),
+                                    "server": r.branch(
+                                        d.keys().contains("server"), d["server"], False
+                                    ),
+                                }
+                            )
+                            .run(self.conn)
+                        )
+                        processed += result.get("replaced", 0)
+                    log.info(
+                        f"--- Domains missing-field backfill: complete ({processed} rows) ---"
+                    )
+            except Exception as e:
+                log.error(f"v209: domains missing-field backfill failed: {e}")
         return True
 
     """

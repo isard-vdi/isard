@@ -204,10 +204,14 @@ class DesktopFromTemplate(BaseModel):
     favourite_hyp: bool | list[str] | None = None
     from_template: str
     tag: str | bool | None = None
+    tag_name: str | bool = False
     tag_visible: bool | None = None
     tag_desktop_id: UUID4 | bool | None = None
     booking_id: str | bool | None = None
     xml: Optional[str] = ""
+    detail: str | None
+    parents: list[str] | None = None
+    server: bool = False
 
 
 class DesktopCreated(BaseModel):
