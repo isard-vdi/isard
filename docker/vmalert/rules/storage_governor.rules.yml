@@ -66,6 +66,15 @@ groups:
       - record: isardvdi_storage_governor:heavy_utilization:ratio
         expr: isardvdi_storage_governor_heavy_running / clamp_min(isardvdi_storage_governor_heavy_cap, 1)
 
+      # New dead-lettered results over 15m. Same anti-shrink clamp as the failed
+      # counter above, and for the same reason: the dead stream is trimmable, so
+      # a shrink must read as 0 rather than as a negative that later inverts.
+      # It is a DELTA and not a level on purpose -- a level alert on a stream
+      # that keeps its entries would fire for ever after one incident, which is
+      # the WorkerHeartbeatLost defect this same file fixes further down.
+      - record: isardvdi_storage_governor:streams_dead_length:increase15m
+        expr: clamp_min(increase(isardvdi_storage_governor_streams_dead_length[15m]), 0)
+
   # ---------------------------------------------------------------------------
   # Alert rules.
   # ---------------------------------------------------------------------------
@@ -220,6 +229,90 @@ groups:
           summary: "Per-category storage lane at its cap"
           description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has been at its per-category inflight cap with backlog behind it for 20m. Raise the cap only if the node is unpressured; otherwise fair-share is working."
 
+
+      # --- TASK STREAMS: the one queue every gauge above is blind to ---------
+      # A finished task has already left its rq queue, so a chain waiting to be
+      # finalized reaches no backlog, no oldest-queued age and no rule above.
+      #
+      # THE LAG THRESHOLD IS DELIBERATELY BELOW THE HEALTHY PEAK. Measured on a
+      # 16-vCPU box under the k6 queues profile, group lag peaks 261..673 while
+      # the rq backlog stays 0, and the incident this signal was built for
+      # reached 892: no amplitude separates them. What separates them is that a
+      # healthy excursion drains within seconds of the load stopping. Raise this
+      # number and the rule stops working; the 30m is what makes it true.
+      #
+      # `lag` reads 0 when redis cannot compute it (entries trimmed from under
+      # the group), so a stall under aggressive trimming under-reports here and
+      # only TaskStreamPendingStuck sees it.
+      - alert: TaskStreamLagStuck
+        expr: isardvdi_storage_governor_streams_group_lag > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task-stream consumer group is not draining"
+          description: "Group {{ $labels.group }} on {{ $labels.stream }} has held a lag above 100 entries for 30m ({{ $value }} now). Nothing settles the chains behind those entries, and no queue gauge can see it. Check the change-handler is alive and consuming; the threshold is below the healthy burst peak on purpose, so it is the 30m that makes this real, not the number."
+
+      # 100 is ~3x the highest pending depth measured under load (32).
+      - alert: TaskStreamPendingStuck
+        expr: isardvdi_storage_governor_streams_group_pending > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task-stream entries are read but never acknowledged"
+          description: "Group {{ $labels.group }} on {{ $labels.stream }} has held over 100 unacknowledged entries for 30m ({{ $value }} now). A consumer took them and did not finish; the reclaim pass should have taken them back. Check the change-handler for a wedged handler and the dead-letter stream for what it gave up on."
+
+      # 90000 is task_streams.RESULT_STREAM_HIGH_WATER, where enqueue starts
+      # being throttled; RESULT_STREAM_MAXLEN_FLOOR (100000) is where unread
+      # results are evicted. Keep the two in step if either constant moves.
+      - alert: TaskStreamBackpressured
+        expr: isardvdi_storage_governor_streams_results_length > 90000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Task-result stream is at its backpressure high-water mark"
+          description: "The result stream holds {{ $value }} entries, past the 90000 high-water mark where enqueue is already being throttled, and 100000 is where unread results start being EVICTED (silent, unrecoverable loss of completions). Get the change-handler consuming again now."
+
+      # A delta, not a level: the dead stream keeps its entries, so a level rule
+      # would fire for ever after one incident.
+      - alert: TaskStreamDeadLettering
+        expr: isardvdi_storage_governor:streams_dead_length:increase15m > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task results are being dead-lettered"
+          description: "{{ $value }} task results were dead-lettered in 15m: the consumer could not process them after every redelivery, so their chains will only be finalized by a reconcile pass, if at all. Read stream:task-results:dead and fix the handler that rejects them."
+
+      # NOT A DETECTOR: the consumer count includes corpses, and
+      # _reap_dead_consumers only reaps consumers idle over 12 HOURS, so this
+      # stays false for up to 12h after the consumer dies. TaskStreamLagStuck is
+      # what notices; this confirms.
+      - alert: TaskStreamNoConsumers
+        expr: |
+          (isardvdi_storage_governor_streams_group_consumers == 0)
+          and on(stream, group) (isardvdi_storage_governor_streams_group_lag > 0)
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Task-stream group has entries and no consumer at all"
+          description: "Group {{ $labels.group }} on {{ $labels.stream }} has unread entries and zero registered consumers for 30m. Nothing will ever finalize those chains. Start the change-handler. Note this alert cannot be early -- dead consumers stay registered for 12h -- so treat TaskStreamLagStuck as the detector and this as the confirmation."
+
+      # Gated on redis being up: the degraded-governor case already pages as
+      # RedisDown and must not page twice.
+      - alert: TaskStreamsUnreadable
+        expr: |
+          (isardvdi_storage_governor_streams_up == 0)
+          and on() (isardvdi_storage_governor_redis_up == 1)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task-stream health cannot be read while Redis is up"
+          description: "The governor could not read the task streams for 15m even though the broker answers PING, so every stream gauge in this group is blind (their series are absent, not zero). Check XINFO/XLEN permissions and the stream keys."
+
       # --- Governor deferring under PSI (catalog #8) ------------------------
       # deferring==1 AND a per-worker PSI over the global psi_limit for 15m.
       - alert: PSIPinned
@@ -240,15 +333,35 @@ groups:
           summary: "Storage worker pinned by PSI pressure"
           description: "Worker {{ $labels.worker }} has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
 
-      # --- Worker heartbeat loss (catalog #9) -------------------------------
+      # --- Worker heartbeat loss --------------------------------------------
+      # GATED ON hash_present. A member of the rq:workers SET outlives its
+      # worker: the rq:worker hash expires at worker_ttl+60, SET membership has
+      # no TTL, and RQ's sweep only reaches a dead key through a queue some LIVE
+      # worker still serves -- so with every storage worker down nothing sweeps
+      # and the row stays for ever. Ungated, this stayed critical and firing for
+      # a worker that no longer exists. Drop the gate and the vmalert unit test
+      # worker_heartbeat_lost_silent_for_a_registration_with_no_worker fails.
       - alert: WorkerHeartbeatLost
-        expr: isardvdi_storage_governor_worker_up == 0
+        expr: |
+          (isardvdi_storage_governor_worker_up == 0)
+          and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
         for: 2m
         labels:
           severity: critical
         annotations:
           summary: "Storage worker lost its heartbeat"
-          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m (hash expired or heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+
+      # Long `for:` so an ordinary restart, swept within ~600s by any surviving
+      # worker on the same queue, never reaches it.
+      - alert: WorkerRegistrationStale
+        expr: isardvdi_storage_governor_worker_hash_present == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stale worker registration with no worker behind it"
+          description: "The rq:workers set has held a member for 30m whose rq:worker hash does not exist, so no worker is behind it. RQ only sweeps it through a queue a live worker still serves, so on a lane with no worker left it stays for ever: start a worker on that lane, or SREM the member. Until then every worker count that reads the set is too high by one."
 
       - alert: NoStorageWorkers
         expr: isardvdi_storage_governor:worker_up:sum == 0
