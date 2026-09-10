@@ -18,9 +18,12 @@ Only the guest per-peer flows change; the bridge-wide flood is left untouched
 Mutation that must turn these red: putting either explicit flow back on
 ``actions=NORMAL``, or dropping/​broadening the priority=452 gateway flow.
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
+
+from isardvdi_vpn import wgadmin
 
 
 def _flows(mock_run):
@@ -64,10 +67,10 @@ def test_plain_geneve_delivers_dhcp_and_gateway_arp_explicitly(
 ):
     """wgtools.Wg.up_peer, plain-geneve (BFD) branch."""
     peer = {"id": "hyper-new", "hostname": "hyper-new.lan", "vpn": None}
-    with patch.object(
-        wgtools_module, "check_output", side_effect=["", "42"]
-    ), patch.object(wgtools_module.subprocess, "run") as mock_run, patch.object(
-        wgtools_module.socket, "gethostbyname", return_value="192.0.2.1"
+    with (
+        patch.object(wgtools_module, "check_output", side_effect=["", "42"]),
+        patch.object(wgtools_module.subprocess, "run") as mock_run,
+        patch.object(wgtools_module.socket, "gethostbyname", return_value="192.0.2.1"),
     ):
         assert wgtools_hyper.up_peer(peer) is True
     _assert_explicit_delivery(mock_run)
@@ -89,25 +92,23 @@ def test_wg_geneve_delivers_dhcp_and_gateway_arp_explicitly(
             }
         },
     }
-    with patch.object(
-        wgtools_module, "check_output", side_effect=["", "42"]
-    ), patch.object(wgtools_module.subprocess, "run") as mock_run:
+    with (
+        patch.object(wgtools_module, "check_output", side_effect=["", "42"]),
+        patch.object(wgtools_module.subprocess, "run") as mock_run,
+    ):
         assert wgtools_hyper.up_peer(peer) is True
     _assert_explicit_delivery(mock_run)
 
 
-def test_wgadmin_geneve_port_delivers_dhcp_and_gateway_arp_explicitly(
-    wgadmin_module, monkeypatch
-):
+def test_wgadmin_geneve_port_delivers_dhcp_and_gateway_arp_explicitly(monkeypatch):
     """wgadmin.ensure_geneve_port."""
     monkeypatch.setenv("WG_HYPERS_PORT", "4443")
     monkeypatch.setattr(
-        wgadmin_module.socket, "gethostbyname", lambda h: "192.0.2.9", raising=False
+        wgadmin.socket, "gethostbyname", lambda h: "192.0.2.9", raising=False
     )
-    with patch.object(
-        wgadmin_module, "check_output", side_effect=["", "42"]
-    ), patch.object(wgadmin_module, "subprocess") as sp:
-        assert (
-            wgadmin_module.ensure_geneve_port("isard-hypervisor", "hyper.local") is True
-        )
+    with (
+        patch.object(wgadmin, "check_output", side_effect=["", "42"]),
+        patch.object(wgadmin, "subprocess") as sp,
+    ):
+        assert wgadmin.ensure_geneve_port("isard-hypervisor", "hyper.local") is True
     _assert_explicit_delivery(sp.run)
