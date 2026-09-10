@@ -429,6 +429,16 @@ flavour(){
 		fi
 	fi
 
+	# Only when the host has the device: docker refuses to start a container
+	# whose devices entry has no source.
+	if [ -c /dev/kvm ]; then
+		if echo "$parts" | grep -q "\(^\|\s\)storage\(\s\|$\)"; then
+			parts="$parts storage.kvm"
+			echo "INFO: /dev/kvm found, isard-storage gets hardware acceleration for libguestfs"
+			echo ""
+		fi
+	fi
+
 	variants "$config_name" $parts
 }
 
