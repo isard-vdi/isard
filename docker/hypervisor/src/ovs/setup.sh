@@ -81,7 +81,7 @@ $OVSDB_CMD >/tmp/ovsdb-server.out 2>&1
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restricted access"
 
 ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
-ovs-vsctl add-br ovsbr0
+ovs-vsctl --may-exist add-br ovsbr0
 # ============================================================================
 # PERFORMANCE: OVS Datapath Tuning
 # ============================================================================
@@ -157,7 +157,7 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
         fi
     fi
     GENEVE_DST_PORT=${WG_HYPERS_PORT:-4443}
-    ovs-vsctl add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
+    ovs-vsctl --may-exist add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
         type=geneve options:remote_ip=$VPN_REMOTE_IP \
         options:dst_port=$GENEVE_DST_PORT
     # Geneve-only mode has no underlying wireguard keepalive to detect tunnel
@@ -181,7 +181,7 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
     GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
 else
     echo "Configuring OVS for WireGuard + Geneve tunneling"
-    ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
+    ovs-vsctl --may-exist add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
     echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Geneve tunnel to VPN gateway $WG_HYPERS_GW (from WG_HYPERS_NET)"
     # No BFD in wireguard+geneve mode. WireGuard's own 25 s persistent-
     # keepalive is the tunnel liveness signal (vpn.tunnel_status is derived
@@ -211,7 +211,8 @@ then
     echo "No vlan interface set in isardvdi.cfg";
 else
     echo "Setting vlan interface: '$HYPERVISOR_HOST_TRUNK_INTERFACE'";
-    ovs-vsctl add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE
+    ovs-vsctl --may-exist add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE \
+        || echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Could not add trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE to ovsbr0"
 fi
 
 ovs-vsctl show

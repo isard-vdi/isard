@@ -73,7 +73,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restrict
 ovs-vswitchd --detach --verbose --pidfile  >> /var/log/ovs 2>&1
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS default bridge"
-ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
+ovs-vsctl --may-exist add-br ovsbr0 >> /var/log/ovs 2>&1
 # ============================================================================
 # PERFORMANCE: OVS Datapath Tuning
 # ============================================================================
@@ -157,7 +157,7 @@ fi
 ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
-ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
+ovs-vsctl --may-exist add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${GUESTS_GW}/${WG_GUESTS_NETS#*/} dev vlan-wg >> /var/log/ovs 2>&1
 ovs-vsctl set interface vlan-wg mtu_request=$_overlay_max
 ip link set vlan-wg up >> /var/log/ovs 2>&1
@@ -182,10 +182,10 @@ ovs-ofctl add-flow ovsbr0 "table=2,priority=0,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Table 2 default drop for unpinned VM IPs"
 
 # Bastion port (geneve tunnel to bastion container)
-ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.117 >> /var/log/ovs 2>&1
+ovs-vsctl --may-exist add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.117 >> /var/log/ovs 2>&1
 
 # Samba port (geneve tunnel to samba container)
-ovs-vsctl add-port ovsbr0 samba -- set interface samba type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.100 >> /var/log/ovs 2>&1
+ovs-vsctl --may-exist add-port ovsbr0 samba -- set interface samba type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.100 >> /var/log/ovs 2>&1
 
 # Get port numbers for bastion and samba
 BASTION_PORT=$(ovs-vsctl get Interface bastion ofport 2>/dev/null)
@@ -269,8 +269,11 @@ then
     echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: No VPN trunk interface set in isardvdi.cfg"
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Setting VPN trunk interface: '$HYPERVISOR_HOST_TRUNK_INTERFACE'"
-    ovs-vsctl add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE
-    echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE added to OVS bridge"
+    if ovs-vsctl --may-exist add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE added to OVS bridge"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Could not add VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE to ovsbr0"
+    fi
 fi
 
 mkdir -p /var/run/dnsmasq
