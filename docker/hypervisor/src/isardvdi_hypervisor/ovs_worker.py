@@ -115,6 +115,19 @@ def parse_lab_opts(mapping):
     }
 
 
+def _bw_burst(rate_kbps: int) -> int:
+    """A policer with too small a burst collapses TCP: it drops the window
+    ramp rather than shaping it. Half a second of the ceiling, floor 1 Mbit."""
+    return max(rate_kbps // 2, 1000)
+
+
+def _int_attr(element, name: str) -> int:
+    try:
+        return max(int(element.get(name, "0")), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def now_ms() -> int:
     """Get current time in milliseconds"""
     return int(time.time() * 1000)
@@ -734,17 +747,16 @@ class OvsWorker:
                 }
             )
 
-    def _create_meter(self, meter_id: int, rate: int, burst: int):
+    def _create_meter(self, meter_id: int, rate: int, burst: int, unit: str = "pktps"):
         """Create a meter for per-VM rate limiting"""
         # Delete first for idempotency (ignore errors if doesn't exist)
         self._ofctl("-O", "OpenFlow13", "del-meter", BRIDGE, f"meter={meter_id}")
-        # Create meter with pktps (packets per second)
         self._ofctl(
             "-O",
             "OpenFlow13",
             "add-meter",
             BRIDGE,
-            f"meter={meter_id},pktps,burst,bands=type=drop,rate={rate},burst_size={burst}",
+            f"meter={meter_id},{unit},burst,bands=type=drop,rate={rate},burst_size={burst}",
         )
 
     def _create_meters_batch(self, meter_specs: list) -> list:
@@ -767,9 +779,11 @@ class OvsWorker:
         # Build meter definitions
         meter_lines = []
         created_ids = []
-        for meter_id, rate, burst in meter_specs:
+        for spec in meter_specs:
+            meter_id, rate, burst = spec[0], spec[1], spec[2]
+            unit = spec[3] if len(spec) > 3 else "pktps"
             meter_lines.append(
-                f"meter={meter_id},pktps,burst,bands=type=drop,rate={rate},burst_size={burst}"
+                f"meter={meter_id},{unit},burst,bands=type=drop,rate={rate},burst_size={burst}"
             )
             created_ids.append(meter_id)
 
@@ -1012,6 +1026,8 @@ class OvsWorker:
         - meter_base + 2 = Broadcast (all VLANs)
         - meter_base + 3 = Multicast (all VLANs)
         - meter_base + 4 = Unicast catch-all (mac_spoofing lab option only)
+        - meter_base + 6 = Bandwidth ceiling up, kbps (VLAN 4095, profile only)
+        - meter_base + 7 = Bandwidth ceiling down, kbps (VLAN 4095, profile only)
         """
         stats_by_port = {}
 
@@ -1034,6 +1050,8 @@ class OvsWorker:
                 3: "multicast",
                 4: "unicast",
                 5: "bpdu",
+                6: "bandwidth_up",
+                7: "bandwidth_down",
             }
             meter_type = meter_types.get(meter_type_idx)
             if not meter_type:
@@ -1231,6 +1249,10 @@ class OvsWorker:
                 # Absent attribute means allowed: a domain started by an older
                 # engine must not lose its internet access on hypervisor upgrade.
                 info["internet"] = mapping.get("internet", "true") != "false"
+                # Zero (and anything unparseable) means no ceiling, which is
+                # what every install reports until a profile is assigned.
+                info["bw_up_kbps"] = _int_attr(mapping, "bw_up_kbps")
+                info["bw_down_kbps"] = _int_attr(mapping, "bw_down_kbps")
             elif kind == "user_network":
                 info["network_id"] = mapping.get("network_id", "")
                 metadata_id = mapping.get("metadata_id")
@@ -1326,6 +1348,8 @@ class OvsWorker:
                         # can pick the per-flag flow set.
                         "lab_opts": network_info.get("lab_opts", {}),
                         "internet": network_info.get("internet", True),
+                        "bw_up_kbps": network_info.get("bw_up_kbps", 0),
+                        "bw_down_kbps": network_info.get("bw_down_kbps", 0),
                     }
                 )
 
@@ -1424,12 +1448,16 @@ class OvsWorker:
             meter_bcast = meter_base + 2  # Broadcast storm (rate per lab opts)
             meter_mcast = meter_base + 3  # Multicast (rate per lab opts)
             meter_unicast = meter_base + 4  # mac_spoofing unicast catch-all
+            meter_bw_up = meter_base + 6  # bandwidth ceiling, guest -> network
+            meter_bw_down = meter_base + 7  # bandwidth ceiling, network -> guest
 
             # Per-interface lab options (admin webapp, API-validated). Honored
             # only outside VLAN 4095 (wireguard infra) — that VLAN is always
             # strict, so force every flag off there.
             lab = iface.get("lab_opts", {}) if vlan != "4095" else {}
             internet = iface.get("internet", True)
+            bw_up_kbps = iface.get("bw_up_kbps", 0)
+            bw_down_kbps = iface.get("bw_down_kbps", 0)
             mac_spoofing = bool(lab.get("mac_spoofing"))
             broadcast_unlimited = bool(lab.get("broadcast_unlimited"))
             multicast_unlimited = bool(lab.get("multicast_unlimited"))
@@ -1728,16 +1756,25 @@ class OvsWorker:
                 # Allow all IP traffic from guest with correct MAC
                 # Destination access control is enforced by iptables FORWARD
                 # (default DROP + per-desktop ACCEPT) in isard-vpn container
+                # A zero ceiling emits no meter at all, so the actions stay
+                # exactly what they were before profiles existed.
+                up_meter = ""
+                if bw_up_kbps:
+                    meter_specs.append(
+                        (meter_bw_up, bw_up_kbps, _bw_burst(bw_up_kbps), "kbps")
+                    )
+                    up_meter = f"meter:{meter_bw_up},"
                 if internet:
                     flows.append(
-                        f"priority=204,ip,in_port={nport},dl_src={mac},actions=NORMAL"
+                        f"priority=204,ip,in_port={nport},dl_src={mac},"
+                        f"actions={up_meter}NORMAL"
                     )
                 else:
                     # Everything internal lives inside the guests network, so
                     # restricting the allow to it drops exactly the egress.
                     flows.append(
                         f"priority=204,ip,in_port={nport},dl_src={mac},"
-                        f"nw_dst={self.guests_net_cidr},actions=NORMAL"
+                        f"nw_dst={self.guests_net_cidr},actions={up_meter}NORMAL"
                     )
                     flows.append(
                         f"priority=203,ip,in_port={nport},dl_src={mac},actions=drop"
@@ -1745,13 +1782,21 @@ class OvsWorker:
 
                 # Deliver traffic from VPN to guest - strip VLAN tag before output
                 # Only accept from geneve tunnel to prevent same-hypervisor VM bypass
+                down_meter = ""
+                if bw_down_kbps:
+                    meter_specs.append(
+                        (meter_bw_down, bw_down_kbps, _bw_burst(bw_down_kbps), "kbps")
+                    )
+                    down_meter = f"meter:{meter_bw_down},"
                 if self.geneve_port:
                     flows.append(
-                        f"priority=221,in_port={self.geneve_port},dl_dst={mac},dl_vlan=4095,actions=strip_vlan,output:{nport}"
+                        f"priority=221,in_port={self.geneve_port},dl_dst={mac},dl_vlan=4095,"
+                        f"actions={down_meter}strip_vlan,output:{nport}"
                     )
                 else:
                     flows.append(
-                        f"priority=221,dl_dst={mac},dl_vlan=4095,actions=strip_vlan,output:{nport}"
+                        f"priority=221,dl_dst={mac},dl_vlan=4095,"
+                        f"actions={down_meter}strip_vlan,output:{nport}"
                     )
 
         # Create all meters in batch (single subprocess call)

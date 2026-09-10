@@ -97,6 +97,76 @@ def get_storage_cached(storage_id):
     return get_dict_from_item_in_table("storage", storage_id)
 
 
+_bandwidth_owner_cache = SynchronizedTTLCache(maxsize=300, ttl=30)
+_bandwidth_default_cache = SynchronizedTTLCache(maxsize=1, ttl=30)
+
+
+@cached(cache=_bandwidth_owner_cache)
+def get_bandwidth_profile_of_cached(table, item_id):
+    """The bandwidth profile a group, category or role assigns, or None."""
+    try:
+        item = get_dict_from_item_in_table(table, item_id)
+    except Exception:
+        return None
+    return (item or {}).get("bandwidth_profile_id") or None
+
+
+@cached(cache=_bandwidth_default_cache)
+def get_default_bandwidth_profile_cached():
+    """Installation-wide fallback, from the single ``config`` document."""
+    try:
+        config = get_dict_from_item_in_table("config", 1)
+    except Exception:
+        return None
+    return ((config or {}).get("qos_net") or {}).get("default_profile_id") or None
+
+
+def resolve_bandwidth_kbps(dict_domain):
+    """Resolve the domain's bandwidth ceilings, in kbps, as (up, down).
+
+    The chain is group -> category -> role -> installation default. Zero
+    means no ceiling, and is what every install returns until somebody
+    assigns a profile.
+    """
+    profile_id = None
+    for table, key in (("groups", "group"), ("categories", "category")):
+        item_id = dict_domain.get(key)
+        if item_id:
+            profile_id = get_bandwidth_profile_of_cached(table, item_id)
+            if profile_id:
+                break
+    if not profile_id:
+        user = None
+        try:
+            user = get_dict_from_item_in_table("users", dict_domain.get("user"))
+        except Exception:
+            user = None
+        if user and user.get("role"):
+            profile_id = get_bandwidth_profile_of_cached("roles", user["role"])
+    if not profile_id:
+        profile_id = get_default_bandwidth_profile_cached()
+    if not profile_id:
+        return 0, 0
+
+    try:
+        bandwidth = (get_qos_net_cached(profile_id) or {}).get("bandwidth") or {}
+    except Exception:
+        return 0, 0
+    # qos_net keeps libvirt's convention: @average is kilobytes per second,
+    # and its inbound is what reaches the guest. OVS meters take kilobits.
+    return (
+        _kbytes_to_kbits((bandwidth.get("outbound") or {}).get("@average")),
+        _kbytes_to_kbits((bandwidth.get("inbound") or {}).get("@average")),
+    )
+
+
+def _kbytes_to_kbits(value):
+    try:
+        return max(int(value) * 8, 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 _guest_mtu_cache = SynchronizedTTLCache(maxsize=1, ttl=30)
 
 
@@ -779,6 +849,7 @@ class DomainXML(object):
         qos=False,
         lab_opts=None,
         internet=True,
+        bw_kbps=(0, 0),
     ):
         """
         :param type_interface:' bridge' OR 'network' .
@@ -815,6 +886,7 @@ class DomainXML(object):
                     "vlan_id": int(net),
                     "lab_opts": lab_opts,
                     "internet": internet,
+                    "bw_kbps": bw_kbps,
                 }
             )
 
@@ -863,6 +935,7 @@ class DomainXML(object):
                                         "vlan_id": vlan_id,
                                         "lab_opts": lab_opts,
                                         "internet": internet,
+                                        "bw_kbps": bw_kbps,
                                     }
                                 )
                             else:
@@ -901,6 +974,7 @@ class DomainXML(object):
                     "bridge": ovs_br_name,  # Non-default bridge
                     "lab_opts": lab_opts,
                     "internet": internet,
+                    "bw_kbps": bw_kbps,
                 }
             )
 
@@ -1231,6 +1305,9 @@ class DomainXML(object):
                 mapping_elem.set(
                     "internet", "false" if mapping.get("internet") is False else "true"
                 )
+                bw_up, bw_down = mapping.get("bw_kbps") or (0, 0)
+                mapping_elem.set("bw_up_kbps", str(int(bw_up or 0)))
+                mapping_elem.set("bw_down_kbps", str(int(bw_down or 0)))
             elif mapping["kind"] == "user_network":
                 mapping_elem.set("network_id", mapping.get("network_id", ""))
                 mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))
@@ -2343,6 +2420,8 @@ def recreate_xml_interfaces(dict_domain, x):
         "internet"
     ) is not False
 
+    bw_kbps = resolve_bandwidth_kbps(dict_domain)
+
     custom_mac = False
     if "custom" in dict_domain.keys():
         if type(dict_domain["custom"]) is dict:
@@ -2389,6 +2468,7 @@ def recreate_xml_interfaces(dict_domain, x):
             # Only the API path (cerberus-validated) writes real bool True flags.
             lab_opts=d_interface.get("lab_opts"),
             internet=internet,
+            bw_kbps=bw_kbps,
         )
 
         interface_index += 1

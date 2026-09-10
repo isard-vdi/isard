@@ -171,6 +171,7 @@ class AdminGroupUpdateData(BaseModel):
     description: Optional[str] = None
     ephimeral: EphimeralDesktopsData | bool | None = None
     linked_groups: Optional[List[str]] = None
+    bandwidth_profile_id: Optional[str] = None
 
 
 class AdminGroupEnrollmentData(BaseModel):
@@ -223,6 +224,7 @@ class AdminCategoryUpdateData(BaseModel):
     maintenance: Optional[bool] = None
     manager_permissions: Optional[ManagerPermissionsData] = None
     gpu_use_global_pool: Optional[bool] = None
+    bandwidth_profile_id: Optional[str] = None
 
 
 class AdminCategoryAuthenticationData(BaseModel):

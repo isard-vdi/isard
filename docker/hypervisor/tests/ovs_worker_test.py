@@ -865,3 +865,142 @@ def test_flow_add_internet_switch_does_not_reach_a_non_infrastructure_vlan(
     )
 
     assert not any(f.startswith(_INTERNET_DROP) for f in flows)
+
+
+# --------------------------------------------------------------------------
+# per-domain bandwidth ceilings (kbps meters on VLAN 4095)
+# --------------------------------------------------------------------------
+
+_METER_BW_UP = _METER_BASE + 6
+_METER_BW_DOWN = _METER_BASE + 7
+
+
+def _bw_xml(mac: str, up: str = "0", down: str = "0") -> str:
+    return _domain_xml_with_vlan(
+        mac, "4095", lab_attrs=f' bw_up_kbps="{up}" bw_down_kbps="{down}"'
+    )
+
+
+def test_parse_mac2network_bandwidth_defaults_to_zero():
+    """A domain started by an older engine carries no attributes; zero is
+    what the flow builder reads as 'no ceiling'."""
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(
+        _domain_xml_with_vlan("52:54:00:00:30:01", "4095")
+    )
+    info = mappings["52:54:00:00:30:01"]
+    assert info["bw_up_kbps"] == 0 and info["bw_down_kbps"] == 0
+
+
+@pytest.mark.parametrize("raw", ["", "abc", "-5", "not-a-number"])
+def test_parse_mac2network_bandwidth_rejects_junk_as_no_ceiling(raw):
+    """An unparseable or negative value must not become a throttle."""
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(_bw_xml("52:54:00:00:30:02", up=raw))
+    assert mappings["52:54:00:00:30:02"]["bw_up_kbps"] == 0
+
+
+def test_parse_mac2network_bandwidth_reads_both_directions():
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(
+        _bw_xml("52:54:00:00:30:03", up="1000", down="10000")
+    )
+    info = mappings["52:54:00:00:30:03"]
+    assert info["bw_up_kbps"] == 1000 and info["bw_down_kbps"] == 10000
+
+
+def test_flow_add_without_a_ceiling_emits_no_bandwidth_meter(monkeypatch):
+    """The unlimited path must stay byte-identical to what main emits."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:30:04"
+    worker._flow_add("dom", _bw_xml(mac))
+
+    assert f"priority=204,ip,in_port={_OFPORT},dl_src={mac},actions=NORMAL" in flows
+    assert not any(spec[0] in (_METER_BW_UP, _METER_BW_DOWN) for spec in meters)
+    assert not any(f"meter:{_METER_BW_UP}" in f for f in flows)
+
+
+def test_flow_add_with_an_upload_ceiling_meters_the_egress(monkeypatch):
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:30:05"
+    worker._flow_add("dom", _bw_xml(mac, up="1000"))
+
+    assert (
+        f"priority=204,ip,in_port={_OFPORT},dl_src={mac},"
+        f"actions=meter:{_METER_BW_UP},NORMAL" in flows
+    )
+    spec = [s for s in meters if s[0] == _METER_BW_UP]
+    assert spec and spec[0][1] == 1000 and spec[0][3] == "kbps"
+
+
+def test_flow_add_with_a_download_ceiling_meters_the_delivery(monkeypatch):
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:30:06"
+    worker._flow_add("dom", _bw_xml(mac, down="10000"))
+
+    assert any(
+        f"priority=221,in_port=9,dl_dst={mac},dl_vlan=4095,"
+        f"actions=meter:{_METER_BW_DOWN},strip_vlan,output:{_OFPORT}" == f
+        for f in flows
+    )
+    spec = [s for s in meters if s[0] == _METER_BW_DOWN]
+    assert spec and spec[0][1] == 10000 and spec[0][3] == "kbps"
+
+
+def test_flow_add_the_burst_is_half_the_ceiling_with_a_floor(monkeypatch):
+    """A policer with too small a burst collapses TCP rather than shaping it."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add("dom", _bw_xml("52:54:00:00:30:07", up="8000", down="100"))
+
+    up = [s for s in meters if s[0] == _METER_BW_UP][0]
+    down = [s for s in meters if s[0] == _METER_BW_DOWN][0]
+    assert up[2] == 4000
+    assert down[2] == 1000  # floored, not 50
+
+
+def test_flow_add_a_ceiling_stacks_with_the_internet_switch(monkeypatch):
+    """The two phases share the priority-204 rule; the meter has to survive
+    the restricted form of it."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:30:08"
+    worker._flow_add(
+        "dom",
+        _domain_xml_with_vlan(
+            mac, "4095", lab_attrs=' internet="false" bw_up_kbps="1000"'
+        ),
+    )
+
+    assert (
+        f"priority=204,ip,in_port={_OFPORT},dl_src={mac},"
+        f"nw_dst={worker.guests_net_cidr},actions=meter:{_METER_BW_UP},NORMAL" in flows
+    )
+    assert f"priority=203,ip,in_port={_OFPORT},dl_src={mac},actions=drop" in flows
+
+
+def test_flow_add_a_ceiling_does_not_reach_a_non_infrastructure_vlan(monkeypatch):
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom", _domain_xml_with_vlan("52:54:00:00:30:09", "1002", ' bw_up_kbps="1000"')
+    )
+
+    assert not any(spec[0] in (_METER_BW_UP, _METER_BW_DOWN) for spec in meters)
+
+
+def test_create_meters_batch_keeps_pktps_for_the_old_three_element_specs(monkeypatch):
+    """The existing storm meters pass (id, rate, burst) with no unit and must
+    stay packets-per-second."""
+    worker = _worker_without_init()
+    calls = []
+    worker._ofctl = lambda *args: (calls.append(args), True)[1]
+
+    worker._create_meters_batch([(520, 100, 10), (521, 50, 5, "kbps")])
+
+    added = [a for a in calls if "add-meter" in a]
+    assert any("meter=520,pktps," in a[-1] for a in added)
+    assert any("meter=521,kbps," in a[-1] for a in added)
