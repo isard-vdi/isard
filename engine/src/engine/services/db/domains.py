@@ -171,12 +171,13 @@ def fail_incomplete_creating_domains(
             .update({"status": "Failed", "detail": detail})
             .run(r_conn)
         )
-    results = (
-        rtable.get_all(r.args(status_to_failed), index="status")
-        .filter({"kind": kind})
-        .update({"status": "Failed", "detail": detail})
-        .run(r_conn)
-    )
+    else:
+        results = (
+            rtable.get_all(r.args(status_to_failed), index="status")
+            .filter({"kind": kind})
+            .update({"status": "Failed", "detail": detail})
+            .run(r_conn)
+        )
 
     close_rethink_connection(r_conn)
     return results
