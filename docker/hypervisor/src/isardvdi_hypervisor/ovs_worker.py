@@ -188,6 +188,13 @@ class OvsWorker:
             ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
         )
         self.guests_net_cidr = str(guests_net)
+        # Lives inside the guests network, so the internet switch has to cut
+        # it out explicitly or its allow would let it through.
+        self.local_egress_gw = (
+            str(guests_net[-2])
+            if os.environ.get("HYPERVISOR_LOCAL_INTERNET", "false") == "true"
+            else None
+        )
 
         # Discover geneve port number (set up by setup.sh before we start)
         # In wg+geneve mode the interface is named $DOMAIN
@@ -1772,6 +1779,13 @@ class OvsWorker:
                 else:
                     # Everything internal lives inside the guests network, so
                     # restricting the allow to it drops exactly the egress.
+                    if self.local_egress_gw:
+                        # 205 also holds three other drops; every overlap is
+                        # drop-vs-drop, so the undefined order decides nothing.
+                        flows.append(
+                            f"priority=205,ip,in_port={nport},dl_src={mac},"
+                            f"nw_dst={self.local_egress_gw},actions=drop"
+                        )
                     flows.append(
                         f"priority=204,ip,in_port={nport},dl_src={mac},"
                         f"nw_dst={self.guests_net_cidr},actions={up_meter}NORMAL"

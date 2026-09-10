@@ -273,6 +273,22 @@ else
     echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE added to OVS bridge"
 fi
 
+# Without local egress: the infrastructure through the VPN gateway and no
+# default route at all, exactly as before.
+_dhcp_routes="${WG_MAIN_NET},${GUESTS_GW}"
+if [ "${HYPERVISOR_LOCAL_INTERNET:-false}" = "true" ]; then
+    _guests_local_gw=$(python3 -c "
+import ipaddress, os
+print(ipaddress.ip_network(os.environ.get('WG_GUESTS_NETS', '10.2.0.0/16'), strict=False)[-2])
+" 2>/dev/null)
+    if [ -n "$_guests_local_gw" ]; then
+        _dhcp_routes="0.0.0.0/0,${_guests_local_gw},${WG_MAIN_NET},${GUESTS_GW}"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Guests default route -> local hypervisor gateway ${_guests_local_gw}"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Local internet egress is on but the gateway address could not be computed; guests keep the infrastructure-only routes"
+    fi
+fi
+
 mkdir -p /var/run/dnsmasq
 mkdir -p /var/lib/dnsmasq
 cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf
@@ -288,7 +304,7 @@ dhcp-authoritative
 dhcp-lease-max=100000
 #dhcp-hostsfile=/var/lib/misc/vlan-wg.static_leases
 dhcp-hostsdir=/var/lib/static_leases
-dhcp-option=121,${WG_MAIN_NET},${GUESTS_GW}
+dhcp-option=121,${_dhcp_routes}
 EOT
 
 echo "dhcp-option=26,$_dhcp_mtu" >> /etc/dnsmasq.d/vlan-wg.conf

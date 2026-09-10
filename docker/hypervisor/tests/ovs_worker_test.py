@@ -213,6 +213,7 @@ def _worker_ready_for_flow_add(monkeypatch, captured_flows, captured_meters):
     worker.process_queue = type("Q", (), {"qsize": staticmethod(lambda: 0)})()
     worker.guests_infra_cidr = "10.0.0.0/24"
     worker.guests_net_cidr = "10.0.0.0/16"
+    worker.local_egress_gw = None  # opt-in, off on every install today
     worker.geneve_port = "9"
     worker._add_port_to_ovs = lambda *a, **k: True
     worker._get_port_ofport = lambda port: _OFPORT
@@ -1004,3 +1005,50 @@ def test_create_meters_batch_keeps_pktps_for_the_old_three_element_specs(monkeyp
     added = [a for a in calls if "add-meter" in a]
     assert any("meter=520,pktps," in a[-1] for a in added)
     assert any("meter=521,kbps," in a[-1] for a in added)
+
+
+# --------------------------------------------------------------------------
+# local egress gateway vs the internet switch
+# --------------------------------------------------------------------------
+
+_LOCAL_GW = "10.0.255.254"
+
+
+def _worker_with_local_egress(monkeypatch, flows, meters, enabled=True):
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker.local_egress_gw = _LOCAL_GW if enabled else None
+    return worker
+
+
+def test_local_egress_gateway_is_cut_out_of_the_restricted_allow(monkeypatch):
+    """The gateway lives inside the guests network, which the restricted rule
+    allows wholesale — without this the internet switch would be a no-op on
+    any install that turned local egress on."""
+    flows, meters = [], []
+    worker = _worker_with_local_egress(monkeypatch, flows, meters)
+    mac = "52:54:00:00:40:01"
+    worker._flow_add("dom", _domain_xml_with_vlan(mac, "4095", ' internet="false"'))
+
+    assert (
+        f"priority=205,ip,in_port={_OFPORT},dl_src={mac},"
+        f"nw_dst={_LOCAL_GW},actions=drop" in flows
+    )
+
+
+def test_a_desktop_with_internet_allowed_still_reaches_the_local_gateway(monkeypatch):
+    flows, meters = [], []
+    worker = _worker_with_local_egress(monkeypatch, flows, meters)
+    mac = "52:54:00:00:40:02"
+    worker._flow_add("dom", _domain_xml_with_vlan(mac, "4095", ' internet="true"'))
+
+    assert not any(f"nw_dst={_LOCAL_GW}" in f for f in flows)
+
+
+def test_without_local_egress_no_gateway_rule_is_emitted(monkeypatch):
+    """Every install today: the switch is off, so there is no gateway to cut."""
+    flows, meters = [], []
+    worker = _worker_with_local_egress(monkeypatch, flows, meters, enabled=False)
+    mac = "52:54:00:00:40:03"
+    worker._flow_add("dom", _domain_xml_with_vlan(mac, "4095", ' internet="false"'))
+
+    assert not any("priority=205,ip," in f for f in flows)

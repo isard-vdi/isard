@@ -725,6 +725,18 @@ WG_HYPERS_PORT=4443
 ## for each hypervisor.
 WG_GUESTS_NETS=10.2.0.0/16
 
+## Local internet egress for the desktops (opt-in, default off).
+## Off by default because it is a behaviour change: with it off, a desktop has
+## no default route at all and reaches only WG_MAIN_NET, which is what every
+## installation does today. With it on, each hypervisor puts a gateway at the
+## last address of WG_GUESTS_NETS and NATs the desktops out of its own uplink,
+## so their internet traffic no longer crosses the geneve tunnel. Traffic to
+## WG_MAIN_NET keeps going through the tunnel either way.
+#HYPERVISOR_LOCAL_INTERNET=false
+## Uplink to NAT out of. Leave unset to take the interface of the host's
+## default route.
+#HYPERVISOR_LOCAL_INTERNET_IF=
+
 ## 23: 512 GUESTS -2
 ## 24: 256 GUESTS -2
 ## Each hypervisor will get one subnet from WG_GUESTS_NETS

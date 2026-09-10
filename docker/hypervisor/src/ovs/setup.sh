@@ -32,6 +32,8 @@ print(f'GUESTS_BASTION={gn[2]}')
 print(f'GUESTS_SAMBA={gn[3]}')
 print(f'GUESTS_GUAC={gn[4]}')
 print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\", strict=False)}')
+print(f'GUESTS_LOCAL_GW={gn[-2]}')
+print(f'GUESTS_PREFIXLEN={gn.prefixlen}')
 print(f'WG_HYPERS_GW={hn[1]}')
 " 2>/dev/null) || {
   # Fallback: shell-based extraction for containers without python3
@@ -45,6 +47,8 @@ print(f'WG_HYPERS_GW={hn[1]}')
   _HYPERS_BASE=$(echo "${WG_HYPERS_NET:-10.1.0.0/24}" | cut -d/ -f1)
   _HYPERS_PREFIX=${_HYPERS_BASE%.*}
   WG_HYPERS_GW="${_HYPERS_PREFIX}.1"
+  GUESTS_LOCAL_GW="${_PREFIX}.254"
+  GUESTS_PREFIXLEN=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f2)
 }
 
 # Ensure OVS DB exists and matches the installed schema version
@@ -284,6 +288,42 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] IPv6 + RA Guard enabled for VLAN 4
 ovs-ofctl add-flow ovsbr0 "priority=210,udp,dl_vlan=4095,tp_src=53,actions=drop"
 ovs-ofctl add-flow ovsbr0 "priority=210,tcp,dl_vlan=4095,tp_src=53,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] DNS spoofing protection enabled for VLAN 4095"
+
+# ============================================================================
+# LOCAL INTERNET EGRESS (opt-in)
+# ============================================================================
+# The gateway address is the same on every hypervisor and they share one
+# VLAN-4095 domain over geneve, so it only works while it never crosses the
+# tunnel: that is what the three flows below enforce.
+if [ "${HYPERVISOR_LOCAL_INTERNET:-false}" = "true" ]; then
+    WAN_IF="${HYPERVISOR_LOCAL_INTERNET_IF:-$(ip route show default | awk '/default/ {print $5; exit}')}"
+    if [ -z "$WAN_IF" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Local internet egress is enabled but no uplink interface was found; set HYPERVISOR_LOCAL_INTERNET_IF"
+    else
+        ovs-vsctl --may-exist add-port ovsbr0 inet-gw tag=4095 \
+            -- set interface inet-gw type=internal
+        ip addr replace "${GUESTS_LOCAL_GW}/${GUESTS_PREFIXLEN}" dev inet-gw
+        ip link set inet-gw up
+        INET_GW_PORT=$(ovs-vsctl get Interface inet-gw ofport 2>/dev/null)
+
+        if [ -n "$INET_GW_PORT" ] && [ "$INET_GW_PORT" != "-1" ]; then
+            # Answered by THIS hypervisor, never flooded to the tunnel.
+            ovs-ofctl add-flow ovsbr0 "priority=213,arp,arp_op=1,arp_tpa=${GUESTS_LOCAL_GW},actions=strip_vlan,output:${INET_GW_PORT}"
+            # A remote hypervisor's gateway must never be seen here.
+            ovs-ofctl add-flow ovsbr0 "priority=214,arp,in_port=${GENEVE_PORT},arp_spa=${GUESTS_LOCAL_GW},actions=drop"
+            ovs-ofctl add-flow ovsbr0 "priority=214,ip,in_port=${GENEVE_PORT},nw_src=${GUESTS_LOCAL_GW},actions=drop"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [INET-GW] Local gateway ${GUESTS_LOCAL_GW} on port ${INET_GW_PORT}, contained to this hypervisor"
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Could not get inet-gw ofport; local internet egress is NOT contained and was not enabled"
+        fi
+
+        # The infrastructure keeps going through the tunnel.
+        if ! iptables -t nat -C POSTROUTING -s "${WG_GUESTS_NETS:-10.2.0.0/16}" ! -d "${WG_MAIN_NET:-10.0.0.0/14}" -o "$WAN_IF" -j MASQUERADE 2>/dev/null; then
+            iptables -t nat -A POSTROUTING -s "${WG_GUESTS_NETS:-10.2.0.0/16}" ! -d "${WG_MAIN_NET:-10.0.0.0/14}" -o "$WAN_IF" -j MASQUERADE
+        fi
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [INET-GW] NAT for ${WG_GUESTS_NETS:-10.2.0.0/16} out of ${WAN_IF}, excluding ${WG_MAIN_NET:-10.0.0.0/14}"
+    fi
+fi
 
 # ============================================================================
 # SECURITY: Multicast Destination Blocking for VLAN 4095
