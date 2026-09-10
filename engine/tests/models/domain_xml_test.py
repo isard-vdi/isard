@@ -1958,3 +1958,149 @@ def test_mac2network_only_a_real_false_turns_internet_off(monkeypatch, value):
     )
     x.add_mac2network_metadata(x.mac2network_mappings)
     assert _mapping_of(x)[0].get("internet") == "true"
+
+
+# --------------------------------------------------------------------------
+# bandwidth profile resolution and the kbps attributes
+# --------------------------------------------------------------------------
+
+
+def _bw_env(monkeypatch, *, owners=None, default=None, profiles=None):
+    """Stub the four lookups resolve_bandwidth_kbps makes."""
+    owners = owners or {}
+    profiles = profiles or {}
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_bandwidth_profile_of_cached",
+        lambda table, item_id: owners.get((table, item_id)),
+    )
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_default_bandwidth_profile_cached",
+        lambda: default,
+    )
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_qos_net_cached", lambda pid: profiles.get(pid)
+    )
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_dict_from_item_in_table",
+        lambda table, item_id: ({"role": "advanced"} if table == "users" else None),
+    )
+
+
+_PROFILE_1M = {
+    "bandwidth": {
+        "inbound": {"@average": 125, "@peak": 1250, "@burst": 1024},
+        "outbound": {"@average": 125, "@peak": 1250, "@burst": 1024},
+    }
+}
+_PROFILE_ASYMMETRIC = {
+    "bandwidth": {"inbound": {"@average": 1250}, "outbound": {"@average": 125}}
+}
+_DOMAIN = {"group": "g1", "category": "c1", "user": "u1"}
+
+
+def test_bandwidth_unassigned_everywhere_is_no_ceiling(monkeypatch):
+    """What every install returns today: nothing set anywhere."""
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(monkeypatch)
+    assert resolve_bandwidth_kbps(_DOMAIN) == (0, 0)
+
+
+def test_bandwidth_kilobytes_become_kilobits(monkeypatch):
+    """qos_net keeps libvirt's KB/s; OVS meters take kbps. 125 KB/s = 1 Mbps."""
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(
+        monkeypatch,
+        owners={("groups", "g1"): "limit1M"},
+        profiles={"limit1M": _PROFILE_1M},
+    )
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 1000)
+
+
+def test_bandwidth_up_comes_from_outbound_and_down_from_inbound(monkeypatch):
+    """libvirt names the directions from the interface's side: inbound is
+    what reaches the guest, so it is the download."""
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(
+        monkeypatch,
+        owners={("groups", "g1"): "asym"},
+        profiles={"asym": _PROFILE_ASYMMETRIC},
+    )
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 10000)
+
+
+def test_bandwidth_group_wins_over_category(monkeypatch):
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(
+        monkeypatch,
+        owners={("groups", "g1"): "limit1M", ("categories", "c1"): "asym"},
+        profiles={"limit1M": _PROFILE_1M, "asym": _PROFILE_ASYMMETRIC},
+    )
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 1000)
+
+
+def test_bandwidth_falls_through_to_the_category(monkeypatch):
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(
+        monkeypatch,
+        owners={("categories", "c1"): "limit1M"},
+        profiles={"limit1M": _PROFILE_1M},
+    )
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 1000)
+
+
+def test_bandwidth_falls_through_to_the_role(monkeypatch):
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(
+        monkeypatch,
+        owners={("roles", "advanced"): "limit1M"},
+        profiles={"limit1M": _PROFILE_1M},
+    )
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 1000)
+
+
+def test_bandwidth_falls_through_to_the_installation_default(monkeypatch):
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(monkeypatch, default="limit1M", profiles={"limit1M": _PROFILE_1M})
+    assert resolve_bandwidth_kbps(_DOMAIN) == (1000, 1000)
+
+
+def test_bandwidth_a_profile_that_no_longer_exists_is_no_ceiling(monkeypatch):
+    """Deleting a profile must not throttle to zero, which would cut the
+    desktop off entirely."""
+    from engine.models.domain_xml import resolve_bandwidth_kbps
+
+    _bw_env(monkeypatch, owners={("groups", "g1"): "gone"}, profiles={})
+    assert resolve_bandwidth_kbps(_DOMAIN) == (0, 0)
+
+
+def test_mac2network_emits_zero_kbps_by_default(monkeypatch):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface("ovs", "52:54:00:dd:00:01", "dom1", "if-a", net="1002")
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)[0]
+    assert mapping.get("bw_up_kbps") == "0"
+    assert mapping.get("bw_down_kbps") == "0"
+
+
+def test_mac2network_emits_the_resolved_kbps(monkeypatch):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs", "52:54:00:dd:00:02", "dom1", "if-b", net="1002", bw_kbps=(1000, 10000)
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)[0]
+    assert mapping.get("bw_up_kbps") == "1000"
+    assert mapping.get("bw_down_kbps") == "10000"
