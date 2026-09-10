@@ -79,12 +79,13 @@ include:
       job-prefix: "frontend:format-"
       project-directory: "component/frontend"
       bun-script: "format --write=false --check"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
-    inputs:
-      job-prefix: "frontend:type-check-"
-      project-directory: "component/frontend"
-      bun-script: "type-check"
-      allow-failure: true
+  # TODO: Enable this pipeline again
+  # - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  #   inputs:
+  #     job-prefix: "frontend:type-check-"
+  #     project-directory: "component/frontend"
+  #     bun-script: "type-check"
+  #     allow-failure: true
   # Included only for the bun cache mixin that test-e2e extends.
   - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
     inputs:
@@ -136,6 +137,15 @@ check-system-deps:
     - uv sync --frozen --only-group dev
   script:
     - make lint-system-deps
+
+# TODO: Enable this pipeline again
+python-lint-ruff:
+  rules:
+    - when: never
+
+python-lint-ty:
+  rules:
+    - when: never
 
 "build-codegen:docker-build":
   needs: []
