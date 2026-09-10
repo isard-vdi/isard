@@ -778,6 +778,7 @@ class DomainXML(object):
         net="default",
         qos=False,
         lab_opts=None,
+        internet=True,
     ):
         """
         :param type_interface:' bridge' OR 'network' .
@@ -813,6 +814,7 @@ class DomainXML(object):
                     "interface_id": id_interface,
                     "vlan_id": int(net),
                     "lab_opts": lab_opts,
+                    "internet": internet,
                 }
             )
 
@@ -860,6 +862,7 @@ class DomainXML(object):
                                         "interface_id": id_interface,
                                         "vlan_id": vlan_id,
                                         "lab_opts": lab_opts,
+                                        "internet": internet,
                                     }
                                 )
                             else:
@@ -897,6 +900,7 @@ class DomainXML(object):
                     "vlan_id": int(net),
                     "bridge": ovs_br_name,  # Non-default bridge
                     "lab_opts": lab_opts,
+                    "internet": internet,
                 }
             )
 
@@ -1222,6 +1226,11 @@ class DomainXML(object):
                     mapping_elem.set(
                         attr_name, "true" if lab.get(opt_key) is True else "false"
                     )
+                # Emitted explicitly on every mapping: a missing attribute has
+                # to keep meaning "internet allowed" on the hypervisor side.
+                mapping_elem.set(
+                    "internet", "false" if mapping.get("internet") is False else "true"
+                )
             elif mapping["kind"] == "user_network":
                 mapping_elem.set("network_id", mapping.get("network_id", ""))
                 mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))
@@ -2328,6 +2337,12 @@ def recreate_xml_interfaces(dict_domain, x):
     """ for interface_index in range(len(x.vm_dict['interfaces'])):
         x.remove_interface(order=interface_index) """
 
+    # Per-domain switch, not per-interface: absent or anything but an actual
+    # False leaves internet allowed, so old rows keep behaving as they do.
+    internet = ((dict_domain.get("create_dict") or {}).get("hardware") or {}).get(
+        "internet"
+    ) is not False
+
     custom_mac = False
     if "custom" in dict_domain.keys():
         if type(dict_domain["custom"]) is dict:
@@ -2373,6 +2388,7 @@ def recreate_xml_interfaces(dict_domain, x):
             # dict, or any stringly-typed value all resolve to False -> strict.
             # Only the API path (cerberus-validated) writes real bool True flags.
             lab_opts=d_interface.get("lab_opts"),
+            internet=internet,
         )
 
         interface_index += 1

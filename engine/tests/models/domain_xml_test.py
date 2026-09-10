@@ -1929,3 +1929,48 @@ class TestResolveQosDiskIotune:
             None,
             [],
         )
+
+
+# --------------------------------------------------------------------------
+# per-domain internet switch in <isard:mapping> (internet attribute)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("type_interface, net", [("ovs", "1002"), ("ovs1", "1002")])
+def test_mac2network_internet_defaults_to_true(monkeypatch, type_interface, net):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(type_interface, "52:54:00:cc:00:01", "dom1", "if-a", net=net)
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    assert _mapping_of(x)[0].get("internet") == "true"
+
+
+@pytest.mark.parametrize("type_interface, net", [("ovs", "1002"), ("ovs1", "1002")])
+def test_mac2network_internet_false_is_emitted(monkeypatch, type_interface, net):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        type_interface, "52:54:00:cc:00:02", "dom1", "if-b", net=net, internet=False
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    assert _mapping_of(x)[0].get("internet") == "false"
+
+
+@pytest.mark.parametrize("value", [True, None, "false", 0, "no"])
+def test_mac2network_only_a_real_false_turns_internet_off(monkeypatch, value):
+    """Same strictness as the lab flags, mirrored: anything that is not an
+    actual ``False`` leaves internet allowed, so a stringly-typed DB value
+    cannot cut a desktop off by accident."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs", "52:54:00:cc:00:03", "dom1", "if-c", net="1005", internet=value
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    assert _mapping_of(x)[0].get("internet") == "true"

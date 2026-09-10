@@ -330,6 +330,7 @@ class AdminDomainHardwareInner(BaseModel):
     disks: Optional[List[AdminDomainHardwareDisk]] = None
     virtualization_nested: Optional[bool] = None
     qos_disk_id: Optional[Union[str, bool]] = None
+    internet: Optional[bool] = None
 
 
 class DomainFilterFieldEnum(str, Enum):

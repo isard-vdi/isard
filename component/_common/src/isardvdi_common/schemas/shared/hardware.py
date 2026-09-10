@@ -63,6 +63,7 @@ class Hardware(BaseModel):
     virtualization_nested: bool = False
     boot_order: Optional[list[Literal["iso", "floppy", "disk", "pxe"]]] = ["disk"]
     qos_disk_id: Optional[str | bool] = False
+    internet: bool = True
     vcpus: int
     memory: float
     graphics: list[str] = []
@@ -129,6 +130,7 @@ class HardwareTemplate(BaseModel):
     virtualization_nested: bool = False
     boot_order: Optional[list[Literal["iso", "floppy", "disk", "pxe"]]] = ["disk"]
     qos_disk_id: Optional[str | bool] = False
+    internet: bool = True
     vcpus: int
     memory: float
     graphics: list[str] = []
@@ -146,6 +148,7 @@ class HardwareStorage(BaseModel):
     virtualization_nested: bool = False
     boot_order: Optional[list[Literal["iso", "floppy", "disk", "pxe"]]] = []
     qos_disk_id: Optional[str | bool] = False
+    internet: bool = True
     vcpus: int
     memory: int
     graphics: list[str] = []

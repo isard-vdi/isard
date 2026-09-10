@@ -212,6 +212,7 @@ def _worker_ready_for_flow_add(monkeypatch, captured_flows, captured_meters):
     worker.lock = threading.Lock()
     worker.process_queue = type("Q", (), {"qsize": staticmethod(lambda: 0)})()
     worker.guests_infra_cidr = "10.0.0.0/24"
+    worker.guests_net_cidr = "10.0.0.0/16"
     worker.geneve_port = "9"
     worker._add_port_to_ovs = lambda *a, **k: True
     worker._get_port_ofport = lambda port: _OFPORT
@@ -771,3 +772,96 @@ def test_sync_bpdu_groups_teardown_when_no_ports(monkeypatch):
         "teardown match must omit dl_dst so it catches the priority=200 flow too: "
         + str(del_calls)
     )
+
+
+# --------------------------------------------------------------------------
+# per-domain internet switch (VLAN 4095 egress)
+# --------------------------------------------------------------------------
+
+_INTERNET_ALLOW = f"priority=204,ip,in_port={_OFPORT},dl_src="
+_INTERNET_DROP = f"priority=203,ip,in_port={_OFPORT},dl_src="
+
+
+def _infra_xml(mac: str, internet_attr: str = "") -> str:
+    return _domain_xml_with_vlan(mac, "4095", lab_attrs=internet_attr)
+
+
+def test_parse_mac2network_internet_defaults_to_allowed():
+    """A domain started by an older engine carries no attribute at all; it
+    must not lose its internet access when the hypervisor is upgraded."""
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(_infra_xml("52:54:00:00:20:01"))
+    assert mappings["52:54:00:00:20:01"]["internet"] is True
+
+
+@pytest.mark.parametrize("raw", ["true", "TRUE", "yes", "1", ""])
+def test_parse_mac2network_only_the_literal_false_turns_internet_off(raw):
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(
+        _infra_xml("52:54:00:00:20:02", f' internet="{raw}"')
+    )
+    assert mappings["52:54:00:00:20:02"]["internet"] is True
+
+
+def test_parse_mac2network_internet_false():
+    worker = _worker_without_init()
+    mappings = worker._parse_mac2network_metadata(
+        _infra_xml("52:54:00:00:20:03", ' internet="false"')
+    )
+    assert mappings["52:54:00:00:20:03"]["internet"] is False
+
+
+def test_flow_add_with_internet_allowed_is_unchanged(monkeypatch):
+    """The allowed path must stay byte-identical to what main emits today."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:20:04"
+    worker._flow_add("dom", _infra_xml(mac, ' internet="true"'))
+
+    assert f"priority=204,ip,in_port={_OFPORT},dl_src={mac},actions=NORMAL" in flows
+    assert not any(f.startswith(_INTERNET_DROP) for f in flows)
+
+
+def test_flow_add_with_internet_off_drops_egress_and_keeps_the_guests_network(
+    monkeypatch,
+):
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:20:05"
+    worker._flow_add("dom", _infra_xml(mac, ' internet="false"'))
+
+    assert (
+        f"priority=204,ip,in_port={_OFPORT},dl_src={mac},"
+        f"nw_dst={worker.guests_net_cidr},actions=NORMAL" in flows
+    )
+    assert f"priority=203,ip,in_port={_OFPORT},dl_src={mac},actions=drop" in flows
+    # The unrestricted allow must be gone, or the drop below it never runs.
+    assert f"priority=204,ip,in_port={_OFPORT},dl_src={mac},actions=NORMAL" not in flows
+
+
+def test_flow_add_with_internet_off_leaves_arp_dhcp_and_delivery_alone(monkeypatch):
+    """Cutting internet must not cut the desktop off from the network: ARP,
+    DHCP and the inbound delivery flow are untouched."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    mac = "52:54:00:00:20:06"
+    worker._flow_add("dom", _infra_xml(mac, ' internet="false"'))
+
+    assert any("priority=206,arp," in f and "arp_op=1" in f for f in flows)
+    assert any("priority=206,arp," in f and "arp_op=2" in f for f in flows)
+    assert any("tp_src=68,tp_dst=67" in f for f in flows)
+    assert any(f"priority=221,in_port=9,dl_dst={mac}" in f for f in flows)
+
+
+def test_flow_add_internet_switch_does_not_reach_a_non_infrastructure_vlan(
+    monkeypatch,
+):
+    """The switch gates egress through the wireguard infrastructure network.
+    A desktop on a plain VLAN has no such path, so nothing is emitted there."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom", _domain_xml_with_vlan("52:54:00:00:20:07", "1002", ' internet="false"')
+    )
+
+    assert not any(f.startswith(_INTERNET_DROP) for f in flows)

@@ -174,6 +174,7 @@ class OvsWorker:
         self.guests_infra_cidr = str(
             ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
         )
+        self.guests_net_cidr = str(guests_net)
 
         # Discover geneve port number (set up by setup.sh before we start)
         # In wg+geneve mode the interface is named $DOMAIN
@@ -1227,6 +1228,9 @@ class OvsWorker:
                 # infra (kind="user_network") never carries these — the elif
                 # branch below leaves lab_opts unset, so it is always strict.
                 info["lab_opts"] = parse_lab_opts(mapping)
+                # Absent attribute means allowed: a domain started by an older
+                # engine must not lose its internet access on hypervisor upgrade.
+                info["internet"] = mapping.get("internet", "true") != "false"
             elif kind == "user_network":
                 info["network_id"] = mapping.get("network_id", "")
                 metadata_id = mapping.get("metadata_id")
@@ -1321,6 +1325,7 @@ class OvsWorker:
                         # propagate per-interface lab options so _flow_add
                         # can pick the per-flag flow set.
                         "lab_opts": network_info.get("lab_opts", {}),
+                        "internet": network_info.get("internet", True),
                     }
                 )
 
@@ -1424,6 +1429,7 @@ class OvsWorker:
             # only outside VLAN 4095 (wireguard infra) — that VLAN is always
             # strict, so force every flag off there.
             lab = iface.get("lab_opts", {}) if vlan != "4095" else {}
+            internet = iface.get("internet", True)
             mac_spoofing = bool(lab.get("mac_spoofing"))
             broadcast_unlimited = bool(lab.get("broadcast_unlimited"))
             multicast_unlimited = bool(lab.get("multicast_unlimited"))
@@ -1722,9 +1728,20 @@ class OvsWorker:
                 # Allow all IP traffic from guest with correct MAC
                 # Destination access control is enforced by iptables FORWARD
                 # (default DROP + per-desktop ACCEPT) in isard-vpn container
-                flows.append(
-                    f"priority=204,ip,in_port={nport},dl_src={mac},actions=NORMAL"
-                )
+                if internet:
+                    flows.append(
+                        f"priority=204,ip,in_port={nport},dl_src={mac},actions=NORMAL"
+                    )
+                else:
+                    # Everything internal lives inside the guests network, so
+                    # restricting the allow to it drops exactly the egress.
+                    flows.append(
+                        f"priority=204,ip,in_port={nport},dl_src={mac},"
+                        f"nw_dst={self.guests_net_cidr},actions=NORMAL"
+                    )
+                    flows.append(
+                        f"priority=203,ip,in_port={nport},dl_src={mac},actions=drop"
+                    )
 
                 # Deliver traffic from VPN to guest - strip VLAN tag before output
                 # Only accept from geneve tunnel to prevent same-hypervisor VM bypass
