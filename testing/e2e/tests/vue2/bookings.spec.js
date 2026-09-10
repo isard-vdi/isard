@@ -193,8 +193,11 @@ async function pressCreate(page, title) {
 
 // A rendered booking in the *bookings* split — vue-cal stamps the
 // event_type as a class and IsardCalendar puts the title in an <h6>.
+// .first(): vue-cal paints a booking that crosses midnight as one node per day.
 function bookingEventByTitle(page, title) {
-  return page.locator(`#vuecal .vuecal__event.event:has(h6:text-is(${JSON.stringify(title)}))`)
+  return page
+    .locator(`#vuecal .vuecal__event.event:has(h6:text-is(${JSON.stringify(title)}))`)
+    .first()
 }
 
 // =================================================================

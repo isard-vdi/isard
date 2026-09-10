@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Pin the contract of ``vpn.db.vpn_rethink_conn``.
+"""Pin the contract of ``isardvdi_vpn.db.vpn_rethink_conn``.
 
 The vpn service used to rely on ``r.connect(...).repl()`` setting a
 process-global default connection — every ``r.table(...).run()`` call
@@ -19,32 +19,11 @@ These tests pin:
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 import threading
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-
-
-def _load_real_db():
-    """Load ``docker/vpn/src/db.py`` directly, bypassing the conftest
-    stub that masks it for the other tests in this directory.
-
-    The conftest's session-level stub of ``sys.modules['db']`` would
-    otherwise intercept ``import db`` — we explicitly want the real
-    module so we can verify it routes to ``_common``'s pool.
-    """
-    sys.modules.pop("db", None)
-    spec = importlib.util.spec_from_file_location("db", str(SRC_DIR / "db.py"))
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["db"] = module
-    spec.loader.exec_module(module)
-    return module
+from isardvdi_vpn import db
 
 
 class _FakePool:
@@ -92,8 +71,8 @@ def fake_pool():
 
 @pytest.fixture
 def db_module():
-    """Real ``db`` module under test."""
-    return _load_real_db()
+    """Real ``isardvdi_vpn.db`` module under test."""
+    return db
 
 
 def test_acquires_and_releases_one_connection(db_module, fake_pool):

@@ -46,7 +46,7 @@ class AdminHypervisorCreateData(BaseModel):
     only_forced: bool = False
     nvidia_enabled: bool = False
     # Hypervisor-side discovery payload. Each list element is a dict with
-    # the shape produced by ``docker/hypervisor/src/lib/gpu_discovery.py::
+    # the shape produced by ``docker/hypervisor/src/isardvdi_hypervisor/gpu_discovery.py::
     # discover_gpus`` (pci_bus_id, name, gpu_uuid, memory_total_mb,
     # vgpu_profiles, mig_profiles, ...). When present, the api auto-
     # populates ``gpu_profiles`` and ``gpus`` rows via
@@ -57,7 +57,7 @@ class AdminHypervisorCreateData(BaseModel):
     force_get_hyp_info: bool = False
     min_free_mem_gb: int = 0
     # GPU_ONLY_MEM. The hypervisor reports it alongside min_free_mem_gb
-    # (docker/hypervisor/src/lib/setup.py); without the field here pydantic
+    # (docker/hypervisor/src/isardvdi_hypervisor/setup.py); without the field here pydantic
     # drops it from the body and the reserve never reaches the DB.
     min_free_gpu_mem_gb: int = 0
     storage_pools: Optional[str] = None

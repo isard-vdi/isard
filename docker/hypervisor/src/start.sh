@@ -15,8 +15,7 @@ BOOT_TOTAL=9
 # errors were already ignored, so boot must never block on it.
 report_step() {
   python3 -c "
-import sys; sys.path.insert(0, '/src/lib')
-from progress import report_progress
+from isardvdi_hypervisor.progress import report_progress
 report_progress($1, $BOOT_TOTAL, '$2', $3)
 " >/dev/null 2>&1 &
 }
@@ -24,11 +23,11 @@ report_progress($1, $BOOT_TOTAL, '$2', $3)
 # Graceful hypervisor shutdown. Runs in parallel: API unregister +
 # ACPI to all running guests, then drains up to GUEST_SHUTDOWN_TIMEOUT
 # (default 15s), hard-destroys leftovers, and wipes all sysfs mdevs.
-# See lib/shutdown.py. Container must have matching stop_grace_period
-# in docker-compose-parts/hypervisor.yml.
+# See isardvdi_hypervisor/shutdown.py. Container must have matching
+# stop_grace_period in docker-compose-parts/hypervisor.yml.
 shutdown_hyper()
 {
-  python3 /src/lib/shutdown.py || true
+  isardvdi-hypervisor-shutdown || true
   exit 0
 }
 trap shutdown_hyper SIGTERM SIGINT SIGQUIT
@@ -119,7 +118,7 @@ echo "---> Registering hypervisor with API (certificates + SR-IOV/GPU discovery)
 echo "     GPU/vGPU discovery can take a while on vGPU hosts;"
 echo "     see 'docker logs isard-hypervisor' for per-GPU progress and failures."
 report_step 0 "GPU/hardware discovery" None
-python3 /src/lib/hypervisor.py setup
+isardvdi-hypervisor setup
 chmod 440 /etc/pki/libvirt-spice/*
 chown qemu:root /etc/pki/libvirt-spice/*
 
@@ -137,7 +136,7 @@ echo "---> VPN tunneling mode: $HYPERVISOR_VPN_TUNNELING_MODE"
 
 if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
   echo "---> Setting up hypervisor wg VPNc from api..."
-  python3 /src/lib/vpnc.py
+  isardvdi-hypervisor-vpnc
 else
   echo "---> Skipping WireGuard VPNc (tunneling mode: $HYPERVISOR_VPN_TUNNELING_MODE)"
 fi
@@ -159,7 +158,7 @@ fi
 
 echo "---> Starting OVS worker daemon..."
 # Worker uses Unix socket at /var/run/openvswitch/ovs-worker.sock
-python3 /src/ovs/ovs-worker.py &
+isardvdi-hypervisor-ovs-worker &
 OVS_WORKER_PID=$!
 echo "OVS worker daemon started (PID: $OVS_WORKER_PID)"
 # Wait a moment for socket to be ready
@@ -236,7 +235,7 @@ report_step 5 "Network setup" None
 echo "---> Reporting hugepages..."
 export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}
 python3 -c "
-from lib.gpu_discovery import discover_hugepages
+from isardvdi_hypervisor.gpu_discovery import discover_hugepages
 import json
 hp = discover_hugepages()
 if hp.get('1G', {}).get('total') or hp.get('2M', {}).get('total'):
@@ -291,12 +290,12 @@ echo "  Tunnel traffic (UDP $_tunnel_port): NOTRACK applied"
 echo "---> Applying Video Traffic Prioritization..."
 /src/tc/tc_video.sh
 
-python3 /src/lib/check-cert.py &
+isardvdi-hypervisor-check-cert &
 
 if [ -z "$HYPER_ENABLED" ] || [ "$HYPER_ENABLED" == "true" ]
 then
   echo "---> Enabling hypervisor..."
-  python3 /src/lib/hypervisor.py enable
+  isardvdi-hypervisor enable
   report_step 9 "Ready" None
 else
   echo "---> NOT enabling hypervisor because HYPER_ENABLED envvar missing or not true."

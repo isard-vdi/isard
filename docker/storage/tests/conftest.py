@@ -1,0 +1,26 @@
+#
+#   Copyright © 2026 IsardVDI
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""The operator tools import ``storage_lib`` as a top-level package because they
+run from their own directory. Put that directory on the path so the tests import
+the same modules the tools do."""
+
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "utils"))
+
+
+@pytest.fixture
+def geo():
+    """The four required geometry kwargs, default install policy."""
+    return {
+        "cluster_size": "4k",
+        "extended_l2": "off",
+        "lazy_refcounts": "off",
+        "preallocation": "off",
+    }

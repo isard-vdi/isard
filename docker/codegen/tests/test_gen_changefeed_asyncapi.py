@@ -9,7 +9,7 @@ from typing import Any, Literal, Optional, Union
 
 import pytest
 import yaml
-from gen_changefeed_asyncapi import (
+from isardvdi_codegen.gen_changefeed_asyncapi import (
     TABLE_TO_CLASS,
     _camel,
     _change_schema,
@@ -268,7 +268,8 @@ class TestTryLoadModel:
             raise ModuleNotFoundError(name)
 
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi.importlib.import_module", fake_import
+            "isardvdi_codegen.gen_changefeed_asyncapi.importlib.import_module",
+            fake_import,
         )
 
         with pytest.raises(RuntimeError, match="Failed to load"):
@@ -285,7 +286,8 @@ class TestTryLoadModel:
             raise ModuleNotFoundError(name)
 
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi.importlib.import_module", failing_import
+            "isardvdi_codegen.gen_changefeed_asyncapi.importlib.import_module",
+            failing_import,
         )
 
         with pytest.raises(RuntimeError, match="Failed to load"):
@@ -303,7 +305,8 @@ class TestTryLoadModel:
             raise ModuleNotFoundError(name)
 
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi.importlib.import_module", fake_import
+            "isardvdi_codegen.gen_changefeed_asyncapi.importlib.import_module",
+            fake_import,
         )
 
         cls = _try_load_model("good_test_model", "GoodModel")
@@ -314,7 +317,9 @@ class TestBuildSpec:
     """Integration tests for ``build_spec`` with synthetic tables.json."""
 
     def test_top_level_keys(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo"}])
 
@@ -328,7 +333,9 @@ class TestBuildSpec:
         assert "schemas" in spec["components"]
 
     def test_pubsub_channel_per_table(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo"}, {"table": "bar"}])
 
@@ -338,7 +345,9 @@ class TestBuildSpec:
         assert spec["channels"]["bar"]["address"] == "bar"
 
     def test_stream_tables_get_extra_channel(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo", "stream": True}, {"table": "bar"}])
 
@@ -347,7 +356,9 @@ class TestBuildSpec:
         assert "stream_bar" not in spec["channels"]
 
     def test_operation_per_pubsub_channel(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo"}])
 
@@ -357,7 +368,9 @@ class TestBuildSpec:
         assert op["channel"] == {"$ref": "#/channels/foo"}
 
     def test_operation_per_stream_channel(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo", "stream": True}])
 
@@ -367,7 +380,9 @@ class TestBuildSpec:
         assert stream_op["channel"] == {"$ref": "#/channels/stream_foo"}
 
     def test_message_per_table(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo"}])
 
@@ -376,7 +391,9 @@ class TestBuildSpec:
         assert msg["payload"] == {"$ref": "#/components/schemas/FooChangeEnvelope"}
 
     def test_four_schemas_per_table(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "foo"}])
 
@@ -387,7 +404,9 @@ class TestBuildSpec:
         assert "FooChangeEnvelope" in schemas
 
     def test_permissive_row_for_unknown_table(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec([{"table": "unknown_table"}])
 
@@ -401,7 +420,7 @@ class TestBuildSpec:
         # removed from TABLE_TO_CLASS — silent fallback to a permissive
         # schema would hide real bugs in the model imports.
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi.TABLE_TO_CLASS",
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS",
             {"broken": ("__missing_module__", "DoesNotExist")},
         )
 
@@ -415,11 +434,11 @@ class TestBuildSpec:
             name: Optional[str] = None
 
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi.TABLE_TO_CLASS",
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS",
             {"typed": ("test_fake", "FakeRowModel")},
         )
         monkeypatch.setattr(
-            "gen_changefeed_asyncapi._try_load_model",
+            "isardvdi_codegen.gen_changefeed_asyncapi._try_load_model",
             lambda module_name, class_name: (
                 FakeRowModel if module_name == "test_fake" else None
             ),
@@ -441,7 +460,9 @@ class TestIdempotency:
     """``build_spec`` must be deterministic for a given input."""
 
     def test_two_calls_produce_identical_dict(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         tables = [
             {"table": "domains", "stream": True},
@@ -455,7 +476,9 @@ class TestIdempotency:
         assert spec1 == spec2
 
     def test_yaml_dump_is_byte_identical(self, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         tables = [{"table": "foo", "stream": True}, {"table": "bar"}]
         spec = build_spec(tables)
@@ -501,7 +524,9 @@ class TestRealTablesJson:
         assert stream_names <= {t["table"] for t in real_tables}
 
     def test_build_spec_counts(self, monkeypatch, real_tables):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
         spec = build_spec(real_tables)
 
         table_count = len(real_tables)
@@ -517,7 +542,9 @@ class TestRealTablesJson:
         assert len(spec["components"]["schemas"]) == 4 * table_count
 
     def test_every_table_has_its_four_schemas(self, monkeypatch, real_tables):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         spec = build_spec(real_tables)
         schemas = spec["components"]["schemas"]
@@ -534,7 +561,9 @@ class TestMainCli:
     """Test the ``main()`` CLI entry point end-to-end."""
 
     def test_writes_valid_yaml_file(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         tables_file = tmp_path / "tables.json"
         tables_file.write_text(
@@ -566,7 +595,9 @@ class TestMainCli:
         assert "stream_bar" in spec["channels"]
 
     def test_output_parent_dir_is_created(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         tables_file = tmp_path / "tables.json"
         tables_file.write_text(json.dumps([{"table": "foo"}]))
@@ -587,7 +618,9 @@ class TestMainCli:
         assert output_file.is_file()
 
     def test_main_idempotent_on_disk(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
+        monkeypatch.setattr(
+            "isardvdi_codegen.gen_changefeed_asyncapi.TABLE_TO_CLASS", {}
+        )
 
         tables_file = tmp_path / "tables.json"
         tables_file.write_text(

@@ -11,7 +11,7 @@ some larger lifecycle test in a confusing way.
 
 Endpoint discovery: ``grep -roh "apiV[34]Segment}/...">"`` over
 ``old-frontend/src/`` plus ``grep -roh "/api/v[34]/...">"`` over
-``webapp/webapp/webapp/``. The selection here is the union of high-
+``webapp/src/webapp/``. The selection here is the union of high-
 value endpoints the two UIs reach for on every login/dashboard load
 plus the per-item read endpoints (desktop / template / media / user /
 recycle bin / login config / maintenance / quotas / hypervisors /
@@ -167,9 +167,10 @@ def test_admin_categories_lists_default(admin_client: IsardClient):
     body = admin_client.get("/api/v4/items/categories")
     items = _get_listing_items(body)
     ids = {c.get("id") for c in items if isinstance(c, dict)}
-    assert (
-        "default" in ids
-    ), f"default category missing from /items/categories; got {sorted(ids)}"
+    assert "default" in ids, (
+        "default category missing from /items/categories; got "
+        f"{sorted(i for i in ids if i is not None)}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +269,7 @@ def test_admin_hypervisors_listing(admin_client: IsardClient):
     """``GET /admin/hypervisors`` — Vue 2 + webapp + Vue 3 admin sidebars
     all consume this. The default test stack always has at least one
     hypervisor row (``isard-hypervisor``)."""
-    body = admin_client.get("/api/v4/admin/hypervisors")
+    body = admin_client.get("/api/v4/admin/items/hypervisors")
     assert isinstance(
         body, list
     ), f"/admin/hypervisors expected list, got {type(body).__name__}"
@@ -300,7 +301,7 @@ def test_admin_scheduler_jobs_system(admin_client: IsardClient):
     """``GET /admin/scheduler/jobs/system`` — webapp admin sees this on
     the System tab. The seed always has at least the recycle-bin
     cleanup + the unused-items + the notifications cleanup jobs."""
-    body = admin_client.get("/api/v4/admin/scheduler/jobs/system")
+    body = admin_client.get("/api/v4/admin/items/scheduler/jobs/system")
     assert isinstance(body, list), f"expected list of jobs, got {type(body).__name__}"
 
 
@@ -309,7 +310,7 @@ def test_admin_scheduler_jobs_bookings(admin_client: IsardClient):
     """``GET /admin/scheduler/jobs/bookings`` — booking-priority admin
     page renders this. List can be empty on a fresh stack but must
     not 5xx."""
-    body = admin_client.get("/api/v4/admin/scheduler/jobs/bookings")
+    body = admin_client.get("/api/v4/admin/items/scheduler/jobs/bookings")
     assert isinstance(body, list)
 
 
@@ -325,7 +326,7 @@ def test_stats_domains_status(admin_client: IsardClient):
     non-null dicts (stats-go's strict decoder rejects ``null`` on
     these fields). ``domains.kind`` only takes those two values, so
     the response has no other top-level keys."""
-    body = admin_client.get("/api/v4/stats/domains/status")
+    body = admin_client.get("/api/v4/admin/item/stats/domains/status")
     assert isinstance(body, dict)
     for k in ("desktop", "template"):
         assert k in body, f"missing kind {k!r}; got {sorted(body)}"
@@ -337,7 +338,7 @@ def test_stats_domains_status(admin_client: IsardClient):
 @pytest.mark.real
 def test_stats_desktops_status(admin_client: IsardClient):
     """``GET /stats/desktops/status`` — webapp admin status echart."""
-    resp = admin_client.raw("GET", "/api/v4/stats/desktops/status")
+    resp = admin_client.raw("GET", "/api/v4/admin/item/stats/desktops/status")
     assert resp.status_code == 200
 
 
@@ -349,7 +350,7 @@ def test_stats_desktops_status(admin_client: IsardClient):
 @pytest.mark.real
 def test_notifications_status_bar(admin_client: IsardClient):
     """``GET /notifications/status-bar`` — Vue 2 status-bar polls."""
-    resp = admin_client.raw("GET", "/api/v4/notifications/status-bar")
+    resp = admin_client.raw("GET", "/api/v4/items/notifications/status-bar")
     # Endpoint may return 200 list or 204 when no banner. Both are ok.
     assert resp.status_code in (
         200,
@@ -368,7 +369,9 @@ def test_admin_domains_kind_desktop(admin_client: IsardClient):
     Desktops table calls it with the kind filter. Returns a list of
     domains; on an empty stack the list may be empty but must be a
     list."""
-    body = admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
+    body = admin_client.post(
+        "/api/v4/admin/items/domains", json_body={"kind": "desktop"}
+    )
     assert isinstance(body, list)
 
 
@@ -376,7 +379,9 @@ def test_admin_domains_kind_desktop(admin_client: IsardClient):
 def test_admin_domains_kind_template(admin_client: IsardClient):
     """``POST /admin/domains kind=template`` — admin Templates table.
     Default seed has at least one template."""
-    body = admin_client.post("/api/v4/admin/domains", json_body={"kind": "template"})
+    body = admin_client.post(
+        "/api/v4/admin/items/domains", json_body={"kind": "template"}
+    )
     assert isinstance(body, list)
 
 
@@ -435,7 +440,7 @@ def test_analytics_desktops_recently_used_serialises_datetime(
     is a JSON string, not a Python datetime that would 500."""
     resp = admin_client.raw(
         "POST",
-        "/api/v4/analytics/desktops/recently_used",
+        "/api/v4/admin/items/analytics/desktops/recently_used",
         json={"days_before": 30, "limit": 5},
     )
     assert resp.status_code == 200, (
@@ -461,7 +466,7 @@ def test_analytics_desktops_less_used_serialises_datetime(
     ``domains.accessed``; same datetime field name."""
     resp = admin_client.raw(
         "POST",
-        "/api/v4/analytics/desktops/less_used",
+        "/api/v4/admin/items/analytics/desktops/less_used",
         json={"days_before": 1, "limit": 5},
     )
     assert resp.status_code == 200, (
@@ -493,24 +498,27 @@ def test_analytics_desktops_less_used_serialises_datetime(
     "method,path",
     [
         # Phase 1 (already converted): nav / quota kind / hypervisor status
-        ("GET", "/api/v4/admin/users/bogus/users"),
-        ("GET", "/api/v4/admin/users/bogus/groups"),
-        ("GET", "/api/v4/admin/users/bogus/categories"),
+        ("GET", "/api/v4/admin/items/users/bogus/users"),
+        ("GET", "/api/v4/admin/items/users/bogus/groups"),
+        ("GET", "/api/v4/admin/items/users/bogus/categories"),
         ("GET", "/api/v4/admin/quota/bogus"),
-        ("GET", "/api/v4/admin/hypervisors/bogus"),
+        ("GET", "/api/v4/admin/items/hypervisors/bogus"),
         # Phase 2 (Literal sweep batch 2): vpn / users vpn / users hardware /
         # admin user vpn / admin logs action / viewer / provider / table
         ("DELETE", "/api/v4/admin/vpn_connection/bogus"),
         ("GET", "/api/v4/item/user/vpn/bogus"),
         ("GET", "/api/v4/item/user/vpn/bogus/linux"),
         ("GET", "/api/v4/item/user/hardware/bogus/allowed"),
-        ("GET", "/api/v4/admin/user/00000000-0000-0000-0000-000000000000/vpn/bogus"),
-        ("PUT", "/api/v4/logs_desktops/config/old_entries/action/bogus"),
-        ("PUT", "/api/v4/logs_users/config/old_entries/action/bogus"),
-        ("PUT", "/api/v4/admin/viewers-config/reset/bogus"),
-        ("GET", "/api/v4/authentication/provider/bogus"),
-        ("POST", "/api/v4/admin/allowed/term/bogus"),
-        ("POST", "/api/v4/admin/allowed/update/bogus"),
+        (
+            "GET",
+            "/api/v4/admin/item/user/00000000-0000-0000-0000-000000000000/vpn/bogus",
+        ),
+        ("PUT", "/api/v4/admin/item/logs_desktops/config/old_entries/action/bogus"),
+        ("PUT", "/api/v4/admin/item/logs_users/config/old_entries/action/bogus"),
+        ("PUT", "/api/v4/admin/item/viewers-config/reset/bogus"),
+        ("GET", "/api/v4/admin/item/authentication/provider/bogus"),
+        ("POST", "/api/v4/items/alloweds/term/bogus"),
+        ("POST", "/api/v4/item/allowed/update/bogus"),
     ],
 )
 def test_literal_path_param_rejects_invalid(
@@ -546,7 +554,7 @@ def test_analytics_suggested_removals_serialises_datetime(
     ``last_accessed`` field via the same ``r.epoch_time(...)`` path."""
     resp = admin_client.raw(
         "POST",
-        "/api/v4/analytics/suggested_removals",
+        "/api/v4/admin/items/analytics/suggested_removals",
         json={"months_without_use": 0},
     )
     assert resp.status_code == 200, (

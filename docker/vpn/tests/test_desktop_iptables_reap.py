@@ -177,30 +177,14 @@ def test_desktop_remove_error_path_does_not_raise_over_the_real_cause(monkeypatc
     """The handler concatenated the exception itself, which raised a TypeError
     from inside the except block and buried the original error.
 
-    Loaded from its file path, like the other simple_iptools tests: the shared
-    fixtures replace the module in ``sys.modules`` with a stub, since the real
-    one imports the native ``iptc``.
     """
-    import importlib.util
-    import sys
-    import types
-    from pathlib import Path
+    from isardvdi_vpn import simple_iptools
 
-    src_dir = Path(__file__).resolve().parent.parent / "src"
-    db_stub = types.ModuleType("db")
-    db_stub.vpn_rethink_conn = lambda *a, **k: (_ for _ in ()).throw(
-        RuntimeError("db down")
+    monkeypatch.setattr(
+        simple_iptools,
+        "vpn_rethink_conn",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db down")),
     )
-    monkeypatch.setitem(sys.modules, "db", db_stub)
-    monkeypatch.syspath_prepend(str(src_dir))
-    iptc_stub = types.ModuleType("iptc")
-    monkeypatch.setitem(sys.modules, "iptc", iptc_stub)
 
-    spec = importlib.util.spec_from_file_location(
-        "simple_iptools_reap_test", str(src_dir / "simple_iptools.py")
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    tools = module.UserIpTools.__new__(module.UserIpTools)
+    tools = simple_iptools.UserIpTools.__new__(simple_iptools.UserIpTools)
     tools.desktop_remove("u1", "192.168.128.5")  # must not raise

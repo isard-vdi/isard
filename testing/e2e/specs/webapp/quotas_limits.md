@@ -131,8 +131,8 @@ All edit targets live in **one dedicated, non-Default, non-login category**
 edit the **same** `qle2e-group` / `qle2e-user` / `qle2e-adv`. The managers live
 in a **separate** group `qle2e-mgr-home`, so the group-/category-override
 scenarios never clobber a logged-in manager's own quota. All entities are
-seeded via `testing/db` (populated by `testing/e2e/global-setup.js` →
-`testing/db/populate_test_db.py`) and start fully inherited (`quota: false`,
+seeded via `testing/src/isardvdi_testing` (populated by `testing/e2e/global-setup.js` →
+`testing/src/isardvdi_testing/populate_test_db.py`) and start fully inherited (`quota: false`,
 `limits: false`).
 
 | Entity | id / name | Category | Group | Role | Notes |

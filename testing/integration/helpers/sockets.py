@@ -57,7 +57,7 @@ class SocketIOListener:
             auth={"jwt": self.token},
             namespaces=list(self.namespaces),
             transports=["websocket"],
-            wait_timeout=connect_timeout,
+            wait_timeout=int(connect_timeout),
         )
 
     def disconnect(self) -> None:

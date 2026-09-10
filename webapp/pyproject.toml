@@ -30,7 +30,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["webapp"]
+packages = ["src/webapp"]
 
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]

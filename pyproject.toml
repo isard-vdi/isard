@@ -7,10 +7,10 @@ requires-python = ">=3.14,<3.15"
 [tool.uv.workspace]
 members = [
   "component/_common",
-  "component/_common/isardvdi_apiv4_client",
-  "component/_common/isardvdi_authentication_client",
-  "component/_common/isardvdi_notifier_client",
-  "component/_common/isardvdi_scheduler_client",
+  "component/apiv4-client",
+  "component/authentication-client",
+  "component/notifier-client",
+  "component/scheduler-client",
   "component/apiv4",
   "component/changefeed",
   "component/change-handler",
@@ -34,6 +34,7 @@ members = [
 
 [tool.uv.sources]
 isardvdi-common = { workspace = true }
+isardvdi-change-handler = { workspace = true }
 isardvdi-protobuf = { workspace = true }
 isardvdi-changefeed-asyncapi = { workspace = true }
 isardvdi-apiv4-client = { workspace = true }
@@ -47,6 +48,7 @@ dev = [
   "black==24.3.0",
   "isort==5.13.2",
   "ruff",
+  "ty",
 ]
 
 [tool.uv]
@@ -68,8 +70,8 @@ override-dependencies = [
 # .uv-cache / .bun-cache: CI default cache (.gitlab-ci.yml:62-65) restores
 # these into $CI_PROJECT_DIR before .lint-uv-job, so isort/black would
 # otherwise scan stray .py files vendored under them.
-# isardvdi_*_client/src/isardvdi_*_client: openapi-python-client output,
-# gitignored except __init__.py; propagated by gen-protobuf as artifacts
+# <name>-client/src/isardvdi_<name>_client: openapi-python-client output,
+# gitignored except __init__.py; propagated by the codegen job as artifacts
 # (.gitlab-ci.yml:230-234) so it lands in the lint workspace too.
 extend-exclude = '''
 (
@@ -80,10 +82,10 @@ extend-exclude = '''
   | ^/\.go-mod-cache
   | ^/\.uv-cache
   | ^/\.venv
-  | /isardvdi_apiv4_client/src/isardvdi_apiv4_client/
-  | /isardvdi_authentication_client/src/isardvdi_authentication_client/
-  | /isardvdi_notifier_client/src/isardvdi_notifier_client/
-  | /isardvdi_scheduler_client/src/isardvdi_scheduler_client/
+  | /apiv4-client/src/isardvdi_apiv4_client/
+  | /authentication-client/src/isardvdi_authentication_client/
+  | /notifier-client/src/isardvdi_notifier_client/
+  | /scheduler-client/src/isardvdi_scheduler_client/
 )
 '''
 
@@ -97,10 +99,10 @@ extend_skip_glob = [
   ".go-mod-cache/*",
   ".uv-cache/*",
   ".venv/*",
-  "**/isardvdi_apiv4_client/src/isardvdi_apiv4_client/*",
-  "**/isardvdi_authentication_client/src/isardvdi_authentication_client/*",
-  "**/isardvdi_notifier_client/src/isardvdi_notifier_client/*",
-  "**/isardvdi_scheduler_client/src/isardvdi_scheduler_client/*",
+  "**/apiv4-client/src/isardvdi_apiv4_client/*",
+  "**/authentication-client/src/isardvdi_authentication_client/*",
+  "**/notifier-client/src/isardvdi_notifier_client/*",
+  "**/scheduler-client/src/isardvdi_scheduler_client/*",
 ]
 multi_line_output = 3
 include_trailing_comma = true

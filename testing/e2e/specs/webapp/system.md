@@ -6,11 +6,11 @@ It serves as the contract for Playwright E2E tests under `testing/e2e/tests/weba
 ## Context
 
 - **Page**: `/isard-admin/admin/system`
-- **Template**: `webapp/webapp/webapp/templates/admin/pages/system.html`
-- **Main JS**: `webapp/webapp/webapp/static/admin/js/system.js`
-- **SMTP JS**: `webapp/webapp/webapp/static/js/smtp.js`
-- **Maintenance text modal**: `webapp/webapp/webapp/templates/admin/pages/system_modals.html`
-- **SMTP forms**: `webapp/webapp/webapp/templates/snippets/smtp.html` + `smtp_form.html`
+- **Template**: `webapp/src/webapp/templates/admin/pages/system.html`
+- **Main JS**: `webapp/src/webapp/static/admin/js/system.js`
+- **SMTP JS**: `webapp/src/webapp/static/js/smtp.js`
+- **Maintenance text modal**: `webapp/src/webapp/templates/admin/pages/system_modals.html`
+- **SMTP forms**: `webapp/src/webapp/templates/snippets/smtp.html` + `smtp_form.html`
 
 ## Resource / action matrix
 

@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 # ---------- builder: build the isardvdi-db venv on the SAME base as runtime ----------
 FROM rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
@@ -7,6 +9,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-db --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-db --no-editable
 

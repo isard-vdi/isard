@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
 RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
 
@@ -37,6 +39,9 @@ COPY --chown=builder:builder docker/hypervisor/spice-dev/ /home/builder/spice/
 WORKDIR /home/builder/spice
 # apk update is required: the layers above use --no-cache, so no index is left
 # on disk and abuild's own `apk add` of the makedepends would find nothing.
+# abuild refuses to run as root, which is what the USER above is for, so this
+# one command has to reach for privilege.
+# hadolint ignore=DL3004
 RUN sudo apk update && abuild -r
 
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
@@ -48,6 +53,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
 RUN apk add --no-cache build-base cargo git libffi-dev make musl-dev openssl-dev py3-docutils python3-dev uuidgen
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 
@@ -146,7 +153,14 @@ RUN mkdir -p \
 COPY --from=mdevctl-build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 COPY --from=builder /.venv /.venv
-COPY docker/hypervisor/src /src
+# The Python code ships as the installed isardvdi_hypervisor package in /.venv;
+# /src only carries the shell/XML assets start.sh and the hooks reference by
+# absolute path. Excluding the package dir keeps a second, shadowing copy of it
+# off the WORKDIR (cwd precedes site-packages on sys.path).
+COPY --exclude=isardvdi_hypervisor docker/hypervisor/src /src
+# gpu_probe._load_shared and setup.py load the shared GPU builders / storage-pool
+# constant from here BY PATH (isardvdi-common is not a dependency of this
+# package), so this copy is load-bearing.
 COPY component/_common/src/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 

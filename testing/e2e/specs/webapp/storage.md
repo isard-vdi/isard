@@ -42,7 +42,7 @@ E2E test `tests/webapp/storage.spec.js`.
 > (actions: Move, Windows Registry, Increase, Add Disk, Sparsify, Disconnect, Find from modal,
 > Delete from modal) use **Seed B** which has a proper UUID-format id. **Seed C** is an
 > identical, disposable UUID-format row that S23 deletes, so Seed B stays intact for the
-> other tests. All three are seeded in `testing/db/data/storage.json`.
+> other tests. All three are seeded in `testing/src/isardvdi_testing/data/storage.json`.
 
 ## Common data
 
@@ -965,7 +965,7 @@ Additionally, the admin action buttons on the row:
 
 ## Required seeds
 
-`testing/db/data/storage.json` provides three `ready` seeds: Seed A
+`testing/src/isardvdi_testing/data/storage.json` provides three `ready` seeds: Seed A
 (`storage-template-test-001`, non-UUID id), Seed B
 (`e2e00000-0000-0000-0000-000000000001`, used by all modal action tests) and
 Seed C (`e2e00000-0000-0000-0000-000000000002`, the disposable row S23 deletes).

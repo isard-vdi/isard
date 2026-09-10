@@ -5,7 +5,7 @@ test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Vue 3 bookings summary view — /frontend/bookings/summary
 //
-// Seed dependencies (testing/db/data/):
+// Seed dependencies (testing/src/isardvdi_testing/data/):
 //   bookings.json            — 2 seeded bookings for local-default-admin-admin
 //   bookings_priority.json   — 3 priority rules (default, default admins, test-low-forbid-time)
 //   gpus.json                — 2 GPUs (A16 + T4)

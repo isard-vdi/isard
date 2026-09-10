@@ -719,7 +719,7 @@ test.describe('Recycle bin — Config page (admin)', () => {
   // Bug #4 (scheduler "send unused items to recycle bin") and Bug #5 ("add
   // unused items") share the SAME root cause and the SAME endpoint: the
   // scheduler action `send_unused_items_to_recycle_bin`
-  // (scheduler/lib/actions.py) just calls recycle_bin_add_unused_items, i.e.
+  // (scheduler/src/scheduler/lib/actions.py) just calls recycle_bin_add_unused_items, i.e.
   // POST /api/v4/items/recycle-bin/unused-items. That endpoint runs
   // recycle_unused_items → get_unused_desktops, which raises
   // `KeyError: 'users'` (rules.py: enters `rule["allowed"].get(key) is not False`

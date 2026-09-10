@@ -25,7 +25,7 @@ func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, desc *g
 	}
 
 	// Accept the Python client's 10s keepalive pings on idle channels
-	// (component/_common/isardvdi_common/connections/grpc_client.py).
+	// (component/apiv4/src/api/connections/grpc_client.py).
 	// Without this, the Go default MinTime=5m sends GOAWAY
 	// ENHANCE_YOUR_CALM to every apiv4 gRPC channel every few minutes,
 	// forcing reconnects that surface as latency spikes in production

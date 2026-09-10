@@ -11,6 +11,10 @@
 # - MIN_SIZE: Minimum expected size in bytes
 #
 
+# The isardvdi-backupninja console scripts live in the image venv; make them
+# resolvable by name regardless of the (cron-scrubbed) PATH this runs under.
+export PATH="/workspace/.venv/bin:$PATH"
+
 # Set these variables based on backup type:
 BACKUP_TYPE="${BACKUP_TYPE:-unknown}"
 BACKUP_WHEN_VAR="${BACKUP_WHEN_VAR:-BACKUP_${BACKUP_TYPE^^}_WHEN}"
@@ -28,7 +32,7 @@ fi
 # Check the integrity toggle live from the API. API unreachable or toggle
 # off -> skip the integrity run silently. This lets admins flip the webapp
 # setting without restarting the backupninja container.
-INTEGRITY_ENABLED="$(python3 /usr/local/bin/get_integrity_enabled.py 2>/dev/null)"
+INTEGRITY_ENABLED="$(isardvdi-backupninja-integrity-enabled 2>/dev/null)"
 if [ "$INTEGRITY_ENABLED" != "true" ]; then
     exit 0
 fi

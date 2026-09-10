@@ -4,12 +4,14 @@ services:
       PYTHONPATH: /opt/isardvdi
     volumes:
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
-      - ${BUILD_ROOT_PATH}/docker/storage/task:/opt/isardvdi/isardvdi_task
+      - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
+      - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
+      - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
+      - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
+      - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
+      - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
+      # The package is installed non-editable into the venv, so hot-reload
+      # comes from shadowing it on PYTHONPATH, which wins over site-packages.
+      - ${BUILD_ROOT_PATH}/docker/storage/src/isardvdi_storage:/opt/isardvdi/isardvdi_storage
       - ${BUILD_ROOT_PATH}/docker/storage/utils:/utils
       - ${BUILD_ROOT_PATH}/docker/storage/init.sh:/init.sh

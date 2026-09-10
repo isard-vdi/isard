@@ -76,7 +76,7 @@ def test_rdb_init_with_app_registers_teardown():
 def test_rdb_init_without_app_skips_init():
     """``RDB()`` with no app must not register teardown — used in the
     ``RDB(app)`` then ``db.init_app(app)`` lazy-init pattern in
-    ``scheduler/lib/scheduler.py``."""
+    ``scheduler/src/scheduler/lib/scheduler.py``."""
     rdb = RDB()
     assert rdb.app is None
     assert rdb.db is None

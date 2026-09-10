@@ -1,5 +1,6 @@
 component/frontend/node_modules
 old-frontend/node_modules
+**/__pycache__
 .git
 .github
 .gitlab
@@ -27,12 +28,12 @@ pkg/gen/asyncapi/changefeed/changefeed_subscribers/**
 !pkg/gen/asyncapi/changefeed/changefeed_subscribers/__init__.py
 pkg/gen/asyncapi/changefeed/changefeed.yaml
 component/frontend/src/gen
-component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client/**
-!component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client/__init__.py
-component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client/**
-!component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client/__init__.py
-component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client/**
-!component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client/__init__.py
-component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client/**
-!component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client/__init__.py
+component/apiv4-client/src/isardvdi_apiv4_client/**
+!component/apiv4-client/src/isardvdi_apiv4_client/__init__.py
+component/authentication-client/src/isardvdi_authentication_client/**
+!component/authentication-client/src/isardvdi_authentication_client/__init__.py
+component/notifier-client/src/isardvdi_notifier_client/**
+!component/notifier-client/src/isardvdi_notifier_client/__init__.py
+component/scheduler-client/src/isardvdi_scheduler_client/**
+!component/scheduler-client/src/isardvdi_scheduler_client/__init__.py
 **/testing_*_mock.go

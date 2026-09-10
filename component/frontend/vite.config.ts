@@ -1,5 +1,9 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type UserConfig } from 'vite'
 import { readFileSync } from 'node:fs'
+
+type EsbuildPlugin = NonNullable<
+  NonNullable<NonNullable<UserConfig['optimizeDeps']>['esbuildOptions']>['plugins']
+>[number]
 
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -20,9 +24,9 @@ import svgLoader from 'vite-svg-loader'
 // Promise during pre-bundling. The H.264 capability probe still runs;
 // callers read `false` until it resolves, then the updated value. RFB
 // gracefully falls back to non-H.264 decoders during the brief window.
-const novncTlaShimPlugin = {
+const novncTlaShimPlugin: EsbuildPlugin = {
   name: 'novnc-tla-shim',
-  setup(build: { onLoad: (filter: object, callback: (args: { path: string }) => Promise<{ contents: string; loader: string }>) => void }) {
+  setup(build) {
     build.onLoad(
       { filter: /node_modules\/@novnc\/novnc\/lib\/util\/browser\.js$/ },
       async (args) => {

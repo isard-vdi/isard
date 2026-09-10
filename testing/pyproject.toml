@@ -4,14 +4,19 @@ version = "0.0.0"
 requires-python = ">=3.14,<3.15"
 dependencies = [
   "rethinkdb==2.4.10.post1",
+  "isardvdi-apiv4-client",
+  "isardvdi-authentication-client",
 ]
+
+[project.scripts]
+isardvdi-populate-test-db = "isardvdi_testing.populate_test_db:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-bypass-selection = true
+packages = ["src/isardvdi_testing"]
 
 [dependency-groups]
 test = [
@@ -21,4 +26,9 @@ test = [
   "python-socketio[client]==5.16.3",
   "requests==2.34.2",
   "websocket-client==1.9.0",
+  # integration/redis/ drives the real rq job graph and the Lua ended_at stamp
+  # through the code that owns them, so it imports those two packages.
+  "isardvdi-change-handler",
+  "isardvdi-common",
+  "pytest-asyncio",
 ]

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 import pytest
-from gen_changefeed_subscribers import (
+from isardvdi_codegen.gen_changefeed_subscribers import (
     _camel,
     _header,
     _init_source,

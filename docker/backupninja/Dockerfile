@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.20
+
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS backupninja-src
 RUN apk add --no-cache automake autoconf bash gcc git make
 RUN git clone https://gitlab.com/isard/backupninja.git && \
@@ -16,6 +18,8 @@ ENV UV_COMPILE_BYTECODE=1 \
 RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
 
 WORKDIR /workspace
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable --no-install-workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-backupninja --no-editable
 
@@ -50,17 +54,13 @@ RUN ln -s /usr/local/sbin/backupninja /etc/periodic/hourly/backupninja
 COPY docker/backupninja/run.sh /usr/local/bin/
 COPY docker/backupninja/nfs_mount.sh /usr/local/bin/
 COPY docker/backupninja/nfs_umount.sh /usr/local/bin/
-COPY docker/backupninja/backup_report.py /usr/local/bin/
 COPY docker/backupninja/send_backup_report.sh /usr/local/bin/
 COPY docker/backupninja/borg_integrity_template.sh /usr/local/bin/
-COPY docker/backupninja/get_integrity_enabled.py /usr/local/bin/
 COPY docker/backupninja/session_preflight.sh /usr/local/bin/
 COPY docker/backupninja/detect_orphaned_session.sh /usr/local/bin/
 COPY docker/backupninja/self_heal.sh /etc/periodic/15min/backupninja-self-heal
-RUN chmod +x /usr/local/bin/backup_report.py
 RUN chmod +x /usr/local/bin/send_backup_report.sh
 RUN chmod +x /usr/local/bin/borg_integrity_template.sh
-RUN chmod +x /usr/local/bin/get_integrity_enabled.py
 RUN chmod +x /usr/local/bin/session_preflight.sh
 RUN chmod +x /usr/local/bin/detect_orphaned_session.sh
 RUN chmod +x /etc/periodic/15min/backupninja-self-heal

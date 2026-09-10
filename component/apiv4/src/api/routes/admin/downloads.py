@@ -218,7 +218,7 @@ async def admin_downloads_action_id(
     action: str = Path(..., description="Action: download, abort, delete"),
     kind: str = Path(..., description="Download kind"),
     id: str = Path(..., description="Item ID"),
-    body: Optional[dict] = Body(default=None),
+    body: Optional[DownloadItem] = Body(default=None),
 ):
     try:
         # Same threadpool offload as the no-id variant; the registry
@@ -229,7 +229,7 @@ async def admin_downloads_action_id(
             kind,
             request.token_payload["user_id"],
             id=id,
-            data=body,
+            data=body.model_dump(exclude_none=True) if body else None,
         )
         return JSONResponse(content=jsonable_encoder(result or {}), status_code=200)
     except Error:

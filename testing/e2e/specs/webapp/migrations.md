@@ -12,7 +12,7 @@ actions. Serves as the contract for the future E2E test
 - **Screen**: **Migration** section, under **Users**
   (`/isard-admin/admin/users/migration`).
 - **Role**: **admin only** — the route is guarded by `@login_required`
-  + `@isAdmin` ([AdminViews.py:367](../../../../webapp/webapp/webapp/views/AdminViews.py#L367)).
+  + `@isAdmin` ([AdminViews.py:367](../../../../webapp/src/webapp/views/AdminViews.py#L367)).
 - **Actions covered**:
   - List user-migration rows (one per started self-migration), one row per
     possible status.
@@ -41,8 +41,8 @@ actions. Serves as the contract for the future E2E test
 | Detail trigger | click on `td.details-control` (first column `+` button) |
 | Detail template | `.template-migration-detail` (cloned per expand) |
 
-Reference: [migration.js](../../../../webapp/webapp/webapp/static/admin/js/migration.js),
-[migration.html](../../../../webapp/webapp/webapp/templates/admin/pages/migration.html).
+Reference: [migration.js](../../../../webapp/src/webapp/static/admin/js/migration.js),
+[migration.html](../../../../webapp/src/webapp/templates/admin/pages/migration.html).
 
 ### Columns
 
@@ -119,8 +119,8 @@ revoked-from-`exported`, so it carries only `created`** (Target renders `"-"`).
 
 There is **no API to create a migration row** — rows only appear via the real
 self-migration flow. Test data is therefore provided as a **static seed**,
-`testing/db/data/users_migrations.json`, auto-loaded by
-[populate_test_db.py](../../../../testing/db/populate_test_db.py) (it inserts
+`testing/src/isardvdi_testing/data/users_migrations.json`, auto-loaded by
+[populate_test_db.py](../../../../testing/src/isardvdi_testing/populate_test_db.py) (it inserts
 every `data/*.json` by table name with `conflict="update"`, so each full reseed
 restores the canonical state).
 
@@ -154,7 +154,7 @@ part of CI — recorded for reproducibility; `tmp/insert_fixture.py` +
 
 **Referenced users**: the two dedicated local **manager** users (`e2e-mig-origin`
 "E2E Migration Origin", `e2e-mig-target` "E2E Migration Target", category
-`default`) are added to `testing/db/data/users.json` so
+`default`) are added to `testing/src/isardvdi_testing/data/users.json` so
 `origin_username` / `target_username` / `category` enrich to stable, searchable
 values (`"E2E Migration Origin"`, `"E2E Migration Target"`, `"Default"`).
 `migrated_items` holds opaque ID strings — the detail panel only counts list
@@ -164,7 +164,7 @@ generation).
 
 ### Read-only rows (shared, never mutated)
 
-The frozen seed `testing/db/data/users_migrations.json` holds **six** canonical
+The frozen seed `testing/src/isardvdi_testing/data/users_migrations.json` holds **six** canonical
 rows, one per status, used by A1–A6. Verified end-to-end through
 `GET /api/v4/admin/item/user-migrations`:
 
@@ -277,7 +277,7 @@ reseed is `8 passed, 4 skipped`.)
 > **Detail-panel selectors (read before A4–A6).** The detail panel is cloned
 > from `.template-migration-detail`, which renders the **Migration Items**
 > sub-table from
-> [migration_items_result.html](../../../../webapp/webapp/webapp/templates/snippets/migration_items_result.html).
+> [migration_items_result.html](../../../../webapp/src/webapp/templates/snippets/migration_items_result.html).
 > Each type has three cells: `<strong id="<type>-migrated">` (count),
 > `<strong id="<type>-failed">` (failure indicator holder) and
 > `<p id="<type>-detail">` (error text), for `<type>` ∈
@@ -294,7 +294,7 @@ reseed is `8 passed, 4 skipped`.)
 > `<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>` **only**
 > when `migrated_<type> === false`; the detail `<p>` is filled with
 > `migrated_<type>_error` whenever that key exists
-> ([migration.js:151-165](../../../../webapp/webapp/webapp/static/admin/js/migration.js#L151-L165)).
+> ([migration.js:151-165](../../../../webapp/src/webapp/static/admin/js/migration.js#L151-L165)).
 
 ## Scenario A4 — *expand details of a fully successful migration*
 

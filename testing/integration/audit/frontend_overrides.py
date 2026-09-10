@@ -8,9 +8,9 @@ audit's ScratchEntities namespace + ids dict; callables can reference
 ``scratch.group_id``, etc.
 
 Sourced from grepping the actual frontend code:
-- ``webapp/webapp/webapp/static/admin/js/users_management.js``
-- ``webapp/webapp/webapp/static/admin/js/categories_management.js``
-- ``webapp/webapp/webapp/static/admin/js/groups_management.js``
+- ``webapp/src/webapp/static/admin/js/users_management.js``
+- ``webapp/src/webapp/static/admin/js/categories_management.js``
+- ``webapp/src/webapp/static/admin/js/groups_management.js``
 - ``component/frontend/src/`` for vue3 admin views
 
 When the audit hits a (method, path) without an override, it falls back
@@ -109,6 +109,10 @@ def _user_delete_check(scratch) -> dict:
     return {"ids": [scratch.user_id]}
 
 
+def _users_bulk_active(scratch) -> dict:
+    return {"ids": [scratch.user_id], "active": True}
+
+
 OVERRIDES: dict[tuple[str, str], OverrideFn] = {
     ("POST", "/api/v4/admin/user"): _user_create,
     ("DELETE", "/api/v4/admin/user"): _user_bulk_delete,
@@ -121,10 +125,7 @@ OVERRIDES: dict[tuple[str, str], OverrideFn] = {
     ("POST", "/api/v4/admin/allowed/term/categories"): _allowed_term,
     ("POST", "/api/v4/admin/allowed/term/users/{category_id}"): _allowed_term,
     ("POST", "/api/v4/admin/user/delete/check"): _user_delete_check,
-    ("POST", "/api/v4/admin/users/bulk"): lambda s: {
-        "ids": [s.user_id],
-        "active": True,
-    },
+    ("POST", "/api/v4/admin/users/bulk"): _users_bulk_active,
 }
 
 

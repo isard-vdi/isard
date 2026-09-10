@@ -18,7 +18,7 @@ class VpnConnectionRequest(BaseModel):
 class VpnDisconnectListItem(BaseModel):
     """Single VPN disconnect item.
 
-    Matches the peer dict built by ``docker/vpn/src/wg_monitor.py``
+    Matches the peer dict built by ``docker/vpn/src/isardvdi_vpn/wg_monitor.py``
     (around line 129): ``{"kind": <device>, "client_ip": <allowed_ip>}``.
     """
 

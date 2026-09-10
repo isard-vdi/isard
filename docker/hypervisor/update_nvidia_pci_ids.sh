@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OUTPUT="$SCRIPT_DIR/src/lib/nvidia_pci_ids.txt"
+OUTPUT="$SCRIPT_DIR/src/isardvdi_hypervisor/nvidia_pci_ids.txt"
 URL="https://pci-ids.ucw.cz/v2.2/pci.ids.gz"
 
 echo "Downloading pci.ids.gz from $URL ..."

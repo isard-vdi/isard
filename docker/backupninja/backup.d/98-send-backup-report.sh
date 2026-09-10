@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# The isardvdi-backupninja console scripts live in the image venv; make them
+# resolvable by name regardless of the (cron-scrubbed) PATH this runs under.
+export PATH="/workspace/.venv/bin:$PATH"
+
 # This script sends backup reports to the API for both automated and manual backups
 # It should be the last script to run (hence the 98 prefix)
 # The 'when' variable will be dynamically set by run.sh based on enabled backup types
@@ -20,7 +24,7 @@ export BACKUP_TYPE="automated"
 
 # Send backup report to API
 echo "$(date '+%b %d %H:%M:%S') Info: Sending automated backup report to API..." >> "$LOG_FILE"
-python3 /usr/local/bin/backup_report.py 2>&1 | tee -a "$LOG_FILE"
+isardvdi-backupninja-report 2>&1 | tee -a "$LOG_FILE"
 
 # Log the result
 if [ $? -eq 0 ]; then

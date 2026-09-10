@@ -19,14 +19,14 @@ services:
     volumes:
       - ${BUILD_ROOT_PATH}/component/apiv4/src:/app
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client:/opt/isardvdi/isardvdi_authentication_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client_auth:/opt/isardvdi/isardvdi_authentication_client_auth
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
-      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
+      - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
+      - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
+      - ${BUILD_ROOT_PATH}/component/authentication-client/src/isardvdi_authentication_client:/opt/isardvdi/isardvdi_authentication_client
+      - ${BUILD_ROOT_PATH}/component/authentication-client/src/isardvdi_authentication_client_auth:/opt/isardvdi/isardvdi_authentication_client_auth
+      - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
+      - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
+      - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
+      - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
       - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo.svg:/usr/share/nginx/html/default_logo.svg:ro
       - ${BUILD_ROOT_PATH}/component/frontend/src/assets/logo-collapsed.svg:/usr/share/nginx/html/default_logo_collapsed.svg:ro
       # - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf

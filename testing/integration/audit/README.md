@@ -20,7 +20,7 @@ docker run --rm --network isard-network -v /opt/isard/src:/src -w /src \
   -e E2E_ADMIN_USER=admin_e2e_01 -e E2E_ADMIN_PWD='IsardTest1!' \
   ghcr.io/astral-sh/uv:0.11.23-python3.13-trixie-slim bash -c '
     cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable
-    cd /src/testing && uv run --group test --package isardvdi-testing pytest integration/audit/ -m audit -v --tb=line --maxfail=0
+    cd /src && uv run --group test --package isardvdi-testing pytest testing/integration/audit/ -m audit -v --tb=line --maxfail=0
   '
 ```
 
@@ -36,12 +36,12 @@ For each top-frequency signature in the report:
    script (mirror the pattern from `/tmp/audit_users.py` we wrote
    earlier — see `~/.claude/skills/isardvdi-apiv4/`).
 2. Find the broken call site in `component/apiv4/src/api/services/*.py`
-   or `component/_common/isardvdi_common/`.
+   or `component/_common/src/isardvdi_common/`.
 3. Fix per the patterns in the migration skill / today's commits
    (`cf0e124a5`, `bc9a34fc3`, `71bd544bc`).
 4. Re-run a scoped audit:
    ```
-   pytest integration/audit/ -m audit -k '<path-substring>'
+   pytest testing/integration/audit/ -m audit -k '<path-substring>'
    ```
 5. Land one commit per signature (subject names the signature; body
    lists the affected endpoints).

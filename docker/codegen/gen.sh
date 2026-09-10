@@ -22,11 +22,13 @@ openapi_ts_e2e() {
 }
 
 openapi_python() {
+	client_dir="component/${1#isardvdi_}"
+	client_dir="${client_dir%_client}-client"
 	run_quietly openapi-python-client generate \
 		--path "$2" \
-		--output-path "component/_common/$1/src/$1" \
+		--output-path "$client_dir/src/$1" \
 		--overwrite \
-		--config "component/_common/$1/openapi-python-client.yml" \
+		--config "$client_dir/openapi-python-client.yml" \
 		--meta=none \
 		&& echo "  generated Python client: $1"
 }
@@ -53,29 +55,18 @@ rm -rf pkg/gen/asyncapi/changefeed/changefeed_subscribers
 rm -f pkg/gen/asyncapi/changefeed/changefeed.yaml
 rm -rf component/frontend/src/gen
 rm -rf testing/e2e/src/gen
-rm -rf component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
-rm -rf component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
-rm -rf component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
-rm -rf component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
+rm -rf component/apiv4-client/src/isardvdi_apiv4_client
+rm -rf component/authentication-client/src/isardvdi_authentication_client
+rm -rf component/notifier-client/src/isardvdi_notifier_client
+rm -rf component/scheduler-client/src/isardvdi_scheduler_client
 rm -f ./*/**/testing_*_mock.go
 
 mkdir -p "$GOPATH" "$GOCACHE"
 export HOME=/tmp
 
-# Symlinks needed by openapi-ts; created once at the top so they don't race
-# when multiple jobs run in parallel.
-# The repo is bind-mounted, so an interrupted run leaves them behind and `ln -sf`
-# would then fail ("File exists") instead of replacing them: clear first, and
-# remove them on any exit so the next run always starts clean.
-cleanup_deps_links() {
-	rm -rf ./package.json ./node_modules
-}
-cleanup_deps_links
-trap cleanup_deps_links EXIT INT TERM
-ln -s /deps/package.json .
-ln -s /deps/node_modules .
-
-# Resolve modelina + parser for the changefeed-models script.
+# Resolve node deps from the image, not the workspace: the openapi-ts.config.ts
+# import of @hey-api/openapi-ts and the changefeed-models script (modelina +
+# parser) all fall back to NODE_PATH, so no /deps symlinks are needed here.
 export NODE_PATH=/deps/node_modules
 
 . /venv/bin/activate
@@ -142,9 +133,9 @@ JOB_PIDS="$JOB_PIDS $!"
 
 wait_jobs
 
-# The image only ships codegen tools in the venv; apiv4 + its workspace
-# deps (now with real Phase-1 source) install here against the offline uv
-# cache shipped in the image.
+# The image only ships codegen tools in the venv; apiv4 + its workspace deps
+# (now with real Phase-1 source) install here. No uv cache is shipped in the
+# image, so this downloads unless a volume is mounted at UV_CACHE_DIR.
 run_quietly uv sync --frozen --no-dev \
 	--package isardvdi-codegen \
 	--package isardvdi-apiv4 \
@@ -158,7 +149,7 @@ echo "==> Phase 2: APIv4 OpenAPI spec + changefeed (parallel)"
 (
 	set -e
 	mkdir -p pkg/gen/asyncapi/changefeed
-	run_quietly python /gen_changefeed_asyncapi.py \
+	run_quietly gen-changefeed-asyncapi \
 		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
 		--output pkg/gen/asyncapi/changefeed/changefeed.yaml \
 		&& echo "  generated changefeed AsyncAPI spec"
@@ -172,7 +163,7 @@ echo "==> Phase 2: APIv4 OpenAPI spec + changefeed (parallel)"
 		&& echo "  generated changefeed Python models"
 	touch pkg/gen/asyncapi/changefeed/changefeed_models/__init__.py
 	# Per-table subscriber classes (type-safe wrappers around generated models).
-	run_quietly python /gen_changefeed_subscribers.py \
+	run_quietly gen-changefeed-subscribers \
 		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
 		--output-dir pkg/gen/asyncapi/changefeed/changefeed_subscribers \
 		&& echo "  generated changefeed Python subscribers"
@@ -212,8 +203,6 @@ JOB_PIDS="$JOB_PIDS $!"
 JOB_PIDS="$JOB_PIDS $!"
 
 wait_jobs
-
-cleanup_deps_links
 
 echo "==> Phase 4: Go mocks"
 run_quietly mockery && echo "  generated Go mocks"

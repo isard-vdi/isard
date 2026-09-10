@@ -8,16 +8,16 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
 
+from isardvdi_vpn import wgtools
 
-def test_down_peer_resolves_ofport_before_del_flows(wgtools_hyper, wgtools_module):
+
+def test_down_peer_resolves_ofport_before_del_flows(wgtools_hyper):
     peer = {"id": "hyper-old", "vpn": None}
     # check_output order:
     #   1) ovs-vsctl get interface ... ofport -> "42"
     #   2) ovs-vsctl del-port ... -> ""
-    with patch.object(
-        wgtools_module, "check_output", side_effect=["42", ""]
-    ), patch.object(
-        wgtools_module.subprocess,
+    with patch.object(wgtools, "check_output", side_effect=["42", ""]), patch.object(
+        wgtools.subprocess,
         "run",
         return_value=MagicMock(returncode=0, stderr=""),
     ) as mock_run:
@@ -31,12 +31,10 @@ def test_down_peer_resolves_ofport_before_del_flows(wgtools_hyper, wgtools_modul
         assert "in_port=hyper-old" not in del_flow_cmds[0]
 
 
-def test_down_peer_logs_del_flows_errors(wgtools_hyper, wgtools_module, caplog):
+def test_down_peer_logs_del_flows_errors(wgtools_hyper, caplog):
     peer = {"id": "hyper-old", "vpn": None}
-    with patch.object(
-        wgtools_module, "check_output", side_effect=["42", ""]
-    ), patch.object(
-        wgtools_module.subprocess,
+    with patch.object(wgtools, "check_output", side_effect=["42", ""]), patch.object(
+        wgtools.subprocess,
         "run",
         return_value=MagicMock(returncode=1, stderr="ofctl: some error"),
     ):
@@ -47,9 +45,7 @@ def test_down_peer_logs_del_flows_errors(wgtools_hyper, wgtools_module, caplog):
         assert "hyper-old" in combined
 
 
-def test_down_peer_skips_del_flows_when_ofport_unresolved(
-    wgtools_hyper, wgtools_module, caplog
-):
+def test_down_peer_skips_del_flows_when_ofport_unresolved(wgtools_hyper, caplog):
     peer = {"id": "hyper-gone", "vpn": None}
     # First check_output (get ofport) raises; second (del-port) returns "".
     ofport_error = subprocess.CalledProcessError(1, "ovs-vsctl")
@@ -61,9 +57,9 @@ def test_down_peer_skips_del_flows_when_ofport_unresolved(
         return ""
 
     with patch.object(
-        wgtools_module, "check_output", side_effect=check_output_side_effect
+        wgtools, "check_output", side_effect=check_output_side_effect
     ), patch.object(
-        wgtools_module.subprocess,
+        wgtools.subprocess,
         "run",
         return_value=MagicMock(returncode=0, stderr=""),
     ) as mock_run:
@@ -77,16 +73,12 @@ def test_down_peer_skips_del_flows_when_ofport_unresolved(
         assert "hyper-gone" in caplog.text
 
 
-def test_down_peer_skips_del_flows_when_ofport_is_minus_one(
-    wgtools_hyper, wgtools_module
-):
+def test_down_peer_skips_del_flows_when_ofport_is_minus_one(wgtools_hyper):
     """An ofport of '-1' means the interface has no datapath port assigned;
     del-flows with 'in_port=-1' is meaningless and must be skipped."""
     peer = {"id": "hyper-nopd", "vpn": None}
-    with patch.object(
-        wgtools_module, "check_output", side_effect=["-1", ""]
-    ), patch.object(
-        wgtools_module.subprocess,
+    with patch.object(wgtools, "check_output", side_effect=["-1", ""]), patch.object(
+        wgtools.subprocess,
         "run",
         return_value=MagicMock(returncode=0, stderr=""),
     ) as mock_run:

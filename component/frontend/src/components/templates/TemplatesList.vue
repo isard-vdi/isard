@@ -124,6 +124,10 @@ const tableIsError = computed(() => {
 })
 
 const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
+
+function templateProgressPercent(progress: unknown): number {
+  return (progress as { total_percent?: number } | undefined)?.total_percent ?? 0
+}
 </script>
 <template>
   <main class="flex flex-col gap-6 w-full">
@@ -208,14 +212,10 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-description="{ row }">
         <div v-if="row.status === 'CreatingTemplate'">
-          <div class="text-end text-xs mb-0.5">
-            {{ (row.progress as { total_percent?: number } | undefined)?.total_percent ?? 0 }}%
-          </div>
+          <div class="text-end text-xs mb-0.5">{{ templateProgressPercent(row.progress) }}%</div>
           <Progress
             :class="'h-2 text-info-400 w-50'"
-            :model-value="
-              (row.progress as { total_percent?: number } | undefined)?.total_percent ?? 0
-            "
+            :model-value="templateProgressPercent(row.progress)"
           />
         </div>
         <p v-else class="text-xs font-medium text-gray-warm-600 line-clamp-2">

@@ -12,7 +12,7 @@ Environment variables:
         at the compose-network hostnames).
     E2E_ADMIN_USER / E2E_ADMIN_PWD — test admin account (default
         ``admin_e2e_01`` / ``IsardTest1!``; must be seeded by
-        ``testing/db/populate_test_db.py``).
+        ``testing/src/isardvdi_testing/populate_test_db.py``).
     E2E_NAMESPACE_PREFIX — override the per-session prefix (default is
         generated: ``e2e_real_<worker>_<unix_ts>_``).
     E2E_SKIP_STARTUP_CLEANUP — ``1`` to skip the pre-session cleanup.

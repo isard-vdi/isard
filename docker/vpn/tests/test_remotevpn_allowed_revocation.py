@@ -13,16 +13,8 @@ the entry across the desktops that are up.
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
-import types
-from pathlib import Path
 from subprocess import CalledProcessError
 from unittest.mock import MagicMock, patch
-
-import pytest
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 
 _ABSENT = object()
 
@@ -56,30 +48,6 @@ def _iptables_mock():
 
     mock.side_effect = _run
     return mock
-
-
-@pytest.fixture()
-def simple_iptools(monkeypatch):
-    db_stub = types.ModuleType("db")
-
-    class _FakeVpnRethinkConn:
-        def __enter__(self):
-            return object()
-
-        def __exit__(self, *args):
-            return False
-
-    db_stub.vpn_rethink_conn = _FakeVpnRethinkConn  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "db", db_stub)
-    monkeypatch.syspath_prepend(str(SRC_DIR))
-
-    spec = importlib.util.spec_from_file_location(
-        "simple_iptools_remotevpn_under_test", str(SRC_DIR / "simple_iptools.py")
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _uipt(module):

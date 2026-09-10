@@ -7,7 +7,7 @@ test.skip(true, 'Deprecated test, see specs/ for replacements')
 // /frontend/deployments/:deploymentId/videowall route.
 //
 // Targets the seeded "deployment-test-001" deployment from
-// /opt/isard/src/testing/db/data/deployments.json so the page actually
+// /opt/isard/src/testing/src/isardvdi_testing/data/deployments.json so the page actually
 // resolves with data instead of redirecting on a missing-deployment
 // fetch error.
 //

@@ -33,11 +33,13 @@ Classical pyramid: many unit, some integration, a thin contract net (only the ty
 ### Where each kind lives
 
 ```
-component/<pkg>/src/<module>/tests/   # unit — co-located with the code
+component/<pkg>/tests/                # unit — beside the package, outside it
 testing/integration/                  # integration — needs a live stack
+testing/integration/redis/            # integration — needs only the stack's redis
+testing/integration/rethinkdb/        # integration — needs only a rethinkdb
 testing/contract/                     # contract — planned; only pipeline blind-spot endpoints
 testing/e2e/                          # e2e — Playwright UI flows
-testing/db/                           # shared seed (used by e2e today;
+testing/src/isardvdi_testing/         # shared seed (used by e2e today;
                                       # planned to grow into per-layer fixtures)
 ```
 
@@ -60,7 +62,7 @@ testing/db/                           # shared seed (used by e2e today;
 | `testing/e2e/fixtures/apiv4/**` (test-issued setup/cleanup) | **Generated SDK** (`testing/e2e/src/gen/apiv4`) |
 | `testing/integration/**` | SDK for setup, raw HTTP for the assertions you actually want to pin |
 | `testing/contract/**` (new) | **Hardcoded paths** — the whole point of the layer is to pin the wire contract |
-| DB seeding (`testing/db/populate_test_db.py`) | RethinkDB directly, no HTTP |
+| DB seeding (`testing/src/isardvdi_testing/populate_test_db.py`) | RethinkDB directly, no HTTP |
 | `bridgeAdminSession` and similar narrow bridges | Raw `page.request` allowed (explicit carve-out) |
 
 The Pydantic→OpenAPI→SDK→`tsc` pipeline already enforces the contract for **typed** consumers: a renamed, removed or retyped field breaks the frontend build when the SDK is regenerated. The contract layer is therefore narrow — it exists only for what that pipeline can't see: `response_model=dict` / v3-compat / hand-built responses, serialization behaviour (e.g. null-omission), and shapes consumed by untyped clients (Flask/Vue 2).
@@ -106,13 +108,15 @@ make ci-all
 
 | Suite | Tests | How to run locally | CI job |
 |---|---:|---|---|
-| APIv4 unit | 301 fn | `make test-apiv4` | `unit-test-apiv4` |
-| `_common` unit | — | `make test-common` | `unit-test-common` |
-| change-handler unit | 66 fn | `make test-change-handler` | `unit-test-change-handler` |
-| changefeed unit | — | `make test-changefeed` | `unit-test-changefeed` |
+| APIv4 unit | 301 fn | `make test-apiv4` | `unit-test-python: apiv4` |
+| `_common` unit | — | `make test-common` | `unit-test-python: common` |
+| change-handler unit | 66 fn | `make test-change-handler` | `unit-test-python: change-handler` |
+| changefeed unit | — | `make test-changefeed` | `unit-test-python: changefeed` |
 | Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `unit-test-go` |
 | Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `test-e2e` |
-| Integration (real stack) | — | `make test-e2e-stack` | `integration-real` |
+| Integration (real stack) | — | `make test-integration` | `test-integration` |
+| Integration (redis only) | 64 | `make test-integration-redis` | `test-integration-redis` |
+| Integration (rethinkdb only) | 3 | `make test-integration-rethinkdb` | `test-integration-rethinkdb` |
 
 ### E2E scenario breakdown (76 total)
 
@@ -139,16 +143,16 @@ docker compose ps   # verify everything is Running
 ### 2. Seeded DB
 
 Tests expect a populated RethinkDB with the fixtures in
-`testing/db/data/*.json` — in particular `admin_e2e_01..15` and
+`testing/src/isardvdi_testing/data/*.json` — in particular `admin_e2e_01..15` and
 `user_e2e_01` for parallel-worker isolation.
 
-`make test-e2e` auto-runs `test-e2e-seed` first, but you can seed
+`make test-e2e` auto-runs `seed-test-db` first, but you can seed
 separately:
 
 ```bash
-make test-e2e-seed
+make seed-test-db
 # or, direct:
-python3 testing/db/populate_test_db.py
+python3 testing/src/isardvdi_testing/populate_test_db.py
 ```
 
 The seeder upserts by primary key, so re-running is idempotent.
@@ -209,11 +213,11 @@ console errors — all console-clean specs fail and `networkidle` waits
 time out. A 40-failure suite run on 2026-06-11 was 100% this.
 
 ```bash
-E2E_BASE_URL=https://$(grep ^DOMAIN= isardvdi.cfg | cut -d= -f2)   make test-e2e-old-frontend
+E2E_BASE_URL=https://$(grep ^DOMAIN= isardvdi.cfg | cut -d= -f2)   make test-e2e
 ```
 
 `USAGE=test` stacks (built images, no dev servers) are fine with the
-default `https://localhost`.
+default `https://isard-portal`.
 
 ### 6. Optional identity providers
 
@@ -232,19 +236,43 @@ unaffected.
 
 ### Python unit tests (uv)
 
-Every Python suite runs through `uv run --package <workspace-pkg> pytest`.
-The Makefile targets forward `PYTEST_COV_ARGS='__COV__'` to enable
-coverage reports under `component/*/src/htmlcov/`:
+Every Python suite runs through `uv run --package <workspace-pkg> pytest`
+with `--cov=<module>` always on. Coverage is measured on every run and a
+summary is printed to the terminal (no HTML report, no files written):
 
 ```bash
-make test-python              # all four suites
-make test-python-cov          # same, with HTML coverage
+make test-python              # all suites
 
 make test-apiv4               # API v4 only
 make test-common              # isardvdi_common only
 make test-change-handler      # change-handler only
 make test-changefeed          # changefeed only
+make test-socketio            # socketio only
+make test-openapi             # openapi only
+make test-notifier            # notifier only
+make test-scheduler           # scheduler only
+make test-webapp              # webapp only
+make test-apiv4-client        # apiv4 client only
+make test-vpn                 # vpn only
+make test-storage             # storage only
+make test-codegen             # codegen only
+make test-anonymize-db        # anonymize-db only
+make test-hypervisor          # hypervisor lib + ovs only
 ```
+
+The `test-*` and `ci-test-*` targets are generated from the `PY_PKGS`
+matrix in the `Makefile`, and the `unit-test-python` matrix in
+`.gitlab-ci.yml` carries the same rows; adding a workspace package with a
+suite means adding one row to each, not writing targets by hand. The only
+exceptions are the suites pytest does not run at all: `test-vmalert` and
+`test-sparsify`, both of which drive a container or a shell script.
+
+None of these needs a running service. A suite that asserts on Redis's own
+behaviour — an rq job graph (hashes, dependency links, registries,
+`Job.cancel`), or a Lua script whose effect a mocked connection cannot
+report — is an integration test by the table above, and lives in
+`testing/integration/redis/` instead. A fake Redis there would be a second
+implementation of the very thing under test.
 
 Tests live at `component/<pkg>/src/<module>/tests/`. They use:
 
@@ -260,7 +288,7 @@ covering roughly 35–40% of the 632 endpoints.
 ### change-handler tests
 
 Pure-unit scope (mock `socketio_server`, patch external libs). Tests
-live at `component/change-handler/src/isardvdi_change_handler/tests/` — one file
+live at `component/change-handler/tests/` — one file
 per handler, 13 handlers, 66 tests total. They pin the SocketIO
 event name, namespace, and room for every insert / update / delete path.
 
@@ -315,14 +343,6 @@ docker run --rm --ipc=host --network=host \
   yarn playwright test --reporter=list
 ```
 
-### Isolated e2e stack (CI parity)
-
-```bash
-make down                  # stop dev stack
-make test-e2e-stack        # build + bring up docker-compose.e2e.yml + seed + Playwright
-make test-e2e-stack-restore  # tear everything down and bring dev stack back
-```
-
 ### Environment variables
 
 | Variable | Description | Default |
@@ -371,7 +391,7 @@ testing/e2e/
     ├── vue3-recycle-bin.spec.js
     └── vue3-media.spec.js
 
-component/change-handler/src/isardvdi_change_handler/tests/
+component/change-handler/tests/
 ├── test_base_handler.py        # lifecycle + datetime / json helpers
 ├── test_domains_handler.py     # kind routing + engine-status filter
 ├── test_resources_handler.py   # graphics / videos / etc. admins emit
@@ -386,14 +406,14 @@ component/change-handler/src/isardvdi_change_handler/tests/
 ├── test_users_handler.py
 └── test_vgpus_handler.py
 
-testing/db/
+testing/src/isardvdi_testing/
 ├── populate_test_db.py         # idempotent seeder
 └── data/*.json                 # users, categories, groups, domains, …
 ```
 
 ## Test data
 
-Seed JSON files in `testing/db/data/`:
+Seed JSON files in `testing/src/isardvdi_testing/data/`:
 
 - `users.json` — all test users with bcrypt-hashed passwords, categories, roles. Includes `admin_e2e_01..15` + `user_e2e_01` for parallel e2e isolation.
 - `categories.json` — default, hidden, email, another, maintenance, disclaimer, notifications, password_reset.
@@ -402,7 +422,7 @@ Seed JSON files in `testing/db/data/`:
 - `authentication.json` — per-category auth policy.
 
 To add a new fixture, update the matching JSON and re-run `make
-test-e2e-seed`.
+seed-test-db`.
 
 ## Linting
 

@@ -15,7 +15,7 @@ contracte per als tests E2E corresponents sota
 
 Totes tres pengen de la mateixa entrada de menú «Bookables» de la
 barra lateral (`templates/sidebar.html`). El controlador
-`render_bookables(nav)` a `webapp/views/AdminViews.py` les distingeix
+`render_bookables(nav)` a `webapp/src/webapp/views/AdminViews.py` les distingeix
 pel paràmetre `nav`.
 
 ## Contracte entre pantalles
@@ -63,7 +63,7 @@ pel paràmetre `nav`.
 ## Seeds rellevants del testing DB
 
 Els tests assumeixen presència dels seeds següents (ubicats a
-`testing/db/data/`):
+`testing/src/isardvdi_testing/data/`):
 
 - `bookings_priority.json`: regles `default` i `default admins`
   (sistema, no eliminables), i `test-low-forbid-time` (rule_id

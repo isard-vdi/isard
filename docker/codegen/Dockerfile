@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.20
 
 FROM golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS go-build
 ENV CGO_ENABLED=0
@@ -40,7 +40,12 @@ RUN apk add --no-cache \
         openssl-dev \
         zlib-dev
 WORKDIR /workspace
-COPY . .
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
+RUN uv sync --frozen --no-dev \
+        --package isardvdi-codegen \
+        --no-editable \
+        --no-install-workspace
+COPY docker/codegen/src ./docker/codegen/src
 RUN uv sync --frozen --no-dev \
         --package isardvdi-codegen \
         --no-editable && \
@@ -78,9 +83,6 @@ ENV GOTOOLCHAIN=local \
     PATH=/venv/bin:/deps/node_modules/.bin:/usr/local/go/bin:/usr/local/bin:/usr/bin:/sbin:/bin
 
 COPY docker/codegen/gen.sh /gen.sh
-COPY docker/codegen/changefeed_utils.py /changefeed_utils.py
-COPY docker/codegen/gen_changefeed_asyncapi.py /gen_changefeed_asyncapi.py
-COPY docker/codegen/gen_changefeed_subscribers.py /gen_changefeed_subscribers.py
 COPY docker/codegen/gen_changefeed_models.js /gen_changefeed_models.js
 
 WORKDIR /build

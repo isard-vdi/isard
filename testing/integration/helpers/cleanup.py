@@ -1,170 +1,159 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Additive cleanup helpers for integration tests.
+"""Additive teardown for integration tests.
 
-We never nuke the DB; we only delete objects whose ``name`` starts with
-a known prefix. Startup cleans prior-run leftovers; teardown cleans the
-current run. A failing teardown must not abort the session — we log and
-continue.
+We never nuke the DB — only delete objects whose ``name`` starts with a
+known prefix, all through the generated client (so a renamed delete / list
+route breaks at import time instead of turning teardown into a silent
+no-op). A failing teardown must never abort the session, so each kind
+swallows its own error.
+
+Kept as a module (implementation + a ``python -m`` CLI) so existing
+``from .helpers.cleanup import cleanup_by_prefix`` imports and the
+``python -m testing.integration.helpers.cleanup`` entrypoint keep working.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from typing import TYPE_CHECKING, Any
 
-from .client import IsardClient
+from isardvdi_apiv4_client.api.role_admin import admin_delete_category
+from isardvdi_apiv4_client.api.role_advanced import delete_media, delete_template
+from isardvdi_apiv4_client.api.role_manager import (
+    admin_delete_group,
+    admin_delete_users,
+    admin_get_templates,
+    admin_list_categories_nav,
+    admin_list_domains,
+    admin_list_groups_nav,
+    admin_list_users_nav,
+    admin_media_list,
+)
+from isardvdi_apiv4_client.api.role_user import delete_desktop
+from isardvdi_apiv4_client.models.admin_list_categories_nav_nav import (
+    AdminListCategoriesNavNav,
+)
+from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomainsData
+from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
+    AdminListDomainsDataKind,
+)
+from isardvdi_apiv4_client.models.admin_list_groups_nav_nav import AdminListGroupsNavNav
+from isardvdi_apiv4_client.models.admin_list_users_nav_nav import AdminListUsersNavNav
+from isardvdi_apiv4_client.models.admin_user_delete_data import AdminUserDeleteData
+
+if TYPE_CHECKING:
+    from .client import IsardClient
 
 log = logging.getLogger("integration.cleanup")
 
+__all__ = ["cleanup_by_prefix"]
 
-def _safe_list(client: IsardClient, path: str, key: str | None = None) -> list:
-    """GET a list endpoint; tolerate non-200 without aborting.
 
-    Some apiv4 list endpoints return a bare list, others wrap it under a
-    named key (``desktops``, ``templates``, ``media``, ``rows``). Pass
-    ``key`` when the caller knows the expected wrapper.
+def _name(item: Any) -> str:
+    """``name`` as a plain string, tolerating ``Unset`` / missing."""
+    name = getattr(item, "name", "")
+    return name if isinstance(name, str) else ""
+
+
+def cleanup_by_prefix(ic: IsardClient, prefix: str) -> dict:
+    """Best-effort sweep of every object whose name starts with ``prefix``
+    (desktops / templates / media / users / groups / categories).
+
+    A fresh apiv4 client is built so the caller's token refresh is picked
+    up; each kind swallows its own error so a failing teardown never masks
+    a real test failure.
     """
-    resp = client.raw("GET", path)
-    if resp.status_code != 200:
-        log.warning("cleanup: GET %s -> HTTP %s; skipping", path, resp.status_code)
-        return []
-    payload = resp.json()
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, dict):
-        for candidate in filter(None, (key, "rows", "desktops", "templates", "media")):
-            if candidate in payload and isinstance(payload[candidate], list):
-                return payload[candidate]
-    return []
-
-
-def _safe_delete(client: IsardClient, method: str, path: str) -> None:
-    resp = client.raw(method, path)
-    # 202 Accepted is success for queued deletions (e.g. media delete
-    # dispatches an RQ task); 404 means "already gone" which is the
-    # desired end-state for cleanup.
-    if resp.status_code in (200, 202, 204, 404):
-        return
-    log.warning(
-        "cleanup: %s %s -> HTTP %s; body=%s",
-        method,
-        path,
-        resp.status_code,
-        resp.text[:200],
-    )
-
-
-def cleanup_by_prefix(client: IsardClient, prefix: str) -> dict:
-    """Delete every audit-owned object whose name starts with ``prefix``.
-
-    Covers desktops / templates / media / downloaded domains (the
-    original lifecycle-test scope) plus users / groups / categories
-    (added so the audit harness can sweep its own scratch entities).
-    Returns a per-kind count dict so tests can assert teardown.
-    """
+    client = ic.apiv4()
     counts = {
-        "desktops": 0,
-        "templates": 0,
-        "media": 0,
-        "downloads": 0,
-        "users": 0,
-        "groups": 0,
-        "categories": 0,
+        k: 0
+        for k in ("desktops", "templates", "media", "users", "groups", "categories")
     }
 
-    for desktop in _safe_list(client, "/api/v4/items/desktops", key="desktops"):
-        if _has_prefix(desktop, prefix):
-            _safe_delete(client, "DELETE", f"/api/v4/item/desktop/{desktop['id']}")
-            counts["desktops"] += 1
+    def _try(label: str, fn) -> None:
+        try:
+            fn()
+        except Exception as exc:  # pragma: no cover - teardown best-effort
+            log.warning("cleanup %s: %s", label, exc)
 
-    for template in _safe_list(client, "/api/v4/items/templates", key="templates"):
-        if _has_prefix(template, prefix):
-            _safe_delete(client, "DELETE", f"/api/v4/item/template/{template['id']}")
-            counts["templates"] += 1
-
-    for media in _safe_list(client, "/api/v4/items/media", key="media"):
-        if _has_prefix(media, prefix):
-            _safe_delete(client, "DELETE", f"/api/v4/item/media/{media['id']}")
-            counts["media"] += 1
-
-    # Admin domain listing (kind=desktop). Catches anything named with
-    # the prefix that didn't show up in the user-facing ``/items/desktops``
-    # — typically desktops owned by another user (e.g. user01's quota
-    # leftovers) that the test admin cleanup needs to sweep.
-    #
-    # Use ``DELETE /item/desktop/{id}`` rather than
-    # ``POST /admin/downloads/delete/domains/{id}``: the admin-downloads
-    # endpoint is for registry-origin desktops only and side-effects the
-    # storage row to ``maintenance`` even for non-registry desktops,
-    # which then breaks ``GET /items/desktops`` for the actual owner.
-    # ``DELETE /item/desktop`` works for any desktop when called by an
-    # admin (``Helpers.owns_domain_id`` bypasses the owner check for
-    # the admin role).
-    admin_resp = client.raw("POST", "/api/v4/admin/domains", json={"kind": "desktop"})
-    if admin_resp.status_code == 200:
-        for domain in admin_resp.json() or []:
-            if not isinstance(domain, dict):
-                continue
-            if _has_prefix(domain, prefix) and domain.get("id"):
-                _safe_delete(
-                    client,
-                    "DELETE",
-                    f"/api/v4/item/desktop/{domain['id']}",
-                )
-                counts["downloads"] += 1
-
-    # Bulk-delete the user via the (only) DELETE /admin/user endpoint
-    # which takes {"user": [ids], "delete_user": bool}. Skip the
-    # protected built-in admin to avoid lockouts.
-    user_ids_to_delete = []
-    for user in _safe_list(client, "/api/v4/admin/users/management/users"):
-        if _has_prefix(user, prefix):
-            uid = user.get("id")
-            if uid and uid != "local-default-admin-admin":
-                user_ids_to_delete.append(uid)
-    if user_ids_to_delete:
-        resp = client.raw(
-            "DELETE",
-            "/api/v4/admin/user",
-            json={"user": user_ids_to_delete, "delete_user": False},
+    def _desktops() -> None:
+        resp = admin_list_domains.sync_detailed(
+            client=client,
+            body=AdminListDomainsData(kind=AdminListDomainsDataKind.DESKTOP),
         )
-        if resp.status_code in (200, 202, 204):
-            counts["users"] += len(user_ids_to_delete)
-        else:
-            log.warning(
-                "cleanup: bulk delete users -> HTTP %s; body=%s",
-                resp.status_code,
-                resp.text[:200],
-            )
+        for d in resp.parsed if isinstance(resp.parsed, list) else []:
+            if _name(d).startswith(prefix):
+                delete_desktop.sync_detailed(desktop_id=d.id, client=client)
+                counts["desktops"] += 1
 
-    for group in _safe_list(client, "/api/v4/admin/users/management/groups"):
-        if _has_prefix(group, prefix):
-            gid = group.get("id")
-            if gid and gid != "default-default":
-                _safe_delete(client, "DELETE", f"/api/v4/admin/group/{gid}")
+    def _templates() -> None:
+        resp = admin_get_templates.sync_detailed(client=client)
+        for t in resp.parsed if isinstance(resp.parsed, list) else []:
+            if _name(t).startswith(prefix):
+                delete_template.sync_detailed(template_id=t.id, client=client)
+                counts["templates"] += 1
+
+    def _media() -> None:
+        resp = admin_media_list.sync_detailed(client=client)
+        for m in resp.parsed if isinstance(resp.parsed, list) else []:
+            if _name(m).startswith(prefix):
+                delete_media.sync_detailed(media_id=m.id, client=client)
+                counts["media"] += 1
+
+    def _users() -> None:
+        resp = admin_list_users_nav.sync_detailed(
+            nav=AdminListUsersNavNav.MANAGEMENT, client=client
+        )
+        ids = [
+            u.id
+            for u in (resp.parsed if isinstance(resp.parsed, list) else [])
+            if _name(u).startswith(prefix) and u.id != "local-default-admin-admin"
+        ]
+        if ids:
+            admin_delete_users.sync_detailed(
+                client=client,
+                body=AdminUserDeleteData(user=ids, delete_user=False),
+            )
+            counts["users"] += len(ids)
+
+    def _groups() -> None:
+        resp = admin_list_groups_nav.sync_detailed(
+            nav=AdminListGroupsNavNav.MANAGEMENT, client=client
+        )
+        for g in resp.parsed if isinstance(resp.parsed, list) else []:
+            if _name(g).startswith(prefix) and g.id != "default-default":
+                admin_delete_group.sync_detailed(group_id=g.id, client=client)
                 counts["groups"] += 1
 
-    for category in _safe_list(client, "/api/v4/admin/users/management/categories"):
-        if _has_prefix(category, prefix):
-            cid = category.get("id")
-            if cid and cid != "default":
-                _safe_delete(client, "DELETE", f"/api/v4/admin/category/{cid}")
+    def _categories() -> None:
+        resp = admin_list_categories_nav.sync_detailed(
+            nav=AdminListCategoriesNavNav.MANAGEMENT, client=client
+        )
+        for c in resp.parsed if isinstance(resp.parsed, list) else []:
+            if _name(c).startswith(prefix) and c.id != "default":
+                admin_delete_category.sync_detailed(category_id=c.id, client=client)
                 counts["categories"] += 1
+
+    for label, fn in (
+        ("desktops", _desktops),
+        ("templates", _templates),
+        ("media", _media),
+        ("users", _users),
+        ("groups", _groups),
+        ("categories", _categories),
+    ):
+        _try(label, fn)
 
     log.info("cleanup_by_prefix(%r): %s", prefix, counts)
     return counts
-
-
-def _has_prefix(obj: dict, prefix: str) -> bool:
-    name = obj.get("name") or ""
-    return isinstance(name, str) and name.startswith(prefix)
 
 
 def main() -> None:
     """CLI: ``python -m testing.integration.helpers.cleanup --prefix e2e_real_``"""
     import argparse
     import os
+
+    from .client import IsardClient
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="e2e_real_")

@@ -33,8 +33,17 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from isardvdi_apiv4_client.api.role_manager import admin_get_templates
+from isardvdi_apiv4_client.api.role_user import (
+    create_desktop,
+    delete_booking_event,
+    get_user_bookings,
+)
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id, expect
+from .helpers.seed import DISKLESS_TEMPLATE_ID, derivable
 
 # Give the server plenty of buffer from "now"; a booking that overlaps
 # the current second can race the planner and 428 for reasons unrelated
@@ -51,15 +60,24 @@ def _iso(dt: datetime) -> str:
 
 
 def _find_simple_template_id(client: IsardClient) -> str:
-    """Pick any template the admin can derive a desktop from.
+    """Pick a template the admin can derive a *working* desktop from.
 
-    The populate seed always ships at least one reference template;
-    we take the first entry in /items/templates to stay decoupled from
-    which template names exist in a given test stack.
+    The populate seed always ships at least one reference template. Use
+    the admin-scoped ``/admin/items/templates`` listing: the plain
+    ``/items/templates`` filters by the caller's allowed-list and the
+    seeded admin is on no template's allowed-list, so it would see
+    nothing.
+
+    The listing is unordered, so taking the first entry could hand back
+    the diskless template and turn this into a 90 s poll for a status the
+    desktop can never reach.
     """
-    templates = client.get("/api/v4/items/templates").get("templates", [])
+    templates = expect(admin_get_templates.sync_detailed(client=client.apiv4()))
+    assert isinstance(templates, list), f"unexpected templates response: {templates!r}"
     assert templates, "no templates available — is the stack seeded?"
-    return templates[0]["id"]
+    usable = derivable(templates)
+    assert usable, f"only {DISKLESS_TEMPLATE_ID} is available — is the stack seeded?"
+    return usable[0].id
 
 
 @pytest.mark.real
@@ -67,10 +85,12 @@ def test_delete_nonexistent_booking_returns_404(admin_client: IsardClient):
     """owns_booking_id bypasses admin → the delete reaches the service,
     which raises not_found on an id that doesn't exist. 404 is the
     contract the frontend retry logic relies on."""
-    resp = admin_client.raw("DELETE", "/api/v4/item/booking/event/does-not-exist-0000")
+    resp = delete_booking_event.sync_detailed(
+        booking_id="does-not-exist-0000", client=admin_client.apiv4()
+    )
     assert (
         resp.status_code == 404
-    ), f"expected 404 for missing booking; got {resp.status_code} body={resp.text[:200]}"
+    ), f"expected 404 for missing booking; got {resp.status_code}"
 
 
 @pytest.mark.real
@@ -83,15 +103,16 @@ def test_booking_create_then_cancel_roundtrip(
 
     # --- Step 1: create a desktop for the booking to target ---
     desktop_name = f"{test_namespace}booking_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": desktop_name,
-            "description": "",
-        },
+    desktop_id = created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=desktop_name,
+                description="",
+            ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=DESKTOP_CREATE_TIMEOUT
     )
@@ -132,22 +153,29 @@ def test_booking_create_then_cancel_roundtrip(
     assert booking["title"] == title
 
     # --- Step 3: confirm the booking is visible in the user list ---
-    bookings = admin_client.get("/api/v4/items/bookings")
+    bookings = expect(get_user_bookings.sync_detailed(client=admin_client.apiv4()))
+    assert isinstance(bookings, list)
     assert any(
-        b["id"] == booking_id for b in bookings
-    ), f"booking {booking_id} not in /items/bookings; got ids={[b['id'] for b in bookings]}"
+        b.id == booking_id for b in bookings
+    ), f"booking {booking_id} not in /items/bookings; got ids={[b.id for b in bookings]}"
 
     # --- Step 4: delete it ---
-    admin_client.delete(f"/api/v4/item/booking/event/{booking_id}", expected=(200, 204))
+    resp = delete_booking_event.sync_detailed(
+        booking_id=booking_id, client=admin_client.apiv4()
+    )
+    assert resp.status_code in (200, 204), f"delete booking -> {resp.status_code}"
 
     # --- Step 5: second delete must 404 (the row is actually gone) ---
-    second = admin_client.raw("DELETE", f"/api/v4/item/booking/event/{booking_id}")
+    second = delete_booking_event.sync_detailed(
+        booking_id=booking_id, client=admin_client.apiv4()
+    )
     assert (
         second.status_code == 404
-    ), f"second delete should 404; got {second.status_code} body={second.text[:200]}"
+    ), f"second delete should 404; got {second.status_code}"
 
     # --- Step 6: gone from the listing ---
-    after = admin_client.get("/api/v4/items/bookings")
+    after = expect(get_user_bookings.sync_detailed(client=admin_client.apiv4()))
+    assert isinstance(after, list)
     assert not any(
-        b["id"] == booking_id for b in after
+        b.id == booking_id for b in after
     ), f"booking {booking_id} still visible after delete"

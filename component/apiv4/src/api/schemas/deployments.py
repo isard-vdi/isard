@@ -28,7 +28,7 @@ from api.schemas.domains.hardware import DomainImage, Reservables
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.user import User as RethinkUser
-from isardvdi_common.schemas.domains import DesktopStatusEnum, DomainViewerEnum, Image
+from isardvdi_common.schemas.domains import DesktopStatusEnum, Image
 from isardvdi_common.schemas.shared.hardware import GuestProperties, Hardware
 from pydantic import (
     UUID4,
@@ -565,10 +565,9 @@ class UserDeploymentDesktop(BaseModel):
     deployment-desktop wrapper ``DeploymentDesktopsProcessed.
     _parse_deployment_desktop``) returns: ``status`` is the canonical
     field, ``state`` is the apiv3 alias the old Vue 2 frontend reads,
-    and ``viewers`` are emitted in hyphenated form (``browser-vnc``)
-    while the apiv4 enum uses underscores — the validator below
-    normalises both shapes back to the enum so old + new frontends
-    both validate.
+    and ``viewers`` are emitted in the hyphenated form both frontends
+    consume (``browser-vnc``), declared as plain strings like the
+    sibling ``UserDesktop.viewers``.
     """
 
     id: str = Field(description="ID of the desktop")
@@ -581,9 +580,9 @@ class UserDeploymentDesktop(BaseModel):
     )
     type: Optional[str] = None
     template: Optional[str] = None
-    viewers: list[DomainViewerEnum] = Field(
+    viewers: list[str] = Field(
         default=[],
-        description="List of viewers that will be available to access the desktop.",
+        description="List of viewers that will be available to access the desktop, hyphenated (``browser-vnc``).",
     )
     ip: Optional[str] = Field(
         default=None,
@@ -613,38 +612,11 @@ class UserDeploymentDesktop(BaseModel):
     permissions: list[str] = []
     bastion_target: Optional[dict] = None
 
-    @field_validator("viewers", mode="before")
-    @classmethod
-    def _normalise_viewer_names(cls, value):
-        if not isinstance(value, list):
-            return value
-        return [v.replace("-", "_") if isinstance(v, str) else v for v in value]
-
     @field_serializer("viewers")
     def _hyphenate_viewers_for_clients(self, value):
-        # ``DomainViewerEnum`` uses underscored canonical values (the DB
-        # convention: ``guest_properties.viewers`` keys are ``browser_vnc``,
-        # ``file_spice``, ...). Both the old (Vue 2) and new (Vue 3)
-        # frontends consume the hyphenated form (``browser-vnc``,
-        # ``file-spice``) — the i18n key path
-        # ``views.select-template.viewer-name.<viewer>`` is registered with
-        # hyphens, and ``DesktopUtils.viewerNeedsIp`` /
-        # ``IsardDropdown.getDefaultViewer`` test for ``browser-vnc``
-        # specifically. Without this serializer the videowall response
-        # emits the enum value as-is and freshly-created stopped desktops
-        # show the raw i18n path (``views.select-template.viewer-name.
-        # browser_vnc``) in the viewer button until a subsequent WS update
-        # (which bypasses this schema and uses the hyphenated
-        # ``_parse_desktop`` output) overwrites the row.
-        out = []
-        for v in value or []:
-            if hasattr(v, "value"):
-                out.append(str(v.value).replace("_", "-"))
-            elif isinstance(v, str):
-                out.append(v.replace("_", "-"))
-            else:
-                out.append(v)
-        return out
+        # DB keys are underscored (``browser_vnc``); both frontends key their
+        # i18n path ``views.select-template.viewer-name.<viewer>`` on hyphens.
+        return [v.replace("_", "-") for v in value]
 
 
 class UserDeploymentResponse(BaseModel):

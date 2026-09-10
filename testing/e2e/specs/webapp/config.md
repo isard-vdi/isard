@@ -19,7 +19,7 @@ This file defines what must be covered and links to subsection specs.
 - `Config → System`: `/isard-admin/admin/system`
 - `Config → Login`: `/isard-admin/admin/login`
 
-All are admin-only routes in `webapp/webapp/webapp/views/AdminViews.py` (`@isAdmin`).
+All are admin-only routes in `webapp/src/webapp/views/AdminViews.py` (`@isAdmin`).
 
 ## Spec files
 

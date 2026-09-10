@@ -15,9 +15,8 @@ the supporting infrastructure is healthy:
        ``Storage.enqueue_registry_download_chain_for_domain`` chain.
        Skip if the registration code seeded by ``populate_test_db.py``
        hasn't propagated yet.
-    3. Start the downloaded desktop, assert viewer ports are populated
-       (the qcow2 has spice + vnc + html5 + ws-tunnel viewers configured
-       by upstream isardvdi-registry).
+    3. Start the downloaded desktop, assert its viewer config is
+       populated (``viewers`` on the apiv4 detail response).
     4. Stop, snapshot a template from the downloaded desktop, then
        derive a fresh persistent desktop from that template with
        overridden hardware. Pins Bug B (downloaded shape, no top-level
@@ -48,8 +47,65 @@ import time
 from typing import Optional
 
 import pytest
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_domain_live_xml,
+    admin_downloads_action_id,
+    admin_downloads_kind,
+    admin_hypervisors_list,
+    admin_scheduler_jobs_system,
+)
+from isardvdi_apiv4_client.api.role_advanced import create_media, create_template
+from isardvdi_apiv4_client.api.role_manager import admin_list_domains
+from isardvdi_apiv4_client.api.role_user import (
+    check_quota_new_desktop,
+    create_desktop,
+    create_desktop_from_media,
+    edit_desktop,
+    get_desktop_details,
+    start_desktop,
+    stop_desktop,
+)
+from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListItem
+from isardvdi_apiv4_client.models.admin_domain_live_xml_response import (
+    AdminDomainLiveXmlResponse,
+)
+from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
+    AdminDownloadsKindKind,
+)
+from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomainsData
+from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
+    AdminListDomainsDataKind,
+)
+from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_input import AllowedInput
+from isardvdi_apiv4_client.models.create_desktop_from_media import (
+    CreateDesktopFromMedia,
+)
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.create_media_request import CreateMediaRequest
+from isardvdi_apiv4_client.models.desktop_details_response import DesktopDetailsResponse
+from isardvdi_apiv4_client.models.desktop_edit_request import DesktopEditRequest
+from isardvdi_apiv4_client.models.domain_guest_properties_input import (
+    DomainGuestPropertiesInput,
+)
+from isardvdi_apiv4_client.models.domain_hardware import DomainHardware
+from isardvdi_apiv4_client.models.domain_hardware_boot_order_type_0_item import (
+    DomainHardwareBootOrderType0Item,
+)
+from isardvdi_apiv4_client.models.download_item import DownloadItem
+from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
+    GuestPropertiesViewersInput,
+)
+from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_hardware_boot_order_item import (
+    MediaHardwareBootOrderItem,
+)
+from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
+from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
+from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id, expect
 from .helpers.sockets import SocketIOListener
 
 # ---------------------------------------------------------------------------
@@ -65,70 +121,102 @@ OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
 
 DOWNLOAD_TIMEOUT = int(os.environ.get("E2E_DOWNLOAD_TIMEOUT", "300"))
 BOOT_TIMEOUT = int(os.environ.get("E2E_BOOT_TIMEOUT", "180"))
-STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "90"))
+# A guest under nested virtualisation can sit in Shutting-down well past 90s.
+STOP_TIMEOUT = int(os.environ.get("E2E_STOP_TIMEOUT", "180"))
 TEMPLATE_TIMEOUT = int(os.environ.get("E2E_TEMPLATE_TIMEOUT", "180"))
 EDIT_TIMEOUT = int(os.environ.get("E2E_EDIT_TIMEOUT", "120"))
 CREATE_TIMEOUT = int(os.environ.get("E2E_CREATE_TIMEOUT", "180"))
 
 
 _VCPU_RE = re.compile(r"<vcpu[^>]*>\s*(\d+)\s*</vcpu>")
-_MEMORY_KIB_RE = re.compile(r'<memory[^>]*unit\s*=\s*"KiB"[^>]*>\s*(\d+)\s*</memory>')
+# The live XML comes from virsh, which single-quotes attributes; the DB XML is
+# lxml-serialised and double-quotes them. Accept either.
+_MEMORY_KIB_RE = re.compile(
+    r"<memory[^>]*unit\s*=\s*['\"]KiB['\"][^>]*>\s*(\d+)\s*</memory>"
+)
 
 
-def _hardware(
+def _media_hardware(
     *,
     vcpus: int,
     memory_gb: float,
     disk_size_gb: int,
     interfaces: list[str] | None = None,
-) -> dict:
-    return {
-        "boot_order": ["disk"],
-        "disk_bus": "default",
-        "disk_size": disk_size_gb,
-        "interfaces": interfaces if interfaces is not None else ["default"],
-        "memory": memory_gb,
-        "vcpus": vcpus,
-        "videos": ["default"],
-    }
+) -> MediaHardware:
+    return MediaHardware(
+        boot_order=[MediaHardwareBootOrderItem.DISK],
+        disk_bus="default",
+        disk_size=disk_size_gb,
+        interfaces=interfaces if interfaces is not None else ["default"],
+        memory=memory_gb,
+        vcpus=vcpus,
+        videos=["default"],
+    )
 
 
-def _from_media_payload(media_id: str, name: str, hardware: dict) -> dict:
-    return {
-        "media_id": media_id,
-        "kind": "iso",
-        "os_template": OS_TEMPLATE,
-        "name": name,
-        "description": "",
-        "guest_properties": {
-            "viewers": {"browser_vnc": {"options": None}},
-        },
-        "hardware": hardware,
-    }
+def _domain_hardware(
+    *,
+    vcpus: int,
+    memory_gb: float,
+    disk_size_gb: int,
+    interfaces: list[str] | None = None,
+) -> DomainHardware:
+    hardware = DomainHardware(
+        boot_order=[DomainHardwareBootOrderType0Item.DISK],
+        disk_bus="default",
+        interfaces=interfaces if interfaces is not None else ["default"],
+        memory=memory_gb,
+        vcpus=vcpus,
+        videos=["default"],
+    )
+    # DomainHardware's schema doesn't model ``disk_size``; the engine
+    # still honors it, so it rides in additional_properties to keep the
+    # pre-SDK wire shape.
+    hardware.additional_properties["disk_size"] = disk_size_gb
+    return hardware
 
 
-def _media_payload(url: str, name: str) -> dict:
-    return {
-        "url": url,
-        "name": name,
-        "description": "e2e full system",
-        "kind": "iso",
-        "allowed": {
-            "roles": False,
-            "categories": False,
-            "groups": False,
-            "users": False,
-        },
-        "hypervisors_pools": ["default"],
-    }
+def _from_media_payload(
+    media_id: str, name: str, hardware: MediaHardware
+) -> CreateDesktopFromMedia:
+    return CreateDesktopFromMedia(
+        media_id=media_id,
+        kind=MediaKindEnum.ISO,
+        os_template=OS_TEMPLATE,
+        name=name,
+        description="",
+        guest_properties=DomainGuestPropertiesInput(
+            viewers=GuestPropertiesViewersInput(browser_vnc=ViewerConfig()),
+        ),
+        hardware=hardware,
+    )
+
+
+def _media_payload(url: str, name: str) -> CreateMediaRequest:
+    return CreateMediaRequest(
+        url=url,
+        name=name,
+        description="e2e full system",
+        kind=MediaKindEnum.ISO,
+        allowed=AllowedInput(roles=False, categories=False, groups=False, users=False),
+        hypervisors_pools=["default"],
+    )
 
 
 def _xml(admin_client: IsardClient, domain_id: str) -> str:
-    resp = admin_client.raw("GET", f"/api/v4/admin/domain/{domain_id}/xml")
-    if resp.status_code != 200:
-        return ""
-    body = resp.json()
-    return body if isinstance(body, str) else (body.get("xml") or "")
+    """Return the engine's resolved live XML for a started domain.
+
+    The DB ``xml`` field only holds the base template XML; the per-desktop
+    hardware override is applied at start time and kept in the engine's RAM.
+    Non-200 means not ready yet, so callers poll.
+    """
+    resp = admin_domain_live_xml.sync_detailed(
+        domain_id=domain_id, client=admin_client.apiv4()
+    )
+    parsed = resp.parsed
+    if isinstance(parsed, AdminDomainLiveXmlResponse) and isinstance(parsed.xml, str):
+        return parsed.xml
+    return ""
 
 
 def _wait_xml_matches(
@@ -158,45 +246,93 @@ def _wait_xml_matches(
     )
 
 
-def _trigger_registry_download(admin_client: IsardClient, name: str) -> Optional[dict]:
+def _recover_unbootable(
+    admin_client: IsardClient, desktop_id: str, status: str
+) -> bool:
+    """True when the host CPU, not the code, refused the start: the image
+    pins its own ``<cpu>`` and the engine keeps that section verbatim.
+    ``stop`` is a no-op from ``Failed``, so reset through ``update-status``
+    (what the UI retry uses) — the steps that follow only need Stopped."""
+    if status != "Failed":
+        return False
+    # ``detail`` rides only on the admin details read.
+    resp = admin_client.raw("GET", f"/api/v4/admin/item/domain/{desktop_id}/details")
+    detail = ""
+    if resp.status_code == 200:
+        detail = (resp.json() or {}).get("detail") or ""
+    if "is incompatible with host CPU" not in detail:
+        raise AssertionError(
+            f"registry desktop {desktop_id} ended in Failed; detail={detail!r}"
+        )
+    admin_client.put(f"/api/v4/item/desktop/{desktop_id}/update-status")
+    admin_client.poll_desktop_status(
+        desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
+    )
+    return True
+
+
+def _desktop_rows(admin_client: IsardClient) -> list[AdminDomainListItem]:
+    rows = expect(
+        admin_list_domains.sync_detailed(
+            client=admin_client.apiv4(),
+            body=AdminListDomainsData(kind=AdminListDomainsDataKind.DESKTOP),
+        )
+    )
+    assert isinstance(rows, list)
+    return rows
+
+
+def _trigger_registry_download(
+    admin_client: IsardClient, name: str
+) -> Optional[AdminDomainListItem]:
     """Locate the registry entry, kick the download, and return the
     desktop row once it reaches Stopped. Returns ``None`` when the
     registry isn't reachable or the entry isn't Available — caller
     should ``pytest.skip`` in that case (downloading depends on the
     upstream catalog being reachable, which is environment-specific)."""
-    entries = admin_client.get("/api/v4/admin/downloads/domains")
+    entries = expect(
+        admin_downloads_kind.sync_detailed(
+            kind=AdminDownloadsKindKind.DOMAINS, client=admin_client.apiv4()
+        )
+    )
+    assert isinstance(entries, list)
     entry = None
     for e in entries:
-        if (e.get("name") or "").lower() == name.lower():
+        if (e.name or "").lower() == name.lower():
             entry = e
             break
     if entry is None:
         return None
-    if entry.get("status") and entry["status"] != "Available":
+    # ``status`` / ``url-isard`` aren't in the DownloadItem schema; they
+    # ride along in additional_properties on the registry listing.
+    status = entry.additional_properties.get("status")
+    if status and status != "Available":
         return None
 
-    existing = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    existing_ids = {r["id"] for r in existing if (r.get("name") or "") == name}
+    existing_ids = {r.id for r in _desktop_rows(admin_client) if (r.name or "") == name}
 
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/"
-        f"{entry.get('url-isard') or entry['id']}",
-        expected=(200, 201, 204),
+    download_id = entry.additional_properties.get("url-isard") or entry.id
+    assert isinstance(download_id, str) and download_id, "registry entry has no id"
+    download = admin_downloads_action_id.sync_detailed(
+        action="download",
+        kind="domains",
+        id=download_id,
+        client=admin_client.apiv4(),
+        body=DownloadItem(),
     )
+    assert download.status_code in (
+        200,
+        201,
+        204,
+    ), f"registry download -> {download.status_code}"
 
     deadline = time.monotonic() + DOWNLOAD_TIMEOUT
     while time.monotonic() < deadline:
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
-        )
-        for row in rows:
+        for row in _desktop_rows(admin_client):
             if (
-                (row.get("name") or "") == name
-                and row["id"] not in existing_ids
-                and row.get("status") == "Stopped"
+                (row.name or "") == name
+                and row.id not in existing_ids
+                and row.status == "Stopped"
             ):
                 return row
         time.sleep(2)
@@ -218,12 +354,13 @@ def test_hypervisor_is_online(admin_client: IsardClient):
     healthy; if this fails, downstream desktop-start tests will time
     out without context.
     """
-    hyps = admin_client.get("/api/v4/admin/hypervisors")
+    hyps = expect(admin_hypervisors_list.sync_detailed(client=admin_client.apiv4()))
+    assert isinstance(hyps, list)
     assert hyps, "no hypervisors registered"
-    online = [h for h in hyps if h.get("status") == "Online"]
+    online = [h for h in hyps if h.status == "Online"]
     assert online, (
         f"no Online hypervisors among {len(hyps)} rows; "
-        f"statuses={[h.get('status') for h in hyps]!r}"
+        f"statuses={[h.status for h in hyps]!r}"
     )
 
 
@@ -237,13 +374,13 @@ def test_scheduler_runs_system_jobs(admin_client: IsardClient):
     Used so that quota / recycle-bin lifecycle behaviors that depend on
     these jobs are actually scheduled.
     """
-    jobs = admin_client.get("/api/v4/admin/scheduler/jobs/system") or []
-    assert isinstance(jobs, list), f"expected list of jobs; got {type(jobs).__name__}"
+    jobs = expect(
+        admin_scheduler_jobs_system.sync_detailed(client=admin_client.apiv4())
+    )
+    assert isinstance(jobs, list)
     # Job ids on the scheduler are namespaced ``system.<job>``. Strip the
     # prefix so the expected set is name-only.
-    job_ids = {
-        (j.get("id") or "").rsplit(".", 1)[-1] for j in jobs if isinstance(j, dict)
-    }
+    job_ids = {(j.id or "").rsplit(".", 1)[-1] for j in jobs}
     expected = {
         "recycle_bin_cutoff_time_system_delete",
         "send_unused_items_to_recycle_bin",
@@ -280,7 +417,7 @@ def test_registry_full_lifecycle(
             "verify resources.code is seeded and registry network is up"
         )
 
-    desktop_id = desktop["id"]
+    desktop_id = desktop.id
 
     # Rename into our namespace so teardown cleans it up.
     # Registry desktops sometimes ship with an RDP viewer (Slax does);
@@ -313,43 +450,44 @@ def test_registry_full_lifecycle(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
 
-    # --- Step 1: start, assert viewer ports populated, stop -----------
+    # --- Step 1: start, assert viewer config populated, stop ----------
+    unbootable = False
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/start")
+        start_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP", "Failed"}, max_wait=BOOT_TIMEOUT
         )
-        # Pin: viewer config is populated. registry images come pre-set
-        # with full viewer config (spice + vnc + html5 + ws-tunnel); we
-        # only assert that the apiv4 detail response surfaces a non-empty
-        # list of base/extra ports because the actual presence depends
-        # on the registry image version and we don't want to over-pin.
-        details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}")
-        viewer = details.get("viewer") or {}
-        ports = viewer.get("ports") or []
-        # On a Failed start (no KVM) the engine still wires viewer
-        # config so the assertion is meaningful in both cases.
-        assert ports, (
-            "registry desktop has no viewer ports populated; " f"viewer={viewer!r}"
+        # apiv4 never surfaces the runtime viewer ports; the only viewer
+        # surface on a desktop read is ``viewers`` on ``get-details``.
+        details = expect(
+            get_desktop_details.sync_detailed(
+                desktop_id=desktop_id, client=admin_client.apiv4()
+            )
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
-        admin_client.poll_desktop_status(
+        assert isinstance(details, DesktopDetailsResponse)
+        assert (
+            details.viewers
+        ), f"registry desktop has no viewers configured; viewers={details.viewers!r}"
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        stopped = admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
+        unbootable = _recover_unbootable(admin_client, desktop_id, stopped)
 
     # --- Step 2: template from downloaded desktop (Bug B) -------------
     template_name = f"{test_namespace}registry_tmpl"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": desktop_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
+    template_id = created_id(
+        create_template.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewTemplateRequest(
+                desktop_id=desktop_id,
+                name=template_name,
+                description="",
+                allowed=AllowedBase(users=False, groups=False),
+                enabled=True,
+            ),
+        )
     )
-    template_id = template["id"]
     admin_client.wait_for_template_created(
         source_desktop_id=desktop_id,
         template_id=template_id,
@@ -361,44 +499,54 @@ def test_registry_full_lifecycle(
     # constraint is satisfied (Slax registry images include
     # ``file_rdpgw`` by default, and apiv4's check_viewers rejects an
     # edit without ``wireguard`` in ``hardware.interfaces``).
-    derived_hw = _hardware(
+    derived_hw = _domain_hardware(
         vcpus=2, memory_gb=1.0, disk_size_gb=2, interfaces=["default", "wireguard"]
     )
     derived_name = f"{test_namespace}registry_derived"
-    derived = admin_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": derived_name,
-            "description": "",
-            "hardware": derived_hw,
-        },
+    derived_id = created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=derived_name,
+                description="",
+                hardware=derived_hw,
+            ),
+        )
     )
-    derived_id = derived["id"]
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
-    derived_detail = admin_client.get(f"/api/v4/item/desktop/{derived_id}/get-details")
-    assert int(derived_detail["vcpu"]) == 2
-    assert abs(derived_detail["memory"] - 1.0) < 1e-3
+    derived_detail = expect(
+        get_desktop_details.sync_detailed(
+            desktop_id=derived_id, client=admin_client.apiv4()
+        )
+    )
+    assert isinstance(derived_detail, DesktopDetailsResponse)
+    assert isinstance(derived_detail.vcpu, (int, float))
+    assert isinstance(derived_detail.memory, (int, float))
+    assert int(derived_detail.vcpu) == 2
+    assert abs(derived_detail.memory - 1.0) < 1e-3
 
     # --- Step 4: edit hardware, restart, XML reflects v2 -------------
-    admin_client.put(
-        f"/api/v4/item/desktop/{derived_id}/edit",
-        json_body={
-            "hardware": _hardware(
+    edit_desktop.sync_detailed(
+        desktop_id=derived_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(
+            hardware=_domain_hardware(
                 vcpus=4,
                 memory_gb=2.0,
                 disk_size_gb=2,
                 interfaces=["default", "wireguard"],
             )
-        },
+        ),
     )
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
-    if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/start")
+    # The derived desktop inherits the same protected ``<cpu>``.
+    if os.environ.get("E2E_SKIP_VM_BOOT") != "1" and not unbootable:
+        start_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id,
             want={"Started", "WaitingIP", "Failed"},
@@ -411,7 +559,7 @@ def test_registry_full_lifecycle(
             memory_kib=2 * 1048576,
             max_wait=60.0,
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -437,11 +585,12 @@ def test_media_upload_full_lifecycle(
     pin for the from-media create chain.
     """
     media_name = f"{test_namespace}fullsys_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -449,7 +598,9 @@ def test_media_upload_full_lifecycle(
     except RuntimeError as exc:
         pytest.skip(f"media source unreachable: {exc}")
 
-    # Pin: media listing returns the new media with the expected shape
+    # Pin: media listing returns the new media with the expected shape.
+    # ``/items/media`` is the user-facing wrapper listing the webapp/Vue
+    # UIs read, so keep it on the raw wire to pin that exact shape.
     media_list_resp = admin_client.raw("GET", "/api/v4/items/media")
     assert media_list_resp.status_code == 200
     listed = media_list_resp.json()
@@ -460,25 +611,26 @@ def test_media_upload_full_lifecycle(
     ), "freshly created media missing from /items/media listing"
 
     desktop_name = f"{test_namespace}fullsys_media_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_from_media_payload(
-            media_id,
-            desktop_name,
-            _hardware(vcpus=1, memory_gb=0.5, disk_size_gb=1),
-        ),
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_from_media_payload(
+                media_id,
+                desktop_name,
+                _media_hardware(vcpus=1, memory_gb=0.5, disk_size_gb=1),
+            ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/start")
+        start_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP", "Failed"}, max_wait=BOOT_TIMEOUT
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -496,7 +648,7 @@ def test_admin_can_create_when_quota_unset(admin_client: IsardClient):
     no quota configured; the gate must return 204 (success). A 412/428
     here would indicate a regression in the quota service or in the
     seed data."""
-    resp = admin_client.raw("GET", "/api/v4/quota/desktop/new")
-    assert (
-        resp.status_code == 204
-    ), f"admin /quota/desktop/new -> {resp.status_code}; body={resp.text[:200]}"
+    status = check_quota_new_desktop.sync_detailed(
+        client=admin_client.apiv4()
+    ).status_code
+    assert status == 204, f"admin /quota/desktop/new -> {status}"

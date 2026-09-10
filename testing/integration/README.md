@@ -20,7 +20,7 @@ docker-compose network so the test process can reach
 docker compose up -d
 
 # Seed the admin_e2e_* users so the test has an admin account
-python3 testing/db/populate_test_db.py
+python3 testing/src/isardvdi_testing/populate_test_db.py
 
 # Run the suite (inside a sidecar container on the isardvdi_default network)
 docker compose -f docker-compose.yml -f docker-compose.integration.yml \

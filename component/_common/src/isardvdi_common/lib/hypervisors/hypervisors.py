@@ -103,7 +103,7 @@ def _vgpu_profile_units(prof, card_total_mb):
 
 
 # Canonical model token per PCI device — mirror of
-# docker/hypervisor/src/lib/gpu_discovery.py::_MODEL_ALIASES. Physically
+# docker/hypervisor/src/isardvdi_hypervisor/gpu_discovery.py::_MODEL_ALIASES. Physically
 # identical cards (same vendor:device[:subsystem]) MUST resolve to one model
 # token so they share a single reservable/profile pool. Unmapped devices fall
 # through to the name/profile derivation unchanged (no-op for already-consistent

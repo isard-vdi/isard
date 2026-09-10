@@ -2,7 +2,7 @@
 
 """Pytest conftest for scheduler unit tests.
 
-The production ``scheduler/__init__.py`` constructs ``Scheduler()``
+The production ``scheduler/src/scheduler/__init__.py`` constructs ``Scheduler()``
 at import time (line 56: ``app.scheduler = Scheduler()``), which
 opens an rdb connection and seeds default jobs. Unit tests that
 import any submodule (e.g. ``scheduler.lib.flask_rethink``) would
@@ -22,14 +22,14 @@ import types
 from pathlib import Path
 
 # Make ``scheduler.lib`` importable as a real submodule package
-# without going through ``scheduler/__init__.py``.
+# without going through ``scheduler/src/scheduler/__init__.py``.
 _SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
 
 def _install_stub_scheduler_package():
-    """Replace ``scheduler/__init__.py`` with a no-op stub that
+    """Replace ``scheduler/src/scheduler/__init__.py`` with a no-op stub that
     exposes a ``scheduler.app`` shim sufficient for the modules
     under ``scheduler.lib`` that import ``from scheduler import app``.
 

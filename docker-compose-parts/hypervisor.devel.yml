@@ -1,15 +1,23 @@
 services:
   isard-hypervisor:
+    environment:
+      # /src already holds the bind-mounted sources; putting it on PYTHONPATH
+      # makes them win over the non-editable copies inside /.venv, which is
+      # what restores hot-reload in devel.
+      PYTHONPATH: /src
     volumes:
     # Bind sources track the post-uv-migration src-layout
     # (component/_common/<pkg>/src/<pkg>/...). The pre-migration paths
     # (component/_common/<pkg>/<pkg>) are now empty stubs.
     - ${BUILD_ROOT_PATH}/docker/hypervisor/src:/src
+    # The package is installed non-editable into /.venv, so hot-reload comes
+    # from shadowing it on PYTHONPATH (see the environment block below).
+    - ${BUILD_ROOT_PATH}/docker/hypervisor/src/isardvdi_hypervisor:/src/isardvdi_hypervisor
     - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/src/isardvdi_common
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/src/isardvdi_apiv4_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/src/isardvdi_apiv4_client_auth
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/src/isardvdi_notifier_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/src/isardvdi_notifier_client_auth
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/src/isardvdi_scheduler_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/src/isardvdi_scheduler_client_auth
+    - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client:/src/isardvdi_apiv4_client
+    - ${BUILD_ROOT_PATH}/component/apiv4-client/src/isardvdi_apiv4_client_auth:/src/isardvdi_apiv4_client_auth
+    - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client:/src/isardvdi_notifier_client
+    - ${BUILD_ROOT_PATH}/component/notifier-client/src/isardvdi_notifier_client_auth:/src/isardvdi_notifier_client_auth
+    - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client:/src/isardvdi_scheduler_client
+    - ${BUILD_ROOT_PATH}/component/scheduler-client/src/isardvdi_scheduler_client_auth:/src/isardvdi_scheduler_client_auth
     - ${BUILD_ROOT_PATH}/docker/hypervisor/kvm/hooks:/etc/libvirt/hooks

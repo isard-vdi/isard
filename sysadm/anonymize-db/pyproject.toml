@@ -1,5 +1,5 @@
 [project]
-name = "isard-anonymize-db"
+name = "isardvdi-anonymize-db"
 version = "0.1.0"
 description = "Anonymize a rethinkdb-dump tar.gz from IsardVDI for safe use in development."
 requires-python = ">=3.11"
@@ -16,6 +16,8 @@ anonymize-db = "anonymize_db.cli:main"
 [dependency-groups]
 test = [
   "pytest",
+  "pytest-cov",
+  "pytest-xdist",
 ]
 
 [build-system]

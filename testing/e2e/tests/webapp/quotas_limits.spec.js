@@ -20,7 +20,7 @@ import {
   adminUpdateCategoryLimits,
 } from '../../src/gen/apiv4/sdk.gen'
 
-// ── Fixture identifiers (seeded in testing/db/data) ──────────────────────────
+// ── Fixture identifiers (seeded in testing/src/isardvdi_testing/data) ──────────────────────────
 const CAT = 'qle2e'
 const CAT_NAME = 'QuotasLimits E2E'
 const GROUP = 'qle2e-group'

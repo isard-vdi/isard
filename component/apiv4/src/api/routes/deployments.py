@@ -284,7 +284,9 @@ async def delete_deployment(
     summary="Create a new deployment",
     description="Creates a new deployment with the provided data.",
     response_model=SimpleResponse,
+    status_code=201,
     responses={
+        201: {"description": "Deployment created successfully"},
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         409: {"model": DesktopNameExistsErrorResponse},
@@ -902,7 +904,11 @@ async def get_deployment_videowall(
             DeploymentService.get_deployment_videowall, deployment_id
         )
         return JSONResponse(
-            content=DeploymentVideowallResponse(**result).model_dump(mode="json"),
+            # JSONResponse skips FastAPI's response_model serialisation, so the
+            # aliases the schema declares only reach the wire if we ask for them.
+            content=DeploymentVideowallResponse(**result).model_dump(
+                mode="json", by_alias=True
+            ),
             status_code=200,
         )
     except Error:
