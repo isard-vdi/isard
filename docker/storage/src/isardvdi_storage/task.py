@@ -17,10 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import errno
 import logging
 import os
 import shlex
-import shutil
 import signal
 import tempfile
 import threading
@@ -53,13 +53,22 @@ from isardvdi_common.helpers.task_streams import (
     maxlen_for_stream,
     stream_for_kind,
 )
+from isardvdi_common.helpers.task_timeouts import job_timeout_for
 from isardvdi_common.models.task import Task
 from rq import get_current_job
 from rq.job import JobStatus
 
 log = logging.getLogger(__name__)
 
-QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
+QEMU_IMG_TIMEOUT = 30  # seconds; read-only `qemu-img info` probes, guards an NFS hang
+
+QEMU_IMG_WRITE_MARGIN = 30  # seconds a writing call expires before its RQ budget
+
+
+def _qemu_img_write_timeout(action):
+    """Subprocess ceiling for a ``qemu-img`` call that writes: the action's budget."""
+    return max(QEMU_IMG_TIMEOUT, job_timeout_for(action) - QEMU_IMG_WRITE_MARGIN)
+
 
 # Stream names + routing (RESULT_STREAM / PROGRESS_STREAM / stream_for_kind /
 # maxlen_for_stream) live in isardvdi_common.helpers.task_streams — the single
@@ -841,7 +850,7 @@ def create(
     return run(
         command,
         check=True,
-        timeout=QEMU_IMG_TIMEOUT,
+        timeout=_qemu_img_write_timeout("create"),
     ).returncode
 
 
@@ -1442,12 +1451,11 @@ def move(
     :type origin_path: str
     :param destination_path: Path of the destination file
     :type destination_path: str
-    :param method: ``"mv"``, ``"rsync"``, or ``"auto"``. ``"auto"`` compares
-        ``os.stat(dirname(...)).st_dev`` on both sides and picks ``mv`` when
-        the directories share a filesystem (atomic rename, microseconds),
-        otherwise ``rsync`` (cross-fs, with progress). On ``OSError`` during
-        the probe it falls back to ``rsync`` — works cross-fs and creates the
-        destination dir.
+    :param method: ``"mv"``, ``"rsync"``, or ``"auto"``. ``"mv"`` and
+        ``"auto"`` both mean "rename if the kernel allows it": the rename is
+        attempted and, when it is refused with ``EXDEV``, the call degrades to
+        the ``rsync`` branch — with its free-space floor and its progress.
+        ``"rsync"`` copies unconditionally (cross-fs, with progress).
     :type method: str
     :param progress_domain_id: Optional Domain row id to receive a
         ``progress = {"total_percent", "received_percent"}`` field for every
@@ -1477,30 +1485,6 @@ def move(
     if not isdir(dirname(destination_path)):
         makedirs(dirname(destination_path), exist_ok=True)
 
-    if method == "auto":
-        try:
-            src_dev = os_stat(dirname(origin_path)).st_dev
-            dst_dev = os_stat(dirname(destination_path)).st_dev
-            method = "mv" if src_dev == dst_dev else "rsync"
-        except OSError as exc:
-            log.warning(
-                "move(auto): st_dev probe failed (%s); falling back to rsync",
-                exc,
-            )
-            method = "rsync"
-
-    # Destination free-space floor. Only a COPY can fill the destination: a
-    # same-filesystem move is a rename, so it consumes nothing and must never be
-    # refused. Basis is the source's APPARENT size, not its allocated one: no
-    # copier here passes --sparse, so a sparse qcow2 lands fully allocated.
-    #
-    # On a thin backing store statvfs reports LOGICAL space, so the floor is held
-    # against the PHYSICAL fill where that is known; otherwise it protects nothing.
-    if method != "mv":
-        _require_free_space(
-            dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
-        )
-
     on_progress = None
     if progress_domain_id is not None:
 
@@ -1512,30 +1496,54 @@ def move(
 
         on_progress = _flush_domain_progress
 
-    if method == "mv":
-        shutil.move(origin_path, destination_path)
-        if on_progress is not None:
+    # Ask the kernel, do not predict: two bind mounts of one device share st_dev
+    # and rename across them still raises EXDEV. A rename also removes the source.
+    if method in ("mv", "auto"):
+        if not remove_source_file:
+            method = "rsync"
+        else:
             try:
-                on_progress(1.0)
-            except Exception:
-                log.exception("move(mv): on_progress callback failed")
-        return 0
-    elif method == "rsync":
-        return run_with_progress(
-            [
-                "rsync",
-                "-a",
-                "--info=progress,flist0",
-                *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
-                *(["--remove-source-files"] if remove_source_file else []),
-                origin_path,
-                destination_path,
-            ],
-            extract_progress_from_rsync_output,
-            on_progress=on_progress,
-        )
-    else:
-        raise ValueError(f"Invalid move method: {method}")
+                rename(origin_path, destination_path)
+            except OSError as exc:
+                if exc.errno != errno.EXDEV:
+                    raise
+                # WARNING, not info: this logger reaches the container log only
+                # from WARNING up, as rq configures its own logger, not the root.
+                log.warning(
+                    "move(%s): %s and %s are on different mounts (EXDEV); "
+                    "copying the whole file instead",
+                    method,
+                    origin_path,
+                    destination_path,
+                )
+                method = "rsync"
+            else:
+                if on_progress is not None:
+                    try:
+                        on_progress(1.0)
+                    except Exception:
+                        log.exception("move: on_progress callback failed")
+                return 0
+
+    # Everything past here copies, so the floor applies -- keyed on copying, not on
+    # the method name. Basis is the apparent size: no copier here passes --sparse.
+    _require_free_space(
+        dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
+    )
+
+    return run_with_progress(
+        [
+            "rsync",
+            "-a",
+            "--info=progress,flist0",
+            *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
+            *(["--remove-source-files"] if remove_source_file else []),
+            origin_path,
+            destination_path,
+        ],
+        extract_progress_from_rsync_output,
+        on_progress=on_progress,
+    )
 
 
 @_publishes_result
@@ -1882,9 +1890,8 @@ def resize(storage_path, increment):
     :return: Exit code of qemu-img command
     :rtype: int
     """
-    # Cancel intentionally not wired: qemu-img resize is bounded by
-    # ``QEMU_IMG_TIMEOUT``; killing a shrink mid-run risks truncating
-    # live data inside the qcow2.
+    # Cancel intentionally not wired: qemu-img resize is bounded by the action's
+    # own budget, and killing a shrink mid-run risks truncating live qcow2 data.
     try:
         return run(
             [
@@ -1893,7 +1900,7 @@ def resize(storage_path, increment):
                 storage_path,
                 f"+{increment}G",
             ],
-            timeout=QEMU_IMG_TIMEOUT,
+            timeout=_qemu_img_write_timeout("resize"),
             check=True,  # Raise on a non-zero qemu-img rc
         ).returncode
     except Exception:
