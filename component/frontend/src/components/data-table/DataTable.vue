@@ -47,12 +47,14 @@ interface Props {
   higlightedRowId?: string
   isClickable: boolean
   cellClass: HTMLAttributes['class']
+  defaultSort?: { key: string; desc?: boolean }
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
   higlightedRowId: undefined,
-  isClickable: false
+  isClickable: false,
+  defaultSort: undefined
 })
 
 const emit = defineEmits<{
@@ -61,7 +63,9 @@ const emit = defineEmits<{
 
 const pageSize = computed(() => props.pageSize ?? 10)
 
-const sorting = ref<SortingState>([])
+const sorting = ref<SortingState>(
+  props.defaultSort ? [{ id: props.defaultSort.key, desc: props.defaultSort.desc ?? false }] : []
+)
 
 const globalFilter = ref('')
 
