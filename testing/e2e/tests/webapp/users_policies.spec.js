@@ -599,7 +599,7 @@ test.describe('Admin users policies — webapp', () => {
     await expect(row.locator('button#btn-policy-force')).toBeVisible({ timeout: 5000 })
 
     // Restore the original disclaimer state so this test is idempotent.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -608,7 +608,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------
@@ -679,7 +680,7 @@ test.describe('Admin users policies — webapp', () => {
     await modal.waitFor({ state: 'hidden', timeout: 10000 })
 
     // Restore original state regardless of test outcome.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -688,7 +689,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------
@@ -1122,7 +1124,7 @@ test.describe('Admin users policies — webapp', () => {
     await forceModal.waitFor({ state: 'hidden', timeout: 5000 })
 
     // Restore original disclaimer state.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -1131,7 +1133,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------
