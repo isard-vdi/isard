@@ -387,6 +387,18 @@ const vgpusUnavailable = computed(
   () => vgpusOptions.value.length === 0 && (formValues.value.reservables?.vgpus?.length ?? 0) === 0
 )
 
+const showIsosField = computed(
+  () =>
+    props.showPeripherals &&
+    (isosOptions.value.length > 0 ||
+      (formValues.value.isos?.length ?? 0) > 0 ||
+      limitedField('isos') !== null)
+)
+
+const isosUnavailable = computed(
+  () => isosOptions.value.length === 0 && (formValues.value.isos?.length ?? 0) === 0
+)
+
 const optionName = (id: string | undefined, options: { id: string; name: string }[]) =>
   id === undefined ? undefined : (options.find((option) => option.id === id)?.name ?? id)
 
@@ -657,7 +669,7 @@ defineExpose({
         v-if="props.showPeripherals || showVgpusField"
         class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start"
       >
-        <div v-if="props.showPeripherals" class="grid gap-4 items-start">
+        <div v-if="showIsosField" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
             <Icon name="hdd" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
             <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
@@ -673,8 +685,13 @@ defineExpose({
                 </FieldLabel>
                 <SearchableTags
                   :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
-                  :placeholder="t('components.domain.hardware.isos.placeholder')"
+                  :placeholder="
+                    isosUnavailable
+                      ? t('components.domain.hardware.isos.unavailable')
+                      : t('components.domain.hardware.isos.placeholder')
+                  "
                   :model-value="field.state.value"
+                  :disabled="isosUnavailable"
                   tagsDisplay="wrap"
                   :invalid="isInvalid(field)"
                   @update:model-value="field.handleChange($event)"
