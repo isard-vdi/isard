@@ -410,14 +410,16 @@ def test_retry_all_failed_tasks(monkeypatch, test_client):
     calls = []
     monkeypatch.setattr(
         "api.services.tasks.TaskService.retry_all_failed_tasks",
-        staticmethod(lambda: calls.append("retry") or {}),
+        staticmethod(
+            lambda: calls.append("retry") or {"retried": 3, "skipped": 2, "errors": 1}
+        ),
     )
 
     jwt = MockJWT()
     response = test_client(url="/admin/tasks/retry", method="PUT", jwt=jwt)
 
-    # Route returns 204 (no body) like every other ``EmptyResponse`` route.
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert response.json() == {"retried": 3, "skipped": 2, "errors": 1}
     assert calls == ["retry"]
 
 
