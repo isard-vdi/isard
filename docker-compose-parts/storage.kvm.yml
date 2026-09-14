@@ -1,0 +1,4 @@
+services:
+  isard-storage:
+    devices:
+      - /dev/kvm:/dev/kvm
