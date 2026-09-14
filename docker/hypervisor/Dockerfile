@@ -44,6 +44,36 @@ WORKDIR /home/builder/spice
 # hadolint ignore=DL3004
 RUN sudo apk update && abuild -r
 
+# Since QEMU 10.2 the iothread event loop runs on io_uring when qemu is built
+# against liburing, as Alpine's is. The kernel accounts that idle wait as IO
+# wait, so every running desktop adds an entry to procs_blocked and pins
+# /proc/pressure/io near 100% — which also makes the storage governor defer
+# heavy tasks on any host running storage workers beside qemu. The patch is
+# pve-qemu's 0002-fdmon-io_uring-avoid-idle-event-loop-being-accounted, gated on
+# IORING_FEAT_NO_IOWAIT. Drop this stage once upstream qemu carries an equivalent.
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS qemu-build
+RUN apk add --no-cache alpine-sdk git python3 sudo && \
+    adduser -D builder && addgroup builder abuild && \
+    echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+USER builder
+RUN abuild-keygen -ain
+WORKDIR /home/builder
+# Pinned to the aports commit this was built and measured against: the APKBUILD
+# is edited below, so an unpinned checkout would move under those edits.
+RUN git clone --filter=blob:none --sparse https://gitlab.alpinelinux.org/alpine/aports.git && \
+    git -C aports sparse-checkout set community/qemu && \
+    git -C aports checkout ec08a958d131be54f6cccc5a5ca9769e07c93d69
+COPY docker/hypervisor/qemu-dev/fdmon-noiowait.patch aports/community/qemu/
+WORKDIR /home/builder/aports/community/qemu
+# Appending the source assignment keeps our patch LAST, after Alpine's own
+# liburing.patch, which also touches util/fdmon-io_uring.c. pkgrel is bumped so
+# this build outranks the identically-versioned repo package deterministically.
+# hadolint ignore=DL3004
+RUN printf '\nsource="$source fdmon-noiowait.patch"\n' >> APKBUILD && \
+    sed -i 's|^pkgrel=.*|pkgrel=100|' APKBUILD && \
+    sudo apk update && abuild checksum && abuild -r
+
+
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
@@ -103,6 +133,12 @@ RUN install -D /usr/bin/wg-quick /isard/bin/wg-quick
 COPY --from=spice-build /home/builder/packages/builder/x86_64/ /tmp/spice-apks/
 RUN apk add --no-cache --allow-untrusted /tmp/spice-apks/spice-0.16.0-r*.apk && \
     rm -rf /tmp/spice-apks
+
+# Swap in the patched qemu built above (see the qemu-build stage for why).
+COPY --from=qemu-build /home/builder/packages/community/ /tmp/qemu-repo/
+RUN apk add --no-cache --allow-untrusted --upgrade --repository /tmp/qemu-repo \
+        qemu qemu-img qemu-modules qemu-system-x86_64 && \
+    rm -rf /tmp/qemu-repo
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
