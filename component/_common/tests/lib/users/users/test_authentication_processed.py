@@ -11,6 +11,7 @@ disclaimer-payload sanitisation stay in apiv4 — these tests pin the
 data-access contract.
 """
 
+import contextlib
 from unittest.mock import MagicMock
 
 import pytest
@@ -106,6 +107,57 @@ class TestHasDuplicatePolicy:
         assert (
             stub_rdb["Processed"].has_duplicate_policy("cat", "role", "local") is False
         )
+
+
+# ── Cache invalidation ───────────────────────────────────────────────────
+
+
+@pytest.fixture
+def stub_policies(stub_rdb, monkeypatch):
+    from isardvdi_common.lib.users.users import user_policies as policies_mod
+
+    monkeypatch.setattr(
+        policies_mod.UserPolicies,
+        "_rdb_context",
+        classmethod(lambda cls: contextlib.nullcontext()),
+    )
+    policies_mod.UserPolicies.get_policies_category_role_provider.cache_clear()
+    policies_mod.UserPolicies.get_user_policy.cache_clear()
+    stub_rdb["mock_table"].return_value.filter.return_value.run.return_value = [
+        {"category": "all", "role": "all", "disclaimer": True}
+    ]
+    yield {**stub_rdb, "UserPolicies": policies_mod.UserPolicies}
+    policies_mod.UserPolicies.get_policies_category_role_provider.cache_clear()
+    policies_mod.UserPolicies.get_user_policy.cache_clear()
+
+
+WRITERS = [
+    pytest.param(lambda p: p.insert_policy({"category": "all"}), id="insert_policy"),
+    pytest.param(
+        lambda p: p.update_policy("p1", {"disclaimer": False}), id="update_policy"
+    ),
+    pytest.param(lambda p: p.delete_policy("p1"), id="delete_policy"),
+]
+
+
+class TestPolicyWritersInvalidateUserPoliciesCaches:
+    @pytest.mark.parametrize("write", WRITERS)
+    def test_policies_category_role_provider_hits_db_again(self, stub_policies, write):
+        run = stub_policies["mock_table"].return_value.filter.return_value.run
+        policies = stub_policies["UserPolicies"]
+        policies.get_policies_category_role_provider("cat-1", "user", "local")
+        write(stub_policies["Processed"])
+        policies.get_policies_category_role_provider("cat-1", "user", "local")
+        assert run.call_count == 2
+
+    @pytest.mark.parametrize("write", WRITERS)
+    def test_user_policy_hits_db_again(self, stub_policies, write):
+        run = stub_policies["mock_table"].return_value.filter.return_value.run
+        policies = stub_policies["UserPolicies"]
+        policies.get_user_policy("disclaimer", "cat-1", "user", "local")
+        write(stub_policies["Processed"])
+        policies.get_user_policy("disclaimer", "cat-1", "user", "local")
+        assert run.call_count == 2
 
 
 # ── Force policy at login ────────────────────────────────────────────────
