@@ -241,20 +241,25 @@ seed-test-db:
 	sh -c 'apk add --no-cache git qemu-img && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
 
 .PHONY: test-integration
+# The docker socket and CLI let the XML cross-check exec `virsh dumpxml` in
+# isard-hypervisor through the daemon that runs the stack; without them the
+# test skips.
 test-integration: seed-test-db
 	docker run $(_docker_tty) --rm --network=isard-network \
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
+	-v /var/run/docker.sock:/var/run/docker.sock \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real
+	sh -c 'apk add --no-cache docker-cli && uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real'
 
 .PHONY: ci-test-integration
 ci-test-integration: seed-test-db
 	docker run $(_docker_tty) --rm --network=isard-network \
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
+	-v /var/run/docker.sock:/var/run/docker.sock \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
+	sh -c 'apk add --no-cache docker-cli && uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml'
 
 # What rq's job graph really does, what a Lua script really writes: a mocked
 # connection cannot report on any of it without the mock becoming the thing
