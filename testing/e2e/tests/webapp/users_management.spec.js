@@ -138,8 +138,9 @@ async function showAllUsers(page) {
  * shared by all rows you need visible (e.g. a common timestamp).
  */
 async function filterUsersByUsername(page, term) {
+  // The footer filter inputs are built after the table's first draw.
   const search = page.locator("#users .xe-username input").first();
-  if ((await search.count()) === 0) return;
+  await search.waitFor({ state: "visible", timeout: 10000 });
   await search.fill(String(term));
   // The footer search handler is bound to "keyup change"; fill() only emits an
   // "input" event, so dispatch keyup explicitly to trigger the table redraw.
