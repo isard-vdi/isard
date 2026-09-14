@@ -124,8 +124,21 @@ async function gotoPolicies(page) {
 // Playwright's own `.click()` would fight the overlay.
 async function iCheckClick(scope, inputSelector) {
   // iCheck wraps: <div class="icheckbox_flat-green"><input .../><ins class="iCheck-helper"/></div>
-  // Clicking the <ins> triggers iCheck's change logic.
-  await scope.locator(`${inputSelector} + ins.iCheck-helper`).click({ force: true })
+  // Clicking the <ins> triggers iCheck's change logic. A click that lands
+  // before iCheck has bound its handlers is lost, so re-click until the
+  // native state flips.
+  const before = await iCheckRead(scope, inputSelector)
+  await expect
+    .poll(
+      async () => {
+        if ((await iCheckRead(scope, inputSelector)) === before) {
+          await scope.locator(`${inputSelector} + ins.iCheck-helper`).click({ force: true })
+        }
+        return iCheckRead(scope, inputSelector)
+      },
+      { timeout: 5000, intervals: [300, 600, 1000] },
+    )
+    .not.toBe(before)
 }
 
 // Read the native `.checked` value bypassing iCheck's wrapper.
