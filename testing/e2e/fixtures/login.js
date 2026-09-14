@@ -86,12 +86,41 @@ const users = {
   advanced_e2e_14: { username: 'advanced_e2e_14', password: 'IsardTest1!', category: 'default' },
   advanced_e2e_15: { username: 'advanced_e2e_15', password: 'IsardTest1!', category: 'default' },
 
-  // E2E manager user — reserved for future manager-role vue2 specs
+  // E2E managers, one per worker: the sessions service keeps a single
+  // session per user, so a shared account gets logged out by every login.
   manager_e2e_01: { username: 'manager_e2e_01', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_02: { username: 'manager_e2e_02', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_03: { username: 'manager_e2e_03', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_04: { username: 'manager_e2e_04', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_05: { username: 'manager_e2e_05', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_06: { username: 'manager_e2e_06', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_07: { username: 'manager_e2e_07', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_08: { username: 'manager_e2e_08', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_09: { username: 'manager_e2e_09', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_10: { username: 'manager_e2e_10', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_11: { username: 'manager_e2e_11', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_12: { username: 'manager_e2e_12', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_13: { username: 'manager_e2e_13', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_14: { username: 'manager_e2e_14', password: 'IsardTest1!', category: 'default' },
+  manager_e2e_15: { username: 'manager_e2e_15', password: 'IsardTest1!', category: 'default' },
 
   // E2E managers seeded inside the dedicated `qle2e` test category for the
   // quotas/limits manager scenarios (own-category edits + the self-edit logout).
-  qle2e_manager: { username: 'qle2e-manager', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_01: { username: 'qle2e-manager', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_02: { username: 'qle2e-manager-02', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_03: { username: 'qle2e-manager-03', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_04: { username: 'qle2e-manager-04', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_05: { username: 'qle2e-manager-05', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_06: { username: 'qle2e-manager-06', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_07: { username: 'qle2e-manager-07', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_08: { username: 'qle2e-manager-08', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_09: { username: 'qle2e-manager-09', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_10: { username: 'qle2e-manager-10', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_11: { username: 'qle2e-manager-11', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_12: { username: 'qle2e-manager-12', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_13: { username: 'qle2e-manager-13', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_14: { username: 'qle2e-manager-14', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_manager_15: { username: 'qle2e-manager-15', password: 'IsardTest1!', category: 'qle2e' },
   qle2e_logout_mgr: { username: 'qle2e-logout-mgr', password: 'IsardTest1!', category: 'qle2e' },
 
   // LDAP test users (from planetexpress.com test server)
@@ -392,10 +421,11 @@ export const test = base.extend({
 
   // Manager-role vue2 specs; same once-per-worker pattern. Bridges the
   // Flask admin session so /isard-admin/* routes are accessible.
-  managerE2EContext: [async ({ browser }, use) => {
+  managerE2EContext: [async ({ browser }, use, workerInfo) => {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await ctx.newPage()
-    await loginHelpers.login(page, users.manager_e2e_01, categories)
+    const idx = (workerInfo.workerIndex % 15) + 1
+    await loginHelpers.login(page, users[`manager_e2e_${String(idx).padStart(2, '0')}`], categories)
     await bridgeAdminSession(page)
     await page.close()
     await use(ctx)
@@ -411,10 +441,11 @@ export const test = base.extend({
   // Worker-scoped login as the manager seeded inside the `qle2e` test
   // category, used by the quotas/limits manager scenarios. Bridges the Flask
   // admin session so the manager can reach the `/isard-admin/*` admin pages.
-  qle2eManagerContext: [async ({ browser }, use) => {
+  qle2eManagerContext: [async ({ browser }, use, workerInfo) => {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await ctx.newPage()
-    await loginHelpers.login(page, users.qle2e_manager, categories)
+    const idx = (workerInfo.workerIndex % 15) + 1
+    await loginHelpers.login(page, users[`qle2e_manager_${String(idx).padStart(2, '0')}`], categories)
     await bridgeAdminSession(page)
     await page.close()
     await use(ctx)
