@@ -1,0 +1,6 @@
+#!/bin/sh
+# The one definition of "this portal is serving": the master answers on the
+# admin socket AND reports a worker. Used by BOTH the compose healthcheck and
+# the watchdog, so the two can never drift apart.
+echo "show info" | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock 2>/dev/null \
+    | grep -q "^Process_num"

@@ -54,6 +54,13 @@ type StorageGovernor struct {
 	descRedisUsedMemoryRatio *prometheus.Desc
 	descRedisEvictedKeys     *prometheus.Desc
 
+	descStreamsUp             *prometheus.Desc
+	descStreamsResultsLength  *prometheus.Desc
+	descStreamsDeadLength     *prometheus.Desc
+	descStreamsGroupLag       *prometheus.Desc
+	descStreamsGroupPending   *prometheus.Desc
+	descStreamsGroupConsumers *prometheus.Desc
+
 	descCategoryInflight *prometheus.Desc
 	descCategoryCap      *prometheus.Desc
 	descCategoryLeak     *prometheus.Desc
@@ -68,6 +75,7 @@ type StorageGovernor struct {
 	descStrandedLane       *prometheus.Desc
 
 	descWorkerUp           *prometheus.Desc
+	descWorkerHashPresent  *prometheus.Desc
 	descWorkerHeartbeatAge *prometheus.Desc
 	descWorkerPsiCPU       *prometheus.Desc
 	descWorkerPsiIo        *prometheus.Desc
@@ -110,6 +118,15 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descRedisUsedMemoryRatio = d("redis_used_memory_ratio", "RQ broker used_memory / maxmemory")
 	s.descRedisEvictedKeys = d("redis_evicted_keys", "RQ broker evicted_keys counter (evictions silently corrupt SCARD gauges)")
 
+	// A finished task has already left its rq queue, so a chain waiting to be
+	// finalized reaches none of the gauges above.
+	s.descStreamsUp = d("streams_up", "Task-stream health block was read successfully (1); depths/groups are absent when 0")
+	s.descStreamsResultsLength = d("streams_results_length", "XLEN of the task-result stream; RESULT_STREAM_HIGH_WATER (90000) is where enqueue starts throttling and the 100000 floor is where unread results are evicted")
+	s.descStreamsDeadLength = d("streams_dead_length", "XLEN of the dead-letter stream: results the consumer could not process after every redelivery")
+	s.descStreamsGroupLag = d("streams_group_lag", "Entries a consumer group has never read (redis XINFO GROUPS lag; 0 when redis cannot compute it after a trim)", "stream", "group")
+	s.descStreamsGroupPending = d("streams_group_pending", "Entries a consumer group read and has not ACKed", "stream", "group")
+	s.descStreamsGroupConsumers = d("streams_group_consumers", "Consumers registered on a group -- counts CORPSES too, so this is a slow confirmation and never a detector (see the rules file)", "stream", "group")
+
 	s.descCategoryInflight = d("category_inflight", "In-flight fair-tier jobs for a category (SCARD governor:running:<pool>:<cat>)", "pool", "category")
 	s.descCategoryCap = d("category_cap", "Resolved per-category in-flight cap (fair tiers)", "pool", "category")
 	s.descCategoryLeak = d("category_leak", "Read-only leak delta on a category's in-flight set", "pool", "category")
@@ -124,6 +141,7 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descStrandedLane = d("stranded_lane", "Backlog on a lane with a live worker but no consumer coverage (coverage_known only)", "pool", "category", "tier")
 
 	s.descWorkerUp = d("worker_up", "Worker alive from heartbeat truth (SET member with a fresh hash) (1) or dead (0)", "worker", "pool", "kind")
+	s.descWorkerHashPresent = d("worker_hash_present", "The rq:worker:<name> hash behind this rq:workers member still exists (1); 0 is a registration with no worker behind it", "worker")
 	s.descWorkerHeartbeatAge = d("worker_heartbeat_age_seconds", "Seconds since the worker's last heartbeat", "worker")
 	s.descWorkerPsiCPU = d("worker_psi_cpu", "Worker-reported CPU pressure (PSI some avg)", "worker")
 	s.descWorkerPsiIo = d("worker_psi_io", "Worker-reported IO pressure (PSI some avg)", "worker")
@@ -166,6 +184,12 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descRedisPingMs
 	ch <- s.descRedisUsedMemoryRatio
 	ch <- s.descRedisEvictedKeys
+	ch <- s.descStreamsUp
+	ch <- s.descStreamsResultsLength
+	ch <- s.descStreamsDeadLength
+	ch <- s.descStreamsGroupLag
+	ch <- s.descStreamsGroupPending
+	ch <- s.descStreamsGroupConsumers
 	ch <- s.descCategoryInflight
 	ch <- s.descCategoryCap
 	ch <- s.descCategoryLeak
@@ -178,9 +202,11 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descStartedOverTimeout
 	ch <- s.descStrandedLane
 	ch <- s.descWorkerUp
+	ch <- s.descWorkerHashPresent
 	ch <- s.descWorkerHeartbeatAge
 	ch <- s.descWorkerPsiCPU
 	ch <- s.descWorkerPsiIo
+	ch <- s.descWorkerPsiMem
 	ch <- s.descWorkerDeferring
 	ch <- s.descEventsTotal
 	ch <- s.descEventsTierTotal
@@ -261,6 +287,22 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 		gauge(s.descRedisEvictedKeys, float64(rh.EvictedKeys.Or(0)))
 	}
 
+	// A failed read degrades to {"up": false} with the depths at zero, so publish
+	// them only when it succeeded: absence must not read as an empty stream.
+	if sh, ok := gov.Streams.Get(); ok {
+		up := sh.Up.Or(false)
+		gauge(s.descStreamsUp, boolToFloat(up))
+		if up {
+			gauge(s.descStreamsResultsLength, float64(sh.ResultsLength.Or(0)))
+			gauge(s.descStreamsDeadLength, float64(sh.DeadLength.Or(0)))
+			for _, g := range sh.Groups {
+				gauge(s.descStreamsGroupLag, float64(g.Lag.Or(0)), g.Stream, g.Group)
+				gauge(s.descStreamsGroupPending, float64(g.Pending.Or(0)), g.Stream, g.Group)
+				gauge(s.descStreamsGroupConsumers, float64(g.Consumers.Or(0)), g.Stream, g.Group)
+			}
+		}
+	}
+
 	// --- pools / categories / lanes -------------------------------------
 	for _, p := range gov.Pools {
 		hasCats := len(p.Categories) > 0
@@ -327,6 +369,9 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 	// --- workers --------------------------------------------------------
 	for _, w := range gov.Workers {
 		gauge(s.descWorkerUp, boolToFloat(w.Up.Or(false)), w.Name, w.Pool.Or(""), w.Kind.Or(""))
+		// A row whose rq:worker hash is gone is a registration with no worker
+		// behind it, which nothing will ever set back to 1.
+		gauge(s.descWorkerHashPresent, boolToFloat(w.HashPresent.Or(false)), w.Name)
 		if v, ok := w.HeartbeatAgeSeconds.Get(); ok {
 			gauge(s.descWorkerHeartbeatAge, v, w.Name)
 		}

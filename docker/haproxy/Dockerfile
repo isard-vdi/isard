@@ -37,6 +37,8 @@ COPY --from=haproxy-sync-build /build/haproxy-sync/bin/cert-watch /usr/local/bin
 COPY docker/haproxy/_common/prepare.sh /usr/local/sbin/
 COPY docker/haproxy/_common/auto-generate-certs.sh /usr/local/sbin/
 COPY docker/haproxy/_common/haproxy-reload /usr/local/bin/haproxy-reload
+COPY docker/haproxy/_common/haproxy-healthy /usr/local/bin/haproxy-healthy
+COPY docker/haproxy/_common/haproxy-watchdog /usr/local/bin/haproxy-watchdog
 COPY docker/haproxy/_common/haproxy-docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/haproxy/_common/acme-management.sh /usr/local/bin/acme-management.sh
 COPY docker/haproxy/_common/acme-generate-cert.sh /usr/local/bin/acme-generate-cert.sh
