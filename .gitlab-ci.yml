@@ -285,6 +285,9 @@ unit-test-python:
         COVERAGE_DIR: component/apiv4-client
       - COMPONENT: vpn
         COVERAGE_DIR: docker/vpn
+        # The OVS setup scripts are #!/bin/bash and their tests run them for
+        # real; the runtime image has bash, this one does not.
+        EXTRA_APK_PACKAGES: "bash"
       - COMPONENT: storage
         COVERAGE_DIR: docker/storage
       - COMPONENT: codegen
@@ -293,6 +296,7 @@ unit-test-python:
         COVERAGE_DIR: sysadm/anonymize-db
       - COMPONENT: hypervisor
         COVERAGE_DIR: docker/hypervisor
+        EXTRA_APK_PACKAGES: "bash"
       - COMPONENT: backupninja
         COVERAGE_DIR: docker/backupninja
       - COMPONENT: engine
