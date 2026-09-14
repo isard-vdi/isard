@@ -58,12 +58,17 @@ RUN apk add --no-cache alpine-sdk git python3 sudo && \
 USER builder
 RUN abuild-keygen -ain
 WORKDIR /home/builder
+# trim-targets.py cuts the build to the four packages this image installs; stock
+# Alpine builds 113, including every foreign-arch target. qemu-modules is kept on
+# purpose: the spice, qxl and virtio-gpu modules are the viewer.
+#
 # Pinned to the aports commit this was built and measured against: the APKBUILD
 # is edited below, so an unpinned checkout would move under those edits.
 RUN git clone --filter=blob:none --sparse https://gitlab.alpinelinux.org/alpine/aports.git && \
     git -C aports sparse-checkout set community/qemu && \
     git -C aports checkout ec08a958d131be54f6cccc5a5ca9769e07c93d69
 COPY docker/hypervisor/qemu-dev/fdmon-noiowait.patch aports/community/qemu/
+COPY docker/hypervisor/qemu-dev/trim-targets.py aports/community/qemu/
 WORKDIR /home/builder/aports/community/qemu
 # Appending the source assignment keeps our patch LAST, after Alpine's own
 # liburing.patch, which also touches util/fdmon-io_uring.c. pkgrel is bumped so
@@ -71,6 +76,7 @@ WORKDIR /home/builder/aports/community/qemu
 # hadolint ignore=DL3004
 RUN printf '\nsource="$source fdmon-noiowait.patch"\n' >> APKBUILD && \
     sed -i 's|^pkgrel=.*|pkgrel=100|' APKBUILD && \
+    python3 trim-targets.py && \
     sudo apk update && abuild checksum && abuild -r
 
 
