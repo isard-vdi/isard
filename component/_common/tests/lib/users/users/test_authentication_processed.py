@@ -160,6 +160,44 @@ class TestPolicyWritersInvalidateUserPoliciesCaches:
         assert run.call_count == 2
 
 
+@pytest.fixture
+def stub_caches(stub_rdb, monkeypatch):
+    from isardvdi_common.helpers.caches import Caches
+
+    monkeypatch.setattr(
+        Caches,
+        "_rdb_context",
+        classmethod(lambda cls: contextlib.nullcontext()),
+    )
+    Caches.get_cached_users_migrations_exceptions.cache_clear()
+    stub_rdb["mock_table"].return_value.run.return_value = []
+    yield {**stub_rdb, "Caches": Caches}
+    Caches.get_cached_users_migrations_exceptions.cache_clear()
+
+
+MIGRATION_EXCEPTION_WRITERS = [
+    pytest.param(
+        lambda p: p.insert_migration_exceptions("users", ["u1"]),
+        id="insert_migration_exceptions",
+    ),
+    pytest.param(
+        lambda p: p.delete_migration_exception("ex-1"),
+        id="delete_migration_exception",
+    ),
+]
+
+
+class TestMigrationExceptionWritersInvalidateCachesCache:
+    @pytest.mark.parametrize("write", MIGRATION_EXCEPTION_WRITERS)
+    def test_users_migrations_exceptions_hits_db_again(self, stub_caches, write):
+        run = stub_caches["mock_table"].return_value.run
+        caches = stub_caches["Caches"]
+        caches.get_cached_users_migrations_exceptions()
+        write(stub_caches["Processed"])
+        caches.get_cached_users_migrations_exceptions()
+        assert run.call_count == 2
+
+
 # ── Force policy at login ────────────────────────────────────────────────
 
 

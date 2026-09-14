@@ -21,6 +21,7 @@
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from rethinkdb import r
@@ -237,6 +238,7 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
         ]
         with cls._rdb_context():
             r.table("users_migrations_exceptions").insert(rows).run(cls._rdb_connection)
+        Caches.clear_get_cached_users_migrations_exceptions_cache()
 
     @classmethod
     def delete_migration_exception(cls, exception_id: str) -> None:
@@ -245,3 +247,4 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
             r.table("users_migrations_exceptions").get(exception_id).delete().run(
                 cls._rdb_connection
             )
+        Caches.clear_get_cached_users_migrations_exceptions_cache()
