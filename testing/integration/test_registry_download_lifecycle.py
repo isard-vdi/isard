@@ -28,6 +28,7 @@ from isardvdi_apiv4_client.api.role_advanced import create_template
 from isardvdi_apiv4_client.api.role_manager import admin_list_domains
 from isardvdi_apiv4_client.api.role_user import (
     create_desktop,
+    delete_desktop,
     edit_desktop,
     start_desktop,
     stop_desktop,
@@ -109,6 +110,30 @@ def test_registry_download_full_lifecycle(
     ws: SocketIOListener,
     test_namespace: str,
 ):
+    # test_desktop_creation_hardware downloads the same image and leaves it to
+    # the session sweeper; while our copy exists the registry reports the
+    # entry as already downloaded. Delete it and wait for the entry to clear.
+    leftovers = [
+        r
+        for r in _desktop_rows(admin_client)
+        if (r.name or "")
+        in (f"{test_namespace}registry_tetros", f"{test_namespace}tetros")
+    ]
+    for row in leftovers:
+        resp = delete_desktop.sync_detailed(
+            desktop_id=row.id, client=admin_client.apiv4()
+        )
+        assert resp.status_code in (200, 204), f"delete leftover -> {resp.status_code}"
+    deadline = time.monotonic() + 60
+    while leftovers and time.monotonic() < deadline:
+        entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
+        if entry is None or entry.additional_properties.get("status") in (
+            None,
+            "Available",
+        ):
+            break
+        time.sleep(2)
+
     registry_entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
     if registry_entry is None:
         pytest.skip(
