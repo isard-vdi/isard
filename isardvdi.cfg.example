@@ -252,7 +252,7 @@ DOCKER_IMAGE_TAG=main
 #GOLANG_RUN_IMAGE=alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22@sha256:3755973a59dd758b24d952649ca1f003d744b9e771f61f5e7db63e47baa68e3b
+HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.24@sha256:c0afc4864dca9c68694cd1290433f0ee79b5c55be80f6745a165ffe373b9a564
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO

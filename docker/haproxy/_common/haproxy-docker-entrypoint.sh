@@ -160,6 +160,12 @@ if [ -n "$ACME_EMAIL" ]; then
     ) &
 fi
 
+# Exit the container if haproxy stops serving; the restart policy takes it from
+# there. WATCHDOG=off disables it.
+if [ "$WATCHDOG" != "off" ]; then
+    haproxy-watchdog &
+fi
+
 for part in $FLAVOUR; do
   if [ "$part" = "web" ]; then
     # Supervise haproxy-sync: it waits for the admin socket itself, and this
