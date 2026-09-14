@@ -49,6 +49,36 @@ export interface DesktopActionsData {
   } | null
 }
 
+// Statuses the engine is actively working through, so anything showing one
+// spins rather than sitting still.
+const TRANSITIONAL_STATUSES = new Set<string>([
+  DesktopStatusEnum.CREATING,
+  DesktopStatusEnum.CREATING_AND_STARTING,
+  DesktopStatusEnum.CREATING_DISK_FROM_SCRATCH,
+  DesktopStatusEnum.STARTING,
+  DesktopStatusEnum.STARTING_PAUSED,
+  DesktopStatusEnum.STARTING_DOMAIN_DISPOSABLE,
+  DesktopStatusEnum.STOPPING,
+  DesktopStatusEnum.FORCE_DELETING,
+  DesktopStatusEnum.DOWNLOADING,
+  DesktopStatusEnum.DOWNLOAD_STARTING,
+  DesktopStatusEnum.DOWNLOAD_ABORTING,
+  DesktopStatusEnum.UPDATING,
+  DesktopStatusEnum.RESETTING
+])
+
+export const desktopStatusIsTransitional = (status?: string): boolean =>
+  status !== undefined && TRANSITIONAL_STATUSES.has(status)
+
+export type DesktopStatusTone = 'success' | 'error' | 'neutral' | 'warning'
+
+export const desktopStatusTone = (status?: string): DesktopStatusTone => {
+  if (status === DesktopStatusEnum.STARTED) return 'success'
+  if (status === DesktopStatusEnum.FAILED) return 'error'
+  if (status === DesktopStatusEnum.STOPPED) return 'neutral'
+  return 'warning'
+}
+
 // `te` does not walk the fallback chain, so ask English: the guard is about
 // unknown statuses, not about locales that are still incomplete.
 export const desktopStatusLabel = (
@@ -94,6 +124,18 @@ const desktopActionsDataByStatus = (
   needsBooking = false,
   directViewer = false
 ): DesktopActionsData => {
+  if (desktopStatusIsTransitional(status)) {
+    return {
+      actionButton: null,
+      viewers: false,
+      text: {
+        icon: 'loading-02',
+        iconClass: 'animate-spin',
+        iconColor: 'gray-600'
+      }
+    }
+  }
+
   switch (status) {
     case DesktopStatusEnum.STOPPED:
       if (needsBooking) {
@@ -118,29 +160,6 @@ const desktopActionsDataByStatus = (
         },
         viewers: false,
         text: null
-      }
-
-    case DesktopStatusEnum.CREATING:
-    case DesktopStatusEnum.CREATING_AND_STARTING:
-    case DesktopStatusEnum.CREATING_DISK_FROM_SCRATCH:
-    case DesktopStatusEnum.STARTING:
-    case DesktopStatusEnum.STARTING_PAUSED:
-    case DesktopStatusEnum.STARTING_DOMAIN_DISPOSABLE:
-    case DesktopStatusEnum.STOPPING:
-    case DesktopStatusEnum.FORCE_DELETING:
-    case DesktopStatusEnum.DOWNLOADING:
-    case DesktopStatusEnum.DOWNLOAD_STARTING:
-    case DesktopStatusEnum.DOWNLOAD_ABORTING:
-    case DesktopStatusEnum.UPDATING:
-    case DesktopStatusEnum.RESETTING:
-      return {
-        actionButton: null,
-        viewers: false,
-        text: {
-          icon: 'loading-02',
-          iconClass: 'animate-spin',
-          iconColor: 'gray-600'
-        }
       }
 
     case DesktopStatusEnum.STARTED:

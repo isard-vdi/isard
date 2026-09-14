@@ -15,10 +15,7 @@ export function useIsTextTruncated(
     // if the element is not yet available in the DOM, exit
     if (!el) return
 
-    // scrollWidth = full content width
-    // clientWidth = visible witdh
-    // If content is wider than the container it's truncated
-    isTruncated.value = el.scrollWidth > el.clientWidth
+    isTruncated.value = el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight
   }
 
   // Observe element size changes

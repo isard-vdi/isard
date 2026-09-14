@@ -38,7 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
       :size="props.iconSize"
       :fill-color="props.iconFillColor"
       :stroke-color="props.iconStrokeColor"
-      :class="props.iconClass"
+      :class="cn('shrink-0', props.iconClass)"
     />
     <slot />
   </Primitive>

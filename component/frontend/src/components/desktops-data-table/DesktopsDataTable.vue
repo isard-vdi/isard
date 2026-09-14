@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
@@ -20,6 +19,8 @@ import {
 } from '.'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table'
+import { Progress } from '@/components/ui/progress'
+import { TruncatedText } from '@/components/truncated-text'
 import { DesktopCardHeaderActionsDropdownContent } from '@/components/desktop-card'
 import {
   DropdownMenu,
@@ -65,6 +66,15 @@ const emit = defineEmits<{
   // goTo*: [ApiSchemasDomainsDesktopsUserDesktop]
 }>()
 
+const ACTION_SLOT_CLASS = 'flex min-h-9.5 w-full items-center'
+
+// How many rows fit without turning the page into a long scroll. Read once,
+// when the table is created
+const SHORT_VIEWPORT_HEIGHT = 1080
+const DEFAULT_PAGE_SIZE = window.innerHeight <= SHORT_VIEWPORT_HEIGHT ? 10 : 20
+
+const asDesktop = (row: unknown) => row as ApiSchemasDomainsDesktopsUserDesktop
+
 const headers = [
   {
     name: '',
@@ -75,28 +85,29 @@ const headers = [
     name: t('components.desktops.data-table.headers.name'),
     key: 'name',
     sortable: true,
-    width: 'minmax(var(--spacing-48), var(--spacing-96))'
+    width: 'minmax(128px, 1fr)'
   },
   {
     name: t('components.desktops.data-table.headers.description'),
     key: 'description',
-    sortable: true
+    sortable: true,
+    width: 'minmax(112px, 1fr)'
   },
   {
     name: t('components.desktops.data-table.headers.status'),
     key: 'status',
     sortable: true,
-    width: 'minmax(var(--spacing-48), var(--spacing-64))'
+    width: 'minmax(112px, 0.9fr)'
   },
   {
     name: t('components.desktops.data-table.headers.actions'),
     key: 'mainActions',
-    width: 'minmax(var(--spacing-32), var(--spacing-48))'
+    width: 'minmax(168px, max-content)'
   },
   {
     name: t('components.desktops.data-table.headers.viewers'),
     key: 'viewers',
-    width: 'minmax(var(--spacing-64), var(--spacing-80))'
+    width: 'minmax(188px, max-content)'
   },
   {
     name: '',
@@ -107,78 +118,112 @@ const headers = [
 </script>
 
 <template>
-  <DataTable :headers="headers" :rows="props.desktops" :is-clickable="false">
+  <DataTable
+    :headers="headers"
+    :rows="props.desktops"
+    :is-clickable="false"
+    :page-size="DEFAULT_PAGE_SIZE"
+    density="compact"
+    cell-class="h-auto min-h-13"
+    row-class="odd:bg-gray-warm-100/30 hover:bg-gray-warm-100"
+  >
     <template #cell-image="{ row }">
-      <DesktopCellImage :desktop="row" @copy-to-clipboard="copyToClipboard" />
+      <DesktopCellImage
+        v-for="desktop in [asDesktop(row)]"
+        :key="desktop.id"
+        size="sm"
+        :desktop="desktop"
+        @copy-to-clipboard="copyToClipboard"
+      />
     </template>
     <template #cell-name="{ row }">
       <DesktopCellName
-        :desktop-name="row.name"
-        :notification-text="desktopNotificationText(row, t, d)"
+        v-for="desktop in [asDesktop(row)]"
+        :key="desktop.id"
+        dense
+        :desktop-name="desktop.name"
+        :notification-text="desktopNotificationText(desktop, t, d)"
       />
     </template>
 
     <template #cell-description="{ row }">
-      <p class="text-sm text-muted-foreground line-clamp-3">
-        {{ row.description }}
-      </p>
-    </template>
-
-    <template #cell-status="{ row }">
-      <DesktopCellStatus :desktop="row" />
-    </template>
-
-    <template #cell-mainActions="{ row }">
-      <div v-if="row.progress && row.progress.percentage !== undefined" class="select-none w-48">
-        <div class="flex justify-between text-xs mb-1">
-          <span>{{ row.progress.size }}</span>
-          <span>{{ row.progress.percentage }}%</span>
-        </div>
-        <Progress :model-value="row.progress.percentage" class="w-full"></Progress>
-      </div>
-      <template v-else>
-        <DesktopCellMainActionsButton
-          :desktop="row"
-          @desktop-start="emit('desktopStart', row)"
-          @desktop-stop="emit('desktopStop', row)"
-          @desktop-update-status="emit('desktopUpdateStatus', row)"
-          @desktop-abort-operation="emit('desktopAbortOperation', row)"
-          @desktop-fetch-booking="emit('desktopFetchBooking', row)"
-          @show-delete-modal="emit('showDeleteModal', row)"
+      <template v-for="desktop in [asDesktop(row)]" :key="desktop.id">
+        <TruncatedText
+          v-if="desktop.description"
+          :title="desktop.description"
+          class="text-xs text-gray-warm-600"
         />
       </template>
     </template>
 
+    <template #cell-status="{ row }">
+      <DesktopCellStatus v-for="desktop in [asDesktop(row)]" :key="desktop.id" :desktop="desktop" />
+    </template>
+
+    <template #cell-mainActions="{ row }">
+      <div v-for="desktop in [asDesktop(row)]" :key="desktop.id" :class="ACTION_SLOT_CLASS">
+        <div
+          v-if="desktop.progress && desktop.progress.percentage !== undefined"
+          class="select-none w-32"
+        >
+          <div class="flex justify-between text-xs mb-1">
+            <span>{{ desktop.progress.size }}</span>
+            <span>{{ desktop.progress.percentage }}%</span>
+          </div>
+          <Progress :model-value="desktop.progress.percentage" class="w-full"></Progress>
+        </div>
+        <DesktopCellMainActionsButton
+          v-else
+          :desktop="desktop"
+          @desktop-start="emit('desktopStart', desktop)"
+          @desktop-stop="emit('desktopStop', desktop)"
+          @desktop-update-status="emit('desktopUpdateStatus', desktop)"
+          @desktop-abort-operation="emit('desktopAbortOperation', desktop)"
+          @desktop-fetch-booking="emit('desktopFetchBooking', desktop)"
+          @show-delete-modal="emit('showDeleteModal', desktop)"
+        />
+      </div>
+    </template>
+
     <template #cell-viewers="{ row }">
-      <ViewerSelect
-        v-show="desktopActionsData(row.status, desktopNeedsBooking(row)).viewers"
-        :viewers="
-          row.viewers?.map((viewer: string) => ({
-            id: viewer,
-            loading: viewer.includes('rdp') && !row.ip
-          }))
-        "
-        :selected-viewer="props.preferedViewers[row.id]"
-        class="ml-auto"
-        @open-viewer="
-          (viewer) =>
-            emit('openViewer', {
-              dktp: row,
-              viewer: viewer
-            })
-        "
-      />
+      <div v-for="desktop in [asDesktop(row)]" :key="desktop.id" :class="ACTION_SLOT_CLASS">
+        <ViewerSelect
+          v-show="desktopActionsData(desktop.status, desktopNeedsBooking(desktop)).viewers"
+          :viewers="
+            desktop.viewers?.map((viewer: string) => ({
+              id: viewer,
+              loading: viewer.includes('rdp') && !desktop.ip
+            }))
+          "
+          :selected-viewer="props.preferedViewers[desktop.id]"
+          button-size="sm"
+          dense
+          @open-viewer="
+            (viewer) =>
+              emit('openViewer', {
+                dktp: desktop,
+                viewer: viewer
+              })
+          "
+        />
+      </div>
     </template>
 
     <template #cell-actions="{ row }">
-      <div class="flex flex-row items-center justify-end gap-2 w-full">
+      <div
+        v-for="desktop in [asDesktop(row)]"
+        :key="desktop.id"
+        class="flex flex-row items-center justify-end gap-1.5 w-full"
+      >
         <Tooltip>
           <TooltipTrigger as-child>
             <Button
               hierarchy="secondary-gray"
               icon="info-circle"
-              class="aspect-square p-[10px]"
-              @click="emit('showInfoModal', row)"
+              icon-size="sm"
+              class="size-8 p-0"
+              :aria-label="t('components.desktops.desktop-card.actions.info')"
+              @click="emit('showInfoModal', desktop)"
             />
           </TooltipTrigger>
           <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
@@ -189,34 +234,42 @@ const headers = [
             <Button
               hierarchy="secondary-gray"
               icon="modem-02"
-              class="aspect-square p-[10px]"
-              @click="emit('showNetworksModal', row)"
+              icon-size="sm"
+              class="size-8 p-0"
+              :aria-label="t('components.desktops.desktop-card.actions.networks')"
+              @click="emit('showNetworksModal', desktop)"
             />
           </TooltipTrigger>
           <TooltipContent :title="t('components.desktops.desktop-card.actions.networks')" />
         </Tooltip>
 
-        <Tooltip v-if="row.bastion_target?.http?.enabled || row.bastion_target?.ssh?.enabled">
+        <Tooltip
+          v-if="desktop.bastion_target?.http?.enabled || desktop.bastion_target?.ssh?.enabled"
+        >
           <TooltipTrigger as-child>
             <Button
               hierarchy="secondary-gray"
               icon="globe-04"
-              class="aspect-square p-[10px]"
-              @click="emit('showBastionModal', row)"
+              icon-size="sm"
+              class="size-8 p-0"
+              :aria-label="t('components.desktops.desktop-card.actions.bastion-access')"
+              @click="emit('showBastionModal', desktop)"
             />
           </TooltipTrigger>
           <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
         </Tooltip>
 
-        <Tooltip v-if="desktopHasMenuActions(row)">
+        <Tooltip v-if="desktopHasMenuActions(desktop)">
           <TooltipTrigger as-child>
             <span class="inline-flex">
               <DropdownMenu>
-                <DropdownMenuTrigger>
+                <DropdownMenuTrigger as-child>
                   <Button
                     hierarchy="secondary-gray"
                     icon="dots-vertical"
-                    class="aspect-square p-[10px]"
+                    icon-size="sm"
+                    class="size-8 p-0"
+                    :aria-label="t('common.actions.more')"
                   />
                 </DropdownMenuTrigger>
 
@@ -225,14 +278,14 @@ const headers = [
                   align="end"
                 >
                   <DesktopCardHeaderActionsDropdownContent
-                    :desktop="row"
-                    @edit-desktop="emit('editDesktop', row)"
-                    @show-delete-modal="emit('showDeleteModal', row)"
-                    @show-direct-link-modal="emit('showDirectLinkModal', row)"
-                    @show-recreate-modal="emit('showRecreateModal', row)"
-                    @create-template="emit('createTemplate', row)"
-                    @book-desktop="emit('bookDesktop', row)"
-                    @show-storage-modal="emit('showStorageModal', row)"
+                    :desktop="desktop"
+                    @edit-desktop="emit('editDesktop', desktop)"
+                    @show-delete-modal="emit('showDeleteModal', desktop)"
+                    @show-direct-link-modal="emit('showDirectLinkModal', desktop)"
+                    @show-recreate-modal="emit('showRecreateModal', desktop)"
+                    @create-template="emit('createTemplate', desktop)"
+                    @book-desktop="emit('bookDesktop', desktop)"
+                    @show-storage-modal="emit('showStorageModal', desktop)"
                   />
                 </DropdownMenuContent>
               </DropdownMenu>

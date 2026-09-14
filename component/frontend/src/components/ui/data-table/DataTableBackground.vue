@@ -18,7 +18,7 @@ const props = defineProps<{
       )
     "
   >
-    <div class="overflow-x-scroll">
+    <div class="overflow-x-auto">
       <slot />
     </div>
 
