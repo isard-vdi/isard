@@ -72,9 +72,9 @@ from isardvdi_apiv4_client.api.role_user import (
     create_desktop_from_media,
     create_nonpersistent_desktop,
     edit_desktop,
+    force_stop_desktop,
     get_desktop_details,
     start_desktop,
-    stop_desktop,
 )
 from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListItem
 from isardvdi_apiv4_client.models.admin_domain_live_xml_response import (
@@ -540,7 +540,9 @@ def test_desktop_from_template_uses_explicit_hardware_in_xml(
             memory_kib=requested_memory_kib,
             max_wait=60.0,
         )
-        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=derived_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -608,7 +610,9 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
             memory_kib=requested_memory_kib,
             max_wait=60.0,
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -675,7 +679,9 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
             memory_kib=v1_memory_kib,
             max_wait=60.0,
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -717,7 +723,9 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
             memory_kib=v2_memory_kib,
             max_wait=60.0,
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -905,7 +913,9 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
             "expected <disk device='cdrom'> in the engine XML for an ISO-boot "
             "desktop, got: " + (last_xml[:600] if last_xml else "<empty>")
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -1157,7 +1167,7 @@ def test_engine_xml_matches_virsh_dumpxml_when_running(
         f"virsh dumpxml has {live_mem}"
     )
 
-    stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+    force_stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
     )

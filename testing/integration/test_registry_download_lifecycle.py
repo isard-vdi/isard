@@ -30,8 +30,8 @@ from isardvdi_apiv4_client.api.role_user import (
     create_desktop,
     delete_desktop,
     edit_desktop,
+    force_stop_desktop,
     start_desktop,
-    stop_desktop,
 )
 from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
     AdminDownloadsKindKind,
@@ -205,7 +205,9 @@ def test_registry_download_full_lifecycle(
         admin_client.poll_desktop_status(
             tetros_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        stop_desktop.sync_detailed(desktop_id=tetros_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=tetros_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             tetros_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )
@@ -252,7 +254,9 @@ def test_registry_download_full_lifecycle(
         admin_client.poll_desktop_status(
             derived_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=derived_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )

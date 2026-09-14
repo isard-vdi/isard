@@ -61,6 +61,7 @@ from isardvdi_apiv4_client.api.role_user import (
     create_desktop,
     create_desktop_from_media,
     edit_desktop,
+    force_stop_desktop,
     get_desktop_details,
     start_desktop,
     stop_desktop,
@@ -409,6 +410,10 @@ def test_registry_full_lifecycle(
     → derive → edit hardware → start. The single broadest end-to-end
     pin in the suite. Skips cleanly when the registry isn't reachable
     or the image isn't Available so the test passes on offline runners.
+
+    Step 1 is the one graceful ``stop`` left in the suite: the guest
+    ignores ACPI, so it pins the broom escalation to Stopping. Every
+    other stop is a ``force-stop`` that skips that 105 s wait.
     """
     desktop = _trigger_registry_download(admin_client, REGISTRY_IMAGE)
     if desktop is None:
@@ -559,7 +564,9 @@ def test_registry_full_lifecycle(
             memory_kib=2 * 1048576,
             max_wait=60.0,
         )
-        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=derived_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -630,7 +637,9 @@ def test_media_upload_full_lifecycle(
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP", "Failed"}, max_wait=BOOT_TIMEOUT
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
