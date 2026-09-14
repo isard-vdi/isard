@@ -500,15 +500,18 @@ docker-image:
     # Start the instance
     - docker-compose -f docker-compose.e2e.yml pull --quiet
     - docker-compose -f docker-compose.e2e.yml up -d
-  after_script:
-    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+  # The runner wipes /certs-root between `script` and `after_script`, so a
+  # `docker-compose logs` there only works when `script` failed (the wipe is
+  # skipped). Collect the logs inside `script` instead, on both outcomes.
 
 test-integration:
   extends: .real-deployment
   before_script:
     - !reference [.real-deployment, before_script]
   script:
-    - make ci-test-integration
+    - make ci-test-integration && TEST_RC=0 || TEST_RC=$?
+    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+    - exit $TEST_RC
   artifacts:
     when: always
     paths:
@@ -560,15 +563,15 @@ test-e2e:
     - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
     - docker rm bun-bin
   script:
-    - make test-e2e
-  after_script:
-    - !reference [.real-deployment, after_script]
+    - make test-e2e && TEST_RC=0 || TEST_RC=$?
+    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
     # Playwright writes [[ATTACHMENT|<path>]] relative to junit.xml; GitLab
     # resolves them from CI_PROJECT_DIR, so prepend the dir prefix.
     - |
       if [ -f testing/e2e/test-results/junit.xml ]; then
         sed -i 's#\[\[ATTACHMENT|#\[\[ATTACHMENT|testing/e2e/test-results/#g' testing/e2e/test-results/junit.xml
       fi
+    - exit $TEST_RC
   artifacts:
     when: always
     paths:
