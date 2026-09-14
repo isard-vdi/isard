@@ -119,10 +119,17 @@ async function expandDeploymentRow(page, deploymentId) {
   const expandBtn = page
     .locator(`#deployments tbody tr[id="${deploymentId}"] td.details-control button`)
     .first()
-  await expandBtn.scrollIntoViewIfNeeded()
-  await expandBtn.click()
   const detailPanel = page.locator(`[id="actions-${deploymentId}"]`)
-  await detailPanel.waitFor({ state: 'visible', timeout: 10000 })
+  // A concurrent socket event can redraw the table right after the expand
+  // click, destroying the child row. Re-click only while the panel is not
+  // visible, poll until it stays visible.
+  await expect.poll(
+    async () => {
+      if (!(await detailPanel.isVisible())) await expandBtn.click()
+      return detailPanel.isVisible()
+    },
+    { timeout: 15000, intervals: [500, 1000, 2000] },
+  ).toBe(true)
   return detailPanel
 }
 
@@ -135,6 +142,12 @@ async function clickPnotifyOk(page) {
 }
 
 // ─── describe ────────────────────────────────────────────────────────────────
+
+// Every deployments change reloads the admin table (deployments.js:167,473)
+// and collapses expanded rows, so the tests of this file must not run on
+// other workers at the same time. fullyParallel: declaration order in one
+// worker, each test retries independently (no serial cascade-skip).
+test.describe.configure({ mode: 'default' })
 
 test.describe('Admin Deployments — webapp', () => {
   // One template ID per worker, resolved in beforeAll.
