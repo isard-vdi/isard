@@ -13,7 +13,11 @@ import {
   stopUserDesktopsInDeploymentMutation,
   getDesktopDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getDeploymentUserDesktopsDetail, type UserDeploymentDesktop } from '@/gen/oas/apiv4'
+import {
+  getDeploymentUserDesktopsDetail,
+  DesktopStatusEnum,
+  type UserDeploymentDesktop
+} from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
 import NoVNC from '@/components/noVNC/NoVNC.vue'
@@ -21,6 +25,8 @@ import NoVNC from '@/components/noVNC/NoVNC.vue'
 import DomainSummary from '@/components/domain/DomainSummary.vue'
 
 import { Icon } from '@/components/icon'
+import { StopAllDesktopsModal } from '@/components/modal'
+import { toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth'
 import { EmptyState } from '@/components/page'
 import { Separator } from '@/components/ui/separator'
@@ -106,12 +112,66 @@ const { mutate: stopDesktop } = useMutation({
   }
 })
 
+const showStopAllDesktopsModal = ref(false)
+const stopAllDesktopsError = ref('')
+
 const { mutate: stopDesktops, isPending: stopDesktopsIsPending } = useMutation({
   ...stopUserDesktopsInDeploymentMutation(),
   onSuccess() {
+    showStopAllDesktopsModal.value = false
+    stopAllDesktopsError.value = ''
     resetViewer()
+  },
+  onError() {
+    if (showStopAllDesktopsModal.value) {
+      stopAllDesktopsError.value = t('components.stop-all-desktops-modal.error')
+    } else {
+      toast.error(t('components.stop-all-desktops-modal.error'))
+    }
   }
 })
+
+const countDesktopsInStatus = (statuses: DesktopStatusEnum[]) =>
+  desktops.value?.desktops.filter((desktop) => statuses.includes(desktop.status)).length ?? 0
+
+const startedDesktopsCount = computed(() =>
+  countDesktopsInStatus([
+    DesktopStatusEnum.STARTING,
+    DesktopStatusEnum.STARTED,
+    DesktopStatusEnum.WAITING_IP
+  ])
+)
+const shuttingDownDesktopsCount = computed(() =>
+  countDesktopsInStatus([DesktopStatusEnum.SHUTTING_DOWN])
+)
+const stoppingDesktopsCount = computed(() => countDesktopsInStatus([DesktopStatusEnum.STOPPING]))
+
+const anyDesktopStoppable = computed(
+  () => startedDesktopsCount.value > 0 || shuttingDownDesktopsCount.value > 0
+)
+
+const isStoppingAll = computed(() => stopDesktopsIsPending.value || stoppingDesktopsCount.value > 0)
+
+const openStopAllDesktopsModal = () => {
+  stopAllDesktopsError.value = ''
+  showStopAllDesktopsModal.value = true
+}
+
+const closeStopAllDesktopsModal = () => {
+  showStopAllDesktopsModal.value = false
+  stopAllDesktopsError.value = ''
+}
+
+const confirmStopAllDesktops = (force: boolean) => {
+  stopAllDesktopsError.value = ''
+  stopDesktops({
+    path: {
+      deployment_id: deploymentId.value,
+      user_id: userId.value
+    },
+    body: { force }
+  })
+}
 
 const selectedDesktop = computed(() =>
   desktops.value?.desktops.find((d) => d.id === viewerVariables.value)
@@ -279,6 +339,16 @@ const openDeploymentInfoModal = () => {
     "
   />
 
+  <StopAllDesktopsModal
+    :open="showStopAllDesktopsModal"
+    :started-count="startedDesktopsCount"
+    :shutting-down-count="shuttingDownDesktopsCount"
+    :pending="stopDesktopsIsPending"
+    :error="stopAllDesktopsError"
+    @close="closeStopAllDesktopsModal"
+    @confirm="confirmStopAllDesktops"
+  />
+
   <RecreateDesktopConfirmationModal
     :open="recreateDesktopModalDesktopData !== null"
     :desktop="recreateDesktopModalDesktopData"
@@ -405,23 +475,31 @@ const openDeploymentInfoModal = () => {
             {{ t('views.view-deployment.sections.desktops.title') }}
           </h1>
 
-          <Button
-            hierarchy="destructive"
-            :icon="stopDesktopsIsPending ? 'loading-02' : 'stop'"
-            :disabled="stopDesktopsIsPending"
-            :icon-class="{
-              'motion-safe:animate-[spin_2s_linear_infinite]': stopDesktopsIsPending
-            }"
-            @click="
-              stopDesktops({
-                path: {
-                  deployment_id: deploymentId,
-                  user_id: userId
-                }
-              })
-            "
-            >{{ t('views.view-deployment.sections.desktops.actions.stop-all.label') }}</Button
-          >
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- Wrapper: a disabled button emits no pointer events -->
+              <span class="inline-flex">
+                <Button
+                  hierarchy="destructive"
+                  :icon="isStoppingAll ? 'loading-02' : 'stop'"
+                  :disabled="!anyDesktopStoppable"
+                  :icon-class="{
+                    'motion-safe:animate-[spin_2s_linear_infinite]': isStoppingAll
+                  }"
+                  @click="openStopAllDesktopsModal"
+                  >{{ t('views.view-deployment.sections.desktops.actions.stop-all.label') }}</Button
+                >
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              :title="
+                anyDesktopStoppable
+                  ? t('views.view-deployment.sections.desktops.actions.stop-all.tooltip')
+                  : t('components.stop-all-desktops-modal.nothing-to-stop')
+              "
+              side="top"
+            />
+          </Tooltip>
 
           <Tooltip
             v-if="

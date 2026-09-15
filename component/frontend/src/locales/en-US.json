@@ -365,8 +365,10 @@
       "new-desktop": "New desktop",
       "loading": "Loading desktops…",
       "stop-all": "Stop all desktops",
+      "stop-all-error": "Could not stop the desktops",
       "stop-all-tooltip": {
-        "title": "There are no started desktops now"
+        "title": "There are no started desktops now",
+        "stopping": "The desktops are stopping"
       },
       "filters": {
         "search": {
@@ -1851,25 +1853,28 @@
       "title": "Stop all desktops",
       "description": "{n} desktop will be stopped. | {n} desktops will be stopped.",
       "skipped": "{n} desktop is already shutting down and will be left alone; only a forced stop reaches it. | {n} desktops are already shutting down and will be left alone; only a forced stop reaches them.",
+      "nothing-to-stop": "There are no started desktops now",
       "error": "Could not stop the desktops",
       "loading": "Stopping the desktops…",
       "mode": {
         "graceful": {
-          "title": "Stop all",
-          "description": "Asks the system to shut down",
+          "title": "Shut down",
+          "description": "Asks the desktops to shut down; the ones already shutting down are left alone",
           "disabled": "No desktop is started"
         },
         "force": {
           "title": "Force stop",
-          "description": "Stops it without shutting down, may corrupt the desktop"
+          "description": "Cuts the power at once, also on the ones already shutting down; may corrupt the desktop"
         }
       },
       "force-only": {
-        "description": "{n} desktop is already stopping. Only a forced stop affects it. | {n} desktops are already stopping. Only a forced stop affects them.",
-        "confirm": "Force stop"
+        "description": "{n} desktop is already shutting down. Only a forced stop affects it. | {n} desktops are already shutting down. Only a forced stop affects them."
       },
       "cancel": "Cancel",
-      "confirm": "Stop all"
+      "confirm": {
+        "graceful": "Shut down desktops",
+        "force": "Force stop desktops"
+      }
     },
     "deployment-bastion-modal": {
       "title": "Bastion settings for {name}",

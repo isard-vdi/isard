@@ -116,7 +116,7 @@ import {
 import { Icon, CopyIcon } from '@/components/icon'
 import { InputField } from '@/components/input-field'
 import { Label } from '@/components/ui/label'
-import { AlertModal, Modal, QuotaExceededModal } from '@/components/modal'
+import { AlertModal, Modal, QuotaExceededModal, StopAllDesktopsModal } from '@/components/modal'
 import BookingChangeAndStartModal from '@/components/booking/BookingChangeAndStartModal.vue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { RecreateDesktopConfirmationModal } from '@/components/recreate-desktop-confirmation-modal'
@@ -322,19 +322,36 @@ const {
 // --------------------------------------------------
 
 const showStopAllDesktopsModal = ref(false)
-const stopAllDesktopsForce = ref(false)
-const {
-  mutate: stopAllDesktops,
-  isPending: stopAllDesktopsIsPending,
-  isError: stopAllDesktopsIsError,
-  error: stopAllDesktopsError
-} = useMutation({
+const stopAllDesktopsError = ref('')
+const { mutate: stopAllDesktops, isPending: stopAllDesktopsIsPending } = useMutation({
   ...stopDesktopsMutation(),
   onSuccess: () => {
     showStopAllDesktopsModal.value = false
-    stopAllDesktopsForce.value = false
+    stopAllDesktopsError.value = ''
+  },
+  onError: () => {
+    if (showStopAllDesktopsModal.value) {
+      stopAllDesktopsError.value = t('views.desktops.stop-all-error')
+    } else {
+      toast.error(t('views.desktops.stop-all-error'))
+    }
   }
 })
+
+const openStopAllDesktopsModal = () => {
+  stopAllDesktopsError.value = ''
+  showStopAllDesktopsModal.value = true
+}
+
+const closeStopAllDesktopsModal = () => {
+  showStopAllDesktopsModal.value = false
+  stopAllDesktopsError.value = ''
+}
+
+const confirmStopAllDesktops = (force: boolean) => {
+  stopAllDesktopsError.value = ''
+  stopAllDesktops({ body: { force } })
+}
 
 // --------------------------------------------------
 
@@ -454,17 +471,28 @@ const bastionModalData = ref<BastionModalData | null>(null)
 
 // --------------------------------------------------
 
-const anyDesktopStarted = computed(() => {
-  return !!desktops.value?.desktops.some((desktop) =>
-    [
-      DesktopStatusEnum.STARTING,
-      DesktopStatusEnum.STARTED,
-      DesktopStatusEnum.SHUTTING_DOWN,
-      DesktopStatusEnum.STOPPING,
-      DesktopStatusEnum.WAITING_IP
-    ].includes(desktop.status)
-  )
-})
+const countDesktopsInStatus = (statuses: DesktopStatusEnum[]) =>
+  desktops.value?.desktops.filter((desktop) => statuses.includes(desktop.status)).length ?? 0
+
+const startedDesktopsCount = computed(() =>
+  countDesktopsInStatus([
+    DesktopStatusEnum.STARTING,
+    DesktopStatusEnum.STARTED,
+    DesktopStatusEnum.WAITING_IP
+  ])
+)
+const shuttingDownDesktopsCount = computed(() =>
+  countDesktopsInStatus([DesktopStatusEnum.SHUTTING_DOWN])
+)
+const stoppingDesktopsCount = computed(() => countDesktopsInStatus([DesktopStatusEnum.STOPPING]))
+
+const anyDesktopStoppable = computed(
+  () => startedDesktopsCount.value > 0 || shuttingDownDesktopsCount.value > 0
+)
+
+const isStoppingAll = computed(
+  () => stopAllDesktopsIsPending.value || stoppingDesktopsCount.value > 0
+)
 
 // --------------------------------------------------
 
@@ -1201,40 +1229,15 @@ const missingCardRows = computed(() => {
   />
 
   <!-- Stop all modal -->
-  <AlertModal
+  <StopAllDesktopsModal
     :open="showStopAllDesktopsModal"
-    level="warning"
-    size="md"
-    :title="t('components.stop-all-desktops-confirmation-modal.title')"
-    :description="t('components.stop-all-desktops-confirmation-modal.description')"
-    @close="showStopAllDesktopsModal = false"
-  >
-    <!-- TODO: Stop all modal component -->
-    <template #description>
-      <Label class="w-fit flex flex-row items-start gap-2 mt-2">
-        <Checkbox v-model="stopAllDesktopsForce" class="m-0.5" />
-        {{ t('components.stop-all-desktops-confirmation-modal.force') }}
-      </Label>
-    </template>
-
-    <template #footer>
-      <Button hierarchy="link-gray" @click="showStopAllDesktopsModal = false">{{
-        t('components.stop-all-desktops-confirmation-modal.cancel')
-      }}</Button>
-
-      <Button
-        hierarchy="destructive"
-        :icon="stopAllDesktopsIsPending ? 'loading-02' : 'stop'"
-        :icon-class="
-          cn(stopAllDesktopsIsPending && 'motion-safe:animate-[spin_2s_linear_infinite]')
-        "
-        :disabled="stopAllDesktopsIsPending"
-        @click="stopAllDesktops({ body: { force: stopAllDesktopsForce } })"
-      >
-        {{ t('components.stop-all-desktops-confirmation-modal.confirm') }}
-      </Button>
-    </template>
-  </AlertModal>
+    :started-count="startedDesktopsCount"
+    :shutting-down-count="shuttingDownDesktopsCount"
+    :pending="stopAllDesktopsIsPending"
+    :error="stopAllDesktopsError"
+    @close="closeStopAllDesktopsModal"
+    @confirm="confirmStopAllDesktops"
+  />
 
   <!-- Not enough advanced time modal -->
   <AlertModal
@@ -1592,23 +1595,31 @@ const missingCardRows = computed(() => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button
-                  hierarchy="destructive"
-                  icon="stop"
-                  :aria-label="t('views.desktops.stop-all')"
-                  class="max-sm:px-[10px]"
-                  :disabled="!anyDesktopStarted"
-                  @click="showStopAllDesktopsModal = true"
-                >
-                  <span class="max-sm:hidden">{{ t('views.desktops.stop-all') }}</span>
-                </Button>
+                <!-- Wrapper: a disabled button emits no pointer events -->
+                <span class="inline-flex">
+                  <Button
+                    hierarchy="destructive"
+                    :icon="isStoppingAll ? 'loading-02' : 'stop'"
+                    :icon-class="
+                      isStoppingAll ? 'motion-safe:animate-[spin_2s_linear_infinite]' : undefined
+                    "
+                    :aria-label="t('views.desktops.stop-all')"
+                    class="max-sm:px-[10px]"
+                    :disabled="!anyDesktopStoppable"
+                    @click="openStopAllDesktopsModal"
+                  >
+                    <span class="max-sm:hidden">{{ t('views.desktops.stop-all') }}</span>
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent
-                v-if="!anyDesktopStarted || isSmallScreen"
+                v-if="!anyDesktopStoppable || isSmallScreen"
                 :title="
-                  anyDesktopStarted
+                  anyDesktopStoppable
                     ? t('views.desktops.stop-all')
-                    : t('views.desktops.stop-all-tooltip.title')
+                    : stoppingDesktopsCount > 0
+                      ? t('views.desktops.stop-all-tooltip.stopping')
+                      : t('views.desktops.stop-all-tooltip.title')
                 "
                 side="top"
               />

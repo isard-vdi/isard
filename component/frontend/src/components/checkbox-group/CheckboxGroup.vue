@@ -22,9 +22,13 @@ interface Props extends PrimitiveProps {
 const props = withDefaults(defineProps<Props>(), {
   kind: 'text',
   type: 'multiple',
-  checkType: 'checkbox',
+  checkType: undefined,
   direction: 'flex-col'
 })
+
+const checkType = computed(
+  () => props.checkType ?? (props.type === 'single' ? 'radio' : 'checkbox')
+)
 
 const emit = defineEmits(['update:modelValue'])
 
@@ -74,7 +78,7 @@ const selectItem = (value: string) => {
       :item="item"
       :loading="props.loading"
       :is-selected="isItemSelected(item.value)"
-      :check-type="props.checkType"
+      :check-type="checkType"
       :disabled="props.disabled"
       :hide-description="props.hideDescription"
       @check="selectItem(item.value)"
