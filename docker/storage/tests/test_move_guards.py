@@ -6,17 +6,22 @@
 * an unknown method is rejected (ValueError);
 * origin and destination are the same file -> remove the SOURCE (or keep it
   when remove_source_file is False), never copy onto itself;
-* ``mv`` does a shutil.move; ``auto`` picks mv/rsync by filesystem and falls
-  back to rsync when the st_dev probe raises.
+* ``mv`` and ``auto`` both attempt the rename, and both degrade to the rsync
+  branch when the kernel refuses it with EXDEV (see
+  test_move_across_mounts.py for why the old st_dev probe could not see that).
 
 DB-free: ``progress_domain_id`` is left None (the only Domain() touch), so
 only filesystem helpers and ``run_with_progress`` are stubbed.
 """
 
+import errno
+
 import pytest
 
 
 class _Stat:
+    """Only the free-space guard reads a stat now; the branch decision does not."""
+
     def __init__(self, dev, size=1):
         self.st_dev = dev
         self.st_size = size
@@ -72,43 +77,36 @@ class TestMoveGuards:
         )
         assert removed == []
 
-    def test_mv_uses_shutil_move(self, monkeypatch):
+    def test_mv_renames(self, monkeypatch):
         from isardvdi_storage import task
 
         _fs(monkeypatch, task, origin=True, dest=False)
-        moved = []
-        monkeypatch.setattr(task.shutil, "move", lambda a, b: moved.append((a, b)))
+        renamed = []
+        monkeypatch.setattr(task, "rename", lambda a, b: renamed.append((a, b)))
         assert task.move("/isard/origin.qcow2", "/isard/dest.qcow2", "mv") == 0
-        assert moved == [("/isard/origin.qcow2", "/isard/dest.qcow2")]
+        assert renamed == [("/isard/origin.qcow2", "/isard/dest.qcow2")]
 
-    def test_auto_same_fs_picks_mv(self, monkeypatch):
+    def test_auto_renames_when_the_kernel_allows_it(self, monkeypatch):
         from isardvdi_storage import task
 
         _fs(monkeypatch, task, origin=True, dest=False)
-        monkeypatch.setattr(task, "os_stat", lambda p: _Stat(1))  # same device
-        moved = []
-        monkeypatch.setattr(task.shutil, "move", lambda a, b: moved.append((a, b)))
+        renamed = []
+        monkeypatch.setattr(task, "rename", lambda a, b: renamed.append((a, b)))
         task.move("/isard/origin.qcow2", "/isard/dest.qcow2", "auto")
-        assert moved == [("/isard/origin.qcow2", "/isard/dest.qcow2")]
+        assert renamed == [("/isard/origin.qcow2", "/isard/dest.qcow2")]
 
-    def test_auto_probe_error_falls_back_to_rsync(self, monkeypatch):
+    def test_exdev_falls_back_to_rsync(self, monkeypatch):
         from isardvdi_storage import task
 
         _fs(monkeypatch, task, origin=True, dest=False)
 
-        def _boom(p):
-            # Only the DIRECTORY probe is what this test breaks. The same
-            # os_stat is also how the free-space guard sizes the source, so
-            # failing it everywhere stops the fallback before it runs and the
-            # test would be asserting the guard, not the fallback.
-            if p.endswith(".qcow2"):
-                return _Stat(1)
-            raise OSError("cross-fs")
+        def _refuse(a, b):
+            raise OSError(errno.EXDEV, "Invalid cross-device link")
 
-        monkeypatch.setattr(task, "os_stat", _boom)
-        # The destination is a path that does not exist here, so statvfs fails
-        # and the guard refuses -- correctly, but for a reason this test is not
-        # about.
+        monkeypatch.setattr(task, "rename", _refuse)
+        # The fallback is a copy, so the floor now applies to it; the paths here
+        # are fictional, so give the guard a filesystem it can read.
+        monkeypatch.setattr(task, "os_stat", lambda p: _Stat(1))
         monkeypatch.setattr(task, "_free_space", lambda d: 1 << 40)
         rsync = []
         monkeypatch.setattr(
