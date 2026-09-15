@@ -124,8 +124,21 @@ async function gotoPolicies(page) {
 // Playwright's own `.click()` would fight the overlay.
 async function iCheckClick(scope, inputSelector) {
   // iCheck wraps: <div class="icheckbox_flat-green"><input .../><ins class="iCheck-helper"/></div>
-  // Clicking the <ins> triggers iCheck's change logic.
-  await scope.locator(`${inputSelector} + ins.iCheck-helper`).click({ force: true })
+  // Clicking the <ins> triggers iCheck's change logic. A click that lands
+  // before iCheck has bound its handlers is lost, so re-click until the
+  // native state flips.
+  const before = await iCheckRead(scope, inputSelector)
+  await expect
+    .poll(
+      async () => {
+        if ((await iCheckRead(scope, inputSelector)) === before) {
+          await scope.locator(`${inputSelector} + ins.iCheck-helper`).click({ force: true })
+        }
+        return iCheckRead(scope, inputSelector)
+      },
+      { timeout: 5000, intervals: [300, 600, 1000] },
+    )
+    .not.toBe(before)
 }
 
 // Read the native `.checked` value bypassing iCheck's wrapper.
@@ -599,7 +612,7 @@ test.describe('Admin users policies — webapp', () => {
     await expect(row.locator('button#btn-policy-force')).toBeVisible({ timeout: 5000 })
 
     // Restore the original disclaimer state so this test is idempotent.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -608,7 +621,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------
@@ -679,7 +693,7 @@ test.describe('Admin users policies — webapp', () => {
     await modal.waitFor({ state: 'hidden', timeout: 10000 })
 
     // Restore original state regardless of test outcome.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -688,7 +702,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------
@@ -1122,7 +1137,7 @@ test.describe('Admin users policies — webapp', () => {
     await forceModal.waitFor({ state: 'hidden', timeout: 5000 })
 
     // Restore original disclaimer state.
-    await adminAuthenticationPolicyEdit({
+    const restore = await adminAuthenticationPolicyEdit({
       client: apiv4Admin,
       path: { policy_id: defaultPolicy.id },
       body: {
@@ -1131,7 +1146,8 @@ test.describe('Admin users policies — webapp', () => {
         disclaimer: originalDisclaimer ?? false,
         password: defaultPolicy.password,
       },
-    }).catch(() => {})
+    })
+    expect(restore.response.status, 'restore of the default policy').toBeLessThan(400)
   })
 
   // -------------------------------------------------------------------------

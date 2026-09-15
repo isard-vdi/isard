@@ -28,8 +28,8 @@ from isardvdi_apiv4_client.api.role_advanced import create_media, create_templat
 from isardvdi_apiv4_client.api.role_user import (
     create_desktop,
     create_desktop_from_media,
+    force_stop_desktop,
     start_desktop,
-    stop_desktop,
 )
 from isardvdi_apiv4_client.models.allowed_base import AllowedBase
 from isardvdi_apiv4_client.models.allowed_input import AllowedInput
@@ -152,7 +152,9 @@ def test_media_from_url_full_lifecycle(
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )
@@ -199,7 +201,9 @@ def test_media_from_url_full_lifecycle(
         admin_client.poll_desktop_status(
             derived_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
+        force_stop_desktop.sync_detailed(
+            desktop_id=derived_id, client=admin_client.apiv4()
+        )
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )

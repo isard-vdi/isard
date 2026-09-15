@@ -494,7 +494,7 @@ test.describe('Admin Storage — webapp', () => {
     await page.locator('#storage-uuid-search-btn').click()
 
     // PNotify error about invalid UUID format
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /invalid uuid/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /invalid uuid/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 5000 })
 
     // Modal must not open
@@ -631,7 +631,7 @@ test.describe('Admin Storage — webapp', () => {
     const resp = await findResp
     expect(resp.status()).toBeLessThan(400)
 
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /find task started/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /find task started/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 5000 })
 
     // Still on the storage page
@@ -689,7 +689,7 @@ test.describe('Admin Storage — webapp', () => {
       .selectOption('find')
 
     // PNotify confirmation dialog (md Then 1)
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
 
     // Ok → bulk find fires. The batch find is stubbed in beforeEach so the call
@@ -738,7 +738,7 @@ test.describe('Admin Storage — webapp', () => {
       .locator('.mactionsStorage[selectedTableId="storage"]')
       .selectOption('find')
 
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
 
     // Cancel
@@ -773,7 +773,7 @@ test.describe('Admin Storage — webapp', () => {
       .selectOption('sparsify')
 
     // "I'm aware" dialog
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /warning/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /warning/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
 
     // Type wrong phrase — API must NOT be called
@@ -996,7 +996,7 @@ test.describe('Admin Storage — webapp', () => {
     await row.locator('.btn-delete-scheduler').click()
 
     // PNotify confirmation dialog
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
 
     const deleteResp = page.waitForResponse(
@@ -1460,7 +1460,7 @@ test.describe('Admin Storage — webapp', () => {
     await page.locator('#modalSearchStorage').waitFor({ state: 'hidden', timeout: 5000 })
 
     // md Then 3: success PNotify
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /find task started/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /find task started/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 5000 })
 
     // md Then 4: find is a direct API call — no secondary modal opens
@@ -1516,7 +1516,7 @@ test.describe('Admin Storage — webapp', () => {
     await modal.locator('.btn-modal-delete').click()
 
     // md Then 2: confirmation PNotify (md Then 1: the search modal closes first)
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
     await expect(modal).toBeHidden()
     await clickPnotifyOk(page)
@@ -1531,7 +1531,7 @@ test.describe('Admin Storage — webapp', () => {
     // the row to disappear — that's an async backend effect this suite doesn't
     // await. afterEach attempts the SDK cleanup; the next full-run reseed
     // restores Seed C.
-    const successNotify = page.locator('.ui-pnotify').filter({ hasText: /deleted/i })
+    const successNotify = page.locator('.ui-pnotify').filter({ hasText: /deleted/i }).last()
     await successNotify.waitFor({ state: 'visible', timeout: 5000 })
   })
 
@@ -1548,7 +1548,7 @@ test.describe('Admin Storage — webapp', () => {
     await modal.locator('.btn-modal-delete').click()
 
     // Confirmation dialog appears (the search modal closes first)
-    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i })
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
     await pnotify.waitFor({ state: 'visible', timeout: 10000 })
 
     // No DELETE may fire on the Cancel path

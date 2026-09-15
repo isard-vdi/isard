@@ -39,6 +39,13 @@ WEBAPP_ADMIN_PWD=IsardVDI
 # enables them locally at runtime.
 AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false
 
+# ------ Sessions -----------------------------------------------------
+# Worker-scoped contexts log in once and reuse the token for the whole
+# run; neither the admin webapp pages nor the API clients renew it, so
+# the 5m default expires mid-run and the tail of the suite gets 401s
+# and login redirects.
+SESSIONS_SESSIONS_EXPIRATION_TIME=1h
+
 # ------ LDAP / SAML / Google wiring ----------------------------------
 # The Go isard-authentication service loads provider config from the
 # RethinkDB `config` table's `auth` key (see authentication/model/config.go).

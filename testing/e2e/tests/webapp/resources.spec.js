@@ -64,6 +64,32 @@ async function gotoResources(page) {
     .waitFor({ state: 'visible', timeout: 15000 })
 }
 
+// Deleting refreshes the table on a socket event that can lag under load;
+// drive the DataTable's own reload while polling for the row to be gone.
+async function expectRowGone(page, tableId, row) {
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(
+          (id) =>
+            new Promise((resolve) => {
+              // eslint-disable-next-line no-undef
+              const t = $(`#${id}`).DataTable()
+              if (!t || typeof t.ajax?.reload !== 'function') {
+                resolve()
+                return
+              }
+              t.ajax.reload(resolve, false)
+            }),
+          tableId,
+        )
+        return row.count()
+      },
+      { timeout: 15000, intervals: [500, 1000, 2000] },
+    )
+    .toBe(0)
+}
+
 async function clickPnotifyButton(page, text) {
   await page
     .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: new RegExp(`^${text}$`, 'i') })
@@ -336,7 +362,7 @@ test.describe('Admin Resources — webapp', () => {
     )
     await clickPnotifyButton(page, 'Ok')
     expect((await delResp).status()).toBeLessThan(400)
-    await expect(row).toBeHidden({ timeout: 10000 })
+    await expectRowGone(page, 'table-qos-disk', row)
   })
 
   test('C1-C4: creates interfaces for all kind dropdown values', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
@@ -445,7 +471,7 @@ test.describe('Admin Resources — webapp', () => {
     )
     await clickPnotifyButton(page, 'Ok')
     expect((await delResp).status()).toBeLessThan(400)
-    await expect(row).toBeHidden({ timeout: 10000 })
+    await expectRowGone(page, 'table-interfaces', row)
   })
 
   test('D1/D2: create video and update alloweds', async ({ authenticatedPage: page }, testInfo) => {
@@ -519,7 +545,7 @@ test.describe('Admin Resources — webapp', () => {
     )
     await clickPnotifyButton(page, 'Ok')
     expect((await delResp).status()).toBeLessThan(400)
-    await expect(row).toBeHidden({ timeout: 10000 })
+    await expectRowGone(page, 'table-remotevpn', row)
   })
 
   test.skip('F5: remote VPN download hits API successfully', async ({ authenticatedPage: page }) => {

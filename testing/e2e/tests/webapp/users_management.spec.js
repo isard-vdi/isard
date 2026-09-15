@@ -138,8 +138,9 @@ async function showAllUsers(page) {
  * shared by all rows you need visible (e.g. a common timestamp).
  */
 async function filterUsersByUsername(page, term) {
+  // The footer filter inputs are built after the table's first draw.
   const search = page.locator("#users .xe-username input").first();
-  if ((await search.count()) === 0) return;
+  await search.waitFor({ state: "visible", timeout: 10000 });
   await search.fill(String(term));
   // The footer search handler is bound to "keyup change"; fill() only emits an
   // "input" event, so dispatch keyup explicitly to trigger the table redraw.
@@ -2021,21 +2022,29 @@ test.describe("Users Management — admin role", () => {
   test("A27 — Impersonate redirects to /Desktops as target user", async ({
     browser,
     authenticatedPage,
-    adminPerWorker,
-    loginHelpers,
-    categories,
   }) => {
     test.slow();
     // Impersonation replaces the session cookie and navigates away, which would
-    // corrupt the worker-shared admin context. Run it in a throwaway context.
+    // corrupt the worker-shared admin context. Run it in a throwaway context
+    // that clones the cookies: a second login as the same admin would revoke
+    // the worker's session (the sessions service keeps one per user).
     const userId = await createTestUser(authenticatedPage, "_a27");
     registerCleanup((p) => deleteUser(p, userId));
 
-    const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+    const ctx = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      storageState: await authenticatedPage.context().storageState(),
+    });
     try {
+      // storageState carries the cookies but not the Authorization header
+      // the login helper installs for page.request.
+      const jwt = (await ctx.cookies()).find(
+        (c) => c.name === "authorization" || c.name === "isardvdi_session",
+      );
+      await ctx.setExtraHTTPHeaders({
+        Authorization: `Bearer ${jwt.value.replace(/^Bearer\s+/i, "")}`,
+      });
       const page = await ctx.newPage();
-      await loginHelpers.login(page, adminPerWorker, categories);
-      await bridgeAdminSession(page);
 
       await page.goto(MGMT_URL);
     await waitForManagementReady(page);

@@ -238,12 +238,16 @@ test.describe('Admin Templates — webapp', () => {
     const page = await authenticatedContext.newPage()
     try {
       const client = apiv4ClientForPage(page)
-      // Remove ALL stale e2e-tpl-* leftovers from any previous run or worker.
+      // Remove stale e2e-tpl-* leftovers from any previous run or worker.
       // Scoping by workerIndex would leave orphans from workers that didn't
       // participate in the current run (e.g. after an aborted -j 4 run).
-      const stale = (await listTemplatesViaApi(client)).filter(
-        (t) => typeof t.name === 'string' && t.name.startsWith('e2e-tpl-'),
-      )
+      // Names embed Date.now() at creation: anything younger than this
+      // belongs to a test in flight on another worker (fullyParallel).
+      const cutoff = Date.now() - 30 * 60 * 1000
+      const stale = (await listTemplatesViaApi(client)).filter((t) => {
+        const created = Number((/^e2e-tpl-\d+-(\d+)/.exec(t.name ?? '') ?? [])[1])
+        return Number.isFinite(created) && created < cutoff
+      })
       for (const t of stale) await deleteTemplateViaApi(client, t.id)
     } finally {
       await page.close()

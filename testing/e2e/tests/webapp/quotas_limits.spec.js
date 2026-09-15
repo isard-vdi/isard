@@ -241,44 +241,54 @@ async function openUserEdit(page, userId) {
   await page.waitForTimeout(300) // let setQuotaMax bind the iCheck handlers
 }
 
-async function expandRowByName(page, tableSel, name) {
+async function expandRowByName(page, tableSel, name, pk) {
   const row = page
     .locator(`${tableSel} tbody tr`)
     .filter({ has: page.locator(`a:has-text("${name}")`) })
     .first()
-  await row.locator('td.details-show').click()
-  await page.waitForTimeout(400)
+  const panel = page.locator(`div[data-pk="${pk}"]`).first()
+  // A socket event from another worker redraws the table and collapses the
+  // row; re-click only while the panel is not visible, poll until it stays.
+  await expect
+    .poll(
+      async () => {
+        if (!(await panel.isVisible())) await row.locator('td.details-show').click()
+        return panel.isVisible()
+      },
+      { timeout: 15000, intervals: [500, 1000, 2000] },
+    )
+    .toBe(true)
 }
 async function openGroupQuota(page) {
-  await expandRowByName(page, '#groups', GROUP_NAME)
+  await expandRowByName(page, '#groups', GROUP_NAME, GROUP)
   const prefill = page.waitForResponse(
     (r) => r.url().includes(`/api/v4/admin/quota/group/${GROUP}`) && r.request().method() === 'GET',
     { timeout: 10000 },
-  )
+  ).catch(() => null)
   await page.locator(`div[data-pk="${GROUP}"] .btn-edit-group-quotas`).first().click()
   await page.locator('#modalEditQuota').waitFor({ state: 'visible', timeout: 10000 })
   await prefill.catch(() => {})
   await page.waitForTimeout(300)
 }
 async function openGroupLimits(page) {
-  await expandRowByName(page, '#groups', GROUP_NAME)
+  await expandRowByName(page, '#groups', GROUP_NAME, GROUP)
   await page.locator(`div[data-pk="${GROUP}"] .btn-edit-limits`).first().click()
   await page.locator('#modalEditLimits').waitFor({ state: 'visible', timeout: 10000 })
   await page.waitForTimeout(400)
 }
 async function openCategoryQuota(page) {
-  await expandRowByName(page, '#categories', CAT_NAME)
+  await expandRowByName(page, '#categories', CAT_NAME, CAT)
   const prefill = page.waitForResponse(
     (r) => r.url().includes(`/api/v4/admin/quota/category/${CAT}`) && r.request().method() === 'GET',
     { timeout: 10000 },
-  )
+  ).catch(() => null)
   await page.locator(`div[data-pk="${CAT}"] .btn-edit-category-quotas`).first().click()
   await page.locator('#modalEditQuota').waitFor({ state: 'visible', timeout: 10000 })
   await prefill.catch(() => {})
   await page.waitForTimeout(300)
 }
 async function openCategoryLimits(page) {
-  await expandRowByName(page, '#categories', CAT_NAME)
+  await expandRowByName(page, '#categories', CAT_NAME, CAT)
   await page.locator(`div[data-pk="${CAT}"] .btn-edit-limits`).first().click()
   await page.locator('#modalEditLimits').waitFor({ state: 'visible', timeout: 10000 })
   await page.waitForTimeout(400)

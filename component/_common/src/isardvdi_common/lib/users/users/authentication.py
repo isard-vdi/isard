@@ -21,7 +21,9 @@
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from rethinkdb import r
 
 
@@ -48,6 +50,8 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
         """Insert a new policy row. Caller validates duplicates first."""
         with cls._rdb_context():
             r.table(cls._rdb_table).insert(data).run(cls._rdb_connection)
+        UserPolicies.clear_get_policies_category_role_provider_cache()
+        UserPolicies.clear_get_user_policy_cache()
 
     @classmethod
     def list_policies_with_category_name(cls) -> list:
@@ -100,12 +104,16 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
         """Apply ``data`` to a policy row (idempotent on missing row)."""
         with cls._rdb_context():
             r.table(cls._rdb_table).get(policy_id).update(data).run(cls._rdb_connection)
+        UserPolicies.clear_get_policies_category_role_provider_cache()
+        UserPolicies.clear_get_user_policy_cache()
 
     @classmethod
     def delete_policy(cls, policy_id: str) -> None:
         """Delete a policy row."""
         with cls._rdb_context():
             r.table(cls._rdb_table).get(policy_id).delete().run(cls._rdb_connection)
+        UserPolicies.clear_get_policies_category_role_provider_cache()
+        UserPolicies.clear_get_user_policy_cache()
 
     @classmethod
     def has_duplicate_policy(cls, category: str, role: str, type_: str) -> bool:
@@ -230,6 +238,7 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
         ]
         with cls._rdb_context():
             r.table("users_migrations_exceptions").insert(rows).run(cls._rdb_connection)
+        Caches.clear_get_cached_users_migrations_exceptions_cache()
 
     @classmethod
     def delete_migration_exception(cls, exception_id: str) -> None:
@@ -238,3 +247,4 @@ class UsersAuthenticationProcessed(RethinkSharedConnection):
             r.table("users_migrations_exceptions").get(exception_id).delete().run(
                 cls._rdb_connection
             )
+        Caches.clear_get_cached_users_migrations_exceptions_cache()

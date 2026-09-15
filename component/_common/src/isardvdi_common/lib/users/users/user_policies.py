@@ -12,6 +12,7 @@ from rethinkdb import r
 _get_policies_category_role_provider_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=200, ttl=30
 )
+_get_user_policy_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=100, ttl=10)
 
 
 class UserPolicies(RethinkSharedConnection):
@@ -44,8 +45,12 @@ class UserPolicies(RethinkSharedConnection):
         _get_policies_category_role_provider_cache.clear()
 
     @classmethod
+    def clear_get_user_policy_cache(cls):
+        _get_user_policy_cache.clear()
+
+    @classmethod
     @cached(
-        SynchronizedTTLCache(maxsize=100, ttl=10),
+        cache=_get_user_policy_cache,
         key=lambda cls, subtype, category_id=None, role_id=None, provider=None, user_id=None: (
             cls,
             subtype,

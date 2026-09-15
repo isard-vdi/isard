@@ -28,11 +28,19 @@ const PROFILE = 'NVIDIA-T4-2Q'
 
 // Future, 5-minute-aligned, per-worker, per-slot window so parallel
 // workers never overlap on the shared single device (the backend
-// rejects overlapping plannings on the same GPU item).
+// rejects overlapping plannings on the same GPU item). A window that
+// would straddle a local midnight moves to just after it: vuecal draws
+// one block per day, and the seam assertions count blocks.
 function planWindow(workerIndex, slotMinutes, durationMin = 20) {
   const base = Date.now() + (60 + workerIndex * 240 + slotMinutes) * 60 * 1000
-  const startMs = Math.ceil(base / (5 * 60 * 1000)) * (5 * 60 * 1000)
-  const endMs = startMs + durationMin * 60 * 1000
+  let startMs = Math.ceil(base / (5 * 60 * 1000)) * (5 * 60 * 1000)
+  let endMs = startMs + durationMin * 60 * 1000
+  const nextMidnight = new Date(startMs)
+  nextMidnight.setHours(24, 0, 0, 0)
+  if (endMs > nextMidnight.getTime()) {
+    startMs = nextMidnight.getTime() + 5 * 60 * 1000
+    endMs = startMs + durationMin * 60 * 1000
+  }
   return { startMs, endMs }
 }
 
@@ -277,7 +285,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
   //     into a single planning (not a second row).
   // ---------------------------------------------------------------
   test('P3 a contiguous planning is joined into one', async ({ authenticatedPage: page, apiv4Admin: apiv4 }, testInfo) => {
-    const base = planWindow(testInfo.workerIndex, /* slot */ 120, /* dur */ 30)
+    const base = planWindow(testInfo.workerIndex, /* slot */ 120, /* dur */ 60)
     const aStart = base.startMs
     const aEnd = base.startMs + 30 * 60 * 1000
     const bStart = aEnd // contiguous
@@ -326,7 +334,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
     authenticatedPage: page,
     apiv4Admin: apiv4,
   }, testInfo) => {
-    const base = planWindow(testInfo.workerIndex, /* slot */ 180, /* dur */ 30)
+    const base = planWindow(testInfo.workerIndex, /* slot */ 180, /* dur */ 75)
     const aStart = base.startMs
     const aEnd = base.startMs + 30 * 60 * 1000
     const bStart = aEnd + 15 * 60 * 1000 // real 15-min gap

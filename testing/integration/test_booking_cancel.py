@@ -40,6 +40,7 @@ from isardvdi_apiv4_client.api.role_user import (
     get_user_bookings,
 )
 from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.reservables_input import ReservablesInput
 
 from .helpers.client import IsardClient
 from .helpers.responses import created_id, expect
@@ -50,6 +51,9 @@ from .helpers.seed import DISKLESS_TEMPLATE_ID, derivable
 # to the cancel path we're testing.
 BOOKING_OFFSET_MIN = 60
 BOOKING_DURATION_MIN = 30
+# Bookings need a reservable: the seed plans this profile on ``e2e-gpu-planning``
+# from 2001 to 2286 (``resource_planner.json``, ``test-t4-2q-available-plan``).
+BOOKING_VGPU_PROFILE = "NVIDIA-T4-2Q"
 DESKTOP_CREATE_TIMEOUT = 90
 
 
@@ -110,6 +114,7 @@ def test_booking_create_then_cancel_roundtrip(
                 template_id=template_id,
                 name=desktop_name,
                 description="",
+                reservables=ReservablesInput(vgpus=[BOOKING_VGPU_PROFILE]),
             ),
         )
     )
@@ -117,7 +122,7 @@ def test_booking_create_then_cancel_roundtrip(
         desktop_id, want={"Stopped"}, max_wait=DESKTOP_CREATE_TIMEOUT
     )
 
-    # --- Step 2: attempt to book the desktop 1h out, 30 min long ---
+    # --- Step 2: book the desktop 1h out, 30 min long ---
     start = datetime.now(timezone.utc) + timedelta(minutes=BOOKING_OFFSET_MIN)
     end = start + timedelta(minutes=BOOKING_DURATION_MIN)
     title = f"{test_namespace}booking"
@@ -133,14 +138,6 @@ def test_booking_create_then_cancel_roundtrip(
             "now": False,
         },
     )
-    # 428 = no reservables / quota — common on a stripped test stack.
-    # Skip rather than fail: the cancel path can't be tested without a
-    # booking and whether the stack is bookable is a stack config issue
-    # not a code regression.
-    if resp.status_code == 428:
-        pytest.skip(
-            f"stack rejected booking with 428: {resp.text[:200]} — no reservables seeded"
-        )
     assert (
         resp.status_code == 201
     ), f"expected 201 from POST booking; got {resp.status_code} body={resp.text[:300]}"
