@@ -20,6 +20,25 @@ export const EDIT_FORM_ROUTES = new Set([
   'domainedit'
 ])
 
+// Same origin, so also read by the new frontend and by the webapp sidebar.
+const PREFERRED_FRONTEND_KEY = 'preferredFrontend'
+
+export function setPreferredFrontend (value) {
+  localStorage.setItem(PREFERRED_FRONTEND_KEY, value)
+}
+
+export function clearPreferredFrontend () {
+  localStorage.removeItem(PREFERRED_FRONTEND_KEY)
+}
+
+export function hasVue3Equivalent (name) {
+  return Boolean(name && VUE2_TO_VUE3[name])
+}
+
+export function honoursPreferredFrontend (mode) {
+  return mode === 'all' || mode === 'hidden'
+}
+
 export function resolveVue3Path (route) {
   if (!route || !route.name) return null
   const template = VUE2_TO_VUE3[route.name]

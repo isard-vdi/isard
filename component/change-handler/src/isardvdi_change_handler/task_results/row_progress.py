@@ -162,16 +162,24 @@ def _persist(resolved, final):
             # to write, which is the steady state of a running transfer.
             return False
         # A row on its way out (aborting, failed, deleting) keeps its status —
-        # a tick already in flight must not resurrect a cancelled download.
+        # a tick already in flight must not resurrect a cancelled download, and
+        # the abort lands between the read above and this write.
+        written = False
         if starting:
-            row.status = _RUNNING_STATUS
+            written = type(row).update_document_if(
+                row.id,
+                {"status": _RUNNING_STATUS},
+                field="status",
+                values=_STARTING_STATUSES,
+            )
         if persists:
             row.progress = progress
+            written = True
     except Exception:
         log.exception("row_progress: failed to write %s %s", item_class, row.id)
         return False
 
-    return True
+    return written
 
 
 def _progress_events(resolved):

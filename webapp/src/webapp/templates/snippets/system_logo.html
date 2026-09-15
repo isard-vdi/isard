@@ -1,0 +1,99 @@
+{#
+
+# Copyright © 2026 Naomi Hidalgo Piñar
+#
+# This file is part of IsardVDI.
+#
+# IsardVDI is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with IsardVDI. If not, see
+<https: //www.gnu.org/licenses />.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+<div class="modal fade" id="modal-system-logo" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title"><i class="fa fa-pencil fa-1x"></i></i> Edit Logos</h4>
+            </div>
+            <div class="modal-body">
+                <form id="form-system-logo" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-image"></i> Logo</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-sm-3 col-xs-12">Enabled</label>
+                                <div class="col-sm-9 col-xs-12">
+                                    <input type="checkbox" name="logo[enabled]">
+                                </div>
+                            </div>
+                            <div class="system-logo-settings">
+                                <div class="item form-group">
+                                    <label class="control-label col-sm-3 col-xs-12">Logo (SVG, PNG, WebP)</label>
+                                    <div class="col-sm-9 col-xs-12">
+                                        <input type="hidden" name="logo[data]" data-file-content>
+                                        <input class="form-control" type="file" data-file-content
+                                            accept="image/svg+xml,image/png,image/webp,.svg,.png,.webp">
+                                        <div class="file-content-preview logo-preview"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-image"></i> Collapsed logo</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-sm-3 col-xs-12">Enabled</label>
+                                <div class="col-sm-9 col-xs-12">
+                                    <input type="checkbox" name="logo_collapsed[enabled]">
+                                </div>
+                            </div>
+                            <div class="system-logo_collapsed-settings">
+                                <div class="item form-group">
+                                    <label class="control-label col-sm-3 col-xs-12">Collapsed logo (SVG, PNG,
+                                        WebP)</label>
+                                    <div class="col-sm-9 col-xs-12">
+                                        <input type="hidden" name="logo_collapsed[data]" data-file-content>
+                                        <input class="form-control" type="file" data-file-content
+                                            accept="image/svg+xml,image/png,image/webp,.svg,.png,.webp">
+                                        <div class="file-content-preview logo-preview"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="system-logo-save" type="button" class="btn btn-success">Save changes</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

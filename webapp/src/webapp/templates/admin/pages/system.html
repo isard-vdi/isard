@@ -9,6 +9,11 @@
     #preview {
         white-space: pre-line;
     }
+    #preview-logo img,
+    #preview-logo_collapsed img {
+        max-height: 80px;
+        max-width: 100%;
+    }
 </style>
 
 <div class="row">
@@ -70,10 +75,48 @@
 
     {% include '/admin/pages/system_modals.html' %}
     {% include '/snippets/smtp.html' %}
+    {% include '/snippets/system_logo.html' %}
+
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-image"></i> Logo <small> Logo and collapsed logo shown in the login page, sidebar and other pages</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a id="btn-edit-logo"><span style="color: #5499c7;">
+                                <i class="fa fa-pencil"></i> Edit logos</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+
+            <div id="logo-status-alert" class="alert alert-info"></div>
+
+            <div>
+                <h4>Current logo:</h4>
+            </div>
+            <div class="x_panel" id="preview-panel">
+                <div id="preview-logo"><img src="/api/v4/logo" alt="logo"></div>
+            </div>
+
+             <div>
+                <h4>Current logo collapsed:</h4>
+            </div>
+            <div class="x_panel" id="preview-panel">
+                <div id="preview-logo_collapsed">
+                    <img src="/api/v4/logo-collapsed" alt="collapsed logo">
+                    <span id="logo_collapsed-using-general" style="display: none;">(using general custom logo)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
     {% endblock %}
     {% block pagescript %}
     <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/system.js"></script>
     <script src="/isard-admin/static/js/snippets/form_items.js"></script>
     <script src="/isard-admin/static/js/smtp.js"></script>
+    <script src="/isard-admin/static/admin/js/system_logo.js"></script>
     {% endblock %}

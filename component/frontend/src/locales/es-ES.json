@@ -717,7 +717,7 @@
         "videowall": "Videowall",
         "resources": "Recursos",
         "bastion": "Acceso por bastión del usuario",
-        "delete": "Eliminar"
+        "delete": "Eliminar los escritorios"
       },
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
@@ -770,10 +770,9 @@
         "loading": "Recreando el despliegue…"
       },
       "stop-all": {
-        "title": "Parar todos los escritorios",
-        "description": "Se pararán todos los escritorios iniciados del despliegue. Los usuarios pueden perder el trabajo no guardado.",
         "error": "No se han podido parar los escritorios del despliegue",
-        "loading": "Parando los escritorios del despliegue…"
+        "no-started-tooltip": "Ahora mismo no hay ningún escritorio iniciado",
+        "stopping-tooltip": "Los escritorios se están parando"
       },
       "stop-user": {
         "title": "Parar los escritorios del usuario",
@@ -1741,6 +1740,30 @@
       "title": "Parar todos los escritorios",
       "force": "Forzar la parada de los escritorios"
     },
+    "stop-all-desktops-modal": {
+      "title": "Parar todos los escritorios",
+      "description": "Se parará {n} escritorio. | Se pararán {n} escritorios.",
+      "skipped": "Hay {n} escritorio parándose que se dejará como está; solo le afecta una parada forzada. | Hay {n} escritorios parándose que se dejarán como están; solo les afecta una parada forzada.",
+      "error": "No se han podido parar los escritorios",
+      "loading": "Parando los escritorios…",
+      "mode": {
+        "graceful": {
+          "title": "Parar todos",
+          "description": "Pide al sistema que se apague",
+          "disabled": "Ningún escritorio iniciado"
+        },
+        "force": {
+          "title": "Forzar parada",
+          "description": "Lo para sin apagarlo, puede corromper el escritorio"
+        }
+      },
+      "force-only": {
+        "description": "Hay {n} escritorio parándose. Solo le afecta una parada forzada. | Hay {n} escritorios parándose. Solo les afecta una parada forzada.",
+        "confirm": "Forzar parada"
+      },
+      "cancel": "Cancelar",
+      "confirm": "Parar todos"
+    },
     "desktop-networks-modal": {
       "title": "Redes del escritorio '{name}'",
       "description": "Interfaces de red conectadas a este escritorio. La interfaz Wireguard se muestra primero cuando está presente y expone la IP enrutable del huésped.",
@@ -1775,7 +1798,9 @@
       "kind": {
         "persistent": "Escritorio persistente",
         "nonpersistent": "Escritorio temporal",
-        "deployment": "Escritorio de despliegue"
+        "deployment": "Escritorio de despliegue",
+        "desktop": "Escritorio",
+        "template": "Plantilla"
       },
       "fields": {
         "description": {
@@ -1947,7 +1972,7 @@
       }
     },
     "deployment-bastion-modal": {
-      "title": "Bastión — {name}",
+      "title": "Configuración del bastión para {name}",
       "description": "Active o desactive el acceso por bastión para todos los escritorios de este despliegue. Los escritorios en marcha se actualizan inmediatamente; los escritorios nuevos y recreados heredan esta configuración cuando se inician por primera vez.",
       "error-loading": "No se ha podido cargar la configuración del bastión del despliegue",
       "error-saving": "No se ha podido guardar la configuración del bastión del despliegue",
@@ -1957,7 +1982,7 @@
       }
     },
     "deployment-user-bastion-modal": {
-      "title": "Acceso por bastión — {name}",
+      "title": "Acceso por bastión para {name}",
       "description": "Seleccione un escritorio para ver sus detalles de acceso por bastión.",
       "error-loading": "No se han podido cargar los escritorios del usuario",
       "no-desktops": "Este usuario no tiene escritorios en este despliegue",
@@ -1979,14 +2004,16 @@
             "alert": {
               "description": "Añade un registro CNAME a tu proveedor de DNS que apunte a: {cname-url}",
               "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión."
-            }
+            },
+            "success": "El dominio personalizado se ha actualizado correctamente"
           }
         },
         "ssh": {
           "title": "SSH",
           "authorized-keys": {
             "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
-            "title": "Claves SSH autorizadas (una por línea)"
+            "title": "Claves SSH autorizadas (una por línea)",
+            "success": "Las claves SSH autorizadas se han actualizado correctamente"
           }
         },
         "target-id": {
@@ -2543,6 +2570,23 @@
         "co-owner-warning": "Como copropietario no puedes cambiar los copropietarios. Contacta con el propietario del despliegue.",
         "success": "Copropietarios actualizados",
         "error": "No se han podido actualizar los copropietarios"
+      },
+      "delete-desktops-modal": {
+        "title": "Eliminar los escritorios de {name}",
+        "description": "Selecciona los escritorios que quieres eliminar de este despliegue. Los escritorios de un despliegue se eliminan permanentemente y no se pueden recuperar de la papelera.",
+        "select-all": "Seleccionar todo",
+        "headers": {
+          "desktop": "Escritorio",
+          "status": "Estado",
+          "last-access": "Último acceso",
+          "visible": "Visible"
+        },
+        "empty": "Este usuario no tiene ningún escritorio en este despliegue",
+        "error-loading": "No se han podido cargar los escritorios de este usuario",
+        "error-partial": "No se han podido eliminar {n} escritorios. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "confirm": "Eliminar los escritorios | Eliminar el escritorio | Eliminar {n} escritorios",
+        "success": "Escritorios eliminados"
       },
       "download-csv-modal": {
         "title": "Descargar CSV de visores directos de '{name}'",

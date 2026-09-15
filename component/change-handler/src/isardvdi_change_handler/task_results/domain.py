@@ -87,9 +87,12 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     if storage is None:
         return
 
-    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
-        domain.status = "Failed"
-        storage.status = "Failed"
+    if storage.status != "ready":
+        # A replay finds both rows already Failed, which is not a create
+        # status, so this guard must not depend on one.
+        if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
+            domain.status = "Failed"
+            storage.status = "Failed"
         return
 
     c_dict = domain.create_dict
@@ -121,4 +124,8 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
         update["status"] = "CreatingDomain"
         update["status_time"] = time.time()
-    Domain.update_document(domain_id, update)
+    # Guarded on the status this decision was made from, so a row that moved on
+    # between the read above and this write keeps what moved it.
+    Domain.update_document_if(
+        domain_id, update, field="status", values=(domain.status,)
+    )

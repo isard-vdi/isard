@@ -14,6 +14,8 @@ import {
   getDeploymentAllowedQueryKey,
   getDeploymentCoOwnersOptions,
   getDeploymentCoOwnersQueryKey,
+  getDeploymentQueryKey,
+  stopAllDesktopsInDeploymentMutation,
   updateDeploymentCoOwnersMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
@@ -36,12 +38,14 @@ import { formatRelativeTime } from '@/lib/utils'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import { DeleteDesktopsModal } from '@/components/deployments/actions/delete-desktops-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
 import { useBulkSpawnStore } from '@/stores/bulk-spawn'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
+import { StopAllDesktopsModal } from '@/components/modal'
 import { toast } from '@/components/ui/toast'
 
 const { t, d, locale } = useI18n()
@@ -83,14 +87,16 @@ const visibilityBadgeClass = computed(() => {
   } as const
 })
 
-const filteredDeploymentUsers = computed(() => {
-  const allDeploymentUsers = deploymentEntry.value?.users ?? []
-  return allDeploymentUsers.filter(areUsersVisible)
-})
+const userDesktopCount = (user: DeploymentUserDetail) =>
+  (user.desktops_statuses ?? []).reduce((total, entry) => total + entry.amount, 0)
+
+const usersWithDesktops = computed(() =>
+  (deploymentEntry.value?.users ?? []).filter((user) => userDesktopCount(user) > 0)
+)
+
+const filteredDeploymentUsers = computed(() => usersWithDesktops.value.filter(areUsersVisible))
 
 const inputSearch = ref<string>('')
-
-const hasDeploymentUsers = computed(() => (deploymentEntry.value?.users?.length ?? 0) > 0)
 
 // Visibility
 const areUsersVisible = (users: DeploymentUserDetail) => {
@@ -132,8 +138,6 @@ const header = computed(() => [
   }
 ])
 
-const totalDesktops = computed(() => deploymentEntry.value?.info.desktops_each_user)
-
 const isXL = useMediaQuery('(min-width: 1280px)')
 
 const bulkSpawnStore = useBulkSpawnStore()
@@ -154,6 +158,24 @@ const hasDesktopsBeingCreated = computed(() =>
     .some((status) => CREATING_STATUSES.includes(status.status) && status.amount > 0)
 )
 const isProvisioning = computed(() => isRecreatingDesktops.value || hasDesktopsBeingCreated.value)
+
+const countDesktopsInStatus = (status: DesktopStatusEnum) =>
+  (deploymentEntry.value?.users ?? [])
+    .flatMap((user) => user.desktops_statuses ?? [])
+    .filter((entry) => entry.status === status)
+    .reduce((total, entry) => total + entry.amount, 0)
+
+const startedDesktopsCount = computed(() => countDesktopsInStatus(DesktopStatusEnum.STARTED))
+const shuttingDownDesktopsCount = computed(() =>
+  countDesktopsInStatus(DesktopStatusEnum.SHUTTING_DOWN)
+)
+const stoppingDesktopsCount = computed(() => countDesktopsInStatus(DesktopStatusEnum.STOPPING))
+// Desktops already shutting down still count as stoppable: a graceful stop
+// skips them, but a forced one kills them, and that is the only way out of a
+// guest that ignored the shutdown request.
+const anyDesktopStoppable = computed(
+  () => startedDesktopsCount.value > 0 || shuttingDownDesktopsCount.value > 0
+)
 
 const showProvisioningModal = ref(false)
 let provisioningCloseTimer: ReturnType<typeof setTimeout> | null = null
@@ -191,6 +213,7 @@ const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
+const deleteDesktopsModalData = ref<{ userId: string; username: string } | null>(null)
 
 function downloadBastionCsv() {
   getDeploymentBastionCsv({
@@ -294,6 +317,47 @@ const showDownloadCsvModal = ref(false)
 const handleNotImplemented = () => alert('not implemented yet')
 
 const queryClient = useQueryClient()
+
+const showStopAllModal = ref(false)
+const stopAllError = ref('')
+const { mutate: stopAllDesktops, isPending: stopAllIsPending } = useMutation({
+  ...stopAllDesktopsInDeploymentMutation(),
+  onSuccess: () => {
+    showStopAllModal.value = false
+    queryClient.invalidateQueries({
+      queryKey: getDeploymentQueryKey({ path: { deployment_id: deploymentId.value } })
+    })
+  },
+  onError: () => {
+    if (showStopAllModal.value) {
+      stopAllError.value = t('views.deployment.stop-all.error')
+    } else {
+      toast.error(t('views.deployment.stop-all.error'))
+    }
+  }
+})
+
+// Stopping is the only stop state the button cannot act on, so it is the one
+// that reads as work in progress rather than as something to click.
+const isStoppingAll = computed(() => stopAllIsPending.value || stoppingDesktopsCount.value > 0)
+
+const openStopAllModal = () => {
+  stopAllError.value = ''
+  showStopAllModal.value = true
+}
+
+const closeStopAllModal = () => {
+  showStopAllModal.value = false
+  stopAllError.value = ''
+}
+
+const confirmStopAll = (force: boolean) => {
+  stopAllError.value = ''
+  stopAllDesktops({
+    path: { deployment_id: deploymentId.value },
+    body: { force }
+  })
+}
 
 const showCoOwnersModal = ref(false)
 const coOwnersError = ref('')
@@ -476,10 +540,27 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
   />
+  <DeleteDesktopsModal
+    v-if="deleteDesktopsModalData !== null"
+    :open="deleteDesktopsModalData !== null"
+    :deployment-id="deploymentId"
+    :user-id="deleteDesktopsModalData.userId"
+    :username="deleteDesktopsModalData.username"
+    @close="deleteDesktopsModalData = null"
+  />
   <DeploymentProvisioningModal
     :open="showProvisioningModal"
     :deployment="deploymentEntry"
     @close="showProvisioningModal = false"
+  />
+  <StopAllDesktopsModal
+    :open="showStopAllModal"
+    :started-count="startedDesktopsCount"
+    :shutting-down-count="shuttingDownDesktopsCount"
+    :pending="stopAllIsPending"
+    :error="stopAllError"
+    @close="closeStopAllModal"
+    @confirm="confirmStopAll"
   />
   <PageContainer v-if="!deploymentEntryIsError">
     <Button
@@ -518,7 +599,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
             </dt>
             <Skeleton v-if="deploymentEntryIsPending" class="h-5 w-10 mt-2" />
             <dd v-else class="text-xl font-bold text-center md:text-left">
-              {{ deploymentEntry?.info.total_users }}
+              {{ usersWithDesktops.length }}
             </dd>
           </div>
         </div>
@@ -557,7 +638,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
       </dl>
     </div>
     <PageToolbar>
-      <template v-if="hasDeploymentUsers" #search>
+      <template v-if="usersWithDesktops.length" #search>
         <SearchInput
           :id="DEPLOYMENT_SEARCH_INPUT_ID"
           v-model="inputSearch"
@@ -571,9 +652,33 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
         <Button icon="tv-03" hierarchy="secondary-gray" @click="enterVideowall">
           {{ t('views.deployment.buttons.videowall') }}
         </Button>
-        <Button icon="stop" hierarchy="destructive" @click="handleNotImplemented">
-          {{ t('views.deployment.buttons.stop-all') }}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <!-- Wrapper: a disabled button emits no pointer events -->
+            <span class="inline-flex">
+              <Button
+                :icon="isStoppingAll ? 'loading-02' : 'stop'"
+                :icon-class="
+                  isStoppingAll ? 'motion-safe:animate-[spin_2s_linear_infinite]' : undefined
+                "
+                hierarchy="destructive"
+                :disabled="!anyDesktopStoppable"
+                @click="openStopAllModal"
+              >
+                {{ t('views.deployment.buttons.stop-all') }}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            v-if="!anyDesktopStoppable"
+            side="top"
+            :title="
+              stoppingDesktopsCount > 0
+                ? t('views.deployment.stop-all.stopping-tooltip')
+                : t('views.deployment.stop-all.no-started-tooltip')
+            "
+          />
+        </Tooltip>
         <DropdownMenu>
           <span @click.stop>
             <DropdownMenuTrigger>
@@ -669,7 +774,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
             {{
               row.desktops_statuses.find((d) => d.status === DesktopStatusEnum.STARTED)?.amount ??
               0
-            }}/{{ totalDesktops }}
+            }}/{{ userDesktopCount(row) }}
           </div>
         </template>
         <template #cell-actions="{ row }">
@@ -720,8 +825,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                 </TooltipTrigger>
                 <TooltipContent side="top" :title="t('views.deployment.tooltips.videowall')" />
               </Tooltip>
-              <Tooltip>
+              <Tooltip v-if="false">
                 <TooltipTrigger as-child>
+                  <!-- Deployment resources -->
                   <Button
                     hierarchy="secondary-gray"
                     icon="file-attachment-04"
@@ -749,7 +855,8 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                     hierarchy="secondary-gray"
                     icon="trash-04"
                     class="aspect-square p-[10px]"
-                    @click="handleNotImplemented"
+                    :aria-label="t('views.deployment.tooltips.delete')"
+                    @click="deleteDesktopsModalData = { userId: row.id, username: row.name }"
                   ></Button>
                 </TooltipTrigger>
                 <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.delete')" />
@@ -762,7 +869,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     <EmptyState
       v-else
       kind="deployment-users"
-      :variant="hasDeploymentUsers ? 'no-results' : 'first-run'"
+      :variant="usersWithDesktops.length ? 'no-results' : 'first-run'"
       :searching="inputSearch.length > 0"
       @clear-search="inputSearch = ''"
     />

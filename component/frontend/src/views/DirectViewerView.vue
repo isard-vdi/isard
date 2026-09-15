@@ -31,6 +31,7 @@ import {
 } from '@/lib/desktops'
 
 import { withOptimisticStatus } from '@/lib/optimistic'
+import { setBrowserViewerCookie, setViewerToken } from '@/lib/viewers'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 import { useJwtRenewal } from '@/composables/useJwtRenewal'
@@ -58,15 +59,12 @@ import { DirectViewerLoadingHint } from '@/components/direct-viewer'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
-import LogoSvg from '@/assets/logo.svg?url'
+import { BrandLogo } from '@/components/logo'
 
 const { t, d } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
-
-// Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
-const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
 
 const CARD_SIZE: CardSize = 'xl'
 
@@ -158,7 +156,7 @@ watch(
     viewerJwt.value = jwt
     if (jwt) {
       // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
-      cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
+      setViewerToken(cookies, jwt)
       if (!isConnected.value) {
         connectSocket(() => viewerJwt.value)
       }
@@ -258,11 +256,6 @@ const notificationText = computed<string | null>(() => {
 
 const isViewerChangeModalOpen = ref(false)
 
-const logoSrc = ref('/custom/logo.svg')
-const handleLogoError = () => {
-  logoSrc.value = LogoSvg
-}
-
 const showResetModal = ref(false)
 
 // Both direct-viewer mutations are addressed by the share token, not a desktop id.
@@ -327,7 +320,11 @@ const openViewer = (viewerId: string) => {
 
   if (viewer.kind === 'browser') {
     if (viewer.cookie) {
-      cookies.set('browser_viewer', viewer.cookie, VIEWER_COOKIE_OPTS)
+      setBrowserViewerCookie(cookies, viewer.cookie)
+    }
+    // The guacamole page drops `viewerToken` on unload, so re-set it on every open or the next noVNC has no security token.
+    if (viewerJwt.value) {
+      setViewerToken(cookies, viewerJwt.value)
     }
     if (viewer.viewer) {
       // `direct=1` flips noVNC's cookie precedence to `viewerToken` (no session cookie exists in the direct-viewer flow).
@@ -353,11 +350,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
 
 <template>
   <div class="flex flex-col min-h-screen bg-base-background relative z-0 overflow-hidden">
-    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-warm-200">
+    <header
+      class="flex h-16 items-center justify-between px-6 border-b border-gray-warm-300 bg-base-background"
+    >
       <h1 class="text-display-xs font-semibold text-gray-warm-900">
         {{ t('views.direct-viewer.title') }}
       </h1>
-      <img :src="logoSrc" alt="IsardVDI logo" class="h-[40px]" @error="handleLogoError" />
+      <BrandLogo class="max-h-10 max-w-[180px] w-auto object-contain" />
     </header>
     <main class="flex-1 flex flex-col items-center justify-center px-2">
       <div class="w-full grid place-items-center">

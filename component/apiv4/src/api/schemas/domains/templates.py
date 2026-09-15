@@ -279,8 +279,9 @@ class NewTemplateRequest(BaseModel):
         max_length=50,
     )
     description: str = Field(
-        description="Description of the template.",
+        description="Description of the template. If not provided, an empty string is used.",
         max_length=255,
+        default="",
     )
     allowed: Allowed = Field(
         description="Permissions for the template.",
@@ -302,8 +303,9 @@ class DuplicateTemplateRequest(BaseModel):
         max_length=50,
     )
     description: str = Field(
-        description="Description of the template.",
+        description="Description of the template. If not provided, an empty string is used.",
         max_length=255,
+        default="",
     )
     allowed: AllowedBase = Field(
         description="Permissions for the template.",

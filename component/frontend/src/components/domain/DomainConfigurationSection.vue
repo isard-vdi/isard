@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { AccessFormData, HardwareFormData } from '@/lib/domainPayload'
 import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
-import type { DomainKind } from '@/components/domain/DomainInfoSection.vue'
+import { domainKindStyle, type DesktopKind, type DomainKind } from '@/lib/domainKind'
 
 export type DomainConfigurationContext =
   | 'new-desktop'
@@ -59,7 +59,7 @@ const props = withDefaults(
     limitedHardware?: LimitedHardware | null
     /** Viewers the API dropped, when there is no template or desktop to read them from. */
     initialRemovedViewers?: string[]
-    kind?: DomainKind
+    kind?: DesktopKind
     entity?: 'desktops' | 'templates'
     /** Picks the blurb that explains where these values come from. */
     context?: DomainConfigurationContext
@@ -157,18 +157,13 @@ const restrictedFieldNames = computed(() => {
   return Object.keys(fields).map((key) => fieldNameMap[key] || key)
 })
 
+const summaryKind = computed<DomainKind>(() =>
+  props.entity === 'templates' ? 'template' : props.kind
+)
+
 // The section headers take the accent of the selected kind, the same pairing
 // the desktop cards and badges use elsewhere.
-const kindAccent = computed(() => {
-  switch (props.kind) {
-    case 'nonpersistent':
-      return { header: 'bg-secondary-1-300 text-secondary-1-600', icon: 'secondary-1-600' }
-    case 'deployment':
-      return { header: 'bg-secondary-2-300 text-secondary-2-600', icon: 'secondary-2-600' }
-    default:
-      return { header: 'bg-secondary-3-300 text-secondary-3-600', icon: 'secondary-3-600' }
-  }
-})
+const kindAccent = computed(() => domainKindStyle(summaryKind.value))
 
 const showConfiguration = ref(false)
 const isOpen = computed(() => props.alwaysOpen || showConfiguration.value)
@@ -327,7 +322,7 @@ defineExpose({
           v-if="!alwaysOpen"
           class="shadow-xs"
           :loading="loading"
-          :kind="entity === 'templates' ? 'template' : kind"
+          :kind="summaryKind"
           :previous="baseSummary"
           v-bind="liveSummary"
         />
@@ -336,9 +331,16 @@ defineExpose({
           class="mt-6 flex flex-col gap-2 border border-gray-warm-200 rounded-md overflow-hidden shadow-xs bg-gray-warm-50"
         >
           <div>
-            <div :class="['flex gap-6 items-center px-4 py-3', kindAccent.header]">
+            <div
+              :class="['flex gap-6 items-center px-4 py-3', kindAccent.accent, kindAccent.badge]"
+            >
               <div class="flex gap-3 items-center">
-                <Icon name="lock-01" size="lg" :stroke-color="kindAccent.icon" aria-hidden="true" />
+                <Icon
+                  name="lock-01"
+                  size="lg"
+                  :stroke-color="kindAccent.iconColor"
+                  aria-hidden="true"
+                />
                 <h4 class="text-md font-semibold">
                   {{ t('components.domain.configuration.access.title') }}
                 </h4>
@@ -346,7 +348,7 @@ defineExpose({
               <Icon
                 name="chevron-right"
                 size="xs"
-                :stroke-color="kindAccent.icon"
+                :stroke-color="kindAccent.iconColor"
                 aria-hidden="true"
               />
               <p class="text-sm font-regular">
@@ -371,9 +373,20 @@ defineExpose({
             />
           </div>
           <div>
-            <div :class="['flex gap-6 items-center px-4 py-3 rounded-t-md', kindAccent.header]">
+            <div
+              :class="[
+                'flex gap-6 items-center px-4 py-3 rounded-t-md',
+                kindAccent.accent,
+                kindAccent.badge
+              ]"
+            >
               <div class="flex gap-3 items-center">
-                <Icon name="cpu" size="lg" :stroke-color="kindAccent.icon" aria-hidden="true" />
+                <Icon
+                  name="cpu"
+                  size="lg"
+                  :stroke-color="kindAccent.iconColor"
+                  aria-hidden="true"
+                />
                 <h4 class="text-lg font-semibold">
                   {{ t('components.domain.configuration.hardware.title') }}
                 </h4>
@@ -381,7 +394,7 @@ defineExpose({
               <Icon
                 name="chevron-right"
                 size="xs"
-                :stroke-color="kindAccent.icon"
+                :stroke-color="kindAccent.iconColor"
                 aria-hidden="true"
               />
               <p class="text-sm font-regular">

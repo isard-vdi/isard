@@ -62,6 +62,7 @@ from api.schemas.deployments import (
     DeploymentPermissions,
     DeploymentRecreateCountResponse,
     DeploymentResponse,
+    DeploymentStopRequest,
     DeploymentVideowallResponse,
     OwnedDeploymentsResponse,
     SharedDeploymentsResponse,
@@ -71,7 +72,7 @@ from api.schemas.deployments import (
 from api.schemas.domains.desktops import DesktopDetailsResponse
 from api.services.deployments import DeploymentService
 from api.services.error import Error
-from fastapi import Depends, Query, Request, Security
+from fastapi import Body, Depends, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from fastapi.security.api_key import APIKeyHeader
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
@@ -333,9 +334,16 @@ async def create_deployment(
 async def stop_all_desktops_in_deployment(
     request: Request,
     deployment_id: str,
+    deployment_stop_request: DeploymentStopRequest = Body(
+        default_factory=DeploymentStopRequest
+    ),
 ):
     try:
-        await asyncio.to_thread(DeploymentService.stop_all_desktops, deployment_id)
+        await asyncio.to_thread(
+            DeploymentService.stop_all_desktops,
+            deployment_id,
+            deployment_stop_request.force,
+        )
         return Response(status_code=204)
     except Error:
         raise
@@ -357,6 +365,10 @@ async def stop_all_desktops_in_deployment(
     description="Stop all started desktops from a user in a deployment.",
     responses={
         204: {"description": "Desktops stopped successfully"},
+        403: {
+            "model": ErrorResponse,
+            "description": "User not allowed or not a member of the deployment",
+        },
         404: {"model": ErrorResponse, "description": "No dekstops found for user"},
         500: {"model": ErrorResponse},
     },
@@ -368,10 +380,16 @@ async def stop_user_desktops_in_deployment(
     request: Request,
     deployment_id: str,
     user_id: str,
+    deployment_stop_request: DeploymentStopRequest = Body(
+        default_factory=DeploymentStopRequest
+    ),
 ):
     try:
         await asyncio.to_thread(
-            DeploymentService.stop_user_desktops, deployment_id, user_id
+            DeploymentService.stop_user_desktops,
+            deployment_id,
+            user_id,
+            deployment_stop_request.force,
         )
         return Response(status_code=204)
     except Error:

@@ -2,6 +2,24 @@ import type { RouteLocationNormalized } from 'vue-router'
 
 export type FrontendMode = 'deprecated' | 'actual' | 'all' | 'hidden'
 
+export type PreferredFrontend = 'vue2' | 'vue3'
+
+// Same origin, so also read by the old frontend and by the webapp sidebar.
+const PREFERRED_FRONTEND_KEY = 'preferredFrontend'
+
+export function getPreferredFrontend(): PreferredFrontend | null {
+  const stored = localStorage.getItem(PREFERRED_FRONTEND_KEY)
+  return stored === 'vue2' || stored === 'vue3' ? stored : null
+}
+
+export function setPreferredFrontend(value: PreferredFrontend): void {
+  localStorage.setItem(PREFERRED_FRONTEND_KEY, value)
+}
+
+export function clearPreferredFrontend(): void {
+  localStorage.removeItem(PREFERRED_FRONTEND_KEY)
+}
+
 export const VUE3_TO_VUE2: Record<string, string> = {
   desktops: '/desktops',
   'single-desktop': '/desktops',
@@ -13,6 +31,23 @@ export const VUE3_TO_VUE2: Record<string, string> = {
   'recycle-bin': '/recycleBins',
   'recycle-bin-entry': '/recyclebin/:recycleBinId',
   profile: '/profile'
+}
+
+export function hasVue2Equivalent(name: string | undefined): boolean {
+  return name != null && name in VUE3_TO_VUE2
+}
+
+export function honoursPreferredFrontend(mode: FrontendMode | undefined): boolean {
+  return mode === 'all' || mode === 'hidden'
+}
+
+export function landingGoesToVue2(
+  mode: FrontendMode | undefined,
+  preferred: PreferredFrontend | null
+): boolean {
+  if (mode === 'hidden') return preferred !== 'vue3'
+  if (mode === 'all') return preferred === 'vue2'
+  return false
 }
 
 export const EDIT_FORM_ROUTES = new Set<string>([

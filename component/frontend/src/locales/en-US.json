@@ -725,7 +725,7 @@
         "videowall": "Videowall",
         "resources": "Resources",
         "bastion": "User bastion access",
-        "delete": "Delete"
+        "delete": "Delete desktops"
       },
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
@@ -778,10 +778,9 @@
         "loading": "Recreating the deployment…"
       },
       "stop-all": {
-        "title": "Stop all desktops",
-        "description": "This will stop every started desktop in the deployment. Users may lose unsaved work.",
         "error": "Could not stop the deployment desktops",
-        "loading": "Stopping the deployment desktops…"
+        "no-started-tooltip": "There are no started desktops now",
+        "stopping-tooltip": "The desktops are stopping"
       },
       "stop-user": {
         "title": "Stop user desktops",
@@ -1788,7 +1787,9 @@
       "kind": {
         "persistent": "Persistent desktop",
         "nonpersistent": "Temporary desktop",
-        "deployment": "Deployment desktop"
+        "deployment": "Deployment desktop",
+        "desktop": "Desktop",
+        "template": "Template"
       },
       "fields": {
         "description": {
@@ -1846,8 +1847,32 @@
       "cancel": "Cancel",
       "confirm": "Stop all"
     },
+    "stop-all-desktops-modal": {
+      "title": "Stop all desktops",
+      "description": "{n} desktop will be stopped. | {n} desktops will be stopped.",
+      "skipped": "{n} desktop is already shutting down and will be left alone; only a forced stop reaches it. | {n} desktops are already shutting down and will be left alone; only a forced stop reaches them.",
+      "error": "Could not stop the desktops",
+      "loading": "Stopping the desktops…",
+      "mode": {
+        "graceful": {
+          "title": "Stop all",
+          "description": "Asks the system to shut down",
+          "disabled": "No desktop is started"
+        },
+        "force": {
+          "title": "Force stop",
+          "description": "Stops it without shutting down, may corrupt the desktop"
+        }
+      },
+      "force-only": {
+        "description": "{n} desktop is already stopping. Only a forced stop affects it. | {n} desktops are already stopping. Only a forced stop affects them.",
+        "confirm": "Force stop"
+      },
+      "cancel": "Cancel",
+      "confirm": "Stop all"
+    },
     "deployment-bastion-modal": {
-      "title": "Bastion — {name}",
+      "title": "Bastion settings for {name}",
       "description": "Enable or disable bastion access for every desktop in this deployment. Running desktops are updated immediately; new and recreated desktops inherit this configuration when they first start.",
       "error-loading": "Could not load the deployment bastion configuration",
       "error-saving": "Could not save the deployment bastion configuration",
@@ -1857,7 +1882,7 @@
       }
     },
     "deployment-user-bastion-modal": {
-      "title": "Bastion access — {name}",
+      "title": "Bastion access for {name}",
       "description": "Select a desktop to see its bastion access details.",
       "error-loading": "Could not load the user's desktops",
       "no-desktops": "This user has no desktops in this deployment",
@@ -1865,7 +1890,7 @@
       "back": "Back to desktops"
     },
     "bastion-info-modal": {
-      "title": "Bastion access — {name}",
+      "title": "Bastion information for desktop '{name}'",
       "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
       "description-read-only": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command.",
       "no-bastion-configured": "Bastion is not enabled for this desktop",
@@ -1889,14 +1914,16 @@
             "alert": {
               "title": "You can use your own domain name to access this desktop via bastion.",
               "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}"
-            }
+            },
+            "success": "Custom domain updated successfully"
           }
         },
         "ssh": {
           "title": "SSH",
           "authorized-keys": {
             "title": "Authorized SSH Keys (one per line)",
-            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+            "success": "Authorized SSH keys updated successfully"
           }
         }
       }
@@ -2618,6 +2645,23 @@
         "co-owner-warning": "As a co-owner you cannot change the co-owners. Contact the deployment owner.",
         "success": "Co-owners updated",
         "error": "Could not update the co-owners"
+      },
+      "delete-desktops-modal": {
+        "title": "Delete desktops of {name}",
+        "description": "Select the desktops to delete from this deployment. Deployment desktops are deleted permanently and cannot be restored from the recycle bin.",
+        "select-all": "Select all",
+        "headers": {
+          "desktop": "Desktop",
+          "status": "Status",
+          "last-access": "Last access",
+          "visible": "Visible"
+        },
+        "empty": "This user has no desktops in this deployment",
+        "error-loading": "Could not load this user's desktops",
+        "error-partial": "{n} desktops could not be deleted. Please try again.",
+        "cancel": "Cancel",
+        "confirm": "Delete desktops | Delete desktop | Delete {n} desktops",
+        "success": "Desktops deleted"
       },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",

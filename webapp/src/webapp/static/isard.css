@@ -273,6 +273,10 @@ table.dataTable tr.shown td.details-control > button > i:before {
   max-width: 100%;
 }
 
+.logo-preview img {
+  max-height: 100px;
+}
+
 /* Form sections hidden by default */
 .provider-config-form,
 .custom-certificate-form,

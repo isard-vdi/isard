@@ -13,6 +13,7 @@ import {
   updateDesktopBastionDomainMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { BastionDirectViewerResponse } from '@/gen/oas/apiv4'
+import { toast } from '@/components/ui/toast'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -82,6 +83,7 @@ const {
 } = useMutation({
   ...updateDesktopBastionDomainMutation(),
   onSuccess: () => {
+    toast.success(t('components.bastion-info-modal.fields.http.custom-domain.success'))
     refetchBastionTargetData()
   }
 })
@@ -92,6 +94,7 @@ const {
 } = useMutation({
   ...updateDesktopBastionAuthorizedKeysMutation(),
   onSuccess: () => {
+    toast.success(t('components.bastion-info-modal.fields.ssh.authorized-keys.success'))
     refetchBastionTargetData()
   }
 })

@@ -19,9 +19,9 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import type { DesktopKind } from '@/lib/domainKind'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-export type DomainKind = 'persistent' | 'nonpersistent' | 'deployment'
 export type DomainInfoPreview = 'desktop-card' | 'template-row'
 
 const props = withDefaults(
@@ -33,7 +33,7 @@ const props = withDefaults(
     imageUrl?: string
     templateId?: string
     showKindSelector?: boolean
-    kind?: DomainKind
+    kind?: DesktopKind
     persistentQuotaExceeded?: boolean
     temporalQuotaExceeded?: boolean
     entity?: 'desktops' | 'templates'

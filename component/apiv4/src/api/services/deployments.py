@@ -276,7 +276,7 @@ class DeploymentService:
         return CommonDeployments.count_recreate_desktops(payload, deployment_id)
 
     @staticmethod
-    def stop_all_desktops(deployment_id: str) -> None:
+    def stop_all_desktops(deployment_id: str, force: bool = False) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -285,10 +285,12 @@ class DeploymentService:
                 traceback.format_exc(),
             )
 
-        DesktopEvents.desktops_stop(desktops)
+        DesktopEvents.desktops_stop(desktops, force=force, include_shutting_down=force)
 
     @staticmethod
-    def stop_user_desktops(deployment_id: str, user_id: str) -> None:
+    def stop_user_desktops(
+        deployment_id: str, user_id: str, force: bool = False
+    ) -> None:
         # Ownership is already checked by the route, but not that user_id
         # belongs to the deployment; without this, an owner could probe
         # arbitrary user_ids via the 404-vs-success response. Enforce
@@ -316,7 +318,7 @@ class DeploymentService:
                 traceback.format_exc(),
             )
 
-        DesktopEvents.desktops_stop(desktops)
+        DesktopEvents.desktops_stop(desktops, force=force, include_shutting_down=force)
 
     @staticmethod
     def get_shared_deployments(user_payload: dict) -> list[dict]:
@@ -353,6 +355,7 @@ class DeploymentService:
             # clients get a status they have no translation for.
             CommonDesktops.parse_frontend_desktop_status(desktop)
             desktop.pop("create_dict", None)
+            desktop["visible"] = desktop.pop("tag_visible", None)
             # ``guest_properties.viewers`` keys are the underscored DB form
             # (``browser_vnc`` / ``file_spice`` / ...). The Pydantic
             # response model (``UserDeploymentDesktop``) hyphenates on

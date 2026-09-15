@@ -34,6 +34,7 @@ import {
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
 import { dateIsToday } from '@/lib/utils'
+import { getPreferredFrontend } from '@/lib/frontendModeMap'
 import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -339,10 +340,10 @@ const selectedCategory = computed(() => {
 
 // Swap the login logo to the selected category's branding logo (the
 // per-category endpoint falls back to the default logo when none is enabled).
-const logoSrc = computed(() =>
+const logoCategoryId = computed(() =>
   selectedCategory.value && selectedCategory.value !== 'default'
-    ? `/api/v4/logo/category/${selectedCategory.value}`
-    : '/api/v4/logo'
+    ? selectedCategory.value
+    : undefined
 )
 
 const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
@@ -562,7 +563,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  window.location.pathname = '/'
+  window.location.pathname = getPreferredFrontend() === 'vue3' ? '/frontend/desktops' : '/'
 }
 
 const onFormSubmit = async (values) => {
@@ -695,7 +696,7 @@ watch(categoryError, (newErr) => {
     :loading="isPending"
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
-    :logo-src="logoSrc"
+    :logo-category-id="logoCategoryId"
     :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >

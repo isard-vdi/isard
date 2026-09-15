@@ -8,6 +8,7 @@ import Badge from '@/components/badge/Badge.vue'
 import DomainInfoContent, { type DomainInfoInterface } from './DomainInfoContent.vue'
 import { desktopStatusLabel } from '@/lib/desktops'
 import { Icon } from '@/components/icon'
+import { domainKindStyle, resolveDomainKind, type DesktopKind } from '@/lib/domainKind'
 
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -36,7 +37,7 @@ export interface DomainInfoItem {
   credentials?: { username?: string | null; password?: string | null } | null
   kind: 'desktop' | 'template'
   template?: DesktopTemplate | null
-  desktopKind?: 'persistent' | 'nonpersistent' | 'deployment' | null
+  desktopKind?: DesktopKind | null
 }
 
 export interface Props {
@@ -61,7 +62,7 @@ export interface Props {
   credentials?: { username?: string | null; password?: string | null } | null
   kind: 'desktop' | 'template'
   template?: DesktopTemplate | null
-  desktopKind?: 'persistent' | 'nonpersistent' | 'deployment' | null
+  desktopKind?: DesktopKind | null
   items?: DomainInfoItem[]
 }
 
@@ -151,33 +152,15 @@ const statusBadgeColor = (status?: string): 'green' | 'gray' | 'red' | 'lightyel
   return 'lightyellow'
 }
 
-const resolveKind = (
-  item: DomainInfoItem
-): 'persistent' | 'nonpersistent' | 'deployment' | undefined => {
-  if (item.kind !== 'desktop' || item.desktopKind == null) return undefined
-  return item.desktopKind
-}
+const itemStyle = (item: DomainInfoItem) =>
+  domainKindStyle(resolveDomainKind(item.kind, item.desktopKind))
 
-const nameBadgeClass = (item: DomainInfoItem): string => {
-  const kind = resolveKind(item)
-  if (kind === 'persistent') return 'bg-secondary-3-300 text-secondary-3-600'
-  if (kind === 'nonpersistent') return 'bg-secondary-1-300 text-secondary-1-600'
-  if (kind === 'deployment') return 'bg-secondary-2-300 text-secondary-2-600'
-  return 'bg-brand-700 text-base-white'
-}
-
-const cardBorderClass = (item: DomainInfoItem): string => {
-  const kind = resolveKind(item)
-  if (kind === 'persistent') return 'border-l-6 border-l-secondary-3-500'
-  if (kind === 'nonpersistent') return 'border-l-6 border-l-secondary-1-500'
-  if (kind === 'deployment') return 'border-l-6 border-l-secondary-2-500'
-  return 'border-l-6 border-l-brand-700'
-}
-
-const kindSrLabel = (item: DomainInfoItem): string => {
-  const kind = resolveKind(item)
-  if (!kind) return ''
-  return t(`components.domain-info-modal.kind.${kind}`)
+// The kind rides on the card accent, so it also needs a name: a colour alone
+// leaves out anyone who cannot tell these four apart.
+const kindLabel = (item: DomainInfoItem): string => {
+  if (item.kind === 'template') return t('components.domain-info-modal.kind.template')
+  if (item.desktopKind) return t(`components.domain-info-modal.kind.${item.desktopKind}`)
+  return t('components.domain-info-modal.kind.desktop')
 }
 </script>
 
@@ -233,14 +216,14 @@ const kindSrLabel = (item: DomainInfoItem): string => {
         v-else
         :key="item.domainId ?? index"
         class="bg-base-white py-5 px-4 rounded-lg border border-gray-warm-300"
-        :class="cardBorderClass(item)"
+        :class="itemStyle(item).accent"
       >
         <div class="flex items-center justify-between gap-3 pb-2">
           <h3
-            class="flex items-center gap-1.5 px-1.5 rounded-xs font-semibold text-md min-w-0"
-            :class="nameBadgeClass(item)"
+            class="flex flex-wrap items-baseline gap-x-1.5 px-1.5 rounded-xs font-semibold text-md min-w-0"
+            :class="itemStyle(item).badge"
           >
-            <span v-if="kindSrLabel(item)" class="sr-only">{{ kindSrLabel(item) }}: </span>
+            <span class="shrink-0 text-sm font-regular">{{ kindLabel(item) }}</span>
             <span class="min-w-0 break-words">{{ item.name }}</span>
           </h3>
           <Badge

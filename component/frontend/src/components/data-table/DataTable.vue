@@ -122,7 +122,9 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
           :sorted="table.getColumn(header.key)?.getIsSorted()"
           @togle-sorting="table.getColumn(header.key)?.toggleSorting()"
         >
-          {{ header.name }}
+          <slot :name="`head-${header.key}`" :header="header">
+            {{ header.name }}
+          </slot>
         </DataTableHead>
       </DataTableHeaderRow>
 
