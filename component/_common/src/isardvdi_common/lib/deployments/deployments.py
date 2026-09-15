@@ -334,7 +334,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .get_all(deployment["id"], index="tag")
                         .count(),
                         "started_desktops": r.table("domains")
-                        .get_all([deployment["id"], "Started"], index="tag_status")
+                        .get_all(
+                            [deployment["id"], "Started"],
+                            [deployment["id"], "Shutting-down"],
+                            index="tag_status",
+                        )
                         .count(),
                         "visible_desktops": r.table("domains")
                         .get_all(deployment["id"], index="tag")
@@ -402,7 +406,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .get_all(deployment["id"], index="tag")
                         .count(),
                         "started_desktops": r.table("domains")
-                        .get_all([deployment["id"], "Started"], index="tag_status")
+                        .get_all(
+                            [deployment["id"], "Started"],
+                            [deployment["id"], "Shutting-down"],
+                            index="tag_status",
+                        )
                         .count(),
                         "visible_desktops": r.table("domains")
                         .get_all(deployment["id"], index="tag")
@@ -455,7 +463,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 .merge(
                     {
                         "started_desktops": r.table("domains")
-                        .get_all([deployment_id, "Started"], index="tag_status")
+                        .get_all(
+                            [deployment_id, "Started"],
+                            [deployment_id, "Shutting-down"],
+                            index="tag_status",
+                        )
                         .count(),
                         "visible_desktops": r.table("domains")
                         .get_all(deployment_id, index="tag")
