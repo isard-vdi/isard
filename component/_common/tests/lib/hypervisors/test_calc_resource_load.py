@@ -35,6 +35,16 @@ class TestCalcResourceLoad:
 
         assert result["cpu"] == {"total": 100, "used": 13, "free": 87}
 
+    def test_free_counts_iowait_as_available(self):
+        stats = {
+            "cpu_5min": {"used": 5.0, "idle": 40.0, "iowait": 55.0},
+            "mem_stats": {"total": 0, "used": 0},
+        }
+
+        result = HypervisorsProcessed.calc_resource_load(stats)
+
+        assert result["cpu"] == {"total": 100, "used": 5, "free": 95}
+
     def test_ram_free_uses_byte_division(self):
         stats = {
             "cpu_5min": {"used": 0.0, "idle": 100.0},

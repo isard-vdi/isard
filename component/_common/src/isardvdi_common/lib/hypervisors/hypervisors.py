@@ -195,9 +195,9 @@ class HypervisorsProcessed(RethinkSharedConnection):
     def calc_resource_load(stats: dict) -> dict:
         """CPU/RAM load derived from the 5-minute stats sample.
 
-        Mirrors the retired Go ``calcLoad``: CPU ``used`` rounds up and
-        ``idle`` rounds down, RAM converts KB to MB with integer division
-        and ``free`` comes from the KB difference.
+        CPU ``used`` rounds up and free rounds down; free counts iowait,
+        which is CPU available to other work. RAM converts KB to MB with
+        integer division and ``free`` comes from the KB difference.
         """
         if not stats:
             return {
@@ -213,7 +213,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "cpu": {
                 "total": 100,
                 "used": math.ceil(cpu.get("used", 0)),
-                "free": math.floor(cpu.get("idle", 0)),
+                "free": math.floor(cpu.get("idle", 0) + cpu.get("iowait", 0)),
             },
             "ram": {
                 "total": total // 1024,

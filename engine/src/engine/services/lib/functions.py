@@ -203,9 +203,9 @@ def calcule_cpu_hyp_stats(start, end, round_digits=3):
         percent[k] = round(
             (diff_time[k] / float(total_diff_time)) * 100.0, round_digits
         )
-    percent["used"] = round(
-        percent["iowait"] + percent["kernel"] + percent["user"], round_digits
-    )
+    # iowait is CPU that is free to run other work, so it is not consumed:
+    # libvirt's kernel field already folds in irq and softirq on Linux.
+    percent["used"] = round(percent["kernel"] + percent["user"], round_digits)
     return percent, diff_time, total_diff_time
 
 
