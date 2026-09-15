@@ -207,3 +207,44 @@ class TestRawDelegates:
     def test_list_users_forwards_filters(self, mock_list):
         AdminUsersService.list_users(nav="admin", category_id="default")
         mock_list.assert_called_once_with("admin", "default")
+
+
+class TestGetUserTemplates:
+    """The route validates each row against ``AdminUserTemplateItem``, so a row
+    the model rejects reaches the caller as a 500."""
+
+    ROW = {
+        "id": "t1",
+        "name": "Plantilla",
+        "icon": "fa-desktop",
+        "image": {"id": "img-1", "type": "stock", "url": "/img.png"},
+        "description": "d",
+    }
+
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    @patch("api.services.admin.users.DomainsProcessed.list_by_kind_user")
+    def test_row_validates_against_the_response_model(self, mock_list, _owns):
+        from api.schemas.admin.users import AdminUserTemplateItem
+
+        mock_list.return_value = [self.ROW]
+        rows = AdminUsersService.get_user_templates(JWT_PAYLOAD, "u1")
+        AdminUserTemplateItem(**rows[0])
+
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    @patch("api.services.admin.users.DomainsProcessed.list_by_kind_user")
+    def test_image_is_asked_for_and_carried(self, mock_list, _owns):
+        mock_list.return_value = [self.ROW]
+        rows = AdminUsersService.get_user_templates(JWT_PAYLOAD, "u1")
+        assert "image" in mock_list.call_args[0][2]
+        assert rows[0]["image"] == self.ROW["image"]
+
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    @patch("api.services.admin.users.DomainsProcessed.list_by_kind_user")
+    def test_a_row_without_an_image_still_validates(self, mock_list, _owns):
+        from api.schemas.admin.users import AdminUserTemplateItem
+
+        row = {k: v for k, v in self.ROW.items() if k != "image"}
+        mock_list.return_value = [row]
+        rows = AdminUsersService.get_user_templates(JWT_PAYLOAD, "u1")
+        assert rows[0]["image"] is None
+        AdminUserTemplateItem(**rows[0])

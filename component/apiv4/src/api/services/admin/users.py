@@ -908,14 +908,14 @@ class AdminUsersService:
         """Get templates allowed for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         templates = DomainsProcessed.list_by_kind_user(
-            "template", user_id, ["id", "name", "icon", "description"]
+            "template", user_id, ["id", "name", "icon", "image", "description"]
         )
         return [
             {
                 "id": t["id"],
                 "name": t["name"],
                 "icon": t.get("icon", ""),
-                "image": "",
+                "image": t.get("image"),
                 "description": t.get("description", ""),
             }
             for t in templates
