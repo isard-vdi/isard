@@ -34,8 +34,8 @@ $OVSDB_CMD >/tmp/ovsdb-server.out 2>&1
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restricted access"
 
-ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
-ovs-vsctl add-br ovsbr0
+ovs-vswitchd --detach --pidfile >/tmp/ovs-vswitchd.out 2>&1
+ovs-vsctl --may-exist add-br ovsbr0
 ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14
 ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192
 ip link set ovsbr0 up
@@ -46,11 +46,19 @@ _GUESTS_PREFIX=${_GUESTS_BASE%.*}
 _GUESTS_MASK=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f2)
 BASTION_GUEST_IP="${_GUESTS_PREFIX}.2"
 
-ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.23
-ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
+ovs-vsctl --may-exist add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.23
+ovs-vsctl --may-exist add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${BASTION_GUEST_IP}/${_GUESTS_MASK} dev vlan-wg >> /var/log/ovs 2>&1
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 ovs-vsctl show
+
+# The last line must stay /bastion: the devel compose part runs this script without it.
+while sleep 10; do
+    if ! ovs-appctl -t ovs-vswitchd version >/dev/null 2>&1; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] ovs-vswitchd is not running, starting it again"
+        ovs-vswitchd --detach --pidfile >>/tmp/ovs-vswitchd.out 2>&1
+    fi
+done &
 
 /bastion
