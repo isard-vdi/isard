@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ToggleGroup, ToggleGroupItem } from '.'
+import { BadgeMini } from '@/components/badge/mini'
 import { Icon } from '@/components/icon'
 
 const meta = {
@@ -27,19 +28,22 @@ function createStory(template: string, components: any = {}): Story {
   }
 }
 
-export const Desktops = createStory(`
+export const Desktops = createStory(
+  `
   <ToggleGroup :spacing="1" type="single" size="default" class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg">
-    <ToggleGroupItem value="all" variant="gray-warm" selected>
-      All
+    <ToggleGroupItem v-slot="slotProps" value="all" variant="gray-warm" selected>
+      All<BadgeMini name="status-all" value="10" :selected="slotProps.pressed" />
     </ToggleGroupItem>
-    <ToggleGroupItem value="on" variant="success">
-      On
+    <ToggleGroupItem v-slot="slotProps" value="on" variant="success">
+      On<BadgeMini name="status-started" value="6" :selected="slotProps.pressed" />
     </ToggleGroupItem>
-    <ToggleGroupItem value="off" variant="error">
-      Off
+    <ToggleGroupItem v-slot="slotProps" value="off" variant="error">
+      Off<BadgeMini name="status-stopped" value="4" :selected="slotProps.pressed" />
     </ToggleGroupItem>
   </ToggleGroup>
-`)
+`,
+  { BadgeMini }
+)
 
 export const Templates = createStory(
   `

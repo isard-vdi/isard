@@ -589,6 +589,12 @@ const RUNNING_DESKTOP_STATUSES: DesktopStatusEnum[] = [
   DesktopStatusEnum.WAITING_IP
 ]
 
+const desktopStatusCounts = computed(() => {
+  const all = desktops.value?.desktops ?? []
+  const started = all.filter((desktop) => RUNNING_DESKTOP_STATUSES.includes(desktop.status)).length
+  return { all: all.length, started, stopped: all.length - started }
+})
+
 const filteredDesktops = computed(() => {
   return (
     desktops.value?.desktops.filter((desktop) => {
@@ -1733,15 +1739,36 @@ const missingCardRows = computed(() => {
           size="default"
           class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
         >
-          <ToggleGroupItem value="all" variant="gray-warm">{{
-            t('views.desktops.filters.status.all')
-          }}</ToggleGroupItem>
-          <ToggleGroupItem value="started" variant="success">{{
-            t('views.desktops.filters.status.started')
-          }}</ToggleGroupItem>
-          <ToggleGroupItem value="stopped" variant="error">{{
-            t('views.desktops.filters.status.stopped')
-          }}</ToggleGroupItem>
+          <ToggleGroupItem v-slot="slotProps" value="all" variant="gray-warm">
+            {{ t('views.desktops.filters.status.all') }}
+            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
+            <BadgeMini
+              v-else
+              name="status-all"
+              :value="desktopStatusCounts.all"
+              :selected="slotProps.pressed"
+            />
+          </ToggleGroupItem>
+          <ToggleGroupItem v-slot="slotProps" value="started" variant="success">
+            {{ t('views.desktops.filters.status.started') }}
+            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
+            <BadgeMini
+              v-else
+              name="status-started"
+              :value="desktopStatusCounts.started"
+              :selected="slotProps.pressed"
+            />
+          </ToggleGroupItem>
+          <ToggleGroupItem v-slot="slotProps" value="stopped" variant="error">
+            {{ t('views.desktops.filters.status.stopped') }}
+            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
+            <BadgeMini
+              v-else
+              name="status-stopped"
+              :value="desktopStatusCounts.stopped"
+              :selected="slotProps.pressed"
+            />
+          </ToggleGroupItem>
         </ToggleGroup>
       </div>
     </div>

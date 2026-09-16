@@ -16,10 +16,10 @@ export const toggleVariants = cva(
         outline:
           'border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground',
         success: `
-          data-[state=on]:bg-success-800 data-[state=on]:text-base-white
-          data-[state=on]:hover:bg-success-900 data-[state=on]:hover:text-base-white
-          data-[state=active]:bg-success-800 data-[state=active]:text-base-white
-          data-[state=active]:hover:bg-success-900 data-[state=active]:hover:text-base-white
+          data-[state=on]:bg-success-700 data-[state=on]:text-base-white
+          data-[state=on]:hover:bg-success-800 data-[state=on]:hover:text-base-white
+          data-[state=active]:bg-success-700 data-[state=active]:text-base-white
+          data-[state=active]:hover:bg-success-800 data-[state=active]:hover:text-base-white
           focus:ring-4 focus:ring-gray
         `,
         'gray-warm': `
@@ -30,10 +30,10 @@ export const toggleVariants = cva(
           focus:ring-4 focus:ring-gray
         `,
         error: `
-          data-[state=on]:bg-error-700 data-[state=on]:text-base-white
-          data-[state=on]:hover:bg-error-800 data-[state=on]:hover:text-base-white
-          data-[state=active]:bg-error-700 data-[state=active]:text-base-white
-          data-[state=active]:hover:bg-error-800 data-[state=active]:hover:text-base-white
+          data-[state=on]:bg-error-600 data-[state=on]:text-base-white
+          data-[state=on]:hover:bg-error-700 data-[state=on]:hover:text-base-white
+          data-[state=active]:bg-error-600 data-[state=active]:text-base-white
+          data-[state=active]:hover:bg-error-700 data-[state=active]:hover:text-base-white
           focus:ring-4 focus:ring-gray
         `,
         'desktops-all': `

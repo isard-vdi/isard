@@ -8,7 +8,15 @@ const meta = {
   argTypes: {
     name: {
       control: 'select',
-      options: ['all', 'persistent', 'temporary', 'deployment']
+      options: [
+        'all',
+        'persistent',
+        'temporary',
+        'deployment',
+        'status-all',
+        'status-started',
+        'status-stopped'
+      ]
     },
     value: {
       control: 'text'
@@ -76,5 +84,38 @@ export const TemporarySelected = createStory({
 export const DeploymentSelected = createStory({
   value: '2',
   name: 'deployment',
+  selected: true
+})
+
+export const StatusAll = createStory({
+  value: '10',
+  name: 'status-all'
+})
+
+export const StatusStarted = createStory({
+  value: '6',
+  name: 'status-started'
+})
+
+export const StatusStopped = createStory({
+  value: '4',
+  name: 'status-stopped'
+})
+
+export const StatusAllSelected = createStory({
+  value: '10',
+  name: 'status-all',
+  selected: true
+})
+
+export const StatusStartedSelected = createStory({
+  value: '6',
+  name: 'status-started',
+  selected: true
+})
+
+export const StatusStoppedSelected = createStory({
+  value: '4',
+  name: 'status-stopped',
   selected: true
 })
