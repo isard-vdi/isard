@@ -132,6 +132,23 @@ def test_a_failed_delete_does_not_claim_the_row_is_downloaded():
     assert "DownloadFailed" in statuses["failed"]
 
 
+def test_a_failed_delete_of_an_invalid_file_does_not_make_it_downloaded():
+    media = _FakeMedia("DownloadFailedInvalidFormat")
+    media.delete_file()
+    statuses = media.created_tasks[0]["dependents"][0]["job_kwargs"]["kwargs"][
+        "statuses"
+    ]
+    assert list(statuses["failed"]) == ["DownloadFailedInvalidFormat"]
+    assert list(statuses["canceled"]) == ["DownloadFailedInvalidFormat"]
+
+
+def test_the_download_chain_tells_the_worker_the_media_kind():
+    media = _FakeMedia("DownloadStarting", path_downloaded="/isard/media/m.floppy")
+    media.kind = "floppy"
+    media.enqueue_download_chain(user_id="u1", url="https://example/f.img")
+    assert media.created_tasks[0]["job_kwargs"]["kwargs"]["kind"] == "floppy"
+
+
 def test_a_refused_enqueue_leaves_the_row_where_it_was(monkeypatch):
     """The bug that made rows undeletable: maintenance with no task."""
     media = _FakeMedia("Downloaded")

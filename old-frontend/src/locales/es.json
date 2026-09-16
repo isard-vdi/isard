@@ -1719,7 +1719,7 @@
     "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
     "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
     "template_storage_not_ready": "El disco de esta plantilla no está listo y todavía no se puede utilizar, por favor contacta con el administrador",
-    "media_invalid": "El archivo descargado no es un formato de medios válido. Debería ser eliminado, ya que no se puede utilizar",
+    "media_invalid": "El archivo descargado no es un medio válido. El enlace debe descargar el archivo directamente (por ejemplo, un enlace que termine en .iso) y no abrir una página web. Debería ser eliminado, ya que no se puede utilizar",
     "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
     "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
     "no_reservables": "El ítem no tiene reservables",

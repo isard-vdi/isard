@@ -454,6 +454,37 @@ def test_media_download_update_status_failed_when_aborting():
     assert store["m1"]["status"] == "DownloadFailed"
 
 
+def test_media_download_update_status_invalid_format_when_the_file_is_not_media():
+    from isardvdi_change_handler.task_results import media
+
+    download = SimpleNamespace(
+        exc_info="Traceback ...\nisardvdi_storage.task.DownloadInvalidFormatError: "
+        "the downloaded file is not a valid iso image\n",
+        dependencies=[],
+    )
+    media_update = SimpleNamespace(exc_info=None, dependencies=[download])
+    task = _task(depending_status="failed", dependencies=[media_update])
+    store = {"m1": {"status": "Downloading"}}
+    with patch.object(media, "Media", _media_over(store)):
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert store["m1"]["status"] == "DownloadFailedInvalidFormat"
+
+
+def test_media_download_update_status_failed_when_the_transfer_itself_failed():
+    from isardvdi_change_handler.task_results import media
+
+    download = SimpleNamespace(
+        exc_info="subprocess.CalledProcessError: returned non-zero exit status 6",
+        dependencies=[],
+    )
+    media_update = SimpleNamespace(exc_info=None, dependencies=[download])
+    task = _task(depending_status="failed", dependencies=[media_update])
+    store = {"m1": {"status": "Downloading"}}
+    with patch.object(media, "Media", _media_over(store)):
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert store["m1"]["status"] == "DownloadFailed"
+
+
 def test_media_download_update_status_failed_when_chain_failed():
     """depending_status=failed → DownloadFailed regardless of media row."""
     store = {"m1": {"status": "Downloading"}}

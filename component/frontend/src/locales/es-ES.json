@@ -612,7 +612,7 @@
           }
         },
         "unavailable": "Contenido multimedia no disponible. Por favor, inténtalo más tarde.",
-        "invalid-format": "El archivo descargado no es una imagen ISO/disquete válida. Elimina esta entrada y prueba con otra URL."
+        "invalid-format": "El archivo descargado no es una imagen ISO/disquete válida. El enlace debe descargar el archivo directamente (por ejemplo, un enlace que termine en .iso) y no abrir una página web. Elimina esta entrada y prueba con un enlace de descarga directa."
       },
       "delete-confirmation-modal": {
         "title": "Eliminar el medio '{name}'",

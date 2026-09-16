@@ -1265,7 +1265,7 @@
     "unable_to_update": "Ezin da eguneratu datu-basean .",
     "unknown_extension": "Kargatutako fitxategia ez da agertzen , luzapen ezezaguna duelako",
     "no_wireguard_keys": "Oraindik ez dago wireguard gakorik webapp config.-en. Saiatu berriro segundo batzuetan...",
-    "media_invalid": "Deskargatutako fitxategia ez da baliozko multimedia-formatua. Ezabatu egin behar da, ezin baita erabili",
+    "media_invalid": "Deskargatutako fitxategia ez da baliozko multimedia-fitxategia. Estekak fitxategia zuzenean deskargatu behar du (adibidez, .iso-z amaitzen den esteka bat), ez web-orri bat ireki. Ezabatu egin behar da, ezin baita erabili",
     "only_works_rdp": "\"GPU bakarrik\" moduak RDP bisoreekin bakarrik funtzionatzen du",
     "password_character_length": "Pasahitzak gutxienez {num} ““karaktere-zenbakia” izan behar du",
     "password_digits": "Pasahitzak gutxienez zenbaki hau {num} izan behar du",
