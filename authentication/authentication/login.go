@@ -27,8 +27,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		*args.Redirect = validateRedirect(*args.Redirect)
 	}
 
-	// Check if the user sends a token.
-	if args.Token != nil {
+	// Check if the user sends a token. Submitted credentials always take precedence
+	if args.Token != nil && args.FormUsername == nil && args.FormPassword == nil {
 		typ, err := token.GetTokenType(*args.Token)
 		if err != nil {
 			return "", "", fmt.Errorf("get the JWT token type: %w", err)
