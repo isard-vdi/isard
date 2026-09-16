@@ -59,6 +59,7 @@ from isardvdi_common.connections.redis_blocking import (
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.lib import queue_coverage
+from isardvdi_common.lib.storage.migration_run import advance
 from isardvdi_common.models.task import (
     _TERMINAL_STATUSES,
     CoreStep,
@@ -618,6 +619,18 @@ def _record_service_time(task):
         return
 
 
+async def _wake_migration(migration_id):
+    """Drive this migration now that one of its tasks finished."""
+    try:
+        return await asyncio.to_thread(advance, migration_id, check_abandon=False)
+    except Exception:
+        log.exception(
+            "task_results: could not wake the reconciler of migration %s",
+            migration_id,
+        )
+        return None
+
+
 async def _process_entry(redis_manager, fields):
     """Dispatch one ``stream:task-results`` entry.
 
@@ -629,6 +642,9 @@ async def _process_entry(redis_manager, fields):
     kind = fields.get("kind") or fields.get(b"kind")
     task_id = fields.get("task_id") or fields.get(b"task_id")
     job_status = fields.get("job_status") or fields.get(b"job_status")
+    migration_id = fields.get("migration_id") or fields.get(b"migration_id")
+    if isinstance(migration_id, bytes):
+        migration_id = migration_id.decode()
     if isinstance(kind, bytes):
         kind = kind.decode()
     if isinstance(task_id, bytes):
@@ -639,9 +655,6 @@ async def _process_entry(redis_manager, fields):
     # Migration progress events carry a migration_id (no task_id): the
     # reconciler XADDs them so the admin storage-pools view live-updates.
     if kind == "migration":
-        migration_id = fields.get("migration_id") or fields.get(b"migration_id")
-        if isinstance(migration_id, bytes):
-            migration_id = migration_id.decode()
         if migration_id:
             await send_migration_socket(redis_manager, migration_id)
         else:
@@ -730,6 +743,10 @@ async def _process_entry(redis_manager, fields):
         # duration is noise.
         if root_status == JobStatus.FINISHED:
             await asyncio.to_thread(_record_service_time, task)
+
+    # After the status write above: advance() reads it to pick the next step.
+    if migration_id:
+        await _wake_migration(migration_id)
 
     # The status the chain died with, or None while it is still succeeding.
     dead_chain = None
