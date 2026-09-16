@@ -517,6 +517,84 @@ class TestRegistryDownloadSource:
         assert headers == []
 
 
+class TestPrivateRegistryDomainsFolder:
+    """Private domains are listed as public ones but served from ``private_domains``."""
+
+    def _svc(self, monkeypatch, private, public, private_code="priv"):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_get_cfg",
+            staticmethod(
+                lambda: ("https://repository.example.com", "abc", private_code)
+            ),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_download_web_private_kind",
+            staticmethod(lambda kind="private_domains": private),
+        )
+        monkeypatch.setattr(
+            mod.AdminDownloadsService,
+            "_download_web_kind",
+            staticmethod(lambda kind: public),
+        )
+        return mod.AdminDownloadsService
+
+    def test_a_private_domain_is_fetched_from_the_private_folder(self, monkeypatch):
+        svc = self._svc(
+            monkeypatch,
+            private=[{"url-isard": "win_server_2025.qcow2"}],
+            public=[{"url-isard": "debian.qcow2"}],
+        )
+        url, headers = svc._registry_download_source(
+            "domains", {"url-isard": "win_server_2025.qcow2"}
+        )
+        assert url == (
+            "https://repository.example.com/storage/private_domains/"
+            "win_server_2025.qcow2"
+        )
+        assert headers == ["Authorization: abc"]
+
+    def test_a_public_domain_stays_in_the_public_folder(self, monkeypatch):
+        svc = self._svc(
+            monkeypatch,
+            private=[{"url-isard": "win_server_2025.qcow2"}],
+            public=[{"url-isard": "debian.qcow2"}],
+        )
+        url, _ = svc._registry_download_source("domains", {"url-isard": "debian.qcow2"})
+        assert url.endswith("/storage/domains/debian.qcow2")
+
+    def test_a_name_listed_in_both_keeps_the_public_folder(self, monkeypatch):
+        svc = self._svc(
+            monkeypatch,
+            private=[{"url-isard": "shared.qcow2"}],
+            public=[{"url-isard": "shared.qcow2"}],
+        )
+        url, _ = svc._registry_download_source("domains", {"url-isard": "shared.qcow2"})
+        assert url.endswith("/storage/domains/shared.qcow2")
+
+    def test_without_a_private_code_nothing_is_private(self, monkeypatch):
+        svc = self._svc(
+            monkeypatch,
+            private=[{"url-isard": "win_server_2025.qcow2"}],
+            public=[],
+            private_code=False,
+        )
+        url, _ = svc._registry_download_source(
+            "domains", {"url-isard": "win_server_2025.qcow2"}
+        )
+        assert url.endswith("/storage/domains/win_server_2025.qcow2")
+
+    def test_an_unreachable_private_listing_falls_back_to_the_public_folder(
+        self, monkeypatch
+    ):
+        svc = self._svc(monkeypatch, private=False, public=500)
+        url, _ = svc._registry_download_source("domains", {"url-isard": "x.qcow2"})
+        assert url.endswith("/storage/domains/x.qcow2")
+
+
 class TestDownloadsDeleteAndAbort:
     """The delete button used to write a status and hope.
 
