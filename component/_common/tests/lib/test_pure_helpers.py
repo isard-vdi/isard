@@ -14,7 +14,9 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.isard_viewer import (
     default_guest_properties,
     with_default_credentials,
+    without_unused_credentials,
 )
+from isardvdi_common.helpers.viewers import has_rdp_viewer
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     _sorted_atomic_items,
 )
@@ -264,6 +266,87 @@ class TestWithDefaultCredentials:
         gp = {"fullscreen": False}
         with_default_credentials(gp)
         assert gp == {"fullscreen": False}
+
+
+# -------------------------------------------------------------------------
+# has_rdp_viewer — which viewers log in with the guest credentials
+# -------------------------------------------------------------------------
+
+
+class TestHasRdpViewer:
+    @pytest.mark.parametrize("viewer", ["browser_rdp", "file_rdpgw", "file_rdpvpn"])
+    def test_every_rdp_viewer_counts(self, viewer):
+        assert has_rdp_viewer({viewer: {"options": None}}) is True
+
+    @pytest.mark.parametrize("viewer", ["file_spice", "browser_vnc"])
+    def test_the_others_do_not(self, viewer):
+        assert has_rdp_viewer({viewer: {"options": None}}) is False
+
+    def test_a_null_value_is_a_deselected_viewer(self):
+        """Legacy rows persist a deselected viewer as ``{"browser_rdp": None}``
+        instead of dropping the key; key presence alone must not count."""
+        assert has_rdp_viewer({"browser_rdp": None}) is False
+
+    @pytest.mark.parametrize(
+        "viewers", [pytest.param(None, id="null"), pytest.param({}, id="empty")]
+    )
+    def test_nothing_selected(self, viewers):
+        assert has_rdp_viewer(viewers) is False
+
+
+# -------------------------------------------------------------------------
+# without_unused_credentials — the pair is dropped when nothing can use it
+# -------------------------------------------------------------------------
+
+
+class TestWithoutUnusedCredentials:
+    EMPTY = {"username": "", "password": ""}
+    STORED = {"username": "alice", "password": "s3cret"}
+
+    def _gp(self, viewers, **over):
+        gp = {"credentials": dict(self.STORED), "viewers": viewers}
+        gp.update(over)
+        return gp
+
+    @pytest.mark.parametrize("viewer", ["browser_rdp", "file_rdpgw", "file_rdpvpn"])
+    def test_an_rdp_viewer_keeps_them(self, viewer):
+        """These three log into the guest with the pair, so it has to stay."""
+        gp = self._gp({viewer: {"options": None}})
+        assert without_unused_credentials(gp)["credentials"] == self.STORED
+
+    def test_the_bastion_keeps_them(self):
+        """The bastion's SSH inner hop authenticates with the same pair, so a
+        desktop reachable through it keeps them even with no RDP viewer."""
+        gp = self._gp({"file_spice": {"options": None}})
+        result = without_unused_credentials(gp, bastion_enabled=True)
+        assert result["credentials"] == self.STORED
+
+    def test_neither_blanks_them(self):
+        """SPICE and VNC never read the pair: leaving it behind would be a
+        plaintext password stored for nobody."""
+        gp = self._gp({"file_spice": {"options": None}})
+        assert without_unused_credentials(gp)["credentials"] == self.EMPTY
+
+    def test_a_deselected_rdp_viewer_does_not_save_them(self):
+        gp = self._gp({"browser_rdp": None, "browser_vnc": {"options": None}})
+        assert without_unused_credentials(gp)["credentials"] == self.EMPTY
+
+    def test_writes_the_pair_even_when_the_key_was_absent(self):
+        """The domain update deep-merges guest_properties, so only an explicit
+        empty pair clears what is stored — an absent key preserves it."""
+        gp = {"viewers": {"browser_vnc": {"options": None}}}
+        assert without_unused_credentials(gp)["credentials"] == self.EMPTY
+
+    def test_keeps_the_other_keys(self):
+        gp = self._gp({"browser_vnc": {"options": None}}, fullscreen=True)
+        result = without_unused_credentials(gp)
+        assert result["fullscreen"] is True
+        assert result["viewers"] == {"browser_vnc": {"options": None}}
+
+    def test_does_not_mutate_the_caller(self):
+        gp = self._gp({"browser_vnc": {"options": None}})
+        without_unused_credentials(gp)
+        assert gp["credentials"] == self.STORED
 
 
 # -------------------------------------------------------------------------

@@ -41,7 +41,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
-from isardvdi_common.helpers.viewers import strip_unavailable_viewers
+from isardvdi_common.helpers.viewers import RDP_VIEWERS, strip_unavailable_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from rethinkdb import r
 from socketio import RedisManager
@@ -214,8 +214,7 @@ class DesktopViewers(RethinkSharedConnection):
             .get("hardware", {})
             .get("interfaces", [])
         ]
-        rdp_viewers = ["file_rdpgw", "browser_rdp", "file_rdpvpn"]
-        if any(viewers.get(v) for v in rdp_viewers) and "wireguard" not in interfaces:
+        if any(viewers.get(v) for v in RDP_VIEWERS) and "wireguard" not in interfaces:
             raise Error(
                 "bad_request",
                 "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",

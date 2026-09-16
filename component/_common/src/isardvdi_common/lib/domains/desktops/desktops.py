@@ -46,13 +46,18 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_viewer import (
     default_guest_properties,
     with_default_credentials,
+    without_unused_credentials,
 )
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.rules import get_unused_item_timeout
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
-from isardvdi_common.helpers.viewers import available_viewers, strip_unavailable_viewers
+from isardvdi_common.helpers.viewers import (
+    available_viewers,
+    has_rdp_viewer,
+    strip_unavailable_viewers,
+)
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
@@ -88,6 +93,19 @@ _get_domain_enrichment_cache: SynchronizedTTLCache = SynchronizedTTLCache(
 MAX_VGPU_PROFILES_PER_DESKTOP = 4
 
 _BASTION_TARGETS_MISSING = object()
+
+
+def domain_bastion_enabled(domain_id):
+    """Whether the domain is reachable through the bastion"""
+    from isardvdi_common.models.targets import Targets
+
+    target = Targets.find_domain_target(domain_id)
+    if not target:
+        return False
+    return bool(
+        (target.get("ssh") or {}).get("enabled")
+        or (target.get("http") or {}).get("enabled")
+    )
 
 
 def validate_reservables_vgpus(vgpus, payload=None, existing_vgpus=None):
@@ -255,7 +273,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             return str(detail)
         try:
             decoded = json.loads(detail)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return detail
         if isinstance(decoded, str):
             return decoded
@@ -966,7 +984,13 @@ class DesktopsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
-    def parse_domain_update(cls, domain_id, new_data, admin_or_manager=False):
+    def parse_domain_update(
+        cls,
+        domain_id,
+        new_data,
+        admin_or_manager=False,
+        bastion_enabled=None,
+    ):
         domain = Caches.get_document("domains", domain_id)
         if not domain:
             raise Error(
@@ -1021,6 +1045,14 @@ class DesktopsProcessed(RethinkSharedConnection):
             "description"
         ):
             new_domain["description"] = new_data.get("description")
+
+        submitted_viewers = (new_data.get("guest_properties") or {}).get("viewers")
+        if submitted_viewers is not None and not has_rdp_viewer(submitted_viewers):
+            if bastion_enabled is None:
+                bastion_enabled = domain_bastion_enabled(domain_id)
+            new_data["guest_properties"] = without_unused_credentials(
+                new_data["guest_properties"], bastion_enabled=bastion_enabled
+            )
 
         if new_data.get("guest_properties") and new_data.get(
             "guest_properties"
@@ -1800,7 +1832,13 @@ class DesktopsProcessed(RethinkSharedConnection):
 
     @classmethod
     def update_desktop(
-        cls, desktop_id, desktop_data, admin_or_manager=False, bulk=False, payload=None
+        cls,
+        desktop_id,
+        desktop_data,
+        admin_or_manager=False,
+        bulk=False,
+        payload=None,
+        bastion_enabled=None,
     ):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.Update()_"""
         desktops = desktop_id if bulk else [desktop_id]
@@ -1814,7 +1852,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                     Cards.upload(d, image_data)
 
             data = copy.deepcopy(desktop_data)
-            desktop = cls.parse_domain_update(d, data, admin_or_manager)
+            desktop = cls.parse_domain_update(
+                d, data, admin_or_manager, bastion_enabled=bastion_enabled
+            )
             domain = Caches.get_document("domains", d)
 
             # Only when the edit actually changes reservables

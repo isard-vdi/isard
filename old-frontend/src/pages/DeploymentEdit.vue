@@ -141,6 +141,7 @@ import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
 import DeploymentUserPermissions from '@/components/deployments/DeploymentUserPermissions.vue'
+import { hasRdpViewer } from '@/shared/constants'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -240,9 +241,12 @@ export default {
               desktop_name: domain.value.name,
               desktop_description: domain.value.description,
               description: deploymentDescription.value || null,
-              // No credentials form on this page, so there is nothing of the
-              // user's to send: leave the key out and keep the stored ones.
+              // No credentials form on this page: with no viewer left that
+              // can use them, send the empty pair so the deployment stops
+              // carrying credentials nothing can log in with; otherwise leave
+              // the key out and keep the stored ones.
               guest_properties: {
+                ...(hasRdpViewer(viewers) ? {} : { credentials: { username: '', password: '' } }),
                 fullscreen: domain.value.guestProperties.fullscreen,
                 viewers: viewers
               },

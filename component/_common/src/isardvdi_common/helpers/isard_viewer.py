@@ -33,6 +33,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.api_viewers_config import ViewersConfig
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.viewers import has_rdp_viewer
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -48,6 +49,14 @@ def with_default_credentials(guest_properties):
     guest_properties = dict(guest_properties or {})
     if not guest_properties.get("credentials"):
         guest_properties["credentials"] = default_credentials()
+    return guest_properties
+
+
+def without_unused_credentials(guest_properties, bastion_enabled=False):
+    guest_properties = dict(guest_properties or {})
+    if bastion_enabled or has_rdp_viewer(guest_properties.get("viewers")):
+        return guest_properties
+    guest_properties["credentials"] = default_credentials()
     return guest_properties
 
 

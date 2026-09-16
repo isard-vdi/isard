@@ -102,6 +102,20 @@ def _get_desktop_viewer_cache_key(
     return hashkey(user_id, desktop_id, viewer_type, is_admin)
 
 
+def _bastion_request_enabled(bastion_data):
+    if bastion_data is None:
+        return None
+    ssh = bastion_data.get("ssh") or {}
+    http = bastion_data.get("http") or {}
+    if ssh.get("enabled") or http.get("enabled"):
+        return True
+    if "enabled" in ssh and "enabled" in http:
+        return False
+
+    # The request carries no bastion config.
+    return None
+
+
 class DesktopService:
     @staticmethod
     def get_user_allowed_reservables(payload: dict) -> list[dict]:
@@ -1307,6 +1321,7 @@ class DesktopService:
             admin_or_manager=payload["role_id"] in ["admin", "manager"],
             bulk=False,
             payload=payload,
+            bastion_enabled=_bastion_request_enabled(bastion_data),
         )
 
         if bastion_data is not None:

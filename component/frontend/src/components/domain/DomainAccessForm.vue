@@ -387,9 +387,9 @@ const getFormData = () => {
     fullscreen: form.getFieldValue('fullscreen'),
     viewers: viewersObject
   }
-  if (showCredentials.value) {
-    data.credentials = form.getFieldValue('credentials')
-  }
+  data.credentials = showCredentials.value
+    ? form.getFieldValue('credentials')
+    : { username: '', password: '' }
   if (props.showBastionConfig) {
     data.bastion = bastionFormRef.value?.getFormData()
   }

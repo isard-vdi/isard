@@ -380,13 +380,7 @@ export default {
       }
     })
     watch(bastion, (newVal, prevVal) => {
-      if (bastion.value) {
-        context.emit('toggleBastion', true)
-        showBastionOptions.value = true
-      } else {
-        context.emit('toggleBastion', false)
-        showBastionOptions.value = false
-      }
+      showBastionOptions.value = Boolean(bastion.value)
       if (!wireguard.value) {
         if (newVal) {
           showBastionOptions.value = true
