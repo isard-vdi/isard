@@ -275,8 +275,27 @@ class TestPlan:
         )
         assert resp.status_code == 400
 
-    def test_plan_rejects_same_src_and_dst_pool(self, test_client):
-        # same-pool selection is a one-click data-loss path — reject server-side
+    def test_plan_allows_same_pool_because_its_paths_can_differ(
+        self, monkeypatch, test_client
+    ):
+        """A pool with several weighted paths per usage can move a disk within itself."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/dst/groups_b/r.qcow2",
+                        dst_path="/isard/dst/groups_a/r.qcow2",
+                    )
+                ],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
         resp = test_client(
             url="/admin/storage/migrations/plan",
             method="POST",
@@ -290,7 +309,7 @@ class TestPlan:
             },
             db_tables_data={"storage_pool": [_pool()]},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
 
 # ── create (mock the compute boundary, assert persistence) ───────────────────
@@ -333,7 +352,28 @@ class TestCreate:
         assert body["status"] == "planned"
         assert body["id"]
 
-    def test_create_rejects_same_src_and_dst_pool(self, test_client):
+    def test_create_refuses_a_plan_that_resolves_entirely_in_place(
+        self, monkeypatch, test_client
+    ):
+        """The hazard is not the pool being the same but nothing moving: the release
+        would delete the live source."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        "r",
+                        src_path="/isard/dst/desktops/r.qcow2",
+                        dst_path="/isard/dst/desktops/r.qcow2",
+                    )
+                ],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
         resp = test_client(
             url="/admin/storage/migrations",
             method="POST",
@@ -352,6 +392,51 @@ class TestCreate:
             },
         )
         assert resp.status_code == 400
+
+    def test_create_allows_same_pool_when_a_disk_changes_path(
+        self, monkeypatch, test_client
+    ):
+        """Draining one weighted path into another inside the same pool is a real move."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [
+                    _item(
+                        f"{mid}--r",
+                        migration_id=mid,
+                        src_path="/isard/dst/groups_b/r.qcow2",
+                        dst_path="/isard/dst/groups_a/r.qcow2",
+                    )
+                ],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "src_pool_id": "dst",
+                    "dst_pool_id": "dst",
+                }
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
 
     def test_create_empty_selection_400(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -392,10 +477,7 @@ class TestCreate:
     def test_create_rejects_destination_no_worker_serves_the_move_lane(
         self, monkeypatch, test_client
     ):
-        """A pool->pool migration whose cross-pool move lane has no live consumer
-        enqueues every move onto a queue nobody drains: the disks never move, the
-        migration reports ``running`` forever and nothing ever errors. Refuse it
-        at create instead of stranding it."""
+        """A cross-pool move lane with no live consumer would leave the job queued for ever."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda sel: ["r"],
@@ -452,10 +534,8 @@ class TestCreate:
     def test_create_waits_instead_of_refusing_when_the_nodes_are_only_asleep(
         self, monkeypatch, test_client
     ):
-        """An elastic fleet powers its nodes down. The lane has no LIVE consumer
-        but somebody declares it, so the work drains when a node returns and the
-        runner defers meanwhile: refusing here is refusing a valid migration for
-        a transient condition the admin cannot see."""
+        """An elastic fleet powers its nodes down: no live consumer, but the pool is
+        still declared, so the job waits instead of being refused."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda selection, **k: ["r"],
@@ -507,8 +587,7 @@ class TestCreate:
     def test_create_still_refuses_when_the_declaration_cannot_be_read(
         self, monkeypatch, test_client
     ):
-        """Fail closed, like the gate itself: not knowing is not the same as
-        knowing somebody will come back for this work."""
+        """Fail closed, like the gate itself: an unreadable declaration is not a served lane."""
         monkeypatch.setattr(
             "isardvdi_common.lib.storage.migration.roots_for_selection",
             lambda selection, **k: ["r"],

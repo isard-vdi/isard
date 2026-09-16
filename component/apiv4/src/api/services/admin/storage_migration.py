@@ -218,15 +218,8 @@ class AdminStorageMigrationService:
         dst_id = selection.get("dst_pool_id")
         if not dst_id:
             raise Error("bad_request", "A destination storage pool is required")
-        # Reject a same-pool migration up front: every disk would have dst == src,
-        # making the move a no-op while the release move_deletes the live source
-        # — a one-click total-data-loss path. The reconciler also guards per-disk
-        # (mig.item_in_place), but this stops the job ever being created.
-        if selection.get("src_pool_id") and selection.get("src_pool_id") == dst_id:
-            raise Error(
-                "bad_request",
-                "Source and destination storage pools must differ",
-            )
+        # Same pool is a real move when it has several weighted paths; refused
+        # per plan by all_in_place and per disk by item_in_place instead.
         if not StoragePool.exists(dst_id):
             raise Error("not_found", f"Destination storage pool {dst_id} not found")
         return StoragePool(dst_id)
@@ -334,8 +327,8 @@ class AdminStorageMigrationService:
         if mig.all_in_place(preview):
             raise Error(
                 "bad_request",
-                "Selection resolves entirely in-place (source pool equals "
-                "destination); nothing would move",
+                "Selection resolves entirely in-place: every disk's "
+                "destination is where it already is, so nothing would move",
             )
         cls._assert_move_lanes_served(preview, dst_pool)
         now = time()
