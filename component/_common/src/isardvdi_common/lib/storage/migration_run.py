@@ -52,6 +52,7 @@ from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.task_index import index_task
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage, get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
     MigrationItemState,
@@ -286,6 +287,27 @@ class MigrationRunner:
         ).id
 
     # -- autostart guard / quiesce ----------------------------------------- #
+    @staticmethod
+    def _is_media(item):
+        return item.get("kind") == "media"
+
+    @staticmethod
+    def _media_held_by_started(media_id):
+        """Started domains with this media mounted. Only Started matters: a
+        stopped one re-resolves the path from the row on its next boot."""
+        try:
+            held = []
+            for d in Domain.get_index(["Started"], index="status"):
+                hw = (d.create_dict or {}).get("hardware", {})
+                for key in ("isos", "floppies"):
+                    if any(m.get("id") == media_id for m in hw.get(key) or []):
+                        held.append(d.id)
+                        break
+            return held
+        except Exception:
+            log.exception("migration: could not read holders of media %s", media_id)
+            return None
+
     def _domains(self, storage_id):
         try:
             return Domain.get_with_storage(Storage(storage_id))
@@ -704,7 +726,7 @@ class MigrationRunner:
         storage has none. ``None`` means never parked; the empty list is a
         settled answer.
         """
-        if item.get("maintenance_domains") is not None:
+        if item.get("maintenance_domains") is not None or self._is_media(item):
             return
         parked = [d for d in self._domains(item["storage_id"]) if d.status == "Stopped"]
         self._set(item, maintenance_domains=[d.id for d in parked])
@@ -748,7 +770,7 @@ class MigrationRunner:
         # recorded original.
         self._restore_domains(item)
         orig = item.get("storage_orig_status")
-        if orig is None:
+        if orig is None or self._is_media(item):
             return
         try:
             Storage.update_document(
@@ -823,51 +845,14 @@ class MigrationRunner:
         observed_real = observed and not str(observed).startswith("claim:")
         if observed_real and self._abandon_resume_blocked(item):
             return
-        # Record the storage's pre-migration status ONCE (before maintenance) so
-        # release/failure restore the ORIGINAL status rather than a hardcoded
-        # "ready" that would un-bin a recycled disk (saga-5).
-        if item.get("storage_orig_status") is None:
-            try:
-                cur = Storage(item["storage_id"]).status
-            except Exception:
-                cur = None
-            if cur and cur != "maintenance":
-                self._set(item, storage_orig_status=cur)
-            else:
-                # Without a recorded original we could not put the disk back:
-                # release would leave it in maintenance for the reconciler to
-                # finalize to "ready", which UN-BINS a recycled disk -- the exact
-                # outcome the record exists to prevent. Refuse this disk instead
-                # of moving it and losing where it belonged.
-                self._set(
-                    item,
-                    error=(
-                        "cannot record the disk's pre-migration status; refusing "
-                        "to move it rather than risk restoring the wrong one"
-                    ),
-                )
-                self._fail(item)
-                return
-        # Per-disk maintenance marker (durable storage-layer start-block).
-        # NOT set_maintenance("move") — that refuses a parent-with-children;
-        # migration legitimately moves parents (children rebase afterwards).
-        try:
-            Storage.update_document(
-                item["storage_id"], {"status": "maintenance"}, validate=False
-            )
-        except Exception:
-            log.exception(
-                "migration: could not set maintenance on %s", item["storage_id"]
-            )
-        # ...and the domains follow their disk in, as set_maintenance would have
-        # done for us.
-        self._park_domains(item)
+        # A media has no storage row and blocks no desktop: read-only, and a
+        # running guest holds its own open file. Nothing to record or park.
+        if not self._is_media(item) and not self._prepare_disk_for_move(item):
+            return
         queue = self._move_queue(item["src_path"])
         if not self.lane_is_drainable(Task._redis, queue):
-            # transient: leave the disk pending and let the next tick retry, so a
-            # restarting storage node delays the migration instead of stalling it
             log.warning(
-                "migration %s: no consumer for %s, deferring %s",
+                "migration %s: no consumer for %s, deferring move of %s",
                 self.migration_id,
                 queue,
                 item["storage_id"],
@@ -896,6 +881,48 @@ class MigrationRunner:
             move_task_id=task_id,
             move_started_at=time(),
         )
+
+    def _prepare_disk_for_move(self, item):
+        # Record the storage's pre-migration status ONCE (before maintenance) so
+        # release/failure restore the ORIGINAL status rather than a hardcoded
+        # "ready" that would un-bin a recycled disk (saga-5).
+        if item.get("storage_orig_status") is None:
+            try:
+                cur = Storage(item["storage_id"]).status
+            except Exception:
+                cur = None
+            if cur and cur != "maintenance":
+                self._set(item, storage_orig_status=cur)
+            else:
+                # Without a recorded original we could not put the disk back:
+                # release would leave it in maintenance for the reconciler to
+                # finalize to "ready", which UN-BINS a recycled disk -- the exact
+                # outcome the record exists to prevent. Refuse this disk instead
+                # of moving it and losing where it belonged.
+                self._set(
+                    item,
+                    error=(
+                        "cannot record the disk's pre-migration status; refusing "
+                        "to move it rather than risk restoring the wrong one"
+                    ),
+                )
+                self._fail(item)
+                return False
+        # Per-disk maintenance marker (durable storage-layer start-block).
+        # NOT set_maintenance("move") — that refuses a parent-with-children;
+        # migration legitimately moves parents (children rebase afterwards).
+        try:
+            Storage.update_document(
+                item["storage_id"], {"status": "maintenance"}, validate=False
+            )
+        except Exception:
+            log.exception(
+                "migration: could not set maintenance on %s", item["storage_id"]
+            )
+        # ...and the domains follow their disk in, as set_maintenance would have
+        # done for us.
+        self._park_domains(item)
+        return True
 
     def _mark_moved(self, item):
         self._record_throughput(item)
@@ -964,6 +991,16 @@ class MigrationRunner:
         self._set(item, state=MigrationItemState.REBASED.value, abandon_restarts=0)
 
     def _db_update(self, item):
+        if self._is_media(item):
+            # The domain stores only the media id and the engine resolves the
+            # path at every boot, so this one write moves every consumer at once.
+            Media.update_document(
+                item["storage_id"], {"path_downloaded": item["dst_path"]}
+            )
+            self._set(
+                item, state=MigrationItemState.DB_UPDATED.value, abandon_restarts=0
+            )
+            return
         # Re-point the storage row at the disk's new location. RethinkDB
         # deep-merges, so the qemu-img-info update preserves actual-size /
         # virtual-size.
@@ -1030,6 +1067,10 @@ class MigrationRunner:
             {
                 "dst_path": item["dst_path"],
                 "expect_backing": item.get("parent_dst_path"),
+                # A media is verified by size: no qcow2 header, no chain.
+                "expect_bytes": (
+                    item.get("size_bytes") if self._is_media(item) else None
+                ),
             },
         )
         self._claim_storage_task(item, task_id)
@@ -1052,6 +1093,21 @@ class MigrationRunner:
         # Restore the storage to its ORIGINAL status (saga-5: not hardcoded
         # "ready"), then delete the source LAST.
         self._restore_storage_status(item)
+        # A media the guest still has open must keep its source: the row already
+        # points at the copy, both files are identical, and deleting the one a
+        # running qemu holds buys nothing. An unreadable holder list retains too.
+        if self._is_media(item):
+            holders = self._media_held_by_started(item["storage_id"])
+            if holders is None or holders:
+                self._set(
+                    item,
+                    state=MigrationItemState.RELEASED.value,
+                    move_delete_task_id=None,
+                    source_retained=True,
+                    source_retained_path=item["src_path"],
+                )
+                self._audit(item, "moved_ok")
+                return
         queue = self._pool_queue(item["src_path"], "move_delete")
         if not self.lane_is_drainable(Task._redis, queue):
             # Mark, never defer: the tree is already committed, and holding the

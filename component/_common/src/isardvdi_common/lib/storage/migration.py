@@ -33,6 +33,7 @@ Two layers:
 import json
 import subprocess
 from collections import Counter, deque
+from os.path import dirname
 
 from rethinkdb import r
 
@@ -249,6 +250,86 @@ def build_tree_items(migration_id, root_id, get_children, node_info, order=None)
             }
         )
     return items
+
+
+def kind_selected(kind, item_kinds):
+    """Whether a plan that asked for ``item_kinds`` moves this kind."""
+    return not item_kinds or kind in set(item_kinds)
+
+
+def media_size_bytes(row):
+    """The byte count the download recorded. The plan runs where the pool mounts
+    are not visible, so this is the only size it can know."""
+    return int((row.get("progress") or {}).get("total_bytes") or 0)
+
+
+def media_for_selection(
+    rows,
+    *,
+    kind="pool",
+    src_pool_id=None,
+    category_id=None,
+    path_prefix=None,
+    tree_ids=None,
+):
+    """The media rows a selection covers, dropping any whose download never
+    landed: there is no file to move and the copy would fail on a path nothing
+    ever wrote. Explicit ``tree_ids`` win over the scope, as they do for disks."""
+    named = set(tree_ids or ())
+    out = []
+    for r in rows:
+        path = r.get("path_downloaded")
+        if not path:
+            continue
+        if named:
+            if r["id"] in named:
+                out.append(r)
+            continue
+        if kind == "pool" and src_pool_id and r.get("pool_id") != src_pool_id:
+            continue
+        if kind == "category" and category_id and r.get("category") != category_id:
+            continue
+        if kind == "path" and path_prefix and not path.startswith(path_prefix):
+            continue
+        out.append(r)
+    return out
+
+
+def build_media_items(migration_id, rows, *, dst_dir_of, size_of):
+    """One pending item per media: no backing chain, so each is its own tree and
+    never rebases. The file keeps the name the download gave it."""
+    items = []
+    for r in rows:
+        src = r["path_downloaded"]
+        dst_dir = dst_dir_of(r)
+        items.append(
+            {
+                "id": f"{migration_id}--{r['id']}",
+                "migration_id": migration_id,
+                "storage_id": r["id"],
+                "tree_id": r["id"],
+                "topo_index": 0,
+                "state": "pending",
+                "kind": "media",
+                "src_path": src,
+                "dst_path": f"{dst_dir}/{src.rsplit('/', 1)[-1]}",
+                "dst_dir": dst_dir,
+                "parent_storage_id": None,
+                "parent_dst_path": None,
+                "parent_dst_dir": None,
+                "size_bytes": int(size_of(r) or 0),
+                "bytes_done": 0,
+                "attempts": 0,
+                "checkpoints": [],
+            }
+        )
+    return items
+
+
+def pool_is_drained(categories, disks, media, queued):
+    """Media count as residents: a pool still holding ISOs is not empty, and the
+    delete gate reads this."""
+    return not (categories or disks or media or queued)
 
 
 def _bytes_by_kind(item_dicts):
@@ -1498,6 +1579,95 @@ def _attach_pool_and_category(rows):
             cat_cache[uid] = User(uid).category if uid and User.exists(uid) else None
         s["category"] = cat_cache[uid]
     return rows
+
+
+def _enumerate_media(statuses=("Downloaded",)):
+    """Light media rows for selection. Only a downloaded row has a file."""
+    from isardvdi_common.models.media import Media
+
+    with Media._rdb_context():
+        return list(
+            r.table("media")
+            .get_all(*statuses, index="status")
+            .pluck("id", "path_downloaded", "user", "kind", "progress")
+            .run(Media._rdb_connection)
+        )
+
+
+def _attach_media_pool_and_category(rows):
+    """Resolve ``pool_id`` (by path) and ``category`` (by owner) for media rows,
+    mirroring :func:`_attach_pool_and_category`. The owner field on a media row
+    is ``user``, not ``user_id``."""
+    from isardvdi_common.models.storage_pool import StoragePool
+    from isardvdi_common.models.user import User
+
+    pool_cache = {}
+    cat_cache = {}
+    for m in rows:
+        d = dirname(m.get("path_downloaded") or "")
+        if d not in pool_cache:
+            pools = StoragePool.get_by_path(d)
+            pool_cache[d] = pools[0].id if pools else None
+        m["pool_id"] = pool_cache[d]
+        uid = m.get("user")
+        if uid not in cat_cache:
+            cat_cache[uid] = User(uid).category if uid and User.exists(uid) else None
+        m["category"] = cat_cache[uid]
+    return rows
+
+
+def media_rows_for_selection(selection):
+    """Live: the media rows a selection covers."""
+    rows = _attach_media_pool_and_category(_enumerate_media())
+    return media_for_selection(
+        rows,
+        kind=selection.get("kind", "pool"),
+        src_pool_id=selection.get("src_pool_id"),
+        category_id=selection.get("category_id"),
+        path_prefix=selection.get("path_prefix"),
+        tree_ids=selection.get("tree_ids"),
+    )
+
+
+def build_media_plan(
+    migration_id, selection, dst_pool, *, size_fn=None, item_kinds=None
+):
+    """Live: the media half of a plan. Empty when the selection excludes media."""
+    from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+    from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
+
+    if not kind_selected("media", item_kinds):
+        return []
+    usage = dst_pool.get_usage_path("media")
+
+    def dst_dir_of(row):
+        if dst_pool.id == DEFAULT_STORAGE_POOL_ID:
+            return f"{dst_pool.mountpoint}/{usage}"
+        category = row.get("category")
+        if not category:
+            raise _Unplaceable(
+                row["id"],
+                "a category-nested pool needs the owner's category to place a "
+                "media, and this one has no resolvable owner",
+            )
+        return build_category_pool_dir(dst_pool.mountpoint, category, usage)
+
+    def size_of(row):
+        recorded = media_size_bytes(row)
+        if recorded:
+            return recorded
+        if size_fn is not None:
+            measured = size_fn(row.get("path_downloaded"))
+            if measured is not None:
+                return measured
+        return 0
+
+    return build_media_items(
+        migration_id,
+        media_rows_for_selection(selection),
+        dst_dir_of=dst_dir_of,
+        size_of=size_of,
+    )
 
 
 def roots_for_selection(selection):

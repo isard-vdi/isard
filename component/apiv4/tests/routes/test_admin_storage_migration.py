@@ -252,6 +252,10 @@ class TestPlan:
                 {"trees": 1, "items_total": 2, "bytes_total": 20},
             ),
         )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
         resp = test_client(
             url="/admin/storage/migrations/plan",
             method="POST",
@@ -325,6 +329,10 @@ class TestCreate:
                 [_item(f"{mid}--r", migration_id=mid, state="pending")],
                 {"items_total": 1, "bytes_total": 10},
             ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
         )
         # this asserts persistence, so pin the lane gate open: left ambient it
         # answers from whatever redis the runner happens to have. Unreachable it
@@ -495,6 +503,10 @@ class TestCreate:
                 {"items_total": 1},
             ),
         )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
         # nothing in the fleet serves the lane: the shared gate says reject with
         # reason no_consumer, which is what check_no_consumer turns into its 429
         monkeypatch.setattr(
@@ -554,6 +566,10 @@ class TestCreate:
             ),
         )
         monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        monkeypatch.setattr(
             "isardvdi_common.lib.queue_coverage.lane_shed_decision",
             lambda conn, queue: (
                 "reject",
@@ -604,6 +620,10 @@ class TestCreate:
                 ],
                 {"items_total": 1},
             ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
         )
         monkeypatch.setattr(
             "isardvdi_common.lib.queue_coverage.lane_shed_decision",
@@ -659,6 +679,10 @@ class TestCreate:
                 ],
                 {"items_total": 1},
             ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
         )
         resp = test_client(
             url="/admin/storage/migrations",
