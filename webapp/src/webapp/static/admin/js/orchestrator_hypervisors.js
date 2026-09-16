@@ -96,4 +96,49 @@ $(document).ready(function() {
       },
     ],
   });
+
+  $.ajax({
+    url: "/api/v4/admin/item/orchestrator-config",
+    type: "GET",
+    success: function(data) {
+      $('#orchestrator-enabled').prop('checked', data.enabled).prop('disabled', false).iCheck('update')
+    },
+    error: function(xhr, ajaxOptions, thrownError) {
+      new PNotify({
+        title: "ERROR",
+        text: 'Could not load the orchestrator configuration',
+        type: 'error',
+        hide: true,
+        opacity: 1,
+        delay: 3000
+      })
+    }
+  })
+
+  $('#orchestrator-enabled').on('ifChanged', function() {
+    var checkbox = $(this)
+    var enabled = checkbox.prop('checked')
+    checkbox.prop('disabled', true).iCheck('update')
+
+    $.ajax({
+      url: "/api/v4/admin/item/orchestrator-config",
+      type: "PUT",
+      contentType: "application/json",
+      data: JSON.stringify({ enabled: enabled }),
+      success: function() {
+        checkbox.prop('disabled', false).iCheck('update')
+      },
+      error: function(xhr, ajaxOptions, thrownError) {
+        checkbox.prop('checked', !enabled).prop('disabled', false).iCheck('update')
+        new PNotify({
+          title: "ERROR",
+          text: 'Could not update the orchestrator configuration',
+          type: 'error',
+          hide: true,
+          opacity: 1,
+          delay: 3000
+        })
+      }
+    })
+  })
 });

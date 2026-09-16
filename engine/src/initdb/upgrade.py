@@ -50,7 +50,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 207
+release_version = 208
+# release 208: seed the orchestrator "enabled" flag, so the orchestrator can be
+#              switched on and off from the administration
 # release 207: backfill x_axis_days and priority on analytics graph rows that lost them
 # release 206: drop the profile keys the bastion used to copy into targets;
 #              they are resolved live now, so a stored copy is an access
@@ -1318,6 +1320,11 @@ password:s:%s"""
                     updates[provider] = {"migration": {"action_after_migrate": None}}
             if updates:
                 r.table(table).get(1).update({"auth": updates}).run(self.conn)
+
+        if version == 208:
+            r.table("config").get(1).update({"orchestrator": {"enabled": False}}).run(
+                self.conn
+            )
 
         return True
 

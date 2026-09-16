@@ -30,9 +30,10 @@ const ExtensionTargetID = "target_id"
 const ExtensionDesktopID = "desktop_id"
 
 type bastion struct {
-	log     *zerolog.Logger
-	db      r.QueryExecutor
-	privKey ssh.Signer
+	log        *zerolog.Logger
+	db         r.QueryExecutor
+	cfgWatcher *db.Watcher[model.Config]
+	privKey    ssh.Signer
 }
 
 type conn struct {
@@ -41,7 +42,7 @@ type conn struct {
 	targetConn *ssh.Client
 }
 
-func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.QueryExecutor, cfg cfg.SSH) {
+func Serve(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, cfgWatcher *db.Watcher[model.Config], cfg cfg.SSH) {
 	// Get the SSH private key
 	privKey, err := initKey(cfg.PrivateKeyPath, cfg.PrivateKeySize)
 	if err != nil {
@@ -49,9 +50,10 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	}
 
 	b := &bastion{
-		log:     log,
-		db:      db,
-		privKey: privKey,
+		log:        log,
+		db:         db,
+		cfgWatcher: cfgWatcher,
+		privKey:    privKey,
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for SSH connections")
@@ -92,7 +94,6 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	<-ctx.Done()
 
 	lis.Close()
-	wg.Done()
 }
 
 func (b *bastion) handleAuth(ctx context.Context, conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
@@ -111,15 +112,7 @@ func (b *bastion) handleAuth(ctx context.Context, conn ssh.ConnMetadata, key ssh
 
 	// The HTTP transport refuses when the bastion is switched off; the admin
 	// switch means nothing if the SSH side keeps serving.
-	currentConfig := &model.Config{}
-	if err := currentConfig.Load(ctx, b.db); err != nil {
-		b.log.Error().Err(err).Msg("load the bastion config")
-
-		return nil, &ssh.BannerError{
-			Message: "service not available\n",
-		}
-	}
-
+	currentConfig := b.cfgWatcher.Current()
 	if !currentConfig.Bastion.Enabled {
 		b.log.Warn().Str("target", conn.User()).Msg("bastion is disabled")
 

@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
+	orchestratorModel "gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
@@ -35,6 +37,7 @@ func TestStart(t *testing.T) {
 		PrepareOperations func(*grpcmock.Server)
 		PrepareAPI        func(context.CancelFunc, *apiv4.MockInvoker)
 		CfgRata           cfg.DirectorRata
+		CfgDisabled       bool
 	}{
 		"should remove an hypervisor from the dead row if it's available, instead of scaling up": {
 			PrepareOperations: func(s *grpcmock.Server) {
@@ -658,6 +661,11 @@ func TestStart(t *testing.T) {
 				HyperMaxRAM:        102400,
 			},
 		},
+		"should not do anything if the orchestrator is disabled": {
+			PrepareOperations: func(s *grpcmock.Server) {},
+			PrepareAPI:        func(cancel context.CancelFunc, m *apiv4.MockInvoker) {},
+			CfgDisabled:       true,
+		},
 	}
 
 	for name, tc := range cases {
@@ -671,7 +679,11 @@ func TestStart(t *testing.T) {
 			log := zerolog.New(logBuf).Level(zerolog.ErrorLevel)
 
 			var wg sync.WaitGroup
-			wg.Add(1)
+
+			cfgWatcher := db.NewWatcher(&log, time.Hour, 0, func(context.Context) (orchestratorModel.Orchestrator, error) {
+				return orchestratorModel.Orchestrator{Enabled: !tc.CfgDisabled}, nil
+			})
+			require.NoError(cfgWatcher.Start(ctx, &wg))
 
 			s := grpcmock.NewServer(
 				grpcmock.RegisterService(operationsv1.RegisterOperationsServiceServer),
@@ -701,6 +713,8 @@ func TestStart(t *testing.T) {
 				Log: &log,
 				WG:  &wg,
 
+				CfgWatcher: cfgWatcher,
+
 				DryRun:            false,
 				PollingInterval:   pollingInterval,
 				OperationsTimeout: pollingInterval,
@@ -717,6 +731,17 @@ func TestStart(t *testing.T) {
 			})
 
 			go o.Start(ctx)
+
+			if tc.CfgDisabled {
+				time.Sleep(2*pollingInterval + 100*time.Millisecond)
+				cancel()
+
+				apiCli.AssertNotCalled(t, "AdminOrchestratorHypervisorsList", mock.AnythingOfType("*context.cancelCtx"))
+				assert.NoError(s.ExpectationsWereMet())
+				assert.Empty(logBuf)
+
+				return
+			}
 
 			assert.Eventually(func() bool {
 				return s.ExpectationsWereMet() == nil && apiCli.AssertExpectations(silentT{})
