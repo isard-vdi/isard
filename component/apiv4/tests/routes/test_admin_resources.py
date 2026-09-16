@@ -113,6 +113,13 @@ class TestQosDiskAdd:
         return body
 
     def test_admin_adds(self, monkeypatch, test_client):
+        """The row reaching the service is complete: the route dumps the
+        whole model, so `description` and `allowed` carry their defaults
+        instead of being dropped. That is what keeps an `allowed`-less
+        qos_disk row — which made every desktop start answer 500 (#3755) —
+        out of the table. The default `allowed` applies to nobody: `roles`
+        is False, not [], so it is not the global default.
+        """
         captured = {}
         monkeypatch.setattr(
             "api.routes.admin.resources.AdminResourcesService.add_qos_disk",
@@ -125,10 +132,36 @@ class TestQosDiskAdd:
             body=self._payload(),
         )
         assert response.status_code == 204
-        assert captured["data"]["name"] == "Standard"
-        # exclude_none drops Optional unset fields
+        assert captured["data"] == {
+            "name": "Standard",
+            "description": "",
+            "iotune": {"read_iops_sec": 1000, "write_iops_sec": 500},
+            "allowed": {
+                "groups": False,
+                "users": False,
+                "categories": False,
+                "roles": False,
+            },
+        }
+
+    def test_client_supplied_id_is_ignored(self, monkeypatch, test_client):
+        """The row id is the service's to mint (uuid4 in add_qos_disk), so
+        QosDiskCreateRequest declares no id and an id in the body never
+        reaches the service.
+        """
+        captured = {}
+        monkeypatch.setattr(
+            "api.routes.admin.resources.AdminResourcesService.add_qos_disk",
+            staticmethod(lambda data: captured.update(data=data)),
+        )
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body=self._payload(id="client-chosen"),
+        )
+        assert response.status_code == 204
         assert "id" not in captured["data"]
-        assert "description" not in captured["data"]
 
     def test_missing_required_field_rejected(self, test_client):
         """name + iotune are required."""
@@ -209,6 +242,9 @@ class TestQosDiskUpdate:
         )
         assert response.status_code == 204
         assert captured["data"]["id"] == "q-1"
+        # exclude_unset: a partial edit must not overwrite the stored
+        # `allowed`/`description` with the schema defaults.
+        assert set(captured["data"]) == {"id", "name", "iotune"}
 
     def test_id_required(self, test_client):
         """id is the only field required by QosDiskUpdateRequest beyond name."""

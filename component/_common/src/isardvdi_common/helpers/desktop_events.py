@@ -66,13 +66,13 @@ class DesktopEvents(RethinkCustomBase):
     def get_desktop_qos_disk_id(cls, desktop):
         qos_disks = cls.get_qos_disks()
         for qos_disk in qos_disks:
-            if qos_disk["allowed"]["roles"] == []:
+            # `pluck` drops absent keys instead of returning None, and the
+            # create endpoint stores no `allowed` when the caller omits it.
+            if (qos_disk.get("allowed") or {}).get("roles") == []:
                 return qos_disk["id"]
         for qos_disk in qos_disks:
-            if (
-                qos_disk["allowed"]["roles"]
-                and desktop["role"] in qos_disk["allowed"]["roles"]
-            ):
+            roles = (qos_disk.get("allowed") or {}).get("roles")
+            if roles and desktop["role"] in roles:
                 return qos_disk["id"]
         return False
 
