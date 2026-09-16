@@ -1192,3 +1192,80 @@ async def test_pass1_does_not_release_the_children_of_a_cancelled_member(
     released = [call.args[0].id for call in rel.await_args_list]
     assert "core1" in released  # the live root still advances
     assert "core2" not in released  # the cancelled member does not
+
+
+# --------------------------------------------------------------------------- #
+# A disk mid-migration is not stuck work.
+#
+# The claim only exists while one of the saga's phase tasks is pending, so in
+# the gap between phases task liveness reads the disk as abandoned. Finalizing
+# it there frees the parked desktops to start on a source the migration is
+# about to delete. Measured on staging: two disks freed on one tree.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_pass2_leaves_a_disk_a_live_migration_still_owns():
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    with (
+        patch.object(reconcile.Storage, "get_index", return_value=[storage]),
+        patch.object(reconcile, "_migration_owned_storage_ids", return_value={"s1"}),
+        patch.object(reconcile, "_task_alive", return_value=False),
+        patch.object(reconcile, "_apply_storage_update") as apply_u,
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
+    ):
+        healed = await reconcile._reconcile_stuck_storage(AsyncMock())
+
+    assert healed == 0
+    apply_u.assert_not_called()
+    storage.check_backing_chain.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pass2_still_heals_a_disk_no_migration_owns():
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    with (
+        patch.object(reconcile.Storage, "get_index", return_value=[storage]),
+        patch.object(reconcile, "_migration_owned_storage_ids", return_value={"other"}),
+        patch.object(reconcile, "_task_alive", return_value=False),
+        patch.object(reconcile, "_apply_storage_update"),
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
+    ):
+        await reconcile._reconcile_stuck_storage(AsyncMock())
+
+    storage.check_backing_chain.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_pass3_leaves_a_domain_parked_by_a_live_migration():
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(status="maintenance")
+    dom = _domain(
+        status="Maintenance", storages=[storage], disks=[{"storage_id": "s1"}]
+    )
+    with (
+        patch.object(reconcile.Domain, "get_index", return_value=[dom]),
+        patch.object(reconcile, "_migration_owned_storage_ids", return_value={"s1"}),
+        patch.object(reconcile, "_task_alive", return_value=False),
+    ):
+        healed = await reconcile._reconcile_stuck_domains(AsyncMock())
+
+    assert healed == 0
+    assert dom.status == "Maintenance"
+    storage.find.assert_not_called()
+
+
+def test_an_unreadable_ledger_never_blocks_the_sweep():
+    """Claiming nothing is the safe failure: a heal that should not happen is
+    recoverable, a sweep that stops running is not."""
+    from isardvdi_change_handler.streams import reconcile
+
+    with patch.object(
+        reconcile.StorageMigrationItem,
+        "active_storage_ids",
+        side_effect=Exception("db gone"),
+    ):
+        assert reconcile._migration_owned_storage_ids() == set()

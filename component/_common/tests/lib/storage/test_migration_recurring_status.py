@@ -26,6 +26,7 @@ def T(**kw):
         finishing=False,
         any_failed=False,
         recurring=False,
+        any_skipped=False,
     )
     base.update(kw)
     return mig.recurring_status_target(**base)
@@ -40,6 +41,30 @@ def test_oneshot_complete_completed():
 
 def test_oneshot_complete_failed_when_any_failed():
     assert T(recurring=False, is_complete=True, any_failed=True) == "failed"
+
+
+def test_oneshot_complete_with_skips_is_not_plain_completed():
+    """A skipped disk is one the job gave up on and left on the source pool."""
+    assert T(recurring=False, is_complete=True, any_skipped=True) == (
+        "completed_with_skips"
+    )
+
+
+def test_oneshot_failure_outranks_a_skip():
+    # a failure drives the retry/quarantine policy; a skip must not enter it
+    assert (
+        T(recurring=False, is_complete=True, any_failed=True, any_skipped=True)
+        == "failed"
+    )
+
+
+def test_recurring_ignores_skips_and_stays_idle():
+    # a recurring job re-arms skipped disks next occurrence -> never terminal
+    assert T(recurring=True, is_complete=True, any_skipped=True) == "scheduled"
+
+
+def test_cancel_with_skips_is_still_canceled():
+    assert T(finishing=True, is_complete=True, any_skipped=True) == "canceled"
 
 
 def test_oneshot_incomplete_defers_to_caller():

@@ -68,6 +68,9 @@ class MigrationStatus(StrEnum):
     #: Mirrors WINDOW_CLOSED: stopped on purpose, not broken.
     BUDGET_REACHED = "budget_reached"
     COMPLETED = "completed"
+    #: terminal: everything the job attempted moved and verified, but it gave up
+    #: on at least one disk, which is still on the source pool.
+    COMPLETED_WITH_SKIPS = "completed_with_skips"
     FAILED = "failed"
     CANCELED = "canceled"
 
@@ -129,6 +132,16 @@ MOVED_ITEM_STATES = {
     MigrationItemState.REBASED,
     MigrationItemState.DB_UPDATED,
     MigrationItemState.RELEASED,
+}
+
+#: States a disk is finished in, for good or ill: the migration owes it nothing
+#: more and no longer owns it. ``failed`` is here and not in DONE_ITEM_STATES
+#: because ownership and "needs no attention" are different questions.
+SETTLED_ITEM_STATES = {
+    MigrationItemState.RELEASED,
+    MigrationItemState.SKIPPED,
+    MigrationItemState.FAILED,
+    MigrationItemState.QUARANTINED,
 }
 
 
@@ -331,6 +344,9 @@ class StorageMigrationItemModel(BaseModel):
     #: restore the ORIGINAL status (e.g. "recycled") instead of hardcoding
     #: "ready". None == we never put this disk into maintenance.
     storage_orig_status: str | None = None
+    #: domains parked in ``Maintenance`` alongside their disk. ``None`` == never
+    #: parked; the empty list is a settled answer.
+    maintenance_domains: list | None = None
     attempts: int = 0
     #: consecutive occurrences (recurring) in which this disk ended ``failed``;
     #: drives the ``retry_quarantine`` budget. Reset by a non-failed occurrence.
@@ -381,6 +397,25 @@ class StorageMigrationItem(RethinkCustomBase):
             return list(
                 r.table(cls._rdb_table)
                 .get_all([migration_id, tree_id], index="migration_tree")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def active_storage_ids(cls):
+        """Storage ids a migration still owes work on (state not settled).
+
+        Between two phases of a disk's saga no task is pending, so task
+        liveness alone reads the disk as abandoned. Read once per sweep.
+        """
+        with cls._rdb_context():
+            return set(
+                r.table(cls._rdb_table)
+                .filter(
+                    lambda it: r.expr(sorted(str(s) for s in SETTLED_ITEM_STATES))
+                    .contains(it["state"])
+                    .not_()
+                )
+                .pluck("storage_id")["storage_id"]
                 .run(cls._rdb_connection)
             )
 
