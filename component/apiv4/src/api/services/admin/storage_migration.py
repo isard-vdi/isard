@@ -310,7 +310,7 @@ class AdminStorageMigrationService:
         """Resolve + build + persist a migration job (status ``planned``) and
         its per-disk ledger rows. Idempotent on re-plan (deterministic ids).
 
-        Guards, in order: destination valid + differs (``_dst_pool``); a recurring
+        Guards, in order: destination exists (``_dst_pool``); a recurring
         job has a schedule; the scope does not overlap any active job; and — for
         path/category — the plan is not entirely in-place (origin == destination).
         A recurring job may legitimately start with an EMPTY scope (it drains
@@ -326,9 +326,9 @@ class AdminStorageMigrationService:
         )
         if not roots and not media and not recurring:
             raise Error("bad_request", "Selection matched no migratable disks")
-        # origin != destination for path/category: a plan that resolves entirely
-        # in-place (every disk's dst == src) would move nothing while the release
-        # move_deletes the live source. (Pool src==dst is rejected in _dst_pool.)
+        # A plan that resolves entirely in-place (every disk's dst == src) would
+        # move nothing while the release move_deletes the live source. Same pool
+        # is fine when its weighted paths differ -- only nothing moving is not.
         preview, _ = mig.build_plan_for_roots(
             "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
         )

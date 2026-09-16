@@ -1638,11 +1638,19 @@ def build_media_plan(
 
     if not kind_selected("media", item_kinds):
         return []
-    usage = dst_pool.get_usage_path("media")
+    #: Resolved on the first media placed, once: a pool serving no media path
+    #: must not reject a plan that moves none, and the draw is random per call.
+    usage = None
+
+    def media_usage():
+        nonlocal usage
+        if usage is None:
+            usage = dst_pool.get_usage_path("media")
+        return usage
 
     def dst_dir_of(row):
         if dst_pool.id == DEFAULT_STORAGE_POOL_ID:
-            return f"{dst_pool.mountpoint}/{usage}"
+            return f"{dst_pool.mountpoint}/{media_usage()}"
         category = row.get("category")
         if not category:
             raise _Unplaceable(
@@ -1650,7 +1658,7 @@ def build_media_plan(
                 "a category-nested pool needs the owner's category to place a "
                 "media, and this one has no resolvable owner",
             )
-        return build_category_pool_dir(dst_pool.mountpoint, category, usage)
+        return build_category_pool_dir(dst_pool.mountpoint, category, media_usage())
 
     def size_of(row):
         recorded = media_size_bytes(row)

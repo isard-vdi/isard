@@ -311,7 +311,7 @@ class TestPlan:
                     "dst_pool_id": "dst",
                 }
             },
-            db_tables_data={"storage_pool": [_pool()]},
+            db_tables_data={"storage_pool": [_pool()], "media": []},
         )
         assert resp.status_code == 200
 
@@ -397,6 +397,7 @@ class TestCreate:
                 "storage_pool": [_pool()],
                 "storage_migration": [],
                 "storage_migration_item": [],
+                "media": [],
             },
         )
         assert resp.status_code == 400
@@ -442,6 +443,7 @@ class TestCreate:
                 "storage_pool": [_pool()],
                 "storage_migration": [],
                 "storage_migration_item": [],
+                "media": [],
             },
         )
         assert resp.status_code == 200
@@ -460,6 +462,7 @@ class TestCreate:
                 "storage_pool": [_pool()],
                 "storage_migration": [],
                 "storage_migration_item": [],
+                "media": [],
             },
         )
         assert resp.status_code == 400
