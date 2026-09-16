@@ -88,7 +88,7 @@ class RecycleBinResponse(BaseModel):
     size: int
     status: RecycleBinStatusEnum
     storages: list[dict]
-    targets: list[dict]
+    targets: list[dict] = []
     tasks: Optional[list[dict]]  # Removed default value to fix ogen generation
     templates: list[dict]
     users: list[dict]
@@ -139,7 +139,7 @@ class RecycleBinEntry(BaseModel):
     size: int
     status: RecycleBinStatusEnum
     storages: int
-    targets: list[dict]
+    targets: list[dict] = []
     templates: int
     users: int
 
