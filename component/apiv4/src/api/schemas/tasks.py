@@ -83,6 +83,14 @@ class TaskListResponse(BaseModel):
     tasks: List[Dict[str, Any]]
 
 
+class RetryAllTasksResponse(BaseModel):
+    """Per-outcome counts of a bulk retry; ``skipped`` are typed refusals."""
+
+    retried: int = 0
+    skipped: int = 0
+    errors: int = 0
+
+
 class QueueTierHealth(BaseModel):
     """Compact per-tier queued rollup for the user health summary."""
 

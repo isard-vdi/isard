@@ -257,8 +257,8 @@ class PoolGauge(BaseModel):
 class GovernorWarning(BaseModel):
     """A single governor warning. ``kind`` selects which of the (all-Optional)
     fields are populated: ``stranded_lane`` (pool/tier/lane/backlog/
-    coverage_known), ``leaked_inflight`` (scope/counted/live), ``category_starved``
-    (pool/category_id), ``scheduled_overdue`` (pool/count/max_lateness_seconds)."""
+    coverage_known), ``leaked_inflight`` (scope/counted/live) and
+    ``category_starved`` (pool/category_id)."""
 
     kind: str
     pool: Optional[str] = None

@@ -8,7 +8,7 @@ import traceback
 
 from api import admin_router, manager_router, token_router
 from api.schemas.common import ErrorResponse
-from api.schemas.tasks import QueuesHealthResponse, TaskResponse
+from api.schemas.tasks import QueuesHealthResponse, RetryAllTasksResponse, TaskResponse
 from api.services.error import Error
 from api.services.tasks import TaskService
 from fastapi import Query, Request
@@ -272,16 +272,17 @@ async def retry_task(request: Request, task_id: str):
 @admin_router.put(
     "/admin/tasks/retry",
     tags=[tag],
-    status_code=204,
-    response_class=Response,
+    response_model=RetryAllTasksResponse,
     summary="Retry all failed storage tasks",
-    description="Retries all failed storage tasks in the background. Admin only.",
+    description=(
+        "Retries all failed storage tasks. Returns how many were retried, "
+        "skipped as not retryable, and errored. Admin only."
+    ),
     responses={500: {"model": ErrorResponse}},
 )
 async def retry_all_failed_tasks(request: Request):
     try:
-        await asyncio.to_thread(TaskService.retry_all_failed_tasks)
-        return Response(status_code=204)
+        return await asyncio.to_thread(TaskService.retry_all_failed_tasks)
     except Error:
         raise
     except Exception:

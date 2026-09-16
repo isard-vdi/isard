@@ -1188,6 +1188,20 @@ function checkStorageLaneHealth() {
           addclass: "pnotify-center-large",
           width: "550",
         });
+      } else if (data && data.coverage_known === false) {
+        new PNotify({
+          title: "<b>Storage lane check did not run</b>",
+          text:
+            "The orphan-lane detector could not reach the queue backend, so " +
+            "this is not a clean bill of health: stalled pools would not be " +
+            "listed here.",
+          hide: false,
+          icon: "fa fa-question-circle",
+          opacity: 1,
+          type: "warning",
+          addclass: "pnotify-center-large",
+          width: "550",
+        });
       }
     },
   });

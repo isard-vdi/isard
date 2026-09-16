@@ -1505,6 +1505,11 @@ class AdminQueuesService:
         try:
             job = task.job
 
+            if kind == "failed":
+                from api.services.tasks import TaskService
+
+                retryable = TaskService._retry_refusal(task) is None
+
             pending = None
             if kind == "stuck_running":
                 # Keep only jobs OVER their timeout (holds a slot forever).
