@@ -10,7 +10,7 @@ import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { useI18n } from 'vue-i18n'
 import { migrationImportUserMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { describeErrorCode } from '@/lib/api-errors'
+import { apiErrorCodes, describeErrorCode } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -58,15 +58,12 @@ const handleSubmit = async () => {
     emit('update:open', false)
     router.push({ name: 'migration' })
   } catch (error: unknown) {
-    const descriptionCode =
-      error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { data?: { description_code?: string } } }).response?.data
-            ?.description_code
-        : undefined
+    const [code] = apiErrorCodes(error)
     apiError.value = describeErrorCode(
-      descriptionCode,
+      code,
       { t, te },
-      'components.profile.import-user-modal.errors'
+      'api.user_migration.errors',
+      'components.profile.import-user-modal.errors.generic'
     )
   }
 }

@@ -1184,21 +1184,7 @@
         },
         "errors": {
           "title": "Import error",
-          "generic": "There was an error importing the user. Please try again.",
-          "unknown": "An error has ocurred",
-          "migration_not_found": "Migration token not found",
-          "token_expired": "The token you provided has expired",
-          "invalid_token": "The token you provided is invalid",
-          "no_items_to_migrate": "There are no items to migrate",
-          "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
-          "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
-          "different_category_migration": "You can't migrate to an account from a different category",
-          "role_migration_admin": "You can't migrate from an admin account",
-          "role_migration_user": "You can't migrate to a user account from an account with a higher role",
-          "migration_desktop_quota_error": "The user has more desktops than the new user quota",
-          "migration_template_quota_error": "The user has more templates than the new user quota",
-          "migration_media_quota_error": "The user has more media than the new user quota",
-          "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+          "generic": "There was an error importing the user. Please try again."
         }
       },
       "password-modal": {
@@ -2873,6 +2859,11 @@
       "errors": {
         "unknown": "An error has ocurred",
         "token_expired": "The token you provided has expired",
+        "migration_import_disabled": "User import is not enabled for your authentication provider",
+        "migration_not_found": "Migration token not found",
+        "multiple_migrations_found": "There are multiple migrations for this token",
+        "token_invalid": "The token you provided is not a migration token",
+        "internal_server": "An internal server error occurred. Please try again later",
         "invalid_token": "The token you provided is invalid",
         "no_active_migration": "There is no active migration for your account.",
         "no_items_to_migrate": "There are no items to migrate",

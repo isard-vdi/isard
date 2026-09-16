@@ -1139,21 +1139,7 @@
         },
         "errors": {
           "title": "Error de importación",
-          "generic": "Ha ocurrido un error al importar el usuario. Inténtalo de nuevo.",
-          "unknown": "Se ha producido un error",
-          "migration_not_found": "El token de migración no existe",
-          "token_expired": "El token proporcionado ha expirado",
-          "invalid_token": "El token proporcionado no es válido",
-          "no_items_to_migrate": "No hay elementos para migrar",
-          "multiple_migrations_found_target_user": "Hay múltiples migraciones para el nuevo usuario",
-          "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
-          "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
-          "role_migration_admin": "No puedes migrar desde una cuenta de administrador",
-          "role_migration_user": "No puedes migrar a una cuenta de usuario desde una cuenta con un rol superior",
-          "migration_desktop_quota_error": "El usuario tiene más escritorios que la cuota del nuevo usuario",
-          "migration_template_quota_error": "El usuario tiene más plantillas que la cuota del nuevo usuario",
-          "migration_media_quota_error": "El usuario tiene más medios que la cuota del nuevo usuario",
-          "migration_deployments_quota_error": "El usuario tiene más despliegues que la cuota del nuevo usuario"
+          "generic": "Ha ocurrido un error al importar el usuario. Inténtalo de nuevo."
         }
       },
       "password-modal": {
@@ -2871,6 +2857,11 @@
       "errors": {
         "unknown": "Se ha producido un error",
         "token_expired": "El token proporcionado ha expirado",
+        "migration_import_disabled": "La importación de usuarios no está habilitada para tu proveedor de autenticación",
+        "migration_not_found": "El token de migración no existe",
+        "multiple_migrations_found": "Hay múltiples migraciones para este token",
+        "token_invalid": "El token proporcionado no es un token de migración",
+        "internal_server": "Se ha producido un error interno del servidor. Inténtalo de nuevo más tarde",
         "invalid_token": "El token proporcionado no es válido",
         "no_active_migration": "No hay ninguna migración activa para tu cuenta.",
         "no_items_to_migrate": "No hay elementos para migrar",
