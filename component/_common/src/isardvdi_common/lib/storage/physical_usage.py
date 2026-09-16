@@ -566,13 +566,17 @@ def read_usage(connection: Any, mountpoint: str) -> Optional[Dict[str, Any]]:
     return usage
 
 
-def read_usage_for_path(connection: Any, path: str) -> Optional[Dict[str, Any]]:
-    """The published measurement that governs ``path``, most specific first.
+def resolve_usage(connection: Any, path: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """The published measurement that governs ``path``, and the mount it is for.
 
     A destination directory sits under a usage directory which sits under a
     pool root, and any of those can be its own filesystem. Walking up from the
     path means a bind-mounted usage directory answers for its own contents
     instead of the pool root answering for all of them.
+
+    The mount comes back with the measurement because the published hash does
+    not carry it -- only the key does -- and a caller collecting several paths
+    needs it to tell one device from another.
     """
     real = os.path.realpath(path)
     root = pool_root(real)
@@ -580,10 +584,76 @@ def read_usage_for_path(connection: Any, path: str) -> Optional[Dict[str, Any]]:
     while True:
         usage = read_usage(connection, candidate)
         if usage:
-            return usage
+            return candidate, usage
         if candidate == root or candidate == "/":
             return None
         parent = os.path.dirname(candidate)
         if parent == candidate:
             return None
         candidate = parent
+
+
+def read_usage_for_path(connection: Any, path: str) -> Optional[Dict[str, Any]]:
+    """The published measurement that governs ``path``, most specific first."""
+    resolved = resolve_usage(connection, path)
+    return resolved[1] if resolved else None
+
+
+def pool_usage_paths(
+    mountpoint: str, paths: Optional[Dict[str, Any]] = None
+) -> List[str]:
+    """Where a pool's disks actually land, pool root first.
+
+    ``paths`` is the pool's per-disk-type layout as the database holds it --
+    ``{"media": [{"path": "media", ...}], ...}`` -- each entry relative to the
+    mountpoint. Any of them can be a bind mount on its own device, so the pool
+    root alone does not describe the pool.
+    """
+    if not mountpoint:
+        return []
+    found = [mountpoint]
+    for usage in sorted(paths or {}):
+        entries = (paths or {}).get(usage) or []
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            leaf = (entry or {}).get("path") if isinstance(entry, dict) else None
+            if not leaf:
+                continue
+            candidate = os.path.normpath(os.path.join(mountpoint, str(leaf)))
+            if candidate not in found:
+                found.append(candidate)
+    return found
+
+
+def read_pool_devices(
+    connection: Any, mountpoint: str, paths: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """Every distinct device a pool's disks sit on, tightest first.
+
+    Deduplicated by the mount the measurement was published for, so two disk
+    types sharing one device are one device here, not two.
+    """
+    devices: Dict[str, Dict[str, Any]] = {}
+    root = os.path.normpath(mountpoint) if mountpoint else ""
+    for candidate in pool_usage_paths(mountpoint, paths):
+        resolved = resolve_usage(connection, candidate)
+        if not resolved:
+            continue
+        mount, usage = resolved
+        label = "pool" if candidate == root else os.path.basename(candidate)
+        device = devices.get(mount)
+        if device is None:
+            devices[mount] = dict(usage, path=mount, usages=[label])
+        elif label not in device["usages"]:
+            device["usages"].append(label)
+    # Unknown fills sort last: they cannot be compared, and calling one the
+    # tightest would hide a device that is measured and nearly full.
+    return sorted(
+        devices.values(),
+        key=lambda d: (
+            d.get("physical_free_bytes") is None,
+            d.get("physical_free_bytes") or 0,
+            d["path"],
+        ),
+    )

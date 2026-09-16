@@ -55,10 +55,13 @@ function spEsc(v) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function spSpaceCell(usage, nowSeconds) {
+function spSpaceCell(usage, nowSeconds, devices, reason) {
   const now = nowSeconds || Math.floor(Date.now() / 1000);
   if (!usage || typeof usage !== "object") {
-    return '<span class="text-muted" title="No node reports the physical space of this pool. Set STORAGE_POOL_VDO_STATS on the node holding its physical mounts.">not reported</span>';
+    // Only the API knows which of the two causes applies.
+    const why = reason ||
+      "No node reports the physical space of this pool. Set STORAGE_POOL_VDO_STATS on the node holding its physical mounts.";
+    return '<span class="text-muted" title="' + spEsc(why) + '">not reported</span>';
   }
   if (usage.kind !== "local-thick" && usage.kind !== "local-thin") {
     return '<span class="text-muted" title="' + spEsc(usage.reason) + '">' + spEsc(usage.kind || "unknown") + '</span>';
@@ -84,9 +87,27 @@ function spSpaceCell(usage, nowSeconds) {
     title += ". The filesystem claims " + spHumanBytes(usage.filesystem_free_bytes) +
       " free, which is this pool's LOGICAL size and not the constraint.";
   }
+
+  // The figure above is the fullest device, so the others have to be named too.
+  const spread = Array.isArray(devices) ? devices : [];
+  if (spread.length > 1) {
+    title += ". This pool spans " + spread.length + " devices and is bounded by " +
+      spEsc(usage.path || "?") + " (" + spEsc((usage.usages || []).join(", ")) + "). The others: " +
+      spread.slice(1).map(function (d) {
+        const dFree = d.physical_free_bytes;
+        return spEsc(d.path) + " (" + spEsc((d.usages || []).join(", ")) + ") " +
+          (dFree === null || dFree === undefined
+            ? "unmeasured"
+            : spHumanBytes(dFree) + " free of " + spHumanBytes(Number(d.physical_total_bytes) || 0));
+      }).join("; ");
+  }
+
   const cls = stale ? "text-muted" : (pct >= 90 ? "text-danger" : "");
   return '<span class="' + cls + '" title="' + spEsc(title) + '">' + spHumanBytes(free) + " free" +
     (thin ? ' <small class="text-muted">thin</small>' : "") +
+    (spread.length > 1
+      ? ' <small class="text-muted">of ' + spread.length + ' devs</small>'
+      : "") +
     (stale ? ' <i class="fa fa-clock-o" title="Measurement is stale"></i>' : "") + "</span>";
 }
 
@@ -210,7 +231,9 @@ $(document).ready(function () {
         "data": "physical_usage",
         "title": '<span title="Physical free space behind this pool. On a thin pool the filesystem figure is its LOGICAL size, so only a published physical measurement means anything.">Space</span>',
         "width": "130px", "className": "text-center", "defaultContent": "",
-        "render": function (data, type, full, meta) { return spSpaceCell(data); }
+        "render": function (data, type, full, meta) {
+          return spSpaceCell(data, null, full.physical_usage_devices, full.physical_usage_reason);
+        }
       },
       {
         "data": "categories_names", "title": "Categories", "render": function (data, type, full, meta) {

@@ -558,3 +558,160 @@ def test_the_same_node_keeps_updating_its_own_measurement():
     assert (
         conn.hgetall(m.pool_status_key("/isard/groups"))["physical_free_bytes"] == b"20"
     )
+
+
+# --- reading a pool across every device its disks land on -------------------
+
+_TWO_DEVICE_PATHS = {
+    "desktop": [{"path": "groups", "weight": 100}],
+    "media": [{"path": "media", "weight": 100}],
+    "template": [{"path": "templates", "weight": 100}],
+    "volatile": [{"path": "volatile", "weight": 100}],
+}
+
+
+def _publish_measurement(conn, path, free, total=1000, **extra):
+    m.publish_usage(
+        conn,
+        dict(
+            {
+                "path": path,
+                "kind": "local-thick",
+                "node": "nas-a",
+                "physical_total_bytes": total,
+                "physical_free_bytes": free,
+            },
+            **extra,
+        ),
+        900,
+    )
+
+
+def test_a_pool_is_read_across_every_device_its_disks_land_on():
+    """The defect itself. Media on their own small device, everything else on
+    the roomy pool root: the pool has to be judged by the media device."""
+    conn = _FakeRedis()
+    _publish_measurement(conn, "/isard/storage_pools/p", free=3000, total=4000)
+    _publish_measurement(conn, "/isard/storage_pools/p/media", free=3, total=200)
+
+    devices = m.read_pool_devices(conn, "/isard/storage_pools/p", _TWO_DEVICE_PATHS)
+
+    assert [d["path"] for d in devices] == [
+        "/isard/storage_pools/p/media",
+        "/isard/storage_pools/p",
+    ]
+    # Tightest first, so a reader showing one figure shows the constraint.
+    assert devices[0]["physical_free_bytes"] == 3
+    # Reading only the mountpoint is what used to happen, and it is the wrong
+    # device: keep the contrast in the test so it cannot quietly come back.
+    assert m.read_usage(conn, "/isard/storage_pools/p")["physical_free_bytes"] == 3000
+
+
+def test_one_device_reads_exactly_as_it_did_before():
+    """A pool that is one filesystem must not change: same measurement, one
+    entry. Everything below is only interesting because this holds."""
+    conn = _FakeRedis()
+    _publish_measurement(conn, "/isard/storage_pools/p", free=500, total=1000)
+
+    devices = m.read_pool_devices(conn, "/isard/storage_pools/p", _TWO_DEVICE_PATHS)
+
+    assert len(devices) == 1
+    single = m.read_usage(conn, "/isard/storage_pools/p")
+    for field, value in single.items():
+        assert devices[0][field] == value
+    assert sorted(devices[0]["usages"]) == [
+        "groups",
+        "media",
+        "pool",
+        "templates",
+        "volatile",
+    ]
+
+
+def test_one_device_shared_by_two_disk_types_is_counted_once():
+    """Two usages pointed at the same directory, or at two directories on the
+    same mount, are one device. Counting it twice would double a pool's
+    apparent spread and, worse, its apparent capacity."""
+    conn = _FakeRedis()
+    _publish_measurement(conn, "/isard/storage_pools/p", free=900)
+    _publish_measurement(conn, "/isard/storage_pools/p/shared", free=10, total=100)
+    paths = {
+        "media": [{"path": "shared", "weight": 100}],
+        "template": [{"path": "shared", "weight": 100}],
+    }
+
+    devices = m.read_pool_devices(conn, "/isard/storage_pools/p", paths)
+
+    shared = [d for d in devices if d["path"].endswith("/shared")]
+    assert len(shared) == 1
+    assert sorted(shared[0]["usages"]) == ["shared"]
+    assert len(devices) == 2
+
+
+def test_a_device_nobody_measured_never_passes_for_the_tightest():
+    """A published measurement can carry a capacity with no fill (thin without
+    the privilege). It cannot be compared, so it must not sort ahead of a
+    device that IS measured and IS nearly full -- that would hide the one thing
+    the reader is for."""
+    conn = _FakeRedis()
+    _publish_measurement(conn, "/isard/storage_pools/p", free=800, total=1000)
+    m.publish_usage(
+        conn,
+        {
+            "path": "/isard/storage_pools/p/media",
+            "kind": "local-thin",
+            "node": "nas-a",
+            "physical_total_bytes": 500,
+            "reason": "no dm access",
+        },
+        900,
+    )
+    _publish_measurement(conn, "/isard/storage_pools/p/templates", free=1, total=100)
+
+    devices = m.read_pool_devices(conn, "/isard/storage_pools/p", _TWO_DEVICE_PATHS)
+
+    assert devices[0]["path"] == "/isard/storage_pools/p/templates"
+    assert devices[-1]["path"] == "/isard/storage_pools/p/media"
+
+
+def test_a_pool_nobody_publishes_reads_as_nothing_not_as_zero():
+    """No key for any of its paths: the answer is "no measurement", never a
+    made-up figure. A zero here would read as a full pool."""
+    conn = _FakeRedis()
+
+    assert m.read_pool_devices(conn, "/isard/storage_pools/p", _TWO_DEVICE_PATHS) == []
+    assert m.read_pool_devices(conn, "", _TWO_DEVICE_PATHS) == []
+
+
+def test_the_paths_looked_under_are_the_pool_root_and_its_disk_types():
+    """What a reader reports when it found nothing: naming every path it tried
+    is the difference between "not reported" and a lead."""
+    assert m.pool_usage_paths("/isard/storage_pools/p", _TWO_DEVICE_PATHS) == [
+        "/isard/storage_pools/p",
+        "/isard/storage_pools/p/groups",
+        "/isard/storage_pools/p/media",
+        "/isard/storage_pools/p/templates",
+        "/isard/storage_pools/p/volatile",
+    ]
+    # No mountpoint: nothing to look under, which is a different problem from
+    # nobody publishing.
+    assert m.pool_usage_paths("", _TWO_DEVICE_PATHS) == []
+    # A pool with no paths recorded is still measurable at its root.
+    assert m.pool_usage_paths("/isard/storage_pools/p", None) == [
+        "/isard/storage_pools/p"
+    ]
+
+
+def test_a_malformed_paths_entry_does_not_take_the_reader_down():
+    """``paths`` comes from the database and old rows are not all the shape the
+    schema says. A pool must still report the device it is rooted on."""
+    conn = _FakeRedis()
+    _publish_measurement(conn, "/isard/storage_pools/p", free=42)
+
+    devices = m.read_pool_devices(
+        conn,
+        "/isard/storage_pools/p",
+        {"media": "not-a-list", "template": [None, {}, {"weight": 1}]},
+    )
+
+    assert [d["physical_free_bytes"] for d in devices] == [42]
