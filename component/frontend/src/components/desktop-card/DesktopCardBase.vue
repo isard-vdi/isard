@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils'
 import { Icon } from '@/components/icon'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 
+import DomainImage from '@/components/domain/DomainImage.vue'
+
 import type { CardSize } from '.'
 import {
   CARD_SIZE_INJECTION_KEY,
@@ -149,12 +151,7 @@ const desktopKindStyle = computed(() => {
 
       <div :class="cardImageVariants({ size })">
         <slot name="image">
-          <div
-            class="absolute inset-0 bg-center bg-cover"
-            :style="{
-              backgroundImage: `url(${props.imageUrl})`
-            }"
-          />
+          <DomainImage :image-url="props.imageUrl" class="absolute inset-0" />
         </slot>
 
         <div :class="cardHeaderActionsVariants({ size })">

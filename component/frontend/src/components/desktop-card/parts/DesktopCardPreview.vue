@@ -5,6 +5,8 @@ import { DesktopStatusEnum, type UserDesktop, type BrowserVncValues } from '@/ge
 import { getDesktopViewerByType } from '@/gen/oas/apiv4/'
 
 import NoVNC from '@/components/noVNC/NoVNC.vue'
+
+import DomainImage from '@/components/domain/DomainImage.vue'
 import type { CardSize } from '..'
 
 interface Props {
@@ -115,10 +117,7 @@ const monitorInsetClass = computed(() => {
 
 <template>
   <div ref="root" class="absolute inset-0">
-    <div
-      class="absolute inset-0 bg-center bg-cover"
-      :style="{ backgroundImage: `url(${props.imageUrl})` }"
-    />
+    <DomainImage :image-url="props.imageUrl" class="absolute inset-0" />
     <div
       v-if="showLivePreview"
       :class="[

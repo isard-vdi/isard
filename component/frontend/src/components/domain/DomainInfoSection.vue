@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import type { DesktopKind } from '@/lib/domainKind'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 export type DomainInfoPreview = 'desktop-card' | 'template-row'
 
@@ -192,9 +193,10 @@ defineExpose({
       }"
     >
       <div class="grid grid-rows-subgrid row-span-3">
-        <div
-          class="row-start-2 w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-          :style="{ backgroundImage: imageUrl ? `url(${imageUrl})` : undefined }"
+        <DomainImage
+          :image-url="imageUrl"
+          variant="compact"
+          class="row-start-2 w-48 h-16 shrink-0 rounded-l-2xl"
         >
           <Button
             class="absolute top-1 left-1 rounded-tl-xl"
@@ -204,7 +206,7 @@ defineExpose({
             :aria-label="t('components.change-image-modal.title')"
             @click="emit('change-image')"
           />
-        </div>
+        </DomainImage>
       </div>
 
       <form class="contents" @submit.prevent>
