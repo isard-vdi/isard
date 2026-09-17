@@ -705,11 +705,37 @@ class AdminDownloadsService:
         if url_web and not url_isard:
             return url_web, []
         registry_url, code, _ = AdminDownloadsService._get_cfg()
+        folder = AdminDownloadsService._registry_folder(kind, url_isard)
         url = (
-            f"{str(registry_url).rstrip('/')}/storage/{kind}/"
+            f"{str(registry_url).rstrip('/')}/storage/{folder}/"
             f"{url_isard.lstrip('/')}"
         )
         return url, ([f"Authorization: {code}"] if code else [])
+
+    @staticmethod
+    def _registry_folder(kind: str, url_isard: str) -> str:
+        """The registry folder serving ``url_isard``, resolved server side."""
+        if kind != "domains":
+            return kind
+        _, _, private_code = AdminDownloadsService._get_cfg()
+        if not private_code:
+            return kind
+        wanted = url_isard.lstrip("/")
+
+        def _names(entries) -> set:
+            if not isinstance(entries, list):
+                return set()
+            return {str(e.get("url-isard") or "").lstrip("/") for e in entries}
+
+        private = AdminDownloadsService._download_web_private_kind(
+            kind="private_domains"
+        )
+        if wanted not in _names(private):
+            return kind
+        public = AdminDownloadsService._download_web_kind(kind="domains")
+        if wanted in _names(public):
+            return kind
+        return "private_domains"
 
     @staticmethod
     def _kick_off_download_chain(
