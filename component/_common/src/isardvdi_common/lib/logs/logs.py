@@ -55,8 +55,6 @@ class LogsProcessed(RethinkSharedConnection):
             table_indexes = r.table(table).index_list().run(cls._rdb_connection)
 
         query = r.table(table)
-        if scope_category_id is not None:
-            query = query.filter({"owner_category_id": scope_category_id})
         skip_indexs = False
 
         # Add ordering
@@ -84,6 +82,10 @@ class LogsProcessed(RethinkSharedConnection):
                             query = query.order_by(r.desc(col_data))
                         else:
                             query = query.order_by(r.asc(col_data))
+
+        # Filter by category
+        if scope_category_id is not None:
+            query = query.filter({"owner_category_id": scope_category_id})
 
         # Add range filters
         if parsed.get("range"):
