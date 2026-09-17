@@ -52,6 +52,7 @@ from api.schemas.domains.desktop_direct_viewer import (
     DesktopShareLinkResponse,
     DesktopUpdateShareLinkRequest,
     DesktopViewerResponse,
+    DirectViewerDocsResponse,
     ViewersDocsResponse,
 )
 from api.schemas.domains.desktops import DesktopNetworksResponse
@@ -252,6 +253,36 @@ async def get_viewer_docs(request: Request):
             request,
             "internal_server",
             f"Failed to retrieve viewer documentation",
+            traceback.format_exc(),
+        )
+
+
+@direct_viewer_router.get(
+    "/item/desktop/get-direct-viewer-docs",
+    tags=[tag],
+    response_model=DirectViewerDocsResponse,
+    summary="Get direct viewer documentation URL",
+    description="Returns the URL for the direct viewer page documentation",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_direct_viewer_docs(request: Request):
+    try:
+        docs_link = await asyncio.to_thread(DesktopService.get_direct_viewer_page_docs)
+        return JSONResponse(
+            content=DirectViewerDocsResponse(
+                direct_viewer_documentation_url=docs_link
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve direct viewer documentation",
             traceback.format_exc(),
         )
 

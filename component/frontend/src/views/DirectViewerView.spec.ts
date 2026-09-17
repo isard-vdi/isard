@@ -8,6 +8,8 @@ const viewerError: Ref<any> = ref(null)
 const viewerPending = ref(false)
 const loginConfig: Ref<any> = ref(null)
 const desktopDetails: Ref<any> = ref(null)
+const viewerDocs: Ref<any> = ref(null)
+const uiLocale = ref('en-US')
 
 // Controllable outputs of the mocked @/lib/desktops helpers.
 const bookingText: Ref<string | null> = ref(null)
@@ -29,7 +31,7 @@ vi.mock('@tanstack/vue-query', () => {
     const idx = useQueryCallIndex
     useQueryCallIndex += 1
     // Order matches DirectViewerView.vue: (0) desktopViewer, (1) loginConfig,
-    // (2) desktopDetails.
+    // (2) desktopDetails, (3) viewerDocs.
     if (idx === 0)
       return {
         data: viewerData,
@@ -38,7 +40,8 @@ vi.mock('@tanstack/vue-query', () => {
         isPending: viewerPending
       }
     if (idx === 1) return { data: loginConfig, error: ref(null), isPending: ref(false) }
-    return { data: desktopDetails, error: ref(null), isPending: ref(false) }
+    if (idx === 2) return { data: desktopDetails, error: ref(null), isPending: ref(false) }
+    return { data: viewerDocs, error: ref(null), isPending: ref(false) }
   }
   const useQueryClient = () => ({
     setQueryData: setQueryDataMock,
@@ -65,7 +68,8 @@ vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
   getDesktopDetailsFromTokenOptions: () => ({ queryKey: { _id: 'details' } }),
   startDesktopFromTokenMutation: () => ({ mutationFn: vi.fn() }),
   resetDesktopMutation: () => ({ mutationFn: vi.fn() }),
-  apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
+  apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } }),
+  getDirectViewerDocsOptions: () => ({ queryKey: { _id: 'docs' } })
 }))
 
 vi.mock('@/gen/oas/apiv4', () => ({
@@ -116,7 +120,7 @@ vi.mock('vue-i18n', () => ({
       params && Object.keys(params).length ? `${k}::${JSON.stringify(params)}` : k,
     d: (_date: Date, opts?: Record<string, unknown>) =>
       opts?.dateStyle ? 'DATE' : opts?.timeStyle ? 'TIME' : 'D',
-    locale: ref('en-US')
+    locale: uiLocale
   }),
   // @/lib/i18n.ts (pulled in transitively) calls createI18n at module load and
   // reads i18n.global.{locale.value,t}.
@@ -277,10 +281,20 @@ vi.mock('@/components/modal', () => ({
 
 vi.mock('@/components/ui/button', () => ({
   Button: {
-    props: ['hierarchy', 'size', 'icon', 'iconClass', 'iconStrokeColor', 'disabled', 'ariaLabel'],
+    props: [
+      'as',
+      'href',
+      'hierarchy',
+      'size',
+      'icon',
+      'iconClass',
+      'iconStrokeColor',
+      'disabled',
+      'ariaLabel'
+    ],
     emits: ['click'],
     template:
-      '<button data-test="btn" :aria-label="ariaLabel" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>'
+      '<component :is="as || \'button\'" data-test="btn" :href="href" :aria-label="ariaLabel" :disabled="disabled" @click="$emit(\'click\')"><slot /></component>'
   }
 }))
 vi.mock('@/components/ui/separator/Separator.vue', () => ({
@@ -322,8 +336,10 @@ describe('DirectViewerView', () => {
     viewerData.value = null
     viewerError.value = null
     viewerPending.value = false
+    uiLocale.value = 'en-US'
     loginConfig.value = null
     desktopDetails.value = null
+    viewerDocs.value = null
     bookingText.value = null
     mainButtonAction.value = 'none'
     cookieSetMock.mockReset()
@@ -537,6 +553,62 @@ describe('DirectViewerView', () => {
       expect.objectContaining({ path: '/' })
     )
     vi.unstubAllGlobals()
+  })
+
+  it('links the help footer to the direct viewer guide', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    const help = wrapper.find('footer a')
+    expect(help.exists()).toBe(true)
+    expect(wrapper.text()).toContain('views.direct-viewer.help.text')
+    expect(help.attributes('href')).toBe('https://isard.gitlab.io/isardvdi-docs/direct_viewer/')
+  })
+
+  it('sends the help footer to the guide translated to the ui language', async () => {
+    uiLocale.value = 'ca-ES'
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('footer a').attributes('href')).toBe(
+      'https://isard.gitlab.io/isardvdi-docs/ca/direct_viewer/'
+    )
+  })
+
+  it('falls back to the english guide for languages without a translation', async () => {
+    uiLocale.value = 'fr-FR'
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('footer a').attributes('href')).toBe(
+      'https://isard.gitlab.io/isardvdi-docs/direct_viewer/'
+    )
+  })
+
+  it('updates the help footer when the ui language changes', async () => {
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    uiLocale.value = 'es-ES'
+    await flushPromises()
+
+    expect(wrapper.find('footer a').attributes('href')).toBe(
+      'https://isard.gitlab.io/isardvdi-docs/es/direct_viewer/'
+    )
+  })
+
+  it('links the help footer to the direct viewer docs uri from the cfg', async () => {
+    uiLocale.value = 'ca-ES'
+    viewerDocs.value = { direct_viewer_documentation_url: 'https://docs.example/direct' }
+    viewerData.value = startedDesktop()
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('footer a').attributes('href')).toBe('https://docs.example/direct')
   })
 
   it('opens the networks modal from the networks overlay overflow', async () => {

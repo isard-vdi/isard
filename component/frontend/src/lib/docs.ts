@@ -4,6 +4,7 @@ const OFFICIAL_DOCS_ROOT = 'https://isard.gitlab.io/isardvdi-docs/'
 
 export const DEFAULT_DOCS_URL = OFFICIAL_DOCS_ROOT
 export const DEFAULT_VIEWERS_DOCS_URL = `${OFFICIAL_DOCS_ROOT}user/viewers/viewers/`
+export const DEFAULT_DIRECT_VIEWER_DOCS_URL = `${OFFICIAL_DOCS_ROOT}direct_viewer/`
 
 const OFFICIAL_DOCS_LANGUAGE_PATH: Partial<Record<Locale, string>> = {
   'es-ES': 'es/',
@@ -18,6 +19,8 @@ const officialDocsPath = (url: string): string | null => {
   if (normalized === DEFAULT_DOCS_URL) return ''
   if (normalized === DEFAULT_VIEWERS_DOCS_URL)
     return DEFAULT_VIEWERS_DOCS_URL.slice(OFFICIAL_DOCS_ROOT.length)
+  if (normalized === DEFAULT_DIRECT_VIEWER_DOCS_URL)
+    return DEFAULT_DIRECT_VIEWER_DOCS_URL.slice(OFFICIAL_DOCS_ROOT.length)
 
   return null
 }

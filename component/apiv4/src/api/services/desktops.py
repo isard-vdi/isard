@@ -748,6 +748,10 @@ class DesktopService:
         return docs_link
 
     @staticmethod
+    def get_direct_viewer_page_docs():
+        return DesktopDirectViewer.direct_viewer_docs()
+
+    @staticmethod
     def reset_desktop_from_token(token: str, request: Request) -> str:
         desktop_id = DesktopDirectViewer.reset_desktop(token, request)
         return desktop_id

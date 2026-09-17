@@ -897,6 +897,10 @@
           "description": "The desktop you are trying to access needs to be booked in order to start it. \nContact the owner of the desktop to book it in order to access it."
         }
       },
+      "help": {
+        "text": "This page connects you to a remote desktop that someone shared with you.",
+        "link": "Need help? Read the direct viewer guide"
+      },
       "reset-modal": {
         "title": "Force reset the desktop?",
         "description": "Forcing a desktop reset is a dangerous action. It is the equivalent of cutting its power while it is running. If you can, stop it from within a viewer instead.",

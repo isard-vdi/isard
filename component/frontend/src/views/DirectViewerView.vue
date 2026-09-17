@@ -13,7 +13,8 @@ import {
   getDesktopDetailsFromTokenOptions,
   startDesktopFromTokenMutation,
   resetDesktopMutation,
-  apiV4LoginConfigOptions
+  apiV4LoginConfigOptions,
+  getDirectViewerDocsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   renewDesktopViewerByToken,
@@ -32,6 +33,7 @@ import {
 
 import { withOptimisticStatus } from '@/lib/optimistic'
 import { setBrowserViewerCookie, setViewerToken } from '@/lib/viewers'
+import { DEFAULT_DIRECT_VIEWER_DOCS_URL, docsUrl } from '@/lib/docs'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 import { useJwtRenewal } from '@/composables/useJwtRenewal'
@@ -59,7 +61,7 @@ import { LoginNotification } from '@/components/login'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { BrandLogo } from '@/components/logo'
 
-const { t, d } = useI18n()
+const { t, d, locale } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
@@ -117,6 +119,16 @@ const { data: desktopDetails } = useQuery({
   }),
   enabled: computed(() => !!viewerJwt.value && showDesktopInfoModal.value)
 })
+
+const { data: viewerDocs } = useQuery(getDirectViewerDocsOptions({ client: directViewerClient }))
+
+const helpUrl = computed(() =>
+  docsUrl(
+    viewerDocs.value?.direct_viewer_documentation_url,
+    DEFAULT_DIRECT_VIEWER_DOCS_URL,
+    locale.value
+  )
+)
 
 const bastion = computed(() => desktopViewer.value?.bastion)
 const desktopIp = computed(() => desktopViewer.value?.ip)
@@ -522,6 +534,22 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         </template>
       </div>
     </main>
+    <footer class="flex flex-col items-center gap-1 px-6 pb-10 pt-6 text-center">
+      <p class="text-sm text-gray-warm-600">
+        {{ t('views.direct-viewer.help.text') }}
+      </p>
+      <Button
+        as="a"
+        hierarchy="link-color"
+        size="sm"
+        icon="help-circle"
+        :href="helpUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ t('views.direct-viewer.help.link') }}
+      </Button>
+    </footer>
     <!-- `bastion` puts the card's modal in read-only mode: no queries, no editors. -->
     <DesktopBastionInfoModal
       v-if="showBastionModal && bastion && desktopViewer"
