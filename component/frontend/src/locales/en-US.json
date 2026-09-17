@@ -1515,7 +1515,8 @@
         },
         "isos": {
           "label": "ISOs",
-          "placeholder": "Select ISOs"
+          "placeholder": "Select ISOs",
+          "unavailable": "No ISO available for your user"
         },
         "floppies": {
           "label": "Floppies",

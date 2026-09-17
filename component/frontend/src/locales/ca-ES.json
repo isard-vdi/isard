@@ -2270,7 +2270,8 @@
         },
         "isos": {
           "label": "ISOs",
-          "placeholder": "Selecciona ISOs"
+          "placeholder": "Selecciona ISOs",
+          "unavailable": "No hi ha cap ISO disponible per al teu usuari"
         },
         "floppies": {
           "label": "Disquets",

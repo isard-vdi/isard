@@ -2282,7 +2282,8 @@
         },
         "isos": {
           "label": "ISOs",
-          "placeholder": "Selecciona ISOs"
+          "placeholder": "Selecciona ISOs",
+          "unavailable": "No hay ninguna ISO disponible para tu usuario"
         },
         "floppies": {
           "label": "Disquetes",
