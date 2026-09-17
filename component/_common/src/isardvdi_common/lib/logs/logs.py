@@ -421,24 +421,23 @@ class LogsProcessed(RethinkSharedConnection):
         pass ``None``.
         """
         query = r.table("logs_users")
+        query = query.order_by(r.desc("started_time"))
+
         if category_id is not None:
-            # Writer at ``api_logs_users.py:96`` stores the column as
-            # ``owner_category_id``; the apiv4 port had this filter
-            # using ``category_id`` so manager-scoped lists silently
-            # returned []. Match the writer schema and the sibling
-            # ``list_simple_desktop`` (line 350).
             query = query.filter({"owner_category_id": category_id})
-        if user_id:
-            query = query.filter({"user_id": user_id})
-        if group_id:
-            query = query.filter({"group_id": group_id})
-        if start_date:
+        if user_id is not None:
+            query = query.filter({"owner_user_id": user_id})
+        if group_id is not None:
+            query = query.filter({"owner_group_id": group_id})
+        if start_date is not None:
             s = (start_date if "T" in start_date else start_date + "T00:00:00") + "Z"
-            query = query.filter(lambda d: d["starting_time"] >= r.iso8601(s))
-        if end_date:
+            query = query.filter(lambda d: d["started_time"] >= r.iso8601(s))
+        if end_date is not None:
             e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
-            query = query.filter(lambda d: d["starting_time"] <= r.iso8601(e))
-        query = query.order_by(r.desc("starting_time")).skip(offset).limit(limit)
+            query = query.filter(lambda d: d["started_time"] <= r.iso8601(e))
+
+        query.skip(offset).limit(limit)
+
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
 
