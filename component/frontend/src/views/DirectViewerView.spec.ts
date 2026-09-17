@@ -171,8 +171,14 @@ vi.mock('@/components/desktop-card', () => ({
   },
   DesktopCardFooter: {
     props: ['mainButtonData', 'desktopStatus', 'desktopViewers', 'desktopIp', 'preferredViewer'],
-    emits: ['mainButtonClick'],
-    template: '<button data-test="footer-main" @click="$emit(\'mainButtonClick\')">main</button>'
+    emits: ['mainButtonClick', 'openViewer'],
+    // Mirrors the real footer's gate: the shared ViewerSelect only renders while
+    // `mainButtonData.viewers` is set.
+    template:
+      '<button data-test="footer-main" @click="$emit(\'mainButtonClick\')">main</button>' +
+      '<div v-if="mainButtonData.viewers" data-test="viewer-select" :data-ip="desktopIp ?? \'\'" :data-preferred="preferredViewer ?? \'\'">' +
+      '<button v-for="v in desktopViewers" :key="v" :data-test="`viewer-${v}`" @click="$emit(\'openViewer\', v)">{{ v }}</button>' +
+      '</div>'
   },
   DesktopCardIp: { template: '<div data-test="card-ip" />' },
   DesktopCardNetworksOverlay: {
@@ -266,11 +272,6 @@ vi.mock('@/components/modal', () => ({
     props: ['open', 'level', 'size', 'title', 'description', 'loading'],
     emits: ['update:open'],
     template: '<div data-test="reset-modal" :data-open="String(open)"><slot name="footer" /></div>'
-  },
-  ChangeViewerModal: {
-    props: ['open', 'availableViewerIds', 'currentViewerId'],
-    emits: ['close', 'change'],
-    template: '<div data-test="change-viewer-modal" :data-open="String(open)" />'
   }
 }))
 
@@ -281,10 +282,6 @@ vi.mock('@/components/ui/button', () => ({
     template:
       '<button data-test="btn" :aria-label="ariaLabel" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>'
   }
-}))
-vi.mock('@/components/ui/button-group', () => ({
-  ButtonGroup: { template: '<div data-test="button-group"><slot /></div>' },
-  ButtonGroupSeparator: { template: '<span data-test="btn-group-sep" />' }
 }))
 vi.mock('@/components/ui/separator/Separator.vue', () => ({
   default: { template: '<hr data-test="separator" />' }
@@ -461,10 +458,11 @@ describe('DirectViewerView', () => {
     expect(mutations[1].mutate).toHaveBeenCalled()
   })
 
-  it('shows the viewer button group and opens the change-viewer modal for multiple viewers', async () => {
+  it('hands the available viewers to the card footer so the shared dropdown lists them', async () => {
     viewerData.value = startedDesktop({
+      ip: '10.1.2.3',
       viewers: {
-        'browser-vnc': { kind: 'browser', viewer: '/viewer/vnc' },
+        browser_vnc: { kind: 'browser', viewer: '/viewer/vnc' },
         'file-spice': { kind: 'file' },
         empty: null
       }
@@ -472,29 +470,30 @@ describe('DirectViewerView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
-    expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('false')
-
-    const settings = wrapper.find('[aria-label="components.change-viewer-modal.title"]')
-    expect(settings.exists()).toBe(true)
-    await settings.trigger('click')
-    expect(wrapper.find('[data-test="change-viewer-modal"]').attributes('data-open')).toBe('true')
+    const select = wrapper.find('[data-test="viewer-select"]')
+    expect(select.exists()).toBe(true)
+    // The get-viewer payload keys are underscore-form; the dropdown labels are dash-form.
+    expect(wrapper.find('[data-test="viewer-browser-vnc"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="viewer-file-spice"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="viewer-empty"]').exists()).toBe(false)
+    // The IP reaches the footer so an RDP viewer stops showing as loading.
+    expect(select.attributes('data-ip')).toBe('10.1.2.3')
   })
 
   it.each(['Stopped', 'Maintenance'])(
-    'hides the viewer button group when the desktop turns %s elsewhere',
+    'hides the viewer dropdown when the desktop turns %s elsewhere',
     async (status) => {
       viewerData.value = startedDesktop({
         viewers: { 'browser-vnc': { kind: 'browser', viewer: '/viewer/vnc' } }
       })
       const wrapper = mountView()
       await flushPromises()
-      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="viewer-select"]').exists()).toBe(true)
 
       viewerData.value = { ...viewerData.value, status }
       await flushPromises()
 
-      expect(wrapper.find('[data-test="button-group"]').exists()).toBe(false)
+      expect(wrapper.find('[data-test="viewer-select"]').exists()).toBe(false)
     }
   )
 
@@ -507,9 +506,7 @@ describe('DirectViewerView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    // The active-viewer button is the first button inside the group (no aria-label).
-    const groupButtons = wrapper.find('[data-test="button-group"]').findAll('[data-test="btn"]')
-    await groupButtons[0].trigger('click')
+    await wrapper.find('[data-test="viewer-browser-vnc"]').trigger('click')
 
     expect(cookieSetMock).toHaveBeenCalledWith(
       'browser_viewer',
@@ -532,8 +529,7 @@ describe('DirectViewerView', () => {
     // The guacamole page removes the cookie on unload; reopening a viewer has to write it back.
     cookieSetMock.mockClear()
 
-    const groupButtons = wrapper.find('[data-test="button-group"]').findAll('[data-test="btn"]')
-    await groupButtons[0].trigger('click')
+    await wrapper.find('[data-test="viewer-browser-vnc"]').trigger('click')
 
     expect(cookieSetMock).toHaveBeenCalledWith(
       'viewerToken',
