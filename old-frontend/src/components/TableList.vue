@@ -583,7 +583,7 @@ export default {
       return ''
     },
     onClickGoToNewTemplate (desktop) {
-      if (desktop.server) {
+      if (desktop.serverAutostart) {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
       } else if (this.getItemState(desktop) === desktopStates.stopped) {
         this.goToNewTemplate(desktop.id)

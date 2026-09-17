@@ -335,6 +335,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             "editable": editable,
             "scheduled": desktop.get("scheduled", {"shutdown": False}),
             "server": desktop.get("server"),
+            "server_autostart": desktop.get("server_autostart"),
             "accessed": desktop.get("accessed"),
             "tag": desktop.get("tag"),
             "visible": desktop.get("tag_visible"),
@@ -1197,6 +1198,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                             }
                         },
                         "server",
+                        "server_autostart",
                         "progress",
                         "booking_id",
                         "scheduled",

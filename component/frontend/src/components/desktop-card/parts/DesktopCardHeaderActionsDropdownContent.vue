@@ -7,6 +7,7 @@ import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
 import { DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { toast } from '@/components/ui/toast'
 import { hasAdvancedOptions } from '@/components/desktop-card/advanced-options-modal/options'
 
 import { useAuthStore } from '@/stores/auth'
@@ -42,6 +43,7 @@ interface Action {
   labelKey: string
   icon: string
   when: boolean
+  blockedReasonKey?: string
   danger?: boolean
 }
 
@@ -79,7 +81,10 @@ const actions = computed<Action[]>(() =>
         when:
           props.desktop.status === DesktopStatusEnum.STOPPED &&
           isStandalone.value &&
-          isNotUser(role.value)
+          isNotUser(role.value),
+        blockedReasonKey: props.desktop.server_autostart
+          ? 'components.desktops.desktop-card.actions.template-server-autostart'
+          : undefined
       },
       {
         event: 'bookDesktop',
@@ -109,6 +114,14 @@ const actions = computed<Action[]>(() =>
     ] satisfies Action[]
   ).filter((action) => action.when)
 )
+
+const runAction = (action: Action) => {
+  if (action.blockedReasonKey) {
+    toast.error(t(action.blockedReasonKey))
+    return
+  }
+  emit(action.event)
+}
 </script>
 
 <template>
@@ -117,7 +130,7 @@ const actions = computed<Action[]>(() =>
       v-for="action in actions"
       :key="action.event"
       :class="{ 'hover:bg-error-50 focus:bg-error-50': action.danger }"
-      @click="emit(action.event)"
+      @click="runAction(action)"
     >
       <Button
         size="sm"

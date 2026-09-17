@@ -462,6 +462,10 @@ class UserDesktop(BaseModel):
         default=None,
         description="If true, the desktop is a server. If false, the desktop is not a server.",
     )
+    server_autostart: bool | None = Field(
+        default=None,
+        description="If true, the server desktop is autostarted. Only meaningful when server is true.",
+    )
     accessed: Optional[int] = Field(
         default=None,
         description="Timestamp of the last access to the desktop. If None, the desktop has not been accessed yet.",

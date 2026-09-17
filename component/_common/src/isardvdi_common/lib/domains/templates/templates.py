@@ -217,11 +217,12 @@ class TemplatesProcessed(RethinkSharedConnection):
                 "To create a template, status desktop must be Stopped",
                 traceback.format_exc(),
             )
-        if desktop.get("server"):
+        if desktop.get("server_autostart"):
             raise Error(
-                "internal_server",
-                "Can't create a template from a server",
+                "bad_request",
+                "Can't create a template from a server with autostart",
                 traceback.format_exc(),
+                description_code="new_template_server_autostart",
             )
         if not Domain(desktop.get("id")).storage_ready:
             raise Error(

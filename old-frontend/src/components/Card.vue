@@ -603,7 +603,7 @@ export default {
       return DesktopUtils.viewerNeedsIp(viewer)
     },
     onClickGoToNewTemplate (desktopId) {
-      if (this.desktop.server) {
+      if (this.desktop.serverAutostart) {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
       } else if (this.desktopState === desktopStates.stopped) {
         this.goToNewTemplate(desktopId)

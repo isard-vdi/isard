@@ -107,15 +107,35 @@ class TestNewTemplateGuards:
         assert exc.value.error["error"] == "precondition_required"
         _no_writes(stub)
 
-    def test_server_cannot_be_templated(self, stub):
+    def test_server_with_autostart_cannot_be_templated(self, stub):
         _user_ok(stub)
-        _desktop(stub, {"id": "d1", "status": "Stopped", "server": True})
+        _desktop(
+            stub,
+            {"id": "d1", "status": "Stopped", "server": True, "server_autostart": True},
+        )
         with pytest.raises(ErrorBase) as exc:
             stub["Cls"].new_template("u1", "t1", "T", "d1")
-        assert exc.value.error["error"] == "internal_server"
-        # Distinguish the server guard from the later disk guards (which also
-        # raise internal_server but with their own description_code).
-        assert exc.value.error["description_code"] == "internal_server"
+        assert exc.value.error["error"] == "bad_request"
+        assert exc.value.error["description_code"] == "new_template_server_autostart"
+        _no_writes(stub)
+
+    def test_server_without_autostart_passes_the_server_guard(self, stub):
+        # Only autostart is refused: a plain server can be templated, so the
+        # call must fall through to the later guards instead of stopping here.
+        _user_ok(stub)
+        _desktop(
+            stub,
+            {
+                "id": "d1",
+                "status": "Stopped",
+                "server": True,
+                "server_autostart": False,
+            },
+        )
+        stub["Domain"].return_value.storage_ready = False
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].new_template("u1", "t1", "T", "d1")
+        assert exc.value.error["description_code"] == "desktop_storage_not_ready"
         _no_writes(stub)
 
     def test_storage_not_ready_precondition(self, stub):
