@@ -941,6 +941,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
             deployment_tag = {
                 "tag": deployment_id,
+                "tag_name": deployment["name"],
                 "tag_visible": deployment["tag_visible"],
             }
             plan.append((deployment_tag, desktop, users))
@@ -1154,6 +1155,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
         """Create desktops for each user found"""
         deployment_tag = {
             "tag": deployment_id,
+            "tag_name": name,
             "tag_visible": visible,
         }
         cls.create_deployment_desktops(deployment_tag, parsed_desktops, users)
@@ -1858,6 +1860,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
         """Create desktops for each user found"""
         deployment_tag = {
             "tag": deployment_id,
+            "tag_name": deployment["name"],
             "tag_visible": deployment["tag_visible"],
         }
         cls.create_deployment_desktops(deployment_tag, desktops, users)

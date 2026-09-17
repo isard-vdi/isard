@@ -244,7 +244,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             lambda hyper: {
                 "desktops_started": r.table("domains")
                 .get_all(hyper["id"], index="hyp_started")
-                .filter({"server": False})
+                .filter(lambda domain: domain["server"].default(False).eq(False))
                 .count()
             }
         )
@@ -428,7 +428,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 lambda hyper: {
                     "desktops_started": r.table("domains")
                     .get_all(hyper["id"], index="hyp_started")
-                    .filter({"server": False})
+                    .filter(lambda domain: domain["server"].default(False).eq(False))
                     .count()
                 }
             )
