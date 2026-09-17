@@ -405,8 +405,14 @@
 }
 
 @layer base {
-  * {
-    /* @apply border-border; */
+  /* Tailwind v4 leaves a bare `border` at currentColor, which paints the
+     shadcn primitives (dropdown, select, combobox, dialog) near-black. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--base-border);
   }
 
   body {

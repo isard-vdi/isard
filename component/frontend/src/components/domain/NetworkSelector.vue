@@ -211,7 +211,7 @@ onUnmounted(() => cleanup())
           </div>
         </PopoverTrigger>
 
-        <PopoverContent class="p-1 w-(--reka-popper-anchor-width) border-brand-600">
+        <PopoverContent class="p-1 w-(--reka-popper-anchor-width)">
           <div class="flex items-center gap-2 px-2 py-1.5 border-b border-gray-warm-200">
             <Icon name="search-md" size="sm" stroke-color="gray-warm-500" class="shrink-0" />
             <ListboxFilter
