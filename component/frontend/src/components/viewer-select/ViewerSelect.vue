@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useLocalStorage } from '@vueuse/core'
 import { cn } from '@/lib/utils'
 
-import { Button } from '@/components/ui/button'
+import { Button, type ButtonVariants } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { DropdownButton } from '@/components/dropdown-button'
 import {
@@ -24,11 +24,17 @@ interface Props {
   viewers: Viewer[]
   selectedViewer?: string
   size?: 'default' | 'compact'
+  buttonSize?: ButtonVariants['size']
+  // `dense` shrinks the group to the height and type of a table row, and makes
+  // it fill its column so every row's group is the same size
+  dense?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedViewer: undefined,
-  size: 'default'
+  size: 'default',
+  buttonSize: 'md',
+  dense: false
 })
 
 const emit = defineEmits<{
@@ -88,7 +94,7 @@ const selectViewer = (viewer: Viewer) => {
 </script>
 
 <template>
-  <ButtonGroup v-if="selectedViewer" class="min-w-0">
+  <ButtonGroup v-if="selectedViewer" :class="cn('min-w-0', props.dense && 'w-full')">
     <!-- TODO: rework component to update loading state dynamically -->
     <Tooltip
       v-if="props.size !== 'compact'"
@@ -98,8 +104,12 @@ const selectViewer = (viewer: Viewer) => {
     >
       <TooltipTrigger as-child>
         <Button
-          class="min-w-0 overflow-hidden"
+          :class="
+            cn('min-w-0 overflow-hidden', props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs')
+          "
+          :size="props.buttonSize"
           :icon="selectedViewer.loading ? 'loading-02' : ''"
+          :icon-size="props.dense ? 'xs' : undefined"
           icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
           :disabled="selectedViewer.loading"
           @click="selectViewer(selectedViewer)"
@@ -121,7 +131,14 @@ const selectViewer = (viewer: Viewer) => {
         <DropdownMenuTrigger @click.stop>
           <Button
             icon="chevron-down"
-            :class="cn(props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none')"
+            :size="props.buttonSize"
+            :icon-size="props.dense ? 'sm' : undefined"
+            :class="
+              cn(
+                props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none px-2',
+                props.dense && 'h-7 shrink-0 px-1.5 py-0'
+              )
+            "
           />
         </DropdownMenuTrigger>
         <DropdownMenuContent class="bg-white border border-[#D7D3D0] rounded-lg" align="end">

@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4'
 
-import { desktopActionsData, desktopNeedsBooking } from '@/lib/desktops'
+import {
+  desktopStatusIsTransitional,
+  desktopStatusLabel,
+  desktopStatusTone,
+  type DesktopStatusTone
+} from '@/lib/desktops'
+import { cn, startCase } from '@/lib/utils'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-import { Icon, CopyIcon } from '@/components/icon'
+import Badge from '@/components/badge/Badge.vue'
+import { CopyIcon } from '@/components/icon'
 
-import { startCase } from '@/lib/utils'
-
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 
 interface Props {
   desktop: UserDesktop
@@ -20,43 +26,43 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {})
 
-const mainButtonData = computed(() => {
-  return desktopActionsData(props.desktop.status, desktopNeedsBooking(props.desktop))
-})
+const STATUS_BADGE_COLOR: Record<DesktopStatusTone, 'green' | 'red' | 'gray' | 'lightyellow'> = {
+  success: 'green',
+  error: 'red',
+  neutral: 'gray',
+  warning: 'lightyellow'
+}
+
+const statusColor = computed(() => STATUS_BADGE_COLOR[desktopStatusTone(props.desktop.status)])
+
+const statusLabel = computed(() => desktopStatusLabel(props.desktop.status, i18n))
+
+const isTransitional = computed(() => desktopStatusIsTransitional(props.desktop.status))
 </script>
 
 <template>
-  <div
-    v-if="mainButtonData.text"
-    class="flex items-center gap-2 text-sm ml-auto mr-auto select-none font-semibold"
-  >
-    <Icon
-      v-if="mainButtonData.text.icon"
-      :name="mainButtonData.text.icon"
-      size="md"
-      class="shrink-0"
-      :class="mainButtonData.text.iconClass"
-      :stroke-color="mainButtonData.text.iconColor"
-    />
-    {{
-      t(
-        `components.desktops.desktop-card.status.${props.desktop.status.toLowerCase()}.text`
-        // t(`components.desktops.desktop-card.status.unknown.text`)
-      )
-    }}
-  </div>
-  <div v-else class="flex flex-col items-start justify-start w-full gap-2">
-    <div class="text-sm select-none flex flex-row font-semibold">
-      {{
-        t(
-          `components.desktops.desktop-card.status.${props.desktop.status.toLowerCase()}.text`
-          // t(`components.desktops.desktop-card.status.unknown.text`)
+  <div class="flex min-w-0 flex-row items-center gap-1.5 select-none">
+    <!-- Keyed on the status so each change remounts the badge and fades the new
+         one in; opacity only, inside a box the row already reserves. -->
+    <Badge
+      :key="props.desktop.status"
+      :color="statusColor"
+      :content="statusLabel"
+      :icon="isTransitional ? 'loading-02' : undefined"
+      shape="square"
+      size="sm"
+      :class="
+        cn(
+          'font-semibold shrink-0',
+          'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300',
+          isTransitional && 'gap-1.5 [&_svg]:text-warning-800! motion-safe:[&_svg]:animate-spin'
         )
-      }}
-    </div>
+      "
+    />
+
     <div
       v-if="props.desktop.ip"
-      class="flex flex-row items-center gap-1 text-muted-foreground text-xs"
+      class="flex shrink-0 flex-row items-center gap-1 text-muted-foreground text-xs"
     >
       <Tooltip>
         <TooltipTrigger as-child>

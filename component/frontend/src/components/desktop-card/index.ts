@@ -346,7 +346,7 @@ export const cardHeaderDescriptionVariants = cva(
 )
 
 export const cardHeaderNotificationVariants = cva(
-  'inline-flex items-center p-1.5 rounded-sm font-bold text-start text-base-white bg-[#131313]/40 max-w-full w-max backdrop-blur-[4px]',
+  'inline-flex items-center p-1.5 rounded-sm font-bold text-start max-w-full w-max',
   {
     variants: {
       size: {
@@ -356,10 +356,15 @@ export const cardHeaderNotificationVariants = cva(
         md: 'gap-1.5 h-6 text-[11px]',
         lg: 'gap-1.5 h-6 text-[11px]',
         xl: 'gap-2 h-7 text-xs'
+      },
+      surface: {
+        overlay: 'text-base-white bg-[#131313]/40 backdrop-blur-[4px]',
+        light: 'text-warning-800 bg-warning-400/20'
       }
     },
     defaultVariants: {
-      size: 'lg'
+      size: 'lg',
+      surface: 'overlay'
     }
   }
 )
