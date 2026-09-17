@@ -36,6 +36,7 @@ interface Props {
   disabledTooltip?: string
   selectedId?: string
   hideToolbar?: boolean
+  inlineTabs?: boolean
   emptyKind?: EmptyStateKind
   // Row count before any filtering, so a first run can be told from a fruitless search.
   totalRows?: number
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   isClickable: false,
   hideToolbar: false,
+  inlineTabs: false,
   emptyKind: 'templates',
   totalRows: undefined
 })
@@ -106,7 +108,7 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 </script>
 
 <template>
-  <PageToolbar v-if="!props.hideToolbar">
+  <PageToolbar v-if="!props.hideToolbar" :inline-tabs="props.inlineTabs">
     <template v-if="$slots.tabs" #tabs>
       <slot name="tabs" />
     </template>
