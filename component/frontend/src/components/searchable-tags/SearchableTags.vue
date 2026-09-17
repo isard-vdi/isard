@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils'
 interface Tag {
   value: string
   label: string
+  // Secondary text shown under the label in the dropdown, and searched with it.
+  description?: string
   group?: string
   disabled?: boolean
 }
@@ -78,7 +80,12 @@ const selectedTags = computed(() =>
 const isSearching = computed(() => searchTerm.value.trim() !== '')
 
 const filteredTags = computed(() =>
-  isSearching.value ? props.tags.filter((tag) => contains(tag.label, searchTerm.value)) : props.tags
+  isSearching.value
+    ? props.tags.filter(
+        (tag) =>
+          contains(tag.label, searchTerm.value) || contains(tag.description ?? '', searchTerm.value)
+      )
+    : props.tags
 )
 
 // Pinned to the top so a capped list can't hide selected items with no way to unselect.
@@ -145,6 +152,8 @@ watch(
 
 const scrollbarVisible = computed(() => props.tagsDisplay === 'scroll' && hasOverflow.value)
 
+const chipTitle = (tag: Tag) => (tag.description ? `${tag.label} — ${tag.description}` : tag.label)
+
 function removeTag(value: string) {
   emit(
     'update:modelValue',
@@ -208,7 +217,12 @@ function removeLastTag() {
               :key="tag.value"
               class="flex shrink-0 items-center gap-1 max-w-[160px] h-6 pl-2 pr-1 rounded-md bg-brand-100 text-sm text-gray-warm-900"
             >
-              <span class="truncate">{{ tag.label }}</span>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="truncate">{{ tag.label }}</span>
+                </TooltipTrigger>
+                <TooltipContent :title="chipTitle(tag)" />
+              </Tooltip>
               <button
                 type="button"
                 class="shrink-0 flex items-center justify-center rounded-xs border border-transparent hover:bg-brand-200 outline-none focus-visible:border-secondary-3-600"
@@ -277,9 +291,14 @@ function removeLastTag() {
                 :value="tag.value"
                 :disabled="tag.disabled"
               >
-                <span class="truncate">{{ tag.label }}</span>
+                <span class="min-w-0 flex-1 break-words">
+                  {{ tag.label }}
+                  <span v-if="tag.description" class="block text-sm text-gray-warm-500">
+                    {{ tag.description }}
+                  </span>
+                </span>
 
-                <ListboxItemIndicator class="ml-auto inline-flex items-center justify-center">
+                <ListboxItemIndicator class="inline-flex shrink-0 items-center justify-center">
                   <Icon name="check" stroke-color="brand-700" />
                 </ListboxItemIndicator>
               </ListboxItem>

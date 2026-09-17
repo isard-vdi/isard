@@ -114,6 +114,23 @@ export const LongLabels = createStory({
   placeholder: 'Select tags'
 })
 
+/** `description` carries secondary text (here the media owner) shown under the
+ *  label in the dropdown; the search matches it too, and long values wrap
+ *  instead of being cut off. */
+export const WithDescription = createStory({
+  modelValue: ['iso1'],
+  tags: [
+    { label: 'ubuntu-24.04.iso', value: 'iso1', description: 'Alice Doe (alice)' },
+    { label: 'ubuntu-24.04.iso', value: 'iso2', description: 'Bob Roe (bob)' },
+    {
+      label: 'windows-11-enterprise-evaluation-23h2-x64.iso',
+      value: 'iso3',
+      description: 'Maria del Carmen Fernández de la Torre (mfernandezdelatorre)'
+    }
+  ],
+  placeholder: 'Select tags'
+})
+
 /** Tags bucketed via `group`, with a disabled item per group (mirrors the
  *  vGPU profile selector's hypervisor/NUMA grouping + selection-limit disabling). */
 export const GroupedWithDisabledTags = createStory({

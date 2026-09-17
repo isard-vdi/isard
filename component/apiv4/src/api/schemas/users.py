@@ -183,6 +183,21 @@ class HardwareItem(BaseModel):
     editable: bool = Field(description="Whether this item can be edited")
 
 
+class MediaHardwareItem(HardwareItem):
+    """An ISO/floppy option, tagged with its owner.
+
+    Media is shareable, so the hardware pickers list items belonging to
+    other users; the owner tells apart same-named images.
+    """
+
+    user_name: Optional[str] = Field(
+        default=None, description="Name of the user owning the media"
+    )
+    username: Optional[str] = Field(
+        default=None, description="Username of the user owning the media"
+    )
+
+
 class ReservableVgpuItem(HardwareItem):
     """A bookable vGPU plus the hypervisor/NUMA grouping the hardware selector
     uses to group passthrough cards by socket/hypervisor (so otherwise-identical
@@ -236,8 +251,8 @@ class UserAllowedHardwareResponse(BaseModel):
     qos_id: list[HardwareItem] = Field(
         description="List of available Quality of Service profiles"
     )
-    isos: list[HardwareItem] = Field(description="List of available ISO images")
-    floppies: list[HardwareItem] = Field(
+    isos: list[MediaHardwareItem] = Field(description="List of available ISO images")
+    floppies: list[MediaHardwareItem] = Field(
         description="List of available floppy disk images"
     )
     reservables: Reservables = Field(description="Reservable resources like vGPUs")
@@ -557,8 +572,8 @@ class UserHardwareKindAllowedResponse(BaseModel):
     videos: Optional[list[HardwareItem]] = None
     boot_order: Optional[list[HardwareItem]] = None
     qos_id: Optional[list[HardwareItem]] = None
-    isos: Optional[list[HardwareItem]] = None
-    floppies: Optional[list[HardwareItem]] = None
+    isos: Optional[list[MediaHardwareItem]] = None
+    floppies: Optional[list[MediaHardwareItem]] = None
     reservables: Optional[Reservables] = None
     disk_bus: Optional[list[HardwareItem]] = None
     forced_hyp: Optional[list[str]] = None
