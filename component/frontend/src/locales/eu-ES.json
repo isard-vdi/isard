@@ -228,18 +228,16 @@
         "search": {
           "placeholder": "Bilatu mahaigainak"
         },
-        "toggle": "Iragazkiak",
-        "toggle-active": "Iragazkiak ({count} aktibo)",
         "kind": {
-          "all": "Guztiak",
           "persistent": "Iraunkorra | Iraunkorrak",
           "nonpersistent": "Aldi baterakoa | Aldi baterakoak",
-          "deployment": "Hedapena | Hedapenak"
+          "deployment": "Hedapena | Hedapenak",
+          "label": "Mota"
         },
         "status": {
-          "all": "Guztiak",
           "started": "Abiarazita",
-          "stopped": "Geldituta"
+          "stopped": "Geldituta",
+          "label": "Egoera"
         }
       },
       "view-mode": {
@@ -263,9 +261,9 @@
           "placeholder": "Bilatu"
         },
         "visibility": {
-          "all": "Guztiak",
           "visible": "Ikusgai",
-          "hidden": "Ezkutatuta"
+          "hidden": "Ezkutatuta",
+          "label": "Ikusgaitasuna"
         }
       },
       "table": {
@@ -1214,7 +1212,9 @@
     },
     "filters": {
       "toggle": "Iragazkiak",
-      "toggle-active": "Iragazkiak ({count} aktibo)"
+      "toggle-active": "Iragazkiak ({count} aktibo)",
+      "remove": "Kendu {name} iragazkia",
+      "clear": "Garbitu iragazkiak"
     },
     "empty-search": {
       "title": "Ez da emaitzarik aurkitu",

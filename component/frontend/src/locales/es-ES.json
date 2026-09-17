@@ -364,20 +364,18 @@
       },
       "filters": {
         "kind": {
-          "all": "Todos",
           "deployment": "Despliegue | Despliegues",
           "nonpersistent": "Temporal | Temporales",
-          "persistent": "Persistente | Persistentes"
+          "persistent": "Persistente | Persistentes",
+          "label": "Tipo"
         },
         "search": {
           "placeholder": "Busca los escritorios"
         },
-        "toggle": "Filtros",
-        "toggle-active": "Filtros ({count} activos)",
         "status": {
-          "all": "Todos",
           "started": "Iniciados",
-          "stopped": "Parados"
+          "stopped": "Parados",
+          "label": "Estado"
         }
       },
       "view-mode": {
@@ -402,9 +400,9 @@
           "placeholder": "Buscar"
         },
         "visibility": {
-          "all": "Todos",
           "visible": "Visibles",
-          "hidden": "Ocultos"
+          "hidden": "Ocultos",
+          "label": "Visibilidad"
         }
       },
       "alloweds": {
@@ -642,10 +640,10 @@
           "placeholder": "Buscar despliegues"
         },
         "status": {
-          "all": "Todos",
           "started": "Iniciados",
           "visible": "Visibles",
-          "hidden": "Ocultos"
+          "hidden": "Ocultos",
+          "label": "Estado"
         }
       },
       "dropdown": {
@@ -1710,7 +1708,9 @@
     },
     "filters": {
       "toggle": "Filtros",
-      "toggle-active": "Filtros ({count} activos)"
+      "toggle-active": "Filtros ({count} activos)",
+      "remove": "Quitar el filtro {name}",
+      "clear": "Limpiar los filtros"
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",

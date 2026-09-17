@@ -14,20 +14,17 @@ import { type CardSize } from '@/components/desktop-card'
 import { useWindowSize } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
 import { useI18n } from 'vue-i18n'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DomainInfoModal } from '@/components/desktops'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import {
-  EmptyState,
-  FilterPanel,
-  FilterToggle,
-  PageContainer,
-  PageToolbar,
-  SearchInput
-} from '@/components/page'
-import { useFilterPanel } from '@/composables/useFilterPanel'
+  FilterTags,
+  countFilterTags,
+  emptyFilterTags,
+  type FilterCategory
+} from '@/components/filter-tags'
 
 const { t } = useI18n()
 
@@ -70,18 +67,28 @@ const cardSize = computed<CardSize>(() => {
 const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '412px'))
 
 // Filters
-interface DeploymentFilters {
-  status: 'all' | 'started'
-}
+const SHARED_DEPLOYMENT_FILTER_CATEGORIES = ['status']
 
-const deploymentFilters = ref<DeploymentFilters>({ status: 'all' })
+const deploymentFilterTags = ref(emptyFilterTags(SHARED_DEPLOYMENT_FILTER_CATEGORIES))
 
-const showDeploymentFilters = useFilterPanel('shared_deployments_filters_state')
+const activeDeploymentFilterCount = computed(() => countFilterTags(deploymentFilterTags.value))
 
-// Search has its own always-visible input; only the ones the panel hides count.
-const activeDeploymentFilterCount = computed(() =>
-  deploymentFilters.value.status === 'all' ? 0 : 1
-)
+const deploymentFilterCategories = computed<FilterCategory[]>(() => {
+  const all = deployments.value?.deployments ?? []
+  return [
+    {
+      key: 'status',
+      label: t('views.deployments.filters.status.label'),
+      options: [
+        {
+          value: 'started',
+          label: t('views.deployments.filters.status.started'),
+          count: all.filter((deployment) => deployment.started_desktops > 0).length
+        }
+      ]
+    }
+  ]
+})
 
 // Filtered deployments
 const filteredDeployments = computed(() => {
@@ -97,10 +104,8 @@ const areDeploymentsVisible = (deployment: SharedDeployment) => {
     deployment.name.toLowerCase().includes(inputSearch.value.toLowerCase()) ||
     deployment.description?.toLowerCase().includes(inputSearch.value.toLowerCase())
 
-  // Visibility filter
-  const matchesVisibility =
-    deploymentFilters.value.status === 'all' ||
-    (deploymentFilters.value.status === 'started' && deployment.started_desktops > 0)
+  const statuses = deploymentFilterTags.value.status ?? []
+  const matchesVisibility = !statuses.includes('started') || deployment.started_desktops > 0
 
   return matchesSearch && matchesVisibility
 }
@@ -113,7 +118,7 @@ const totalDeployments = computed(() => deployments.value?.deployments?.length ?
 const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
 
 const clearDeploymentFilters = () => {
-  deploymentFilters.value.status = 'all'
+  deploymentFilterTags.value = emptyFilterTags(SHARED_DEPLOYMENT_FILTER_CATEGORIES)
 }
 
 // Deployment desktops info
@@ -161,25 +166,7 @@ const SHARED_DEPLOYMENTS_SEARCH_INPUT_ID = 'shared-deployments-search'
         />
       </template>
       <template #filters>
-        <FilterToggle v-model="showDeploymentFilters" :active-count="activeDeploymentFilterCount" />
-      </template>
-      <template #panel>
-        <FilterPanel :open="showDeploymentFilters">
-          <ToggleGroup
-            v-model="deploymentFilters.status"
-            :spacing="1"
-            type="single"
-            size="default"
-            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-          >
-            <ToggleGroupItem value="all" variant="gray-warm">
-              <span>{{ t('views.deployments.filters.status.all') }}</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="started" variant="gray-warm">
-              <span>{{ t('views.deployments.filters.status.started') }}</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </FilterPanel>
+        <FilterTags v-model="deploymentFilterTags" :categories="deploymentFilterCategories" />
       </template>
     </PageToolbar>
     <div class="flex w-full flex-1 flex-col">

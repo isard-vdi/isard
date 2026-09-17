@@ -21,7 +21,6 @@ import {
   useWindowSize,
   useWindowScroll
 } from '@vueuse/core'
-import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
@@ -87,7 +86,6 @@ import {
 import { AdvancedOptionsModal } from '@/components/desktop-card/advanced-options-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { BadgeMini } from '@/components/badge/mini'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -99,6 +97,12 @@ import {
   type CardSize
 } from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
+import {
+  FilterTags,
+  countFilterTags,
+  emptyFilterTags,
+  type FilterCategory
+} from '@/components/filter-tags'
 import { EmptyState } from '@/components/page'
 import {
   Field,
@@ -130,8 +134,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { Toggle } from '@/components/ui/toggle'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
@@ -511,59 +513,12 @@ const copyText = (text: string) => {
 
 // --------------------------------------------------
 
-interface DesktopFilters {
-  search: string
-  kind: {
-    persistent: boolean
-    volatile: boolean
-    deployment: boolean
-  }
-  status: 'all' | 'started' | 'stopped'
-}
+const DESKTOP_FILTER_CATEGORIES = ['kind', 'status']
 
-const defaultDesktopFilters: DesktopFilters = {
-  search: '',
-  kind: {
-    persistent: false,
-    volatile: false,
-    deployment: false
-  },
-  status: 'all'
-}
+const desktopSearch = ref('')
+const desktopFilterTags = ref(emptyFilterTags(DESKTOP_FILTER_CATEGORIES))
 
-const desktopFilters = ref<DesktopFilters>(JSON.parse(JSON.stringify(defaultDesktopFilters)))
-const desktopFiltersKindAll = computed({
-  get: () => {
-    return (
-      !desktopFilters.value.kind.persistent &&
-      !desktopFilters.value.kind.volatile &&
-      !desktopFilters.value.kind.deployment
-    )
-  },
-  set: (value: boolean) => {
-    if (value) {
-      desktopFilters.value.kind.persistent = false
-      desktopFilters.value.kind.volatile = false
-      desktopFilters.value.kind.deployment = false
-    }
-  }
-})
-
-const areDesktopFiltersActive = computed(() => {
-  return JSON.stringify(desktopFilters.value) !== JSON.stringify(defaultDesktopFilters)
-})
-
-// Search has its own always-visible input; only the ones the panel hides count.
-const activeDesktopFilterCount = computed(() => {
-  const kinds = Object.values(desktopFilters.value.kind).filter(Boolean).length
-  return kinds + (desktopFilters.value.status === 'all' ? 0 : 1)
-})
-
-const desktopFiltersToggleLabel = computed(() =>
-  activeDesktopFilterCount.value
-    ? t('views.desktops.filters.toggle-active', { count: activeDesktopFilterCount.value })
-    : t('views.desktops.filters.toggle')
-)
+const activeDesktopFilterCount = computed(() => countFilterTags(desktopFilterTags.value))
 
 // Nothing to search or filter until the account holds a desktop.
 const isFirstRun = computed(
@@ -571,13 +526,13 @@ const isFirstRun = computed(
 )
 
 const clearDesktopFilters = () => {
-  desktopFilters.value = JSON.parse(JSON.stringify(defaultDesktopFilters))
+  desktopFilterTags.value = emptyFilterTags(DESKTOP_FILTER_CATEGORIES)
 }
 
 // The input keeps updating on every keystroke; only the filtering waits, so the
 // grid is not rebuilt (and the query re-run over every desktop) mid-word.
 const debouncedDesktopSearch = refDebounced(
-  computed(() => desktopFilters.value.search.trim().toLowerCase()),
+  computed(() => desktopSearch.value.trim().toLowerCase()),
   150
 )
 
@@ -588,11 +543,62 @@ const RUNNING_DESKTOP_STATUSES: DesktopStatusEnum[] = [
   DesktopStatusEnum.WAITING_IP
 ]
 
-const desktopStatusCounts = computed(() => {
+const desktopKind = (desktop: UserDesktop) =>
+  desktop.tag ? 'deployment' : desktop.type === 'nonpersistent' ? 'volatile' : 'persistent'
+
+const isDesktopRunning = (desktop: UserDesktop) => RUNNING_DESKTOP_STATUSES.includes(desktop.status)
+
+const desktopFilterCounts = computed(() => {
   const all = desktops.value?.desktops ?? []
-  const started = all.filter((desktop) => RUNNING_DESKTOP_STATUSES.includes(desktop.status)).length
-  return { all: all.length, started, stopped: all.length - started }
+  const started = all.filter(isDesktopRunning).length
+  return {
+    persistent: all.filter((desktop) => desktopKind(desktop) === 'persistent').length,
+    volatile: all.filter((desktop) => desktopKind(desktop) === 'volatile').length,
+    deployment: all.filter((desktop) => desktopKind(desktop) === 'deployment').length,
+    started,
+    stopped: all.length - started
+  }
 })
+
+const desktopFilterCategories = computed<FilterCategory[]>(() => [
+  {
+    key: 'kind',
+    label: t('views.desktops.filters.kind.label'),
+    options: [
+      {
+        value: 'persistent',
+        label: t('views.desktops.filters.kind.persistent', desktopFilterCounts.value.persistent),
+        count: desktopFilterCounts.value.persistent
+      },
+      {
+        value: 'volatile',
+        label: t('views.desktops.filters.kind.nonpersistent', desktopFilterCounts.value.volatile),
+        count: desktopFilterCounts.value.volatile
+      },
+      {
+        value: 'deployment',
+        label: t('views.desktops.filters.kind.deployment', desktopFilterCounts.value.deployment),
+        count: desktopFilterCounts.value.deployment
+      }
+    ]
+  },
+  {
+    key: 'status',
+    label: t('views.desktops.filters.status.label'),
+    options: [
+      {
+        value: 'started',
+        label: t('views.desktops.filters.status.started'),
+        count: desktopFilterCounts.value.started
+      },
+      {
+        value: 'stopped',
+        label: t('views.desktops.filters.status.stopped'),
+        count: desktopFilterCounts.value.stopped
+      }
+    ]
+  }
+])
 
 const filteredDesktops = computed(() => {
   return (
@@ -603,31 +609,19 @@ const filteredDesktops = computed(() => {
 })
 
 const isDesktopVisible = (desktop: UserDesktop) => {
-  // Search filter
   const search = debouncedDesktopSearch.value
   const matchesSearch =
     search === '' ||
     desktop.name.toLowerCase().includes(search) ||
     !!desktop.description?.toLowerCase().includes(search)
 
-  // Kind filter
-  const matchesKind =
-    (!desktopFilters.value.kind.persistent &&
-      !desktopFilters.value.kind.volatile &&
-      !desktopFilters.value.kind.deployment) ||
-    (desktopFilters.value.kind.persistent && desktop.type === 'persistent' && !desktop.tag) ||
-    (desktopFilters.value.kind.volatile && desktop.type === 'nonpersistent') ||
-    (desktopFilters.value.kind.deployment && desktop.tag)
+  const kinds = desktopFilterTags.value.kind ?? []
+  const matchesKind = kinds.length === 0 || kinds.includes(desktopKind(desktop))
 
-  // Status filter
+  const statuses = desktopFilterTags.value.status ?? []
   const matchesStatus =
-    desktopFilters.value.status === 'all' ||
-    (desktopFilters.value.status === 'started' &&
-      RUNNING_DESKTOP_STATUSES.includes(desktop.status)) ||
-    (desktopFilters.value.status === 'stopped' &&
-      !RUNNING_DESKTOP_STATUSES.includes(desktop.status))
+    statuses.length === 0 || statuses.includes(isDesktopRunning(desktop) ? 'started' : 'stopped')
 
-  // ----------------------------------------------------
   return matchesSearch && matchesKind && matchesStatus
 }
 
@@ -891,22 +885,6 @@ const DESKTOP_SEARCH_INPUT_ID = 'desktops-search'
 
 useSearchShortcuts(DESKTOP_SEARCH_INPUT_ID)
 
-const DESKTOP_FILTERS_COOKIE_NAME = 'desktops_filters_state'
-const DESKTOP_FILTERS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-
-const cookies = vueuseCookies([DESKTOP_FILTERS_COOKIE_NAME])
-
-// useCookies auto-parses "true"/"false" to boolean, so check both types
-const desktopFiltersCookie = cookies.get(DESKTOP_FILTERS_COOKIE_NAME)
-const showDesktopFilters = ref(desktopFiltersCookie === true || desktopFiltersCookie === 'true')
-
-watch(showDesktopFilters, (newValue) => {
-  cookies.set(DESKTOP_FILTERS_COOKIE_NAME, String(newValue), {
-    path: '/',
-    maxAge: DESKTOP_FILTERS_COOKIE_MAX_AGE
-  })
-})
-
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { y: windowScrollY } = useWindowScroll()
 
@@ -969,7 +947,7 @@ useEventListener('resize', measureCardGridOffset)
 // Deliberately not watching the desktop count: more rows grow the grid
 // downwards but never move its top, so remeasuring per keystroke only bought a
 // forced reflow — and a costlier one the more cards the DOM held.
-watch([showDesktopFilters, cardGridColumns, cardGridWidth, viewMode], () =>
+watch([activeDesktopFilterCount, cardGridColumns, cardGridWidth, viewMode], () =>
   nextTick(measureCardGridOffset)
 )
 
@@ -1529,51 +1507,6 @@ const missingCardRows = computed(() => {
     >
       <div class="flex flex-row w-full gap-2 sm:gap-4 items-start flex-wrap">
         <div class="flex flex-row gap-2 items-start flex-1 min-w-30 mr-auto">
-          <InputField
-            :id="DESKTOP_SEARCH_INPUT_ID"
-            v-model="desktopFilters.search"
-            :placeholder="t('views.desktops.filters.search.placeholder')"
-            icon="search-lg"
-            class="h-full w-full max-w-120 min-w-0"
-          >
-            <template #inline-end>
-              <Kbd class="max-sm:hidden">/</Kbd>
-            </template>
-          </InputField>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="filter-funnel-02"
-                  :aria-label="desktopFiltersToggleLabel"
-                  :class="
-                    cn(
-                      'relative shrink-0 max-sm:px-[10px]',
-                      showDesktopFilters && 'bg-gray-warm-50'
-                    )
-                  "
-                  @click="showDesktopFilters = !showDesktopFilters"
-                >
-                  <span class="max-sm:hidden">{{ t('views.desktops.filters.toggle') }}</span>
-                  <!-- Stays visible with the panel collapsed, and on small screens
-                       where the label is hidden. -->
-                  <span
-                    v-if="activeDesktopFilterCount"
-                    aria-hidden="true"
-                    class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-base-background"
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent
-                v-if="isSmallScreen || activeDesktopFilterCount"
-                :title="desktopFiltersToggleLabel"
-                side="top"
-              />
-            </Tooltip>
-          </TooltipProvider>
-
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
@@ -1594,6 +1527,20 @@ const missingCardRows = computed(() => {
               />
             </Tooltip>
           </TooltipProvider>
+
+          <InputField
+            :id="DESKTOP_SEARCH_INPUT_ID"
+            v-model="desktopSearch"
+            :placeholder="t('views.desktops.filters.search.placeholder')"
+            icon="search-lg"
+            class="h-full w-full max-w-80 min-w-0"
+          >
+            <template #inline-end>
+              <Kbd class="max-sm:hidden">/</Kbd>
+            </template>
+          </InputField>
+
+          <FilterTags v-model="desktopFilterTags" :categories="desktopFilterCategories" />
         </div>
 
         <div class="flex flex-row gap-2 sm:gap-4 items-start shrink-0">
@@ -1658,118 +1605,6 @@ const missingCardRows = computed(() => {
           </TooltipProvider>
         </div>
       </div>
-      <div v-show="showDesktopFilters" class="flex flex-row w-full gap-4 items-center flex-wrap">
-        <div class="flex flex-row gap-2 mr-auto">
-          <Toggle v-model="desktopFiltersKindAll" size="desktop" variant="desktops-all">
-            <template #default="slotProps">
-              {{ t('views.desktops.filters.kind.all') }}
-              <BadgeMini
-                name="all"
-                :value="desktops?.desktops.length || 0"
-                :selected="slotProps.pressed"
-              />
-            </template>
-          </Toggle>
-          <Toggle
-            v-model="desktopFilters.kind.persistent"
-            size="desktop"
-            variant="desktops-persistent"
-          >
-            <template #default="slotProps">
-              {{
-                t(
-                  'views.desktops.filters.kind.persistent',
-                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-                )
-              }}
-              <BadgeMini
-                name="persistent"
-                :value="
-                  desktops?.desktops.filter((d) => d.type === 'persistent' && !d.tag).length || 0
-                "
-                :selected="slotProps.pressed"
-              />
-            </template>
-          </Toggle>
-          <Toggle
-            v-model="desktopFilters.kind.volatile"
-            size="desktop"
-            variant="desktops-temporary"
-          >
-            <template #default="slotProps">
-              {{
-                t(
-                  'views.desktops.filters.kind.nonpersistent',
-                  desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0
-                )
-              }}
-              <BadgeMini
-                name="temporary"
-                :value="desktops?.desktops.filter((d) => d.type === 'nonpersistent').length || 0"
-                :selected="slotProps.pressed"
-              />
-            </template>
-          </Toggle>
-          <Toggle
-            v-model="desktopFilters.kind.deployment"
-            size="desktop"
-            variant="desktops-deployment"
-          >
-            <template #default="slotProps">
-              {{
-                t(
-                  'views.desktops.filters.kind.deployment',
-                  desktops?.desktops.filter((d) => d.tag).length || 0
-                )
-              }}
-              <BadgeMini
-                name="deployment"
-                :value="desktops?.desktops.filter((d) => d.tag).length || 0"
-                :selected="slotProps.pressed"
-              />
-            </template>
-          </Toggle>
-        </div>
-
-        <ToggleGroup
-          v-model="desktopFilters.status"
-          :spacing="1"
-          type="single"
-          size="default"
-          class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-        >
-          <ToggleGroupItem v-slot="slotProps" value="all" variant="gray-warm">
-            {{ t('views.desktops.filters.status.all') }}
-            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
-            <BadgeMini
-              v-else
-              name="status-all"
-              :value="desktopStatusCounts.all"
-              :selected="slotProps.pressed"
-            />
-          </ToggleGroupItem>
-          <ToggleGroupItem v-slot="slotProps" value="started" variant="success">
-            {{ t('views.desktops.filters.status.started') }}
-            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
-            <BadgeMini
-              v-else
-              name="status-started"
-              :value="desktopStatusCounts.started"
-              :selected="slotProps.pressed"
-            />
-          </ToggleGroupItem>
-          <ToggleGroupItem v-slot="slotProps" value="stopped" variant="error">
-            {{ t('views.desktops.filters.status.stopped') }}
-            <Skeleton v-if="desktopsIsPending" class="h-6 w-6 rounded-[6px]" />
-            <BadgeMini
-              v-else
-              name="status-stopped"
-              :value="desktopStatusCounts.stopped"
-              :selected="slotProps.pressed"
-            />
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
     </div>
 
     <div class="flex w-full flex-1 flex-col gap-2">
@@ -1794,7 +1629,7 @@ const missingCardRows = computed(() => {
           :variant="isFirstRun ? 'first-run' : 'no-results'"
           :searching="debouncedDesktopSearch.length > 0"
           :active-filters="activeDesktopFilterCount"
-          @clear-search="desktopFilters.search = ''"
+          @clear-search="desktopSearch = ''"
           @clear-filters="clearDesktopFilters()"
         >
           <template v-if="isFirstRun" #actions>

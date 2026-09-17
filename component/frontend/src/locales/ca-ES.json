@@ -364,20 +364,18 @@
       },
       "filters": {
         "kind": {
-          "all": "Tots",
           "deployment": "Desplegament | Desplegaments",
           "nonpersistent": "Temporal | Temporals",
-          "persistent": "Persistent | Persistents"
+          "persistent": "Persistent | Persistents",
+          "label": "Tipus"
         },
         "search": {
           "placeholder": "Cerca els escriptoris"
         },
-        "toggle": "Filtres",
-        "toggle-active": "Filtres ({count} actius)",
         "status": {
-          "all": "Tots",
           "started": "Iniciats",
-          "stopped": "Aturats"
+          "stopped": "Aturats",
+          "label": "Estat"
         }
       },
       "view-mode": {
@@ -402,9 +400,9 @@
           "placeholder": "Cerca"
         },
         "visibility": {
-          "all": "Tots",
           "visible": "Visibles",
-          "hidden": "Ocults"
+          "hidden": "Ocults",
+          "label": "Visibilitat"
         }
       },
       "alloweds": {
@@ -642,10 +640,10 @@
           "placeholder": "Cercar desplegaments"
         },
         "status": {
-          "all": "Tots",
           "started": "Iniciats",
           "visible": "Visibles",
-          "hidden": "Ocults"
+          "hidden": "Ocults",
+          "label": "Estat"
         }
       },
       "dropdown": {
@@ -1710,7 +1708,9 @@
     },
     "filters": {
       "toggle": "Filtres",
-      "toggle-active": "Filtres ({count} actius)"
+      "toggle-active": "Filtres ({count} actius)",
+      "remove": "Treu el filtre {name}",
+      "clear": "Neteja els filtres"
     },
     "empty-search": {
       "clear": "Neteja la cerca",
