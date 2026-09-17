@@ -1524,6 +1524,7 @@
         "vgpus": {
           "label": "vGPU",
           "placeholder": "Select a vgpu",
+          "unavailable": "No vGPU available for your user",
           "hint": "Maximum of {max} vGPU profiles per desktop."
         },
         "hardwareGroups": {

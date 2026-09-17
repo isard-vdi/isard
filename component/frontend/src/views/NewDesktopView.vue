@@ -253,7 +253,7 @@ const steps = computed<StepperFormStep[]>(() => {
           />
         </div>
         <!-- Step 2 -->
-        <div v-if="currentStep >= 2" v-show="currentStep === 2" class="max-w-320 m-auto">
+        <div v-if="currentStep >= 2" v-show="currentStep === 2" class="w-full max-w-320 m-auto">
           <Alert v-if="creationError" variant="destructive" class="mb-6">
             <AlertTitle>{{ t(`api.new-desktop.errors.${creationErrorKey}.title`) }}</AlertTitle>
             <AlertDescription>{{

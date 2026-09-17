@@ -104,6 +104,7 @@ tag = "desktops"
         400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
         428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -117,6 +118,8 @@ async def create_nonpersistent_desktop(
             DesktopService.create_nonpersistent_desktop,
             payload=request.token_payload,
             template_id=data.template_id,
+            booking_end=data.booking_end,
+            reservables=data.reservables,
         )
         return JSONResponse(
             content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
@@ -141,6 +144,10 @@ async def create_nonpersistent_desktop(
     description="Creates a desktop with the given parameters.",
     responses={
         400: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
     dependencies=[Depends(check_create_storage_pool_availability)],

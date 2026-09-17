@@ -90,6 +90,13 @@ const visibilityBadgeClass = computed(() => {
 const userDesktopCount = (user: DeploymentUserDetail) =>
   (user.desktops_statuses ?? []).reduce((total, entry) => total + entry.amount, 0)
 
+const STARTED_STATUSES: string[] = [DesktopStatusEnum.STARTED, DesktopStatusEnum.SHUTTING_DOWN]
+
+const userStartedDesktopCount = (user: DeploymentUserDetail) =>
+  (user.desktops_statuses ?? [])
+    .filter((entry) => STARTED_STATUSES.includes(entry.status))
+    .reduce((total, entry) => total + entry.amount, 0)
+
 const usersWithDesktops = computed(() =>
   (deploymentEntry.value?.users ?? []).filter((user) => userDesktopCount(user) > 0)
 )
@@ -771,10 +778,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
           <div
             class="flex justify-center w-full text-sm font-medium tracking-widest text-gray-warm-900"
           >
-            {{
-              row.desktops_statuses.find((d) => d.status === DesktopStatusEnum.STARTED)?.amount ??
-              0
-            }}/{{ userDesktopCount(row) }}
+            {{ userStartedDesktopCount(row) }}/{{ userDesktopCount(row) }}
           </div>
         </template>
         <template #cell-actions="{ row }">

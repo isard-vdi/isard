@@ -17,7 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
@@ -29,7 +29,7 @@ from isardvdi_common.schemas.domains import (
 )
 from isardvdi_common.schemas.media import MediaKindEnum
 from isardvdi_common.schemas.shared.hardware import GuestProperties, Hardware
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..allowed import Allowed, AllowedBase
 from ..bastion import BastionHttpConfig, BastionRequest, BastionSshConfig
@@ -40,6 +40,13 @@ from .hardware import (
     MediaHardware,
     Reservables,
 )
+
+
+def _ensure_aware_utc(value: datetime) -> datetime:
+    """Coerce a naive datetime to UTC at the schema boundary."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class CreateDesktopRequest(BaseModel):
@@ -81,6 +88,23 @@ class CreateDesktopRequest(BaseModel):
         default=None,
         description="Bastion configuration for the desktop. If not provided, the bastion configuration will not be modified.",
     )
+    booking_end: Optional[datetime] = Field(
+        default=None,
+        description="End of the booking to create for a temporal desktop with a vGPU.",
+    )
+
+    @field_validator("booking_end")
+    @classmethod
+    def _coerce_naive_to_utc(cls, value: Optional[datetime]) -> Optional[datetime]:
+        return None if value is None else _ensure_aware_utc(value)
+
+    @model_validator(mode="after")
+    def _booking_end_must_be_future(self):
+        if self.booking_end is not None and self.booking_end <= datetime.now(
+            timezone.utc
+        ):
+            raise ValueError("booking_end must be in the future")
+        return self
 
 
 class DesktopsStopRequest(BaseModel):
@@ -231,6 +255,27 @@ class NewNonpersistentDesktopRequest(BaseModel):
     template_id: str = Field(
         description="ID of the template to create a non-persistent desktop from.",
     )
+    reservables: Optional[Reservables] = Field(
+        default=None,
+        description="vGPU profiles to use instead of the template's.",
+    )
+    booking_end: Optional[datetime] = Field(
+        default=None,
+        description="End of the booking to create when the template has a vGPU.",
+    )
+
+    @field_validator("booking_end")
+    @classmethod
+    def _coerce_naive_to_utc(cls, value: Optional[datetime]) -> Optional[datetime]:
+        return None if value is None else _ensure_aware_utc(value)
+
+    @model_validator(mode="after")
+    def _booking_end_must_be_future(self):
+        if self.booking_end is not None and self.booking_end <= datetime.now(
+            timezone.utc
+        ):
+            raise ValueError("booking_end must be in the future")
+        return self
 
 
 class BastionDomainsUpdateRequest(BaseModel):

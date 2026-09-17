@@ -652,7 +652,8 @@
         "cant-start-now-modal": {
             "title": {
                 "available-profile": "The graphic card model(s) of this desktop are not currently available",
-                "no-available-profile": "There's no other card model currently available"
+                "no-available-profile": "There's no other card model currently available",
+                "template-available-profile": "The graphic card model(s) of this template are not currently available"
             },
             "change-desktop-gpu": {
                 "text": "They can be changed to available graphic card models now and start it (it could affect the desktop performance)",
@@ -1683,7 +1684,6 @@
         "media_invalid": "The downloaded file is not a valid media format. It should be deleted since it can't be used",
         "desktop_storage_not_ready": "Desktop storage is not ready",
         "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
-        "temporal_new_reservable": "Can't create a temporal desktop from a template with a reservable",
         "password_character_length": "Password must be at least {num} character(s) long",
         "password_uppercase": "Password must have at least {num} uppercase character(s)",
         "password_lowercase": "Password must have at least {num} lowercase character(s)",
@@ -1728,7 +1728,9 @@
         "bastion_domain_dns_mismatch": "The DNS record for the domain does not match the expected value. Please check and try again.",
         "bastion_domain_exists": "The domain already exists. Please choose a different domain name.",
         "parent_template_not_found": "The item cannot be restored since the parent template does not exist.",
-        "desktop_reservable_not_found": "The desktop's GPU profile no longer exists and has been removed. Edit the desktop to select an available GPU profile before starting it."
+        "desktop_reservable_not_found": "The desktop's GPU profile no longer exists and has been removed. Edit the desktop to select an available GPU profile before starting it.",
+        "no_available_profile": "There is no GPU available right now.",
+        "temporal_reservable_needs_booking": "A temporary desktop with a GPU needs an end time. Try again and select until when it will be used."
     },
     "router": {
         "titles": {

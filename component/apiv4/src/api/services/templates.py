@@ -142,7 +142,7 @@ class TemplateService:
         if kind == "shared":
             kwargs["exclude_owner_user_id"] = payload["user_id"]
             only_in_allowed = True
-        return Alloweds.get_items_allowed(
+        templates = Alloweds.get_items_allowed(
             payload,
             table="domains",
             query_pluck=[
@@ -157,6 +157,7 @@ class TemplateService:
                 "description",
                 "status",
                 "enabled",
+                {"create_dict": {"reservables": "vgpus"}},
             ],
             index_key="kind",
             index_value="template",
@@ -165,6 +166,11 @@ class TemplateService:
             only_in_allowed=only_in_allowed,
             **kwargs,
         )
+        for template in templates:
+            template["reservables"] = (template.pop("create_dict", None) or {}).get(
+                "reservables"
+            ) or {"vgpus": None}
+        return templates
 
     @staticmethod
     def get_user_shared_templates(payload: dict) -> list[dict]:

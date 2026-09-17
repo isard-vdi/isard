@@ -77,7 +77,7 @@ export class DesktopUtils {
     // then clobbers the cached row ("data disappears from the table"
     // when toggling template visibility). In ``partial`` mode we keep
     // only the keys that were actually present in the payload.
-    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, status, progress } = item
+    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, status, progress, reservables } = item
     const out = {
       description,
       icon: icon === undefined ? undefined : (!icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon)),
@@ -97,7 +97,8 @@ export class DesktopUtils {
       status: status === undefined ? undefined : this.getState(status),
       // Forwarded so Templates.vue can render a progress bar while the
       // apiv4 task chain is creating the template (move/rsync stage).
-      progress
+      progress,
+      reservables
     }
     if (!partial) return out
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
@@ -141,6 +142,10 @@ export class DesktopUtils {
     // where a callsite hasn't been handed a state yet.
     if (!state) return desktopStates.working
     return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying, desktopStates.updating, desktopStates.creatingTemplate].includes(state.toLowerCase()) ? state : desktopStates.working
+  }
+
+  static templateNeedsBooking (item) {
+    return !item.state && !!((item.reservables && item.reservables.vgpus) || []).length
   }
 
   static viewerNeedsIp (viewer) {

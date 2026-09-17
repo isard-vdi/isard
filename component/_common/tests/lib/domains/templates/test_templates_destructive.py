@@ -171,11 +171,56 @@ class TestUpdateTemplate:
 
 
 class TestDeleteNonPersistentDesktops:
-    def test_force_deletes_only_non_persistent(self, stub):
+    @staticmethod
+    def _released(monkeypatch):
+        from isardvdi_common.lib.domains.templates import templates as mod
+
+        released = MagicMock()
+        monkeypatch.setattr(
+            mod.BookingsProcessed, "delete_item_bookings", staticmethod(released)
+        )
+        return released
+
+    def test_force_deletes_only_non_persistent(self, stub, monkeypatch):
+        self._released(monkeypatch)
         dom = stub["router"]("domains")
         stub["Cls"].delete_non_persistent_desktops("t1")
-        dom.get_all.assert_called_once_with("t1", index="parents")
-        dom.get_all.return_value.filter.assert_called_once_with({"persistent": False})
+        dom.get_all.assert_called_with("t1", index="parents")
+        dom.get_all.return_value.filter.assert_called_with({"persistent": False})
+        dom.get_all.return_value.filter.return_value.update.assert_called_once_with(
+            {"status": "ForceDeleting"}
+        )
+
+    def test_the_desktops_bookings_are_freed(self, stub, monkeypatch):
+        """Disabling a template tears its volatiles down through the engine,
+        which drops the domain row without touching ``bookings`` -- so a GPU
+        one would keep reserving a unit until its booking's natural end."""
+        released = self._released(monkeypatch)
+        dom = stub["router"]("domains")
+        dom.get_all.return_value.filter.return_value.get_field.return_value.run.return_value = [
+            "d1",
+            "d2",
+        ]
+
+        stub["Cls"].delete_non_persistent_desktops("t1")
+
+        assert [c.args for c in released.call_args_list] == [
+            ("desktop", "d1"),
+            ("desktop", "d2"),
+        ]
+
+    def test_a_desktop_is_still_force_deleted_when_its_bookings_cannot_be_freed(
+        self, stub, monkeypatch
+    ):
+        released = self._released(monkeypatch)
+        released.side_effect = RuntimeError("rethink down")
+        dom = stub["router"]("domains")
+        dom.get_all.return_value.filter.return_value.get_field.return_value.run.return_value = [
+            "d1"
+        ]
+
+        stub["Cls"].delete_non_persistent_desktops("t1")
+
         dom.get_all.return_value.filter.return_value.update.assert_called_once_with(
             {"status": "ForceDeleting"}
         )

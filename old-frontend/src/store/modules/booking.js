@@ -47,7 +47,8 @@ const getDefaultState = () => {
         data: {
           availableTimes: [],
           availableProfiles: [],
-          maxBookingDate: ''
+          maxBookingDate: '',
+          newDesktopTemplateId: null
         }
       },
       cantStartNowModal: {
@@ -56,7 +57,8 @@ const getDefaultState = () => {
           id: '',
           type: '',
           action: '',
-          profiles: [] // the desktop's current profile ids
+          profiles: [],
+          newDesktopTemplateId: null
         },
         showChangeProfileAndStartOption: true
       }
@@ -256,7 +258,8 @@ export default {
           id: '',
           type: '',
           action: '',
-          profile: ''
+          profile: '',
+          newDesktopTemplateId: null
         },
         showChangeProfileAndStartOption: true
       })
@@ -393,6 +396,41 @@ export default {
         }
       })
     },
+    checkCanStartNewNonpersistent (context, { templateId, profileIds }) {
+      return axios.get(`${apiV3Segment}/item/booking/reservables-available`).then(response => {
+        const byId = new Map((response.data.reservables_available || []).map(p => [p.id, p]))
+        if (profileIds.some(id => !byId.has(id))) {
+          context.commit('setCantStartNowModal', {
+            show: true,
+            item: {
+              id: templateId,
+              type: 'template',
+              action: 'start',
+              profiles: profileIds,
+              newDesktopTemplateId: templateId
+            },
+            showChangeProfileAndStartOption: true
+          })
+          return
+        }
+        const maxBookingDate = profileIds
+          .map(id => byId.get(id).max_booking_date)
+          .reduce((min, d) => (!min || d < min) ? d : min, null)
+        context.commit('setStartNowModal', BookingUtils.parseStartNowModal({
+          show: true,
+          showProfileDropdown: false,
+          max_booking_date: maxBookingDate,
+          action: 'start',
+          newDesktopTemplateId: templateId
+        }))
+      }).catch(e => {
+        if (e.response && e.response.data.description_code === 'no_available_profile') {
+          context.dispatch('showNotification', { message: i18n.t('errors.no_available_profile') })
+        } else {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        }
+      })
+    },
     fetchReservablesAvailable (context, data) {
       return axios.get(`${apiV3Segment}/item/booking/reservables-available`).then(response => {
         this._vm.$snotify.clear()
@@ -402,10 +440,16 @@ export default {
         // Pre-seed the recovery multi-select with the desktop's current profiles
         // that are still available now.
         response.data.desktopProfiles = context.getters.getCantStartNowModal.item.profiles
+        response.data.newDesktopTemplateId = context.getters.getCantStartNowModal.item.newDesktopTemplateId
         context.commit('setStartNowModal', BookingUtils.parseStartNowModal(response.data))
         context.dispatch('resetCantStartNowModal')
       }).catch(e => {
         if (e.response.data.description_code === 'no_available_profile') {
+          if (context.getters.getCantStartNowModal.item.newDesktopTemplateId) {
+            context.dispatch('resetCantStartNowModal')
+            context.dispatch('showNotification', { message: i18n.t('errors.no_available_profile') })
+            return
+          }
           context.commit('setBookingItemId', context.getters.getCantStartNowModal.item.id)
           const cantStartNowData = {
             show: true,

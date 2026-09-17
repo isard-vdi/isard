@@ -61,7 +61,7 @@ class TestCreateDesktopQuotas:
     """``desktop_create``'s used counter only includes persistent desktops, so
     gating a temporal one with it would never bound it."""
 
-    def _data(self, persistent):
+    def _data(self, persistent, booking_end=None):
         from types import SimpleNamespace
 
         return SimpleNamespace(
@@ -74,6 +74,7 @@ class TestCreateDesktopQuotas:
             reservables=None,
             image=None,
             bastion_target=None,
+            booking_end=booking_end,
         )
 
     @patch(
@@ -94,6 +95,33 @@ class TestCreateDesktopQuotas:
         quotas.volatile_create.assert_called_once_with("u1")
         quotas.desktop_start.assert_called_once_with("u1", "t1", hardware={})
         quotas.desktop_create.assert_not_called()
+
+    @patch(
+        "api.services.desktops.CommonDesktopsNonpersistent.new_desktop",
+        return_value="np-1",
+    )
+    @patch("api.services.desktops.Helpers.check_user_duplicated_domain_name")
+    @patch("api.services.desktops.Alloweds.is_allowed", return_value=True)
+    @patch("api.services.desktops.Helpers.gen_payload_from_user", return_value={})
+    @patch("api.services.desktops.CommonTemplates.check_template_status")
+    @patch("api.services.desktops.CommonTemplates.get_template", return_value={})
+    @patch("api.services.desktops.Quotas")
+    @patch("api.services.desktops.RethinkUser.exists", return_value=True)
+    def test_the_booking_end_reaches_common_as_a_formatted_string(
+        self, _exists, _quotas, *_mocks, **__
+    ):
+        """``BookingsProcessed.add`` parses ``"%Y-%m-%dT%H:%M%z"``, so the
+        service converts rather than letting a datetime reach ``_common``."""
+        from datetime import datetime, timezone
+
+        new_desktop = _mocks[-1]
+        end = datetime(2026, 9, 7, 18, 30, tzinfo=timezone.utc)
+
+        DesktopService.create_desktop(
+            "u1", self._data(persistent=False, booking_end=end)
+        )
+
+        assert new_desktop.call_args.kwargs["booking_end"] == "2026-09-07T18:30+0000"
 
     @patch(
         "api.services.desktops.CommonDesktopsNonpersistent.new_desktop",

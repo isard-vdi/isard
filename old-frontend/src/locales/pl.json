@@ -443,7 +443,8 @@
             },
             "title": {
                 "available-profile": "Model karty graficznej tego pulpitu ({profile}) jest obecnie niedostępny",
-                "no-available-profile": "Obecnie nie jest dostępny żaden inny model karty graficznej"
+                "no-available-profile": "Obecnie nie jest dostępny żaden inny model karty graficznej",
+                "template-available-profile": "Model(e) karty graficznej tego szablonu są obecnie niedostępne"
             },
             "go-to-bookings": {
                 "button": "Zarezerwuj pulpit",
@@ -565,7 +566,8 @@
         "incorrect_new_plan_body_data": "Nieprawidłowe dane nowego planu",
         "no_reservables": "Element nie ma możliwości rezerwacji",
         "media_should_not_be_downloading": "Nośnik nie powinien być pobierany",
-        "temporal_new_reservable": "Nie można utworzyć pulpitu tymczasowego na podstawie szablonu z elementem do rezerwacji"
+        "no_available_profile": "Obecnie nie ma dostępnego procesora GPU.",
+        "temporal_reservable_needs_booking": "Pulpit tymczasowy z procesorem GPU wymaga czasu zakończenia. Spróbuj ponownie i wybierz, do kiedy będzie używany."
     },
     "router": {
         "titles": {

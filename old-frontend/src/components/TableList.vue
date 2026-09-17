@@ -153,16 +153,20 @@
               </template>
               <template #cell(action)="data">
                 <!-- Main action button nonpersistent -->
-                <DesktopButton
-                  v-if="!data.item.state"
-                  class="table-action-button"
-                  :active="true"
-                  :button-class="buttCssColor(getItemState(data.item))"
-                  :spinner-active="false"
-                  :butt-text="$t('views.select-template.status.notCreated.action')"
-                  :icon-name="data.item.buttonIconName"
-                  @buttonClicked="chooseDesktop(data.item.id)"
-                />
+                <span
+                  v-b-tooltip.hover="templateNeedsBooking(data.item) ? { title: `${bookingTooltipTitle(data.item)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
+                >
+                  <DesktopButton
+                    v-if="!data.item.state"
+                    class="table-action-button"
+                    :active="true"
+                    :button-class="buttCssColor(getItemState(data.item))"
+                    :spinner-active="false"
+                    :butt-text="$t('views.select-template.status.notCreated.action')"
+                    :icon-name="data.item.buttonIconName"
+                    @buttonClicked="chooseDesktop(data.item)"
+                  />
+                </span>
 
                 <div
                   v-if="data.item.progress"
@@ -186,7 +190,7 @@
 
                 <!-- Main action button persistent-->
                 <span
-                  v-b-tooltip.hover="data.item.needsBooking ? { title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
+                  v-b-tooltip.hover="data.item.needsBooking ? { title: `${bookingTooltipTitle(data.item)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
                 >
                   <DesktopButton
                     v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
@@ -445,11 +449,6 @@ export default {
       }
     }
 
-    const rowClass = (item, type) => {
-      if (!item || type !== 'row') return
-      if (item.needsBooking) return 'list-orange-bar'
-    }
-
     const notifyWaitingIp = () => {
       $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
     }
@@ -462,7 +461,6 @@ export default {
       fields: desktopFields,
       canStart,
       changeDesktopStatus,
-      rowClass,
       notifyWaitingIp
     }
   },
@@ -497,6 +495,7 @@ export default {
       'deleteNonpersistentDesktop',
       'openDesktop',
       'createDesktop',
+      'checkCanStartNewNonpersistent',
       'navigate',
       'goToItemBooking',
       'goToEditDomain',
@@ -509,10 +508,13 @@ export default {
       this.$snotify.clear()
 
       const yesAction = () => {
-        const data = new FormData()
-        data.append('template', template)
         this.$snotify.clear()
-        this.createDesktop(data)
+        const vgpus = (template.reservables && template.reservables.vgpus) || []
+        if (vgpus.length) {
+          this.checkCanStartNewNonpersistent({ templateId: template.id, profileIds: vgpus })
+        } else {
+          this.createDesktop({ template: template.id })
+        }
       }
 
       const noAction = (toast) => {
@@ -618,6 +620,21 @@ export default {
     },
     onClickOpenDirectViewerModal (desktopId) {
       this.fetchDirectLink(desktopId)
+    },
+    rowClass (item, type) {
+      if (!item || type !== 'row') return
+      if (item.needsBooking || DesktopUtils.templateNeedsBooking(item)) {
+        return 'list-orange-bar'
+      }
+    },
+    templateNeedsBooking (item) {
+      return DesktopUtils.templateNeedsBooking(item)
+    },
+    bookingTooltipTitle (item) {
+      if (this.templateNeedsBooking(item)) {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+      return this.getTooltipTitle(item.nextBookingStart, item.nextBookingEnd)
     },
     getTooltipTitle (dateStart, dateEnd) {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {

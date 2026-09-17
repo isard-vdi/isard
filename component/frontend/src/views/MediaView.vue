@@ -428,6 +428,9 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
 }
 
 const MEDIA_SEARCH_INPUT_ID = 'media-search'
+
+// The page opens on the most recently used media
+const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
 
 <template>
@@ -479,7 +482,13 @@ const MEDIA_SEARCH_INPUT_ID = 'media-search'
     </div>
 
     <template v-else-if="filteredMedia.length > 0">
-      <DataTable :headers="headers" :rows="filteredMedia" :is-clickable="false" cell-class="h-19">
+      <DataTable
+        :headers="headers"
+        :rows="filteredMedia"
+        :is-clickable="false"
+        :default-sort="MEDIA_DEFAULT_SORT"
+        cell-class="h-19"
+      >
         <template #cell-name="{ row }">
           <div class="flex items-center gap-2 text-sm font-semibold">
             <Icon :name="mediaIconName(row.kind)" stroke-color="currentColor" />

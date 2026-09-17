@@ -651,7 +651,8 @@
     "cant-start-now-modal": {
       "title": {
         "available-profile": "Los modelos de tarjeta gráfica de este escritorio no están disponibles en este momento",
-        "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
+        "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento",
+        "template-available-profile": "El/los modelo(s) de tarjeta gráfica de esta plantilla no están disponibles actualmente"
       },
       "change-desktop-gpu": {
         "text": "Se pueden cambiar a modelos de tarjeta gráfica disponibles ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
@@ -1695,7 +1696,6 @@
     "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
     "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
     "deployment_recreate_booking_not_enough_units": "El despliegue no puede recrearse porque no hay suficientes unidades disponibles para las reservas planeadas",
-    "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
     "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
     "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
     "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
@@ -1740,7 +1740,9 @@
     "bastion_domain_dns_mismatch": "El registro DNS del dominio no coincide con el valor esperado. Por favor, compruébalo e inténtalo de nuevo.",
     "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
     "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe.",
-    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo."
+    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo.",
+    "no_available_profile": "No hay ninguna GPU disponible ahora.",
+    "temporal_reservable_needs_booking": "Un escritorio temporal con GPU necesita una hora de fin. Inténtalo de nuevo y selecciona hasta cuándo se usará."
   },
   "router": {
     "titles": {

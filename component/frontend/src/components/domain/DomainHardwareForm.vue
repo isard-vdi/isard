@@ -376,6 +376,17 @@ const getFormData = () => ({
 
 const formValues = form.useStore((state) => state.values)
 
+const showVgpusField = computed(
+  () =>
+    vgpusOptions.value.length > 0 ||
+    (formValues.value.reservables?.vgpus?.length ?? 0) > 0 ||
+    limitedField('vgpus') !== null
+)
+
+const vgpusUnavailable = computed(
+  () => vgpusOptions.value.length === 0 && (formValues.value.reservables?.vgpus?.length ?? 0) === 0
+)
+
 const optionName = (id: string | undefined, options: { id: string; name: string }[]) =>
   id === undefined ? undefined : (options.find((option) => option.id === id)?.name ?? id)
 
@@ -642,7 +653,10 @@ defineExpose({
           </form.Field>
         </div>
       </section>
-      <section class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start">
+      <section
+        v-if="props.showPeripherals || showVgpusField"
+        class="grid grid-cols-1 gap-y-7 md:grid-cols-2 md:gap-x-10 items-start"
+      >
         <div v-if="props.showPeripherals" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
             <Icon name="hdd" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
@@ -686,7 +700,7 @@ defineExpose({
             </form.Field> -->
           </div>
         </div>
-        <div class="grid gap-4 items-start">
+        <div v-if="showVgpusField" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
             <Icon name="gpu" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
             <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
@@ -702,8 +716,13 @@ defineExpose({
                 </FieldLabel>
                 <SearchableTags
                   :tags="vgpuTagsFor(field.state.value)"
-                  :placeholder="t('components.domain.hardware.vgpus.placeholder')"
+                  :placeholder="
+                    vgpusUnavailable
+                      ? t('components.domain.hardware.vgpus.unavailable')
+                      : t('components.domain.hardware.vgpus.placeholder')
+                  "
                   :model-value="field.state.value ?? []"
+                  :disabled="vgpusUnavailable"
                   tagsDisplay="wrap"
                   :invalid="isInvalid(field)"
                   @update:model-value="field.handleChange($event)"

@@ -119,16 +119,16 @@
 
       <!-- Desktop next booking -->
       <div
-        v-if="desktop.needsBooking"
+        v-if="desktop.needsBooking || templateNeedsBooking"
         class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar"
         :class="notificationBarCssClass"
       >
         <p
-          v-b-tooltip.hover="{ title: `${getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd).length > MAX_BOOKING_TEXT_SIZE ? getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) : '' }` , placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+          v-b-tooltip.hover="{ title: `${bookingNotificationText.length > MAX_BOOKING_TEXT_SIZE ? bookingNotificationText : '' }` , placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
           class="mb-0 py-2 text-white text-truncate"
-          :title="`${getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd).length > MAX_BOOKING_TEXT_SIZE ? getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) : '' }`"
+          :title="`${bookingNotificationText.length > MAX_BOOKING_TEXT_SIZE ? bookingNotificationText : '' }`"
         >
-          {{ getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) }}
+          {{ bookingNotificationText }}
         </p>
       </div>
       <!-- Desktop next booking -->
@@ -143,7 +143,7 @@
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"
-        :class="`${desktop.needsBooking || desktop.shutdown ? 'notification-bar' : '' } getCardBackgroundColor` "
+        :class="`${desktop.needsBooking || templateNeedsBooking || desktop.shutdown ? 'notification-bar' : '' } getCardBackgroundColor` "
       >
         <div class="flex-grow-1">
           <!-- Title -->
@@ -236,7 +236,7 @@
               :spinner-active="false"
               :butt-text="$t('views.select-template.status.notCreated.action')"
               :icon-name="desktop.buttonIconName"
-              @buttonClicked="chooseDesktop(desktop.id)"
+              @buttonClicked="chooseDesktop(desktop)"
             />
             <!-- Main action button persistent-->
             <DesktopButton
@@ -402,6 +402,18 @@ export default {
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
+    templateNeedsBooking () {
+      return DesktopUtils.templateNeedsBooking(this.desktop)
+    },
+    bookingNotificationText () {
+      if (this.templateNeedsBooking) {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+      return this.getBookingNotificationBar(
+        this.desktop.nextBookingStart,
+        this.desktop.nextBookingEnd
+      )
+    },
     notificationBarCssClass () {
       const states = {
         stopped: 'state-off',
@@ -413,7 +425,11 @@ export default {
         'shutting-down': 'state-loading',
         booking: 'booking-notification'
       }
-      return states[this.desktop.needsBooking ? 'booking' : this.desktopState]
+      return states[
+        this.desktop.needsBooking || this.templateNeedsBooking
+          ? 'booking'
+          : this.desktopState
+      ]
     },
     buttCssColor () {
       const stateColors = {
@@ -535,6 +551,7 @@ export default {
       'deleteNonpersistentDesktop',
       'openDesktop',
       'createDesktop',
+      'checkCanStartNewNonpersistent',
       'navigate',
       'goToEditDomain',
       'fetchDirectLink',
@@ -557,10 +574,13 @@ export default {
       this.$snotify.clear()
 
       const yesAction = () => {
-        const data = new FormData()
-        data.append('template', template)
         this.$snotify.clear()
-        this.createDesktop(data)
+        const vgpus = (template.reservables && template.reservables.vgpus) || []
+        if (vgpus.length) {
+          this.checkCanStartNewNonpersistent({ templateId: template.id, profileIds: vgpus })
+        } else {
+          this.createDesktop({ template: template.id })
+        }
       }
 
       const noAction = (toast) => {

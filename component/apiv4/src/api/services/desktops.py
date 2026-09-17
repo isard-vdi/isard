@@ -21,6 +21,7 @@
 import logging
 import random
 import time
+from datetime import timezone
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -113,6 +114,12 @@ class DesktopService:
         ]
 
     @staticmethod
+    def _booking_end_str(booking_end) -> Optional[str]:
+        if booking_end is None:
+            return None
+        return booking_end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M%z")
+
+    @staticmethod
     def create_desktop(user_id: str, data: CreateDesktopRequest) -> str:
         if not RethinkUser.exists(user_id):
             raise Error(
@@ -193,6 +200,7 @@ class DesktopService:
                 # This body carries a configuration; the old frontend's
                 # one-desktop-per-template reuse would discard it.
                 allow_reuse=False,
+                booking_end=DesktopService._booking_end_str(data.booking_end),
             )
 
         if data.bastion_target:
@@ -203,7 +211,9 @@ class DesktopService:
         return desktop_id
 
     @staticmethod
-    def create_nonpersistent_desktop(payload: dict, template_id: str) -> str:
+    def create_nonpersistent_desktop(
+        payload: dict, template_id: str, booking_end=None, reservables=None
+    ) -> str:
         """Create and start a non-persistent desktop from a template.
         ``@has_token`` — takes only ``template_id`` and delegates quota +
         allowlist checks to the common helper.
@@ -229,6 +239,10 @@ class DesktopService:
         return CommonDesktopsNonpersistent.new_desktop(
             user_id=user_id,
             template_id=template_id,
+            booking_end=DesktopService._booking_end_str(booking_end),
+            reservables=(
+                reservables.model_dump(exclude_unset=True) if reservables else None
+            ),
         )
 
     @staticmethod

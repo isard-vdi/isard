@@ -3,7 +3,7 @@
     id="cantStartModal"
     v-model="modal.show"
     size="lg"
-    :title="modal.showChangeProfileAndStartOption ? $t(`components.cant-start-now-modal.title.available-profile`): $t('components.cant-start-now-modal.title.no-available-profile')"
+    :title="modalTitle"
     centered
     hide-footer
     header-class="bg-orange text-white"
@@ -35,8 +35,11 @@
         </b-button>
       </b-col>
     </b-row>
-    <hr v-if="modal.showChangeProfileAndStartOption">
-    <b-row class="ml-2 mr-2">
+    <hr v-if="modal.showChangeProfileAndStartOption && !isNewDesktop">
+    <b-row
+      v-if="!isNewDesktop"
+      class="ml-2 mr-2"
+    >
       <b-col
         cols="9"
         class="mt-2"
@@ -63,6 +66,7 @@
 </template>
 <script>
 import { computed } from '@vue/composition-api'
+import i18n from '@/i18n'
 
 export default {
   setup (_, context) {
@@ -71,6 +75,17 @@ export default {
     // const item = computed(() => $store.getters.getBookingItem)
 
     const modal = computed(() => $store.getters.getCantStartNowModal)
+
+    const isNewDesktop = computed(() => !!modal.value.item.newDesktopTemplateId)
+
+    const modalTitle = computed(() => {
+      if (!modal.value.showChangeProfileAndStartOption) {
+        return i18n.t('components.cant-start-now-modal.title.no-available-profile')
+      }
+      return isNewDesktop.value
+        ? i18n.t('components.cant-start-now-modal.title.template-available-profile')
+        : i18n.t('components.cant-start-now-modal.title.available-profile')
+    })
 
     const changeDesktopGpu = () => {
       $store.dispatch('fetchReservablesAvailable', { action: modal.value.item.action })
@@ -89,7 +104,9 @@ export default {
       closeModal,
       onClickBookingDesktop,
       changeDesktopGpu,
-      modal
+      modal,
+      modalTitle,
+      isNewDesktop
     }
   }
 }

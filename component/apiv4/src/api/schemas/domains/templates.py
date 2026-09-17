@@ -211,6 +211,7 @@ class UserAllowedTemplateFlatItem(BaseModel):
     status: Optional[str] = None
     enabled: Optional[bool] = None
     allowed: Optional[Any] = None
+    reservables: Optional[Reservables] = None
 
     class Config:
         # Allow any extra column the common helper picks up so a future

@@ -346,7 +346,8 @@
     "cant-start-now-modal": {
       "title": {
         "available-profile": "Els models de targeta gràfica d'aquest escriptori no estan disponibles en aquest moment",
-        "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment"
+        "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment",
+        "template-available-profile": "El/s model(s) de targeta gràfica d'aquesta plantilla no estan disponibles actualment"
       },
       "change-desktop-gpu": {
         "text": "Es poden canviar a models de targeta gràfica disponibles ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
@@ -1582,7 +1583,6 @@
     "no_reservables": "L'element no té reservables",
     "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades",
     "deployment_recreate_booking_not_enough_units": "El desplegament no es pot recrear perquè no hi ha prou unitats disponibles per a les reserves planificades",
-    "temporal_new_reservable": "No es pot crear un escriptori temporal d'una plantilla amb reservables",
     "password_character_length": "La contrasenya ha de tenir com a mínim {num} caràcter(s)",
     "password_uppercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en majúscula",
     "password_lowercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en minúscula",
@@ -1629,7 +1629,9 @@
     "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini.",
     "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix.",
-    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo."
+    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo.",
+    "no_available_profile": "No hi ha cap GPU disponible ara.",
+    "temporal_reservable_needs_booking": "Un escriptori temporal amb GPU necessita una hora de fi. Torna-ho a provar i selecciona fins quan es farà servir."
   },
   "messages": {
     "title": {

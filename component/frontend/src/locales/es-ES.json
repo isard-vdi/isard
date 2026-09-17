@@ -2290,6 +2290,7 @@
         "vgpus": {
           "label": "vGPU",
           "placeholder": "Selecciona una vGPU",
+          "unavailable": "No hay ninguna vGPU disponible para tu usuario",
           "hint": "Máximo {max} perfiles de vGPU por escritorio."
         },
         "hardwareGroups": {

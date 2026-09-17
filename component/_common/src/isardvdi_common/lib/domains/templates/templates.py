@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import logging as log
 import time
 import traceback
 
@@ -30,6 +31,7 @@ from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
+from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
@@ -51,7 +53,6 @@ def _as_card(image):
 
 
 class TemplatesProcessed(RethinkSharedConnection):
-
     _rdb_table = "domains"
 
     @classmethod
@@ -575,6 +576,25 @@ class TemplatesProcessed(RethinkSharedConnection):
         desktops keep running forever even though their template is no
         longer usable.
         """
+        with cls._rdb_context():
+            desktop_ids = list(
+                r.table("domains")
+                .get_all(template_id, index="parents")
+                .filter({"persistent": False})
+                .get_field("id")
+                .run(cls._rdb_connection)
+            )
+
+        for desktop_id in desktop_ids:
+            try:
+                BookingsProcessed.delete_item_bookings("desktop", desktop_id)
+            except Exception:
+                log.warning(
+                    "Could not delete the bookings of desktop %s",
+                    desktop_id,
+                    exc_info=True,
+                )
+
         with cls._rdb_context():
             r.table("domains").get_all(template_id, index="parents").filter(
                 {"persistent": False}
