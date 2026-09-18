@@ -98,6 +98,7 @@
         <v-select
           v-model="memory"
           :options="availableHardware.memory"
+          :get-option-label="memoryOptionLabel"
           label="name"
           @search:blur="v$.memory.$touch"
         >
@@ -281,6 +282,7 @@
 <script>
 import { computed, onMounted, watch } from '@vue/composition-api'
 import { hardwareWarningTitle } from '@/shared/constants'
+import { memoryOptionLabel } from '@/utils/domainsUtils'
 import useVuelidate from '@vuelidate/core'
 import { required, requiredIf } from '@vuelidate/validators'
 
@@ -380,6 +382,7 @@ export default {
       availableHardware,
       domain,
       hardwareWarningTitle,
+      memoryOptionLabel,
       v$: useVuelidate({
         vcpus: {
           required
