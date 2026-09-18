@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { revalidateLogic, useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
 import { reactive, computed, watch } from 'vue'
@@ -249,6 +250,7 @@ const defaultValues = reactive({
   interfaces
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues,
   validators: {

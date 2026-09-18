@@ -74,6 +74,12 @@
         "logged-in-as": "Connecté en tant que {name}",
         "logout": "Se déconnecter"
       }
+    },
+    "form": {
+      "required": {
+        "marker": "*",
+        "text": "obligatoire"
+      }
     }
   },
   "authentication": {

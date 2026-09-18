@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode'
 import { z } from 'zod'
 
 import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import {
   removeToken as removeAuthToken,
   TokenType,
@@ -112,6 +113,7 @@ const formSchema = z.object({
   email: z.string().email({ message: t('views.verify-email.invalid-email') })
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: { email: '' },
   validators: {

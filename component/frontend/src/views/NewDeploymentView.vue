@@ -7,6 +7,7 @@ import { isInvalid } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import * as z from 'zod'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
@@ -253,6 +254,7 @@ const step4Schema = formSchema.pick({ desktops: true })
 // hardcoded random image from stock images
 const deploymentImageId = (Math.floor(Math.random() * 48) + 1).toString()
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: {
     name: '',

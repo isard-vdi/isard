@@ -928,6 +928,10 @@
       }
     },
     "form": {
+      "required": {
+        "marker": "*",
+        "text": "derrigorrezkoa"
+      },
       "validation": {
         "required": "{field} eremua derrigorrezkoa da",
         "min-length": "{field} eremuak gutxienez {min} karaktere izan behar ditu",

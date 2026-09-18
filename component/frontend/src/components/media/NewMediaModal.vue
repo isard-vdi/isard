@@ -2,6 +2,7 @@
 import { reactive, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import * as z from 'zod'
 
@@ -91,6 +92,7 @@ const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   }
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: reactive({
     name: '',
