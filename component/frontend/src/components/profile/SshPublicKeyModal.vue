@@ -2,6 +2,7 @@
 import { computed, ref, reactive } from 'vue'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 import Modal from '@/components/modal/Modal.vue'
@@ -73,6 +74,7 @@ const { mutateAsync: deleteSshKey, isPending: isDeleting } = useMutation(
 
 const isActionDisabled = computed(() => isSaving.value || isDeleting.value || sshKeyIspending.value)
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: reactive({ sshKey: computed(() => sshKeyData.value?.ssh_key || '') }),
   validators: {

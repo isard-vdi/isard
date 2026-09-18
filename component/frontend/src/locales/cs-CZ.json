@@ -36,5 +36,13 @@
         "login": "Přejít na přihlášení"
       }
     }
+  },
+  "components": {
+    "form": {
+      "required": {
+        "marker": "*",
+        "text": "povinné"
+      }
+    }
   }
 }

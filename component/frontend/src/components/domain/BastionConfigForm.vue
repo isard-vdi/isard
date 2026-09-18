@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
 import { reactive } from 'vue'
@@ -94,6 +95,7 @@ const formSchema = z.object({
 
 const defaultValues = reactive(props.bastion)
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues,
   validators: {

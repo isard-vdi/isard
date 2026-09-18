@@ -2717,6 +2717,10 @@
       "year": "Any"
     },
     "form": {
+      "required": {
+        "marker": "*",
+        "text": "obligatori"
+      },
       "validation": {
         "invalid-element": "El camp {field} té un element no vàlid",
         "invalid-format": "El camp {field} té un format no vàlid",

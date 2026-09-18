@@ -41,6 +41,7 @@ import {
   FieldTitle
 } from '@/components/ui/field'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import * as z from 'zod'
 
 const { t, d } = useI18n()
@@ -126,6 +127,7 @@ const formSchema = z.object({
   name: z.string().min(1, t('components.form.validation.required'))
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: {
     name: props.templateName

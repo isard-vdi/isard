@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 
 import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { InputField } from '@/components/input-field'
 import { Icon } from '@/components/icon'
 import { useI18n } from 'vue-i18n'
@@ -42,6 +43,7 @@ const formSchema = z.object({
     .email({ message: t('components.profile.email-verification-modal.invalid-email') })
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues,
   validators: {

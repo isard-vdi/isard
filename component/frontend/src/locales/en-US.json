@@ -1630,6 +1630,10 @@
       }
     },
     "form": {
+      "required": {
+        "marker": "*",
+        "text": "required"
+      },
       "validation": {
         "required": "The field {field} is required",
         "min-length": "The field {field} must be at least {min} characters long",

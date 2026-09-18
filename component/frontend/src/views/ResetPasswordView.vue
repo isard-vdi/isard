@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 import { z } from 'zod'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { useForm, revalidateLogic, type AnyFieldApi } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -144,6 +145,7 @@ const passwordFormSchema = z
     message: t('components.profile.password-modal.errors.mismatch')
   })
 
+provideFormSchema(passwordFormSchema)
 const form = useForm({
   defaultValues: {
     newPassword: '',

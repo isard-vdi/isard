@@ -2717,6 +2717,10 @@
       "year": "Año"
     },
     "form": {
+      "required": {
+        "marker": "*",
+        "text": "obligatorio"
+      },
       "validation": {
         "invalid-element": "El campo {field} tiene un elemento no válido",
         "invalid-format": "El campo {field} tiene un formato no válido",

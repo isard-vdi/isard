@@ -1,5 +1,6 @@
 import { computed, reactive, toValue, type MaybeRefOrGetter } from 'vue'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import * as z from 'zod'
 
@@ -56,6 +57,7 @@ export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
     ...(options.extraDefaults ?? {})
   }) as DomainInfoValues
 
+  provideFormSchema(schema)
   const form = useForm({
     defaultValues,
     validators: { onChange: schema }
