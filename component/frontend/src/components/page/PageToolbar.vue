@@ -23,7 +23,13 @@ const props = defineProps<{
     >
       <div
         v-if="($slots.tabs && props.inlineTabs) || $slots.view || $slots.search || $slots.filters"
-        class="mr-auto flex min-w-30 flex-1 flex-row items-start gap-2"
+        :class="
+          cn(
+            'mr-auto flex min-w-30 flex-1 flex-row gap-2',
+            props.inlineTabs && 'items-center gap-4',
+            !props.inlineTabs && 'items-start'
+          )
+        "
       >
         <slot v-if="props.inlineTabs" name="tabs" />
         <slot name="view" />

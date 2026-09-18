@@ -88,12 +88,14 @@ const templateFilterCategories = computed<FilterCategory[]>(() => {
         {
           value: 'visible',
           label: t('views.templates.filters.visibility.visible'),
-          count: visible
+          count: visible,
+          icon: 'eye'
         },
         {
           value: 'hidden',
           label: t('views.templates.filters.visibility.hidden'),
-          count: templates.length - visible
+          count: templates.length - visible,
+          icon: 'eye-off'
         }
       ]
     }

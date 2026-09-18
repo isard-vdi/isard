@@ -7,17 +7,23 @@ const categories: FilterCategory[] = [
     key: 'kind',
     label: 'Type',
     options: [
-      { value: 'persistent', label: 'Persistents', count: 12 },
-      { value: 'volatile', label: 'Temporaries', count: 3 },
-      { value: 'deployment', label: 'Deployments', count: 5 }
+      { value: 'persistent', label: 'Persistents', count: 12, tone: 'persistent', icon: 'browser' },
+      { value: 'volatile', label: 'Temporaries', count: 3, tone: 'nonpersistent', icon: 'clock' },
+      {
+        value: 'deployment',
+        label: 'Deployments',
+        count: 5,
+        tone: 'deployment',
+        icon: 'layout-alt-04'
+      }
     ]
   },
   {
     key: 'status',
     label: 'Status',
     options: [
-      { value: 'started', label: 'Started', count: 4 },
-      { value: 'stopped', label: 'Stopped', count: 16 }
+      { value: 'started', label: 'Started', count: 4, icon: 'play' },
+      { value: 'stopped', label: 'Stopped', count: 16, icon: 'stop' }
     ]
   }
 ]
@@ -53,4 +59,50 @@ export const Empty: Story = {
 
 export const WithTags: Story = {
   args: { categories, modelValue: { kind: ['persistent'], status: ['started'] } }
+}
+
+/** Narrow enough to push tags out of the row: the counter opens the panel. */
+export const Narrow: Story = {
+  args: {
+    categories,
+    modelValue: {
+      kind: ['persistent', 'volatile', 'deployment'],
+      status: ['started', 'stopped']
+    }
+  },
+  render: (args) => ({
+    components: { FilterTags },
+    setup: () => {
+      const selected = ref<Record<string, string[]>>(args.modelValue ?? { kind: [], status: [] })
+      return { args, selected }
+    },
+    template: `
+      <div class="w-[320px] p-8">
+        <FilterTags v-model="selected" :categories="args.categories" />
+      </div>
+    `
+  })
+}
+
+/** Every tone at once: the kinds in their colour, the rest neutral. */
+export const EveryTone: Story = {
+  args: {
+    categories,
+    modelValue: {
+      kind: ['persistent', 'volatile', 'deployment'],
+      status: ['started', 'stopped']
+    }
+  },
+  render: (args) => ({
+    components: { FilterTags },
+    setup: () => {
+      const selected = ref<Record<string, string[]>>(args.modelValue ?? { kind: [], status: [] })
+      return { args, selected }
+    },
+    template: `
+      <div class="w-[900px] p-8">
+        <FilterTags v-model="selected" :categories="args.categories" />
+      </div>
+    `
+  })
 }

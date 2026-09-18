@@ -10,6 +10,8 @@ export interface DomainKindStyle {
   iconColor: string
   /** Soft fill behind inline values (ids, credentials, ip). */
   tint: string
+  /** The icon the kind answers to, the one its cards carry. */
+  icon: string
 }
 
 const DOMAIN_KIND_STYLES: Record<DomainKind, DomainKindStyle> = {
@@ -17,19 +19,22 @@ const DOMAIN_KIND_STYLES: Record<DomainKind, DomainKindStyle> = {
     accent: 'border-l-6 border-l-secondary-3-500',
     badge: 'bg-secondary-3-300 text-secondary-3-600',
     iconColor: 'secondary-3-600',
-    tint: 'bg-secondary-3-100'
+    tint: 'bg-secondary-3-100',
+    icon: 'browser'
   },
   nonpersistent: {
     accent: 'border-l-6 border-l-secondary-1-500',
     badge: 'bg-secondary-1-300 text-secondary-1-600',
     iconColor: 'secondary-1-600',
-    tint: 'bg-secondary-1-100'
+    tint: 'bg-secondary-1-100',
+    icon: 'clock'
   },
   deployment: {
     accent: 'border-l-6 border-l-secondary-2-500',
     badge: 'bg-secondary-2-300 text-secondary-2-600',
     iconColor: 'secondary-2-600',
-    tint: 'bg-secondary-2-100'
+    tint: 'bg-secondary-2-100',
+    icon: 'layout-alt-04'
   },
   // A gray deep enough to keep its distance from the persistent teal: the lighter
   // ones collapse onto it with red-green colour blindness.
@@ -37,7 +42,8 @@ const DOMAIN_KIND_STYLES: Record<DomainKind, DomainKindStyle> = {
     accent: 'border-l-6 border-l-gray-warm-500',
     badge: 'bg-gray-warm-200 text-gray-warm-800',
     iconColor: 'gray-warm-700',
-    tint: 'bg-gray-warm-100'
+    tint: 'bg-gray-warm-100',
+    icon: 'colors'
   }
 }
 

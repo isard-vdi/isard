@@ -83,7 +83,8 @@ const deploymentFilterCategories = computed<FilterCategory[]>(() => {
         {
           value: 'started',
           label: t('views.deployments.filters.status.started'),
-          count: all.filter((deployment) => deployment.started_desktops > 0).length
+          count: all.filter((deployment) => deployment.started_desktops > 0).length,
+          icon: 'play'
         }
       ]
     }

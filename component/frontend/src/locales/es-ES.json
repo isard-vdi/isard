@@ -1710,7 +1710,8 @@
       "toggle": "Filtros",
       "toggle-active": "Filtros ({count} activos)",
       "remove": "Quitar el filtro {name}",
-      "clear": "Limpiar los filtros"
+      "clear": "Limpiar los filtros",
+      "show-all": "Ver los {count} filtros activos"
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",

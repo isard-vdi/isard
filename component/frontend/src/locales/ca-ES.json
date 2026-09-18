@@ -1710,7 +1710,8 @@
       "toggle": "Filtres",
       "toggle-active": "Filtres ({count} actius)",
       "remove": "Treu el filtre {name}",
-      "clear": "Neteja els filtres"
+      "clear": "Neteja els filtres",
+      "show-all": "Mostra els {count} filtres actius"
     },
     "empty-search": {
       "clear": "Neteja la cerca",

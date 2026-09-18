@@ -96,12 +96,14 @@ const deploymentFilterCategories = computed<FilterCategory[]>(() => {
         {
           value: 'visible',
           label: t('views.deployments.filters.status.visible'),
-          count: visible
+          count: visible,
+          icon: 'eye'
         },
         {
           value: 'hidden',
           label: t('views.deployments.filters.status.hidden'),
-          count: all.length - visible
+          count: all.length - visible,
+          icon: 'eye-off'
         }
       ]
     }

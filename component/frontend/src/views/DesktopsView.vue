@@ -71,6 +71,7 @@ import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
 import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind, type DesktopKind } from '@/lib/desktops'
+import { domainKindStyle } from '@/lib/domainKind'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 import { useUserStore } from '@/stores/user'
 import { canCreateAnyDesktop } from '@/lib/quotas'
@@ -568,17 +569,23 @@ const desktopFilterCategories = computed<FilterCategory[]>(() => [
       {
         value: 'persistent',
         label: t('views.desktops.filters.kind.persistent', desktopFilterCounts.value.persistent),
-        count: desktopFilterCounts.value.persistent
+        count: desktopFilterCounts.value.persistent,
+        tone: 'persistent',
+        icon: domainKindStyle('persistent').icon
       },
       {
         value: 'volatile',
         label: t('views.desktops.filters.kind.nonpersistent', desktopFilterCounts.value.volatile),
-        count: desktopFilterCounts.value.volatile
+        count: desktopFilterCounts.value.volatile,
+        tone: 'nonpersistent',
+        icon: domainKindStyle('nonpersistent').icon
       },
       {
         value: 'deployment',
         label: t('views.desktops.filters.kind.deployment', desktopFilterCounts.value.deployment),
-        count: desktopFilterCounts.value.deployment
+        count: desktopFilterCounts.value.deployment,
+        tone: 'deployment',
+        icon: domainKindStyle('deployment').icon
       }
     ]
   },
@@ -589,12 +596,14 @@ const desktopFilterCategories = computed<FilterCategory[]>(() => [
       {
         value: 'started',
         label: t('views.desktops.filters.status.started'),
-        count: desktopFilterCounts.value.started
+        count: desktopFilterCounts.value.started,
+        icon: 'play'
       },
       {
         value: 'stopped',
         label: t('views.desktops.filters.status.stopped'),
-        count: desktopFilterCounts.value.stopped
+        count: desktopFilterCounts.value.stopped,
+        icon: 'stop'
       }
     ]
   }

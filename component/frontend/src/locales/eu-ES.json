@@ -1214,7 +1214,8 @@
       "toggle": "Iragazkiak",
       "toggle-active": "Iragazkiak ({count} aktibo)",
       "remove": "Kendu {name} iragazkia",
-      "clear": "Garbitu iragazkiak"
+      "clear": "Garbitu iragazkiak",
+      "show-all": "Erakutsi {count} iragazki aktiboak"
     },
     "empty-search": {
       "title": "Ez da emaitzarik aurkitu",
