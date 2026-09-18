@@ -401,6 +401,17 @@ const isosUnavailable = computed(
   () => isosOptions.value.length === 0 && (formValues.value.isos?.length ?? 0) === 0
 )
 
+// Media is shareable, so the owner tells apart images several users named alike.
+const isosTags = computed(() =>
+  isosOptions.value.map((iso) => ({
+    label: iso.name,
+    value: iso.id,
+    description: [iso.user_name, iso.username ? `(${iso.username})` : null]
+      .filter(Boolean)
+      .join(' ')
+  }))
+)
+
 const optionName = (id: string | undefined, options: { id: string; name: string }[]) =>
   id === undefined ? undefined : (options.find((option) => option.id === id)?.name ?? id)
 
@@ -686,7 +697,7 @@ defineExpose({
                   {{ $t('components.domain.hardware.isos.label') }}
                 </FieldLabel>
                 <SearchableTags
-                  :tags="isosOptions.map((iso) => ({ label: iso.name, value: iso.id }))"
+                  :tags="isosTags"
                   :placeholder="
                     isosUnavailable
                       ? t('components.domain.hardware.isos.unavailable')
