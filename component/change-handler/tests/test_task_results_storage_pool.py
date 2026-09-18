@@ -285,3 +285,64 @@ async def test_the_owner_chain_marks_the_row_deleted_when_no_copy_is_left():
     row = _row(status="maintenance")
     applied, _ = await _run(row, _task([], result_status="deleted"), owner=True)
     assert applied["status"] == "deleted"
+
+
+# the row's own path is the disk, wherever that directory is
+
+
+@pytest.mark.asyncio
+async def test_the_live_copy_at_the_rows_own_path_is_adopted_outside_pool_paths():
+    """A file at the row's own path, even ``bad_path``, is adopted, not deleted."""
+    row = _row(path="/isard/groups/templates2/s1.qcow2", status="ready")
+    applied, emitted = await _run(
+        row,
+        _task([_found("/isard/groups/templates2/s1.qcow2", status="ready")]),
+        pool_for={"/isard/groups/templates2/s1.qcow2": False},
+    )
+    assert applied["status"] == "ready"
+    assert emitted == "ready"
+    assert applied["qemu-img-info"] == {"virtual-size": 1024}
+    assert applied["storages_with_uuid"] == [
+        {"status": "bad_path", "path": "/isard/groups/templates2/s1.qcow2"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_the_rows_own_path_is_adopted_even_when_no_pool_claims_it():
+    """The same when no pool owns the directory at all (``not_in_pool``)."""
+    row = _row(path="/mnt/legacy/s1.qcow2", status="ready")
+    applied, emitted = await _run(
+        row,
+        _task([_found("/mnt/legacy/s1.qcow2", status="ready")]),
+        pool_for={"/mnt/legacy/s1.qcow2": None},
+    )
+    assert applied["status"] == "ready"
+    assert emitted == "ready"
+    assert applied["storages_with_uuid"] == [
+        {"status": "not_in_pool", "path": "/mnt/legacy/s1.qcow2"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_recycled_row_stays_recycled_when_adopted_from_its_own_path():
+    """The recycled guard applies on this branch too."""
+    row = _row(path="/isard/groups/templates2/s1.qcow2", status="recycled")
+    applied, _ = await _run(
+        row,
+        _task([_found("/isard/groups/templates2/s1.qcow2", status="ready")]),
+        pool_for={"/isard/groups/templates2/s1.qcow2": False},
+    )
+    assert applied["status"] == "recycled"
+
+
+@pytest.mark.asyncio
+async def test_the_owner_chain_releases_its_row_adopted_from_outside_pool_paths():
+    """The chain holding the row writes with its authority on this branch too."""
+    row = _row(path="/isard/groups/templates2/s1.qcow2", status="maintenance")
+    applied, emitted = await _run(
+        row,
+        _task([_found("/isard/groups/templates2/s1.qcow2", status="ready")]),
+        pool_for={"/isard/groups/templates2/s1.qcow2": False},
+        owner=True,
+    )
+    assert applied["status"] == "ready" and emitted == "ready"
