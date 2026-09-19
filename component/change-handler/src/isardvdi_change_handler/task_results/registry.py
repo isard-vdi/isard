@@ -45,6 +45,8 @@ HANDLERS = {
     "storage_update_dict": (storage.handle_storage_update_dict, ASYNC),
     "storage_add": (storage.handle_storage_add, SYNC),
     "storage_delete": (storage.handle_storage_delete, SYNC),
+    "storage_repair_result": (storage.handle_storage_repair_result, ASYNC),
+    "storage_repair_size": (storage.handle_storage_repair_size, SYNC),
     "update_status": (storage.handle_update_status, ASYNC),
     # media
     "media_update": (media.handle_media_update, SYNC),

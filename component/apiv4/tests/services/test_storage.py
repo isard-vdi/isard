@@ -353,3 +353,36 @@ class TestConvertSetsMaintenanceOnce:
             "longer ready -- convert can never succeed and the disk is left stuck"
         )
         origin.convert.assert_called_once()
+
+
+class TestRepair:
+    @patch("api.services.storage.get_storage")
+    def test_forwards_what_and_returns_task_id(self, mock_get):
+        storage = MagicMock()
+        storage.repair.return_value = "task-1"
+        mock_get.return_value = storage
+        result = StorageService.repair(JWT_PAYLOAD_ADMIN, "s1", "leaks")
+        assert result == "task-1"
+        (args, kwargs) = storage.repair.call_args
+        assert "leaks" in args
+        assert kwargs.get("secondary_priority") == "high"
+
+    def test_rejects_an_unknown_what(self):
+        with pytest.raises(Error):
+            StorageService.repair(JWT_PAYLOAD_ADMIN, "s1", "everything")
+
+
+class TestBatchRepairLeaks:
+    @patch("api.services.storage.Storage.pending_ids")
+    @patch("api.services.storage.get_storage")
+    def test_targets_ready_repair_leaks_disks_with_leaks(self, mock_get, mock_pending):
+        mock_pending.return_value = ["s1", "s2"]
+        storage = MagicMock()
+        mock_get.return_value = storage
+        queued = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN, limit=10)
+        mock_pending.assert_called_once_with("repair_leaks", status="ready", limit=10)
+        assert queued == 2
+        assert storage.repair.call_count == 2
+        # the bulk path only ever repairs leaks, never attempts "all"
+        for call in storage.repair.call_args_list:
+            assert "leaks" in call.args

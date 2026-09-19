@@ -185,6 +185,8 @@ class StorageProcessed(RethinkSharedConnection):
                     "status_logs",
                     "task",
                     "perms",
+                    # why a damaged disk is damaged, so the admin table can show it
+                    "damage_reason",
                     {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
                 ]
             )
