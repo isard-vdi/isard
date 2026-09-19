@@ -1815,6 +1815,15 @@ class RecycleBin(RethinkSharedConnection):
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
+        # a purge in flight may already have moved some files under deleted/:
+        # restoring now would point ready rows at files that are no longer there
+        if self.status == RecycleBinStatusEnum.deleting.value:
+            raise Error(
+                "precondition_required",
+                "Cannot restore entry with status deleting: its files are being "
+                "removed; wait for the purge to finish",
+                description_code="recycle_bin_deleting",
+            )
         if self.item_type != "user":
             try:
                 CommonHelpers.itemExists("users", self.owner_id)

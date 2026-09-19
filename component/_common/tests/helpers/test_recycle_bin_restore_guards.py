@@ -40,6 +40,21 @@ class TestRestoreRefusesTerminalStatus:
         assert status in exc.value.error["description"]
 
 
+class TestRestoreRefusesAPurgeInFlight:
+    """While a purge with ``delete_action: move`` runs, some of the entry's
+    files are already under ``deleted/``; a restore then leaves ready rows
+    whose files are not where the rows say."""
+
+    def test_refuses_a_deleting_entry(self):
+        from isardvdi_common.helpers.recycle_bin import Error
+
+        rb = _bare_entry(status="deleting")
+        with pytest.raises(Error) as exc:
+            rb.restore()
+        assert exc.value.status_code == 428
+        assert exc.value.error["description_code"] == "recycle_bin_deleting"
+
+
 class TestCheckCanRestoreUserByItself:
     """A ``user`` entry whose owner is the agent doing the restore would let a
     user un-delete itself mid-operation. ``check_can_restore`` forbids it."""
