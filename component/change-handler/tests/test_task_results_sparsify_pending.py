@@ -9,6 +9,7 @@ measurement, a sub-threshold growth, a shrink, a non-ready row, or an update
 that carries no measurement is not flagged.
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from isardvdi_common.models.storage import SPARSIFY_GROWTH_BYTES
@@ -112,3 +113,42 @@ def test_does_not_flag_when_disk_shrank():
         _old_row(5_000_000_000),
     )
     cls.flag_pending.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# clear side: handle_clear_pending_action (the sparsify chain's finalize step)
+# ---------------------------------------------------------------------------
+
+
+def _clear(depending_status, exists=True):
+    from isardvdi_change_handler.task_results import storage
+
+    task = SimpleNamespace(depending_status=depending_status)
+    with patch.object(storage, "Storage") as cls:
+        cls.exists.return_value = exists
+        storage.handle_clear_pending_action(task, storage_id="s1", action="sparsify")
+    return cls
+
+
+def test_clears_pending_action_when_chain_finished():
+    cls = _clear("finished")
+    cls.clear_pending.assert_called_once_with("s1", "sparsify")
+
+
+def test_does_not_clear_when_chain_did_not_finish():
+    cls = _clear("failed")
+    cls.clear_pending.assert_not_called()
+
+
+def test_does_not_clear_when_row_is_gone():
+    cls = _clear("finished", exists=False)
+    cls.clear_pending.assert_not_called()
+
+
+def test_clear_pending_action_is_registered():
+    from isardvdi_change_handler.task_results import storage
+    from isardvdi_change_handler.task_results.registry import HANDLERS
+
+    handler, is_async = HANDLERS["clear_pending_action"]
+    assert handler is storage.handle_clear_pending_action
+    assert is_async is False

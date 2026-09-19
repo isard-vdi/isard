@@ -251,6 +251,21 @@ def handle_storage_update_parent(task, storage_id):
         storage.parent = None
 
 
+def handle_clear_pending_action(task, storage_id, action):
+    """Clear a pending action once the operation that resolves it finished.
+
+    A core finalize step: gated on success, so a failed or cancelled chain
+    leaves the mark in place. The sparsify chain hangs it off its trailing
+    storage_update, so the mark clears only after a fresh measurement confirms
+    the new size.
+    """
+    if task.depending_status != "finished":
+        return
+    if not Storage.exists(storage_id):
+        return
+    Storage.clear_pending(storage_id, action)
+
+
 async def handle_storage_update(redis_manager, task, **storage_dict):
     """Port of core_worker.task.storage_update.
 

@@ -1510,6 +1510,18 @@ class Storage(RethinkCustomBase):
                         {
                             "queue": "core",
                             "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "clear_pending_action",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": self.id,
+                                            "action": "sparsify",
+                                        }
+                                    },
+                                }
+                            ],
                         }
                     ],
                 },

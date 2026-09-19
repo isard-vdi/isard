@@ -158,6 +158,40 @@ def test_disconnect_chain_still_runs_storage_update_parent():
 
 
 # ---------------------------------------------------------------------------
+# sparsify: the trailing clear_pending_action removes the sparsify mark
+# ---------------------------------------------------------------------------
+
+
+def test_sparsify_chain_clears_the_pending_action_after_the_refresh():
+    """Sparsify hangs a ``clear_pending_action`` off its post-sparsify
+    ``storage_update`` so the ``sparsify`` mark clears only once the operation
+    succeeded and the re-measure landed — never at enqueue time, never on
+    failure (the finalize step gates on the chain's success)."""
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.sparsify(user_id="u1")
+    assert mock_create.call_args.kwargs["task"] == "sparsify"
+    dependents = mock_create.call_args.kwargs["dependents"]
+    names = list(_collect_task_names(dependents))
+    assert "qemu_img_info_backing_chain" in names
+    assert "storage_update" in names
+    assert "clear_pending_action" in names
+    parents = {dep["task"]: parent for parent, dep in _walk_with_parents(dependents)}
+    assert parents["clear_pending_action"] == "storage_update"
+    clear = next(
+        dep
+        for _, dep in _walk_with_parents(dependents)
+        if dep["task"] == "clear_pending_action"
+    )
+    assert clear["job_kwargs"]["kwargs"] == {"storage_id": s.id, "action": "sparsify"}
+
+
+# ---------------------------------------------------------------------------
 # rsync / mv: storage_domains_force_update must not be present
 # ---------------------------------------------------------------------------
 
