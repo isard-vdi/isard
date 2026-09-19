@@ -721,6 +721,74 @@ async def batch_repair_pending_leaks(request: Request, limit: int | None = None)
         )
 
 
+@admin_router.put(
+    "/admin/item/storage/{storage_id}/check",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Check a storage's integrity",
+    description=(
+        "Enqueues a read-only qemu-img integrity check for one disk outside a "
+        "migration. The result marks the row damaged on corruption, flags "
+        "repair_leaks on leaks, and records last_checked_at either way. Refused "
+        "for a disk a running desktop holds open."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def check_storage(request: Request, storage_id: str):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.check_integrity, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/items/storage/check/{status}",
+    tags=[tag],
+    response_model=StorageRepairBatchResponse,
+    summary="Batch check integrity by status",
+    description="Checks every disk with the given status; returns how many were queued.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def batch_check_storage_by_status(request: Request, status: str):
+    try:
+        queued = await asyncio.to_thread(
+            StorageService.batch_check_integrity_by_status,
+            request.token_payload,
+            status,
+        )
+        return JSONResponse(
+            content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch check storage",
+            traceback.format_exc(),
+        )
+
+
 @admin_router.get(
     "/admin/storage/sweep/config",
     tags=[tag],
