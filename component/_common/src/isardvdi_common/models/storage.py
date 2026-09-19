@@ -753,6 +753,9 @@ class Storage(RethinkCustomBase):
         :return: Storage object
         :rtype: isardvdi_common.models.storage.Storage
         """
+        existing = cls.get_by_path(path)
+        if existing:
+            return existing
         return Storage.init_document(
             id=get_storage_id_from_path(path),
             type=path.rsplit(".", 1)[-1],
