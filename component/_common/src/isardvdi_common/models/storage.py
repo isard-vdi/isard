@@ -777,6 +777,28 @@ class Storage(RethinkCustomBase):
         storage_id = get_storage_id_from_path(path)
         if cls.exists(storage_id):
             return cls(storage_id)
+        return cls._get_by_legacy_path(path)
+
+    @classmethod
+    def _get_by_legacy_path(cls, path: str) -> Optional["Storage"]:
+        # pre-UUID rows keep a path-form id: try each (directory_path, id) split
+        name, dot, ext = path.rpartition(".")
+        if not dot:
+            return None
+        segments = name.split("/")
+        for split in range(1, len(segments) - 1):
+            directory_path = "/".join(segments[:split])
+            candidate_id = "/".join(segments[split:])
+            if not directory_path or not candidate_id:
+                continue
+            doc = cls.get(candidate_id)
+            if (
+                doc
+                and doc.get("directory_path") == directory_path
+                and doc.get("type") == ext
+            ):
+                return cls.build_from(doc)
+        return None
 
     @classmethod
     def write_reading(cls, reading, observer=False, read_at=None):
