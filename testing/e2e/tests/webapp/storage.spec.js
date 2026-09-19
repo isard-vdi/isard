@@ -261,12 +261,16 @@ test.describe('Admin Storage — webapp', () => {
       page.locator('h3').filter({ hasText: /Storage files in maintenance/ }),
     ).toBeVisible()
 
-    // Other status panel
+    // Other status panel. #status is data-driven (GET .../storage/status minus
+    // ready/maintenance), so a ready-only seed leaves only its default option:
+    // assert the panel renders, not that it has rows (cf. S8, which skips then).
+    await expect(
+      page.locator('h3').filter({ hasText: /Storages in other status/ }),
+    ).toBeVisible()
     const statusDropdown = page.locator('#status')
     await expect(statusDropdown).toBeVisible()
     await expect(statusDropdown).toBeEnabled()
-    const optionCount = await statusDropdown.locator('option').count()
-    expect(optionCount).toBeGreaterThan(1)
+    expect(await statusDropdown.locator('option').count()).toBeGreaterThanOrEqual(1)
 
     // UUID duplicates panel
     await expect(page.locator('#uuid_status')).toBeVisible()
