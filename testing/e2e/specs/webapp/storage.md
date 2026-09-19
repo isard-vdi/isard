@@ -887,6 +887,51 @@ Additionally, the admin action buttons on the row:
 
 ---
 
+## Scenario 25 — *Repair a damaged disk from the row action buttons*
+
+### Given
+
+1. A `damaged` disk is shown in the "Other status" table (selected from the status
+   dropdown). The diskless e2e env has none, so the status-count dropdown, the
+   by-status load and the repair PUTs are stubbed; the row carries a
+   `damage_reason` of `corruptions=2`.
+
+### When / Then
+
+1. The row shows its `damage_reason` inline and both a **Repair leaks**
+   (`.btn-repair-leaks`) and a **Repair all** (`.btn-repair-all`) button.
+2. **S25** — clicking **Repair leaks** and confirming **Ok** fires
+   `PUT /api/v4/item/storage/<id>/repair/leaks`; on success the table reloads and
+   the repaired row leaves the `damaged` table.
+3. **S25b** — clicking **Repair leaks** and confirming **Cancel** fires no repair
+   call and the row stays.
+4. **S25c** — clicking **Repair all** and confirming **Ok** fires
+   `PUT /api/v4/item/storage/<id>/repair/all`.
+
+> The row-level buttons appear only for a `damaged` row (the actions column keys
+> off `row.status`); a repair is refused server-side with 428 for a disk whose
+> desktop is not stopped (covered by the apiv4/model tests, not reachable from the
+> stubbed UI).
+
+---
+
+## Scenario 26 — *Batch-repair every disk with pending leaks*
+
+### Given
+
+1. The admin is on the storage page. The **Repair all pending leaks**
+   (`#btn-repair-all-pending-leaks`) button sits by the Ready panel's global
+   actions. The batch route is stubbed.
+
+### When / Then
+
+1. **S26** — clicking it and confirming **Ok** fires
+   `PUT /api/v4/items/storage/repair/leaks` (which drains every ready disk carrying
+   a `repair_leaks` mark through the pending-actions index).
+2. **S26b** — confirming **Cancel** fires no batch call.
+
+---
+
 ## Expected results — global summary
 
 | Scenario | Covered in test? | Key checks |
@@ -922,6 +967,9 @@ Additionally, the admin action buttons on the row:
 | S22 — Find from modal | ✅ | Search modal closes; find API called; PNotify "Find task started" |
 | S23 — Delete from modal | ✅ | Confirmation dialog; DELETE call; tables reload on success |
 | S24 — Move/WinReg/Increase blocked (derivatives) | ✅ | Builds parent + 2 derived children via SDK; each action shows the block PNotify and its modal stays closed |
+| S25 — Repair leaks on a damaged row | ✅ | Reason shown; confirm Ok fires `repair/leaks` and the row leaves the table; Cancel fires nothing (S25b) |
+| S25c — Repair all on a damaged row | ✅ | Confirm Ok fires `repair/all` |
+| S26 — Repair all pending leaks (batch) | ✅ | Confirm Ok fires `items/storage/repair/leaks`; Cancel fires nothing (S26b) |
 
 ## APIs touched by the flows (reference)
 
