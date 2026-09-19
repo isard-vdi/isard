@@ -1119,6 +1119,7 @@ class MigrationRunner:
                 "expect_bytes": (
                     item.get("size_bytes") if self._is_media(item) else None
                 ),
+                "src_path": item.get("src_path"),
             },
         )
         self._claim_storage_task(item, task_id)
@@ -1248,21 +1249,42 @@ class MigrationRunner:
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        changes = mig.plan_tree_failure(
-            tree_items, item["storage_id"], reason=self._failure_reason(item)
-        )
+        reason = self._failure_reason(item)
+        damage = mig.damage_from_reason(reason)
+        changes = mig.plan_tree_failure(tree_items, item["storage_id"], reason=reason)
         changed_ids = {it["id"] for it, _s, _r in changes}
         # The triggering disk may already be ``failed`` (generic exception
         # handler), so plan_tree_failure leaves it untouched and out of ``changes``
         # — audit it here so its failure is still recorded exactly once.
         if item["id"] not in changed_ids and str(item["state"]) == "failed":
+            if damage is not None:
+                self._mark_damaged(item, damage)
             self._audit(item, "failed")
-        for it, new_state, reason in changes:
+        for it, new_state, why in changes:
             self._restore_storage_status(it)
             self._discard_destination(it)
-            self._set(it, state=new_state, error=reason)
+            # after the restore, so damaged is the status that stays
+            if damage is not None and it["id"] == item["id"]:
+                self._mark_damaged(it, damage)
+            self._set(it, state=new_state, error=why)
             # AUDIT: the triggering disk -> failed, the rest of the tree -> skipped.
             self._audit(it, "failed" if new_state == "failed" else "skipped")
+
+    def _mark_damaged(self, item, reason):
+        """The source failed qemu-img check: leave the disk in a state that says
+        so instead of the ``ready`` it came from, and remember it on the item so
+        the job can decide between pausing and going on."""
+        self._set(item, damaged=True, damage_reason=reason)
+        if self._is_media(item):
+            return
+        try:
+            Storage.update_document(
+                item["storage_id"],
+                {"status": "damaged", "damage_reason": reason},
+                validate=False,
+            )
+        except Exception:
+            log.exception("migration: could not mark %s damaged", item["storage_id"])
 
     def _fail(self, item):
         self._terminalize_tree_failure(item)
@@ -1418,6 +1440,17 @@ class MigrationRunner:
         recurring = bool(self.config.get("recurring"))
         policy = self.config.get("failure_policy") or "retry_quarantine"
         fresh = self._items()
+        # a damaged disk pauses or not by its own knob, whatever failure_policy
+        # says about copy failures; the flag is set by _mark_damaged this tick
+        touched = {i for (_t, i, _a) in results if i}
+        damaged_this_tick = any(
+            it.get("damaged") and it["id"] in touched for it in fresh
+        )
+        on_damaged = self.config.get("on_damaged") or "pause"
+        pause_now = not finishing and (
+            (damaged_this_tick and on_damaged == "pause")
+            or (policy == "pause" and failed_this_tick and not damaged_this_tick)
+        )
         any_failed = any(
             str(it["state"]) == MigrationItemState.FAILED.value for it in fresh
         )
@@ -1437,12 +1470,12 @@ class MigrationRunner:
         any_in_flight = any(str(it["state"]) not in _settled for it in fresh)
 
         cur = str(self.migration.status)
-        if policy == "pause" and failed_this_tick and not finishing:
-            # failure_policy=pause: on any disk failure, stop driving and wait for
-            # the admin. The driver does not tick paused jobs; a resume (start)
-            # continues, and a recurring job re-arms the failed disk next
-            # occurrence. Autostart stays suppressed (a mid-migration disk must not
-            # autostart) until the job truly completes or is canceled.
+        if pause_now:
+            # stop driving and wait for the admin. The driver does not tick paused
+            # jobs; a resume (start) continues, and a recurring job re-arms the
+            # failed disk next occurrence. Autostart stays suppressed (a
+            # mid-migration disk must not autostart) until the job truly
+            # completes or is canceled.
             if cur != MigrationStatus.PAUSED.value:
                 self.migration.status = MigrationStatus.PAUSED.value
         elif self.is_complete():

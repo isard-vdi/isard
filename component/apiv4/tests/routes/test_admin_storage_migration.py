@@ -202,6 +202,38 @@ class TestConfig:
         )
         assert resp.status_code == 428
 
+    @pytest.mark.parametrize("value", ["pause", "continue"])
+    def test_config_accepts_on_damaged(self, test_client, value):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"on_damaged": value},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["on_damaged"] == value
+
+    def test_config_defaults_on_damaged_to_pause(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.json()["config"]["on_damaged"] == "pause"
+
+    def test_config_rejects_an_unknown_on_damaged(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"on_damaged": "ignore"},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
     def test_config_rejects_out_of_range_parallelism(self, test_client):
         # parallelism=100000 would defeat the throttle and mass-flip rows to
         # maintenance — bounded server-side via Field(ge=1, le=...).

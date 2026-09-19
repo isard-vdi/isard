@@ -30,6 +30,8 @@ class StorageStatusEnum(str, Enum):
     recycled = "recycled"
     orphan = "orphan"
     deleted = "deleted"
+    #: failed qemu-img check; damage_reason says whether it is a leak or a corruption
+    damaged = "damaged"
 
 
 class FormatSpecific(BaseModel):

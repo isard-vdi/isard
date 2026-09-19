@@ -1576,6 +1576,7 @@
           "deleted": "Eliminado",
           "orphan": "Huérfano",
           "broken_chain": "Cadena rota",
+          "damaged": "Dañado",
           "non_existing": "Aún no creado",
           "downloading": "Descargando",
           "unknown": "Desconocido"
