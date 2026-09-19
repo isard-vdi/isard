@@ -1202,6 +1202,8 @@ def build_audit_record(item, result, occurrence, now):
         "source_retained_path": item.get("source_retained_path"),
         "source_action": item.get("source_action"),
         "source_action_reason": item.get("source_action_reason"),
+        "dst_action": item.get("dst_action"),
+        "dst_retained_path": item.get("dst_retained_path"),
     }
 
 

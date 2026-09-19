@@ -370,6 +370,13 @@ class StorageMigrationItemModel(BaseModel):
     #: what the release placed for the source, and why it differs from the ask
     source_action: str | None = None
     source_action_reason: str | None = None
+    #: the copy an abandoned (canceled / failed) disk left on the destination:
+    #: the task placed to remove it, or the path when no lane could take it
+    dst_action: str | None = None
+    dst_action_reason: str | None = None
+    dst_task_id: str | None = None
+    dst_retained: bool = False
+    dst_retained_path: str | None = None
 
 
 # --------------------------------------------------------------------------- #
