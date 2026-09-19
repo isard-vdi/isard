@@ -74,6 +74,12 @@ class TaskIdResponse(BaseModel):
     task_id: str
 
 
+class StorageRepairBatchResponse(BaseModel):
+    """How many disks a batch repair queued."""
+
+    queued: int
+
+
 class StorageStatusDomain(BaseModel):
     """A domain entry in a storage's statuses payload."""
 

@@ -43,6 +43,7 @@ from api.schemas.storage import (
     StoragePathRequest,
     StorageReadyResponse,
     StorageRecreateRequest,
+    StorageRepairBatchResponse,
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
     StorageStatusesResponse,
@@ -641,6 +642,77 @@ async def batch_sparsify_storages_by_status(request: Request, status: str):
             request,
             "internal_server",
             "Failed to batch sparsify storages by status",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/item/storage/{storage_id}/repair/{what}",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Repair a storage",
+    description=(
+        "Creates a task to repair a damaged or leaky qcow2 with "
+        "`qemu-img check -r <what>` (what is `leaks` or `all`). Admitted only for "
+        "a disk that is damaged or still carries a repair_leaks mark."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def repair_storage(request: Request, storage_id: str, what: str):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.repair, request.token_payload, storage_id, what
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to repair storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/items/storage/repair/leaks",
+    tags=[tag],
+    response_model=StorageRepairBatchResponse,
+    summary="Batch repair all pending leaks",
+    description=(
+        "Repairs every ready disk still carrying a repair_leaks mark, oldest "
+        "first, bounded by an optional `limit`. Returns how many were queued."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def batch_repair_pending_leaks(request: Request, limit: int | None = None):
+    try:
+        queued = await asyncio.to_thread(
+            StorageService.batch_repair_leaks, request.token_payload, limit
+        )
+        return JSONResponse(
+            content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch repair pending leaks",
             traceback.format_exc(),
         )
 

@@ -197,6 +197,84 @@ def test_batch_sparsify_storages_by_status(monkeypatch, test_client):
     assert captured == {"status": "ready"}
 
 
+def test_repair_storage(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_repair(payload, storage_id, what):
+        captured["storage_id"] = storage_id
+        captured["what"] = what
+        return "task-repair-1"
+
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.repair",
+        staticmethod(fake_repair),
+    )
+
+    response = test_client(
+        url="/item/storage/stor-1/repair/leaks",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"task_id": "task-repair-1"}
+    assert captured == {"storage_id": "stor-1", "what": "leaks"}
+
+
+def test_repair_storage_all(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.repair",
+        staticmethod(
+            lambda payload, storage_id, what: captured.update(what=what) or "t"
+        ),
+    )
+    response = test_client(url="/item/storage/stor-1/repair/all", method="PUT", jwt=jwt)
+    assert response.status_code == 200
+    assert captured == {"what": "all"}
+
+
+def test_batch_repair_pending_leaks(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_batch(payload, limit):
+        captured["limit"] = limit
+        return 7
+
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_repair_leaks",
+        staticmethod(fake_batch),
+    )
+
+    response = test_client(
+        url="/items/storage/repair/leaks",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"queued": 7}
+    assert captured == {"limit": None}
+
+
+def test_batch_repair_pending_leaks_honours_limit(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_repair_leaks",
+        staticmethod(lambda payload, limit: captured.update(limit=limit) or 3),
+    )
+    response = test_client(
+        url="/items/storage/repair/leaks?limit=5", method="PUT", jwt=jwt
+    )
+    assert response.status_code == 200
+    assert response.json() == {"queued": 3}
+    assert captured == {"limit": 5}
+
+
 def test_batch_find_storages_by_status(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}

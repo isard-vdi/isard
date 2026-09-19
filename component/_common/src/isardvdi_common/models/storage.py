@@ -153,6 +153,7 @@ DISK_EFFECTS = {
     "increase_size": DiskEffect.SIZE,
     "virt_win_reg": DiskEffect.SIZE,
     "sparsify": DiskEffect.SIZE,
+    "repair": DiskEffect.SIZE,
     "disconnect_chain": DiskEffect.CHAIN,
     "convert": DiskEffect.CHAIN,
     "recreate": DiskEffect.CHAIN,
@@ -920,6 +921,14 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
                     description_code="storage_invalid_status_for_move",
                 )
+        elif action == "repair":
+            # a repair starts from a still-Ready leaky disk or a damaged one
+            if self.status not in ("ready", "damaged"):
+                raise Error(
+                    "precondition_required",
+                    f"Storage {self.id} can only be repaired from 'ready' or 'damaged' status. Current status is '{self.status}'",
+                    description_code="storage_invalid_status_for_repair",
+                )
         elif self.status != "ready" and action not in (
             "create",
             "delete",
@@ -937,7 +946,12 @@ class Storage(RethinkCustomBase):
         # invariants that only apply to pre-existing storage.
         if action not in ("create", "download"):
             domains = [domain for domain in self.domains if domain.id not in excluded]
-            if any(domain.status != "Stopped" for domain in domains):
+            # A repair may proceed over a Failed domain too: a damaged disk often
+            # left its desktop Failed, and that desktop is exactly the one to fix.
+            allowed_domain_statuses = (
+                ("Stopped", "Failed") if action == "repair" else ("Stopped",)
+            )
+            if any(domain.status not in allowed_domain_statuses for domain in domains):
                 raise Error(
                     "precondition_required",
                     f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
@@ -1505,6 +1519,103 @@ class Storage(RethinkCustomBase):
                         {
                             "queue": "core",
                             "task": "storage_update",
+                        }
+                    ],
+                },
+            ],
+        )
+
+    def repair(
+        self,
+        user_id,
+        what,
+        priority="default",
+        secondary_priority="default",
+        retry: int = 0,
+        timeout=43200,
+    ):
+        """Create a task chain to repair a disk with ``qemu-img check -r <what>``.
+        Admitted only for a ``damaged`` disk or one still carrying a
+        ``repair_leaks`` mark; ``set_maintenance("repair")`` accepts ``damaged``
+        status and a ``Failed`` domain, unlike the other maintenance actions.
+
+        The direct ``storage_repair_result`` core dependent is the SINGLE writer of
+        ``status`` (ready/damaged/restore); the re-measure branch feeds
+        ``storage_repair_size``, which writes ONLY qemu-img-info and never status,
+        so a corrupt-but-readable disk cannot be flipped back to ready. That
+        re-measure is why ``repair`` is :data:`DiskEffect.SIZE`.
+
+        :param user_id: user executing the repair (auditable).
+        :param what: ``"leaks"`` or ``"all"``.
+        :param priority: queue priority for the repair task.
+        :param secondary_priority: queue priority for the re-measure task.
+        :param timeout: repair task timeout (seconds).
+        :return: Task ID.
+        """
+        # imported here to avoid the apiv4 error-factory snapshot-bind race
+        from isardvdi_common.helpers.error_factory import Error
+
+        if what not in ("leaks", "all"):
+            raise Error(
+                "bad_request",
+                f"repair 'what' must be 'leaks' or 'all', got {what!r}",
+                description_code="storage_repair_invalid_what",
+            )
+        pending = self.pending_actions or {}
+        if self.status != "damaged" and "repair_leaks" not in pending:
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} is neither damaged nor carrying a repair_leaks "
+                "mark; there is nothing to repair.",
+                description_code="storage_not_repairable",
+            )
+
+        # Captured before set_maintenance flips the row: the result handler
+        # restores it verbatim if the repair task fails or is cancelled.
+        previous_status = self.status
+
+        queue_repair = f"storage.{StoragePool.get_best_for_action('qemu_img_check_repair', path=self.directory_path).id}.{priority}"
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
+
+        self.set_maintenance("repair")
+        return self.create_task(
+            user_id=user_id,
+            queue=queue_repair,
+            task="qemu_img_check_repair",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": self.path,
+                    "what": what,
+                },
+                "timeout": timeout,
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_repair_result",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "previous_status": previous_status,
+                        }
+                    },
+                },
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_repair_size",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         }
                     ],
                 },

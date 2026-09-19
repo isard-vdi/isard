@@ -560,6 +560,59 @@ class StorageService:
                 )
 
     @staticmethod
+    def repair(
+        payload: dict,
+        storage_id: str,
+        what: str,
+        priority: str = "default",
+        retry: int = 0,
+    ) -> str:
+        """Repair a damaged/leaky disk with ``qemu-img check -r <what>``."""
+        if what not in ("leaks", "all"):
+            raise Error("bad_request", "what must be 'leaks' or 'all'")
+        priority = check_task_priority(payload, priority)
+        retry = check_task_retry(payload, retry)
+        storage = get_storage(payload, storage_id)
+        try:
+            return storage.repair(
+                payload.get("user_id"),
+                what,
+                priority=priority,
+                secondary_priority="high",
+                retry=retry,
+            )
+        except Error:
+            raise  # keep the typed 4xx (preconditions, not-repairable) intact
+        except Exception as e:
+            raise Error(*e.args)
+
+    @staticmethod
+    def batch_repair_leaks(payload: dict, limit: int | None = None) -> int:
+        """Repair every ``ready`` disk still carrying a ``repair_leaks`` mark, oldest
+        first, bounded by ``limit`` (via the ``status_pending_action`` index, never a
+        scan); always ``what="leaks"``. Returns how many were queued."""
+        storage_ids = Storage.pending_ids("repair_leaks", status="ready", limit=limit)
+        queued = 0
+        for storage_id in storage_ids:
+            try:
+                storage = get_storage(payload, storage_id)
+                storage.repair(
+                    payload.get("user_id"),
+                    "leaks",
+                    priority="default",
+                    secondary_priority="high",
+                )
+                queued += 1
+            except Exception:
+                notify_admin(
+                    payload["user_id"],
+                    "Error repairing storage",
+                    f"There was an error creating a repair task for {storage_id}",
+                    type="error",
+                )
+        return queued
+
+    @staticmethod
     def disconnect(
         payload: dict,
         storage_id: str,

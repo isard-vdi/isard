@@ -335,6 +335,82 @@ async def handle_update_status(redis_manager, task, statuses=None):
                         await send_status_socket(redis_manager, item_id, item_status)
 
 
+def _settle_repair_domains(storage_object, final_status):
+    """Domains a repair parked in ``Maintenance`` -> ``Stopped`` (ready) or
+    ``Failed``; only ``Maintenance`` ones, so a VM the engine moved on is spared."""
+    target = "Stopped" if final_status == "ready" else "Failed"
+    for domain in storage_object.domains:
+        if domain.status == "Maintenance":
+            domain.status = target
+            domain.current_action = None
+
+
+async def handle_storage_repair_result(
+    redis_manager, task, storage_id, previous_status
+):
+    """The SINGLE writer of a disk's ``status`` after a repair: ready when
+    the check came back clean, damaged (new reason) when not, ``previous_status``
+    restored on a failed/cancelled task. A direct dependent, so it runs on both
+    the success and the failure event."""
+    if not Storage.exists(storage_id):
+        return
+    result = None
+    for dependency in task.dependencies:
+        if dependency.task == "qemu_img_check_repair":
+            result = dependency.result
+            break
+    finished = task.depending_status == "finished"
+
+    if finished and result is not None and result.get("ok"):
+        final_status = "ready"
+        Storage.insert_document(
+            {"id": storage_id, "status": "ready", "damage_reason": None},
+            conflict="update",
+        )
+        Storage.clear_pending(storage_id, "repair_leaks")
+        Storage.clear_pending(storage_id, "review_damage")
+    elif finished and result is not None:
+        final_status = "damaged"
+        after = result.get("after") or {}
+        Storage.insert_document(
+            {
+                "id": storage_id,
+                "status": "damaged",
+                "damage_reason": after.get("summary") or "repair left the disk unclean",
+            },
+            conflict="update",
+        )
+    else:
+        # failed / cancelled / no result payload: leave the disk exactly as it was.
+        final_status = previous_status
+        Storage.insert_document(
+            {"id": storage_id, "status": previous_status}, conflict="update"
+        )
+
+    _settle_repair_domains(Storage(storage_id), final_status)
+    await send_status_socket(redis_manager, storage_id, final_status, task.user_id)
+
+
+def handle_storage_repair_size(task, storage_id):
+    """Refresh a repaired disk's ``qemu-img-info`` (a leak repair frees clusters)
+    WITHOUT writing ``status`` — that stays with :func:`handle_storage_repair_result`,
+    since ``qemu-img info`` reads a corrupt-but-readable disk as ``ready``."""
+    if task.depending_status != "finished":
+        return
+    if not Storage.exists(storage_id):
+        return
+    for dependency in task.dependencies:
+        if dependency.task != "qemu_img_info_backing_chain":
+            continue
+        result = dependency.result
+        if not result or "qemu-img-info" not in result:
+            continue
+        update = {"id": storage_id, "qemu-img-info": result["qemu-img-info"]}
+        if "qcow2_geometry" in result:
+            update["qcow2_geometry"] = result["qcow2_geometry"]
+        Storage.insert_document(update, conflict="update")
+
+
 def _valid_storage_pool(storage, new_path):
     storage_pools = StoragePool.get_by_path(new_path)
     if not storage_pools:
