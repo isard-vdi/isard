@@ -214,8 +214,23 @@ class MigrationRunner:
 
     def _set(self, item, **fields):
         """Idempotent ledger write keyed by item id (at-least-once safe)."""
+        state_changed = "state" in fields and str(fields["state"]) != str(
+            item.get("state")
+        )
         StorageMigrationItem.update_document(item["id"], fields, validate=False)
         item.update(fields)
+        if state_changed:
+            self._touch()
+
+    def _touch(self):
+        """Stamp job-level last activity. ``updated_at`` is written only by API
+        actions, so it never reflects the runner's disk-by-disk progress; the
+        list/table needs a field that does. Best-effort denormalization: the item
+        ledger is the source of truth, so a write path with no job aggregate
+        loaded skips the stamp rather than failing the ledger write."""
+        migration = getattr(self, "migration", None)
+        if migration is not None:
+            migration.last_activity_at = time()
 
     def _move_queue(self, src_path):
         """Cross-pool move lane for this disk, tiered by the tier RULES.
@@ -1577,6 +1592,10 @@ class MigrationRunner:
             ),
             "next_run_seconds": self._next_run_seconds(),
         }
+        # A job-status transition is activity too (e.g. running -> window_closed),
+        # not just a disk moving; item-state changes already touched via _set.
+        if str(self.migration.status) != cur:
+            self._touch()
         # Signal the change-handler to broadcast the aggregate to admins.
         self._publish_progress()
         return results

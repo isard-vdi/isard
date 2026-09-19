@@ -315,6 +315,9 @@ class StorageMigrationModel(BaseModel):
     created_by: str | None = None
     created_at: float | None = None
     updated_at: float | None = None
+    #: last progress; the executor stamps it on any disk/job state change (unlike
+    #: ``updated_at``, which is API-only). Absent on jobs created before this field.
+    last_activity_at: float | None = None
 
 
 class StorageMigrationItemModel(BaseModel):

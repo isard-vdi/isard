@@ -77,6 +77,42 @@ class TestList:
         )
         assert resp.status_code == 403
 
+    def test_list_ordered_by_created_at_desc(self, test_client):
+        # Newest first, stable. Seeded ascending so an unordered get_all would
+        # come back ascending; the endpoint must return descending.
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration("old", created_at=100.0),
+                    _migration("mid", created_at=200.0),
+                    _migration("new", created_at=300.0),
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        migs = resp.json()["migrations"]
+        assert [m["id"] for m in migs] == ["new", "mid", "old"]
+        cas = [m["created_at"] for m in migs]
+        assert cas == sorted(cas, reverse=True)
+
+    def test_list_exposes_last_activity_at(self, test_client):
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration("a", created_at=2.0, last_activity_at=42.0),
+                    _migration("b", created_at=1.0),  # absent -> None, not a crash
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        by_id = {m["id"]: m for m in resp.json()["migrations"]}
+        assert by_id["a"]["last_activity_at"] == 42.0
+        assert by_id["b"]["last_activity_at"] is None
+
 
 # ── status ────────────────────────────────────────────────────────────────
 class TestStatus:
@@ -108,6 +144,23 @@ class TestStatus:
         }
         assert body["trees"][0]["done"] == 2
 
+    def test_status_carries_dates(self, test_client):
+        # both date columns come off the status aggregate (shared with the socket).
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(created_at=111.0, last_activity_at=222.0)
+                ],
+                "storage_migration_item": [_item("mig-1--a", state="released")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["created_at"] == 111.0
+        assert body["last_activity_at"] == 222.0
+
     def test_status_missing_404(self, monkeypatch, test_client):
         # Mock the DB-boundary existence check (the mock DB engine can't model
         # a missing-doc lookup) to exercise the real service not_found -> 404.
@@ -134,6 +187,18 @@ class TestControl:
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "running"
+
+    def test_start_stamps_last_activity(self, test_client):
+        # an API action stamps last_activity_at too, so even a job that never
+        # moved a disk carries a timestamp for the table's Last-activity column.
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["last_activity_at"] is not None
 
     def test_cancel_running_finishes_current_tree(self, test_client):
         # cancel = finish-current-tree: a running job drains its in-flight tree
@@ -191,6 +256,7 @@ class TestConfig:
         assert resp.status_code == 200
         cfg = resp.json()["config"]
         assert cfg["bwlimit_kbs"] == 5000 and cfg["parallelism"] == 2
+        assert resp.json()["last_activity_at"] is not None
 
     def test_a_partial_update_keeps_what_it_does_not_send(self, test_client):
         """Raising the parallelism of a running job used to reset every field
@@ -640,6 +706,7 @@ class TestCreate:
         body = resp.json()
         assert body["status"] == "planned"
         assert body["id"]
+        assert body["last_activity_at"] is not None  # create stamps it
 
     def test_create_refuses_a_plan_that_resolves_entirely_in_place(
         self, monkeypatch, test_client

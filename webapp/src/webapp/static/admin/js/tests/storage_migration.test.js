@@ -233,3 +233,23 @@ assert(
   "the preview must show how many disks the exclusions cost"
 );
 console.log("migRenderSummary excluded trees: PASS");
+
+// --------------------------------------------------------------------------- //
+// migDate / migRowOrder — the two date columns + interactive sort
+// --------------------------------------------------------------------------- //
+const migDate = eval("(" + extract("migDate").replace(/^function migDate/, "function") + ")");
+assert.strictEqual(migDate(null), "—", "null date -> em dash");
+assert.strictEqual(migDate(undefined), "—", "undefined date -> em dash");
+assert.strictEqual(migDate("nope"), "—", "non-numeric date -> em dash");
+assert.notStrictEqual(migDate(1789854820), "—", "a real epoch renders a date");
+console.log("migDate: PASS");
+
+const migRowOrder = eval("(" + extract("migRowOrder").replace(/^function migRowOrder/, "function") + ")");
+assert(migRowOrder(300, 100, "desc") < 0, "desc: newer before older");
+assert(migRowOrder(100, 300, "desc") > 0, "desc: older after newer");
+assert.strictEqual(migRowOrder(200, 200, "desc"), 0, "equal epochs -> 0");
+assert(migRowOrder(100, 300, "asc") < 0, "asc: older before newer");
+// a missing timestamp is the smallest value -> sorts last when descending
+assert(migRowOrder(null, 100, "desc") > 0, "desc: missing sorts after a real date");
+assert(migRowOrder(500, null, "desc") < 0, "desc: real date before missing");
+console.log("migRowOrder: PASS");

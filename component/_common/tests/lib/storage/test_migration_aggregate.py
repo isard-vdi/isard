@@ -72,6 +72,25 @@ def test_aggregate_include_items_expands_per_disk():
     assert p["items"][1]["state"] == "moving"
 
 
+def test_aggregate_carries_created_and_last_activity_dates():
+    # both dates travel on the aggregate so the status endpoint and the socket
+    # emit render the table's two date columns identically.
+    m = SimpleNamespace(
+        id="m", status="running", created_at=100.0, last_activity_at=250.0
+    )
+    p = mig.aggregate_status(m, [_item("r", "r", "template", "pending")])
+    assert p["created_at"] == 100.0
+    assert p["last_activity_at"] == 250.0
+
+
+def test_aggregate_dates_absent_are_none():
+    # a job created before last_activity_at existed carries None, never crashes.
+    m = SimpleNamespace(id="m", status="planned")
+    p = mig.aggregate_status(m, [_item("r", "r", "template", "pending")])
+    assert p["created_at"] is None
+    assert p["last_activity_at"] is None
+
+
 def test_aggregate_surfaces_config_and_window():
     m = SimpleNamespace(
         id="m",

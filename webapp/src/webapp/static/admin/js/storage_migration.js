@@ -100,6 +100,10 @@ function migInitTooltips ($scope) {
 // migrations expanded in the table (preserved across re-render)
 const migExpanded = {};
 
+// Table sort for the two date columns. Default = newest created first, which is
+// the order the API already returns; a header click drives the interactive re-sort.
+const migSort = { key: "created", dir: "desc" };
+
 // id -> {name, mountpoint} for storage pools, and id -> name for categories,
 // filled from the same lists that populate the create-form <select>s. Used to
 // resolve a migration's selection (pool ids) into the human origin → destination
@@ -218,6 +222,33 @@ function migEta (secs) {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   return (h ? h + "h " : "") + m + "m";
+}
+
+// Local date + time for a date column; "—" when the job has no such timestamp
+// (e.g. last_activity_at absent on a job created before that field existed).
+function migDate (epoch) {
+  const n = Number(epoch);
+  if (epoch == null || !isFinite(n)) return "—";
+  const d = new Date(n * 1000);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString() + " " + d.toLocaleTimeString();
+}
+
+// A date <td> carrying the epoch both in the title (exact value) and in data-sort
+// (the interactive sort key); a missing timestamp sorts last in both directions.
+function migDateCell (cls, epoch) {
+  const n = Number(epoch);
+  const key = (epoch != null && isFinite(n)) ? n : -1;
+  return `<td class="${cls}" data-sort="${key}" title="epoch ${migEscape(epoch == null ? "" : epoch)}">${migEscape(migDate(epoch))}</td>`;
+}
+
+// Pure -1/0/1 ordering of two epochs for the active column + direction; a missing
+// timestamp is the smallest value (last when desc). Extracted for unit testing.
+function migRowOrder (aEpoch, bEpoch, dir) {
+  const na = Number(aEpoch), nb = Number(bEpoch);
+  const va = (aEpoch != null && isFinite(na)) ? na : -1;
+  const vb = (bEpoch != null && isFinite(nb)) ? nb : -1;
+  const d = dir === "asc" ? 1 : -1;
+  return va === vb ? 0 : (va < vb ? -d : d);
 }
 
 function migWindowLabel (m) {
@@ -468,7 +499,7 @@ function migDetail (m) {
     migCard("disks", t.items_total || 0, "Total qcow2 disks to copy.") +
     migCard("bytes", migBytes(t.bytes_total || 0), "Total data to copy across all disks.") +
     migCard("ETA", migEta(m.eta_seconds), "Estimated time remaining at the current copy rate.");
-  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="7">
+  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="9">
       ${migRouteLine(m)}
       <div style="margin-bottom:6px;">${cards}</div>
       ${migConfigControls(m)}
@@ -487,10 +518,38 @@ function migRowHtml (m) {
       <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
       <td>${migEta(m.eta_seconds)}</td>
       <td>${migEscape(migScheduleLabel(m))}</td>
+      ${migDateCell("mig-created", m.created_at)}
+      ${migDateCell("mig-last-activity", m.last_activity_at)}
       <td class="mig-actions-cell">${migActionButtons(m)}</td>
     </tr>`;
   if (open) html += migDetail(m);
   return html;
+}
+
+// Reorder the drawn rows by the active date column, keeping each expanded detail
+// row with its row (the interactive re-sort a header click triggers).
+function migSortRows () {
+  const $tb = $("#migrations tbody");
+  const cls = migSort.key === "last-activity" ? ".mig-last-activity" : ".mig-created";
+  const rows = $tb.children("tr.mig-row").get();
+  rows.sort(function (a, b) {
+    return migRowOrder($(a).find(cls).attr("data-sort"), $(b).find(cls).attr("data-sort"), migSort.dir);
+  });
+  rows.forEach(function (row) {
+    const $row = $(row);
+    const $detail = $row.next("tr.mig-detail");
+    $tb.append($row);
+    if ($detail.length) $tb.append($detail);
+  });
+  migUpdateSortIndicators();
+}
+
+function migUpdateSortIndicators () {
+  $("#migrations thead .mig-sort").each(function () {
+    const on = $(this).data("sortkey") === migSort.key;
+    $(this).find(".mig-sort-caret").attr("class", "fa mig-sort-caret " +
+      (on ? (migSort.dir === "asc" ? "fa-caret-up" : "fa-caret-down") : "fa-sort"));
+  });
 }
 
 // Render/replace one migration's row(s) (the aggregate shape is shared by the
@@ -513,7 +572,7 @@ function renderMigration (m) {
 function migShowEmpty () {
   if ($("#migrations tbody tr").length) return;
   $("#migrations tbody").html(
-    '<tr class="mig-empty"><td colspan="8"><i class="fa fa-inbox"></i> ' +
+    '<tr class="mig-empty"><td colspan="10"><i class="fa fa-inbox"></i> ' +
     'No disk migrations yet. Choose what to move above, click <b>Preview</b> to size the plan, then <b>Create &amp; start</b>.' +
     "</td></tr>");
 }
@@ -527,9 +586,11 @@ function loadMigrations () {
     $("#migrations tbody").empty();
     const migs = data.migrations || [];
     if (!migs.length) { migShowEmpty(); return; }
-    migs.forEach(function (mig) {
-      loadMigration(mig.id).fail(function () { renderMigration(mig); });
-    });
+    // Render in list order (created desc) so the order is stable, then sort; the
+    // per-job enrich replaces each row in place, preserving position.
+    migs.forEach(renderMigration);
+    migSortRows();
+    migs.forEach(function (mig) { loadMigration(mig.id).fail(function () {}); });
   });
 }
 
@@ -956,6 +1017,14 @@ $(document).ready(function () {
   }
   $("#mig_create").on("click", function () { migCreate(true); });
   $("#mig_create_only").on("click", function () { migCreate(false); });
+
+  // sort the table by a date column (header click toggles direction)
+  $("#migrations").on("click", "thead .mig-sort", function () {
+    const key = $(this).data("sortkey");
+    if (migSort.key === key) migSort.dir = (migSort.dir === "asc" ? "desc" : "asc");
+    else { migSort.key = key; migSort.dir = "desc"; }
+    migSortRows();
+  });
 
   // expand / collapse a migration
   $("#migrations").on("click", ".mig-row", function () {

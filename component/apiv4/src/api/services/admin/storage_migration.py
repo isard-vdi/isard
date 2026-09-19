@@ -129,6 +129,7 @@ def _serialize(m: StorageMigration) -> dict:
         "created_by": m.created_by,
         "created_at": m.created_at,
         "updated_at": m.updated_at,
+        "last_activity_at": m.last_activity_at,
     }
 
 
@@ -362,6 +363,7 @@ class AdminStorageMigrationService:
             created_by=payload.get("user_id"),
             created_at=now,
             updated_at=now,
+            last_activity_at=now,
         )
         items, walk = mig.build_plan_for_roots(
             migration.id,
@@ -384,7 +386,14 @@ class AdminStorageMigrationService:
 
     @staticmethod
     def list() -> list:
-        return [_serialize(m) for m in StorageMigration.get_all()]
+        migrations = StorageMigration.get_all()
+        # Newest first (the table's default). Jobs are few, so an in-memory sort
+        # suffices, no secondary index. A missing created_at sorts last.
+        migrations.sort(
+            key=lambda m: (m.created_at is not None, m.created_at or 0, m.id),
+            reverse=True,
+        )
+        return [_serialize(m) for m in migrations]
 
     @staticmethod
     def get(migration_id: str) -> dict:
@@ -439,7 +448,9 @@ class AdminStorageMigrationService:
             m.status = mig.cancel_target(m.status)
         else:
             m.status = _ACTION_TARGET[action]
-        m.updated_at = time()
+        now = time()
+        m.updated_at = now
+        m.last_activity_at = now
         return cls.get(migration_id)
 
     @classmethod
@@ -485,7 +496,9 @@ class AdminStorageMigrationService:
         validated = MigrationConfigData(**effective).model_dump()
         cls._validate_recurring_schedule(validated)
         m.config = effective
-        m.updated_at = time()
+        now = time()
+        m.updated_at = now
+        m.last_activity_at = now
         return cls.get(migration_id)
 
     @staticmethod

@@ -498,6 +498,8 @@ def aggregate_status(migration, items, *, include_items=False):
     payload = {
         "id": migration.id,
         "status": str(migration.status),
+        "created_at": getattr(migration, "created_at", None),
+        "last_activity_at": getattr(migration, "last_activity_at", None),
         # what this job moves and where to (src/dst pool ids, kind, path/category)
         # — static, but carried on every aggregate so the admin table + detail can
         # always show the origin → destination route (resolved to pool names in the

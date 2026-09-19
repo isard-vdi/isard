@@ -240,6 +240,9 @@ class MigrationResponse(BaseModel):
     created_by: Optional[str] = None
     created_at: Optional[float] = None
     updated_at: Optional[float] = None
+    #: last progress (executor stamps it on any disk/job state change, API on any
+    #: action); None on jobs created before the field existed.
+    last_activity_at: Optional[float] = None
 
 
 class MigrationListResponse(BaseModel):
@@ -249,6 +252,10 @@ class MigrationListResponse(BaseModel):
 class MigrationStatusResponse(BaseModel):
     id: str
     status: str
+    #: creation time and last progress (epoch seconds) for the table's two date
+    #: columns; carried on status + socket so both render the dates identically.
+    created_at: Optional[float] = None
+    last_activity_at: Optional[float] = None
     #: what this job moves and where to (src/dst pool ids, kind, path/category) so
     #: the admin table + detail can show the origin → destination route.
     selection: dict = Field(default_factory=dict)
