@@ -3277,6 +3277,133 @@ def cmd_verify(args):
     log(f"Total execution time: {time()-t:.2f} seconds")
 
 
+# ─── consistency subcommand ───────────────────────────────────────────────────
+
+
+def cmd_consistency(args):
+    """Read-only report contrasting the storage table with the pools.
+
+    One DB pluck, one pool scan and one header pass build the backing relation
+    (no qemu-img), and a pure classifier splits the result into the eight
+    casuistics -- reporting, for every file, whether it sustains a live disk,
+    which is the thing no existing tool looks at.
+    """
+    from storage_lib.consistency import CASUISTIC_TITLES, classify_storage_consistency
+    from storage_lib.db import fetch_consistency_rows, fetch_live_storage_ids, get_conn
+    from storage_lib.qcow import build_backing_index
+
+    order = [
+        "c1_file_no_row",
+        "c2_ready_no_file",
+        "c3_ready_wrong_pool",
+        "c4a_deleted_sustains_live",
+        "c4bc_deleted_dead",
+        "c5_parent_missing",
+        "c5b_parent_displaced",
+        "c5c_parent_mislinked",
+        "c6_qcow2_errors",
+        "c7_non_existing",
+        "c8_deferred_no_expiry",
+    ]
+
+    t = time()
+    log("Starting table-vs-pool consistency report (read-only)...")
+
+    with get_conn() as conn:
+        rows = fetch_consistency_rows(conn)
+        live_ids = fetch_live_storage_ids(conn)
+    log(f"  {len(rows)} storage rows from DB")
+
+    for s in rows:
+        s["live"] = (
+            s.get("status") in ("ready", "maintenance") and s.get("id") in live_ids
+        )
+
+    log("Scanning pools...")
+    qcow_files = [f for f in scan_isard_dirs() if f.endswith(".qcow2")]
+    log(f"  {len(qcow_files)} qcow2 files on disk")
+
+    log("Mapping backing files by header (no qemu-img)...")
+    index = build_backing_index(qcow_files)
+    disk_files = [{"path": p, **info} for p, info in index.items()]
+
+    check_errors = None
+    if getattr(args, "check", False):
+        log(f"  --check: running qemu-img check on {len(qcow_files)} files (slow)...")
+        check_errors = {
+            p: {"error": "qemu-img check reported errors or leaks"}
+            for p in qcow_files
+            if not qemu_img_check(p)
+        }
+
+    result = classify_storage_consistency(rows, disk_files, check_errors=check_errors)
+
+    print()
+    print("=" * 78)
+    print("TABLE vs POOL CONSISTENCY")
+    print("=" * 78)
+    for key in order:
+        items = result.get(key, [])
+        total = sum(i.get("size", 0) for i in items)
+        print(
+            f"\n[{CASUISTIC_TITLES[key]}]  count={len(items)}  size={format_size(total)}"
+        )
+        if key == "c4a_deleted_sustains_live":
+            for i in items:
+                print(
+                    f"  {i['id']}  {format_size(i['size'])}"
+                    f"  sustains {i['sustains_count']} live disk(s)"
+                )
+                print(f"    file: {i['path']}")
+                for sid in i["sustains"]:
+                    print(f"      -> live: {sid}")
+        elif key == "c5c_parent_mislinked":
+            for i in items[:20]:
+                print(f"  {i['id']}  {format_size(i['size'])}  {i['path']}")
+                print(
+                    f"    registered parent: {i['registered_parent']}"
+                    f"  ->  real backing: {i['real_backing_uuid']}"
+                    f" ({i['backing_row_status']}) at {i['real_backing_path']}"
+                )
+        else:
+            for i in items[:20]:
+                label = i.get("id") or i.get("uuid") or ""
+                path = i.get("path") or i.get("actual_path") or i.get("db_path") or ""
+                print(f"  {label}  {format_size(i.get('size', 0))}  {path}")
+            if len(items) > 20:
+                print(f"  ... and {len(items) - 20} more (see consistency.json)")
+    print("\n" + "=" * 78)
+    if not getattr(args, "check", False):
+        print("NOTE: casuistic 6 (qcow2 leaks/errors) needs --check (expensive).")
+    print(
+        "NOTE: casuistic 8 (deferred jobs) lives in the rq registry (redis),"
+        " outside the DB/pool surface this read-only report covers."
+    )
+
+    output_dir = get_output_dir()
+    payload = {
+        "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+        "rows": len(rows),
+        "files": len(qcow_files),
+        "seconds": round(time() - t, 2),
+        "checked": bool(getattr(args, "check", False)),
+        "casuistics": {
+            key: {
+                "title": CASUISTIC_TITLES[key],
+                "count": len(result.get(key, [])),
+                "size_bytes": sum(i.get("size", 0) for i in result.get(key, [])),
+                "items": result.get(key, []),
+            }
+            for key in order
+        },
+    }
+    out = output_dir / "consistency.json"
+    with open(out, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True, default=str)
+    log(f"Wrote {out}")
+    log(f"Report: {len(rows)} rows, {len(qcow_files)} files, {time() - t:.2f}s")
+
+
 # ─── recover subcommand ──────────────────────────────────────────────────────
 
 
@@ -4838,6 +4965,18 @@ def build_parser():
         help="Fix issues: update DB paths for mismatched files, trigger find for missing/ghost",
     )
     p_verify.set_defaults(func=cmd_verify)
+
+    # consistency
+    p_consistency = subparsers.add_parser(
+        "consistency",
+        help="Read-only table-vs-pool report of the eight casuistics, incl. which files sustain live disks",
+    )
+    p_consistency.add_argument(
+        "--check",
+        action="store_true",
+        help="Also run qemu-img check per file for casuistic 6 (leaks/errors) — expensive",
+    )
+    p_consistency.set_defaults(func=cmd_consistency)
 
     # recover
     p_recover = subparsers.add_parser(

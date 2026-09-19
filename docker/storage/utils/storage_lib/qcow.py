@@ -3,9 +3,12 @@
 import json
 import os
 import re
+import struct
 import subprocess
 from pathlib import Path
 from time import time
+
+QCOW2_MAGIC = b"QFI\xfb"
 
 from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 
@@ -23,6 +26,61 @@ def uuid_from_path(path):
         return None
     m = _UUID_RE.search(Path(path).name)
     return m.group(0) if m else None
+
+
+def read_qcow2_backing(path, _read=65536):
+    """Read a qcow2's backing-file reference straight from its header.
+
+    The header carries backing_file_offset at 0x08 (8 bytes, big-endian) and
+    backing_file_size at 0x10 (4 bytes, big-endian); the string they point at is
+    the backing path. One bounded read per file replaces a ``qemu-img info``
+    subprocess, so a whole estate maps in seconds instead of hours.
+
+    :return: ``(backing_str, readable)`` -- ``backing_str`` is the raw stored
+        reference or None when the image has no backing file; ``readable`` is
+        False only when the file is not a readable qcow2, which a caller must
+        treat as "cannot tell", never as "no backing".
+    """
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(_read)
+            if head[:4] != QCOW2_MAGIC or len(head) < 20:
+                return None, head[:4] == QCOW2_MAGIC
+            off = struct.unpack(">Q", head[8:16])[0]
+            size = struct.unpack(">I", head[16:20])[0]
+            if not off or not size or size > 4096:
+                return None, True
+            if off + size <= len(head):
+                raw = head[off : off + size]
+            else:
+                fh.seek(off)
+                raw = fh.read(size)
+    except OSError:
+        return None, False
+    return raw.decode("utf-8", "replace"), True
+
+
+def build_backing_index(paths):
+    """Map every qcow2 in *paths* to its uuid, size and backing reference.
+
+    Reads headers only (see :func:`read_qcow2_backing`) -- no qemu-img. Returns
+    ``{path: {"uuid", "size", "backing_raw", "backing_uuid", "readable"}}``.
+    """
+    index = {}
+    for p in paths:
+        backing_raw, readable = read_qcow2_backing(p)
+        try:
+            size = os.stat(p).st_size
+        except OSError:
+            size = 0
+        index[p] = {
+            "uuid": uuid_from_path(p),
+            "size": size,
+            "backing_raw": backing_raw,
+            "backing_uuid": uuid_from_path(backing_raw) if backing_raw else None,
+            "readable": readable,
+        }
+    return index
 
 
 def qemu_img_info(file_path):
