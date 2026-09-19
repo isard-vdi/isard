@@ -111,6 +111,36 @@ class DiskEffect(str, Enum):
     PATH = "path"
 
 
+#: Every pending action a disk can carry: who may flag it and what clears it.
+#: ``test_pending_actions_contract`` fails when the enum and this table drift.
+PENDING_ACTIONS = {
+    "repair_leaks": {
+        "flagged_by": ("migration verify gate",),
+        "cleared_by": "qemu-img check -r leaks",
+    },
+    "review_damage": {
+        "flagged_by": ("migration verify gate",),
+        "cleared_by": "an admin decision",
+    },
+    "sparsify": {
+        "flagged_by": ("desktop stop after a write",),
+        "cleared_by": "sparsify",
+    },
+    "rebase_backing": {
+        "flagged_by": ("check_backing_chain",),
+        "cleared_by": "rebase",
+    },
+    "remeasure": {
+        "flagged_by": ("a task with a DiskEffect the chain did not refresh",),
+        "cleared_by": "qemu_img_info",
+    },
+    "delete_backup": {
+        "flagged_by": ("storage cleanup",),
+        "cleared_by": "delete",
+    },
+}
+
+
 #: Every :class:`Storage` method that creates a task, and what it does to the
 #: file. Kept beside the actions so it is edited in the same breath as them;
 #: ``test_disk_effects_contract`` fails when a task-creating method is missing.
@@ -149,6 +179,8 @@ class StorageModel(BaseModel):
     qemu_img_info: Optional[QemuImgInfo] = None
     status: str
     damage_reason: Optional[str] = None
+    #: {action: {since, found_by, detail}} -- see PENDING_ACTIONS
+    pending_actions: Optional[Dict[str, Dict[str, Any]]] = None
     status_logs: List[Dict[str, Any]] = []
     status_time: Optional[float]
     task: Optional[str]
@@ -275,6 +307,67 @@ class Storage(RethinkCustomBase):
         Returns the path of storage.
         """
         return f"{self.directory_path}/{self.id}.{self.type}"
+
+    @classmethod
+    def flag_pending(cls, storage_id, action, found_by, detail=None):
+        """Mark that ``storage_id`` needs ``action`` done to it. Idempotent: a
+        second flag of the same action keeps the first ``since``."""
+        if action not in PENDING_ACTIONS:
+            raise ValueError(f"unknown pending action {action!r}")
+        with cls._rdb_context():
+            return (
+                r.table(cls._rdb_table)
+                .get(storage_id)
+                .update(
+                    lambda row: {
+                        "pending_actions": {
+                            action: {
+                                "since": row["pending_actions"][action][
+                                    "since"
+                                ].default(int(time())),
+                                "found_by": found_by,
+                                "detail": detail or {},
+                                "found_at": int(time()),
+                            }
+                        }
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def clear_pending(cls, storage_id, action):
+        with cls._rdb_context():
+            return (
+                r.table(cls._rdb_table)
+                .get(storage_id)
+                .replace(lambda row: row.without({"pending_actions": {action: True}}))
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def pending_ids(cls, action, status=None, limit=None):
+        """Ids of the disks with ``action`` pending, oldest first, through the
+        ``pending_action_since`` index; ``status`` narrows through
+        ``status_pending_action``. Never a table scan."""
+        with cls._rdb_context():
+            if status is None:
+                query = (
+                    r.table(cls._rdb_table)
+                    .between(
+                        [action, r.minval],
+                        [action, r.maxval],
+                        index="pending_action_since",
+                    )
+                    .order_by(index="pending_action_since")
+                )
+            else:
+                query = r.table(cls._rdb_table).get_all(
+                    [status, action], index="status_pending_action"
+                )
+            if limit:
+                query = query.limit(limit)
+            return list(query["id"].run(cls._rdb_connection))
 
     @property
     def pool(self):
