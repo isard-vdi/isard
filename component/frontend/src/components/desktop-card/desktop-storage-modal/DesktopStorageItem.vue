@@ -182,6 +182,7 @@ const statusBadgeColor = computed<'green' | 'red' | 'gray' | 'lightyellow'>(() =
     case 'deleted':
     case 'orphan':
     case 'broken_chain':
+    case 'damaged':
       return 'red'
     default:
       return 'gray'
@@ -194,6 +195,7 @@ const knownStatuses = new Set([
   'deleted',
   'orphan',
   'broken_chain',
+  'damaged',
   'non_existing',
   'downloading',
   'unknown'

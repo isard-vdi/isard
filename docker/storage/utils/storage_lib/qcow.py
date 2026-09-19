@@ -48,6 +48,40 @@ def qemu_img_info(file_path):
         return None
 
 
+def qemu_img_check_report(file_path):
+    """``qemu-img check -U`` as a dict: ``ok`` and a one-line ``summary`` that
+    tells a refcount leak (repairable) from a corruption (data loss)."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "check", "-U", "--output=json", str(file_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        return {"ok": False, "summary": f"qemu-img check could not run: {exc}"}
+    try:
+        data = json.loads(result.stdout or "{}")
+    except ValueError:
+        data = {}
+    counts = {
+        k: int(data.get(k) or 0) for k in ("corruptions", "leaks", "check-errors")
+    }
+    # leaked clusters waste space and harm no data (qemu-img says so itself):
+    # they never make a disk unsound; corruptions and check errors do
+    ok = result.returncode in (0, 3) and not (
+        counts["corruptions"] or counts["check-errors"]
+    )
+    parts = [f"{k}={v}" for k, v in counts.items() if v]
+    if ok:
+        return {"ok": True, "summary": " ".join(parts) or "no errors", **counts}
+    if not parts:
+        tail = (result.stderr or result.stdout or "").strip().splitlines()
+        parts = [tail[-1] if tail else f"rc={result.returncode}"]
+    return {"ok": False, "summary": " ".join(parts), **counts}
+
+
 def qemu_img_check(file_path):
     """Run qemu-img check -U on a qcow2 file (non-invasive, no lock).
 

@@ -1200,6 +1200,8 @@ def build_audit_record(item, result, occurrence, now):
         # summarize_audit's bytes_moved total.
         "source_retained": bool(item.get("source_retained")),
         "source_retained_path": item.get("source_retained_path"),
+        "damaged": bool(item.get("damaged")),
+        "damage_reason": item.get("damage_reason"),
     }
 
 
@@ -1264,6 +1266,21 @@ def cancel_skips_tree(tree_items, action, finishing):
         and action in ("start_move", "start_rebase", "start_verify")
         and not tree_has_committed_disk(tree_items)
     )
+
+
+#: what the verify gate's error starts with when the SOURCE failed the check
+DAMAGED_SOURCE_MARK = "migration: damaged source"
+
+
+def damage_from_reason(reason):
+    """The damage summary when a failure reason says the source is damaged,
+    else ``None``."""
+    # the reason is the traceback's last line, "RuntimeError: <mark> ..."
+    text = str(reason or "")
+    at = text.find(DAMAGED_SOURCE_MARK)
+    if at < 0:
+        return None
+    return text[at + len(DAMAGED_SOURCE_MARK) :].strip(" :") or "qemu-img check failed"
 
 
 def task_error_line(exc_info, fallback):
@@ -1332,6 +1349,10 @@ def tree_next(tree_items, job_status_fn):
     "blocked")`` when a disk failed.
     """
     items = sorted(tree_items, key=lambda it: it.get("topo_index", 0))
+    # a tree already terminal in full has nothing to block: reporting it
+    # blocked on every tick re-paused a resumed job for ever
+    if items and all(str(it["state"]) in _TERMINAL_STATES for it in items):
+        return (None, "done")
     # Phase A — one disk in flight, parents before children (ends at ``rebased``).
     for it in items:
         s = str(it["state"])

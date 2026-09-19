@@ -1631,8 +1631,14 @@ def rebase(child_path, new_backing_path, verify=False):
     return 0
 
 
+#: prefix of the verify gate's error when the SOURCE itself fails qemu-img check
+DAMAGED_SOURCE_MARK = "migration: damaged source"
+
+
 @_publishes_result
-def migration_verify_destination(dst_path, expect_backing=None, expect_bytes=None):
+def migration_verify_destination(
+    dst_path, expect_backing=None, expect_bytes=None, src_path=None
+):
     """UNCONDITIONAL pre-release destination gate for the migration saga.
 
     A migrated disk's source must NEVER be ``move_delete``d until its destination
@@ -1679,9 +1685,21 @@ def migration_verify_destination(dst_path, expect_backing=None, expect_bytes=Non
                 f"expected {expect_bytes}"
             )
         return 0
-    if not qcow.qemu_img_check(dst_path):
+    report = qcow.qemu_img_check_report(dst_path)
+    if report["ok"] and report.get("leaks"):
+        log.info("migration: %s passes with %s", dst_path, report["summary"])
+    if not report["ok"]:
+        # a copy that fails exactly like its source is faithful: the disk is
+        # damaged, which is a state to record, not a copy to retry
+        if src_path:
+            source = qcow.qemu_img_check_report(src_path)
+            if not source["ok"]:
+                raise RuntimeError(
+                    f"{DAMAGED_SOURCE_MARK} {src_path}: {source['summary']}"
+                )
         raise RuntimeError(
-            f"migration: destination {dst_path} did not pass qemu-img check"
+            f"migration: destination {dst_path} did not pass qemu-img check "
+            f"({report['summary']})"
         )
     if expect_backing:
         backing = qcow.get_backing_file(dst_path)

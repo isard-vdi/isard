@@ -162,6 +162,14 @@ a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_order": "olde
 assert.strictEqual(a.migCreateConfig().order, "oldest_first");
 console.log("migCreateConfig order: PASS");
 
+// damaged disk: absent -> "pause" (the job waits for the admin), a chosen value travels
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0" } });
+assert.strictEqual(a.migCreateConfig().on_damaged, "pause");
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_on_damaged": "continue" } });
+assert.strictEqual(a.migCreateConfig().on_damaged, "continue");
+assert(extract("migConfigControls").includes('"pause", "continue"'), "the per-job form must offer both");
+console.log("migCreateConfig on_damaged: PASS");
+
 console.log("ALL PASS");
 
 // The exclusion reason comes from the API and lands in a title attribute, so it

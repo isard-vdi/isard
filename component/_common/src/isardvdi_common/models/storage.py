@@ -148,6 +148,7 @@ class StorageModel(BaseModel):
     directory_path: str
     qemu_img_info: Optional[QemuImgInfo] = None
     status: str
+    damage_reason: Optional[str] = None
     status_logs: List[Dict[str, Any]] = []
     status_time: Optional[float]
     task: Optional[str]
