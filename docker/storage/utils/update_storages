@@ -31,7 +31,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import httpx
-from isardvdi_apiv4_client.api.role_admin import admin_storage_by_role, find_storage
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_storage_by_role,
+    find_storage,
+    list_storage_pools,
+)
 from isardvdi_apiv4_client.api.role_manager import admin_storage_info
 from isardvdi_apiv4_client.api.role_user import get_task as get_task_op
 from isardvdi_apiv4_client_auth import build_client, raise_for_status
@@ -39,12 +43,28 @@ from isardvdi_apiv4_client_auth import build_client, raise_for_status
 lock = threading.Lock()
 
 
+def _as_dict(obj):
+    """Flatten a generated-client model (or list of them) to plain dict(s).
+
+    The parsed models expose declared fields as attributes and only route
+    additional_properties through ``__getitem__``, so ``storage["status"]``
+    raises KeyError; ``to_dict()`` gives back a dict every call site can index.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, list):
+        return [_as_dict(i) for i in obj]
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    return obj
+
+
 def get_storage(storage_id):
     """Get storage by ID."""
     with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
         resp = admin_storage_info.sync_detailed(client=client, storage_id=storage_id)
         raise_for_status(resp)
-        return resp.parsed
+        return _as_dict(resp.parsed)
 
 
 def get_desktop_storages_by_role(role, storage_kind="desktop"):
@@ -52,12 +72,63 @@ def get_desktop_storages_by_role(role, storage_kind="desktop"):
     with build_client("isard-storage").with_timeout(httpx.Timeout(120.0)) as client:
         resp = admin_storage_by_role.sync_detailed(client=client, role=role)
         raise_for_status(resp)
-        storages = resp.parsed
+        storages = _as_dict(resp.parsed) or []
     return [
         storage
         for storage in storages
-        if storage["kind"] == [storage_kind] and storage["status"] not in ["recycled"]
+        if storage.get("kind") == [storage_kind]
+        and storage.get("status") not in ["recycled"]
     ]
+
+
+def get_pool_prefixes():
+    """Mountpoints of every storage pool, used to tell in-pool from out-of-pool."""
+    with build_client("isard-storage").with_timeout(httpx.Timeout(60.0)) as client:
+        resp = list_storage_pools.sync_detailed(client=client)
+        raise_for_status(resp)
+        data = _as_dict(resp.parsed) or {}
+    return [
+        p["mountpoint"] for p in data.get("storage_pools", []) if p.get("mountpoint")
+    ]
+
+
+def classify_out_of_pool(storages, pool_prefixes, path_exists=os.path.exists):
+    """Split storages into the ones whose file is off its pool path. Read-only.
+
+    ``not_in_pool``: directory_path sits under no known pool mountpoint.
+    ``bad_path``: directory_path is under a pool but the file is not there.
+    """
+    not_in_pool, bad_path = [], []
+    for s in storages:
+        dp = s.get("directory_path") or ""
+        expected = f"{dp}/{s['id']}.{s.get('type', 'qcow2')}"
+        if not any(dp == pref or dp.startswith(pref + "/") for pref in pool_prefixes):
+            not_in_pool.append({"id": s["id"], "directory_path": dp})
+        elif not path_exists(expected):
+            bad_path.append({"id": s["id"], "expected_path": expected})
+    return {"not_in_pool": not_in_pool, "bad_path": bad_path}
+
+
+def dry_run(storage_kind):
+    """List the out-of-pool disks the run would touch, firing no find task."""
+    all_storages = []
+    for role in roles:
+        storages = get_desktop_storages_by_role(role, storage_kind)
+        all_storages.extend(storages)
+        print(f"Found {len(storages)} {role} {storage_kind} storages")
+    buckets = classify_out_of_pool(all_storages, get_pool_prefixes())
+    print(f"\nTotal: {len(all_storages)} {storage_kind} storages across all roles.")
+    for name in ("not_in_pool", "bad_path"):
+        items = buckets[name]
+        print(f"\n{name}: {len(items)}")
+        for it in items:
+            print(
+                f"  {it['id']}  {it.get('directory_path') or it.get('expected_path')}"
+            )
+    print(
+        "\nDRY RUN: no find task was fired. Re-run with --apply to update these storages."
+    )
+    return buckets
 
 
 def update_storage(storage_id):
@@ -72,7 +143,7 @@ def get_task(task_id):
     with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
         resp = get_task_op.sync_detailed(client=client, task_id=task_id)
         raise_for_status(resp)
-        return resp.parsed
+        return _as_dict(resp.parsed)
 
 
 def track_multiple_tasks(storage_task_mapping, original_statuses, timeout=600):
@@ -303,6 +374,16 @@ def main():
         required=True,
         help=f"Comma-separated list of roles to process. Available roles: {', '.join(available_roles)}",
     )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually fire the find tasks. Without it the tool runs dry (the default): it lists out-of-pool disks and fires nothing.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List out-of-pool disks and fire nothing. This is the DEFAULT; updating requires --apply.",
+    )
 
     args = parser.parse_args()
 
@@ -316,8 +397,18 @@ def main():
     roles = args.roles  # Already validated and parsed by validate_roles
     print(f"Processing roles: {roles}")
 
-    # Launch all tasks and track progress
-    storage_task_mapping, failed_launches = launch_all_tasks(storage_kind)
+    print("=" * 72)
+    print("update_storages fires a storage 'find' on every matching disk, rewriting")
+    print(
+        "the row's path/pool. It runs in DRY-RUN by default: it lists the out-of-pool"
+    )
+    print("disks and fires nothing. Re-run with --apply to update them.")
+    print("=" * 72)
+
+    if args.apply:
+        launch_all_tasks(storage_kind)
+    else:
+        dry_run(storage_kind)
 
 
 if __name__ == "__main__":
