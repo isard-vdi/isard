@@ -59,12 +59,14 @@ from storage_lib.api import (
     update_storage_path,
 )
 from storage_lib.cache import load_qcow_cache, save_qcow_cache
+from storage_lib.consistency import LIVE_STATUSES, deletable_after_live_guard
 from storage_lib.deps import split_backing_files
 from storage_lib.formatting import format_size, format_time_remaining, log, size_gb
 from storage_lib.qcow import (
     analyze_dependencies,
     analyze_integrity,
     analyze_integrity_and_dependencies,
+    build_backing_index,
     compress_file,
     create_incremental,
     diagnose_broken_chains,
@@ -1064,6 +1066,26 @@ def cmd_cleanup(args):
     deletable = _with_stranded_bin_copies(
         set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db, qcow_deps
     )
+    # Never propose deleting a file a live disk needs. The path-keyed dependency
+    # map above misses a parent whose live child records a stale backing path --
+    # the residue move_disks left across the estate -- so resolve support by uuid
+    # from the headers and drop anything a live disk reads through, or is.
+    live_uuids = {
+        s["id"]
+        for s in db_storage_lookup.values()
+        if s.get("status") in LIVE_STATUSES and s.get("has_domains")
+    }
+    header_files = [
+        {"path": p, **info} for p, info in build_backing_index(qcow_storages).items()
+    ]
+    deletable, protected_live = deletable_after_live_guard(
+        deletable, header_files, live_uuids
+    )
+    if protected_live:
+        log(
+            f"  guard: kept {len(protected_live)} file(s) out of the delete lists"
+            f" because a live disk reads through them (see ok_sustains_live_disk.txt)"
+        )
     volatile = get_volatile_storages()
     dead_non_qcow, unknown_non_qcow = _classify_non_qcow2_files(
         non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
@@ -1089,6 +1111,7 @@ def cmd_cleanup(args):
         ("ok_system_not_in_db.txt", storages_in_system_not_in_db),
         ("ok_no_backing_file.txt", qcow_deps["wo_backing"]),
         ("ok_no_derivatives.txt", qcow_deps["wo_derivatives"]),
+        ("ok_sustains_live_disk.txt", sorted(protected_live)),
         ("ok_non_qcow2_unknown.txt", unknown_non_qcow),
         ("ok_registered_medias.txt", media_classes["registered"]),
         ("ok_medias_db_not_in_system.txt", media_classes["db_not_in_system"]),
@@ -1168,6 +1191,7 @@ Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 | ok_system_not_in_db.txt | {len(storages_in_system_not_in_db)} | {templates_in_system_not_db} | {size_gb(storages_in_system_not_in_db)} | Files on disk not in API |
 | ok_no_backing_file.txt | {len(qcow_deps["wo_backing"])} | {count_templates(qcow_deps["wo_backing"])} | {size_gb(qcow_deps["wo_backing"])} | Root images (no backing file) |
 | ok_no_derivatives.txt | {len(qcow_deps["wo_derivatives"])} | {count_templates(qcow_deps["wo_derivatives"])} | {size_gb(qcow_deps["wo_derivatives"])} | Leaf images (no derivatives) |
+| ok_sustains_live_disk.txt | {len(protected_live)} | {count_templates(protected_live)} | {size_gb(protected_live)} | EXCLUDED from every delete list: a live disk reads through them (or is one). Never delete — see `storage consistency` casuistic 4A |
 | ok_non_qcow2_unknown.txt | {len(unknown_non_qcow)} | {templates_in_unknown_non_qcow} | {size_gb(unknown_non_qcow)} | Files still referenced as backing — review, do not auto-delete |
 | ok_registered_medias.txt | {len(media_classes["registered"])} | {count_templates(media_classes["registered"])} | {size_gb(media_classes["registered"])} | ISO/FD media on disk + matched in API as Downloaded |
 | ok_medias_db_not_in_system.txt | {len(media_classes["db_not_in_system"])} | - | - | Media rows with status=Downloaded but file missing on disk |
@@ -1181,6 +1205,13 @@ Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 | bad_db_media_entries.jsonl | {len(bad_media_records)} | Media rows in API missing path_downloaded — needs DB review |
 
 ## Candidates to Delete (bad_)
+
+{len(protected_live)} file(s) that a live disk reads through (or is) were removed
+from the lists below and listed in `ok_sustains_live_disk.txt` instead: a deleted
+or missing row does not make a file dead when a running desktop still backs onto
+it. Support is resolved by uuid from the qcow2 headers, so a parent is protected
+even when a child records a stale backing path. Still review before running any
+`rm`, and cross-check with `storage consistency` (casuistic 4A).
 
 | File | Count | Templates | Size (GB) | Description |
 |------|-------|-----------|-----------|-------------|
