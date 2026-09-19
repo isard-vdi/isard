@@ -405,6 +405,15 @@ def handle_storage_update_parent(task, storage_id):
         storage.parent = Storage.create_from_path(backing_file, user_id=task.user_id).id
 
 
+def handle_clear_pending_action(task, storage_id, action):
+    """Clear a pending action once the chain that resolves it finished."""
+    if task.depending_status != "finished":
+        return
+    if not Storage.exists(storage_id):
+        return
+    Storage.clear_pending(storage_id, action)
+
+
 async def handle_storage_update(redis_manager, task, observer=False, **storage_dict):
     """Port of core_worker.task.storage_update.
 
