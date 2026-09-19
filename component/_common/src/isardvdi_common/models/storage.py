@@ -135,7 +135,7 @@ PENDING_ACTIONS = {
         "cleared_by": "qemu_img_info",
     },
     "delete_backup": {
-        "flagged_by": ("storage cleanup",),
+        "flagged_by": ("storage cleanup", "migration release"),
         "cleared_by": "delete",
     },
 }

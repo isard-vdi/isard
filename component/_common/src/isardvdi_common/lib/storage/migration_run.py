@@ -35,7 +35,7 @@ and is safe to host in isard-scheduler (the singleton orchestrator).
 import logging
 from datetime import datetime, timezone
 from functools import partial
-from os.path import dirname
+from os.path import basename, dirname, join
 from time import time
 from uuid import uuid4
 
@@ -50,6 +50,7 @@ from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
+from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from isardvdi_common.lib.task_index import index_task
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
@@ -1167,6 +1168,18 @@ class MigrationRunner:
             item,
             state=MigrationItemState.RELEASED.value,
             move_delete_task_id=del_task_id,
+        )
+        # move_delete parks the source under <dir>/deleted/ with no row pointing
+        # there; mark the orphan so pending_ids("delete_backup") finds it (the
+        # sweep never deletes a backup automatically).
+        src_dir = dirname(item["src_path"])
+        self._flag(
+            item,
+            "delete_backup",
+            {
+                "path": join(src_dir, RECYCLE_BIN_DIR, basename(item["src_path"])),
+                "src_dir": src_dir,
+            },
         )
         self._audit(item, "moved_ok")
 
