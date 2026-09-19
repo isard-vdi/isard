@@ -702,6 +702,10 @@ class Storage(RethinkCustomBase):
         :return: Storage object
         :rtype: isardvdi_common.models.storage.Storage
         """
+        # never fabricate a second row for a file that already has one
+        existing = cls.get_by_path(path)
+        if existing:
+            return existing
         return Storage.init_document(
             id=get_storage_id_from_path(path),
             type=path.rsplit(".", 1)[-1],
