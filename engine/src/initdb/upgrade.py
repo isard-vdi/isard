@@ -50,7 +50,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 209
+release_version = 211
+# release 211: the pending_actions indexes on storage, so "which disks need X"
+#              is an index range and never a table scan
 # release 209: backfill parents/tag_name/detail/server on desktops inserted through a DesktopFromTemplate schema
 # release 208: seed the orchestrator "enabled" flag, so the orchestrator can be
 #              switched on and off from the administration
@@ -6389,6 +6391,41 @@ password:s:%s"""
                 r.table(table).index_create("task").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 211:
+            for name, fn, multi in (
+                (
+                    "pending_action",
+                    lambda s: s["pending_actions"].default({}).keys(),
+                    True,
+                ),
+                (
+                    "has_pending_actions",
+                    lambda s: s["pending_actions"].default({}).keys().count().gt(0),
+                    False,
+                ),
+                (
+                    "status_pending_action",
+                    lambda s: s["pending_actions"]
+                    .default({})
+                    .keys()
+                    .map(lambda a: [s["status"], a]),
+                    True,
+                ),
+                (
+                    "pending_action_since",
+                    lambda s: s["pending_actions"]
+                    .default({})
+                    .keys()
+                    .map(lambda a: [a, s["pending_actions"][a]["since"]]),
+                    True,
+                ),
+            ):
+                try:
+                    r.table(table).index_create(name, fn, multi=multi).run(self.conn)
+                except Exception as e:
+                    log.warning(f"v211: could not create index {name}: {e}")
+            r.table(table).index_wait().run(self.conn)
 
         if version == 205:
             # The row pointer and its index are retired: every reader resolves

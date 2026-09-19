@@ -34,6 +34,24 @@ class StorageStatusEnum(str, Enum):
     damaged = "damaged"
 
 
+class StoragePendingAction(str, Enum):
+    """What a disk still needs done to it, found on the side by whoever read
+    the file. A mark, not a status: the disk keeps serving."""
+
+    #: qemu-img check reported leaked clusters (space, no data harm)
+    repair_leaks = "repair_leaks"
+    #: the disk is damaged and someone has to decide what to do with it
+    review_damage = "review_damage"
+    #: written into since it was last sparsified
+    sparsify = "sparsify"
+    #: its parent moved and the backing pointer still names the old path
+    rebase_backing = "rebase_backing"
+    #: the stored qemu-img-info no longer describes the file
+    remeasure = "remeasure"
+    #: a recovery copy beside the disk that nothing needs any more
+    delete_backup = "delete_backup"
+
+
 class FormatSpecific(BaseModel):
     data: Dict[str, Any]
     type: str
