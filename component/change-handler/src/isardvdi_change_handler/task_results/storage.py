@@ -34,6 +34,7 @@ import contextvars
 import json
 import logging as log
 from contextlib import contextmanager
+from time import time
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import SPARSIFY_GROWTH_BYTES, Storage, StoragePool
@@ -455,6 +456,35 @@ def handle_storage_repair_size(task, storage_id):
         if "qcow2_geometry" in result:
             update["qcow2_geometry"] = result["qcow2_geometry"]
         Storage.insert_document(update, conflict="update")
+
+
+def handle_storage_check_result(task, storage_id):
+    """Record a standalone integrity check on the row: damaged + damage_reason on
+    corruption, a repair_leaks mark on leaks, and last_checked_at either way. It
+    repairs nothing and never flips a leaky-but-sound disk out of ready; a check
+    that could not run (file gone -> the task failed) records nothing."""
+    if task.depending_status != "finished":
+        return
+    if not Storage.exists(storage_id):
+        return
+    result = None
+    for dependency in task.dependencies:
+        if dependency.task == "storage_check":
+            result = dependency.result
+            break
+    if not isinstance(result, dict):
+        return
+    update = {"id": storage_id, "last_checked_at": int(time())}
+    if result.get("ok"):
+        leaks = int(result.get("leaks") or 0)
+        if leaks:
+            Storage.flag_pending(
+                storage_id, "repair_leaks", "check_integrity", {"leaks": leaks}
+            )
+    else:
+        update["status"] = "damaged"
+        update["damage_reason"] = result.get("summary") or "integrity check failed"
+    Storage.insert_document(update, conflict="update")
 
 
 def _valid_storage_pool(storage, new_path):

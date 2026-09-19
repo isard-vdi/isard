@@ -152,6 +152,7 @@ SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
 DISK_EFFECTS = {
     "find": DiskEffect.NONE,
     "check_backing_chain": DiskEffect.NONE,
+    "check_integrity": DiskEffect.NONE,
     "rsync": DiskEffect.PATH,
     "mv": DiskEffect.PATH,
     "task_delete": DiskEffect.NONE,
@@ -371,6 +372,22 @@ class Storage(RethinkCustomBase):
                 query = r.table(cls._rdb_table).get_all(
                     [status, action], index="status_pending_action"
                 )
+            if limit:
+                query = query.limit(limit)
+            return list(query["id"].run(cls._rdb_connection))
+
+    @classmethod
+    def ready_ids_needing_check(cls, checked_before, limit=None):
+        """Ids of ready disks whose last integrity check is older than
+        ``checked_before`` (epoch) or that were never checked, through the
+        ``status`` index and bounded by ``limit``. The sweep's check_integrity
+        pass reads these; it is an age scan, not a pending-action read."""
+        with cls._rdb_context():
+            query = (
+                r.table(cls._rdb_table)
+                .get_all("ready", index="status")
+                .filter(lambda row: row["last_checked_at"].default(0) < checked_before)
+            )
             if limit:
                 query = query.limit(limit)
             return list(query["id"].run(cls._rdb_connection))
@@ -1636,6 +1653,56 @@ class Storage(RethinkCustomBase):
                         }
                     ],
                 },
+            ],
+        )
+
+    def check_integrity(
+        self,
+        user_id,
+        priority="default",
+        retry: int = 0,
+        timeout=43200,
+    ):
+        """Enqueue a read-only ``qemu-img check`` outside a migration. Same guard
+        as repair -- never a disk a running desktop holds open -- but the row
+        stays as it is (the check writes nothing); the result handler records
+        ``damaged`` + ``damage_reason`` on corruption, a ``repair_leaks`` mark on
+        leaks, and ``last_checked_at`` either way.
+
+        :param user_id: user executing the check (auditable).
+        :return: Task ID.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        held = [
+            d.id
+            for d in (self.domains or [])
+            if getattr(d, "status", None)
+            in ("Started", "Starting", "Shutting-down", "Stopping", "Paused")
+        ]
+        if held:
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} is open by a running desktop; not checking it.",
+                description_code="storage_open_not_checkable",
+            )
+        queue_check = f"storage.{StoragePool.get_best_for_action('storage_check', path=self.directory_path).id}.{priority}"
+        return self.create_task(
+            user_id=user_id,
+            queue=queue_check,
+            task="storage_check",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={
+                "kwargs": {"storage_path": self.path},
+                "timeout": timeout,
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_check_result",
+                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                }
             ],
         )
 
