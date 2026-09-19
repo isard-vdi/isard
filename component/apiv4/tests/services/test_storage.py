@@ -353,3 +353,32 @@ class TestConvertSetsMaintenanceOnce:
             "longer ready -- convert can never succeed and the disk is left stuck"
         )
         origin.convert.assert_called_once()
+
+
+class TestConvertKeepsTheDiskKind:
+    """The converted row is a new row; without ``perms`` it reads as a template
+    to whoever classifies by that marker, whatever the disk was."""
+
+    @pytest.mark.parametrize("perms", [["r", "w"], ["r"]])
+    def test_the_new_row_inherits_the_origins_perms(self, perms):
+        origin = MagicMock(name="origin_storage")
+        origin.user_id = "u-1"
+        origin.directory_path = "/isard/groups"
+        origin.id = "s-1"
+        origin.perms = perms
+        origin.convert.return_value = "task-1"
+
+        with patch("api.services.storage.get_storage", return_value=origin), patch(
+            "api.services.storage.Storage"
+        ) as storage_cls:
+            storage_cls.init_document.return_value = MagicMock(id="s-2")
+            StorageService.convert(
+                JWT_PAYLOAD_ADMIN,
+                storage_id="s-1",
+                new_storage_type="qcow2",
+                new_storage_status="ready",
+                compress=False,
+                priority="default",
+            )
+
+        assert storage_cls.init_document.call_args.kwargs["perms"] == perms

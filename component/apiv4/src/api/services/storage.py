@@ -619,6 +619,7 @@ class StorageService:
             status="creating",
             type=new_storage_type.lower(),
             directory_path=origin_storage.directory_path,
+            perms=origin_storage.perms or ["r", "w"],
             converted_from=origin_storage.id,
         )
 

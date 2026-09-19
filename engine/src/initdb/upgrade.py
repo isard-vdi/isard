@@ -45,12 +45,16 @@ from .upgrade_helpers import (
     v189_backfill_and_canon_vgpus,
     v189_canonicalize_vgpu_ids,
     v189_prune_non_full_use_gpu_profiles,
+    v210_perms_follow_the_domain,
 )
 
 """
 Update to new database release version when new code version release
 """
-release_version = 209
+release_version = 210
+# release 210: recompute every storage row's perms from the domain that uses it
+#              (a template's disk read-only, a desktop's writable); the field
+#              was written once at creation and no operation maintained it
 # release 209: backfill parents/tag_name/detail/server on desktops inserted through a DesktopFromTemplate schema
 # release 208: seed the orchestrator "enabled" flag, so the orchestrator can be
 #              switched on and off from the administration
@@ -6389,6 +6393,12 @@ password:s:%s"""
                 r.table(table).index_create("task").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 210:
+            try:
+                v210_perms_follow_the_domain(self)
+            except Exception as e:
+                log.warning(f"v210: could not recompute storage perms: {e}")
 
         if version == 205:
             # The row pointer and its index are retired: every reader resolves
