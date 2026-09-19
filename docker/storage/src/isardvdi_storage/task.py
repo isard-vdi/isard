@@ -1716,6 +1716,59 @@ def migration_verify_destination(
 
 
 @_publishes_result
+def qemu_img_check_repair(storage_path, what):
+    """Repair a qcow2 in place with ``qemu-img check -r <what>`` (``leaks``/``all``),
+    returning ``{"what", "before", "after", "ok"}`` for the result registry.
+
+    :param storage_path: absolute path of the qcow2 to repair.
+    :param what: ``"leaks"`` or ``"all"``.
+    :raises ValueError: for an unknown ``what``.
+    :raises RuntimeError: the file is missing or open by a hypervisor.
+    :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run.
+    :return: ``{"what", "before": {...}, "after": {...}, "ok": <after clean>}``.
+    """
+    if what not in ("leaks", "all"):
+        raise ValueError(
+            f"qemu_img_check_repair: what must be 'leaks' or 'all', got {what!r}"
+        )
+    qcow = _storage_qcow()
+    if not isfile(storage_path):
+        raise RuntimeError(f"repair: {storage_path} does not exist")
+    # never rewrite a disk a running QEMU holds open (is_file_in_use probes
+    # without -U, as rebase does); the model gate makes this a belt to its braces
+    in_use, lock_err = qcow.is_file_in_use(storage_path)
+    if in_use:
+        raise RuntimeError(
+            f"repair refused: {storage_path} is in use by a hypervisor: {lock_err}"
+        )
+    before = qcow.qemu_img_check_report(storage_path)
+    try:
+        with task_heartbeat("qemu_img_check_repair", storage_path=storage_path):
+            # never -U here: -r writes, and its exclusive lock is the in-use guard
+            _run_cancellable(
+                ["qemu-img", "check", "-r", what, "--output=json", storage_path]
+            )
+    except CalledProcessError as exc:
+        # a cancel aborts (row restored to damaged); a non-zero from an imperfect
+        # image is not a failure — the post-repair report below is the verdict
+        if exc.returncode == 130:
+            raise
+        log.warning(
+            "qemu-img check -r %s on %s exited %s; trusting the post-repair report",
+            what,
+            storage_path,
+            exc.returncode,
+        )
+    after = qcow.qemu_img_check_report(storage_path)
+    return {
+        "what": what,
+        "before": before,
+        "after": after,
+        "ok": bool(after["ok"]),
+    }
+
+
+@_publishes_result
 def convert(
     source_disk_path,
     dest_disk_path,
