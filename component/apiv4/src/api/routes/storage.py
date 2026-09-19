@@ -47,6 +47,10 @@ from api.schemas.storage import (
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
     StorageStatusesResponse,
+    StorageSweepConfigRequest,
+    StorageSweepConfigResponse,
+    StorageSweepRunRequest,
+    StorageSweepRunResponse,
     StoragesWithUuidEntry,
     StorageVirtWinRegRequest,
     TaskIdResponse,
@@ -713,6 +717,95 @@ async def batch_repair_pending_leaks(request: Request, limit: int | None = None)
             request,
             "internal_server",
             "Failed to batch repair pending leaks",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/sweep/config",
+    tags=[tag],
+    response_model=StorageSweepConfigResponse,
+    summary="Get the storage sweep config",
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_storage_sweep_config(request: Request):
+    try:
+        config = await asyncio.to_thread(StorageService.get_sweep_config)
+        return JSONResponse(
+            content=StorageSweepConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get storage sweep config",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/storage/sweep/config",
+    tags=[tag],
+    response_model=StorageSweepConfigResponse,
+    summary="Update the storage sweep config",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def update_storage_sweep_config(
+    request: Request, body: StorageSweepConfigRequest
+):
+    try:
+        config = await asyncio.to_thread(
+            StorageService.set_sweep_config,
+            request.token_payload,
+            body.model_dump(exclude_unset=True),
+        )
+        return JSONResponse(
+            content=StorageSweepConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update storage sweep config",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/sweep/run",
+    tags=[tag],
+    response_model=StorageSweepRunResponse,
+    summary="Run one storage sweep pass now",
+    description=(
+        "Runs a single sweep pass and returns per-action selected/skipped counts. "
+        "Body keys override the stored budget/actions for this pass only."
+    ),
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def run_storage_sweep(request: Request, body: StorageSweepRunRequest):
+    try:
+        summary = await asyncio.to_thread(
+            StorageService.run_sweep_pass,
+            request.token_payload,
+            body.model_dump(exclude_none=True),
+        )
+        return JSONResponse(
+            content=StorageSweepRunResponse(**summary).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to run storage sweep",
             traceback.format_exc(),
         )
 

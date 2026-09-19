@@ -202,6 +202,34 @@ class Config(RethinkCustomBase):
             return {}
 
     @classmethod
+    def update_storage_sweep(cls, updates: dict) -> None:
+        """Partial-update the ``storage_sweep`` config block (keys set inside it,
+        siblings preserved). The nightly pending-actions sweep is opt-in and off
+        by default; the apiv4 admin service owns validation and presentation
+        defaults. Clears the get_config cache after the write."""
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"storage_sweep": updates}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
+
+    @classmethod
+    def get_storage_sweep_config(cls) -> dict:
+        """Read the raw ``storage_sweep`` config block, or {} when unset so
+        callers fall back to their own defaults instead of an rdb error."""
+        try:
+            with cls._rdb_context():
+                return (
+                    r.table(cls._rdb_table)
+                    .get(1)
+                    .get_field("storage_sweep")
+                    .default({})
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return {}
+
+    @classmethod
     def get_backups_integrity_enabled(cls) -> bool | None:
         """Read ``config[1].backups.integrity_enabled``.
 
