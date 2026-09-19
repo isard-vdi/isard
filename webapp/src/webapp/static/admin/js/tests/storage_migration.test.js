@@ -180,6 +180,18 @@ assert.strictEqual(a.migCreateConfig().on_damaged, "continue");
 assert(extract("migConfigControls").includes('"pause", "continue"'), "the per-job form must offer both");
 console.log("migCreateConfig on_damaged: PASS");
 
+// Apply sends only what changed, and names the fields that weaken a guarantee
+const changes = new Function(
+  extract("migConfigChanges") + "\n" + extract("migWeakenedFields") +
+    "\nconst MIG_WEAKENING = { min_free_bytes: function (o, n) { return (n || 0) < (o || 0); }, failure_policy: function (o, n) { return o === 'pause' && n !== 'pause'; } };" +
+    "\nreturn { migConfigChanges: migConfigChanges, migWeakenedFields: migWeakenedFields };"
+)();
+const cur = { parallelism: 1, failure_policy: "pause", min_free_bytes: 1e9, verify: true };
+assert.deepStrictEqual(changes.migConfigChanges(cur, { parallelism: 2, failure_policy: "pause", min_free_bytes: 1e9, verify: true }), { parallelism: 2 });
+assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 0, failure_policy: "retry_forever", parallelism: 2 }), ["min_free_bytes", "failure_policy"]);
+assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 2e9 }), []);
+console.log("migConfigChanges / migWeakenedFields: PASS");
+
 console.log("ALL PASS");
 
 // The exclusion reason comes from the API and lands in a title attribute, so it

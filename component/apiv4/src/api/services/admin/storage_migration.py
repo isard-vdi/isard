@@ -32,6 +32,7 @@ from os.path import dirname
 from time import time
 from zoneinfo import ZoneInfo
 
+from api.schemas.admin.storage_migration import MigrationConfigData
 from api.services.error import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
@@ -442,7 +443,12 @@ class AdminStorageMigrationService:
         return cls.get(migration_id)
 
     @classmethod
-    def update_config(cls, migration_id: str, config: dict) -> dict:
+    def update_config(
+        cls, migration_id: str, changes: dict, confirm_weakening: bool = False
+    ) -> dict:
+        """Apply only the fields sent, over the job's current config. A job
+        that may already have moved a disk refuses to change ``verify`` and
+        asks an explicit confirmation to weaken a guarantee."""
         if not StorageMigration.exists(migration_id):
             raise Error("not_found", f"Migration {migration_id} not found")
         m = StorageMigration(migration_id)
@@ -451,7 +457,29 @@ class AdminStorageMigrationService:
                 "precondition_required",
                 f"Migration {migration_id} is {m.status}; config is immutable",
             )
-        m.config = config
+        current = dict(m.config or {})
+        if mig.config_is_live(m.status):
+            verdicts = mig.config_change_verdicts(current, changes)
+            frozen = [f for f, v in verdicts if v == "frozen"]
+            if frozen:
+                raise Error(
+                    "precondition_required",
+                    f"Migration {migration_id} is {m.status}; "
+                    f"{', '.join(frozen)} cannot change once the job has moved a disk",
+                    description_code="migration_config_frozen",
+                )
+            weakening = [f for f, v in verdicts if v == "weakening"]
+            if weakening and not confirm_weakening:
+                raise Error(
+                    "precondition_required",
+                    f"Changing {', '.join(weakening)} weakens a guarantee of the "
+                    "running job; send confirm_weakening to apply it",
+                    description_code="migration_config_weakening_needs_confirm",
+                )
+        # the whole resulting config has to hold, not only the fields sent
+        merged = MigrationConfigData(**{**current, **changes}).model_dump()
+        cls._validate_recurring_schedule(merged)
+        m.config = merged
         m.updated_at = time()
         return cls.get(migration_id)
 

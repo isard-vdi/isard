@@ -101,6 +101,13 @@ class MigrationConfigData(BaseModel):
         return self
 
 
+class MigrationConfigUpdateData(MigrationConfigData):
+    """A partial update: only the fields sent are applied. Weakening a
+    guarantee on a live job needs ``confirm_weakening``."""
+
+    confirm_weakening: bool = False
+
+
 class MigrationPlanData(BaseModel):
     """Dry-run plan preview request — nothing is persisted.
 

@@ -44,6 +44,28 @@ const MIG_STATUS = {
 const MIG_CADENCE_LABELS = {
   edge_on_drain: "Edge + on-drain", edge: "Edge only", continuous: "Continuous"
 };
+// statuses in which the job may already have moved a disk: the server then
+// freezes verify and asks a confirmation to weaken a guarantee
+const MIG_LIVE = ["running", "paused", "window_closed", "budget_reached", "finishing_tree", "scheduled"];
+const MIG_WEAKENING = {
+  min_free_bytes: function (o, n) { return (n || 0) < (o || 0); },
+  failure_policy: function (o, n) { return o === "pause" && n !== "pause"; },
+  force_stop_desktops: function (o, n) { return !!n && !o; },
+  source_disposition: function (o, n) { return n === "delete" && o !== "delete"; }
+};
+// only the fields whose value differs from the job's current config
+function migConfigChanges (current, wanted) {
+  const out = {};
+  Object.keys(wanted).forEach(function (k) {
+    if (JSON.stringify(wanted[k]) !== JSON.stringify(current[k] === undefined ? null : current[k])) out[k] = wanted[k];
+  });
+  return out;
+}
+function migWeakenedFields (current, changes) {
+  return Object.keys(changes).filter(function (k) {
+    return MIG_WEAKENING[k] && MIG_WEAKENING[k](current[k], changes[k]);
+  });
+}
 const MIG_FAILURE_LABELS = {
   retry_quarantine: "Retry, then quarantine", pause: "Pause for attention", retry_forever: "Retry forever"
 };
@@ -340,7 +362,10 @@ function migConfigControls (m) {
   const c = m.config || {};
   const w = c.window || {};
   const dis = MIG_TERMINAL.indexOf(m.status) !== -1 ? "disabled" : "";
-  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
+  // once the job may have moved a disk, verify is frozen server-side
+  const live = MIG_LIVE.indexOf(m.status) !== -1;
+  const disVerify = dis || (live ? "disabled" : "");
+  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" data-cfg="${migEscape(JSON.stringify(c))}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
       <span class="text-muted" style="margin-right:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;" title="Live settings for this job — edit and press Apply." data-toggle="tooltip">Settings</span>
       <label title="Daily copy window (24h UTC). Blank = always." data-toggle="tooltip">Window
         <input type="text" class="form-control input-sm cfg-win-start" placeholder="HH:MM" style="width:62px;" value="${migEscape(w.start || "")}" ${dis}>
@@ -354,7 +379,7 @@ function migConfigControls (m) {
         <input type="number" class="form-control input-sm cfg-bwlimit" min="0" style="width:84px;" value="${migEscape(c.bwlimit_kbs != null ? c.bwlimit_kbs : 0)}" ${dis}>
       </label>
       <label style="margin-left:8px;" title="Stop a running desktop to move its disk (restartable after)." data-toggle="tooltip"><input type="checkbox" class="cfg-force" ${c.force_stop_desktops ? "checked" : ""} ${dis}> force-stop</label>
-      <label style="margin-left:8px;" title="Checksum-verify each copy before removing the source." data-toggle="tooltip"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${dis}> verify</label>
+      <label style="margin-left:8px;" title="Checksum-verify each copy before removing the source. Frozen once the job has moved a disk." data-toggle="tooltip"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${disVerify}> verify</label>
       <label style="margin-left:8px;" title="What happens to the original file once its copy is verified: follow the recycle bin's delete action, keep it under deleted/, or delete it (needs verify)." data-toggle="tooltip">Source
         <select class="form-control input-sm cfg-source" ${dis}>
           ${migOpt(["system", "recycle_bin", "delete"], c.source_disposition || "system", MIG_SOURCE_LABELS)}
@@ -985,7 +1010,8 @@ $(document).ready(function () {
     e.stopPropagation();
     const $f = $(this).closest(".mig-config");
     const id = $f.data("mig");
-    const body = {
+    const current = $f.data("cfg") || {};
+    const wanted = {
       bwlimit_kbs: parseInt($f.find(".cfg-bwlimit").val(), 10) || 0,
       parallelism: parseInt($f.find(".cfg-parallel").val(), 10) || 1,
       window: migWindowFrom($f.find(".cfg-win-start").val(), $f.find(".cfg-win-end").val(), migDaysFrom($f)),
@@ -1000,6 +1026,14 @@ $(document).ready(function () {
       min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val()),
       source_disposition: $f.find(".cfg-source").val() || "system"
     };
+    if ($f.find(".cfg-verify").is(":disabled")) delete wanted.verify;
+    const body = migConfigChanges(current, wanted);
+    if (!Object.keys(body).length) { $f.find(".mig-config-out").text("nothing changed"); return; }
+    const weakened = migWeakenedFields(current, body);
+    if (weakened.length) {
+      if (!confirm("This weakens a guarantee of the running job (" + weakened.join(", ") + "). Apply anyway?")) return;
+      body.confirm_weakening = true;
+    }
     $f.find(".mig-config-out").text("Saving…");
     $.ajax({ type: "PUT", url: `${MIG_API}/${id}/config`, contentType: "application/json", data: JSON.stringify(body) })
       .done(function () { $f.find(".mig-config-out").text("saved"); loadMigration(id); })

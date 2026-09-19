@@ -35,6 +35,7 @@ from typing import Literal, Optional
 from api import admin_router
 from api.schemas.admin.storage_migration import (
     MigrationConfigData,
+    MigrationConfigUpdateData,
     MigrationCreateData,
     MigrationListResponse,
     MigrationPathPrefixesResponse,
@@ -273,13 +274,16 @@ async def admin_storage_migration_action(
     responses=_ERRS,
 )
 async def admin_storage_migration_config(
-    request: Request, migration_id: str, data: MigrationConfigData
+    request: Request, migration_id: str, data: MigrationConfigUpdateData
 ):
+    changes = data.model_dump(exclude_unset=True)
+    confirm = bool(changes.pop("confirm_weakening", False))
     try:
         return await asyncio.to_thread(
             AdminStorageMigrationService.update_config,
             migration_id,
-            data.model_dump(),
+            changes,
+            confirm,
         )
     except Error:
         raise

@@ -1324,6 +1324,72 @@ def damage_from_reason(reason):
     return text[at + len(DAMAGED_SOURCE_MARK) :].strip(" :") or "qemu-img check failed"
 
 
+#: what an admin may change on a job that has already moved something. Every
+#: knob is read on every tick, so every one is changeable live; the policy says
+#: which changes need an explicit confirmation and which one is refused.
+CONFIG_FIELD_POLICY = {
+    "bwlimit_kbs": "hot",
+    "parallelism": "hot",
+    "window": "hot",
+    "recurring": "hot",
+    "rescan_cadence": "hot",
+    "quarantine_after": "hot",
+    "max_bytes_per_occurrence": "hot",
+    "order": "hot",
+    "on_damaged": "hot",
+    "min_free_bytes": "hot_weakening",
+    "failure_policy": "hot_weakening",
+    "force_stop_desktops": "hot_weakening",
+    "source_disposition": "hot_weakening",
+    "verify": "frozen",
+}
+
+#: statuses in which the job may already have moved a disk
+_LIVE_STATUSES = frozenset(
+    {
+        "running",
+        "paused",
+        "window_closed",
+        "budget_reached",
+        "finishing_tree",
+        "scheduled",
+    }
+)
+
+
+def config_is_live(status):
+    return str(status) in _LIVE_STATUSES
+
+
+def _weakens(field, old, new):
+    if field == "min_free_bytes":
+        return int(new or 0) < int(old or 0)
+    if field == "failure_policy":
+        return old == "pause" and new != "pause"
+    if field == "force_stop_desktops":
+        return bool(new) and not bool(old)
+    if field == "source_disposition":
+        return new == "delete" and old != "delete"
+    return False
+
+
+def config_change_verdicts(current, changes):
+    """``[(field, "frozen" | "weakening")]`` for the changes a live job must
+    refuse or ask a confirmation for; a change to the value it already has is
+    no change."""
+    out = []
+    for field, new in changes.items():
+        old = (current or {}).get(field)
+        if new == old:
+            continue
+        policy = CONFIG_FIELD_POLICY.get(field, "hot")
+        if policy == "frozen":
+            out.append((field, "frozen"))
+        elif policy == "hot_weakening" and _weakens(field, old, new):
+            out.append((field, "weakening"))
+    return out
+
+
 def task_error_line(exc_info, fallback):
     """The last line of a worker traceback — the sentence that says WHY (pure).
 

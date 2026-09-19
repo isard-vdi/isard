@@ -192,6 +192,94 @@ class TestConfig:
         cfg = resp.json()["config"]
         assert cfg["bwlimit_kbs"] == 5000 and cfg["parallelism"] == 2
 
+    def test_a_partial_update_keeps_what_it_does_not_send(self, test_client):
+        """Raising the parallelism of a running job used to reset every field
+        it did not carry to its default: failure_policy back to
+        retry_quarantine and the free-space floor to 0, in silence."""
+        running = _migration(status="running")
+        running["config"] = {
+            "parallelism": 1,
+            "failure_policy": "pause",
+            "min_free_bytes": 10**9,
+            "verify": True,
+        }
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 2},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 2
+        assert cfg["failure_policy"] == "pause"
+        assert cfg["min_free_bytes"] == 10**9
+        # the response is the effective configuration, whole
+        assert "bwlimit_kbs" in cfg and "verify" in cfg
+
+    def test_weakening_a_guarantee_needs_an_explicit_confirmation(self, test_client):
+        running = _migration(status="running")
+        running["config"] = {"parallelism": 1, "min_free_bytes": 10**9}
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"min_free_bytes": 0},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 428
+        assert "min_free_bytes" in resp.text
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"min_free_bytes": 0, "confirm_weakening": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_bytes"] == 0
+
+    def test_verify_cannot_be_turned_off_on_a_job_that_moved(self, test_client):
+        running = _migration(status="running")
+        running["config"] = {"parallelism": 1, "verify": True}
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": False, "confirm_weakening": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 428
+        assert "verify" in resp.text
+        # the same value it already has is not a change
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+
+    def test_a_planned_job_may_still_change_verify(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": False},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["verify"] is False
+
+    def test_every_config_field_has_a_declared_policy(self):
+        from api.schemas.admin.storage_migration import MigrationConfigData
+        from isardvdi_common.lib.storage import migration as mig
+
+        missing = set(MigrationConfigData.model_fields) - set(mig.CONFIG_FIELD_POLICY)
+        assert not missing, f"fields without a live-change policy: {missing}"
+
     def test_config_on_terminal_job_conflicts(self, test_client):
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
