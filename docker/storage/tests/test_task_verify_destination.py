@@ -88,16 +88,19 @@ def test_verify_passes_for_child_repointed_to_new_parent(tmp_path):
     child = new / "child.qcow2"
     _create_qcow(child, backing=new_parent)
     assert qcow.get_backing_file(str(child)) == str(new_parent)  # precondition
-    rc = task.migration_verify_destination(str(child), expect_backing=str(new_parent))
-    assert rc == 0
+    report = task.migration_verify_destination(
+        str(child), expect_backing=str(new_parent)
+    )
+    assert report["leaks"] == 0
 
 
-# (e) root disk: destination present + valid, no backing expectation -> returns 0
+# (e) root disk: destination present + valid, no backing expectation -> passes,
+# and the report says so with no leaks
 def test_verify_passes_for_valid_root_destination(tmp_path):
     dst = tmp_path / "root.qcow2"
     _create_qcow(dst)
-    rc = task.migration_verify_destination(str(dst))  # expect_backing=None
-    assert rc == 0
+    report = task.migration_verify_destination(str(dst))  # expect_backing=None
+    assert report == {"leaks": 0, "summary": "no errors"}
 
 
 # (f) the destination fails AND the source fails the same way: the copy is
@@ -184,4 +187,5 @@ def test_verify_passes_a_destination_with_leaks_only(tmp_path, monkeypatch):
             "check-errors": 0,
         },
     )
-    assert task.migration_verify_destination(str(dst), src_path=str(dst)) == 0
+    report = task.migration_verify_destination(str(dst), src_path=str(dst))
+    assert report["leaks"] == 593  # the mark the runner leaves on the disk

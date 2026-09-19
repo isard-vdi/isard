@@ -51,7 +51,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 210
+release_version = 211
+# release 211: the pending_actions indexes on storage, so "which disks need X"
+#              is an index range and never a table scan
 # release 210: recompute every storage row's perms from the domain that uses it
 #              (a template's disk read-only, a desktop's writable); the field
 #              was written once at creation and no operation maintained it
@@ -6399,6 +6401,40 @@ password:s:%s"""
                 v210_perms_follow_the_domain(self)
             except Exception as e:
                 log.warning(f"v210: could not recompute storage perms: {e}")
+        if version == 211:
+            for name, fn, multi in (
+                (
+                    "pending_action",
+                    lambda s: s["pending_actions"].default({}).keys(),
+                    True,
+                ),
+                (
+                    "has_pending_actions",
+                    lambda s: s["pending_actions"].default({}).keys().count().gt(0),
+                    False,
+                ),
+                (
+                    "status_pending_action",
+                    lambda s: s["pending_actions"]
+                    .default({})
+                    .keys()
+                    .map(lambda a: [s["status"], a]),
+                    True,
+                ),
+                (
+                    "pending_action_since",
+                    lambda s: s["pending_actions"]
+                    .default({})
+                    .keys()
+                    .map(lambda a: [a, s["pending_actions"][a]["since"]]),
+                    True,
+                ),
+            ):
+                try:
+                    r.table(table).index_create(name, fn, multi=multi).run(self.conn)
+                except Exception as e:
+                    log.warning(f"v211: could not create index {name}: {e}")
+            r.table(table).index_wait().run(self.conn)
 
         if version == 205:
             # The row pointer and its index are retired: every reader resolves

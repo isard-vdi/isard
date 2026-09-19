@@ -1684,7 +1684,7 @@ def migration_verify_destination(
                 f"migration: destination {dst_path} is {actual} bytes, "
                 f"expected {expect_bytes}"
             )
-        return 0
+        return {"leaks": 0, "summary": "size matches"}
     report = qcow.qemu_img_check_report(dst_path)
     if report["ok"] and report.get("leaks"):
         log.info("migration: %s passes with %s", dst_path, report["summary"])
@@ -1710,7 +1710,9 @@ def migration_verify_destination(
                 f"migration: destination {dst_path} backs onto {backing!r}, "
                 f"expected the new parent {expect_backing!r}"
             )
-    return 0
+    # the report travels in the job result: leaked clusters are a mark to
+    # leave on the disk, not a reason to fail the gate
+    return {"leaks": int(report.get("leaks") or 0), "summary": report["summary"]}
 
 
 @_publishes_result
