@@ -38,7 +38,7 @@ from datetime import timezone
 from time import time
 
 from isardvdi_common.models.domain import Domain
-from isardvdi_common.models.storage import Storage, StoragePool
+from isardvdi_common.models.storage import SPARSIFY_GROWTH_BYTES, Storage, StoragePool
 from isardvdi_common.models.user import category_of
 from rethinkdb import r
 
@@ -218,6 +218,22 @@ def _recover_orphan_dependents(storage_object, _seen=None):
         _recover_orphan_dependents(child, _seen)
 
 
+def _sparsify_growth(storage_dict):
+    """Bytes a ready, writable disk grew by since its last reading, if it grew."""
+    new_size = (storage_dict.get("qemu-img-info") or {}).get("actual-size")
+    if new_size is None:
+        return None
+    storage = Storage(storage_dict["id"])
+    status = storage_dict.get("status") or storage.status
+    if status != "ready" or "w" not in (storage.perms or []):
+        return None
+    old_size = (getattr(storage, "qemu-img-info", None) or {}).get("actual-size")
+    if old_size is None:
+        return None
+    grew = new_size - old_size
+    return grew if grew >= SPARSIFY_GROWTH_BYTES else None
+
+
 def _read_started_at(task):
     """When the earliest reading this step applies started, or None."""
     starts = []
@@ -243,9 +259,17 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
     """
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
+    grew = _sparsify_growth(storage_dict)
     status = Storage.write_reading(storage_dict, observer=observer, read_at=read_at)
     if status is None:
         return None
+    if grew:
+        Storage.flag_pending(
+            storage_dict["id"],
+            "sparsify",
+            found_by="storage refresh",
+            detail={"grew_bytes": grew},
+        )
     storage_object = Storage(storage_dict["id"])
     if storage_dict.get("status") == status and status in (
         "deleted",
