@@ -463,6 +463,8 @@ class AdminStorageMigrationService:
         "error",
         "started_at",
         "finished_at",
+        "source_action",
+        "source_action_reason",
     ]
 
     @classmethod

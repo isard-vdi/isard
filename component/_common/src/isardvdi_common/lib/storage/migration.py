@@ -1200,6 +1200,8 @@ def build_audit_record(item, result, occurrence, now):
         # summarize_audit's bytes_moved total.
         "source_retained": bool(item.get("source_retained")),
         "source_retained_path": item.get("source_retained_path"),
+        "source_action": item.get("source_action"),
+        "source_action_reason": item.get("source_action_reason"),
     }
 
 

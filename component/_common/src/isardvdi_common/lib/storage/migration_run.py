@@ -1108,7 +1108,8 @@ class MigrationRunner:
                 )
                 self._audit(item, "moved_ok")
                 return
-        queue = self._pool_queue(item["src_path"], "move_delete")
+        action, reason = self._source_action()
+        queue = self._pool_queue(item["src_path"], action)
         if not self.lane_is_drainable(Task._redis, queue):
             # Mark, never defer: the tree is already committed, and holding the
             # release hostage to a pool outage would keep its desktops down.
@@ -1127,8 +1128,15 @@ class MigrationRunner:
             )
             self._audit(item, "moved_ok")
             return
+        if reason:
+            log.warning(
+                "migration %s: %s for %s, parking the source instead of deleting",
+                self.migration_id,
+                reason,
+                item["src_path"],
+            )
         del_task_id = self._enqueue(
-            "move_delete",
+            action,
             queue,
             {"path": item["src_path"]},
         )
@@ -1136,8 +1144,33 @@ class MigrationRunner:
             item,
             state=MigrationItemState.RELEASED.value,
             move_delete_task_id=del_task_id,
+            source_action=action,
+            source_action_reason=reason,
         )
         self._audit(item, "moved_ok")
+
+    def _source_action(self):
+        """The task to place for a committed disk's source, and why it differs
+        from what the job asked for (None when it does not)."""
+        disposition = self.config.get("source_disposition") or "system"
+        if disposition == "recycle_bin":
+            return "move_delete", None
+        if disposition == "system":
+            try:
+                if self._system_delete_action() != "delete":
+                    return "move_delete", None
+            except Exception:
+                return "move_delete", "system_action_unreadable"
+        if not bool(self.config.get("verify", True)):
+            return "move_delete", "verify_off"
+        return "delete", None
+
+    @staticmethod
+    def _system_delete_action():
+        # lazy: the recycle-bin helper imports half the product
+        from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
+
+        return RecycleBinHelpers.get_delete_action()
 
     def _skip_release(self, item):
         # dst == src: there is no separate source to delete — move_delete would
