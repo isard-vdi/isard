@@ -1200,7 +1200,8 @@ class MigrationRunner:
     def _source_action(self):
         """The task to place for a committed disk's source, and why it differs
         from what the job asked for (None when it does not)."""
-        disposition = self.config.get("source_disposition") or "system"
+        # no value == created before the knob: keep parking, as it always did
+        disposition = self.config.get("source_disposition") or "recycle_bin"
         if disposition == "recycle_bin":
             return "move_delete", None
         if disposition == "system":

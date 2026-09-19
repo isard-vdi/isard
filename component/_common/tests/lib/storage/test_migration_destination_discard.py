@@ -31,7 +31,7 @@ class _Storage:
 def _runner(monkeypatch, *, drainable=True, system_action="delete", verify=True):
     r = object.__new__(mr.MigrationRunner)
     r.migration_id = "m1"
-    r.config = {"verify": verify}
+    r.config = {"verify": verify, "source_disposition": "system"}
     r.user_id = "admin"
     r.lane_is_drainable = lambda conn, queue: drainable
     r._system_delete_action = lambda: system_action

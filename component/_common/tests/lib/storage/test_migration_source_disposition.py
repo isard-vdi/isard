@@ -60,7 +60,9 @@ def test_the_default_follows_the_system_delete_action():
         ("system", "move", "move_delete"),
         ("recycle_bin", "delete", "move_delete"),
         ("delete", "move", "delete"),
-        (None, "delete", "delete"),  # a job created before the knob existed
+        # a job created before the knob existed keeps parking, whatever the
+        # global says: upgrading must not start hard-deleting a running campaign
+        (None, "delete", "move_delete"),
     ],
 )
 def test_release_enqueues_the_resolved_source_action(
