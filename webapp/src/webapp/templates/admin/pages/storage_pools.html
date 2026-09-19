@@ -163,6 +163,13 @@
         <label class="mig-quarantine-after" style="margin-left:8px;">after
           <input type="number" id="mig_quarantine_after" class="form-control input-sm" value="3" min="1" style="width:58px;" title="Number of failed attempts before a disk is quarantined."> attempts
         </label>
+        <label style="margin-left:8px;">Damaged&nbsp;disk
+          <select id="mig_on_damaged" class="form-control input-sm" title="What to do when a disk turns out to fail its integrity check.">
+            <option value="pause" title="Mark the disk as damaged, leave its chain where it is, and pause the whole job for you to look at it.">Pause the job</option>
+            <option value="continue" title="Mark the disk as damaged, leave its chain where it is, and carry on with the rest.">Mark it and continue</option>
+          </select>
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Every copy is checked before the original is touched. When the copy fails the check exactly like its original, the ORIGINAL is damaged: the disk is set to the &ldquo;damaged&rdquo; status with the reason (a refcount leak is repairable, a corruption is not), its chain stays put, and this setting decides whether the job waits for you or goes on."></i>
+        </label>
       </fieldset>
 
       <!-- ── Throughput + safety, then act ─────────────────────────────────── -->

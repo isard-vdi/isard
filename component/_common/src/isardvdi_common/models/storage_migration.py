@@ -277,6 +277,9 @@ class MigrationConfig(BaseModel):
     #: consecutive-occurrence failure budget before a disk is quarantined (used
     #: only by ``retry_quarantine``).
     quarantine_after: int = Field(default=3, ge=1)
+    #: a source that fails qemu-img check is marked damaged and its tree skipped;
+    #: pause == stop the job for the admin, continue == go on with the rest
+    on_damaged: Literal["pause", "continue"] = "pause"
 
 
 class MigrationTotals(BaseModel):
@@ -365,6 +368,9 @@ class StorageMigrationItemModel(BaseModel):
     # move_delete could not be placed, and nothing will retry it.
     source_retained: bool = False
     source_retained_path: str | None = None
+    #: the source failed qemu-img check during the pre-release gate
+    damaged: bool = False
+    damage_reason: str | None = None
 
 
 # --------------------------------------------------------------------------- #

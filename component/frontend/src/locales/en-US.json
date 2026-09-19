@@ -2260,6 +2260,7 @@
           "deleted": "Deleted",
           "orphan": "Orphan",
           "broken_chain": "Broken chain",
+          "damaged": "Damaged",
           "non_existing": "Not yet created",
           "downloading": "Downloading",
           "unknown": "Unknown"

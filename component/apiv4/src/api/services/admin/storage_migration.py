@@ -463,6 +463,8 @@ class AdminStorageMigrationService:
         "error",
         "started_at",
         "finished_at",
+        "damaged",
+        "damage_reason",
     ]
 
     @classmethod
