@@ -123,7 +123,7 @@ PENDING_ACTIONS = {
         "cleared_by": "an admin decision",
     },
     "sparsify": {
-        "flagged_by": ("desktop stop after a write",),
+        "flagged_by": ("a storage refresh that measured growth",),
         "cleared_by": "sparsify",
     },
     "rebase_backing": {
@@ -139,6 +139,11 @@ PENDING_ACTIONS = {
         "cleared_by": "delete",
     },
 }
+
+
+#: Flag ``sparsify`` when a disk's actual-size grows at least this much since its
+#: last measurement -- 256 MiB clears the journal a bare start/stop moves.
+SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
 
 
 #: Every :class:`Storage` method that creates a task, and what it does to the

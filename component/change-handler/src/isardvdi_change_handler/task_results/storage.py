@@ -36,7 +36,7 @@ import logging as log
 from contextlib import contextmanager
 
 from isardvdi_common.models.domain import Domain
-from isardvdi_common.models.storage import Storage, StoragePool
+from isardvdi_common.models.storage import SPARSIFY_GROWTH_BYTES, Storage, StoragePool
 from isardvdi_common.models.user import category_of
 
 # Per-stream-entry de-duplication of the fire-and-forget ``storage`` status
@@ -100,6 +100,36 @@ def _promote_domains_to_stopped(storage_object):
             domain.current_action = None
 
 
+def _flag_sparsify_on_growth(storage_dict):
+    """Flag ``sparsify`` when a fresh measurement shows a ready, writable disk
+    grew by at least ``SPARSIFY_GROWTH_BYTES`` since its last recorded size.
+
+    Reads the current row before the caller overwrites it. Any refresh that
+    carries a qemu-img-info reaches here (the post-stop size refresh is the
+    common one), so the mark means "the disk grew", not "the desktop stopped".
+    """
+    new_info = storage_dict.get("qemu-img-info") or {}
+    new_size = new_info.get("actual-size")
+    if new_size is None:
+        return
+    storage = Storage(storage_dict["id"])
+    status = storage_dict.get("status") or storage.status
+    if status != "ready" or "w" not in (storage.perms or []):
+        return
+    old_info = getattr(storage, "qemu-img-info", None) or {}
+    old_size = old_info.get("actual-size")
+    if old_size is None:
+        return
+    grew = new_size - old_size
+    if grew >= SPARSIFY_GROWTH_BYTES:
+        Storage.flag_pending(
+            storage_dict["id"],
+            "sparsify",
+            found_by="storage refresh",
+            detail={"grew_bytes": grew},
+        )
+
+
 def _apply_storage_update(storage_dict):
     """Run the rethinkdb writes from a storage_update payload.
 
@@ -110,6 +140,7 @@ def _apply_storage_update(storage_dict):
     """
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
+    _flag_sparsify_on_growth(storage_dict)
     storage_object = Storage.init_document(**storage_dict)
     if storage_dict.get("status") in ("deleted", "orphan", "broken_chain"):
         # Walk *through* the already-deleted rows: a purge run with ``move``
