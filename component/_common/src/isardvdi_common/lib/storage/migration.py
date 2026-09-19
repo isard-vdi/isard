@@ -31,6 +31,7 @@ Two layers:
 """
 
 import json
+import logging
 import subprocess
 from collections import Counter, deque
 from os.path import dirname
@@ -38,6 +39,8 @@ from time import time
 from typing import NamedTuple
 
 from rethinkdb import r
+
+log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #
@@ -110,6 +113,12 @@ def domain_kinds_by_storage(storage_ids):
                 if sid in wanted:
                     kinds.setdefault(sid, set()).add(row.get("kind"))
     return kinds
+
+
+def _typed_error():
+    from isardvdi_common.helpers.error_factory import Error
+
+    return Error
 
 
 class _Unplaceable(Exception):
@@ -2484,7 +2493,7 @@ def build_plan_for_roots(
         if s.id not in dst_dir_cache:
             try:
                 dst_dir_cache[s.id] = s.get_storage_pool_path(dst_pool)
-            except Exception as exc:
+            except _typed_error() as exc:
                 # A category-nested (non-default) pool needs the owner's
                 # category, and get_storage_pool_path deliberately raises rather
                 # than write a "<mountpoint>/None/..." path.
@@ -2493,6 +2502,10 @@ def build_plan_for_roots(
                     f"{exc}. Give the disk a resolvable owner category or "
                     "migrate into the default pool.",
                 ) from exc
+            except Exception as exc:
+                # anything else is a defect, not a data problem: say which
+                log.exception("migration: cannot place %s", s.id)
+                raise _Unplaceable(s.id, f"{type(exc).__name__}: {exc}") from exc
             if dst_dir_cache[s.id] is None:
                 # Left to travel, this None reaches the item as dst_path and
                 # task.move dies inside os.path.isfile(None) with a TypeError.
