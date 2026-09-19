@@ -203,6 +203,36 @@ class Scheduler:
             except Exception:
                 pass
 
+        ## STORAGE PENDING-ACTIONS SWEEP (opt-in, off by default)
+        ## Register the nightly cron only while the admin has it enabled, at the
+        ## configured hour; the /scheduler/storage_sweep toggle adds/removes it live.
+        try:
+            with app.app_context():
+                sweep = (
+                    r.table("config")
+                    .get(1)
+                    .get_field("storage_sweep")
+                    .default({})
+                    .run(db.conn)
+                )
+                sweep_job = (
+                    r.table("scheduler_jobs")
+                    .get("system.storage_pending_actions_sweep")
+                    .run(db.conn)
+                )
+            if sweep.get("enabled") and not sweep_job:
+                self.add_job(
+                    "system",
+                    "cron",
+                    "storage_pending_actions_sweep",
+                    str(sweep.get("hour", 4)),
+                    str(sweep.get("minute", 0)),
+                    id="system.storage_pending_actions_sweep",
+                    kwargs={},
+                )
+        except Exception:
+            pass
+
     def clean_bad_jobs(self):
         with app.app_context():
             result = (

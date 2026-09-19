@@ -210,6 +210,39 @@ class Actions:
                     + traceback.format_exc()
                 )
 
+    def storage_pending_actions_sweep_kwargs(**kwargs):
+        return []
+
+    def storage_pending_actions_sweep(**kwargs):
+        """Opt-in nightly pass over disks carrying a pending action. The cron is
+        only registered while the admin has it enabled; re-checked here so a
+        stale job no-ops. Delegates one pass to apiv4, which selects ready disks
+        by index within the configured budget and enqueues the matching tasks."""
+        try:
+            with app.app_context():
+                config = (
+                    r.table("config")
+                    .get(1)
+                    .get_field("storage_sweep")
+                    .default({})
+                    .run(db.conn)
+                )
+        except Exception:
+            config = {}
+        if not config.get("enabled"):
+            log.info("storage_pending_actions_sweep: disabled, nothing to do")
+            return
+        try:
+            with build_client("isard-scheduler") as client:
+                resp = client.get_httpx_client().request(
+                    "post", "/api/v4/admin/storage/sweep/run", json={}
+                )
+                raise_for_status(resp)
+                summary = resp.json() if resp.content else {}
+            log.info("storage_pending_actions_sweep summary: %s", summary)
+        except Exception:
+            log.error("storage_pending_actions_sweep failed: " + traceback.format_exc())
+
     def refresh_running_storage_sizes_kwargs():
         return []
 

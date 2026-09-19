@@ -25,7 +25,13 @@ from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.storage.sweep import (
+    SWEEP_DEFAULTS,
+    SWEEP_PENDING_ACTION,
+    select_within_budget,
+)
 from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.models.config import Config
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task, tasks_from_ids
@@ -611,6 +617,101 @@ class StorageService:
                     type="error",
                 )
         return queued
+
+    @staticmethod
+    def get_sweep_config() -> dict:
+        """The nightly-sweep config: presentation defaults under the stored block."""
+        return {**SWEEP_DEFAULTS, **(Config.get_storage_sweep_config() or {})}
+
+    @staticmethod
+    def set_sweep_config(payload: dict, data: dict) -> dict:
+        """Validate and persist the sweep config; returns the merged value.
+        delete_backup is deliberately not a sweep action — it is a manual purge."""
+        clean = {}
+        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity"):
+            if key in data:
+                clean[key] = bool(data[key])
+        for key, hi in (("hour", 23), ("minute", 59)):
+            if key in data:
+                value = int(data[key])
+                if not 0 <= value <= hi:
+                    raise Error("bad_request", f"{key} must be within 0-{hi}")
+                clean[key] = value
+        for key in ("max_disks", "max_bytes", "check_max_age_days"):
+            if key in data:
+                value = int(data[key])
+                if value < 0:
+                    raise Error("bad_request", f"{key} must be >= 0")
+                clean[key] = value
+        Config.update_storage_sweep(clean)
+        return StorageService.get_sweep_config()
+
+    @staticmethod
+    def run_sweep_pass(payload: dict, overrides: dict | None = None) -> dict:
+        """Run ONE sweep pass and return its summary. Reads the stored config,
+        letting ``overrides`` (the webapp run-now form) replace budget/action keys
+        for this pass only. Per enabled action it lists ready disks by index
+        (oldest first), skips those a Started desktop holds, honours the shared
+        max_disks/max_bytes budget (0 == no cap) and enqueues the matching task.
+        Never repairs corruption here (repair_leaks is -r leaks only) and never
+        touches delete_backup."""
+        config = {**StorageService.get_sweep_config(), **(overrides or {})}
+        max_disks = config["max_disks"] or None
+        max_bytes = config["max_bytes"] or None
+        user_id = payload.get("user_id")
+        summary = {"actions": {}}
+        for action, pending in SWEEP_PENDING_ACTION.items():
+            if not config.get(action):
+                continue
+            if max_disks is not None and max_disks <= 0:
+                break
+            ids = Storage.pending_ids(pending, status="ready", limit=max_disks)
+            storages, candidates = {}, []
+            for storage_id in ids:
+                try:
+                    storage = get_storage(payload, storage_id)
+                except Exception:
+                    continue
+                storages[storage_id] = storage
+                info = getattr(storage, "qemu-img-info", None)
+                size = info.get("actual-size") if isinstance(info, dict) else None
+                started = any(
+                    getattr(d, "status", None) == "Started"
+                    for d in (storage.domains or [])
+                )
+                candidates.append(
+                    {"id": storage_id, "size_bytes": size or 0, "started": started}
+                )
+            picked = select_within_budget(candidates, max_disks, max_bytes)
+            for storage_id in picked["selected"]:
+                try:
+                    StorageService._sweep_enqueue(user_id, action, storages[storage_id])
+                except Exception:
+                    notify_admin(
+                        user_id,
+                        "Error in storage sweep",
+                        f"Could not queue {action} for {storage_id}",
+                        type="error",
+                    )
+            summary["actions"][action] = {
+                "selected": len(picked["selected"]),
+                "skipped_started": len(picked["skipped_started"]),
+                "skipped_budget": len(picked["skipped_budget"]),
+            }
+            if max_disks is not None:
+                max_disks = max(0, max_disks - len(picked["selected"]))
+            if max_bytes is not None:
+                max_bytes = max(0, max_bytes - picked["used_bytes"])
+        return summary
+
+    @staticmethod
+    def _sweep_enqueue(user_id, action, storage):
+        if action == "sparsify":
+            storage.sparsify(user_id, priority="default", secondary_priority="high")
+        elif action == "repair_leaks":
+            storage.repair(
+                user_id, "leaks", priority="default", secondary_priority="high"
+            )
 
     @staticmethod
     def disconnect(

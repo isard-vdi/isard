@@ -80,6 +80,50 @@ class StorageRepairBatchResponse(BaseModel):
     queued: int
 
 
+class StorageSweepConfigResponse(BaseModel):
+    """Effective storage-sweep config: stored values over presentation defaults."""
+
+    enabled: bool
+    hour: int
+    minute: int
+    max_disks: int
+    max_bytes: int
+    sparsify: bool
+    repair_leaks: bool
+    check_integrity: bool
+    check_max_age_days: int
+
+
+class StorageSweepConfigRequest(BaseModel):
+    """Partial update of the sweep config; omitted keys keep their stored value."""
+
+    enabled: Optional[bool] = None
+    hour: Optional[int] = None
+    minute: Optional[int] = None
+    max_disks: Optional[int] = None
+    max_bytes: Optional[int] = None
+    sparsify: Optional[bool] = None
+    repair_leaks: Optional[bool] = None
+    check_integrity: Optional[bool] = None
+    check_max_age_days: Optional[int] = None
+
+
+class StorageSweepRunRequest(BaseModel):
+    """Per-pass budget/action overrides for a manual sweep run (all optional)."""
+
+    max_disks: Optional[int] = None
+    max_bytes: Optional[int] = None
+    sparsify: Optional[bool] = None
+    repair_leaks: Optional[bool] = None
+    check_integrity: Optional[bool] = None
+
+
+class StorageSweepRunResponse(BaseModel):
+    """Summary of one sweep pass: per-action selected/skipped counts."""
+
+    actions: dict
+
+
 class StorageStatusDomain(BaseModel):
     """A domain entry in a storage's statuses payload."""
 
