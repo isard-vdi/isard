@@ -1633,4 +1633,196 @@ test.describe('Admin Storage — webapp', () => {
       await expect(page.locator(c.modal)).not.toBeVisible()
     }
   })
+
+  // -------------------------------------------------------------------
+  // Scenario 25 — Repair a damaged disk from the row action buttons
+  // -------------------------------------------------------------------
+  // The Repair buttons live on a `damaged` row in the "Other status" table.
+  // The diskless e2e env has no damaged disk, so the status-count dropdown, the
+  // by-status load and the repair PUTs are stubbed; the tests assert the call
+  // fired (or, on Cancel, did not) and that the repaired row leaves the table.
+  const DAMAGED_ID = 'e2edmg00-0000-0000-0000-000000000001'
+
+  function damagedRow() {
+    return {
+      id: DAMAGED_ID,
+      status: 'damaged',
+      damage_reason: 'corruptions=2',
+      directory_path: '/isard/templates/e2e',
+      type: 'qcow2',
+      parent: null,
+      user_name: 'admin',
+      category: 'default',
+      domains: [],
+      perms: ['r', 'w'],
+      'qemu-img-info': { 'virtual-size': 67108864, 'actual-size': 4587520 },
+      last: {},
+      last_task_id: null,
+    }
+  }
+
+  async function loadDamagedRow(page, { emptyAfter = 1 } = {}) {
+    await page.route(/\/api\/v4\/admin\/item\/storage\/status(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ status: 'damaged', count: 1 }]),
+      }),
+    )
+    let byStatus = 0
+    await page.route(
+      /\/api\/v4\/admin\/items\/storage\/by-status\/damaged(\?|$)/,
+      (route) => {
+        byStatus += 1
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(byStatus <= emptyAfter ? [damagedRow()] : []),
+        })
+      },
+    )
+    await gotoStorage(page)
+    const loaded = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/v4/admin/items/storage/by-status/damaged') &&
+        r.request().method() === 'POST',
+      { timeout: 15000 },
+    )
+    await page.locator('#status').selectOption('damaged')
+    await loaded
+    const row = page.locator(`#storagesOtherTable tbody tr[id="${DAMAGED_ID}"]`)
+    await row.waitFor({ state: 'visible', timeout: 10000 })
+    return row
+  }
+
+  test('S25: Repair leaks shows the reason, fires check -r leaks, and the row leaves the table', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task_id: 'e2e-repair' }),
+      }),
+    )
+    const row = await loadDamagedRow(page)
+
+    await expect(row).toContainText('corruptions=2')
+    await expect(row.locator('.btn-repair-leaks')).toBeVisible()
+    await expect(row.locator('.btn-repair-all')).toBeVisible()
+
+    const repairReq = page.waitForRequest(
+      (r) => /\/item\/storage\/[^/]+\/repair\/leaks/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 10000 },
+    )
+    const reload = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/v4/admin/items/storage/by-status/damaged') &&
+        r.request().method() === 'POST',
+      { timeout: 10000 },
+    )
+    await row.locator('.btn-repair-leaks').click()
+    await clickPnotifyOk(page)
+    const req = await repairReq
+    expect(req.url()).toMatch(new RegExp(`/item/storage/${DAMAGED_ID}/repair/leaks$`))
+    await reload
+    await expect(
+      page.locator(`#storagesOtherTable tbody tr[id="${DAMAGED_ID}"]`),
+    ).toHaveCount(0, { timeout: 10000 })
+  })
+
+  test('S25b: Repair leaks Cancel fires no repair call and keeps the row', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task_id: 'e2e-repair' }),
+      }),
+    )
+    const row = await loadDamagedRow(page)
+
+    const repairReq = page
+      .waitForRequest((r) => /\/item\/storage\/[^/]+\/repair\//.test(r.url()), { timeout: 2000 })
+      .catch(() => null)
+    await row.locator('.btn-repair-leaks').click()
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
+    await pnotify.waitFor({ state: 'visible', timeout: 10000 })
+    await pnotify
+      .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: /cancel/i })
+      .first()
+      .click({ timeout: 5000 })
+
+    expect(await repairReq).toBeNull()
+    await expect(row).toBeVisible()
+  })
+
+  test('S25c: Repair all on a damaged row fires check -r all', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task_id: 'e2e-repair' }),
+      }),
+    )
+    const row = await loadDamagedRow(page)
+
+    const repairReq = page.waitForRequest(
+      (r) => /\/item\/storage\/[^/]+\/repair\/all/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 10000 },
+    )
+    await row.locator('.btn-repair-all').click()
+    await clickPnotifyOk(page)
+    const req = await repairReq
+    expect(req.url()).toMatch(/\/repair\/all$/)
+  })
+
+  test('S26: Repair all pending leaks batch button fires the batch repair', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ queued: 3 }),
+      }),
+    )
+    await gotoStorage(page)
+    const batchReq = page.waitForRequest(
+      (r) => /\/items\/storage\/repair\/leaks/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 10000 },
+    )
+    await page.locator('#btn-repair-all-pending-leaks').click()
+    await clickPnotifyOk(page)
+    const req = await batchReq
+    expect(req.method()).toBe('PUT')
+  })
+
+  test('S26b: Repair all pending leaks Cancel fires no batch call', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ queued: 0 }),
+      }),
+    )
+    await gotoStorage(page)
+    const batchReq = page
+      .waitForRequest((r) => /\/items\/storage\/repair\/leaks/.test(r.url()), { timeout: 2000 })
+      .catch(() => null)
+    await page.locator('#btn-repair-all-pending-leaks').click()
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
+    await pnotify.waitFor({ state: 'visible', timeout: 10000 })
+    await pnotify
+      .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: /cancel/i })
+      .first()
+      .click({ timeout: 5000 })
+
+    expect(await batchReq).toBeNull()
+  })
 })
