@@ -870,6 +870,31 @@ def test_a_disk_whose_owner_category_is_unresolvable_excludes_its_tree(monkeypat
     assert "no 'template' path configured" in totals["excluded_trees"][0]["reason"]
 
 
+def test_a_defect_while_placing_a_disk_is_reported_as_itself(monkeypatch):
+    """Every exception inside the placement used to come out as «give the
+    disk a resolvable owner category…», so a TypeError in the code read as
+    a data problem and sent the diagnosis the wrong way."""
+    _FakeStorage.registry = _two_trees("desktop")
+    monkeypatch.setattr("isardvdi_common.models.storage.Storage", _FakeStorage)
+    monkeypatch.setattr(
+        "isardvdi_common.lib.storage.storage.StorageProcessed", _FakeStorageProcessed
+    )
+
+    def _broken(self, pool):
+        if self.id == "bad":
+            raise TypeError("'str' object has no attribute 'mountpoint'")
+        return f"{pool.mountpoint}/{pool.get_usage_path(self.pool_usage)}"
+
+    monkeypatch.setattr(_FakeStorage, "get_storage_pool_path", _broken)
+
+    items, totals = mig.build_plan_for_roots("m", ["good", "bad"], _UsageLimitedPool())
+
+    assert [it["storage_id"] for it in items] == ["good"]
+    (excluded,) = totals["excluded_trees"]
+    assert excluded["reason"].startswith("TypeError: 'str' object")
+    assert "owner category" not in excluded["reason"]
+
+
 def test_excluding_a_tree_takes_its_whole_chain_with_it(monkeypatch):
     """Dropping only the unplaceable disk would leave its derivatives rebasing
     onto a path nothing resolved, so the count is the whole tree."""
