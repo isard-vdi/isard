@@ -34,6 +34,7 @@ Both tables MUST be registered in ``engine/engine/initdb/populate.py`` or
 ``check_integrity`` drops them on every engine startup.
 """
 
+import re
 from enum import StrEnum
 from time import time
 from typing import Iterable, Literal
@@ -420,6 +421,67 @@ class StorageMigrationItem(RethinkCustomBase):
                 .get_all([migration_id, tree_id], index="migration_tree")
                 .run(cls._rdb_connection)
             )
+
+    #: fields the admin view needs; the heavy ones (audit / checkpoints /
+    #: maintenance_domains) are deliberately excluded so a page never carries them.
+    _LIGHT_FIELDS = (
+        "id",
+        "storage_id",
+        "tree_id",
+        "topo_index",
+        "kind",
+        "state",
+        "size_bytes",
+        "error",
+        "dst_path",
+        "src_path",
+        "tree_order_key",
+    )
+
+    @classmethod
+    def light_rows(cls, migration_id):
+        """Light per-disk rows (no audit/checkpoints) for the per-tree summaries —
+        never load the whole heavy ledger to build a page of trees."""
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .pluck(*cls._LIGHT_FIELDS)
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def page_items(
+        cls, migration_id, *, page=1, per_page=50, state=None, tree_id=None, q=None
+    ):
+        """One page of disks, always via an index + a server-side slice (never the
+        whole job). Scoped to a tree via ``migration_tree`` when ``tree_id`` is
+        given, else ``migration_id``; filtered by ``state`` and a case-insensitive
+        substring ``q`` on the storage id, ordered (tree_id, topo_index)."""
+        page = max(1, int(page))
+        per_page = max(1, int(per_page))
+        with cls._rdb_context():
+            if tree_id:
+                query = r.table(cls._rdb_table).get_all(
+                    [migration_id, tree_id], index="migration_tree"
+                )
+            else:
+                query = r.table(cls._rdb_table).get_all(
+                    migration_id, index="migration_id"
+                )
+            if state:
+                query = query.filter({"state": state})
+            if q:
+                pattern = "(?i)" + re.escape(q)
+                query = query.filter(lambda it: it["storage_id"].match(pattern))
+            query = query.pluck(*cls._LIGHT_FIELDS)
+            total = query.count().run(cls._rdb_connection)
+            rows = list(
+                query.order_by("tree_id", "topo_index")
+                .slice((page - 1) * per_page, page * per_page)
+                .run(cls._rdb_connection)
+            )
+        return {"items": rows, "total": total, "page": page, "per_page": per_page}
 
     @classmethod
     def active_storage_ids(cls):

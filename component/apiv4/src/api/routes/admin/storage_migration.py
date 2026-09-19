@@ -37,12 +37,14 @@ from api.schemas.admin.storage_migration import (
     MigrationConfigData,
     MigrationConfigUpdateData,
     MigrationCreateData,
+    MigrationItemsPageResponse,
     MigrationListResponse,
     MigrationPathPrefixesResponse,
     MigrationPlanData,
     MigrationPlanResponse,
     MigrationResponse,
     MigrationStatusResponse,
+    MigrationTreesPageResponse,
     PoolPlanResponse,
 )
 from api.schemas.common import ErrorResponse
@@ -217,16 +219,99 @@ async def admin_storage_migration_log(
 
 
 @admin_router.get(
+    "/admin/storage/migrations/{migration_id}/trees",
+    tags=_TAGS,
+    response_model=MigrationTreesPageResponse,
+    summary="List a migration's root trees (paginated, filterable)",
+    description="One page of per-tree summaries, filterable by aggregated state "
+    "and by a text match on the tree id or a disk's id/path. Server-paginated so "
+    "a job with thousands of trees never floods the browser.",
+    responses=_ERRS,
+)
+async def admin_storage_migration_trees(
+    request: Request,
+    migration_id: str,
+    page: int = 1,
+    per_page: int = 25,
+    state: Optional[str] = None,
+    q: Optional[str] = None,
+):
+    try:
+        return await asyncio.to_thread(
+            AdminStorageMigrationService.trees,
+            migration_id,
+            page=page,
+            per_page=per_page,
+            state=state,
+            q=q,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to list migration trees",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/migrations/{migration_id}/items",
+    tags=_TAGS,
+    response_model=MigrationItemsPageResponse,
+    summary="List a migration's disks (paginated, filterable)",
+    description="One page of disks, optionally scoped to a tree, filterable by "
+    "state and a text match on the disk id. Always sliced on the server via the "
+    "migration_id / migration_tree indexes — never the whole job.",
+    responses=_ERRS,
+)
+async def admin_storage_migration_items(
+    request: Request,
+    migration_id: str,
+    page: int = 1,
+    per_page: int = 50,
+    state: Optional[str] = None,
+    tree_id: Optional[str] = None,
+    q: Optional[str] = None,
+):
+    try:
+        return await asyncio.to_thread(
+            AdminStorageMigrationService.items,
+            migration_id,
+            page=page,
+            per_page=per_page,
+            state=state,
+            tree_id=tree_id,
+            q=q,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to list migration disks",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
     "/admin/storage/migrations/{migration_id}",
     tags=_TAGS,
     response_model=MigrationStatusResponse,
     summary="Storage-disk migration status (live ledger aggregate)",
+    description="Totals + per-tree progress + ETA + window. Per-disk rows only "
+    "with ?items=true (for the CSV/audit path); by default the disks are served "
+    "paginated by /items.",
     responses=_ERRS,
 )
-async def admin_storage_migration_status(request: Request, migration_id: str):
+async def admin_storage_migration_status(
+    request: Request, migration_id: str, items: bool = False
+):
     try:
         return await asyncio.to_thread(
-            AdminStorageMigrationService.status, migration_id
+            AdminStorageMigrationService.status, migration_id, include_items=items
         )
     except Error:
         raise

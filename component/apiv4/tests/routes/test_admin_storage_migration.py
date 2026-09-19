@@ -113,12 +113,26 @@ class TestList:
         assert by_id["a"]["last_activity_at"] == 42.0
         assert by_id["b"]["last_activity_at"] is None
 
+    def test_list_row_is_enriched_and_carries_no_disks(self, test_client):
+        # the row renders without a per-job GET /{id}: it carries the live fields
+        # (eta/window/recurring/days/state_counts) but never the disks or trees.
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration()]},
+        )
+        assert resp.status_code == 200
+        row = resp.json()["migrations"][0]
+        for k in ("eta_seconds", "current_window", "recurring", "days", "state_counts"):
+            assert k in row
+        assert "items" not in row and "trees" not in row
+
 
 # ── status ────────────────────────────────────────────────────────────────
 class TestStatus:
     def test_status_aggregates_item_states(self, test_client):
         resp = test_client(
-            url="/admin/storage/migrations/mig-1",
+            url="/admin/storage/migrations/mig-1?items=true",
             jwt=ADMIN,
             db_tables_data={
                 "storage_migration": [_migration()],
@@ -161,6 +175,22 @@ class TestStatus:
         assert body["created_at"] == 111.0
         assert body["last_activity_at"] == 222.0
 
+    def test_status_omits_items_by_default(self, test_client):
+        # the disks are served paginated by /items now; status stays light unless
+        # ?items=true is asked (CSV/audit path).
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [_item("mig-1--a", state="released")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["items"] == []  # opt-in only
+        assert body["trees"]  # trees still present for backward compatibility
+
     def test_status_missing_404(self, monkeypatch, test_client):
         # Mock the DB-boundary existence check (the mock DB engine can't model
         # a missing-doc lookup) to exercise the real service not_found -> 404.
@@ -174,6 +204,92 @@ class TestStatus:
             db_tables_data={"storage_migration": [_migration()]},
         )
         assert resp.status_code == 404
+
+
+# ── trees (paginated / filterable) ──────────────────────────────────────────
+class TestTrees:
+    def test_trees_paginated(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/trees?page=1&per_page=2",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("t0", tree_id="t0"),
+                    _item("t1", tree_id="t1"),
+                    _item("t2", tree_id="t2"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 3
+        assert len(body["trees"]) == 2
+
+    def test_trees_state_filter(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/trees?state=moving",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("t0", tree_id="t0", state="pending"),
+                    _item("m", tree_id="m", state="moving"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert [t["tree_id"] for t in resp.json()["trees"]] == ["m"]
+
+
+# ── items (paginated / filterable / tree-scoped) ────────────────────────────
+class TestItems:
+    def test_items_scoped_to_tree(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?tree_id=r",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", tree_id="r"),
+                    _item("b", tree_id="r"),
+                    _item("c", tree_id="other"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 2
+        assert {i["storage_id"] for i in body["items"]} == {"a", "b"}
+
+    def test_items_paginated(self, test_client):
+        items = [_item(f"d{i}", tree_id="r") for i in range(5)]
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?tree_id=r&page=1&per_page=2",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": items,
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 5
+        assert len(resp.json()["items"]) == 2
+
+    def test_items_state_filter(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?state=failed",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", state="released"),
+                    _item("b", state="failed"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert {i["storage_id"] for i in resp.json()["items"]} == {"b"}
 
 
 # ── control (start / pause / cancel) ────────────────────────────────────────

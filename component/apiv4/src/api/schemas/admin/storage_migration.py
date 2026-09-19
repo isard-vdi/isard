@@ -245,8 +245,20 @@ class MigrationResponse(BaseModel):
     last_activity_at: Optional[float] = None
 
 
+class MigrationListItem(MigrationResponse):
+    """A list row: the job aggregate plus the few live fields the table renders,
+    all read off the job row so the list needs no per-disk load."""
+
+    state_counts: dict = Field(default_factory=dict)
+    eta_seconds: Optional[int] = None
+    current_window: Optional[dict] = None
+    recurring: bool = False
+    days: list[int] = Field(default_factory=list)
+    next_run_seconds: Optional[int] = None
+
+
 class MigrationListResponse(BaseModel):
-    migrations: list[MigrationResponse] = Field(default_factory=list)
+    migrations: list[MigrationListItem] = Field(default_factory=list)
 
 
 class MigrationStatusResponse(BaseModel):
@@ -271,7 +283,27 @@ class MigrationStatusResponse(BaseModel):
     #: seconds until the next window opens on a selected weekday (None == always
     #: open / no schedule / cannot be computed)
     next_run_seconds: Optional[int] = None
+    #: per-disk rows, only when the request asks (?items=true); the disks are
+    #: otherwise served paginated by /items.
     items: list[MigrationItemSummary] = Field(default_factory=list)
+
+
+class MigrationTreesPageResponse(BaseModel):
+    """One page of per-tree summaries for a job's expand (server-paginated)."""
+
+    trees: list[MigrationTreeSummary] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    per_page: int = 25
+
+
+class MigrationItemsPageResponse(BaseModel):
+    """One page of disks for a tree's expand (server-paginated, index-sliced)."""
+
+    items: list[MigrationItemSummary] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    per_page: int = 50
 
 
 class MigrationPathPrefixesResponse(BaseModel):
