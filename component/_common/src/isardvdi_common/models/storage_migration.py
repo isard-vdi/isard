@@ -484,6 +484,20 @@ class StorageMigrationItem(RethinkCustomBase):
         return {"items": rows, "total": total, "page": page, "per_page": per_page}
 
     @classmethod
+    def delete_by_migration(cls, migration_id):
+        """Delete every disk row of a job in one indexed query; returns the count.
+        Used when an admin deletes a terminal job — these are ledger rows, not the
+        storage rows or qcow2 files, which are independent and untouched."""
+        with cls._rdb_context():
+            return (
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .delete()
+                .run(cls._rdb_connection)
+                .get("deleted", 0)
+            )
+
+    @classmethod
     def active_storage_ids(cls):
         """Storage ids a migration still owes work on (state not settled).
 

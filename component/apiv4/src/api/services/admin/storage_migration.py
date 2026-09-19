@@ -78,6 +78,12 @@ _TERMINAL = {
     MigrationStatus.FAILED.value,
     MigrationStatus.CANCELED.value,
 }
+#: a job an admin may delete: terminal (nothing more will happen) or never started
+#: (planned/draft — no in-flight work, no disks parked in maintenance).
+_DELETABLE = _TERMINAL | {
+    MigrationStatus.PLANNED.value,
+    MigrationStatus.DRAFT.value,
+}
 
 
 def _tree_summaries(items, order=None, budget=0):
@@ -471,6 +477,27 @@ class AdminStorageMigrationService:
             tree_id=tree_id,
             q=q,
         )
+
+    @classmethod
+    def delete(cls, migration_id: str) -> dict:
+        """Delete a terminal (completed / completed_with_skips / failed / canceled)
+        or never-started (planned / draft) job and its ledger rows. Any other
+        status is live work and is refused with 428. The disks are untouched — the
+        ledger is not the storage."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        m = StorageMigration(migration_id)
+        status = str(m.status)
+        if status not in _DELETABLE:
+            raise Error(
+                "precondition_required",
+                f"Migration {migration_id} is {status}; only a terminal or "
+                "never-started job can be deleted (pause or cancel it first)",
+                description_code="storage_migration_not_deletable",
+            )
+        deleted = StorageMigrationItem.delete_by_migration(migration_id)
+        StorageMigration.delete(migration_id)
+        return {"id": migration_id, "status": status, "deleted_items": deleted}
 
     @staticmethod
     def _next_run_seconds(m: StorageMigration):

@@ -306,6 +306,14 @@ class MigrationItemsPageResponse(BaseModel):
     per_page: int = 50
 
 
+class MigrationDeleteResponse(BaseModel):
+    """Result of deleting a terminal or never-started migration and its ledger."""
+
+    id: str
+    status: str
+    deleted_items: int = 0
+
+
 class MigrationPathPrefixesResponse(BaseModel):
     """Real, selectable source path-prefixes for the ``path`` selection kind —
     the distinct ``storage.directory_path`` values, optionally scoped to a source

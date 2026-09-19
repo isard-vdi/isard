@@ -23,6 +23,8 @@ const MIG_API = "/api/v4/admin/storage/migrations";
 const POOLS_API = "/api/v4/storage-pools";
 const CATEGORIES_API = "/api/v4/admin/items/categories";
 const MIG_TERMINAL = ["completed", "completed_with_skips", "failed", "canceled"];
+// deletable = terminal (nothing more happens) or never started (no in-flight work)
+const MIG_DELETABLE = MIG_TERMINAL.concat(["planned", "draft"]);
 const MIG_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // status -> {bootstrap label class, font-awesome icon, human tooltip}
@@ -369,6 +371,13 @@ function migLogButton (m) {
   return `<button class="btn btn-xs btn-default mig-log" data-mig="${migEscape(m.id)}" title="Download the full per-disk audit report (CSV)." data-toggle="tooltip"><i class="fa fa-download"></i> Log</button>`;
 }
 
+// Delete button for a terminal or never-started job. Carries the status + disk
+// count so the click handler's confirm() can state exactly what is being removed.
+function migDeleteButton (m) {
+  const items = (m.totals || {}).items_total || 0;
+  return `<button class="btn btn-xs btn-danger mig-delete" data-mig="${migEscape(m.id)}" data-status="${migEscape(m.status)}" data-items="${migEscape(items)}" title="Delete this job and its ledger rows. The disks are not touched." data-toggle="tooltip"><i class="fa fa-trash"></i> Delete</button>`;
+}
+
 // Which admin actions make sense for a given status (so we don't offer Start on
 // an already-running job, or Pause on a paused one).
 function migActionEnabled (status, action) {
@@ -384,8 +393,9 @@ function migActionEnabled (status, action) {
 }
 
 function migActionButtons (m) {
+  const del = MIG_DELETABLE.indexOf(m.status) !== -1 ? " " + migDeleteButton(m) : "";
   if (MIG_TERMINAL.indexOf(m.status) !== -1) {
-    return migStatusBadge(m.status) + " " + migLogButton(m);
+    return migStatusBadge(m.status) + " " + migLogButton(m) + del;
   }
   const btn = function (action, cls, icon, text, tip) {
     const off = migActionEnabled(m.status, action) ? "" : "disabled";
@@ -395,7 +405,7 @@ function migActionButtons (m) {
     ${btn("start", "success", "fa-play", "Start", "Start or resume this migration.")}
     ${btn("pause", "warning", "fa-pause", "Pause", "Pause after in-flight disks finish; resume later with no data loss.")}
     ${btn("cancel", "danger", "fa-stop", "Cancel", "Stop and abandon this migration. Already-moved disks stay in the destination.")}
-    ${migLogButton(m)}`;
+    ${migLogButton(m)}${del}`;
 }
 
 function migCard (label, value, tip) {
@@ -1215,6 +1225,29 @@ $(document).ready(function () {
       })
       .fail(function (xhr) {
         migToast("Log download failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+      });
+  });
+
+  // Delete a terminal / never-started job; confirm() states the status and disk
+  // count first. The disks are ledger rows, not storage, so nothing on disk moves.
+  $("#migrations").on("click", ".mig-delete", function (e) {
+    e.stopPropagation();
+    const $btn = $(this);
+    const id = $btn.data("mig");
+    const status = $btn.data("status");
+    const items = $btn.data("items");
+    if (!window.confirm(
+      "Delete migration " + id + "?\n" +
+      "Status: " + status + "\n" +
+      "Disks in the ledger: " + items + "\n\n" +
+      "This removes the job and its ledger rows. The disks themselves are not touched."
+    )) return;
+    $btn.prop("disabled", true);
+    $.ajax({ type: "DELETE", url: `${MIG_API}/${encodeURIComponent(id)}` })
+      .done(function () { migToast("Migration deleted", "success"); loadMigrations(); })
+      .fail(function (xhr) {
+        migToast("Delete failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+        $btn.prop("disabled", false);
       });
   });
 

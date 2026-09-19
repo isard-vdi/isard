@@ -37,6 +37,7 @@ from api.schemas.admin.storage_migration import (
     MigrationConfigData,
     MigrationConfigUpdateData,
     MigrationCreateData,
+    MigrationDeleteResponse,
     MigrationItemsPageResponse,
     MigrationListResponse,
     MigrationPathPrefixesResponse,
@@ -320,6 +321,32 @@ async def admin_storage_migration_status(
             request,
             "internal_server",
             "Failed to read migration status",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.delete(
+    "/admin/storage/migrations/{migration_id}",
+    tags=_TAGS,
+    response_model=MigrationDeleteResponse,
+    summary="Delete a terminal or never-started storage-disk migration",
+    description="Remove a completed / completed_with_skips / failed / canceled or "
+    "never-started (planned / draft) job and its per-disk ledger rows. Any other "
+    "status is live work and is refused with 428. The disks are not touched.",
+    responses={428: {"model": ErrorResponse}, **_ERRS},
+)
+async def admin_storage_migration_delete(request: Request, migration_id: str):
+    try:
+        return await asyncio.to_thread(
+            AdminStorageMigrationService.delete, migration_id
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to delete migration",
             traceback.format_exc(),
         )
 

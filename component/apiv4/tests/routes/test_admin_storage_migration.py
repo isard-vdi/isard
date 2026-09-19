@@ -641,6 +641,73 @@ class TestConfig:
         assert "verify" in resp.text
 
 
+# ── delete ──────────────────────────────────────────────────────────────────
+class TestDelete:
+    def test_delete_terminal_removes_job_and_items(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="completed")],
+                "storage_migration_item": [_item("a"), _item("b")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == "mig-1"
+        assert body["status"] == "completed"
+        assert body["deleted_items"] == 2
+
+    def test_delete_planned_is_allowed(self, test_client):
+        # never started -> no in-flight work, safe to abandon
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="planned")],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+
+    def test_delete_running_refused_428(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="running")],
+                "storage_migration_item": [_item("a")],
+            },
+        )
+        assert resp.status_code == 428
+        assert resp.json()["description_code"] == "storage_migration_not_deletable"
+
+    def test_delete_missing_404(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.models.storage_migration.StorageMigration.exists",
+            staticmethod(lambda mid: False),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/ghost",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration()]},
+        )
+        assert resp.status_code == 404
+
+    def test_delete_user_forbidden(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=MockJWT(role_id="user"),
+            db_tables_data={"storage_migration": [_migration(status="completed")]},
+        )
+        assert resp.status_code == 403
+
+
 # ── plan (mock the compute boundary) ────────────────────────────────────────
 class TestPlan:
     def test_plan_preview(self, monkeypatch, test_client):
