@@ -614,6 +614,40 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
     return payload
 
 
+def aggregate_summary(migration):
+    """Lean job summary for the ``storage:migration`` socket event: the persisted
+    aggregate (totals + state_counts) plus status, dates, ETA and the schedule
+    window, and NO per-tree list — so a change never ships (nor the webapp
+    repaints) thousands of trees; the trees are served paginated by /trees. Built
+    from the job row alone (the runner persists fresh totals each tick before it
+    signals), so it is O(1), never O(disks)."""
+    totals = getattr(migration, "totals", None) or {}
+    cfg = getattr(migration, "config", None) or {}
+    window = cfg.get("window") or {}
+    ewma = getattr(migration, "throughput_ewma", None) or {}
+    mbps = max(ewma.values()) if ewma else None
+    remaining = max(
+        0, int(totals.get("bytes_total") or 0) - int(totals.get("bytes_done") or 0)
+    )
+    eta = tree_eta_seconds(remaining, mbps)
+    cw = getattr(migration, "current_window", None)
+    return {
+        "id": migration.id,
+        "status": str(migration.status),
+        "created_at": getattr(migration, "created_at", None),
+        "last_activity_at": getattr(migration, "last_activity_at", None),
+        "selection": getattr(migration, "selection", None) or {},
+        "config": cfg,
+        "current_window": cw,
+        "eta_seconds": None if eta is None else int(eta),
+        "recurring": bool(cfg.get("recurring")),
+        "days": window.get("days") or [],
+        "next_run_seconds": (cw or {}).get("next_run_seconds"),
+        "totals": totals,
+        "state_counts": totals.get("state_counts", {}),
+    }
+
+
 def probe_actual_size(path, timeout=30):
     """Live ``qemu-img info -U --output=json`` probe -> ``actual-size`` bytes,
     or ``None`` on any error. Runs where the disks are mounted (storage worker);

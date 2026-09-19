@@ -679,6 +679,26 @@ function renderMigration (m) {
   migInitTooltips($(`#migrations tbody tr[data-mig="${m.id}"]`));
 }
 
+// per-migration debounce timers for the socket-driven trees refresh
+const migSocketDebounce = {};
+
+// Apply a socket update: refresh the ROW in place and, if the job is expanded,
+// debounce-reload only its CURRENT trees page — never repaint every tree.
+function migApplySocket (m) {
+  if (!m || !m.id) return;
+  migData[m.id] = m;
+  if (m.selection) migSelById[m.id] = m.selection;
+  const $row = $(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`);
+  if (!$row.length) { renderMigration(m); return; }
+  $row.replaceWith($(migRowHtml(m)).filter(".mig-row"));
+  migInitTooltips($(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`));
+  migSortRows();
+  if (migExpanded[m.id]) {
+    clearTimeout(migSocketDebounce[m.id]);
+    migSocketDebounce[m.id] = setTimeout(function () { migLoadTrees(m.id); }, 2000);
+  }
+}
+
 // Friendly placeholder when the table is empty.
 function migShowEmpty () {
   if ($("#migrations tbody tr").length) return;
@@ -1047,7 +1067,7 @@ function socketio_on () {
   socket.on("storage:migration", function (raw) {
     let m;
     try { m = (typeof raw === "string") ? JSON.parse(raw) : raw; } catch (e) { return; }
-    renderMigration(m);
+    migApplySocket(m);
   });
 }
 
