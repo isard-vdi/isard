@@ -47,6 +47,7 @@ HANDLERS = {
     "storage_delete": (storage.handle_storage_delete, SYNC),
     "storage_repair_result": (storage.handle_storage_repair_result, ASYNC),
     "storage_repair_size": (storage.handle_storage_repair_size, SYNC),
+    "clear_pending_action": (storage.handle_clear_pending_action, SYNC),
     "update_status": (storage.handle_update_status, ASYNC),
     # media
     "media_update": (media.handle_media_update, SYNC),
