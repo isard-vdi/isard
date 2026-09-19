@@ -730,7 +730,15 @@ function migRenderSummary (totals) {
   const nmTotal = totals.not_moving_total || 0;
   if (nmTotal) {
     const parts = Object.keys(nm).sort().map(function (k) { return nm[k] + " " + k; });
-    $("#mig_sum_stay").html(nmTotal + " <small>(" + parts.join(", ") + ")</small>").parent().show();
+    // which disks stay and why, so a pool that does not empty is explained
+    // before the job runs rather than found out afterwards
+    const stay = totals.not_moving_disks || [];
+    const stayLines = stay.slice(0, 8).map(function (d) {
+      return (d.storage_id || "?") + ": " + (d.kind || "?") + " (by " + (d.classified_by || "?") + ")";
+    }).join("\n");
+    const stayExtra = stay.length > 8 ? "\n… and " + (stay.length - 8) + " more" : "";
+    $("#mig_sum_stay").html(nmTotal + " <small>(" + parts.join(", ") + ")</small>").parent().show()
+      .attr("title", migEscape(stayLines + stayExtra));
   } else {
     $("#mig_sum_stay").parent().hide();
   }

@@ -50,12 +50,34 @@ def test_walk_topo_single_node():
 # --------------------------------------------------------------------------- #
 # classify_kind
 # --------------------------------------------------------------------------- #
-def test_classify_kind():
-    assert mig.classify_kind(has_children=True, perms=["r"]) == "template"
-    assert mig.classify_kind(has_children=True, perms=["r", "w"]) == "template"
-    assert mig.classify_kind(has_children=False, perms=["r", "w"]) == "desktop"
-    assert mig.classify_kind(has_children=False, perms=["r"]) == "template"
-    assert mig.classify_kind(has_children=False, perms=None) == "template"
+def test_classify_kind_a_parent_is_a_template_whatever_uses_it():
+    assert mig.classify_kind(True, {"desktop"}, "desktop") == ("template", "children")
+
+
+def test_classify_kind_follows_the_domain_that_uses_the_disk():
+    assert mig.classify_kind(False, {"desktop"}, "template") == ("desktop", "domain")
+    assert mig.classify_kind(False, {"template"}, "desktop") == ("template", "domain")
+    # a disk shared by a template and a desktop is a template's disk
+    assert mig.classify_kind(False, {"desktop", "template"}, None) == (
+        "template",
+        "domain",
+    )
+
+
+def test_classify_kind_falls_back_to_the_directory_role_without_a_domain():
+    """A recycled desktop has no domain row any more; its directory still says
+    what it was."""
+    assert mig.classify_kind(False, set(), "desktop") == ("desktop", "path")
+    assert mig.classify_kind(False, None, "template") == ("template", "path")
+    assert mig.classify_kind(False, None, None) == ("template", "default")
+
+
+def test_classify_kind_takes_no_perms():
+    """The write-permission marker is written once at row creation and never
+    maintained, so it must not be a classification input at all."""
+    import inspect
+
+    assert "perms" not in inspect.signature(mig.classify_kind).parameters
 
 
 # --------------------------------------------------------------------------- #
@@ -240,6 +262,13 @@ class _FakeStorageProcessed:
     @staticmethod
     def get_storage_actual_size(sid):
         return 1000
+
+
+@pytest.fixture(autouse=True)
+def _no_domains(monkeypatch):
+    """These plans have no domains behind them: kinds come from the fake's
+    ``pool_usage`` (the directory role), never from a database."""
+    monkeypatch.setattr(mig, "domain_kinds_by_storage", lambda ids: {})
 
 
 def test_build_plan_resolves_dst_dir_once_per_node_multipath(monkeypatch):

@@ -131,6 +131,18 @@ def _serialize(m: StorageMigration) -> dict:
     }
 
 
+def _resummarize(items, walk, order):
+    """Totals over disks plus media, keeping what only the disk walk knows: the
+    disks the selection leaves behind and the trees it could not place."""
+    return mig.summarize_plan(
+        items,
+        not_moving=walk.get("not_moving_by_kind"),
+        not_moving_disks=walk.get("not_moving_disks"),
+        excluded=walk.get("excluded_trees"),
+        order=order,
+    )
+
+
 class AdminStorageMigrationService:
     """Admin storage-disk migration orchestration."""
 
@@ -241,7 +253,7 @@ class AdminStorageMigrationService:
             return cached
         dst_pool = cls._dst_pool(selection)
         roots = mig.roots_for_selection(selection)
-        items, totals = mig.build_plan_for_roots(
+        items, walk = mig.build_plan_for_roots(
             "__preview__",
             roots,
             dst_pool,
@@ -251,7 +263,7 @@ class AdminStorageMigrationService:
         items = items + mig.build_media_plan(
             "__preview__", selection, dst_pool, item_kinds=selection.get("item_kinds")
         )
-        totals = mig.summarize_plan(items, order=order)
+        totals = _resummarize(items, walk, order)
         trees = _tree_summaries(items, order=order, budget=budget)
         totals["trees_within_budget"] = sum(1 for t in trees if t["within_budget"])
         totals["bytes_within_budget"] = sum(
@@ -350,7 +362,7 @@ class AdminStorageMigrationService:
             created_at=now,
             updated_at=now,
         )
-        items, _ = mig.build_plan_for_roots(
+        items, walk = mig.build_plan_for_roots(
             migration.id,
             roots,
             dst_pool,
@@ -360,7 +372,7 @@ class AdminStorageMigrationService:
         items = items + mig.build_media_plan(
             migration.id, selection, dst_pool, item_kinds=selection.get("item_kinds")
         )
-        totals = mig.summarize_plan(items, order=config.get("order"))
+        totals = _resummarize(items, walk, config.get("order"))
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals
