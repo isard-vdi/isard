@@ -1445,6 +1445,99 @@ $("#modalSparsify #send").on("click", function () {
 });
 
 
+// repair a damaged/leaky disk with `qemu-img check -r <what>`; the desktop must
+// be stopped (the API refuses with 428 otherwise)
+function repairStorage(storageId, what) {
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Repair storage ${storageId} with 'qemu-img check -r ${what}'? Its desktop must be stopped.`,
+    hide: false,
+    opacity: 0.9,
+    type: 'error',
+    confirm: { confirm: true },
+    buttons: { closer: false, sticker: false },
+    history: { history: false },
+    addclass: 'pnotify-center-large',
+    width: '550'
+  }).get().on('pnotify.confirm', function () {
+    document.body.classList.add('loading-cursor');
+    var notify = new PNotify();
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v4/item/storage/${storageId}/repair/${what}`,
+      contentType: 'application/json',
+      success: function () {
+        document.body.classList.remove('loading-cursor');
+        notify.update({
+          title: 'Repair queued',
+          text: `Queued repair (${what}) on ${storageId}. The row will refresh as it progresses.`,
+          type: 'success', hide: true, delay: 4000, icon: 'fa fa-success', opacity: 1
+        });
+        if (storagesOtherTable) storagesOtherTable.ajax.reload(null, false);
+      },
+      error: function (xhr) {
+        document.body.classList.remove('loading-cursor');
+        notify.update({
+          title: 'ERROR repairing storage',
+          text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+          type: 'error', hide: true, delay: 5000, icon: 'fa fa-alert-sign', opacity: 1
+        });
+      }
+    });
+  });
+}
+
+$(document).on('click', '.btn-repair-leaks', function () {
+  repairStorage($(this).data('id'), 'leaks');
+});
+
+$(document).on('click', '.btn-repair-all', function () {
+  repairStorage($(this).data('id'), 'all');
+});
+
+// batch-repair every ready disk still carrying a repair_leaks mark (healthy but
+// wasting space) through the pending-actions index
+$(document).on('click', '#btn-repair-all-pending-leaks', function () {
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Repair ALL disks still carrying a 'repair_leaks' mark (qemu-img check -r leaks)? They are healthy but wasting space.",
+    hide: false,
+    opacity: 0.9,
+    type: 'error',
+    confirm: { confirm: true },
+    buttons: { closer: false, sticker: false },
+    history: { history: false },
+    addclass: 'pnotify-center-large',
+    width: '550'
+  }).get().on('pnotify.confirm', function () {
+    document.body.classList.add('loading-cursor');
+    var notify = new PNotify();
+    $.ajax({
+      type: 'PUT',
+      url: '/api/v4/items/storage/repair/leaks',
+      contentType: 'application/json',
+      success: function (data) {
+        document.body.classList.remove('loading-cursor');
+        notify.update({
+          title: 'Repair queued',
+          text: `Queued a leak repair on ${data.queued} disk(s).`,
+          type: 'success', hide: true, delay: 4000, icon: 'fa fa-success', opacity: 1
+        });
+        storage_ready.ajax.reload(null, false);
+      },
+      error: function (xhr) {
+        document.body.classList.remove('loading-cursor');
+        notify.update({
+          title: 'ERROR repairing pending leaks',
+          text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+          type: 'error', hide: true, delay: 5000, icon: 'fa fa-alert-sign', opacity: 1
+        });
+      }
+    });
+  });
+});
+
+
 $(document).on('click', '.btn-move', function () {
   element = $(this);
   var storageId = element.data("id");
@@ -1761,7 +1854,15 @@ function createDatatable(tableId, status, initCompleteFn = null) {
       {
         title: 'Status',
         data: 'status',
-        filter: true
+        filter: true,
+        render: function (data, type, row, meta) {
+          // a damaged disk carries WHY it is damaged; show it inline so the
+          // admin can tell a repairable leak set from real corruption
+          if (type === 'display' && data === 'damaged' && row.damage_reason) {
+            return `${data} <span class="label label-danger" title="${row.damage_reason}">${row.damage_reason}</span>`;
+          }
+          return data;
+        }
       },
       {
         title: 'Path',
@@ -1873,6 +1974,10 @@ function createDatatable(tableId, status, initCompleteFn = null) {
           }
           if (data.status === "orphan") {
             buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-orphan" title="Delete orphan storage"><i class="fa fa-trash"></i></button>`);
+          }
+          if (data.status === "damaged") {
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-repair-all" title="Repair all (qemu-img check -r all)"><i class="fa fa-wrench"></i></button>`);
           }
           return buttons.join(' ');
         }

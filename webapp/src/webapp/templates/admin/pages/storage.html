@@ -82,6 +82,12 @@
             </select>
           </div>
         </div>
+        <div style="display:block;">
+          <button type="button" id="btn-repair-all-pending-leaks" class="btn btn-warning"
+            title="Repair every ready disk still carrying a repair_leaks mark (qemu-img check -r leaks)">
+            <i class="fa fa-medkit"></i> Repair all pending leaks
+          </button>
+        </div>
       </div>
     </div>
     {% endif %}
