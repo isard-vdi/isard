@@ -336,3 +336,144 @@ test.describe('Admin Storage-pool migration — on-damaged policy', () => {
     expect(body.config.on_damaged).toBe('continue')
   })
 })
+
+// The per-job "Apply" form (fix/4242) sends only the fields that differ from the
+// job's stored config (PUT /admin/storage/migrations/{id}/config), confirm()s a
+// change that weakens a running job's guarantee and tags it confirm_weakening, and
+// freezes verify once the job is live. The list, per-job detail and PUT are stubbed;
+// the assertions read the PUT body the form builds.
+test.describe('Admin Storage-pool migration — running-job config apply', () => {
+  const GB = 1024 * 1024 * 1024
+  const json = (body) => (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+
+  // A job whose config round-trips through the form, so a single edit is the only
+  // field the diff sends. min_free is a whole number of GB so it survives the GB<->
+  // bytes conversion unchanged.
+  function job(id, status) {
+    return {
+      id,
+      status,
+      selection: { kind: 'pool', src_pool_id: 'e2e-pool-src', dst_pool_id: 'e2e-pool-dst', item_kinds: [] },
+      config: {
+        parallelism: 2,
+        bwlimit_kbs: 0,
+        verify: true,
+        force_stop_desktops: false,
+        recurring: false,
+        rescan_cadence: 'edge_on_drain',
+        failure_policy: 'retry_quarantine',
+        quarantine_after: 3,
+        max_bytes_per_occurrence: 0,
+        min_free_bytes: 10 * GB,
+      },
+      totals: {},
+      created_by: 'admin',
+      created_at: 0,
+      updated_at: 0,
+    }
+  }
+
+  // Stub the page reads plus the migrations list/detail, and capture every PUT to a
+  // job's /config into the returned array.
+  async function stubJobs(page, jobs) {
+    await stubMigrationApis(page, {})
+    // the real list endpoint wraps rows as { migrations: [...] }
+    await page.route(/\/api\/v4\/admin\/storage\/migrations(\?|$)/, json({ migrations: jobs }))
+    const puts = []
+    for (const j of jobs) {
+      await page.route(new RegExp(`/api/v4/admin/storage/migrations/${j.id}(\\?|$)`), json(j))
+      await page.route(new RegExp(`/api/v4/admin/storage/migrations/${j.id}/config`), (route) => {
+        if (route.request().method() === 'PUT') puts.push(route.request().postDataJSON())
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+      })
+    }
+    return puts
+  }
+
+  // Open the page and expand one job's row so its Apply form is on screen.
+  async function openJobForm(page, id) {
+    await page.goto(STORAGE_POOLS_URL)
+    const row = page.locator(`#migrations tr.mig-row[data-mig="${id}"]`)
+    await row.waitFor({ state: 'visible', timeout: 10000 })
+    await row.click()
+    const form = page.locator(`form.mig-config[data-mig="${id}"]`)
+    await form.waitFor({ state: 'visible', timeout: 10000 })
+    return form
+  }
+
+  test('SM11: editing one field applies only that field (PUT carries just parallelism)', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubJobs(page, [job('mig-run', 'running')])
+    const form = await openJobForm(page, 'mig-run')
+
+    await form.locator('.cfg-parallel').fill('4')
+    const putReq = page.waitForRequest(
+      (r) => /\/migrations\/mig-run\/config/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 8000 },
+    )
+    await form.locator('.mig-config-apply').click()
+    const body = (await putReq).postDataJSON()
+    expect(Object.keys(body).sort()).toEqual(['parallelism'])
+    expect(body.parallelism).toBe(4)
+  })
+
+  test('SM12: lowering keep-free weakens the job — confirmed, the PUT carries confirm_weakening', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubJobs(page, [job('mig-run', 'running')])
+    const form = await openJobForm(page, 'mig-run')
+    let dialogShown = false
+    page.on('dialog', (d) => {
+      dialogShown = true
+      d.accept()
+    })
+
+    await form.locator('.cfg-minfree-gb').fill('5')
+    const putReq = page.waitForRequest(
+      (r) => /\/migrations\/mig-run\/config/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 8000 },
+    )
+    await form.locator('.mig-config-apply').click()
+    const body = (await putReq).postDataJSON()
+    expect(dialogShown).toBe(true)
+    expect(Object.keys(body).sort()).toEqual(['confirm_weakening', 'min_free_bytes'])
+    expect(body.confirm_weakening).toBe(true)
+    expect(body.min_free_bytes).toBe(5 * GB)
+  })
+
+  test('SM13: rejecting the weakening confirmation sends no PUT', async ({
+    authenticatedPage: page,
+  }) => {
+    const puts = await stubJobs(page, [job('mig-run', 'running')])
+    const form = await openJobForm(page, 'mig-run')
+    let dialogShown = false
+    page.on('dialog', (d) => {
+      dialogShown = true
+      d.dismiss()
+    })
+
+    await form.locator('.cfg-minfree-gb').fill('5')
+    await form.locator('.mig-config-apply').click()
+    await page.waitForTimeout(1000)
+    expect(dialogShown).toBe(true)
+    expect(puts).toHaveLength(0)
+  })
+
+  test('SM14: verify is frozen on a running job and editable on a planned one', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubJobs(page, [job('mig-run', 'running'), job('mig-plan', 'planned')])
+    await page.goto(STORAGE_POOLS_URL)
+
+    const runRow = page.locator('#migrations tr.mig-row[data-mig="mig-run"]')
+    await runRow.waitFor({ state: 'visible', timeout: 10000 })
+    await runRow.click()
+    await expect(page.locator('form.mig-config[data-mig="mig-run"] .cfg-verify')).toBeDisabled()
+
+    const planRow = page.locator('#migrations tr.mig-row[data-mig="mig-plan"]')
+    await planRow.click()
+    await expect(page.locator('form.mig-config[data-mig="mig-plan"] .cfg-verify')).toBeEnabled()
+  })
+})
