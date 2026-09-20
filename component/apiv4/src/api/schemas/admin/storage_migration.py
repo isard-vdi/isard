@@ -91,6 +91,10 @@ class MigrationConfigData(BaseModel):
     min_free_bytes: int = Field(default=0, ge=0)
     #: system == the recycle bin's global delete action; delete needs verify on
     source_disposition: Literal["system", "recycle_bin", "delete"] = "system"
+    #: Free-space floor on the destination as a PERCENTAGE of its physical size,
+    #: 0 = off. Checked at start (428 if breached) and each tick (pause). Coexists
+    #: with min_free_bytes, most restrictive wins. Default 10.
+    min_free_pct: int = Field(default=10, ge=0, le=100)
     #: Usage-age threshold in DAYS, tied to ``order``: oldest_first moves only
     #: trees unused for at least N days, newest_first only those used within N.
     #: None == off. UI converts days/weeks/months to days; requires an order.

@@ -1489,3 +1489,131 @@ class TestUsageAgeThreshold:
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
         assert resp.status_code == 400
+
+
+# ── free-space percentage floor (min_free_pct) ───────────────────────────────
+class TestMinFreePct:
+    def _fixed_reading(self, monkeypatch, reading):
+        monkeypatch.setattr(
+            "api.services.admin.storage_migration."
+            "AdminStorageMigrationService._read_dst_free_space",
+            staticmethod(lambda pool, timeout=10.0: reading),
+        )
+
+    def test_start_refused_when_below_floor(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, (5, 100))  # 5% free
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 50})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 428
+        assert resp.json()["description_code"] == "storage_migration_min_free_pct"
+
+    def test_start_allowed_when_above_floor(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, (80, 100))  # 80% free
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 50})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "running"
+
+    def test_start_fails_open_when_probe_unreadable(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, None)  # probe could not read the pool
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 99})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 200  # fail open: per-move floor + tick pause remain
+
+    def test_create_defaults_min_free_pct_to_10(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [_item(f"{mid}--r", migration_id=mid, state="pending")],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={"selection": {"kind": "pool", "dst_pool_id": "dst"}},
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_pct"] == 10
+
+    def test_create_min_free_pct_changeable(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [_item(f"{mid}--r", migration_id=mid, state="pending")],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"min_free_pct": 25},
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_pct"] == 25

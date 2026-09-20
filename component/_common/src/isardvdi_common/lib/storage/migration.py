@@ -282,6 +282,37 @@ def tree_within_age_threshold(
     return order_key >= cutoff
 
 
+def free_pct(free_bytes, total_bytes):
+    """Percentage of the destination's space that is free, or ``None`` when it
+    cannot be computed (missing reading, or a zero/absent total). Clamped to
+    ``[0, 100]`` so a momentarily-inconsistent reading cannot report a nonsense
+    percentage."""
+    if free_bytes is None or not total_bytes:
+        return None
+    return max(0.0, min(100.0, free_bytes / total_bytes * 100))
+
+
+def space_floor_breached(free_bytes, total_bytes, min_free_pct, min_free_bytes=0):
+    """Whether the destination's free space is below EITHER floor — the most
+    restrictive wins. The percentage floor is read against ``free/total``; the
+    byte floor is the absolute ``min_free_bytes`` the per-move worker guard
+    already enforces. Each is disabled by 0/None independently.
+
+    An unknown reading (``free_bytes`` is ``None``) NEVER breaches: the runner
+    reads space through a worker task that can legitimately have no answer yet,
+    and failing that open leaves the per-move worker floor as the backstop rather
+    than pausing a healthy job on a missing probe."""
+    if free_bytes is None:
+        return False
+    if min_free_bytes and free_bytes < min_free_bytes:
+        return True
+    if min_free_pct:
+        pct = free_pct(free_bytes, total_bytes)
+        if pct is not None and pct < min_free_pct:
+            return True
+    return False
+
+
 def build_tree_items(migration_id, root_id, get_children, node_info, order=None):
     """Build the ``storage_migration_item`` dicts (state ``pending``) for ONE
     tree, in topo order.

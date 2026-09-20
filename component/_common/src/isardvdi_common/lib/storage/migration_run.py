@@ -70,6 +70,9 @@ log = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = "default"
 RSYNC_TIMEOUT = 43200  # 12h, matching Storage.rsync
+#: Refresh the destination free-space reading (pool_free_space probe) at least
+#: this often; below the 60s tick so every tick sees a reading no older than one.
+FREE_SPACE_STALE_S = 45
 #: stream the change-handler consumes; XADD a migration progress event here so
 #: how many ticks a force-stopped desktop may stay un-Stopped before the disk
 #: is failed — surfaces a stuck force-stop instead of looping forever (the
@@ -199,7 +202,7 @@ def _job_abandoned(task):
 
 
 class MigrationRunner:
-    def __init__(self, migration_id, *, job_status_fn=job_status):
+    def __init__(self, migration_id, *, job_status_fn=job_status, free_space_fn=None):
         self.migration_id = migration_id
         self.migration = StorageMigration(migration_id)
         selection = self.migration.selection or {}
@@ -207,6 +210,9 @@ class MigrationRunner:
         self.config = self.migration.config or {}
         self.user_id = self.migration.created_by or "admin"
         self.job_status_fn = job_status_fn
+        # (free_bytes, total_bytes)|None for the min_free_pct floor; the default
+        # reads the destination via an async pool_free_space task (no mounts here).
+        self.free_space_fn = free_space_fn or self._probe_free_space
 
     # -- helpers ----------------------------------------------------------- #
     def _items(self):
@@ -610,6 +616,95 @@ class MigrationRunner:
         ewma = dict(self.migration.throughput_ewma or {})
         ewma[key] = mig.ewma_update(ewma.get(key), mbps)
         self.migration.throughput_ewma = ewma
+
+    # -- free-space percentage floor (start gate is in the apiv4 service) ---- #
+    def _probe_free_space(self):
+        """``(free_bytes, total_bytes)`` for the destination, or ``None`` until a
+        reading is available. The runner has no pool mounts, so space is read via
+        an async ``pool_free_space`` storage task: read a finished probe's result,
+        (re-)enqueue a fresh one when the last reading is missing or stale, and
+        cache it on the migration so the reading survives across 60s ticks."""
+        probe = dict(getattr(self.migration, "space_probe", None) or {})
+        task_id = probe.get("task_id")
+        if task_id and Task.exists(task_id):
+            try:
+                task = Task(task_id)
+                status = task.job_status
+            except Exception:
+                status, task = None, None
+            if status and mig._job_finished(status):
+                result = (task.result if task else None) or {}
+                probe = {
+                    "free_bytes": result.get("free_bytes"),
+                    "total_bytes": result.get("total_bytes"),
+                    "source": result.get("source"),
+                    "at": time(),
+                    "task_id": None,
+                }
+                self.migration.space_probe = probe
+            elif status and mig._job_failed(status):
+                probe["task_id"] = None
+                self.migration.space_probe = probe
+        probe = dict(getattr(self.migration, "space_probe", None) or {})
+        if not probe.get("task_id"):
+            at = probe.get("at")
+            if at is None or (time() - at) > FREE_SPACE_STALE_S:
+                path = self.dst_pool.mountpoint
+                queue = self._pool_queue(path, "pool_free_space")
+                if self.lane_is_drainable(Task._redis, queue):
+                    probe["task_id"] = self._enqueue(
+                        "pool_free_space", queue, {"path": path}
+                    )
+                    self.migration.space_probe = probe
+        free, total = probe.get("free_bytes"), probe.get("total_bytes")
+        return None if free is None else (free, total)
+
+    def _space_floor_breached(self):
+        """Whether the destination has dropped below the free-space floor
+        (percentage and/or bytes). Only for an actively-moving job; a complete or
+        idle one has nothing to protect, and an unknown reading never breaches."""
+        min_free_pct = int(self.config.get("min_free_pct") or 0)
+        min_free_bytes = int(self.config.get("min_free_bytes") or 0)
+        if not (min_free_pct or min_free_bytes):
+            return False
+        if str(self.migration.status) not in (
+            MigrationStatus.RUNNING.value,
+            MigrationStatus.WINDOW_CLOSED.value,
+        ):
+            return False
+        if self.is_complete():
+            return False
+        reading = self.free_space_fn()
+        if reading is None:
+            return False
+        free, total = reading
+        return mig.space_floor_breached(free, total, min_free_pct, min_free_bytes)
+
+    def _pause_for_space(self):
+        """Pause the job and record why in the durable log. No more moves are
+        enqueued (the scheduler stops driving a paused job); in-flight moves
+        finish on the worker and the admin resumes once space is reclaimed."""
+        probe = getattr(self.migration, "space_probe", None) or {}
+        free, total = probe.get("free_bytes"), probe.get("total_bytes")
+        pct = mig.free_pct(free, total)
+        min_free_pct = int(self.config.get("min_free_pct") or 0)
+        shown = "unknown" if pct is None else f"{pct:.1f}%"
+        self._log(
+            "paused_min_free",
+            f"destination below the free-space floor ({shown} free, floor "
+            f"{min_free_pct}%); pausing, no more moves enqueued",
+            free_bytes=free,
+            total_bytes=total,
+            free_pct=pct,
+            min_free_pct=min_free_pct,
+        )
+        self.migration.status = MigrationStatus.PAUSED.value
+
+    def _log(self, event, message, **data):
+        """Append one entry to the migration's durable ``logs`` list."""
+        entry = {"at": time(), "event": event, "message": message}
+        entry.update({k: v for k, v in data.items() if v is not None})
+        self.migration.logs = list(self.migration.logs or []) + [entry]
 
     def _publish_progress(self):
         """Best-effort XADD of a migration progress event so the change-handler
@@ -1379,6 +1474,15 @@ class MigrationRunner:
         # mid-chain when the window closes. Computed first: it gates the re-scan
         # and the autostart suppression below.
         has_window, win_open, remaining_s = self._window_state()
+
+        # Free-space floor (min_free_pct): a running job whose destination has
+        # dropped below the floor is PAUSED before any more moves are enqueued
+        # (in-flight ones finish). Checked while the window is open, when trees
+        # would otherwise start/advance; the start gate is the apiv4 service's.
+        if not finishing and win_open and self._space_floor_breached():
+            self._pause_for_space()
+            self._publish_progress()
+            return [("__space__", None, "paused_min_free")]
 
         # RECURRING re-scan (per rescan_cadence): re-resolve the selection and add
         # newly-matching disks (occurrence edge also re-arms failed/skipped disks

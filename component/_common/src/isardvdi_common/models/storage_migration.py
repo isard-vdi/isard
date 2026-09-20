@@ -312,6 +312,10 @@ class StorageMigrationModel(BaseModel):
     #: re-scan; drives fresh-occurrence detection for a recurring job. None until
     #: the first occurrence has been scanned. Runtime state — never in config.
     last_occurrence: str | None = None
+    #: last destination free-space reading + in-flight probe task id for the
+    #: min_free_pct tick floor: {free_bytes, total_bytes, source, at, task_id}.
+    #: Runtime state, refreshed each tick; None until the first probe returns.
+    space_probe: dict | None = None
     logs: list = Field(default_factory=list)
     created_by: str | None = None
     created_at: float | None = None

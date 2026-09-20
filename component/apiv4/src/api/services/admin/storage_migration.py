@@ -29,7 +29,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from os.path import dirname
-from time import time
+from time import sleep, time
 from zoneinfo import ZoneInfo
 
 from api.schemas.admin.storage_migration import MigrationConfigData
@@ -567,6 +567,79 @@ class AdminStorageMigrationService:
             now = datetime.now(timezone.utc)
         return mig.next_run_for_window(window, now)
 
+    @staticmethod
+    def _read_dst_free_space(dst_pool, timeout=10.0):
+        """(free_bytes, total_bytes) of the destination pool via a pool_free_space
+        storage task (the API has no pool mounts), or None on no-consumer /
+        timeout / failure — the caller then fails OPEN, leaving the per-move
+        worker floor and the tick pause as the backstops."""
+        from isardvdi_common.lib import queue_tiers
+
+        path = dst_pool.mountpoint
+        tier = queue_tiers.normalize_tier(DEFAULT_PRIORITY, "pool_free_space")
+        queue = f"storage.{dst_pool.id}.{tier}"
+        decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+        if decision == "reject" and ctx.get("reason") == "no_consumer":
+            return None
+        try:
+            task_id = Task(
+                task="pool_free_space",
+                queue=queue,
+                user_id="admin",
+                job_kwargs={"kwargs": {"path": path}},
+            ).id
+        except Exception:
+            return None
+        deadline = time() + timeout
+        while time() < deadline:
+            if not Task.exists(task_id):
+                return None
+            task = Task(task_id)
+            status = task.job_status
+            if mig._job_finished(status):
+                result = task.result or {}
+                return result.get("free_bytes"), result.get("total_bytes")
+            if mig._job_failed(status):
+                return None
+            sleep(0.5)
+        return None
+
+    @classmethod
+    def _assert_min_free_pct(cls, m: StorageMigration) -> None:
+        """Refuse a start when the destination is already below the free-space
+        floor (428), reading the physical figure through a storage task. Fails
+        OPEN on an unreadable pool: the tick pause and per-move floor still cover
+        it, and refusing every start on a probe failure would be worse."""
+        config = m.config or {}
+        min_free_pct = int(config.get("min_free_pct") or 0)
+        min_free_bytes = int(config.get("min_free_bytes") or 0)
+        if not (min_free_pct or min_free_bytes):
+            return
+        dst_id = (m.selection or {}).get("dst_pool_id")
+        if not dst_id or not StoragePool.exists(dst_id):
+            return
+        reading = cls._read_dst_free_space(StoragePool(dst_id))
+        if reading is None:
+            return
+        free, total = reading
+        if not mig.space_floor_breached(free, total, min_free_pct, min_free_bytes):
+            return
+        pct = mig.free_pct(free, total)
+        shown = "unknown" if pct is None else f"{pct:.1f}%"
+        raise Error(
+            "precondition_required",
+            f"Destination pool {dst_id} is {shown} free, below the "
+            f"{min_free_pct}% floor; not starting the migration",
+            description_code="storage_migration_min_free_pct",
+            data={
+                "free_bytes": free,
+                "total_bytes": total,
+                "free_pct": pct,
+                "min_free_pct": min_free_pct,
+                "min_free_bytes": min_free_bytes,
+            },
+        )
+
     @classmethod
     def set_action(cls, migration_id: str, action: str) -> dict:
         if not StorageMigration.exists(migration_id):
@@ -577,6 +650,11 @@ class AdminStorageMigrationService:
                 "precondition_required",
                 f"Migration {migration_id} is {m.status} and can no longer be {action}ed",
             )
+        # Start (incl. resuming a paused job): refuse if the destination is below
+        # the free-space floor, rather than starting a job that would only fail or
+        # pause on its first tick.
+        if action == "start":
+            cls._assert_min_free_pct(m)
         # Cancel = finish-current-tree: a started job drains its in-flight tree
         # (and restores autostart) via finishing_tree before becoming canceled;
         # the reconciler performs that transition. See mig.cancel_target.
