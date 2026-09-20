@@ -34,6 +34,7 @@ from typing import Literal, Optional
 
 from api import admin_router
 from api.schemas.admin.storage_migration import (
+    MigrationCheckResponse,
     MigrationConfigData,
     MigrationCreateData,
     MigrationListResponse,
@@ -234,6 +235,35 @@ async def admin_storage_migration_status(request: Request, migration_id: str):
             request,
             "internal_server",
             "Failed to read migration status",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/migrations/{migration_id}/check",
+    tags=_TAGS,
+    response_model=MigrationCheckResponse,
+    summary="Check every ready disk of a migration before it runs",
+    description="Enqueues an integrity check on each ready disk of the migration so "
+    "its damage/leaks are marked before the run; the status endpoint then reports "
+    "the census (checked/leaks/corruptions) and the damaged not_moving_disks.",
+    responses=_ERRS,
+)
+async def admin_storage_migration_check(request: Request, migration_id: str):
+    try:
+        result = await asyncio.to_thread(
+            AdminStorageMigrationService.check_disks,
+            request.token_payload,
+            migration_id,
+        )
+        return MigrationCheckResponse(**result)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check migration disks",
             traceback.format_exc(),
         )
 

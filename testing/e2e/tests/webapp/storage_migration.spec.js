@@ -135,4 +135,40 @@ test.describe('Admin Storage-pool migration — on_damaged repair options (#4238
     await page.selectOption('#mig_on_damaged', 'repair_leaks')
     await expect(page.locator('#mig_on_damaged')).toHaveValue('repair_leaks')
   })
+
+  test('SM5: Check disks first fires the pre-flight check on the migration', async ({
+    authenticatedPage: page,
+  }) => {
+    const j = (body) => (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+    const MIG = {
+      id: 'e2e-mig-1',
+      status: 'planned',
+      totals: {},
+      config: {},
+      selection: {},
+      trees: [],
+      items: [],
+      state_counts: {},
+      check_census: {},
+      not_moving_disks: [],
+    }
+    await stubMigrationApis(page, { items_total: 0 })
+    await page.route(/\/api\/v4\/admin\/storage\/migrations$/, j({ migrations: [MIG] }))
+    await page.route(/\/api\/v4\/admin\/storage\/migrations\/e2e-mig-1$/, j(MIG))
+    await page.route(
+      /\/api\/v4\/admin\/storage\/migrations\/e2e-mig-1\/check(\?|$)/,
+      j({ queued: 3, total: 5 }),
+    )
+    await page.goto(STORAGE_POOLS_URL)
+    const checkReq = page.waitForRequest(
+      (r) => /\/migrations\/e2e-mig-1\/check/.test(r.url()) && r.method() === 'POST',
+      { timeout: 10000 },
+    )
+    await page
+      .locator('.mig-action[data-mig="e2e-mig-1"][data-action="check"]')
+      .click()
+    const req = await checkReq
+    expect(req.method()).toBe('POST')
+  })
 })

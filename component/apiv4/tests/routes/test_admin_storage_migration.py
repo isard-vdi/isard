@@ -893,3 +893,79 @@ class TestPoolPlan:
         body = resp.json()
         assert body["pool_id"] == "dst"
         assert body["trees"][0]["desktops"] == 2
+
+
+# ── pre-flight check (#4238 phase 3): POST /{id}/check + status census ───────
+class TestPreflightCheck:
+    def test_check_queues_a_check_on_each_ready_disk(self, monkeypatch, test_client):
+        calls = []
+        monkeypatch.setattr(
+            "isardvdi_common.models.storage.Storage.check_integrity",
+            lambda self, user_id, **k: calls.append(self.id),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/check",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("mig-1--a", storage_id="sa"),
+                    _item("mig-1--b", storage_id="sb"),
+                ],
+                "storage": [
+                    {
+                        "id": "sa",
+                        "status": "ready",
+                        "directory_path": "/g",
+                        "type": "qcow2",
+                    },
+                    {
+                        "id": "sb",
+                        "status": "damaged",
+                        "directory_path": "/g",
+                        "type": "qcow2",
+                    },
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        # only the ready disk is (re)checked; the already-damaged one is skipped
+        assert body == {"queued": 1, "total": 2}
+        assert calls == ["sa"]
+
+    def test_status_reports_the_check_census(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("mig-1--a", storage_id="sa"),
+                    _item("mig-1--b", storage_id="sb"),
+                ],
+                "storage": [
+                    {
+                        "id": "sa",
+                        "status": "damaged",
+                        "damage_reason": "corruptions=2",
+                        "last_checked_at": 100,
+                        "directory_path": "/g",
+                        "type": "qcow2",
+                    },
+                    {
+                        "id": "sb",
+                        "status": "ready",
+                        "last_checked_at": 100,
+                        "pending_actions": {"repair_leaks": {}},
+                        "directory_path": "/g",
+                        "type": "qcow2",
+                    },
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["check_census"] == {"checked": 2, "leaks": 1, "corruptions": 1}
+        assert body["not_moving_disks"] == [{"id": "sa", "reason": "corruptions=2"}]

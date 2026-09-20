@@ -245,6 +245,17 @@ class MigrationStatusResponse(BaseModel):
     #: open / no schedule / cannot be computed)
     next_run_seconds: Optional[int] = None
     items: list[MigrationItemSummary] = Field(default_factory=list)
+    #: pre-flight census of the job's disks (populated by "check disks first"):
+    #: {checked, leaks, corruptions}, and the damaged ones as not_moving_disks.
+    check_census: dict = Field(default_factory=dict)
+    not_moving_disks: list[dict] = Field(default_factory=list)
+
+
+class MigrationCheckResponse(BaseModel):
+    """How many pre-flight integrity checks a "check disks first" queued."""
+
+    queued: int
+    total: int
 
 
 class MigrationPathPrefixesResponse(BaseModel):

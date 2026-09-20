@@ -37,10 +37,11 @@ from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage.migration_run import DEFAULT_PRIORITY
+from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
-from isardvdi_common.models.storage import get_queue_from_storage_pools
+from isardvdi_common.models.storage import Storage, get_queue_from_storage_pools
 from isardvdi_common.models.storage_migration import (
     MigrationStatus,
     StorageMigration,
@@ -393,7 +394,42 @@ class AdminStorageMigrationService:
         payload["state_counts"] = payload["totals"].get("state_counts", {})
         # Live next-run lookahead (needs now-in-tz) for the admin table.
         payload["next_run_seconds"] = cls._next_run_seconds(m)
+        # Pre-flight census of the job's disks (one indexed read): how many are
+        # checked / leaky / damaged, so "check disks first" surfaces a disk that
+        # would stall or pause the run before it starts. The damaged ones are
+        # not_moving_disks.
+        census = StorageProcessed.check_census(
+            [it["storage_id"] for it in items if it.get("storage_id")]
+        )
+        payload["not_moving_disks"] = census.pop("not_moving_disks")
+        payload["check_census"] = census
         return payload
+
+    @classmethod
+    def check_disks(cls, payload: dict, migration_id: str) -> dict:
+        """Enqueue an integrity check on every ready disk of a migration, so its
+        damage/leaks are known (and marked) before the run touches anything. A
+        disk a running desktop holds open or already busy is skipped, not an
+        error; returns how many checks were queued."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        items = StorageMigrationItem.dicts_by_migration(migration_id)
+        queued = 0
+        for it in items:
+            storage_id = it.get("storage_id")
+            if not storage_id or not Storage.exists(storage_id):
+                continue
+            storage = Storage(storage_id)
+            if storage.status != "ready":
+                continue
+            try:
+                storage.check_integrity(payload.get("user_id"))
+                queued += 1
+            except Error:
+                continue
+            except Exception:
+                continue
+        return {"queued": queued, "total": len(items)}
 
     @staticmethod
     def _next_run_seconds(m: StorageMigration):
