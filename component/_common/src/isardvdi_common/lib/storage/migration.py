@@ -1518,8 +1518,11 @@ CONFIG_FIELD_POLICY = {
     "quarantine_after": "hot",
     "max_bytes_per_occurrence": "hot",
     "order": "hot",
+    "usage_age_days": "hot",
+    "include_never_used": "hot",
     "on_damaged": "hot",
     "min_free_bytes": "hot_weakening",
+    "min_free_pct": "hot_weakening",
     "failure_policy": "hot_weakening",
     "force_stop_desktops": "hot_weakening",
     "source_disposition": "hot_weakening",
@@ -1544,7 +1547,7 @@ def config_is_live(status):
 
 
 def _weakens(field, old, new):
-    if field == "min_free_bytes":
+    if field in ("min_free_bytes", "min_free_pct"):
         return int(new or 0) < int(old or 0)
     if field == "failure_policy":
         return old == "pause" and new != "pause"

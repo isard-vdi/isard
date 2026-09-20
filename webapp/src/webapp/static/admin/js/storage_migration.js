@@ -51,6 +51,7 @@ const MIG_CADENCE_LABELS = {
 const MIG_LIVE = ["running", "paused", "window_closed", "budget_reached", "finishing_tree", "scheduled"];
 const MIG_WEAKENING = {
   min_free_bytes: function (o, n) { return (n || 0) < (o || 0); },
+  min_free_pct: function (o, n) { return (n || 0) < (o || 0); },
   failure_policy: function (o, n) { return o === "pause" && n !== "pause"; },
   force_stop_desktops: function (o, n) { return !!n && !o; },
   source_disposition: function (o, n) { return n === "delete" && o !== "delete"; }
