@@ -707,7 +707,10 @@ class Storage(RethinkCustomBase):
                 f"Storage {self.id} has the pending task {pending_task}",
                 description_code="storage_pending_task",
             )
-        return Task(*args, **kwargs).id
+        # ``enqueue=False`` hands back the un-enqueued Task (to enqueue after
+        # registering); the default returns the id, unchanged.
+        task = Task(*args, **kwargs)
+        return task if kwargs.get("enqueue") is False else task.id
 
     def find(self, user_id, blocking=True, retry=3):
         """
@@ -2081,13 +2084,9 @@ class Storage(RethinkCustomBase):
         )
         self._preflight_lane(create_queue, domain_id, self.pool.id, "desktop disk")
 
-        if Domain.exists(domain_id):
-            _d = Domain(domain_id)
-            if _d.status in ("Creating", "CreatingDiskFromScratch"):
-                _d.status = "CreatingDisk"
-
-        self.set_maintenance("create")
-        return self.create_task(
+        # Register before parking so a parked row always names its task;
+        # enqueue after the park, never before.
+        task = self.create_task(
             user_id=self.user_id,
             queue=f"storage.{self.pool.id}.{priority}",
             task="create",
@@ -2149,7 +2148,20 @@ class Storage(RethinkCustomBase):
                     ],
                 }
             ],
+            enqueue=False,
         )
+        try:
+            if Domain.exists(domain_id):
+                _d = Domain(domain_id)
+                if _d.status in ("Creating", "CreatingDiskFromScratch"):
+                    _d.status = "CreatingDisk"
+            self.set_maintenance("create")
+        except Exception:
+            # Drop the registered-but-unenqueued task so its index entry cannot
+            # read as live work.
+            task.cancel()
+            raise
+        return task.enqueue().id
 
     def enqueue_template_creation_chain_from_desktop(
         self,
