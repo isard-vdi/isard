@@ -476,10 +476,15 @@ class AdminStorageMigrationService:
                     "running job; send confirm_weakening to apply it",
                     description_code="migration_config_weakening_needs_confirm",
                 )
-        # the whole resulting config has to hold, not only the fields sent
-        merged = MigrationConfigData(**{**current, **changes}).model_dump()
-        cls._validate_recurring_schedule(merged)
-        m.config = merged
+        # Validate the whole resulting config, but persist only current+changes.
+        # A partial update must not backfill defaults onto a pre-upgrade job whose
+        # config predates these fields: an absent source_disposition means the
+        # legacy "park", and writing the "system" default would follow
+        # delete_action and could delete sources.
+        effective = {**current, **changes}
+        validated = MigrationConfigData(**effective).model_dump()
+        cls._validate_recurring_schedule(validated)
+        m.config = effective
         m.updated_at = time()
         return cls.get(migration_id)
 

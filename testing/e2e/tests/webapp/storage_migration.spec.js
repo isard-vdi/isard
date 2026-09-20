@@ -374,6 +374,23 @@ test.describe('Admin Storage-pool migration — running-job config apply', () =>
     }
   }
 
+  // A post-upgrade job: config carries every MigrationConfigData default. Editing
+  // one field must still diff to just that field (the defaults match current).
+  function jobFull(id, status) {
+    const j = job(id, status)
+    j.config = {
+      ...j.config,
+      on_damaged: 'pause',
+      source_disposition: 'system',
+      min_free_pct: 10,
+      order: 'none',
+      usage_age_days: null,
+      include_never_used: false,
+      load_policy: { mode: 'static', parallelism_min: 1, parallelism_max: 4, pause_above: 0, baseline_window: 5 },
+    }
+    return j
+  }
+
   // Stub the page reads plus the migrations list/detail, and capture every PUT to a
   // job's /config into the returned array.
   async function stubJobs(page, jobs) {

@@ -215,8 +215,10 @@ class TestConfig:
         assert cfg["parallelism"] == 2
         assert cfg["failure_policy"] == "pause"
         assert cfg["min_free_bytes"] == 10**9
-        # the response is the effective configuration, whole
-        assert "bwlimit_kbs" in cfg and "verify" in cfg
+        # a partial update returns current+changes, never a defaults-backfilled
+        # config: backfilling would silently rewrite a pre-upgrade job (see the
+        # legacy no-backfill test)
+        assert cfg == {**running["config"], "parallelism": 2}
 
     def test_weakening_a_guarantee_needs_an_explicit_confirmation(self, test_client):
         running = _migration(status="running")
@@ -279,6 +281,33 @@ class TestConfig:
 
         missing = set(MigrationConfigData.model_fields) - set(mig.CONFIG_FIELD_POLICY)
         assert not missing, f"fields without a live-change policy: {missing}"
+
+    def test_partial_update_on_a_legacy_job_does_not_backfill_new_fields(
+        self, test_client
+    ):
+        # a pre-upgrade job's config predates source_disposition / min_free_pct /
+        # on_damaged / usage_age_days / load_policy; editing one field must not
+        # backfill their defaults, or an absent source_disposition (legacy park)
+        # would silently become "system" and follow the global delete_action.
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 4},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 4
+        for f in (
+            "source_disposition",
+            "min_free_pct",
+            "on_damaged",
+            "usage_age_days",
+            "include_never_used",
+            "load_policy",
+        ):
+            assert f not in cfg, f"{f} was backfilled onto a legacy job's config"
 
     def test_config_on_terminal_job_conflicts(self, test_client):
         resp = test_client(

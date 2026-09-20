@@ -53,11 +53,15 @@ const MIG_WEAKENING = {
   force_stop_desktops: function (o, n) { return !!n && !o; },
   source_disposition: function (o, n) { return n === "delete" && o !== "delete"; }
 };
-// only the fields whose value differs from the job's current config
+// only the fields whose value differs from one PRESENT in the job's current
+// config. A field absent from current is not a change this form makes: a
+// pre-upgrade job predates it and sending the form default would silently
+// rewrite behaviour (e.g. source_disposition "system" vs the legacy "park").
 function migConfigChanges (current, wanted) {
   const out = {};
   Object.keys(wanted).forEach(function (k) {
-    if (JSON.stringify(wanted[k]) !== JSON.stringify(current[k] === undefined ? null : current[k])) out[k] = wanted[k];
+    if (current[k] === undefined) return;
+    if (JSON.stringify(wanted[k]) !== JSON.stringify(current[k])) out[k] = wanted[k];
   });
   return out;
 }

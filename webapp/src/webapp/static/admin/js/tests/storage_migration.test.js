@@ -190,6 +190,13 @@ const cur = { parallelism: 1, failure_policy: "pause", min_free_bytes: 1e9, veri
 assert.deepStrictEqual(changes.migConfigChanges(cur, { parallelism: 2, failure_policy: "pause", min_free_bytes: 1e9, verify: true }), { parallelism: 2 });
 assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 0, failure_policy: "retry_forever", parallelism: 2 }), ["min_free_bytes", "failure_policy"]);
 assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 2e9 }), []);
+// a pre-upgrade job predates source_disposition/min_free_pct/etc.; a field absent
+// from current is not a change, so editing parallelism must not backfill them
+// (else the legacy "park" would silently flip to source_disposition "system").
+assert.deepStrictEqual(
+  changes.migConfigChanges(cur, { parallelism: 2, source_disposition: "system", min_free_pct: 10, on_damaged: "pause", include_never_used: false, order: "none" }),
+  { parallelism: 2 },
+  "absent-from-current fields must not be sent on a legacy job");
 console.log("migConfigChanges / migWeakenedFields: PASS");
 
 console.log("ALL PASS");
