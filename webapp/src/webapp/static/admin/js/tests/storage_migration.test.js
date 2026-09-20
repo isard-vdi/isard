@@ -79,9 +79,12 @@ const bundle = [
   extract("migWindowFrom"),
   extract("migItemKinds"),
   extract("migSelection"),
-  // migCreateConfig calls it, so the bundle needs it or the file dies at the
-  // first migCreateConfig assertion with a bare ReferenceError
+  // migCreateConfig calls these, so the bundle needs them or the file dies at
+  // the first migCreateConfig assertion with a bare ReferenceError
   extract("migGbToBytes"),
+  extract("migUsageAgeUnitDays"),
+  extract("migUsageAgeDays"),
+  extract("migAgeConfig"),
   extract("migCreateConfig")
 ].join("\n");
 const factory = new Function(
@@ -162,6 +165,24 @@ assert.strictEqual(a.migCreateConfig().order, "none");
 a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_order": "oldest_first" } });
 assert.strictEqual(a.migCreateConfig().order, "oldest_first");
 console.log("migCreateConfig order: PASS");
+
+// min_free_pct: the form defaults it to 10, and a chosen value travels.
+a = api({ vals: { "#mig_min_free_pct": "10" } });
+assert.strictEqual(a.migCreateConfig().min_free_pct, 10);
+a = api({ vals: { "#mig_min_free_pct": "25" } });
+assert.strictEqual(a.migCreateConfig().min_free_pct, 25);
+console.log("migCreateConfig min_free_pct: PASS");
+
+// usage_age_days: only travels with an order (the API rejects it with none),
+// and days/weeks/months convert to days.
+a = api({ vals: { "#mig_order": "oldest_first", "#mig_usage_age_value": "7", "#mig_usage_age_unit": "days" } });
+assert.strictEqual(a.migCreateConfig().usage_age_days, 7);
+a = api({ vals: { "#mig_order": "newest_first", "#mig_usage_age_value": "2", "#mig_usage_age_unit": "weeks" } });
+assert.strictEqual(a.migCreateConfig().usage_age_days, 14);
+// a threshold with no order is dropped rather than sent (would be a 400)
+a = api({ vals: { "#mig_order": "none", "#mig_usage_age_value": "7" } });
+assert.strictEqual(a.migCreateConfig().usage_age_days, null);
+console.log("migCreateConfig usage_age_days: PASS");
 
 // source disposition: absent -> "system" (follow the global setting), a chosen
 // value travels, and the per-job form offers the same three values
