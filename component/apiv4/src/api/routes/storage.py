@@ -703,11 +703,14 @@ async def repair_storage(request: Request, storage_id: str, what: str):
 )
 async def batch_repair_pending_leaks(request: Request, limit: int | None = None):
     try:
-        queued = await asyncio.to_thread(
+        result = await asyncio.to_thread(
             StorageService.batch_repair_leaks, request.token_payload, limit
         )
         return JSONResponse(
-            content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
+            content=StorageRepairBatchResponse(
+                queued=result["queued"],
+                skipped_has_descendants=result["skipped_has_descendants"],
+            ).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
