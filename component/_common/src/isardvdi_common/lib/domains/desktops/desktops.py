@@ -792,20 +792,26 @@ class DesktopsProcessed(RethinkSharedConnection):
                 description_code="invalid_desktop_data",
             )
         if insert:
-            if soft:
-                with cls._rdb_context():
-                    r.table("domains").insert(valid_desktop, durability="soft").run(
-                        cls._rdb_connection
-                    )
-            else:
-                with cls._rdb_context():
-                    r.table("domains").insert(valid_desktop).run(cls._rdb_connection)
+            try:
+                if soft:
+                    with cls._rdb_context():
+                        r.table("domains").insert(valid_desktop, durability="soft").run(
+                            cls._rdb_connection
+                        )
+                else:
+                    with cls._rdb_context():
+                        r.table("domains").insert(valid_desktop).run(
+                            cls._rdb_connection
+                        )
 
-            if pending_storage is not None:
-                pending_storage.enqueue_disk_creation_chain_for_domain(
-                    domain_id=valid_desktop["id"],
-                    priority=priority,
-                )
+                if pending_storage is not None:
+                    pending_storage.enqueue_disk_creation_chain_for_domain(
+                        domain_id=valid_desktop["id"],
+                        priority=priority,
+                    )
+            except Exception:
+                cls._rollback_new_from_template(valid_desktop["id"], pending_storage)
+                raise
         if image:
             image_data = image
             # ``domain_id`` is the optional pre-allocated id passed by
@@ -822,6 +828,49 @@ class DesktopsProcessed(RethinkSharedConnection):
             else:
                 Cards.upload(target_id, image_data)
         return new_desktop
+
+    @classmethod
+    def _rollback_new_from_template(cls, domain_id, pending_storage):
+        """Undo what this ``new_from_template`` inserted when the disk-creation
+        chain refuses, so a create that raced the reconcile leaves nothing to
+        block a retry (#3391): delete the domain row so its name frees, and the
+        storage row only if this call still owns it -- unstarted
+        (``non_existing``/``maintenance``) with no still-pending task on it. A
+        pending task means another actor (a reconcile ``find``) is settling the
+        row; a cancelled one (fix A cancels the task if the park fails) does not.
+        """
+        from isardvdi_common.lib.task_index import current_task_id
+        from isardvdi_common.models.task import Task
+
+        try:
+            Domain.delete(domain_id)
+        except Exception:
+            log.exception(
+                "new_from_template rollback: could not delete domain %s", domain_id
+            )
+        if pending_storage is None:
+            return
+        try:
+            fresh = (
+                Storage(pending_storage.id)
+                if Storage.exists(pending_storage.id)
+                else None
+            )
+            # A task owns the row only if it still exists AND is pending, like
+            # create_task's guard: a cancelled job (cancel keeps the rq hash) does not.
+            task_id = current_task_id(Task._redis, pending_storage.id)
+            live_task = bool(task_id and Task.exists(task_id) and Task(task_id).pending)
+            if (
+                fresh is not None
+                and fresh.status in ("non_existing", "maintenance")
+                and not live_task
+            ):
+                Storage.delete(pending_storage.id)
+        except Exception:
+            log.exception(
+                "new_from_template rollback: could not delete storage %s",
+                pending_storage.id,
+            )
 
     @classmethod
     def desktops_stop(
