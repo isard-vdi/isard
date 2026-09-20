@@ -823,3 +823,16 @@ test.describe('Admin Storage-pool migration — list, pagination and delete', ()
     await expect(page.locator('tr.mig-row[data-mig="stale"]')).toHaveCount(1)
   })
 })
+
+test.describe('Admin Storage-pool migration — on_damaged repair options', () => {
+  test('SM17: the Damaged-disk select offers the repair actions', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, { items_total: 0 })
+    await openNewMigrationModal(page)
+    await expect(page.locator('#mig_on_damaged option[value="repair_leaks"]')).toHaveCount(1)
+    await expect(page.locator('#mig_on_damaged option[value="repair_all"]')).toHaveCount(1)
+    await page.selectOption('#mig_on_damaged', 'repair_leaks')
+    await expect(page.locator('#mig_on_damaged')).toHaveValue('repair_leaks')
+  })
+})
