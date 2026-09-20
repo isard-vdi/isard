@@ -34,6 +34,7 @@ import json
 import subprocess
 from collections import Counter, deque
 from os.path import dirname
+from time import time
 
 from rethinkdb import r
 
@@ -238,6 +239,49 @@ def budget_prefix(ordered_trees, bytes_of, budget):
     return fitting
 
 
+#: one day in seconds — the unit ``usage_age_days`` is expressed in. The UI
+#: offers days / weeks / months and converts to days before it reaches here.
+_USAGE_AGE_DAY_SECONDS = 86400
+
+
+def tree_within_age_threshold(
+    order_key, order, now, usage_age_days, include_never_used=False
+):
+    """Whether a tree passes the usage-age threshold — i.e. it is selected to
+    MOVE (the migration does NOT stop at it).
+
+    The threshold composes with ``order`` and reads as one sentence:
+
+    * ``oldest_first`` — "move only what has NOT been used for at least N days":
+      a tree moves when its usage key is OLDER than the cutoff
+      (``order_key < now - N·86400``). It stops at (keeps) anything used within
+      the last N days.
+    * ``newest_first`` — "move only what HAS been used within the last N days":
+      a tree moves when its usage key is at or NEWER than the cutoff
+      (``order_key >= now - N·86400``). It stops at anything unused for N days.
+
+    A tree with NO usage date (``order_key is None``) is excluded on BOTH sides
+    unless ``include_never_used``: an unknown date is not evidence either way,
+    and silently sweeping every never-used disk into — or out of — a drain is the
+    surprise this guard exists to prevent.
+
+    No threshold (``usage_age_days`` falsy) or an orderless job (``order`` neither
+    ``oldest_first`` nor ``newest_first``) admits everything: the threshold is
+    meaningless without a direction to read it against, so it never filters
+    there. The API rejects ``order: none`` WITH a threshold up front (422); this
+    is the matching defence in the pure layer, so a config that slipped through
+    can never quietly move the wrong set.
+    """
+    if not usage_age_days or order not in ("oldest_first", "newest_first"):
+        return True
+    if order_key is None:
+        return bool(include_never_used)
+    cutoff = now - usage_age_days * _USAGE_AGE_DAY_SECONDS
+    if order == "oldest_first":
+        return order_key < cutoff
+    return order_key >= cutoff
+
+
 def build_tree_items(migration_id, root_id, get_children, node_info, order=None):
     """Build the ``storage_migration_item`` dicts (state ``pending``) for ONE
     tree, in topo order.
@@ -388,7 +432,13 @@ def _count_by_kind(item_dicts):
 
 
 def summarize_plan(
-    item_dicts, not_moving=None, not_moving_disks=None, order=None, excluded=None
+    item_dicts,
+    not_moving=None,
+    not_moving_disks=None,
+    order=None,
+    excluded=None,
+    age_excluded=None,
+    usage_age_days=None,
 ):
     """Aggregate per-job totals from the built item dicts.
 
@@ -440,6 +490,13 @@ def summarize_plan(
                 if it.get("tree_order_key") is None and "tree_order_key" in it
             }
         ),
+        #: usage-age threshold: the cutoff in days (None == off) and the
+        #: trees/disks/bytes that fell OUTSIDE it (do not move); the totals above
+        #: are then what falls WITHIN. Excluded trees carry no ledger row.
+        "usage_age_days": usage_age_days,
+        "usage_age_excluded_trees": len(age_excluded or []),
+        "usage_age_excluded_disks": sum(e["disks"] for e in (age_excluded or [])),
+        "usage_age_excluded_bytes": sum(e["bytes"] for e in (age_excluded or [])),
     }
 
 
@@ -1993,7 +2050,16 @@ def pool_plan_summary(pool_id, *, size_fn=None):
 # DB-driven layer (live)
 # --------------------------------------------------------------------------- #
 def build_plan_for_roots(
-    migration_id, root_ids, dst_pool, *, size_fn=None, item_kinds=None, order=None
+    migration_id,
+    root_ids,
+    dst_pool,
+    *,
+    size_fn=None,
+    item_kinds=None,
+    order=None,
+    usage_age_days=None,
+    include_never_used=False,
+    now=None,
 ):
     """Build pending ``storage_migration_item`` dicts for every tree rooted at
     ``root_ids``, migrating into ``dst_pool`` (a ``StoragePool``).
@@ -2014,6 +2080,14 @@ def build_plan_for_roots(
     recomputing it at run time would let a desktop somebody starts between
     planning and execution silently reorder the job, and under a byte budget
     that means moving something other than what the admin approved.
+
+    ``usage_age_days`` additionally DROPS every tree that falls outside
+    the usage-age threshold read against ``order`` (see
+    :func:`tree_within_age_threshold`): those trees get no ledger row and are
+    reported in the totals' ``usage_age_excluded_*`` instead. ``include_never_used``
+    keeps trees with no usage date. ``now`` is the reference time the threshold is
+    read against (defaults to the wall clock) — the runner passes a fresh one at
+    every recurring re-scan so the selection re-evaluates each occurrence.
 
     Returns ``(items, totals)``.
     """
@@ -2198,23 +2272,58 @@ def build_plan_for_roots(
                 }
             )
 
+    # The per-tree usage key is needed to ORDER (stamp it on the items) and to
+    # read the usage-age THRESHOLD against; compute it once when either asks.
+    keys = {}
+    if order in ("oldest_first", "newest_first") or usage_age_days:
+        keys = _compute_tree_order_keys(items, walked, st)
     if order in ("oldest_first", "newest_first"):
-        _stamp_tree_order_keys(items, walked, st)
+        for it in items:
+            it["tree_order_key"] = keys.get(it["tree_id"])
+
+    age_excluded = []
+    if usage_age_days:
+        now_ts = time() if now is None else now
+        by_tree = {}
+        for it in items:
+            by_tree.setdefault(it["tree_id"], []).append(it)
+        kept = []
+        for tree_id, tree_items in by_tree.items():
+            if tree_within_age_threshold(
+                keys.get(tree_id), order, now_ts, usage_age_days, include_never_used
+            ):
+                kept.extend(tree_items)
+            else:
+                age_excluded.append(
+                    {
+                        "tree_id": tree_id,
+                        "order_key": keys.get(tree_id),
+                        "disks": len(tree_items),
+                        "bytes": sum(
+                            int(it.get("size_bytes") or 0) for it in tree_items
+                        ),
+                    }
+                )
+        items = kept
+
     return items, summarize_plan(
         items,
         not_moving=not_moving,
         not_moving_disks=not_moving_disks,
         order=order,
         excluded=excluded,
+        age_excluded=age_excluded,
+        usage_age_days=usage_age_days,
     )
 
 
-def _stamp_tree_order_keys(items, walked, st):
-    """Write each item's ``tree_order_key`` — its tree's usage key.
+def _compute_tree_order_keys(items, walked, st):
+    """``{tree_id: usage key|None}`` for the built items — the max
+    ``domains.accessed`` of each ledger tree (:func:`tree_order_key`).
 
-    Only called when an order was asked for, so the default path pays nothing:
-    the usage dates need a second query, and a plan over a whole pool is already
-    thousands of disks.
+    Only called when an order OR a usage-age threshold was asked for, so the
+    default path pays nothing: the usage dates need a second query, and a plan
+    over a whole pool is already thousands of disks.
     """
     from isardvdi_common.models.domain import Domain
 
@@ -2239,9 +2348,7 @@ def _stamp_tree_order_keys(items, walked, st):
     by_tree = {}
     for it in items:
         by_tree.setdefault(it["tree_id"], []).append(it["storage_id"])
-    keys = {
+    return {
         tree_id: tree_order_key(movers, descendants_of, accessed.get)
         for tree_id, movers in by_tree.items()
     }
-    for it in items:
-        it["tree_order_key"] = keys[it["tree_id"]]

@@ -458,6 +458,11 @@ class MigrationRunner:
             self.dst_pool,
             item_kinds=selection.get("item_kinds"),
             order=self.config.get("order"),
+            # the usage-age threshold is re-evaluated against the CURRENT
+            # time (default now) every re-scan — that is what makes a recurring
+            # job's age-based split follow real usage as disks warm and cool.
+            usage_age_days=self.config.get("usage_age_days"),
+            include_never_used=bool(self.config.get("include_never_used")),
         )
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
@@ -479,6 +484,11 @@ class MigrationRunner:
             self.dst_pool,
             item_kinds=selection.get("item_kinds"),
             order=self.config.get("order"),
+            # re-evaluated against the current time each occurrence, so a
+            # disk that has warmed (or cooled) since the last pass moves into or
+            # out of the age-based selection accordingly.
+            usage_age_days=self.config.get("usage_age_days"),
+            include_never_used=bool(self.config.get("include_never_used")),
         )
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
