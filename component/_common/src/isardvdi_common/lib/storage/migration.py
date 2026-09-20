@@ -35,6 +35,7 @@ import subprocess
 from collections import Counter, deque
 from os.path import dirname
 from time import time
+from typing import NamedTuple
 
 from rethinkdb import r
 
@@ -1527,6 +1528,9 @@ CONFIG_FIELD_POLICY = {
     "force_stop_desktops": "hot_weakening",
     "source_disposition": "hot_weakening",
     "verify": "frozen",
+    # the adaptive throttle is meant to be retuned on a live job — its whole
+    # point is a knob an operator can move while a campaign runs.
+    "load_policy": "hot",
 }
 
 #: statuses in which the job may already have moved a disk
@@ -1573,6 +1577,200 @@ def config_change_verdicts(current, changes):
         elif policy == "hot_weakening" and _weakens(field, old, new):
             out.append((field, "weakening"))
     return out
+
+
+# Adaptive load policy (pure): a new signal goes in classify_load + the sampler.
+#: Safe defaults. ``static`` self-adjusts nothing.
+LOAD_POLICY_DEFAULTS = {
+    "mode": "static",
+    "parallelism_min": 1,
+    "parallelism_max": 4,
+    "pause_above": 0,  # Started-desktop hard ceiling; 0 == no load pause
+    "baseline_window": 5,  # NFS rpc/s samples kept to derive the idle baseline
+}
+
+#: Clean ticks required before stepping UP; down is immediate. The asymmetry is
+#: the hysteresis that keeps the loop from oscillating.
+LOAD_RAISE_AFTER_CLEAN_TICKS = 3
+
+#: NFS client rpc/s over baseline: above HIGH == busy, at/under LOW == idle,
+#: between == abstain (the dead band).
+_LOAD_NFS_HIGH_MARGIN = 0.5
+_LOAD_NFS_LOW_MARGIN = 0.2
+
+#: Started-desktop soft band as a fraction of the hard ``pause_above`` ceiling.
+_LOAD_DESKTOP_SOFT_HIGH = 0.75
+_LOAD_DESKTOP_SOFT_LOW = 0.5
+
+
+class LoadDecision(NamedTuple):
+    #: (new parallelism, action) is the contract; clean_ticks/reason ride along
+    #: so the runner persists one state and the UI one sentence.
+    parallelism: int
+    action: str  # hold | lower | raise | pause | resume
+    clean_ticks: int
+    reason: str
+
+
+def normalize_load_policy(raw):
+    """A full load_policy dict from a partial/None one, defaults filled."""
+    policy = dict(LOAD_POLICY_DEFAULTS)
+    if isinstance(raw, dict):
+        for key in LOAD_POLICY_DEFAULTS:
+            if raw.get(key) is not None:
+                policy[key] = raw[key]
+    return policy
+
+
+def load_policy_is_adaptive(config):
+    """True when this job's load policy is in ``adaptive`` mode."""
+    lp = (config or {}).get("load_policy") or {}
+    return str(lp.get("mode") or "static") == "adaptive"
+
+
+def load_policy_errors(config):
+    """Validation messages for a config's load_policy (pure); empty == valid.
+
+    ``parallelism_min <= parallelism_max`` always; in ``adaptive`` the current
+    ``parallelism`` must sit inside the range. ``static`` enforces nothing else.
+    """
+    lp = (config or {}).get("load_policy")
+    if not lp:
+        return []
+    policy = normalize_load_policy(lp)
+    errors = []
+    low, high = int(policy["parallelism_min"]), int(policy["parallelism_max"])
+    if low > high:
+        errors.append("load_policy.parallelism_min must be <= parallelism_max")
+    if str(policy["mode"]) == "adaptive":
+        par = int((config or {}).get("parallelism") or 1)
+        if not (low <= par <= high):
+            errors.append(
+                "parallelism must be within [parallelism_min, parallelism_max] "
+                "when load_policy.mode is adaptive"
+            )
+    return errors
+
+
+def _governor_vote(sample):
+    busy = sample.get("governor_busy")
+    if busy is None:
+        return None
+    return "busy" if busy else "idle"
+
+
+def _nfs_vote(sample):
+    rpc, base = sample.get("nfs_rpc_s"), sample.get("nfs_baseline")
+    if rpc is None or base is None:
+        return None
+    if base <= 0:
+        return "busy" if rpc > 0 else "idle"
+    if rpc > base * (1 + _LOAD_NFS_HIGH_MARGIN):
+        return "busy"
+    if rpc <= base * (1 + _LOAD_NFS_LOW_MARGIN):
+        return "idle"
+    return None
+
+
+def _desktop_vote(sample, policy):
+    started = sample.get("desktops_started")
+    ceiling = int((policy or {}).get("pause_above") or 0)
+    if started is None or ceiling <= 0:
+        return None
+    if started >= ceiling * _LOAD_DESKTOP_SOFT_HIGH:
+        return "busy"
+    if started <= ceiling * _LOAD_DESKTOP_SOFT_LOW:
+        return "idle"
+    return None
+
+
+def classify_load(sample, policy):
+    """``busy`` | ``idle`` | ``neutral`` from whatever signals ``sample`` carries.
+
+    ANY signal voting busy wins (react to the first sign of contention); ``idle``
+    only when every present signal agrees and at least one voted; an absent
+    signal abstains, so a new one can be added without touching this rule.
+    """
+    votes = [
+        v
+        for v in (
+            _governor_vote(sample),
+            _nfs_vote(sample),
+            _desktop_vote(sample, policy),
+        )
+        if v is not None
+    ]
+    if not votes:
+        return "neutral"
+    return "busy" if "busy" in votes else "idle"
+
+
+def load_over_hard_limit(sample, policy):
+    """True when the Started-desktop count is at/above ``pause_above``."""
+    ceiling = int((policy or {}).get("pause_above") or 0)
+    started = sample.get("desktops_started")
+    return ceiling > 0 and started is not None and started >= ceiling
+
+
+def _hard_limit_reason(sample, policy):
+    started = sample.get("desktops_started")
+    ceiling = int((policy or {}).get("pause_above") or 0)
+    return f"load over limit: {started} desktops started >= pause_above {ceiling}"
+
+
+def decide(sample, state, policy):
+    """Adaptive-load decision for ONE tick (pure).
+
+    ``state``: ``{parallelism, clean_ticks, paused_by_load}``. Returns a
+    ``LoadDecision``: the new parallelism, the action, the NEXT clean-tick
+    counter to persist, and a one-line reason for the log and the UI.
+    """
+    policy = normalize_load_policy(policy)
+    low, high = int(policy["parallelism_min"]), int(policy["parallelism_max"])
+    par = max(low, min(high, int(state.get("parallelism") or low)))
+    clean = int(state.get("clean_ticks") or 0)
+    paused = bool(state.get("paused_by_load"))
+    level = classify_load(sample, policy)
+    hard = load_over_hard_limit(sample, policy)
+
+    if paused:
+        if hard or level == "busy":
+            return LoadDecision(par, "hold", 0, _hard_limit_reason(sample, policy))
+        clean += 1
+        if clean >= LOAD_RAISE_AFTER_CLEAN_TICKS:
+            return LoadDecision(
+                par, "resume", 0, f"load cleared {clean} ticks: resume at {par}"
+            )
+        return LoadDecision(
+            par,
+            "hold",
+            clean,
+            f"load easing ({clean}/{LOAD_RAISE_AFTER_CLEAN_TICKS} clean): stay paused",
+        )
+
+    if hard:
+        return LoadDecision(par, "pause", 0, _hard_limit_reason(sample, policy))
+    if level == "busy":
+        if par > low:
+            return LoadDecision(
+                par - 1, "lower", 0, f"load high: parallelism {par} -> {par - 1}"
+            )
+        return LoadDecision(par, "hold", 0, f"load high, parallelism at min {low}")
+    if level == "idle":
+        clean += 1
+        if clean >= LOAD_RAISE_AFTER_CLEAN_TICKS and par < high:
+            return LoadDecision(
+                par + 1,
+                "raise",
+                0,
+                f"idle {clean} ticks: parallelism {par} -> {par + 1}",
+            )
+        if par >= high:
+            return LoadDecision(par, "hold", clean, f"idle, parallelism at max {high}")
+        return LoadDecision(
+            par, "hold", clean, f"idle ({clean}/{LOAD_RAISE_AFTER_CLEAN_TICKS} clean)"
+        )
+    return LoadDecision(par, "hold", 0, "load steady (dead band)")
 
 
 def task_error_line(exc_info, fallback):

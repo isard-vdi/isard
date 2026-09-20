@@ -41,7 +41,7 @@ from typing import Iterable, Literal
 from uuid import uuid4
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from rethinkdb import r
 
 
@@ -245,6 +245,26 @@ class MigrationSelection(BaseModel):
     tree_ids: list[str] = Field(default_factory=list)
 
 
+class MigrationLoadPolicy(BaseModel):
+    """Adaptive-load throttle. ``static`` self-adjusts nothing; ``adaptive``
+    samples real load each tick and steps ``parallelism`` within [min, max],
+    soft-pausing above ``pause_above`` Started desktops."""
+
+    mode: Literal["static", "adaptive"] = "static"
+    parallelism_min: int = Field(default=1, ge=1, le=64)
+    parallelism_max: int = Field(default=4, ge=1, le=64)
+    #: Started-desktop hard ceiling for the soft pause; 0 == no load pause.
+    pause_above: int = Field(default=0, ge=0)
+    #: NFS rpc/s samples kept to derive the idle baseline.
+    baseline_window: int = Field(default=5, ge=1)
+
+    @model_validator(mode="after")
+    def _min_le_max(self):
+        if self.parallelism_min > self.parallelism_max:
+            raise ValueError("parallelism_min must be <= parallelism_max")
+        return self
+
+
 class MigrationConfig(BaseModel):
     """Admin-set, per-job knobs."""
 
@@ -283,6 +303,8 @@ class MigrationConfig(BaseModel):
     #: a source that fails qemu-img check is marked damaged and its tree skipped;
     #: pause == stop the job for the admin, continue == go on with the rest
     on_damaged: Literal["pause", "continue"] = "pause"
+    #: adaptive-load throttle; None/static == fixed ``parallelism`` (the default).
+    load_policy: MigrationLoadPolicy | None = None
 
 
 class MigrationTotals(BaseModel):
@@ -317,6 +339,12 @@ class StorageMigrationModel(BaseModel):
     #: Runtime state, refreshed each tick; None until the first probe returns.
     space_probe: dict | None = None
     logs: list = Field(default_factory=list)
+    #: ``load`` == adaptive soft-pause (auto-resumes when load clears); anything
+    #: else (manual/failure/None) does NOT auto-resume. Runtime, never in config.
+    pause_reason: str | None = None
+    #: adaptive-load runtime: clean-tick counter, last action/reason and the
+    #: effective parallelism the loop settled on. Runtime, never in config.
+    load_state: dict = Field(default_factory=dict)
     created_by: str | None = None
     created_at: float | None = None
     updated_at: float | None = None

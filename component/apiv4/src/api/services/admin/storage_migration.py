@@ -184,6 +184,16 @@ class AdminStorageMigrationService:
             )
 
     @staticmethod
+    def _validate_load_policy(config: dict) -> None:
+        """Reject a load_policy whose bounds are inconsistent, or whose current
+        parallelism sits outside the adaptive range (checked on the merged
+        config, since a partial update may raise the floor without the
+        parallelism)."""
+        errors = mig.load_policy_errors(config)
+        if errors:
+            raise Error("bad_request", "; ".join(errors))
+
+    @staticmethod
     def _descriptor_claims_for(selection: dict) -> set:
         """Content-independent reservation descriptor for a selection (whole
         pool / path-in-pool / category assigned-pool-set), resolving the pool for
@@ -368,6 +378,7 @@ class AdminStorageMigrationService:
         """
         dst_pool = cls._dst_pool(selection)
         cls._validate_recurring_schedule(config)
+        cls._validate_load_policy(config)
         cls._check_no_overlap(selection, config)
         recurring = bool(config.get("recurring"))
         order = config.get("order")
@@ -709,6 +720,7 @@ class AdminStorageMigrationService:
         effective = {**current, **changes}
         validated = MigrationConfigData(**effective).model_dump()
         cls._validate_recurring_schedule(validated)
+        cls._validate_load_policy(validated)
         m.config = effective
         now = time()
         m.updated_at = now
