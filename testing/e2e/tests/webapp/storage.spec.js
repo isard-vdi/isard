@@ -1633,4 +1633,24 @@ test.describe('Admin Storage — webapp', () => {
       await expect(page.locator(c.modal)).not.toBeVisible()
     }
   })
+
+  // S25 — an orphan child must never poison its recovered parent, and must come
+  // back to ready once the parent is ready. Skipped and verified on the host with
+  // a control instead, for two independent reasons this suite cannot get past:
+  //   1. The recovery lives in change-handler (handle_storage_update_parent and
+  //      the _apply_storage_update ready cascade). Its result is only visible
+  //      after the storage worker + change-handler settle the chain, and this
+  //      suite stubs the find/check APIs (the seeds have no real disks), so no
+  //      chain runs under Playwright and no status transition is observable.
+  //   2. Even with real disks, a find on the CHILD is recovered by
+  //      storage_update_pool before storage_update_parent runs, so on a
+  //      two-level template→child the parent is never at risk and the gesture
+  //      does not distinguish the fix from main.
+  // Host verification (real stack, with control): dispatching
+  // handle_storage_update_parent with the child orphan flips a ready parent to
+  // `deleted` on main and leaves it untouched with the fix (child returned to
+  // ready, its Failed domain to Stopped); the ready cascade returns an orphan
+  // child to ready when its parent comes back. Covered by the change-handler
+  // unit tests. See the merge request for the measured before/after.
+  test.skip('S25: orphan child does not poison its recovered parent (host-verified)', async () => {})
 })
