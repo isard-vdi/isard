@@ -654,6 +654,10 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
         "selection": getattr(migration, "selection", None) or {},
         "config": cfg,
         "current_window": getattr(migration, "current_window", None),
+        # why a paused job is paused (load == adaptive soft-pause) and the last
+        # adaptive decision (effective parallelism + reason) for the admin row.
+        "pause_reason": getattr(migration, "pause_reason", None),
+        "load_state": getattr(migration, "load_state", None) or {},
         "eta_seconds": None if eta is None else int(eta),
         # schedule surface for the admin table (recurring badge + days + next-run)
         "recurring": bool(cfg.get("recurring")),

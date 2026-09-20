@@ -144,6 +144,8 @@ def _serialize(m: StorageMigration) -> dict:
         "selection": m.selection or {},
         "config": m.config or {},
         "totals": m.totals or {},
+        "pause_reason": m.pause_reason,
+        "load_state": m.load_state or {},
         "created_by": m.created_by,
         "created_at": m.created_at,
         "updated_at": m.updated_at,

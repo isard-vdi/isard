@@ -291,6 +291,10 @@ class MigrationResponse(BaseModel):
     selection: dict = Field(default_factory=dict)
     config: dict = Field(default_factory=dict)
     totals: MigrationTotalsResponse = Field(default_factory=MigrationTotalsResponse)
+    #: why a paused job is paused (``load`` == adaptive soft-pause) and the last
+    #: adaptive decision (effective parallelism + reason) for the admin row.
+    pause_reason: Optional[str] = None
+    load_state: dict = Field(default_factory=dict)
     created_by: Optional[str] = None
     created_at: Optional[float] = None
     updated_at: Optional[float] = None
@@ -330,6 +334,10 @@ class MigrationStatusResponse(BaseModel):
     trees: list[MigrationTreeSummary] = Field(default_factory=list)
     config: dict = Field(default_factory=dict)
     current_window: Optional[dict] = None
+    #: why a paused job is paused (``load`` == adaptive soft-pause) and the last
+    #: adaptive decision (effective parallelism + reason) for the admin row.
+    pause_reason: Optional[str] = None
+    load_state: dict = Field(default_factory=dict)
     eta_seconds: Optional[int] = None
     #: schedule surface for the admin table (recurring badge + days + next-run)
     recurring: bool = False

@@ -46,6 +46,7 @@ const MIG_STATUS = {
 const MIG_CADENCE_LABELS = {
   edge_on_drain: "Edge + on-drain", edge: "Edge only", continuous: "Continuous"
 };
+const MIG_LOAD_MODE_LABELS = { static: "Static", adaptive: "Adaptive" };
 // statuses in which the job may already have moved a disk: the server then
 // freezes verify and asks a confirmation to weaken a guarantee
 const MIG_LIVE = ["running", "paused", "window_closed", "budget_reached", "finishing_tree", "scheduled"];
@@ -305,9 +306,25 @@ function migScheduleLabel (m) {
   return s;
 }
 
+// Effective parallelism + last adaptive decision for an adaptive job's row.
+function migLoadBadge (m) {
+  const lp = (m.config || {}).load_policy || {};
+  if (lp.mode !== "adaptive") return "";
+  const ls = m.load_state || {};
+  const eff = ls.effective_parallelism != null
+    ? ls.effective_parallelism
+    : ((m.config || {}).parallelism != null ? m.config.parallelism : 1);
+  const loadPaused = m.pause_reason === "load";
+  const reason = ls.last_reason || (loadPaused ? "paused by load" : "adaptive");
+  const cls = loadPaused ? "label-warning" : "label-default";
+  return ` <span class="label ${cls} mig-load-parallel" title="Effective parallelism (adaptive)." data-toggle="tooltip">p=${migEscape(eff)}</span>`
+    + ` <span class="mig-load-reason text-muted" style="font-size:11px;" title="${migEscape(reason)}" data-toggle="tooltip">${migEscape(reason)}</span>`;
+}
+
 function migStatusCell (m) {
   let s = migStatusBadge(m.status);
   if (migRecurring(m)) s += ' <span class="label label-info" title="Recurring job — re-scans and runs again each window." data-toggle="tooltip"><i class="fa fa-repeat"></i></span>';
+  s += migLoadBadge(m);
   return s;
 }
 
@@ -421,6 +438,7 @@ function migCard (label, value, tip) {
 function migConfigControls (m) {
   const c = m.config || {};
   const w = c.window || {};
+  const lp = c.load_policy || {};
   const dis = MIG_TERMINAL.indexOf(m.status) !== -1 ? "disabled" : "";
   // once the job may have moved a disk, verify is frozen server-side
   const live = MIG_LIVE.indexOf(m.status) !== -1;
@@ -444,6 +462,20 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;" title="Disks copied at once. Higher = faster, more I/O." data-toggle="tooltip">Parallel
         <input type="number" class="form-control input-sm cfg-parallel" min="1" style="width:58px;" value="${migEscape(c.parallelism != null ? c.parallelism : 1)}" ${dis}>
+      </label>
+      <label style="margin-left:8px;" title="Adaptive throttles parallelism to real load each tick; static keeps it fixed." data-toggle="tooltip">Load
+        <select class="form-control input-sm cfg-load-mode" ${dis}>
+          ${migOpt(["static", "adaptive"], lp.mode || "static", MIG_LOAD_MODE_LABELS)}
+        </select>
+      </label>
+      <label style="margin-left:8px;" title="Adaptive range: parallelism stays between min and max." data-toggle="tooltip">min
+        <input type="number" class="form-control input-sm cfg-parallel-min" min="1" style="width:48px;" value="${migEscape(lp.parallelism_min != null ? lp.parallelism_min : 1)}" ${dis}>
+      </label>
+      <label style="margin-left:4px;" title="Adaptive range: parallelism stays between min and max." data-toggle="tooltip">max
+        <input type="number" class="form-control input-sm cfg-parallel-max" min="1" style="width:48px;" value="${migEscape(lp.parallelism_max != null ? lp.parallelism_max : 4)}" ${dis}>
+      </label>
+      <label style="margin-left:4px;" title="Adaptive: soft-pause the job above this many Started desktops. 0 = never." data-toggle="tooltip">pause&nbsp;above
+        <input type="number" class="form-control input-sm cfg-pause-above" min="0" style="width:58px;" value="${migEscape(lp.pause_above != null ? lp.pause_above : 0)}" ${dis}>
       </label>
       <label style="margin-left:8px;" title="Per-disk bandwidth cap in KB/s. 0 = unlimited." data-toggle="tooltip">bwlimit&nbsp;KB/s
         <input type="number" class="form-control input-sm cfg-bwlimit" min="0" style="width:84px;" value="${migEscape(c.bwlimit_kbs != null ? c.bwlimit_kbs : 0)}" ${dis}>
@@ -899,10 +931,32 @@ function migUpdateAgeLabel () {
     .prop("disabled", order === "none");
 }
 
+// Load policy (adaptive throttle) object from raw form values. Sent whole (it
+// is one config field, replaced as a unit on a partial update).
+function migLoadPolicyObj (mode, min, max, pauseAbove, baselineWindow) {
+  return {
+    mode: mode || "static",
+    parallelism_min: parseInt(min, 10) || 1,
+    parallelism_max: parseInt(max, 10) || 4,
+    pause_above: parseInt(pauseAbove, 10) || 0,
+    baseline_window: parseInt(baselineWindow, 10) || 5
+  };
+}
+
+// An absent load_policy and an inert static-default one mean the same thing, so
+// editing another field on an old (pre-feature) job must not inject a policy.
+function migLoadPolicyKey (lp) {
+  if (!lp) return "none";
+  if (lp.mode === "static" && (lp.parallelism_min || 1) === 1 &&
+      (lp.parallelism_max || 4) === 4 && (lp.pause_above || 0) === 0) return "none";
+  return JSON.stringify(lp);
+}
+
 function migCreateConfig () {
   return {
     bwlimit_kbs: parseInt($("#mig_bwlimit").val(), 10) || 0,
     parallelism: parseInt($("#mig_parallel").val(), 10) || 1,
+    load_policy: migLoadPolicyObj($("#mig_load_mode").val(), $("#mig_parallel_min").val(), $("#mig_parallel_max").val(), $("#mig_pause_above").val(), 5),
     window: migWindowFrom($("#mig_win_start").val(), $("#mig_win_end").val(), migDaysFrom($("#mig_days"))),
     verify: $("#mig_verify").is(":checked"),
     force_stop_desktops: $("#mig_force_stop").is(":checked"),
@@ -1359,6 +1413,7 @@ $(document).ready(function () {
     const $f = $(this).closest(".mig-config");
     const id = $f.data("mig");
     const current = $f.data("cfg") || {};
+    const lpWanted = migLoadPolicyObj($f.find(".cfg-load-mode").val(), $f.find(".cfg-parallel-min").val(), $f.find(".cfg-parallel-max").val(), $f.find(".cfg-pause-above").val(), (current.load_policy && current.load_policy.baseline_window) || 5);
     const wanted = {
       bwlimit_kbs: parseInt($f.find(".cfg-bwlimit").val(), 10) || 0,
       parallelism: parseInt($f.find(".cfg-parallel").val(), 10) || 1,
@@ -1383,6 +1438,11 @@ $(document).ready(function () {
       ? ageV * migUsageAgeUnitDays($f.find(".cfg-age-unit").val()) : null;
     wanted.include_never_used = $f.find(".cfg-include-never").is(":checked");
     if ($f.find(".cfg-verify").is(":disabled")) delete wanted.verify;
+    // only carry load_policy when it actually changed (an inert static default is
+    // the same as an old job's absent policy, so editing another field is clean).
+    if (migLoadPolicyKey(lpWanted) !== migLoadPolicyKey(current.load_policy)) {
+      wanted.load_policy = lpWanted;
+    }
     const body = migConfigChanges(current, wanted);
     if (!Object.keys(body).length) { $f.find(".mig-config-out").text("nothing changed"); return; }
     const weakened = migWeakenedFields(current, body);
