@@ -673,6 +673,12 @@ class AdminStorageMigrationService:
             m.status = mig.cancel_target(m.status)
         else:
             m.status = _ACTION_TARGET[action]
+        # An admin pause is manual, so the adaptive loop never auto-resumes it;
+        # starting clears the reason so a later load pause is recognised as such.
+        if action == "pause":
+            m.pause_reason = "manual"
+        elif action == "start":
+            m.pause_reason = None
         now = time()
         m.updated_at = now
         m.last_activity_at = now

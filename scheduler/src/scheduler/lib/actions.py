@@ -189,6 +189,9 @@ class Actions:
                 + StorageMigration.ids_by_status(MigrationStatus.FINISHING_TREE.value)
                 + StorageMigration.ids_by_status(MigrationStatus.SCHEDULED.value)
                 + StorageMigration.ids_by_status(MigrationStatus.BUDGET_REACHED.value)
+                # paused too: a load-paused adaptive job auto-resumes when load
+                # clears; advance() skips a manual/failure pause as not_drivable.
+                + StorageMigration.ids_by_status(MigrationStatus.PAUSED.value)
             )
         except Exception:
             log.error(

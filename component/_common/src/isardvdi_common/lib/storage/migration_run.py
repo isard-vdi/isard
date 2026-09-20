@@ -63,6 +63,7 @@ from isardvdi_common.models.storage_migration import (
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
 from redis.exceptions import LockError, RedisError
+from rethinkdb import r
 from rq.job import Job
 from rq.registry import StartedJobRegistry
 
@@ -73,6 +74,9 @@ RSYNC_TIMEOUT = 43200  # 12h, matching Storage.rsync
 #: Refresh the destination free-space reading (pool_free_space probe) at least
 #: this often; below the 60s tick so every tick sees a reading no older than one.
 FREE_SPACE_STALE_S = 45
+#: cap on the per-job load decision log so an adaptive campaign cannot grow it
+#: without bound; only real changes (not holds) are appended.
+LOAD_LOG_CAP = 200
 #: stream the change-handler consumes; XADD a migration progress event here so
 #: how many ticks a force-stopped desktop may stay un-Stopped before the disk
 #: is failed — surfaces a stuck force-stop instead of looping forever (the
@@ -202,7 +206,14 @@ def _job_abandoned(task):
 
 
 class MigrationRunner:
-    def __init__(self, migration_id, *, job_status_fn=job_status, free_space_fn=None):
+    def __init__(
+        self,
+        migration_id,
+        *,
+        job_status_fn=job_status,
+        free_space_fn=None,
+        load_sample_fn=None,
+    ):
         self.migration_id = migration_id
         self.migration = StorageMigration(migration_id)
         selection = self.migration.selection or {}
@@ -213,6 +224,9 @@ class MigrationRunner:
         # (free_bytes, total_bytes)|None for the min_free_pct floor; the default
         # reads the destination via an async pool_free_space task (no mounts here).
         self.free_space_fn = free_space_fn or self._probe_free_space
+        # the load sampler is injectable so a test drives the loop with a fixed
+        # sample; the default reads real signals (and a ledger sample_override).
+        self._load_sample_fn = load_sample_fn or self._sample_load
 
     # -- helpers ----------------------------------------------------------- #
     def _items(self):
@@ -1459,10 +1473,141 @@ class MigrationRunner:
         "blocked": _blocked,
     }
 
+    # -- adaptive load policy ---------------------------------------------- #
+    def _started_desktops_count(self):
+        """Cheapest honest signal of "the system is in use". None on any error,
+        so a DB blip abstains rather than reading as idle."""
+        try:
+            with Domain._rdb_context():
+                return int(
+                    r.table(Domain._rdb_table)
+                    .get_all("Started", index="status")
+                    .count()
+                    .run(Domain._rdb_connection)
+                )
+        except Exception:
+            log.exception("migration: could not count Started desktops")
+            return None
+
+    def _governor_busy(self):
+        """True if any governed worker is at its heavy cap or deferring; None
+        when no worker publishes status (signal absent) or on error."""
+        try:
+            conn = redis.from_url(
+                rq_url(),
+                decode_responses=True,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+            )
+            try:
+                keys = list(conn.scan_iter(match="governor:worker:*", count=100))
+                if not keys:
+                    return None
+                for key in keys:
+                    if any(v == "1" for v in conn.hmget(key, "deferring", "at_cap")):
+                        return True
+                return False
+            finally:
+                conn.close()
+        except Exception:
+            log.exception("migration: could not read governor worker status")
+            return None
+
+    def _sample_load(self):
+        """Real-load signals (best-effort; an absent one abstains in
+        classify_load): Started desktops always, the governor when workers
+        publish it. A ledger ``load_state.sample_override`` forces the sample for
+        a live reproduction."""
+        override = (self.migration.load_state or {}).get("sample_override")
+        if isinstance(override, dict):
+            return dict(override)
+        sample = {}
+        started = self._started_desktops_count()
+        if started is not None:
+            sample["desktops_started"] = started
+        governor = self._governor_busy()
+        if governor is not None:
+            sample["governor_busy"] = governor
+        return sample
+
+    def _append_load_log(self, action, reason, parallelism, sample, at):
+        entry = {
+            "at": at,
+            "event": f"load_{action}",
+            "reason": reason,
+            "parallelism": parallelism,
+            "sample": sample,
+        }
+        logs = list(self.migration.logs or [])
+        logs.append(entry)
+        self.migration.logs = logs[-LOAD_LOG_CAP:]
+
+    def _apply_load_policy(self):
+        """Sample load, run the pure decision, apply it: write ONLY parallelism
+        (merged over the current config, never resetting the rest), or soft-pause
+        / resume by load. Returns True if the job is load-paused after this tick
+        (the caller then drives no trees)."""
+        status = str(self.migration.status)
+        paused_by_load = (
+            status == MigrationStatus.PAUSED.value
+            and self.migration.pause_reason == "load"
+        )
+        if not paused_by_load:
+            # the loop only throttles a running job and only resumes its own
+            # pause; a manual/failure pause and every other parked status are left.
+            if status == MigrationStatus.PAUSED.value:
+                return True
+            if status != MigrationStatus.RUNNING.value:
+                return False
+        load_state = dict(self.migration.load_state or {})
+        sample = self._load_sample_fn()
+        state = {
+            "parallelism": int(self.config.get("parallelism") or 1),
+            "clean_ticks": int(load_state.get("clean_ticks") or 0),
+            "paused_by_load": paused_by_load,
+        }
+        decision = mig.decide(sample, state, self.config.get("load_policy"))
+        now = time()
+        if decision.action in ("lower", "raise"):
+            merged = {**self.config, "parallelism": decision.parallelism}
+            self.migration.config = merged
+            self.config = merged
+            self._append_load_log(
+                decision.action, decision.reason, decision.parallelism, sample, now
+            )
+        elif decision.action == "pause":
+            self.migration.pause_reason = "load"
+            self.migration.status = MigrationStatus.PAUSED.value
+            self._append_load_log(
+                decision.action, decision.reason, decision.parallelism, sample, now
+            )
+        elif decision.action == "resume":
+            self.migration.pause_reason = None
+            self.migration.status = MigrationStatus.RUNNING.value
+            self._append_load_log(
+                decision.action, decision.reason, decision.parallelism, sample, now
+            )
+        load_state.update(
+            clean_ticks=decision.clean_ticks,
+            last_action=decision.action,
+            last_reason=decision.reason,
+            effective_parallelism=decision.parallelism,
+            sample=sample,
+            at=now,
+        )
+        self.migration.load_state = load_state
+        return str(self.migration.status) == MigrationStatus.PAUSED.value
+
     # -- tick -------------------------------------------------------------- #
     def tick(self):
         """Advance every tree by at most one step. Returns a list of
         ``(tree_id, item_id|None, action)`` describing what happened."""
+        # Adaptive load policy runs BEFORE the tree-driving reads parallelism; a
+        # job parked by load drives no trees and resumes on a later clean tick.
+        if mig.load_policy_is_adaptive(self.config):
+            if self._apply_load_policy():
+                self._publish_progress()
+                return []
         # Cancel = finish-current-tree (P2.4): once an admin cancels, the job is
         # in finishing_tree — stop starting new trees (skip the not-started
         # ones), let in-flight trees finish, then flip to canceled.
@@ -1637,6 +1782,9 @@ class MigrationRunner:
             # mid-migration disk must not autostart) until the job truly
             # completes or is canceled.
             if cur != MigrationStatus.PAUSED.value:
+                # tag the reason so the adaptive loop never mistakes a failure
+                # pause for its own load pause and auto-resumes it.
+                self.migration.pause_reason = "failure"
                 self.migration.status = MigrationStatus.PAUSED.value
         elif self.is_complete():
             # Set the next status only on the TRANSITION (a recurring job stays in
@@ -1795,7 +1943,13 @@ def advance(migration_id, *, check_abandon=True):
     """
     if not StorageMigration.exists(migration_id):
         return "gone"
-    if str(StorageMigration(migration_id).status) not in _DRIVABLE_STATUSES:
+    m = StorageMigration(migration_id)
+    status = str(m.status)
+    # A load-paused adaptive job stays drivable so the loop can re-sample and
+    # resume it; a manual/failure pause does not (it waits for the admin).
+    if status not in _DRIVABLE_STATUSES and not (
+        status == MigrationStatus.PAUSED.value and m.pause_reason == "load"
+    ):
         return "not_drivable"
     # ONE connection per advance(), reused for acquire/reacquire/release, with a
     # socket timeout so a STALLED (not down) redis surfaces as an error instead of
