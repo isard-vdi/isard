@@ -88,6 +88,16 @@
             <i class="fa fa-medkit"></i> Repair all pending leaks
           </button>
         </div>
+        <div style="display:block; margin-top:8px;">
+          <label for="sweep-now-max-disks" style="font-weight:normal;">Max disks</label>
+          <input type="number" id="sweep-now-max-disks" min="0" value="50" style="width:80px;">
+          <label for="sweep-now-max-gib" style="font-weight:normal;">Max GiB</label>
+          <input type="number" id="sweep-now-max-gib" min="0" value="0" style="width:80px;">
+          <button type="button" id="btn-run-sweep-now" class="btn btn-primary"
+            title="Run one storage sweep pass now with the actions enabled in the sweep config">
+            <i class="fa fa-magic"></i> Run sweep now
+          </button>
+        </div>
       </div>
     </div>
     {% endif %}
@@ -115,6 +125,34 @@
     <div class="x_content">
       <p class="text-muted font-13 m-b-30"></p>
       <table id="storagesMaintenance" class="table" width="100%">
+        <thead>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3>Storages with a pending action<small> Select an action to load</small></h3>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <div class="col-md-4 col-sm-6 col-xs-12" style="margin-bottom: 15px;">
+        <select class="form-control" id="pending_action" name="pending_action">
+          <option value="none">Select pending action</option>
+          <option value="repair_leaks">repair_leaks</option>
+          <option value="review_damage">review_damage</option>
+          <option value="sparsify">sparsify</option>
+          <option value="rebase_backing">rebase_backing</option>
+          <option value="remeasure">remeasure</option>
+          <option value="delete_backup">delete_backup</option>
+        </select>
+      </div>
+      <table id="storagesPendingTable" class="table" width="100%">
         <thead>
         </thead>
         <tbody>

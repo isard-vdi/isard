@@ -932,6 +932,42 @@ Additionally, the admin action buttons on the row:
 
 ---
 
+## Scenario 27 — *Filter by pending action, and the Pending column* (#4241)
+
+### Given
+
+1. The storage page has a **Storages with a pending action** panel with a
+   `#pending_action` `<select>` (the `StoragePendingAction` vocabulary) that loads
+   `#storagesPendingTable` from `GET /admin/items/storage/pending/{action}` (by index),
+   and every storage table now has a **Pending** column rendering the keys of
+   `pending_actions`.
+
+### When / Then
+
+1. **S27** — selecting an action fires the pending GET and the loaded row shows the
+   pending-action key in its Pending column.
+2. **S27b** — the Ready table renders the Pending column header.
+
+## Scenario 28 — *Check integrity from the row*
+
+1. **S28** — a Ready row's **Check integrity** (`.btn-check-integrity`) button, confirmed
+   **Ok**, fires `PUT /admin/item/storage/{id}/check`.
+2. **S28b** — confirming **Cancel** fires no call.
+
+## Scenario 29 — *Sparsify from the row*
+
+1. **S29** — a Ready row's **Sparsify** (`.btn-sparsify-now`) button, confirmed **Ok**,
+   fires `PUT /item/storage/{id}/sparsify/priority/{priority}`.
+2. **S29b** — confirming **Cancel** fires no call.
+
+## Scenario 30 — *Run one sweep pass now*
+
+1. **S30** — the **Run sweep now** (`#btn-run-sweep-now`) button, confirmed **Ok**, fires
+   `POST /admin/storage/sweep/run` with the form budget.
+2. **S30b** — confirming **Cancel** fires no call.
+
+---
+
 ## Expected results — global summary
 
 | Scenario | Covered in test? | Key checks |

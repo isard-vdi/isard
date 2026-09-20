@@ -150,6 +150,33 @@ $(document).ready(function () {
     })
   })
 
+  // Pending-action filter: load the disks carrying a given pending action,
+  // oldest first, read by index from the pending route (options in the template).
+  $('#pending_action').on('change', function () {
+    const action = $(this).val();
+    const tableId = '#storagesPendingTable';
+    if ($.fn.dataTable.isDataTable(tableId)) {
+      $(tableId).DataTable().destroy();
+      $(tableId).empty();
+    }
+    if (action === 'none') return;
+    storagesPendingTable = createDatatable(
+      tableId, 'ready', null, `/api/v4/admin/items/storage/pending/${action}`
+    );
+    $(tableId + ' tbody').off('click').on('click', 'button', function () {
+      let tr = $(this).closest('tr');
+      let row = storagesPendingTable.row(tr);
+      switch ($(this).attr('id')) {
+        case 'btn-details':
+          showRowDetails(storagesPendingTable, tr, row);
+          break;
+        case 'btn-info':
+          openStorageSearchModal($(this).data('id'));
+          break;
+      }
+    });
+  });
+
   $('.mactionsStorage').on('change', function () {
     let action = $(this).val();
     let actionText = $(this).find('option:selected').text();
@@ -1537,6 +1564,79 @@ $(document).on('click', '#btn-repair-all-pending-leaks', function () {
   });
 });
 
+// row action: check a disk's integrity (qemu-img check) outside a migration
+$(document).on('click', '.btn-check-integrity', function () {
+  const id = $(this).data('id');
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Run an integrity check (qemu-img check) on ${id}?`,
+    hide: false, opacity: 0.9, confirm: { confirm: true },
+    buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v4/admin/item/storage/${id}/check`,
+      contentType: 'application/json',
+      success: function () {
+        new PNotify({ title: 'Check queued', text: `Integrity check queued on ${id}.`, type: 'success', hide: true, delay: 2500, opacity: 1 });
+      },
+      error: function (xhr) {
+        new PNotify({ title: 'ERROR checking storage', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+      }
+    });
+  }).on('pnotify.cancel', function () { });
+});
+
+// row action: sparsify a disk now
+$(document).on('click', '.btn-sparsify-now', function () {
+  const id = $(this).data('id');
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Sparsify disk ${id}?`,
+    hide: false, opacity: 0.9, confirm: { confirm: true },
+    buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v4/item/storage/${id}/sparsify/priority/default`,
+      contentType: 'application/json',
+      success: function () {
+        new PNotify({ title: 'Sparsify queued', text: `Sparsify queued on ${id}.`, type: 'success', hide: true, delay: 2500, opacity: 1 });
+      },
+      error: function (xhr) {
+        new PNotify({ title: 'ERROR sparsifying storage', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+      }
+    });
+  }).on('pnotify.cancel', function () { });
+});
+
+// batch: run one storage-sweep pass now with the enabled actions and the
+// budget from the form (calls the same endpoint the nightly cron uses)
+$(document).on('click', '#btn-run-sweep-now', function () {
+  const maxDisks = parseInt($('#sweep-now-max-disks').val()) || 0;
+  const maxGib = parseInt($('#sweep-now-max-gib').val()) || 0;
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: 'Run one storage sweep pass now, with the actions enabled in the sweep config?',
+    hide: false, opacity: 0.9, confirm: { confirm: true },
+    buttons: { closer: false, sticker: false }, addclass: 'pnotify-center-large'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'POST',
+      url: '/api/v4/admin/storage/sweep/run',
+      contentType: 'application/json',
+      data: JSON.stringify({ max_disks: maxDisks, max_bytes: maxGib * 1024 * 1024 * 1024 }),
+      success: function (r) {
+        new PNotify({ title: 'Sweep pass done', text: `Sweep result: ${JSON.stringify(r.actions)}`, type: 'success', hide: true, delay: 4000, opacity: 1 });
+        storage_ready.ajax.reload(null, false);
+      },
+      error: function (xhr) {
+        new PNotify({ title: 'ERROR running sweep', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+      }
+    });
+  }).on('pnotify.cancel', function () { });
+});
+
 
 $(document).on('click', '.btn-move', function () {
   element = $(this);
@@ -1807,23 +1907,25 @@ function loadTableFilters(table) {
   });
 }
 
-function createDatatable(tableId, status, initCompleteFn = null) {
+function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null) {
   return $(tableId).DataTable({
-    ajax: {
-      url: `/api/v4/admin/items/storage/by-status/${status}`,
-      contentType: 'application/json',
-      type: 'POST',
-      data: function () {
-        var categories = [];
-        categories = $('#filter-category #category').val();
-        if ($('#filter-category').length && status == "ready") {
-          return JSON.stringify({
-            'categories': categories
-          });
+    ajax: ajaxUrl
+      ? { url: ajaxUrl, contentType: 'application/json', type: 'GET' }
+      : {
+        url: `/api/v4/admin/items/storage/by-status/${status}`,
+        contentType: 'application/json',
+        type: 'POST',
+        data: function () {
+          var categories = [];
+          categories = $('#filter-category #category').val();
+          if ($('#filter-category').length && status == "ready") {
+            return JSON.stringify({
+              'categories': categories
+            });
+          }
+          return JSON.stringify({});
         }
-        return JSON.stringify({});
-      }
-    },
+      },
     sAjaxDataProp: '',
     language: {
       loadingRecords: '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -1929,6 +2031,18 @@ function createDatatable(tableId, status, initCompleteFn = null) {
       },
       { data: "perms", title: "Perms" },
       {
+        title: 'Pending',
+        data: 'pending_actions',
+        defaultContent: '-',
+        orderable: false,
+        render: function (data, type, row, meta) {
+          if (!data || !Object.keys(data).length) return '-';
+          return Object.keys(data)
+            .map(a => `<span class="label label-warning" title="pending action">${a}</span>`)
+            .join(' ');
+        }
+      },
+      {
         title: 'Last',
         data: 'last',
         render: function (last, type, full, meta) {
@@ -1968,6 +2082,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
           ];
           if (data.status === "ready") {
             buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-check-integrity" title="Check integrity (qemu-img check)"><i class="fa fa-stethoscope"></i></button>`);
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk"><i class="fa fa-compress"></i></button>`);
           }
           if (row.last_task_id) {
             buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.last_task_id}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
