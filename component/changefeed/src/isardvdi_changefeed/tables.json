@@ -271,6 +271,7 @@
       "parent",
       "task",
       "storages_with_uuid",
+      "pending_actions",
       {
         "progress": true
       },

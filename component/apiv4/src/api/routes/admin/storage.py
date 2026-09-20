@@ -185,6 +185,45 @@ async def admin_storage_by_status(
         )
 
 
+@manager_router.get(
+    "/admin/items/storage/pending/{action}",
+    tags=[tag],
+    response_model=list[AdminStorageItem],
+    summary="Get storages by pending action",
+    description="Get storage items carrying the given pending action, oldest first, "
+    "read by index. Admins see all; managers are scoped to their category.",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def admin_storage_by_pending_action(
+    request: Request,
+    action: str = Path(..., description="Pending action to filter by"),
+    limit: int | None = None,
+):
+    try:
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storages_by_pending_action,
+            request.token_payload,
+            action,
+            limit,
+        )
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get storages by pending action",
+            traceback.format_exc(),
+        )
+
+
 @manager_router.post(
     "/admin/items/storage/by-status/{status}",
     tags=[tag],

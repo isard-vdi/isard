@@ -102,6 +102,7 @@ class StorageHandler(BaseHandler):
             "progress",
             "status_time",
             "qemu-img-info",
+            "pending_actions",
         ):
             if key in dumped:
                 payload[key] = dumped[key]
