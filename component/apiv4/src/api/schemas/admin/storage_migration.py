@@ -348,6 +348,17 @@ class MigrationStatusResponse(BaseModel):
     #: per-disk rows, only when the request asks (?items=true); the disks are
     #: otherwise served paginated by /items.
     items: list[MigrationItemSummary] = Field(default_factory=list)
+    #: pre-flight census of the job's disks (populated by "check disks first"):
+    #: {checked, leaks, corruptions}, and the damaged ones as not_moving_disks.
+    check_census: dict = Field(default_factory=dict)
+    not_moving_disks: list[dict] = Field(default_factory=list)
+
+
+class MigrationCheckResponse(BaseModel):
+    """How many pre-flight integrity checks a "check disks first" queued."""
+
+    queued: int
+    total: int
 
 
 class MigrationTreesPageResponse(BaseModel):

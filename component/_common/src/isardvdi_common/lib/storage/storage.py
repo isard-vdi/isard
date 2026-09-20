@@ -154,6 +154,47 @@ class StorageProcessed(RethinkSharedConnection):
             return list(query.pluck("id")["id"].run(cls._rdb_connection))
 
     @classmethod
+    def check_census(cls, storage_ids):
+        """Pre-flight census of a set of disks (one indexed read): how many have
+        been checked (``last_checked_at``), carry a ``repair_leaks`` mark, or are
+        ``damaged``, plus the damaged ones as ``not_moving_disks``. Used by the
+        migration's "check disks first" so a run never stalls on a disk it could
+        have known about."""
+        empty = {"checked": 0, "leaks": 0, "corruptions": 0, "not_moving_disks": []}
+        ids = list(storage_ids)
+        if not ids:
+            return empty
+        try:
+            with cls._rdb_context():
+                rows = list(
+                    r.table("storage")
+                    .get_all(r.args(ids))
+                    .pluck(
+                        "id",
+                        "status",
+                        "last_checked_at",
+                        "damage_reason",
+                        "pending_actions",
+                    )
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return empty
+        damaged = [
+            {"id": x["id"], "reason": x.get("damage_reason") or "damaged"}
+            for x in rows
+            if x.get("status") == "damaged"
+        ]
+        return {
+            "checked": sum(1 for x in rows if x.get("last_checked_at")),
+            "leaks": sum(
+                1 for x in rows if "repair_leaks" in (x.get("pending_actions") or {})
+            ),
+            "corruptions": len(damaged),
+            "not_moving_disks": damaged,
+        }
+
+    @classmethod
     def get_storages(
         cls,
         user_id=None,
