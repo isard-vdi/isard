@@ -123,3 +123,16 @@ test.describe('Admin Storage-pool migration — permissions', () => {
     })
   }
 })
+
+test.describe('Admin Storage-pool migration — on_damaged repair options (#4238)', () => {
+  test('SM4: the Damaged-disk select offers the repair actions', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, { items_total: 0 })
+    await openNewMigrationModal(page)
+    await expect(page.locator('#mig_on_damaged option[value="repair_leaks"]')).toHaveCount(1)
+    await expect(page.locator('#mig_on_damaged option[value="repair_all"]')).toHaveCount(1)
+    await page.selectOption('#mig_on_damaged', 'repair_leaks')
+    await expect(page.locator('#mig_on_damaged')).toHaveValue('repair_leaks')
+  })
+})

@@ -554,7 +554,14 @@ def probe_actual_size(path, timeout=30):
 #: verification is never left committed to a bad/unverified destination (F1).
 #: ``quarantined`` is terminal off-path, so a re-armed tree with one quarantined
 #: disk still settles (that disk is skipped in the walk like ``skipped``).
-_PHASE_A_DONE = {"rebased", "db_updated", "released", "skipped", "quarantined"}
+_PHASE_A_DONE = {
+    "rebased",
+    "repairing",
+    "db_updated",
+    "released",
+    "skipped",
+    "quarantined",
+}
 #: terminal states
 _DONE = {"released", "skipped", "quarantined"}
 
@@ -1361,6 +1368,17 @@ def tree_next(tree_items, job_status_fn):
         if s == "failed":
             return (it, "blocked")
         return (it, decide_item_action(it, job_status_fn))
+    # A disk under in-flight repair (on_damaged=repair_*) holds the tree until
+    # its repair task settles, then re-enters the verify gate (mark_repaired) or
+    # terminalizes (repair_failed).
+    for it in items:
+        if str(it["state"]) == "repairing":
+            st = job_status_fn(it.get("repair_task_id"))
+            if _job_failed(st):
+                return (it, "repair_failed")
+            if _job_finished(st):
+                return (it, "mark_repaired")
+            return (it, "wait")
     # Phase B — every disk is moved+rebased. verify-all -> db_update-all ->
     # release-all, each one-action-per-tick.
     rebased = [it for it in items if str(it["state"]) == "rebased"]

@@ -134,3 +134,114 @@ def test_a_damaged_media_marks_no_storage_row(monkeypatch):
 
     assert m["damaged"] is True
     assert _Storage.writes == []
+
+
+# --------------------------------------------------------------------------- #
+# on_damaged=repair_* : one in-flight repair, re-verify, continue-or-terminalize
+# --------------------------------------------------------------------------- #
+
+
+def _repair_runner(monkeypatch, reason, on_damaged):
+    r = _runner(monkeypatch, reason)
+    r.config = {"on_damaged": on_damaged}
+    return r
+
+
+def test_repair_leaks_enqueues_a_leak_repair_and_goes_repairing(monkeypatch):
+    r = _repair_runner(
+        monkeypatch,
+        f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=593",
+        "repair_leaks",
+    )
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "repairing"
+    assert a["repair_action"] == "leaks"
+    assert a["repair_attempted"] is True
+    assert a["repair_task_id"] == "tid"
+    assert not a.get("damaged")
+
+
+def test_repair_all_uses_check_r_all(monkeypatch):
+    r = _repair_runner(
+        monkeypatch,
+        f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: corruptions=4",
+        "repair_all",
+    )
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "repairing" and a["repair_action"] == "all"
+
+
+def test_repair_only_for_a_real_damage_not_a_copy_failure(monkeypatch):
+    r = _repair_runner(
+        monkeypatch, "migration: destination /dst/a.qcow2 did not pass", "repair_leaks"
+    )
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "failed"
+
+
+def test_a_disk_is_repaired_at_most_once_then_terminalizes(monkeypatch):
+    r = _repair_runner(
+        monkeypatch, f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=1", "repair_leaks"
+    )
+    a = _item("a", "rebased", verify_task_id="v", repair_attempted=True)
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "failed" and a["damaged"] is True
+
+
+def test_repair_without_a_consumer_terminalizes(monkeypatch):
+    r = _repair_runner(
+        monkeypatch, f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=1", "repair_leaks"
+    )
+    r.lane_is_drainable = lambda conn, queue: False
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "failed"
+
+
+class _RepairTask:
+    def __init__(self, tid):
+        self._id = tid
+
+    @property
+    def result(self):
+        return {"ok": True, "summary": "repaired"}
+
+
+def test_mark_repaired_sends_the_disk_back_through_verify(monkeypatch):
+    r = _repair_runner(monkeypatch, "x", "repair_leaks")
+    monkeypatch.setattr(mr, "Task", _RepairTask)
+    a = _item(
+        "a", "repairing", repair_task_id="rt", verify_task_id="oldv", verify_passed=True
+    )
+    r._items = lambda: [a]
+
+    r._mark_repaired(a)
+
+    assert a["state"] == "rebased"
+    assert a["verify_task_id"] is None and a["verify_passed"] is False
+    assert a["repair_result"] == {"ok": True, "summary": "repaired"}
+
+
+def test_tree_next_holds_a_repairing_disk_until_the_repair_settles():
+    items = [_item("a", "repairing", repair_task_id="rt")]
+    assert mig.tree_next(items, lambda tid: "started")[1] == "wait"
+    assert mig.tree_next(items, lambda tid: "finished")[1] == "mark_repaired"
+    assert mig.tree_next(items, lambda tid: "failed")[1] == "repair_failed"

@@ -167,7 +167,10 @@ a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0" } });
 assert.strictEqual(a.migCreateConfig().on_damaged, "pause");
 a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_on_damaged": "continue" } });
 assert.strictEqual(a.migCreateConfig().on_damaged, "continue");
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_on_damaged": "repair_leaks" } });
+assert.strictEqual(a.migCreateConfig().on_damaged, "repair_leaks");
 assert(extract("migConfigControls").includes('"pause", "continue"'), "the per-job form must offer both");
+assert(extract("migConfigControls").includes('"repair_leaks", "repair_all"'), "the per-job form must offer the repair options");
 console.log("migCreateConfig on_damaged: PASS");
 
 console.log("ALL PASS");

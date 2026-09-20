@@ -47,7 +47,7 @@ const MIG_CADENCE_LABELS = {
 const MIG_FAILURE_LABELS = {
   retry_quarantine: "Retry, then quarantine", pause: "Pause for attention", retry_forever: "Retry forever"
 };
-const MIG_DAMAGED_LABELS = { pause: "Pause the job", continue: "Mark it and continue" };
+const MIG_DAMAGED_LABELS = { pause: "Pause the job", continue: "Mark it and continue", repair_leaks: "Repair leaks, then continue", repair_all: "Repair all, then continue" };
 
 function migStatusBadge (status) {
   const s = MIG_STATUS[status] || { cls: "default", icon: "fa-question", tip: status };
@@ -374,7 +374,7 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;" title="A disk that fails its integrity check is marked damaged and its chain stays; pause the job for you, or continue." data-toggle="tooltip">Damaged
         <select class="form-control input-sm cfg-on-damaged" ${dis}>
-          ${migOpt(["pause", "continue"], c.on_damaged || "pause", MIG_DAMAGED_LABELS)}
+          ${migOpt(["pause", "continue", "repair_leaks", "repair_all"], c.on_damaged || "pause", MIG_DAMAGED_LABELS)}
         </select>
       </label>
       <label style="margin-left:8px;" title="Move at most this much per run, then stop until the next window. Honoured at tree boundaries, so the run may overshoot by one tree. 0 = no limit." data-toggle="tooltip">Stop&nbsp;after&nbsp;GB

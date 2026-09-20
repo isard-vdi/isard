@@ -77,7 +77,7 @@ class MigrationConfigData(BaseModel):
     #: consecutive-occurrence failure budget before quarantine (retry_quarantine).
     quarantine_after: int = Field(default=3, ge=1)
     #: what a damaged source does to the job: pause for the admin, or continue
-    on_damaged: Literal["pause", "continue"] = "pause"
+    on_damaged: Literal["pause", "continue", "repair_leaks", "repair_all"] = "pause"
     #: Per-occurrence volume budget in bytes; 0 = unlimited. Operator-set on
     #: purpose: on a thin-provisioned pool (VDO) the filesystem reports LOGICAL
     #: free space while the real limit is physical fill, so no probe can size

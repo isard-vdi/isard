@@ -1248,6 +1248,64 @@ class MigrationRunner:
         self._flag(item, "review_damage", {"reason": reason})
 
     def _fail(self, item):
+        # on_damaged=repair_*: a destination that failed verify on repairable
+        # damage gets ONE repair attempt (the !5391 task) before terminalizing;
+        # a clean re-verify then lets the disk continue in the batch.
+        on_damaged = self.config.get("on_damaged") or "pause"
+        if (
+            on_damaged in ("repair_leaks", "repair_all")
+            and not item.get("repair_attempted")
+            and not self._is_media(item)
+            and mig.damage_from_reason(self._failure_reason(item)) is not None
+            and self._try_repair(
+                item, "leaks" if on_damaged == "repair_leaks" else "all"
+            )
+        ):
+            return
+        self._terminalize_tree_failure(item)
+
+    def _try_repair(self, item, what):
+        """Enqueue the !5391 repair on the damaged destination and move the disk
+        into ``repairing``; return False (fall through to terminalize) when the
+        lane has no consumer. The disk is already in maintenance with its
+        desktops stopped and its children not yet moved, so the repair's
+        preconditions hold by construction."""
+        queue = self._pool_queue(item["dst_path"], "qemu_img_check_repair")
+        if not self.lane_is_drainable(Task._redis, queue):
+            return False
+        task_id = self._enqueue(
+            "qemu_img_check_repair",
+            queue,
+            {"storage_path": item["dst_path"], "what": what},
+        )
+        self._set(
+            item,
+            state=MigrationItemState.REPAIRING.value,
+            repair_task_id=task_id,
+            repair_action=what,
+            repair_attempted=True,
+        )
+        self._audit(item, "repair_started")
+        return True
+
+    def _mark_repaired(self, item):
+        """The in-flight repair finished: record its result and send the disk back
+        through the verify gate (rebased, verify cleared). A clean re-verify lets
+        it continue; a still-damaged one terminalizes (repair_attempted is set)."""
+        try:
+            result = Task(item["repair_task_id"]).result
+        except Exception:
+            result = None
+        self._set(
+            item,
+            state=MigrationItemState.REBASED.value,
+            repair_result=result,
+            verify_passed=False,
+            verify_task_id=None,
+        )
+        self._audit(item, "repaired")
+
+    def _repair_failed(self, item):
         self._terminalize_tree_failure(item)
 
     def _blocked(self, item):
@@ -1265,6 +1323,8 @@ class MigrationRunner:
         "mark_verified": _mark_verified,
         "release": _release,
         "skip_release": _skip_release,
+        "mark_repaired": _mark_repaired,
+        "repair_failed": _repair_failed,
         "fail": _fail,
         "blocked": _blocked,
     }
@@ -1408,8 +1468,11 @@ class MigrationRunner:
             it.get("damaged") and it["id"] in touched for it in fresh
         )
         on_damaged = self.config.get("on_damaged") or "pause"
+        # A disk that ends up damaged pauses unless the knob is "continue":
+        # repair_* fell through here only after its one repair failed, so it
+        # falls back to pause (the secondary policy).
         pause_now = not finishing and (
-            (damaged_this_tick and on_damaged == "pause")
+            (damaged_this_tick and on_damaged != "continue")
             or (policy == "pause" and failed_this_tick and not damaged_this_tick)
         )
         any_failed = any(

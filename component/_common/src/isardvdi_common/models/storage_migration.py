@@ -89,6 +89,10 @@ class MigrationItemState(StrEnum):
     MOVING = "moving"
     MOVED = "moved"
     REBASED = "rebased"
+    #: a rebased disk whose destination failed verify and is being repaired in
+    #: flight (on_damaged=repair_*); it re-enters the verify gate when the repair
+    #: settles, so it is not terminal.
+    REPAIRING = "repairing"
     DB_UPDATED = "db_updated"
     RELEASED = "released"
     FAILED = "failed"
@@ -279,7 +283,7 @@ class MigrationConfig(BaseModel):
     quarantine_after: int = Field(default=3, ge=1)
     #: a source that fails qemu-img check is marked damaged and its tree skipped;
     #: pause == stop the job for the admin, continue == go on with the rest
-    on_damaged: Literal["pause", "continue"] = "pause"
+    on_damaged: Literal["pause", "continue", "repair_leaks", "repair_all"] = "pause"
 
 
 class MigrationTotals(BaseModel):
