@@ -75,9 +75,11 @@ class TaskIdResponse(BaseModel):
 
 
 class StorageRepairBatchResponse(BaseModel):
-    """How many disks a batch repair queued."""
+    """How many disks a batch repair queued, and how many it skipped because they
+    have descendants (never repaired automatically)."""
 
     queued: int
+    skipped_has_descendants: int = 0
 
 
 class StorageSweepConfigResponse(BaseModel):

@@ -1250,19 +1250,52 @@ class MigrationRunner:
     def _fail(self, item):
         # on_damaged=repair_*: a destination that failed verify on repairable
         # damage gets ONE repair attempt (the !5391 task) before terminalizing;
-        # a clean re-verify then lets the disk continue in the batch.
+        # a clean re-verify then lets the disk continue in the batch -- but never
+        # a disk with descendants (a repair rewrites the qcow2 they back onto).
         on_damaged = self.config.get("on_damaged") or "pause"
         if (
             on_damaged in ("repair_leaks", "repair_all")
             and not item.get("repair_attempted")
             and not self._is_media(item)
             and mig.damage_from_reason(self._failure_reason(item)) is not None
-            and self._try_repair(
-                item, "leaks" if on_damaged == "repair_leaks" else "all"
-            )
         ):
-            return
+            if self._has_descendants(item):
+                self._skip_repair_has_descendants(item)
+                return
+            if self._try_repair(
+                item, "leaks" if on_damaged == "repair_leaks" else "all"
+            ):
+                return
         self._terminalize_tree_failure(item)
+
+    def _has_descendants(self, item):
+        """Whether the disk has children. Fail-safe: an unreadable graph counts as
+        having them, so a repair is never risked on a parent."""
+        try:
+            return bool(Storage(item["storage_id"]).children)
+        except Exception:
+            log.exception(
+                "migration: could not read children of %s; refusing in-flight repair",
+                item["storage_id"],
+            )
+            return True
+
+    def _skip_repair_has_descendants(self, item):
+        """Refuse the repair, record it, terminalize (which pauses the job by the
+        on_damaged knob), then point review_damage at the manual procedure."""
+        reason = self._failure_reason(item)
+        self._set(item, repair_action="skipped_has_descendants", repair_attempted=True)
+        self._audit(item, "repair_skipped_has_descendants")
+        self._terminalize_tree_failure(item)
+        # Enriches the review_damage flag terminalize just wrote (last write wins).
+        self._flag(
+            item,
+            "review_damage",
+            {
+                "reason": reason,
+                "note": "template with descendants: manual repair procedure",
+            },
+        )
 
     def _try_repair(self, item, what):
         """Enqueue the !5391 repair on the damaged destination and move the disk

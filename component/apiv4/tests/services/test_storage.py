@@ -373,16 +373,90 @@ class TestRepair:
 
 
 class TestBatchRepairLeaks:
+    @patch("api.services.storage.Storage.get_children")
     @patch("api.services.storage.Storage.pending_ids")
     @patch("api.services.storage.get_storage")
-    def test_targets_ready_repair_leaks_disks_with_leaks(self, mock_get, mock_pending):
+    def test_targets_ready_repair_leaks_disks_with_leaks(
+        self, mock_get, mock_pending, mock_children
+    ):
         mock_pending.return_value = ["s1", "s2"]
+        mock_children.return_value = []  # neither disk has descendants
         storage = MagicMock()
         mock_get.return_value = storage
-        queued = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN, limit=10)
+        result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN, limit=10)
         mock_pending.assert_called_once_with("repair_leaks", status="ready", limit=10)
-        assert queued == 2
+        assert result == {"queued": 2, "skipped_has_descendants": 0}
         assert storage.repair.call_count == 2
         # the bulk path only ever repairs leaks, never attempts "all"
         for call in storage.repair.call_args_list:
             assert "leaks" in call.args
+
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.Storage.pending_ids")
+    @patch("api.services.storage.get_storage")
+    def test_a_disk_with_descendants_is_skipped_not_repaired(
+        self, mock_get, mock_pending, mock_children
+    ):
+        """A parent still carrying a repair_leaks mark is counted
+        and left alone; only the leaf is repaired."""
+        mock_pending.return_value = ["parent", "leaf"]
+        child = MagicMock()
+        child.parent = "parent"
+        mock_children.return_value = [child]
+        storage = MagicMock()
+        mock_get.return_value = storage
+
+        result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN)
+
+        assert result == {"queued": 1, "skipped_has_descendants": 1}
+        # only the leaf reached get_storage / repair; the parent never did
+        assert storage.repair.call_count == 1
+        assert [c.args[1] for c in mock_get.call_args_list] == ["leaf"]
+
+
+def _sweep_storage(payload, sid):
+    storage = MagicMock()
+    setattr(storage, "qemu-img-info", {"actual-size": 10})
+    storage.domains = []
+    return storage
+
+
+class TestSweepExcludesDescendants:
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_a_write_action_skips_a_parent_and_counts_it(
+        self, mock_get, mock_children, mock_enq
+    ):
+        """The sweep's sparsify pass never enqueues a disk that
+        has descendants; it is reported under skipped_has_descendants."""
+        child = MagicMock()
+        child.parent = "parent"
+        mock_children.return_value = [child]
+        mock_get.side_effect = _sweep_storage
+        budget = {"disks": None, "bytes": None}
+
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN, "sparsify", ["parent", "leaf"], budget
+        )
+
+        assert out["selected"] == 1
+        assert out["skipped_has_descendants"] == 1
+        assert mock_enq.call_count == 1  # only the leaf
+
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_check_integrity_runs_on_a_parent(self, mock_get, mock_children, mock_enq):
+        """check_integrity is read-only, so a parent is a valid target and the
+        children lookup is never even consulted."""
+        mock_get.side_effect = _sweep_storage
+        budget = {"disks": None, "bytes": None}
+
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN, "check_integrity", ["parent"], budget
+        )
+
+        assert out["selected"] == 1
+        assert out["skipped_has_descendants"] == 0
+        mock_children.assert_not_called()

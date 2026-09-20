@@ -1547,7 +1547,8 @@ $(document).on('click', '#btn-repair-all-pending-leaks', function () {
         document.body.classList.remove('loading-cursor');
         notify.update({
           title: 'Repair queued',
-          text: `Queued a leak repair on ${data.queued} disk(s).`,
+          text: `Queued a leak repair on ${data.queued} disk(s).` +
+            (data.skipped_has_descendants ? ` Skipped ${data.skipped_has_descendants} disk(s) with descendants (repair those manually).` : ''),
           type: 'success', hide: true, delay: 4000, icon: 'fa fa-success', opacity: 1
         });
         storage_ready.ajax.reload(null, false);

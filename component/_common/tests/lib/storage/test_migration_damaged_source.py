@@ -44,17 +44,29 @@ def test_a_tree_with_a_failed_disk_and_live_siblings_still_blocks():
 
 class _Storage:
     writes = []
+    flags = []
+    #: {storage_id: [child, ...]} -- what ``Storage(id).children`` returns.
+    children_by_id = {}
 
     @classmethod
     def exists(cls, sid):
         return True
 
     def __init__(self, sid):
+        self._sid = sid
         self.directory_path = "/src"
+
+    @property
+    def children(self):
+        return list(self.__class__.children_by_id.get(self._sid, []))
 
     @classmethod
     def update_document(cls, sid, fields, validate=True):
         cls.writes.append((sid, dict(fields)))
+
+    @classmethod
+    def flag_pending(cls, sid, action, found_by, detail=None):
+        cls.flags.append((sid, action, found_by, dict(detail or {})))
 
 
 def _runner(monkeypatch, reason):
@@ -70,6 +82,8 @@ def _runner(monkeypatch, reason):
     r._failure_reason = lambda item: reason
     r._system_delete_action = lambda: "move"
     _Storage.writes = []
+    _Storage.flags = []
+    _Storage.children_by_id = {}
     monkeypatch.setattr(mr, "Storage", _Storage)
     return r
 
@@ -245,3 +259,92 @@ def test_tree_next_holds_a_repairing_disk_until_the_repair_settles():
     assert mig.tree_next(items, lambda tid: "started")[1] == "wait"
     assert mig.tree_next(items, lambda tid: "finished")[1] == "mark_repaired"
     assert mig.tree_next(items, lambda tid: "failed")[1] == "repair_failed"
+
+
+# --------------------------------------------------------------------------- #
+# RED LINE: a damaged disk that HAS descendants is never repaired in
+# flight -- a repair rewrites the qcow2 its children back onto. Only a leaf is.
+# --------------------------------------------------------------------------- #
+
+
+def test_a_leaf_with_no_children_is_still_repaired(monkeypatch):
+    """The common case must keep working: a childless disk (a desktop, or a
+    template with no derivatives) is repaired in flight exactly as before."""
+    r = _repair_runner(
+        monkeypatch, f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=3", "repair_leaks"
+    )
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "repairing" and a["repair_action"] == "leaks"
+    assert not a.get("damaged")
+
+
+def test_a_parent_with_descendants_is_not_repaired_but_left_for_manual_review(
+    monkeypatch,
+):
+    r = _repair_runner(
+        monkeypatch, f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=7", "repair_leaks"
+    )
+    _Storage.children_by_id = {"a": ["child-1"]}
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    # No repair task was queued and the disk never entered ``repairing``.
+    assert a["state"] == "failed"
+    assert a.get("repair_task_id") is None
+    # The skip is recorded in the book, and it will not be retried.
+    assert a["repair_action"] == "skipped_has_descendants"
+    assert a["repair_attempted"] is True
+    assert any(rec["result"] == "repair_skipped_has_descendants" for rec in a["audit"])
+    # The row is left damaged, and review_damage points at the manual procedure.
+    assert a["damaged"] is True
+    assert _Storage.writes[-1][1]["status"] == "damaged"
+    review = [f for f in _Storage.flags if f[1] == "review_damage"]
+    assert review, "review_damage was never flagged"
+    assert "manual repair procedure" in review[-1][3].get("note", "")
+    # The child is never touched by this path.
+    assert all(sid != "child-1" for sid, *_ in _Storage.writes)
+
+
+def test_repair_all_also_refuses_a_parent_with_descendants(monkeypatch):
+    r = _repair_runner(
+        monkeypatch,
+        f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: corruptions=4",
+        "repair_all",
+    )
+    _Storage.children_by_id = {"a": ["child-1"]}
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "failed"
+    assert a["repair_action"] == "skipped_has_descendants"
+    assert a.get("repair_task_id") is None
+
+
+def test_an_unreadable_child_graph_refuses_the_repair_fail_safe(monkeypatch):
+    """If the dependency graph cannot be read, err on the side of NOT rewriting:
+    the disk is treated as a parent and left for manual review."""
+    r = _repair_runner(
+        monkeypatch, f"{mig.DAMAGED_SOURCE_MARK} /dst/a.qcow2: leaks=1", "repair_leaks"
+    )
+
+    class _Boom(_Storage):
+        @property
+        def children(self):
+            raise RuntimeError("db down")
+
+    monkeypatch.setattr(mr, "Storage", _Boom)
+    a = _item("a", "rebased", verify_task_id="v")
+    r._items = lambda: [a]
+
+    r._fail(a)
+
+    assert a["state"] == "failed"
+    assert a["repair_action"] == "skipped_has_descendants"

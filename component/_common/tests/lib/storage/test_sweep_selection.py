@@ -5,8 +5,13 @@
 from isardvdi_common.lib.storage.sweep import select_within_budget
 
 
-def _c(id, size_bytes=0, started=False):
-    return {"id": id, "size_bytes": size_bytes, "started": started}
+def _c(id, size_bytes=0, started=False, has_children=False):
+    return {
+        "id": id,
+        "size_bytes": size_bytes,
+        "started": started,
+        "has_children": has_children,
+    }
 
 
 def test_no_caps_takes_every_idle_candidate():
@@ -38,3 +43,22 @@ def test_a_disk_cap_of_zero_selects_nothing():
     out = select_within_budget([_c("a"), _c("b")], max_disks=0)
     assert out["selected"] == []
     assert out["skipped_budget"] == ["a", "b"]
+
+
+def test_a_disk_with_descendants_is_excluded_and_counted():
+    """The red line: a write action never selects a disk that has children."""
+    out = select_within_budget([_c("a", has_children=True), _c("b")])
+    assert out["selected"] == ["b"]
+    assert out["skipped_has_descendants"] == ["a"]
+    assert out["skipped_started"] == [] and out["skipped_budget"] == []
+
+
+def test_a_disk_with_descendants_never_spends_the_budget():
+    """Exclusion takes precedence over the caps: a parent is dropped for free, so
+    the disk cap still admits a full quota of leaves and the parent is reported."""
+    out = select_within_budget(
+        [_c("p", has_children=True), _c("a"), _c("b")], max_disks=1
+    )
+    assert out["selected"] == ["a"]
+    assert out["skipped_has_descendants"] == ["p"]
+    assert out["skipped_budget"] == ["b"]

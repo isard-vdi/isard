@@ -25,14 +25,21 @@ SWEEP_PENDING_ACTION = {
 
 
 def select_within_budget(candidates, max_disks=None, max_bytes=None):
-    """Pick, from oldest-first ``candidates`` ({id, size_bytes, started}), the
-    disks a single sweep pass may act on: skip one a Started desktop holds (its
-    file is live), stop once ``max_disks`` are chosen, and never let the running
-    total exceed ``max_bytes``. ``None`` on either budget means no cap; the
-    caller enqueues the returned ids. Pure — no DB, no queue."""
-    selected, skipped_started, skipped_budget = [], [], []
+    """Pick, from oldest-first ``candidates`` ({id, size_bytes, started,
+    has_children}), the disks a single sweep pass may act on: never one that has
+    descendants (the red line -- a write action must not rewrite a template whose
+    children back onto it), skip one a Started desktop holds (its file is
+    live), stop once ``max_disks`` are chosen, and never let the running total
+    exceed ``max_bytes``. ``None`` on either budget means no cap; the caller
+    enqueues the returned ids and sets ``has_children`` only for the write actions
+    (never for read-only check_integrity). Pure — no DB, no queue."""
+    selected, skipped_started, skipped_budget, skipped_has_descendants = [], [], [], []
     used_bytes = 0
     for candidate in candidates:
+        if candidate.get("has_children"):
+            # RED LINE: excluded before it can spend budget or be enqueued.
+            skipped_has_descendants.append(candidate["id"])
+            continue
         if max_disks is not None and len(selected) >= max_disks:
             skipped_budget.append(candidate["id"])
             continue
@@ -49,5 +56,6 @@ def select_within_budget(candidates, max_disks=None, max_bytes=None):
         "selected": selected,
         "skipped_started": skipped_started,
         "skipped_budget": skipped_budget,
+        "skipped_has_descendants": skipped_has_descendants,
         "used_bytes": used_bytes,
     }

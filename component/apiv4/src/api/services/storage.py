@@ -593,13 +593,20 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_repair_leaks(payload: dict, limit: int | None = None) -> int:
+    def batch_repair_leaks(payload: dict, limit: int | None = None) -> dict:
         """Repair every ``ready`` disk still carrying a ``repair_leaks`` mark, oldest
         first, bounded by ``limit`` (via the ``status_pending_action`` index, never a
-        scan); always ``what="leaks"``. Returns how many were queued."""
+        scan); always ``what="leaks"``. A disk with descendants is never repaired
+        automatically (a repair rewrites the qcow2 its children back onto): it is
+        skipped and counted, not queued. Returns {queued, skipped_has_descendants}."""
         storage_ids = Storage.pending_ids("repair_leaks", status="ready", limit=limit)
+        parents_with_children = StorageService._ids_with_children(storage_ids)
         queued = 0
+        skipped_has_descendants = 0
         for storage_id in storage_ids:
+            if storage_id in parents_with_children:
+                skipped_has_descendants += 1
+                continue
             try:
                 storage = get_storage(payload, storage_id)
                 storage.repair(
@@ -616,7 +623,7 @@ class StorageService:
                     f"There was an error creating a repair task for {storage_id}",
                     type="error",
                 )
-        return queued
+        return {"queued": queued, "skipped_has_descendants": skipped_has_descendants}
 
     @staticmethod
     def check_integrity(
@@ -731,6 +738,13 @@ class StorageService:
         this mutates as it spends), enqueue the action's task for each pick, and
         return that action's counts."""
         user_id = payload.get("user_id")
+        # A write action never touches a disk with descendants; check_integrity is
+        # read-only, so it may, and never carries the flag.
+        parents_with_children = (
+            StorageService._ids_with_children(ids)
+            if action in ("sparsify", "repair_leaks")
+            else set()
+        )
         storages, candidates = {}, []
         for storage_id in ids:
             try:
@@ -744,7 +758,12 @@ class StorageService:
                 getattr(d, "status", None) == "Started" for d in (storage.domains or [])
             )
             candidates.append(
-                {"id": storage_id, "size_bytes": size or 0, "started": started}
+                {
+                    "id": storage_id,
+                    "size_bytes": size or 0,
+                    "started": started,
+                    "has_children": storage_id in parents_with_children,
+                }
             )
         picked = select_within_budget(candidates, budget["disks"], budget["bytes"])
         for storage_id in picked["selected"]:
@@ -765,6 +784,18 @@ class StorageService:
             "selected": len(picked["selected"]),
             "skipped_started": len(picked["skipped_started"]),
             "skipped_budget": len(picked["skipped_budget"]),
+            "skipped_has_descendants": len(picked["skipped_has_descendants"]),
+        }
+
+    @staticmethod
+    def _ids_with_children(ids: list) -> set:
+        """The subset of ``ids`` that have at least one non-deleted child backing
+        onto them, in ONE indexed query (never one per id) -- the same dependency
+        check ``set_maintenance`` makes for its ``storage_has_children`` guard."""
+        if not ids:
+            return set()
+        return {
+            child.parent for child in Storage.get_children(list(ids)) if child.parent
         }
 
     @staticmethod
