@@ -236,6 +236,62 @@ def test_c5c_not_flagged_when_row_parent_matches_header():
     assert res["c5c_parent_mislinked"] == []
 
 
+def test_c5d_orphan_child_with_ready_present_parent():
+    # Residue: an orphan child whose backing resolves to a ready, present
+    # parent is recoverable database-only. A healthy child, and an orphan child
+    # whose parent is not ready, must NOT be flagged.
+    rows = [
+        row("parent", "ready", f"{POOL}/templates/parent.qcow2", live=True),
+        row(
+            "orphan_child",
+            "orphan",
+            f"{POOL}/desktops/orphan_child.qcow2",
+            parent="parent",
+        ),
+        row(
+            "healthy_child",
+            "ready",
+            f"{POOL}/desktops/healthy_child.qcow2",
+            live=True,
+            parent="parent",
+        ),
+        row("dead_parent", "deleted", f"{POOL}/templates/dead_parent.qcow2"),
+        row(
+            "stuck_child",
+            "orphan",
+            f"{POOL}/desktops/stuck_child.qcow2",
+            parent="dead_parent",
+        ),
+    ]
+    files = [
+        df(f"{POOL}/templates/parent.qcow2", "parent"),
+        df(
+            f"{POOL}/desktops/orphan_child.qcow2",
+            "orphan_child",
+            "parent",
+            f"{POOL}/templates/parent.qcow2",
+        ),
+        df(
+            f"{POOL}/desktops/healthy_child.qcow2",
+            "healthy_child",
+            "parent",
+            f"{POOL}/templates/parent.qcow2",
+        ),
+        df(f"{POOL}/templates/dead_parent.qcow2", "dead_parent"),
+        df(
+            f"{POOL}/desktops/stuck_child.qcow2",
+            "stuck_child",
+            "dead_parent",
+            f"{POOL}/templates/dead_parent.qcow2",
+        ),
+    ]
+    res = classify_storage_consistency(rows, files)
+    assert _ids(res["c5d_orphan_parent_ready"]) == {"orphan_child"}
+    (item,) = res["c5d_orphan_parent_ready"]
+    assert item["backing_uuid"] == "parent"
+    assert item["backing_path"] == f"{POOL}/templates/parent.qcow2"
+
+
 def test_binned_copy_of_a_deleted_row_is_not_a_rowless_file():
     # a soft-deleted disk keeps a copy under deleted/, but its uuid has a row.
     rows = [row("x", "deleted", f"{POOL}/desktops/x.qcow2")]
