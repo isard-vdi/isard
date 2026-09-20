@@ -749,6 +749,38 @@ The row cells must match the known seed configuration exactly:
 
 ---
 
+## Scenario 20 — *duplicating a template whose disk is not ready is refused*
+
+Regression: `duplicate_template` must refuse a source whose disk storage is not
+`ready` **before** writing any row, since a duplicate shares the
+source's disk and would otherwise derive desktops nothing can start.
+
+### Given
+
+1. An isolated throwaway template exists (a duplicate of the seed) whose disk is
+   re-pointed via the admin table API to a storage id that does not exist, so the
+   disk is not `ready`. The shared seed disk is never touched.
+
+### When
+
+1. The administrator opens the duplicate modal for that template, fills a name,
+   and presses **Send**.
+
+### Then
+
+1. `POST /api/v4/item/template/{id}/duplicate` responds with **428**
+   (`template_storage_not_ready`).
+2. An **ERROR duplicating template** PNotify is shown and the modal stays open.
+3. No new template row is written (verified via the admin templates API).
+
+> Control: on `origin/main` (no `_check_duplicable`) the duplicate succeeds and a
+> row is written, so this scenario fails without the fix. The `Failed`-template
+> case is already refused by the pre-existing `check_template_status` (400) both
+> before and after this change, so it is not a regression control for it and is
+> covered by the change's unit test instead.
+
+---
+
 ## Cleanup (afterEach)
 
 1. The duplicate template name created by this test is recovered from
