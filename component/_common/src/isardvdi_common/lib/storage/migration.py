@@ -814,9 +814,11 @@ def decide_item_action(item, job_status_fn):
     """Decide the next action for ONE disk given its state and the status of
     its in-flight RQ task (``job_status_fn(task_id) -> status|None``).
 
-    Actions: ``start_move``, ``skip_move`` (dst == src), ``mark_moved``,
-    ``start_rebase``, ``mark_rebased``, ``skip_rebase`` (root), ``wait`` (task
-    still running), ``fail``, ``noop`` (Phase A done / already terminal).
+    Actions: ``start_preflight`` (stat the destination before the move),
+    ``destination_exists`` (the destination is occupied -> refuse), ``start_move``,
+    ``skip_move`` (dst == src), ``mark_moved``, ``start_rebase``, ``mark_rebased``,
+    ``skip_rebase`` (root), ``wait`` (task still running), ``fail``, ``noop``
+    (Phase A done / already terminal).
 
     Phase A ends at ``rebased``: the DB commit (db_update) and the pre-release
     verify gate are Phase B, driven by :func:`tree_next` once the WHOLE tree is
@@ -828,7 +830,23 @@ def decide_item_action(item, job_status_fn):
     if state == "pending":
         # dst == src: nothing to move (the file is already there); never rsync a
         # disk onto itself. Advance straight to moved.
-        return "skip_move" if item_in_place(item) else "start_move"
+        if item_in_place(item):
+            return "skip_move"
+        # Pre-move gate: rsync -a would adopt a byte-stale orphan already at the
+        # destination (see migration_verify_destination_absent). Check it clear
+        # first; the disk stays pending until then.
+        task = item.get("preflight_task_id")
+        if not task:
+            return "start_preflight"
+        st = job_status_fn(task)
+        if _job_failed(st):
+            return "destination_exists"
+        if _job_finished(st):
+            return "start_move"
+        if st is None:
+            # Lost/expired check job -> re-enqueue: the stat is read-only.
+            return "start_preflight"
+        return "wait"
     if state == "moving":
         st = job_status_fn(item.get("move_task_id"))
         if _job_finished(st):

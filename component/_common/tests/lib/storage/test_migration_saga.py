@@ -38,8 +38,13 @@ def _status(mapping):
 # --------------------------------------------------------------------------- #
 # decide_item_action — per-state transitions
 # --------------------------------------------------------------------------- #
-def test_pending_starts_move():
-    assert mig.decide_item_action(_item(0, "pending"), _status({})) == "start_move"
+def test_pending_starts_preflight_then_move():
+    # A cross-location pending disk first checks the destination is clear (so
+    # rsync -a cannot adopt a byte-stale orphan), then moves once it passes.
+    it = _item(0, "pending")
+    assert mig.decide_item_action(it, _status({})) == "start_preflight"
+    it["preflight_task_id"] = "p1"
+    assert mig.decide_item_action(it, _status({"p1": "finished"})) == "start_move"
 
 
 def test_moving_waits_until_move_finishes():
@@ -172,9 +177,11 @@ def test_pending_in_place_skips_move():
     assert mig.decide_item_action(it, _status({})) == "skip_move"
 
 
-def test_pending_cross_location_still_moves():
+def test_pending_cross_location_checks_destination_then_moves():
     it = _item(0, "pending", src_path="/a/r.qcow2", dst_path="/b/r.qcow2")
-    assert mig.decide_item_action(it, _status({})) == "start_move"
+    assert mig.decide_item_action(it, _status({})) == "start_preflight"
+    it["preflight_task_id"] = "p1"
+    assert mig.decide_item_action(it, _status({"p1": "finished"})) == "start_move"
 
 
 def test_release_skipped_when_disk_in_place():
@@ -242,7 +249,7 @@ def test_tree_serial_top_to_bottom():
     # root still pending -> work the root, not the child
     items = [_item(0, "pending"), _item(1, "pending")]
     item, action = mig.tree_next(items, _status({}))
-    assert item["topo_index"] == 0 and action == "start_move"
+    assert item["topo_index"] == 0 and action == "start_preflight"
 
 
 def test_tree_child_starts_only_after_parent_committed():
@@ -251,7 +258,7 @@ def test_tree_child_starts_only_after_parent_committed():
     # (the parent's DB commit is deferred to Phase B).
     items = [_item(0, "rebased"), _item(1, "pending")]
     item, action = mig.tree_next(items, _status({}))
-    assert item["topo_index"] == 1 and action == "start_move"
+    assert item["topo_index"] == 1 and action == "start_preflight"
 
 
 def test_tree_release_phase_only_after_all_committed():
