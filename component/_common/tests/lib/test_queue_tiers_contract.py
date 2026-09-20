@@ -66,3 +66,26 @@ def test_no_reference_to_a_missing_queue_tiers_name():
             ):
                 missing.append(f"{path}:{node.lineno}: queue_tiers.{node.attr}")
     assert not missing, "queue_tiers has no such name:\n" + "\n".join(sorted(missing))
+
+
+# ── #4251: the check/repair tasks are tiered by measured cost, not left to fall
+#    on the default lane. ──────────────────────────────────────────────────────
+def test_check_tier_routes_by_allocated_clusters():
+    from isardvdi_common.lib.queue_tiers import (
+        CHECK_INTERACTIVE_MAX_CLUSTERS,
+        check_tier,
+    )
+
+    assert CHECK_INTERACTIVE_MAX_CLUSTERS == 1_100_000
+    assert check_tier(0) == "interactive"
+    assert check_tier(CHECK_INTERACTIVE_MAX_CLUSTERS - 1) == "interactive"
+    assert check_tier(CHECK_INTERACTIVE_MAX_CLUSTERS) == "standard"
+    # a producer may pass an env-tuned threshold
+    assert check_tier(50, threshold=10) == "standard"
+
+
+def test_repair_tier_routes_by_what():
+    from isardvdi_common.lib.queue_tiers import repair_tier
+
+    assert repair_tier("leaks") == "standard"
+    assert repair_tier("all") == "maintenance"

@@ -69,6 +69,20 @@ def storage_min_free_bytes():
     return value
 
 
+def _check_interactive_max_clusters():
+    """Allocated-cluster ceiling under which a standalone check runs on the
+    interactive lane; env-tunable, falling back to the queue_tiers default (#4251)."""
+    raw = os.environ.get("STORAGE_CHECK_INTERACTIVE_MAX_CLUSTERS")
+    try:
+        return (
+            int(raw)
+            if raw not in (None, "")
+            else queue_tiers.CHECK_INTERACTIVE_MAX_CLUSTERS
+        )
+    except (TypeError, ValueError):
+        return queue_tiers.CHECK_INTERACTIVE_MAX_CLUSTERS
+
+
 # Owner category is resolved on every storage-task produce; cache per user so a
 # burst of produces for one owner does not re-hit rethinkdb.
 _owner_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
@@ -1608,6 +1622,10 @@ class Storage(RethinkCustomBase):
         # restores it verbatim if the repair task fails or is cancelled.
         previous_status = self.status
 
+        # #4251: a leak repair is quick foreground work (standard); a full repair
+        # (leaks + corruption) is heavy best-effort work (maintenance).
+        if priority in (None, "default"):
+            priority = queue_tiers.repair_tier(what)
         queue_repair = f"storage.{StoragePool.get_best_for_action('qemu_img_check_repair', path=self.directory_path).id}.{priority}"
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
 
@@ -1685,6 +1703,17 @@ class Storage(RethinkCustomBase):
                 "precondition_required",
                 f"Storage {self.id} is open by a running desktop; not checking it.",
                 description_code="storage_open_not_checkable",
+            )
+        if priority in (None, "default"):
+            # #4251: route by measured cost — a small disk checks in ~2 s so it
+            # rides the reserved interactive lane; a big one goes to standard.
+            info = getattr(self, "qemu-img-info", None)
+            info = info if isinstance(info, dict) else {}
+            clusters = (info.get("actual-size") or 0) // (
+                info.get("cluster-size") or 65536
+            )
+            priority = queue_tiers.check_tier(
+                clusters, _check_interactive_max_clusters()
             )
         queue_check = f"storage.{StoragePool.get_best_for_action('storage_check', path=self.directory_path).id}.{priority}"
         return self.create_task(

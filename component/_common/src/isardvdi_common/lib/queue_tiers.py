@@ -220,6 +220,29 @@ def default_tier_for_action(action):
     return "interactive"
 
 
+#: qemu-img check runs ~567k allocated clusters/s cold, so a disk under this many
+#: allocated clusters checks in about two seconds — fast enough for the reserved
+#: interactive lane. Bigger disks go to the foreground standard lane. A policy
+#: default; a producer may pass an env-tuned threshold (#4251).
+CHECK_INTERACTIVE_MAX_CLUSTERS = 1_100_000
+
+
+def check_tier(allocated_clusters, threshold=CHECK_INTERACTIVE_MAX_CLUSTERS):
+    """Tier for a standalone integrity check: interactive for a small disk (quick,
+    a user may be waiting on the verdict), standard otherwise. Pure — the producer
+    supplies the disk's allocated-cluster count."""
+    return (
+        "interactive" if int(allocated_clusters or 0) < int(threshold) else "standard"
+    )
+
+
+def repair_tier(what):
+    """Tier for a qemu-img check -r repair: a leak repair is quick foreground work
+    (standard); a full repair (leaks + corruption) is heavy best-effort work
+    (maintenance). Pure (#4251)."""
+    return "standard" if what == "leaks" else "maintenance"
+
+
 def normalize_tier(value, action=None, role_id=None):
     """Normalise a requested tier/priority into one of :data:`TIERS`.
 
