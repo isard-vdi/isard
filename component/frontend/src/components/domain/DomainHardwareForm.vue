@@ -39,8 +39,9 @@ import HardwareLimitChip from '@/components/domain/HardwareLimitChip.vue'
 import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
 import {
   VCPU_TIERS,
-  MEMORY_TIERS,
+  buildMemoryOptions,
   buildTieredOptions,
+  memoryOptionLabel,
   roundToNearestTier
 } from '@/lib/hardwareTiers'
 
@@ -201,7 +202,7 @@ const maxMemory = computed(() => {
   return (quota as Record<string, number>).memory ?? 1024
 })
 const vcpuOptions = computed(() => buildTieredOptions(maxVcpus.value, VCPU_TIERS))
-const memoryOptions = computed(() => buildTieredOptions(maxMemory.value, MEMORY_TIERS))
+const memoryOptions = computed(() => buildMemoryOptions(maxMemory.value))
 
 const formSchema = z.object({
   vcpus: z
@@ -212,7 +213,7 @@ const formSchema = z.object({
     }),
   memory: z
     .number()
-    .min(0.1)
+    .min(0.025)
     .refine((val) => val <= maxMemory.value, {
       message: t('components.domain.hardware.limited.quota')
     }),
@@ -579,7 +580,7 @@ defineExpose({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem v-for="option in memoryOptions" :key="option" :value="option">
-                    {{ option }}
+                    {{ memoryOptionLabel(option, t('common.units.mb')) }}
                   </SelectItem>
                 </SelectContent>
               </Select>

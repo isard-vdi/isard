@@ -44,11 +44,25 @@ function buildTieredOptions (quotaMax, tiers) {
   return result
 }
 
+// Not folded into MEMORY_TIERS: buildTieredOptions' +toFixed(2) rounds 0.0625 to 0.06.
+const MEMORY_SUB_GB_OPTIONS = [0.0625, 0.125, 0.25]
+
+function buildMemoryOptions (quotaMax) {
+  if (quotaMax == null || !(quotaMax > 0)) return []
+  return [
+    ...MEMORY_SUB_GB_OPTIONS.filter(v => v <= quotaMax),
+    ...buildTieredOptions(quotaMax, MEMORY_TIERS)
+  ]
+}
+
+export function memoryOptionLabel (value) {
+  return value < 1 ? `${Math.round(value * 1024)} MB` : String(value)
+}
+
 // Snap a non-tier-aligned legacy value to the nearest dropdown option so the
 // form submits a valid value. Ties break low.
-function roundToNearestTier (value, tiers, quotaMax) {
+function roundToNearestOption (value, options) {
   if (value == null || !Number.isFinite(value)) return value
-  const options = buildTieredOptions(quotaMax, tiers)
   if (options.length === 0) return value
   let best = options[0]
   let bestDiff = Math.abs(options[0] - value)
@@ -60,6 +74,10 @@ function roundToNearestTier (value, tiers, quotaMax) {
     }
   }
   return best
+}
+
+function roundToNearestTier (value, tiers, quotaMax) {
+  return roundToNearestOption(value, buildTieredOptions(quotaMax, tiers))
 }
 
 export class DomainsUtils {
@@ -98,7 +116,7 @@ export class DomainsUtils {
         interfaces: hardware.interfaces.map(i => i.id),
         interfacesMac: hardware.interfaces.map(i => i.mac),
         isos: AllowedUtils.parseItems(hardware.isos),
-        memory: roundToNearestTier(parseFloat(hardware.memory), MEMORY_TIERS, quotaMemory),
+        memory: roundToNearestOption(parseFloat(hardware.memory), buildMemoryOptions(quotaMemory)),
         vcpus: roundToNearestTier(parseInt(hardware.vcpus), VCPU_TIERS, quotaVcpus),
         videos: hardware.videos,
         quota: !hardware.quota ? { memory: 1024, vcpus: 128, desktopDiskSizes: 2048 } : hardware.quota
@@ -120,7 +138,7 @@ export class DomainsUtils {
     if (hardware.quota !== false) {
       quota = { memory: hardware.quota.memory, vcpus: hardware.quota.vcpus, desktopDiskSizes: hardware.quota.desktops_disk_size }
     }
-    const memory = buildTieredOptions(quota.memory, MEMORY_TIERS)
+    const memory = buildMemoryOptions(quota.memory)
     const vcpus = buildTieredOptions(quota.vcpus, VCPU_TIERS)
     const desktopDiskSizes = buildTieredOptions(quota.desktopDiskSizes, DISK_TIERS)
 

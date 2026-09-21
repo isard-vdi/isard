@@ -10,6 +10,7 @@ var MEMORY_TIERS = [
     { from: 288, to: 512, step: 32 },
     { from: 576, to: 1024, step: 64 }
 ];
+var MEMORY_SUB_GB_OPTIONS = [0.0625, 0.125, 0.25];
 var VCPU_TIERS = [
     { from: 1, to: 16, step: 1 },
     { from: 18, to: 32, step: 2 },
@@ -39,6 +40,19 @@ function buildTieredOptions(quotaMax, tiers) {
         }
     }
     return result;
+}
+
+function buildMemoryOptions(quotaMax) {
+    if (quotaMax == null || !(quotaMax > 0)) return [];
+    var result = [];
+    for (var i = 0; i < MEMORY_SUB_GB_OPTIONS.length; i++) {
+        if (MEMORY_SUB_GB_OPTIONS[i] <= quotaMax) result.push(MEMORY_SUB_GB_OPTIONS[i]);
+    }
+    return result.concat(buildTieredOptions(quotaMax, MEMORY_TIERS));
+}
+
+function memoryOptionLabel(value) {
+    return value < 1 ? Math.round(value * 1024) + ' MB' : String(value);
 }
 
 // Snap a non-tier-aligned legacy value to the nearest dropdown option so the
@@ -133,9 +147,9 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                 hardware.quota={'memory':1024, 'vcpus':128, 'desktops_disk_size':2048}
             }
 
-            var memoryOpts = buildTieredOptions(hardware.quota.memory, MEMORY_TIERS);
+            var memoryOpts = buildMemoryOptions(hardware.quota.memory);
             for (var mi = 0; mi < memoryOpts.length; mi++) {
-                $(id+" #hardware-memory").append('<option value="'+memoryOpts[mi]+'">' + memoryOpts[mi] +'</option>');
+                $(id+" #hardware-memory").append('<option value="'+memoryOpts[mi]+'">' + memoryOptionLabel(memoryOpts[mi]) +'</option>');
             }
 
             var vcpuOpts = buildTieredOptions(hardware.quota.vcpus, VCPU_TIERS);
@@ -420,7 +434,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             div_id = div_id.replaceAll('.', '\\.')
             div_id = div_id.replaceAll('=', '\\=')
             $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-            $(div_id+" #ram").html((data.hardware.memory).toFixed(2)+'GB');
+            $(div_id+" #ram").html(formatRamLabel(data.hardware.memory));
             if(data.reservables){
                 $(div_id+" #gpu").html([].concat(data.reservable_name || []).join(', '));
                 $(div_id+" #gpu").closest("tr").show();

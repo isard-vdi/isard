@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { useIsTextTruncated } from '@/composables/useIsTextTruncated'
 import { desktopStatusLabel } from '@/lib/desktops'
+import { ramLabel } from '@/lib/hardwareTiers'
 
 import {
   getDesktopDetailsOptions,
@@ -241,11 +242,7 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
         <span v-else class="font-semibold truncate">
           {{
-            hardware.memory != null
-              ? t('components.domain-info-modal.fields.hardware.ram', {
-                  ram: Number(hardware.memory)
-                })
-              : '—'
+            hardware.memory != null ? ramLabel(t, Number(hardware.memory), (value) => value) : '-'
           }}
         </span>
       </div>

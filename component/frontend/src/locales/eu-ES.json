@@ -1093,7 +1093,8 @@
         "hardware": {
           "title": "Hardwarea",
           "vcpu": "{vcpu} vCPU",
-          "ram": "{ram} GB RAM"
+          "ram": "{ram} GB RAM",
+          "ram-mb": "{ram} MB RAM"
         },
         "system": {
           "title": "Sistema"

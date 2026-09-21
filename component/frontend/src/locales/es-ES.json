@@ -1803,6 +1803,7 @@
         },
         "hardware": {
           "ram": "{ram} GB RAM",
+          "ram-mb": "{ram} MB RAM",
           "title": "Hardware",
           "vcpu": "{vcpu} vCPU"
         },
