@@ -20,7 +20,7 @@ code's. Errors are asserted by type + ``error``/``description``.
 
 import builtins
 import socket
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock, call, mock_open
 
 import pytest
 from isardvdi_common.helpers.error_base import ErrorBase
@@ -236,15 +236,18 @@ class TestUpdateFingerprintKeyscan:
         opened.assert_not_called()
 
     def test_success_appends_key_and_returns_true(self, fp, monkeypatch):
-        m = mock_open()
+        # The scan now comes FIRST, so the stored entry survives a scan that
+        # fails; the two ssh-keygen -R calls only run once a new key is in hand.
+        m = mock_open(read_data="")
         monkeypatch.setattr(builtins, "open", m)
         monkeypatch.setattr(
             fp,
             "check_output",
-            MagicMock(side_effect=["", "", "ssh-rsa AAAAKEY host.example"]),
+            MagicMock(side_effect=["ssh-rsa AAAAKEY host.example", "", ""]),
         )
         assert (
             fp.HypervisorsProcessed.update_fingerprint("host.example", "2022") is True
         )
-        m.assert_called_once_with("/sshkeys/known_hosts", "a")
+        # Opened twice: once to read what is stored, once to append the new key.
+        assert m.call_args_list[-1] == call("/sshkeys/known_hosts", "a")
         m().write.assert_called_once_with("ssh-rsa AAAAKEY host.example\n")

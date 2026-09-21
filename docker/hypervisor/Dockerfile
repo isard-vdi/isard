@@ -168,6 +168,11 @@ RUN sed -i \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
     -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
+# The control plane ssh-keyscans this sshd on every registration, and OpenSSH 10
+# penalises unauthenticated connections per source by default. The host keys are
+# only here so that sshd -t can reject an openssh that does not know the option.
+RUN echo "PerSourcePenalties no" >> /etc/ssh/sshd_config \
+    && ssh-keygen -A >/dev/null && sshd -t && rm -f /etc/ssh/ssh_host_*
 
 COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
