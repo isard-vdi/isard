@@ -1116,11 +1116,10 @@
         "existing-key": {
           "description-1": "Your API Key is valid until {date}. After that, it will expire and you will not be able to use it anymore.",
           "description-2": "You can expire it now to generate a new one.",
-          "description-expired": "Your API key is expired. Click the button below to clear it and generate a new one.",
+          "description-expired": "Your API key is expired. Clear it to generate a new one.",
           "buttons": {
             "expire": "Expire",
-            "delete": "Delete",
-            "expire-tooltip": "Expire the existing key"
+            "delete": "Delete"
           }
         }
       },

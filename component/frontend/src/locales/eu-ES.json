@@ -517,11 +517,10 @@
         "existing-key": {
           "description-1": "Zure API gakoa {date} arte baliozkoa da. Horren ondoren, iraungiko da eta ezin izango duzu gehiago erabili.",
           "description-2": "Orain iraungiarazi dezakezu berri bat sortzeko.",
-          "description-expired": "Zure API gakoa iraungita dago. Egin klik beheko botoian garbitzeko eta berri bat sortzeko.",
+          "description-expired": "Zure API gakoa iraungita dago. Garbitu berri bat sortzeko.",
           "buttons": {
             "expire": "Iraungiarazi",
-            "delete": "Ezabatu",
-            "expire-tooltip": "Iraungiarazi lehendik dagoen gakoa"
+            "delete": "Ezabatu"
           }
         }
       },
