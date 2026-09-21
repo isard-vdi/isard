@@ -41,7 +41,7 @@ function tableHypervisorDomains(hyp) {
       {
         "data": "ram", "width": "100px",
         "render": function (data, type, full, meta) {
-          return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+          return formatRamLabel(full.create_dict.hardware.memory / 1024 / 1024)
         }
       },
       { "data": "username" },

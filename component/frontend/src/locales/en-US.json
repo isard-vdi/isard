@@ -1801,7 +1801,8 @@
         "hardware": {
           "title": "Hardware",
           "vcpu": "{vcpu} vCPU",
-          "ram": "{ram} GB RAM"
+          "ram": "{ram} GB RAM",
+          "ram-mb": "{ram} MB RAM"
         },
         "system": {
           "title": "System"

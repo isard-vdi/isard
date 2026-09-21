@@ -61,3 +61,14 @@ export function buildMemoryOptions(quotaMax: number | undefined | null): number[
 export function memoryOptionLabel(value: number, mbUnit = 'MB'): string {
   return value < 1 ? `${Math.round(value * 1024)} ${mbUnit}` : String(value)
 }
+
+export function ramLabel(
+  t: (key: string, params: Record<string, unknown>) => string,
+  memory: number | undefined | null,
+  formatGb: (value: number) => string | number = (value) => value.toFixed(2)
+): string {
+  if (memory == null) return ''
+  return memory < 1
+    ? t('components.domain-info-modal.fields.hardware.ram-mb', { ram: Math.round(memory * 1024) })
+    : t('components.domain-info-modal.fields.hardware.ram', { ram: formatGb(memory) })
+}

@@ -1064,6 +1064,15 @@ function showLoading(loading) {
 }
 
 /**
+ * Format a RAM amount for display. Values below 1 GB read in MB.
+ * @param {number} memoryGb - Amount of RAM in GB (GiB)
+ * @returns {string} Formatted amount (e.g., "64 MB", "2.00 GB")
+ */
+function formatRamLabel(memoryGb) {
+  return memoryGb < 1 ? Math.round(memoryGb * 1024) + ' MB' : memoryGb.toFixed(2) + ' GB';
+}
+
+/**
  * Format bytes into human-readable size with proper units
  * @param {number} bytes - Size in bytes
  * @returns {string} Formatted size (e.g., "1.67 MB", "50.00 GB")

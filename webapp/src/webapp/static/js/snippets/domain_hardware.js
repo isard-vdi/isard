@@ -434,7 +434,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             div_id = div_id.replaceAll('.', '\\.')
             div_id = div_id.replaceAll('=', '\\=')
             $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-            $(div_id+" #ram").html((data.hardware.memory).toFixed(2)+'GB');
+            $(div_id+" #ram").html(formatRamLabel(data.hardware.memory));
             if(data.reservables){
                 $(div_id+" #gpu").html([].concat(data.reservable_name || []).join(', '));
                 $(div_id+" #gpu").closest("tr").show();
