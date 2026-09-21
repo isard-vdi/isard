@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.20
 
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
-# ovmf from a frozen Debian snapshot + pinned virt-firmware: the enrolled varstore
-# stays byte-reproducible even when the live Debian mirror moves past this version.
+# ovmf from a frozen Debian snapshot + hash-pinned virt-firmware: the enrolled
+# varstore stays byte-reproducible even when the live Debian mirror moves on.
 RUN rm -f /etc/apt/sources.list.d/debian.sources && \
     printf '%s\n' \
       'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20250401T000000Z/ bookworm main' \
@@ -12,8 +12,9 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources && \
     apt-get -o Acquire::Check-Valid-Until=false install -y --no-install-recommends \
       ovmf=2022.11-6+deb12u2 python3 python3-pip && \
     rm -rf /var/lib/apt/lists/*
-RUN pip3 install --break-system-packages --no-cache-dir virt-firmware==26.9
 COPY docker/hypervisor/firmware/ /firmware-src/
+RUN pip3 install --break-system-packages --no-cache-dir --require-hashes \
+      -r /firmware-src/requirements-firmware.txt
 # generate-isard-vars.sh enrolls the keys and fails the build on a bad varstore.
 RUN bash /firmware-src/generate-isard-vars.sh
 
