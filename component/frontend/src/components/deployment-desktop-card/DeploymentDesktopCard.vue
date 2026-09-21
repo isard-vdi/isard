@@ -92,6 +92,7 @@ const openViewer = () => {
 }
 const viewerTooltipDismissed = useLocalStorage('viewer-tooltip-dismissed', false)
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import DomainImage from '@/components/domain/DomainImage.vue'
 </script>
 
 <template>
@@ -112,11 +113,10 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
     "
     @click="openViewer"
   >
-    <div
-      class="size-16 shrink-0 bg-cover bg-center rounded-md"
-      :style="{
-        backgroundImage: `url(${desktop.image.url})`
-      }"
+    <DomainImage
+      :image-url="desktop.image.url"
+      variant="compact"
+      class="size-16 shrink-0 rounded-md"
     />
 
     <div class="flex flex-col items-start gap-1 w-full overflow-hidden">

@@ -55,6 +55,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -464,12 +465,10 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-image="{ row }">
         <div class="relative">
-          <div
-            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-            :class="{ 'grayscale opacity-40': isFailed(row) }"
-            :style="{
-              backgroundImage: `url(${row.image.url})`
-            }"
+          <DomainImage
+            :image-url="row.image.url"
+            variant="compact"
+            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'grayscale opacity-40': isFailed(row) }]"
           >
             <ContextMenu>
               <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
@@ -480,7 +479,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 }}</ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
-          </div>
+          </DomainImage>
 
           <Tooltip v-if="isFailed(row)">
             <TooltipTrigger as-child>

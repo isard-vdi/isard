@@ -14,6 +14,7 @@ import {
   ContextMenuItem
 } from '@/components/ui/context-menu'
 import { Icon, type IconVariants } from '@/components/icon'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const { t } = useI18n()
 
@@ -82,13 +83,10 @@ const desktopKindStyle = computed(() => {
         }}</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-    <div
-      :class="
-        cn('overflow-hidden shrink-0 object-cover bg-center bg-cover relative', size.thumbnail)
-      "
-      :style="{
-        backgroundImage: `url(${props.desktop.image?.url ?? ''})`
-      }"
-    ></div>
+    <DomainImage
+      :image-url="props.desktop.image?.url"
+      variant="compact"
+      :class="cn('shrink-0', size.thumbnail)"
+    />
   </div>
 </template>

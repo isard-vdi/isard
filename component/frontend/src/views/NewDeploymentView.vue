@@ -264,7 +264,7 @@ const form = useForm({
     desktops: [] as (CreateDesktopRequest & { _id: any })[],
 
     image: {
-      id: deploymentImageId,
+      id: `${deploymentImageId}.jpg`,
       type: 'stock',
       url: `/assets/img/desktops/stock/${deploymentImageId}.jpg`
     },

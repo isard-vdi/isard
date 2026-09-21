@@ -18,6 +18,7 @@ import { computed, watch } from 'vue'
 import { ref } from 'vue'
 import { TruncatedText } from '@/components/truncated-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const { t } = useI18n()
 
@@ -178,13 +179,11 @@ function templateProgressPercent(progress: unknown): number {
 
       <template #cell-image="{ row }">
         <div class="relative">
-          <div
-            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover"
-            :class="{ 'opacity-40 grayscale': isFailed(row) }"
-            :style="{
-              backgroundImage: `url(${row.image.url})`
-            }"
-          ></div>
+          <DomainImage
+            :image-url="row.image.url"
+            variant="compact"
+            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'opacity-40 grayscale': isFailed(row) }]"
+          />
           <div
             v-if="isFailed(row)"
             aria-hidden="true"
