@@ -146,12 +146,21 @@ const {
 
 // Computed access values from template or desktop data or props
 
+// Every RDP viewer and the bastion reach the guest over the wireguard network,
+// so a source without it holds a pair nothing could log in with.
+const sourceHasWireguard = computed(() =>
+  ((templateData.value ?? desktopData.value)?.interfaces ?? []).some(
+    (iface) => iface.id === WIREGUARD_INTERFACE_ID
+  )
+)
+
 const credentials = computed<Credentials>(() => {
   // Null for domains whose row has no guest_properties.credentials.
   const stored =
     templateData.value?.guest_properties?.credentials ??
     desktopData.value?.guest_properties?.credentials
-  if (!stored) {
+  // Start empty rather than carrying over a pair the source cannot use.
+  if (!stored || !sourceHasWireguard.value) {
     return props.credentials!
   }
   return {
