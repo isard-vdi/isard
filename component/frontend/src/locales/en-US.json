@@ -1823,11 +1823,14 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Networks from the desktop {name}",
-      "description": "Network interfaces attached to this desktop. The Wireguard interface is shown first when present and exposes the routable guest IP.",
+      "title": "Networks",
+      "loading": "Loading network information…",
       "empty": "No networks attached to this desktop",
       "error": "Could not load network information",
       "no-ip": "No IP assigned",
+      "debug-options": {
+        "copy-id": "Copy Interface ID"
+      },
       "fields": {
         "id": "ID",
         "mac": "MAC address",

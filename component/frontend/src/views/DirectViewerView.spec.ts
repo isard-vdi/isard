@@ -208,6 +208,7 @@ vi.mock('@/components/desktops', () => ({
       'desktopId',
       'desktopName',
       'desktopStatus',
+      'desktopKind',
       'directViewerToken',
       'directViewerClient'
     ],

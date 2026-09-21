@@ -31,7 +31,6 @@ import {
   getUserDesktopsOptions,
   getUserDesktopsQueryKey,
   getUserConfigOptions,
-  getDesktopNetworksOptions,
   updateStatusDesktopMutation,
   deleteDesktopMutation,
   recreateDesktopMutation,
@@ -52,13 +51,10 @@ import {
   startDesktop,
   stopDesktop,
   stopDesktops,
-  getDesktopNetworks,
   deleteDesktop,
   updateDesktopBastionAuthorizedKeys,
   getDesktopViewerByType as getDesktopViewer,
   type GetDesktopViewerByTypeData as GetDesktopViewerData,
-  type DesktopNetwork,
-  type GetDesktopNetworksData,
   DesktopStatusEnum,
   type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop,
   getMaxBookingDate,
@@ -75,7 +71,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
 import { describeApiError } from '@/lib/api-errors'
-import { resolveDesktopKind } from '@/lib/desktops'
+import { resolveDesktopKind, type DesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 import { useUserStore } from '@/stores/user'
 import { canCreateAnyDesktop } from '@/lib/quotas'
@@ -360,6 +356,7 @@ const networksModalData = ref<{
   name: string
   ip?: string | null
   status?: string
+  kind: DesktopKind
 } | null>(null)
 
 // --------------------------------------------------
@@ -1214,6 +1211,7 @@ const missingCardRows = computed(() => {
     :desktop-name="networksModalData.name"
     :desktop-ip="networksModalData.ip"
     :desktop-status="networksModalData.status"
+    :desktop-kind="networksModalData.kind"
     @close="networksModalData = null"
   />
 
@@ -1467,7 +1465,8 @@ const missingCardRows = computed(() => {
             id: routeDesktop.id,
             name: routeDesktop.name,
             ip: routeDesktop.ip,
-            status: routeDesktop.status
+            status: routeDesktop.status,
+            kind: resolveDesktopKind(routeDesktop)
           }
         "
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
@@ -1833,7 +1832,8 @@ const missingCardRows = computed(() => {
                 id: dktp.id,
                 name: dktp.name,
                 ip: dktp.ip,
-                status: dktp.status
+                status: dktp.status,
+                kind: resolveDesktopKind(dktp)
               }
             }
           "
@@ -1948,7 +1948,8 @@ const missingCardRows = computed(() => {
                     id: dktp.id,
                     name: dktp.name,
                     ip: dktp.ip,
-                    status: dktp.status
+                    status: dktp.status,
+                    kind: resolveDesktopKind(dktp)
                   }
                 "
                 @show-info-modal="openDesktopInfoModal(dktp.id)"

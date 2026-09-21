@@ -1757,11 +1757,14 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Redes del escritorio '{name}'",
-      "description": "Interfaces de red conectadas a este escritorio. La interfaz Wireguard se muestra primero cuando está presente y expone la IP enrutable del huésped.",
+      "title": "Redes",
+      "loading": "Cargando la información de red…",
       "empty": "Este escritorio no tiene ninguna red conectada",
       "error": "No se ha podido cargar la información de red",
       "no-ip": "Sin IP asignada",
+      "debug-options": {
+        "copy-id": "Copiar ID de la interfaz"
+      },
       "fields": {
         "id": "ID",
         "mac": "Dirección MAC",
