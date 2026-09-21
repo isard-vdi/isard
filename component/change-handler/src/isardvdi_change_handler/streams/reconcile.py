@@ -60,11 +60,23 @@ still alive is left untouched.
 them. Re-observes the backing storages and lets their own transition drive the
 domain; → ``Failed`` directly only when a backing storage row is gone, since
 there is then nothing left to observe.
+
+**Grace (passes 2-4).** Pass 1 ages a chain off its dependencies' settle time;
+the row-keyed passes have their own clock. A row whose ``status_time`` is younger
+than ``grace_s`` is skipped, not healed: the producer that parks it
+(``enqueue_disk_creation_chain_for_domain`` and its siblings) writes the
+lock/transitional status a few statements BEFORE it registers the task, and a
+tick landing in that gap used to re-issue ``find``/``check_backing_chain`` and
+make the producer's own ``create_task`` refuse the real chain with
+``storage_pending_task`` — orphaning a brand-new desktop (#3391). The next tick
+sees the row again; a row with no numeric ``status_time`` (a legacy or seeded row
+never written through the model) keeps the pre-grace behaviour.
 """
 
 import asyncio
 import logging as log
 from datetime import datetime, timezone
+from time import time
 
 from isardvdi_common.lib import queue_coverage
 from isardvdi_common.lib.task_index import MEDIA, STORAGE, current_task_id
@@ -610,6 +622,21 @@ def _task_alive(storage, now=None, min_age_s=FINALIZE_ORPHAN_MIN_AGE_S, kind=STO
         return False
 
 
+def _within_status_grace(row, now, grace_s):
+    """A row that entered its transitional/lock status less than ``grace_s``
+    seconds ago is not stuck yet: the producer that parked it writes the status a
+    few statements BEFORE it registers the task
+    (``enqueue_disk_creation_chain_for_domain`` and its siblings), so a tick in
+    that gap must not re-issue work the producer's own ``create_task`` would then
+    be refused for (#3391). ``status_time`` is stamped by
+    ``RethinkBase.__setattr__`` on every status write; a row with no numeric one
+    (a legacy or seeded row never written through the model) is NOT hidden — it
+    keeps the pre-grace behaviour.
+    """
+    status_time = getattr(row, "status_time", None)
+    return isinstance(status_time, (int, float)) and (now - status_time) < grace_s
+
+
 async def _finalize_stuck_storage(redis_manager, storage):
     """Finalize one stuck transitional storage by re-observing the disk.
 
@@ -678,7 +705,7 @@ def _migration_owned_storage_ids():
         return set()
 
 
-async def _reconcile_stuck_storage(redis_manager):
+async def _reconcile_stuck_storage(redis_manager, grace_s=GRACE_S):
     """Pass 2: finalize storages stuck in a transitional status
     (``maintenance``/``creating``) whose backing task is dead. The primary
     mid-op recovery is the consumer's at-least-once stream replay (the chain
@@ -694,10 +721,17 @@ async def _reconcile_stuck_storage(redis_manager):
     if not stuck:
         return 0
     migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    now = time()
     healed = 0
     for storage in stuck:
         try:
             if getattr(storage, "id", None) in migrating:
+                continue
+            if _within_status_grace(storage, now, grace_s):
+                log.debug(
+                    "reconcile: storage %s within status grace, not stuck yet",
+                    getattr(storage, "id", "?"),
+                )
                 continue
             if _task_alive(storage):
                 continue
@@ -775,7 +809,7 @@ def _finalize_stuck_domain(domain):
     return 0
 
 
-async def _reconcile_stuck_domains(redis_manager):
+async def _reconcile_stuck_domains(redis_manager, grace_s=GRACE_S):
     """Pass 3: finalise domains parked in a storage-lock status
     (``Maintenance`` / ``CreatingTemplate``) whose storage has already settled
     but never promoted them. The storage-keyed passes above are blind to a
@@ -794,10 +828,17 @@ async def _reconcile_stuck_domains(redis_manager):
     if not stuck:
         return 0
     migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    now = time()
     healed = 0
     for domain in stuck:
         try:
             if any(s.id in migrating for s in domain.storages):
+                continue
+            if _within_status_grace(domain, now, grace_s):
+                log.debug(
+                    "reconcile: domain %s within status grace, not stuck yet",
+                    getattr(domain, "id", "?"),
+                )
                 continue
             healed += await asyncio.to_thread(_finalize_stuck_domain, domain)
         except Exception:
@@ -860,7 +901,7 @@ def _finalize_stuck_media(media):
     return 1
 
 
-async def _reconcile_stuck_media(redis_manager):
+async def _reconcile_stuck_media(redis_manager, grace_s=GRACE_S):
     """Pass 4: finish the deletes of media left mid-flight with a dead task.
 
     Passes 2 and 3 are keyed on storage and domains, so nothing was
@@ -879,6 +920,7 @@ async def _reconcile_stuck_media(redis_manager):
     is never a row the delete then refuses.
     """
     healed = 0
+    now = time()
     for status in _MEDIA_STUCK_STATUSES:
         try:
             stuck = await asyncio.to_thread(Media.get_index, [status], "status")
@@ -887,6 +929,12 @@ async def _reconcile_stuck_media(redis_manager):
             continue
         for media in stuck:
             try:
+                if _within_status_grace(media, now, grace_s):
+                    log.debug(
+                        "reconcile: media %s within status grace, not stuck yet",
+                        getattr(media, "id", "?"),
+                    )
+                    continue
                 if _task_alive(media, kind=MEDIA):
                     continue
                 healed += await asyncio.to_thread(_finalize_stuck_media, media)
@@ -918,9 +966,9 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
                 await _drain_core_once(redis_manager)
                 drained = True
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
-            await _reconcile_stuck_storage(redis_manager)
-            await _reconcile_stuck_domains(redis_manager)
-            await _reconcile_stuck_media(redis_manager)
+            await _reconcile_stuck_storage(redis_manager, grace_s=grace_s)
+            await _reconcile_stuck_domains(redis_manager, grace_s=grace_s)
+            await _reconcile_stuck_media(redis_manager, grace_s=grace_s)
             await _assert_core_empty()
         except Exception:
             log.exception("reconcile: pass raised")
