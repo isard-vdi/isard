@@ -188,6 +188,9 @@ class MigrationTotalsResponse(BaseModel):
     #: so the plan preview is the only place they are ever visible.
     not_moving_total: int = 0
     not_moving_by_kind: dict = Field(default_factory=dict)
+    #: each walked disk the selection leaves behind: id, kind, what classified
+    #: it (children | domain | path | default) and why it stays
+    not_moving_disks: list[dict] = Field(default_factory=list)
     #: trees left out because a disk in them has no resolvable destination, and
     #: how many disks that costs. A malformed row no longer aborts the plan, so
     #: this is the only place the admin sees what will not be migrated.

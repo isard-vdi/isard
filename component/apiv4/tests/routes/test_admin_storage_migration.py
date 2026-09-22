@@ -314,6 +314,63 @@ class TestPlan:
         assert body["trees"][0]["desktops"] == 1
         assert body["totals"]["items_total"] == 2
 
+    def test_plan_keeps_what_the_walk_leaves_behind(self, monkeypatch, test_client):
+        """Re-summarising after the media items are appended dropped the disks
+        the selection does not move and the trees it could not place, so the
+        preview approved a pool drain as complete while templates stayed."""
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        stay = [
+            {
+                "storage_id": "t",
+                "kind": "template",
+                "classified_by": "domain",
+                "reason": "kind 'template' is not in the selected disk types (desktop)",
+            }
+        ]
+        excluded = [
+            {"root_id": "x", "storage_id": "x", "reason": "no path", "disks": 1}
+        ]
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [_item("d", tree_id="r", state="pending", kind="desktop")],
+                {
+                    "not_moving_by_kind": {"template": 1},
+                    "not_moving_total": 1,
+                    "not_moving_disks": stay,
+                    "excluded_trees": excluded,
+                    "excluded_disks_total": 1,
+                },
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/plan",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {
+                    "kind": "pool",
+                    "dst_pool_id": "dst",
+                    "item_kinds": ["desktop"],
+                }
+            },
+            db_tables_data={"storage_pool": [_pool()]},
+        )
+        assert resp.status_code == 200
+        totals = resp.json()["totals"]
+        assert totals["not_moving_by_kind"] == {"template": 1}
+        assert totals["not_moving_total"] == 1
+        assert totals["not_moving_disks"] == stay
+        assert totals["excluded_trees"] == excluded
+        assert totals["excluded_disks_total"] == 1
+
     def test_plan_requires_dst_pool(self, test_client):
         resp = test_client(
             url="/admin/storage/migrations/plan",

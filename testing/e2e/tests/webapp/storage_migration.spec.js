@@ -213,3 +213,74 @@ test.describe('Admin Storage-pool migration — source disposition', () => {
     expect(body.config.verify).toBe(false)
   })
 })
+
+// The plan preview now lists the disks that will NOT move — each with its kind and
+// which classifier held it back — as a tooltip on the "stay" cell (migRenderSummary
+// reads totals.not_moving_disks, showing up to 8 lines then "… and N more").
+// Bootstrap may park the text in title or data-original-title, so the assertions
+// read whichever attribute holds it.
+test.describe('Admin Storage-pool migration — non-moving disks breakdown', () => {
+  async function stayTooltip(page) {
+    return page
+      .locator('#mig_sum_stay')
+      .locator('..')
+      .evaluate(
+        (el) => (el.getAttribute('title') || '') + '\n' + (el.getAttribute('data-original-title') || ''),
+      )
+  }
+
+  test('SM7: each non-moving disk is listed with its kind and classifier', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, {
+      items_total: 3,
+      items_by_kind: { desktop: 3 },
+      bytes_by_kind: {},
+      bytes_total: 0,
+      not_moving_total: 2,
+      not_moving_by_kind: { template: 1, desktop: 1 },
+      not_moving_disks: [
+        { storage_id: 'e2e-stay-1', kind: 'template', classified_by: 'domain', reason: 'derivatives stay' },
+        { storage_id: 'e2e-stay-2', kind: 'desktop', classified_by: 'category', reason: 'type not selected' },
+      ],
+      order: 'oldest_first',
+      trees: 2,
+    })
+    await openNewMigrationModal(page)
+    await previewWholePoolPlan(page)
+
+    await expect(page.locator('#mig_sum_stay').locator('..')).toBeVisible()
+    const tip = await stayTooltip(page)
+    expect(tip).toContain('e2e-stay-1: template (by domain)')
+    expect(tip).toContain('e2e-stay-2: desktop (by category)')
+  })
+
+  test('SM8: a long stay list is capped at 8 lines with "… and N more"', async ({
+    authenticatedPage: page,
+  }) => {
+    const disks = Array.from({ length: 9 }, (_, i) => ({
+      storage_id: `e2e-stay-${i + 1}`,
+      kind: 'template',
+      classified_by: 'domain',
+      reason: 'x',
+    }))
+    await stubMigrationApis(page, {
+      items_total: 12,
+      items_by_kind: { desktop: 3 },
+      bytes_by_kind: {},
+      bytes_total: 0,
+      not_moving_total: 9,
+      not_moving_by_kind: { template: 9 },
+      not_moving_disks: disks,
+      order: 'oldest_first',
+      trees: 3,
+    })
+    await openNewMigrationModal(page)
+    await previewWholePoolPlan(page)
+
+    const tip = await stayTooltip(page)
+    expect(tip).toContain('e2e-stay-8: template (by domain)')
+    expect(tip).not.toContain('e2e-stay-9:')
+    expect(tip).toContain('… and 1 more')
+  })
+})

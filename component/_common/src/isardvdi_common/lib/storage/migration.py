@@ -64,16 +64,50 @@ def walk_tree_topo(root_id, get_children):
     return order
 
 
-def classify_kind(has_children, perms):
-    """Classify a storage row for plan counts.
+def classify_kind(has_children, domain_kinds, path_usage):
+    """Classify a disk as ``desktop`` or ``template`` and say by what.
 
-    A node with children is a (derivative) template; a leaf with write perms is
-    a desktop; a read-only leaf is a (base) template. Media rows are classified
-    by the caller (they live in a separate table, no chain).
+    A parent is a template whatever uses it; otherwise the domain that uses the
+    disk decides, then the role of the directory it lives in. Media rows are
+    classified by the caller (they live in a separate table, no chain).
+    Returns ``(kind, classified_by)``.
     """
     if has_children:
-        return "template"
-    return "desktop" if "w" in (perms or []) else "template"
+        return "template", "children"
+    kinds = set(domain_kinds or ())
+    if "template" in kinds:
+        return "template", "domain"
+    if "desktop" in kinds:
+        return "desktop", "domain"
+    if path_usage in ("desktop", "template"):
+        return path_usage, "path"
+    return "template", "default"
+
+
+def domain_kinds_by_storage(storage_ids):
+    """``{storage_id: {kind, ...}}`` of the domains using those disks, in one
+    indexed query that carries only the kind and the disk list."""
+    from isardvdi_common.models.domain import Domain
+
+    wanted = list(dict.fromkeys(storage_ids))
+    kinds = {}
+    if not wanted:
+        return kinds
+    with Domain._rdb_context():
+        rows = (
+            r.table(Domain._rdb_table)
+            .get_all(r.args(wanted), index="storage_ids")
+            .pluck("kind", {"create_dict": {"hardware": {"disks": "storage_id"}}})
+            .run(Domain._rdb_connection)
+        )
+        wanted = set(wanted)
+        for row in rows:
+            hardware = (row.get("create_dict") or {}).get("hardware") or {}
+            for disk in hardware.get("disks") or []:
+                sid = disk.get("storage_id")
+                if sid in wanted:
+                    kinds.setdefault(sid, set()).add(row.get("kind"))
+    return kinds
 
 
 class _Unplaceable(Exception):
@@ -353,7 +387,9 @@ def _count_by_kind(item_dicts):
     return out
 
 
-def summarize_plan(item_dicts, not_moving=None, order=None, excluded=None):
+def summarize_plan(
+    item_dicts, not_moving=None, not_moving_disks=None, order=None, excluded=None
+):
     """Aggregate per-job totals from the built item dicts.
 
     Computed from the data (never incremented), matching the at-least-once
@@ -388,6 +424,7 @@ def summarize_plan(item_dicts, not_moving=None, order=None, excluded=None):
         "state_counts": {"pending": len(item_dicts)} if item_dicts else {},
         "not_moving_by_kind": dict(not_moving or {}),
         "not_moving_total": sum((not_moving or {}).values()),
+        "not_moving_disks": list(not_moving_disks or ()),
         #: trees left out because a disk in them has no resolvable destination.
         #: The plan is still built: one malformed row must not cost the estate
         #: its migration, but the admin has to see what stayed and why.
@@ -1824,14 +1861,20 @@ def build_plan_for_roots(
     selected_kinds = set(item_kinds or ())
 
     kind_cache = {}
+    domain_kinds = domain_kinds_by_storage(walked) if walked else {}
 
-    def kind_of(sid):
+    def classified(sid):
         if sid not in kind_cache:
             s = st(sid)
-            kind_cache[sid] = classify_kind(
-                len(s.children) > 0, getattr(s, "perms", None)
-            )
+            kinds = domain_kinds.get(sid)
+            # the directory role is a pool lookup per disk: only when no
+            # domain says what the disk is
+            path_usage = None if kinds or s.children else s.pool_usage
+            kind_cache[sid] = classify_kind(len(s.children) > 0, kinds, path_usage)
         return kind_cache[sid]
+
+    def kind_of(sid):
+        return classified(sid)[0]
 
     def moves(sid):
         return not selected_kinds or kind_of(sid) in selected_kinds
@@ -1959,14 +2002,29 @@ def build_plan_for_roots(
     walked -= excluded_nodes
     # counted over the walked SET, not per tree: two explicit tree_ids can
     # overlap, and a disk that stays is one disk however many walks reach it
-    for nid in walked:
+    not_moving_disks = []
+    for nid in sorted(walked):
         if not moves(nid):
-            not_moving[kind_of(nid)] += 1
+            kind, classified_by = classified(nid)
+            not_moving[kind] += 1
+            not_moving_disks.append(
+                {
+                    "storage_id": nid,
+                    "kind": kind,
+                    "classified_by": classified_by,
+                    "reason": f"kind '{kind}' is not in the selected disk types "
+                    f"({', '.join(sorted(selected_kinds))})",
+                }
+            )
 
     if order in ("oldest_first", "newest_first"):
         _stamp_tree_order_keys(items, walked, st)
     return items, summarize_plan(
-        items, not_moving=not_moving, order=order, excluded=excluded
+        items,
+        not_moving=not_moving,
+        not_moving_disks=not_moving_disks,
+        order=order,
+        excluded=excluded,
     )
 
 
