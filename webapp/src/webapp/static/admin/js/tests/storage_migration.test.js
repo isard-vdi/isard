@@ -190,7 +190,9 @@ const migConsts = [...src.matchAll(/^const (MIG_[A-Z_]+) = ([\s\S]*?);\n/gm)]
   .join("\n");
 const controls = new Function(
   migConsts + "\n" +
-    ["migEscape", "migOpt", "migBytesToGb", "migConfigControls"].map(extract).join("\n") +
+    ["migEscape", "migOpt", "migBytesToGb", "migDaysToValueUnit", "migConfigControls"]
+      .map(extract)
+      .join("\n") +
     "\nreturn migConfigControls;"
 )();
 const form = (status, verify) => controls({ id: "m1", status, config: { verify } });
