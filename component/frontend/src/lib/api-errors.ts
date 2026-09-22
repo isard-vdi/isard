@@ -110,3 +110,15 @@ const NEW_DESKTOP_ERROR_ALIASES: Record<string, string> = {
 export function newDesktopErrorKey(code: string | null | undefined, i18n: I18nLike): string {
   return errorCodeKey(code, i18n, 'api.new-desktop.errors', NEW_DESKTOP_ERROR_ALIASES)
 }
+
+// Every create flow asks the backend whether the name is free, and each resource
+// answers with its own code.
+const NAME_CONFLICT_ERROR_CODES = new Set([
+  'new_desktop_name_exists',
+  'new_template_name_exists',
+  'duplicated_name'
+])
+
+export function isNameConflictError(code: string | null | undefined): boolean {
+  return !!code && NAME_CONFLICT_ERROR_CODES.has(code)
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import type * as z from 'zod'
@@ -64,11 +64,48 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const userStore = useUserStore()
 
-const { form, values, isDirty, isValid } = useDomainInfoForm({
+const { form, values, isDirty, isValid, nameSchema } = useDomainInfoForm({
   source: () => props.source,
   extraDefaults: props.extraDefaults,
   extraSchema: props.extraSchema
 })
+
+const nameTouched = ref(false)
+
+const currentName = computed(() => values.value.name ?? '')
+
+const nameError = computed(() => {
+  if (!nameTouched.value) return undefined
+  const result = nameSchema.safeParse(currentName.value)
+  return result.success ? undefined : result.error.issues[0]?.message
+})
+
+// `nameError` only covers the schema, and only once the field is touched. Every
+// other error the form holds for the name -- the conflict the backend reports on
+// submit -- has to show the moment it lands, so it is read straight off the map.
+const nameErrorMap = form.useStore((state) => state.fieldMeta.name?.errorMap)
+
+const externalNameErrors = computed(
+  () =>
+    Object.entries(nameErrorMap.value ?? {})
+      .filter(([cause]) => cause !== 'onChange')
+      .flatMap(([, error]) => (Array.isArray(error) ? error : [error]))
+      .filter(Boolean) as (string | { message: string | undefined })[]
+)
+
+const nameErrors = computed(() =>
+  nameError.value ? [nameError.value, ...externalNameErrors.value] : externalNameErrors.value
+)
+
+const handleNameInput = (field: { handleChange: (value: string) => void }, value: string) => {
+  nameTouched.value = true
+  field.handleChange(value)
+}
+
+const handleNameBlur = (field: { handleBlur: () => void }) => {
+  nameTouched.value = true
+  field.handleBlur()
+}
 
 const kindModel = computed({
   get: () => (props.kind === 'nonpersistent' ? 'nonpersistent' : 'persistent'),
@@ -165,7 +202,10 @@ defineExpose({
   isDirty,
   isValid,
   getFormData: () => ({ ...values.value }),
-  reset: () => form.reset()
+  reset: () => {
+    nameTouched.value = false
+    form.reset()
+  }
 })
 </script>
 
@@ -211,7 +251,7 @@ defineExpose({
 
       <form class="contents" @submit.prevent>
         <form.Field v-slot="{ field }" name="name" class="contents">
-          <Field :data-invalid="isInvalid(field)" class="contents">
+          <Field :data-invalid="nameErrors.length > 0" class="contents">
             <div class="text-sm font-semibold px-4">
               <FieldLabel :for="field.name">{{
                 t('views.new-template.form.sections.preview.fields.name.label')
@@ -225,17 +265,17 @@ defineExpose({
                 :name="field.name"
                 :model-value="field.state.value"
                 :placeholder="t('views.new-template.form.sections.preview.fields.name.placeholder')"
-                :aria-invalid="isInvalid(field)"
-                :destructive="isInvalid(field)"
+                :aria-invalid="nameErrors.length > 0"
+                :destructive="nameErrors.length > 0"
                 autocomplete="off"
                 type="text"
                 maxlength="50"
-                @blur="field.handleBlur"
-                @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
+                @blur="handleNameBlur(field)"
+                @input="handleNameInput(field, String(($event.target as HTMLInputElement).value))"
               />
             </div>
             <div class="text-sm font-semibold px-4">
-              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+              <FieldError :errors="nameErrors" />
             </div>
           </Field>
         </form.Field>
@@ -377,8 +417,8 @@ defineExpose({
           </div>
         </div>
         <div v-else class="flex flex-col gap-3">
-          <div class="flex flex-col gap-2">
-            <form.Field v-slot="{ field }" name="name">
+          <form.Field v-slot="{ field }" name="name">
+            <Field :data-invalid="nameErrors.length > 0">
               <FieldLabel :for="field.name">{{
                 t('components.domain.info.name.label')
               }}</FieldLabel>
@@ -388,14 +428,17 @@ defineExpose({
                 :model-value="field.state.value"
                 :aria-label="t('components.domain.info.name.label')"
                 :placeholder="t('components.domain.info.name.placeholder')"
+                :aria-invalid="nameErrors.length > 0"
+                :destructive="nameErrors.length > 0"
                 maxlength="50"
                 autofocus
-                @update:model-value="(value) => field.handleChange(String(value))"
-                @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
-                @blur="field.handleBlur"
+                @update:model-value="(value) => handleNameInput(field, String(value))"
+                @input="handleNameInput(field, String(($event.target as HTMLInputElement).value))"
+                @blur="handleNameBlur(field)"
               />
-            </form.Field>
-          </div>
+              <FieldError :errors="nameErrors" />
+            </Field>
+          </form.Field>
           <div class="flex flex-col gap-2">
             <form.Field v-slot="{ field }" name="description">
               <FieldLabel :for="field.name">{{

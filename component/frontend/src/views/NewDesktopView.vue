@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
@@ -30,7 +30,7 @@ import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
 import { FormHeader } from '@/components/form-header'
 
 import { cn } from '@/lib/utils'
-import { newDesktopErrorKey } from '@/lib/api-errors'
+import { newDesktopErrorKey, isNameConflictError } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
 
@@ -100,6 +100,17 @@ const selectTemplate = (template: { id: string; image?: DomainImageOutput }) => 
 
 const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 const step2Ref = ref<InstanceType<typeof Step2ConfigureDesktop> | null>(null)
+
+// The conflict answers the name that was sent: editing it makes the banner stale.
+watch(
+  () => step2Ref.value?.name,
+  (name, previous) => {
+    // Mounting or unmounting the section moves this too: only an edit counts.
+    if (name === undefined || previous === undefined) return
+    if (!isNameConflictError(creationError.value)) return
+    creationError.value = null
+  }
+)
 
 const nextButtonLabel = computed(() => {
   if (currentStep.value === 2) {

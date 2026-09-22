@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { isInvalid } from '@/lib/utils'
+import { isInvalid, validateOnBlur } from '@/lib/utils'
 
 import {
   Field,
@@ -117,7 +117,7 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
 
       <form class="contents" @submit.prevent="emit('submit')">
         <props.form.Field v-slot="{ field }" name="name">
-          <Field>
+          <Field :data-invalid="isInvalid(field)">
             <FieldLabel :for="field.name">{{
               t('components.deployments.form-sections.info.fields.name.label')
             }}</FieldLabel>
@@ -126,18 +126,21 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
               :name="field.name"
               :model-value="field.state.value"
               :placeholder="t('components.deployments.form-sections.info.fields.name.placeholder')"
+              :aria-invalid="isInvalid(field)"
+              :destructive="isInvalid(field)"
               autofocus
               autocomplete="off"
               type="text"
               maxlength="50"
-              @blur="field.handleBlur"
+              @blur="validateOnBlur(field)"
               @input="field.handleChange($event.target.value)"
             />
+            <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
           </Field>
         </props.form.Field>
 
         <props.form.Field v-slot="{ field }" name="description">
-          <Field>
+          <Field :data-invalid="isInvalid(field)">
             <FieldLabel :for="field.name">{{
               t('components.deployments.form-sections.info.fields.description.label')
             }}</FieldLabel>
@@ -150,11 +153,14 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
               :placeholder="
                 t('components.deployments.form-sections.info.fields.description.placeholder')
               "
+              :aria-invalid="isInvalid(field)"
+              :destructive="isInvalid(field)"
               autocomplete="off"
               maxlength="255"
-              @blur="field.handleBlur"
+              @blur="validateOnBlur(field)"
               @input="field.handleChange($event.target.value)"
             />
+            <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
           </Field>
         </props.form.Field>
       </form>

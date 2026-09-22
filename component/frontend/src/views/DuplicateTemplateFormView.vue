@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -26,7 +26,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { FormHeader } from '@/components/form-header'
 import { Switch } from '@/components/ui/switch'
-import { describeErrorCode } from '@/lib/api-errors'
+import { describeErrorCode, isNameConflictError } from '@/lib/api-errors'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,6 +129,7 @@ const duplicateTemplateErrorMessage = computed(() =>
 )
 const {
   mutate: duplicateTemplate,
+  reset: resetDuplicateTemplate,
   isPending: duplicateTemplateIsPending,
   isError: duplicateTemplateIsError
 } = useMutation({
@@ -153,6 +154,19 @@ const {
     }
   }
 })
+
+// The conflict answers the name that was sent, so a different one makes the
+// banner stale: the field keeps the message while the name stays the rejected one.
+watch(
+  () => infoRef.value?.values.name,
+  (name, previous) => {
+    // Mounting or unmounting the section moves this too: only an edit counts.
+    if (name === undefined || previous === undefined) return
+    if (!isNameConflictError(duplicateTemplateErrorCode.value)) return
+    duplicateTemplateErrorCode.value = undefined
+    resetDuplicateTemplate()
+  }
+)
 
 const isPending = computed(() => {
   return (

@@ -71,9 +71,17 @@ const {
 
 const formHeaderRef = ref<InstanceType<typeof FormHeader> | null>(null)
 
+/** Which name the backend refused, so its message can follow the right field. */
+const rejectedName = ref<{
+  scope: 'deployment' | 'desktop'
+  name: string
+  message: string
+} | null>(null)
+
 const {
   mutate: createDeployment,
   mutateAsync: createDeploymentAsync,
+  reset: resetCreateDeployment,
   isPending: createDeploymentIsPending,
   isError: createDeploymentIsError,
   error: createDeploymentError,
@@ -88,27 +96,32 @@ const {
       params: { deploymentId: data.id }
     })
   },
-  onError: (error) => {
+  onError: (error, variables) => {
     const errorResponse = error as DesktopNameExistsErrorResponse
 
     // Handle field errors
     switch (errorResponse.description_code) {
-      case 'duplicated_name':
-        form.getFieldInfo('name').instance?.setErrorMap({
-          onSubmit: t('components.deployments.form-sections.info.fields.name.errors.exists')
-        })
+      case 'duplicated_name': {
+        const message = t('components.deployments.form-sections.info.fields.name.errors.exists')
+
+        rejectedName.value = { scope: 'deployment', name: variables.body.name, message }
+        form.getFieldInfo('name').instance?.setErrorMap({ onSubmit: message })
         currentStep.value = 1
         break
+      }
 
       case 'new_desktop_name_exists': {
         const desktops = form.getFieldValue('desktops') || []
+        const message = t(
+          'components.deployments.form-desktop-card.sections.preview.fields.name.errors.exists'
+        )
+        const name = errorResponse.params?.name
 
+        rejectedName.value = name ? { scope: 'desktop', name, message } : null
         desktops.forEach((desktop, index) => {
-          if (desktop.name === errorResponse.params?.name) {
-            form.getFieldInfo(`desktops[${index}].name`)?.instance?.setErrorMap({
-              onSubmit: t(
-                'components.deployments.form-desktop-card.sections.preview.fields.name.errors.exists'
-              )
+          if (desktop.name === name) {
+            form.getFieldInfo(`desktops[${index}].name`).instance?.setErrorMap({
+              onSubmit: message
             })
           }
         })
@@ -117,6 +130,7 @@ const {
       }
 
       default:
+        rejectedName.value = null
         break
     }
   }
@@ -177,32 +191,47 @@ const openTemplateInfoModal = (templateId: string) => {
   showTemplateInfoModal.value = true
 }
 
+const deploymentNameLabel = t('components.deployments.form-sections.info.fields.name.label')
+const deploymentDescriptionLabel = t(
+  'components.deployments.form-sections.info.fields.description.label'
+)
+const desktopNameLabel = t(
+  'components.deployments.form-desktop-card.sections.preview.fields.name.label'
+)
+const desktopDescriptionLabel = t(
+  'components.deployments.form-desktop-card.sections.preview.fields.description.label'
+)
+
+// Piped so an empty name only reports being required, never that on top of the
+// minimum length.
+const nameSchema = (field: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, t('components.form.validation.required', { field }))
+    .pipe(
+      z
+        .string()
+        .min(4, t('components.form.validation.min-length', { field, min: 4 }))
+        .max(50, t('components.form.validation.max-length', { field, max: 50 }))
+    )
+
+const descriptionSchema = (field: string) =>
+  z
+    .string()
+    .trim()
+    .max(255, t('components.form.validation.max-length', { field, max: 255 }))
+
 const formSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, t('components.form.validation.required'))
-    .min(4, t('components.form.validation.min-length', { min: 4 }))
-    .max(50, t('components.form.validation.max-length', { max: 50 })),
-  description: z
-    .string()
-    .trim()
-    .max(255, t('components.form.validation.max-length', { max: 255 })),
+  name: nameSchema(deploymentNameLabel),
+  description: descriptionSchema(deploymentDescriptionLabel),
   visible: z.boolean(),
   desktops: z
     .array(
       z.object({
         template_id: z.string(),
-        name: z
-          .string()
-          .trim()
-          .min(1, t('components.form.validation.required'))
-          .min(4, t('components.form.validation.min-length', { min: 4 }))
-          .max(50, t('components.form.validation.max-length', { max: 50 })),
-        description: z
-          .string()
-          .trim()
-          .max(255, t('components.form.validation.max-length', { max: 255 }))
+        name: nameSchema(desktopNameLabel),
+        description: descriptionSchema(desktopDescriptionLabel)
       })
     )
     .min(1, t('views.new-deployment.steps.select-desktops.errors.no-desktops'))
@@ -219,7 +248,7 @@ const formSchema = z.object({
           for (const index of indices) {
             ctx.addIssue({
               code: 'custom',
-              message: t('components.form.validation.unique'),
+              message: t('components.form.validation.unique', { field: desktopNameLabel }),
               path: [index, 'name']
             })
           }
@@ -309,6 +338,33 @@ const form = useForm({
 const formFieldMeta = form.useStore((state) => state.fieldMeta)
 const formValues = form.useStore((state) => state.values)
 const formIsTouched = form.useStore((state) => !state.isPristine)
+
+const deploymentName = form.useStore((state) => state.values.name)
+const desktopNames = form.useStore((state) =>
+  JSON.stringify(state.values.desktops.map((desktop) => desktop.name))
+)
+
+watch([deploymentName, desktopNames], () => {
+  const rejected = rejectedName.value
+  if (!rejected) return
+
+  const desktops = form.state.values.desktops
+
+  if (rejected.scope === 'desktop') {
+    desktops.forEach((desktop, index) => {
+      form.getFieldInfo(`desktops[${index}].name`).instance?.setErrorMap({
+        onSubmit: desktop.name === rejected.name ? rejected.message : undefined
+      })
+    })
+    if (desktops.some((desktop) => desktop.name === rejected.name)) return
+  } else {
+    if (form.state.values.name === rejected.name) return
+    form.getFieldInfo('name').instance?.setErrorMap({ onSubmit: undefined })
+  }
+
+  rejectedName.value = null
+  resetCreateDeployment()
+})
 
 // Define which form fields belong to each step
 const step1Fields = ['name', 'description', 'visible']

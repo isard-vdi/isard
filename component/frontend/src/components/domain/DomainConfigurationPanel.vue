@@ -154,6 +154,8 @@ const getFormData = (): DomainConfigurationPanelData => {
 
 defineExpose({
   getFormData,
+  /** Reactive, unlike `getFormData`: lets a conflict clear as the name is edited. */
+  name: computed(() => infoRef.value?.values.name ?? ''),
   areFormsValid,
   configurationIsDirty,
   isDirty,
