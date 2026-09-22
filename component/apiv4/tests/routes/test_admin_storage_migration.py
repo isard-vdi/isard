@@ -331,7 +331,10 @@ class TestConfig:
         assert resp.status_code == 200
         assert resp.json()["config"]["on_damaged"] == value
 
-    def test_config_defaults_on_damaged_to_pause(self, test_client):
+    def test_config_does_not_backfill_on_damaged(self, test_client):
+        # Unlike source_disposition, absent and "pause" mean the same thing here
+        # (the runner reads ``config.get("on_damaged") or "pause"``), so not
+        # writing the default costs nothing and keeps the partial update partial.
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
             method="PUT",
@@ -339,7 +342,19 @@ class TestConfig:
             body={"bwlimit_kbs": 1},
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
-        assert resp.json()["config"]["on_damaged"] == "pause"
+        assert "on_damaged" not in resp.json()["config"]
+
+    def test_config_keeps_a_chosen_on_damaged(self, test_client):
+        job = _migration(status="planned")
+        job["config"]["on_damaged"] = "continue"
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.json()["config"]["on_damaged"] == "continue"
 
     def test_config_rejects_an_unknown_on_damaged(self, test_client):
         resp = test_client(
