@@ -18,6 +18,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "..", "storage_migration.js");
 const src = fs.readFileSync(SRC, "utf8");
 
+
 function extract (name) {
   // Grab a top-level `function name (...) { ... }` up to its column-0 closing
   // brace (inner braces are indented, so `\n}` matches only the function end).
@@ -169,7 +170,6 @@ assert.strictEqual(a.migCreateConfig().source_disposition, "system");
 a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_source_disposition": "delete" } });
 assert.strictEqual(a.migCreateConfig().source_disposition, "delete");
 const configForm = extract("migConfigControls");
-assert(configForm.includes('"system", "recycle_bin", "delete"'), "the per-job form must offer the three dispositions");
 assert(configForm.includes("c.source_disposition"), "the per-job form must show the job's current value");
 console.log("migCreateConfig source_disposition: PASS");
 // damaged disk: absent -> "pause" (the job waits for the admin), a chosen value travels
@@ -179,6 +179,25 @@ a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_on_damaged": 
 assert.strictEqual(a.migCreateConfig().on_damaged, "continue");
 assert(extract("migConfigControls").includes('"pause", "continue"'), "the per-job form must offer both");
 console.log("migCreateConfig on_damaged: PASS");
+
+// The per-job form: "delete" needs verify, and on a live job verify is frozen, so a
+// live job whose verify is off must not be offered a disposition the API will refuse.
+// Every top-level MIG_* constant and every helper the form calls, lifted from the
+// source: naming them one by one means the next branch that adds a label breaks
+// THIS test instead of its own.
+const migConsts = [...src.matchAll(/^const (MIG_[A-Z_]+) = ([\s\S]*?);\n/gm)]
+  .map((m) => `const ${m[1]} = ${m[2]};`)
+  .join("\n");
+const controls = new Function(
+  migConsts + "\n" +
+    ["migEscape", "migOpt", "migBytesToGb", "migConfigControls"].map(extract).join("\n") +
+    "\nreturn migConfigControls;"
+)();
+const form = (status, verify) => controls({ id: "m1", status, config: { verify } });
+assert(form("pending", false).includes('value="delete"'), "a job that has not started may still choose delete");
+assert(!form("running", false).includes('value="delete"'), "a live job with verify off must not be offered delete");
+assert(form("running", true).includes('value="delete"'), "a live job with verify on keeps delete");
+console.log("migConfigControls source disposition vs frozen verify: PASS");
 
 // Apply sends only what changed, and names the fields that weaken a guarantee
 const changes = new Function(

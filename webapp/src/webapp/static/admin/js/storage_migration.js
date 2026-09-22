@@ -369,6 +369,10 @@ function migConfigControls (m) {
   // once the job may have moved a disk, verify is frozen server-side
   const live = MIG_LIVE.indexOf(m.status) !== -1;
   const disVerify = dis || (live ? "disabled" : "");
+  // "delete" needs verify, and on a live job verify can no longer be turned on.
+  const sourceOpts = disVerify && c.verify === false
+    ? ["system", "recycle_bin"]
+    : ["system", "recycle_bin", "delete"];
   return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" data-cfg="${migEscape(JSON.stringify(c))}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
       <span class="text-muted" style="margin-right:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;" title="Live settings for this job — edit and press Apply." data-toggle="tooltip">Settings</span>
       <label title="Daily copy window (24h UTC). Blank = always." data-toggle="tooltip">Window
@@ -386,7 +390,7 @@ function migConfigControls (m) {
       <label style="margin-left:8px;" title="Checksum-verify each copy before removing the source. Frozen once the job has moved a disk." data-toggle="tooltip"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${disVerify}> verify</label>
       <label style="margin-left:8px;" title="What happens to the original file once its copy is verified: follow the recycle bin's delete action, keep it under deleted/, or delete it (needs verify)." data-toggle="tooltip">Source
         <select class="form-control input-sm cfg-source" ${dis}>
-          ${migOpt(["system", "recycle_bin", "delete"], c.source_disposition || "system", MIG_SOURCE_LABELS)}
+          ${migOpt(sourceOpts, c.source_disposition || "system", MIG_SOURCE_LABELS)}
         </select>
       </label>
       <label style="margin-left:8px;" title="Re-scan and run again each window instead of finishing once." data-toggle="tooltip"><input type="checkbox" class="cfg-recurring" ${c.recurring ? "checked" : ""} ${dis}> recurring</label>
