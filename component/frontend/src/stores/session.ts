@@ -163,7 +163,9 @@ export const useSessionStore = defineStore('session', () => {
       showModal(reason)
     } else {
       // Force logout for other scenarios
-      await authStore.logout()
+      if (await authStore.logout()) {
+        return
+      }
       showModal(reason)
     }
   }
@@ -239,7 +241,9 @@ export const useSessionStore = defineStore('session', () => {
     console.debug('🚪 Internal logout requested')
     internalLogoutInProgress.value = true
 
-    await authStore.logout()
+    if (await authStore.logout()) {
+      return
+    }
     hideModal()
     wasAuthenticated.value = false
     await pushLoginRoute()

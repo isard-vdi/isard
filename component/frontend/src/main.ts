@@ -61,6 +61,8 @@ app.config.errorHandler = (err, instance, info) => {
 const pinia = createPinia()
 
 app.use(pinia)
+app.use(VueQueryPlugin, vueQueryPluginOptions)
+
 const authStore = useAuthStore()
 authStore.restoreStashedTokenOnBoot()
 authStore.initialize()
@@ -105,7 +107,7 @@ apiv4Client.interceptors.response.use(async (response, request) => {
 
   if (response.status === 401) {
     // Handle unauthorized response, e.g., by logging out the user
-    authStore.logout()
+    void authStore.logout()
   }
   if ([403, 500].includes(response.status)) {
     // A failed read means the page itself cannot load, so going back to it
@@ -142,6 +144,5 @@ watch(
 
 app.use(router)
 app.use(i18n)
-app.use(VueQueryPlugin, vueQueryPluginOptions)
 
 app.mount('#app')

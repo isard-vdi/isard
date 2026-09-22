@@ -130,8 +130,10 @@ const accept = async () => {
   }
 }
 
-const reject = () => {
-  authStore.logout()
+const reject = async () => {
+  if (await authStore.logout()) {
+    return
+  }
   router.push({ name: 'login' })
 }
 </script>

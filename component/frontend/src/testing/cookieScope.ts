@@ -42,4 +42,5 @@ export const freshPinia = () => {
   const pinia = createPinia()
   pinias.push(pinia)
   setActivePinia(pinia)
+  return pinia
 }
