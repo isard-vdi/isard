@@ -1274,6 +1274,7 @@
     "no_storage_pool_available": "Une honetan ezin da baliabidea sortu. Saiatu berriro geroago.",
     "needs_deployment_booking": "Mahaigain ezin da orain hasi; jar zaitez harremanetan hedapenaren jabearekin, erreserbatzeko",
     "template_failed": "Akats bat dela eta, txantiloi hau ezin da erabili mahaigain berri bat sortzeko. Mesedez, jarri harremanetan administratzailearekin",
+    "template_storage_not_ready": "Txantiloi honen biltegia ez dago prest eta oraindik ezin da erabili. Mesedez, jarri harremanetan administratzailearekin",
     "desktop_storage_not_ready": "Mahaigaineko biltegia ez dago prest",
     "cant_edit_booked_deployment": "Ezin dira editatu erreserba programatua duen hedapen baten erreserbak",
     "password_uppercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra larriz",
