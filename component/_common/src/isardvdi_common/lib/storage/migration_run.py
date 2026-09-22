@@ -515,6 +515,10 @@ class MigrationRunner:
             abandon_restarts=0,
             attempts=0,
             error=None,
+            # The failed attempt may have left a full-looking copy on the
+            # destination; move() would take it as done and the retry would be a
+            # no-op that fails the same way.
+            recopy=True,
         )
 
     def _audit(self, item, result):
@@ -916,6 +920,7 @@ class MigrationRunner:
                 "method": "rsync",
                 "bwlimit": bwlimit,
                 "remove_source_file": False,  # keep source until release
+                "trust_existing_destination": not item.get("recopy"),
                 # worker-side floor: only the storage worker can see the pool
                 # mounts, and only immediately before the copy is the figure true
                 "min_free_bytes": int(self.config.get("min_free_bytes") or 0),
@@ -977,7 +982,12 @@ class MigrationRunner:
         # Clean phase advance: reset the orphan-resume bound so abandon_restarts
         # counts CONSECUTIVE abandonments per phase, not cumulatively across the
         # disk's whole move->rebase->db lifetime (kinder to a flaky host).
-        self._set(item, state=MigrationItemState.MOVED.value, abandon_restarts=0)
+        self._set(
+            item,
+            state=MigrationItemState.MOVED.value,
+            abandon_restarts=0,
+            recopy=False,
+        )
 
     def _skip_move(self, item):
         # dst == src (same-pool, or already in the destination pool): the file is
