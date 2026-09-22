@@ -61,7 +61,7 @@ export const WithTags: Story = {
   args: { categories, modelValue: { kind: ['persistent'], status: ['started'] } }
 }
 
-/** Narrow enough to push tags out of the row: the counter opens the panel. */
+/** Narrow enough to push tags out of the row: the counter raises the filters panel. */
 export const Narrow: Story = {
   args: {
     categories,

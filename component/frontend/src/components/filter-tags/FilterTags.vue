@@ -10,14 +10,12 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 import FilterTag from './FilterTag.vue'
@@ -92,9 +90,11 @@ const panelOpen = ref(false)
 const queryTags = () =>
   Array.from(control.value?.querySelectorAll<HTMLElement>('[data-filter-tag]') ?? [])
 
+// The wrapper's gap-1.5, px-1.5 and border, in pixels.
 const GAP = 6
 const PADDING = 6
 const BORDER = 1
+// Sub-pixel slack, so the last tag cannot wrap by a fraction.
 const SLACK = 2
 
 const measure = (pass = 0) => {
@@ -129,6 +129,9 @@ const measure = (pass = 0) => {
   hiddenCount.value = hidden
   element.style.width = width
 
+  // The counter exists only once something is hidden and narrows the row in
+  // turn, hiding one more; re-measure once it has painted, capped so nothing
+  // can loop.
   if (!settled && pass < 3) nextTick(() => requestAnimationFrame(() => measure(pass + 1)))
 }
 
@@ -177,72 +180,84 @@ watch(
         <Icon name="chevron-down" size="sm" stroke-color="gray-warm-500" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" :align-offset="-7" :side-offset="11" class="min-w-44">
-        <DropdownMenuSub v-for="category in props.categories" :key="category.key">
-          <DropdownMenuSubTrigger>
-            {{ category.label }}
-            <span v-if="selectedOf(category.key).length" class="ml-2 text-xs text-gray-warm-500">
-              {{ selectedOf(category.key).length }}
-            </span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent class="min-w-44">
-            <DropdownMenuCheckboxItem
-              v-for="option in category.options"
-              :key="option.value"
-              :model-value="isSelected(category.key, option.value)"
-              class="gap-2 pl-2 [&>span:first-child]:hidden"
-              @select.prevent
-              @update:model-value="toggle(category.key, option.value)"
-            >
-              <span
-                aria-hidden="true"
-                :class="
-                  cn(
-                    'flex size-4 shrink-0 items-center justify-center rounded-sm border',
-                    isSelected(category.key, option.value)
-                      ? 'border-brand-700 bg-brand-700'
-                      : 'border-input bg-base-white'
-                  )
-                "
-              >
-                <Icon
-                  v-if="isSelected(category.key, option.value)"
-                  name="check"
-                  size="xs"
-                  stroke-color="base-white"
-                />
-              </span>
-              <span class="flex w-full items-center gap-1.5">
-                <Icon
-                  v-if="option.icon"
-                  :name="option.icon"
-                  size="sm"
-                  :stroke-color="filterToneStyle(option.tone).iconColor"
-                  aria-hidden="true"
-                  class="shrink-0"
-                />
-                <span class="truncate">{{ option.label }}</span>
-                <span
-                  v-if="option.count !== undefined"
-                  class="ml-auto shrink-0 pl-4 text-xs tabular-nums text-gray-warm-500"
-                >
-                  {{ option.count }}
-                </span>
-              </span>
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+      <DropdownMenuContent align="start" :align-offset="-7" :side-offset="11" class="min-w-56">
+        <div
+          role="presentation"
+          class="max-h-[min(60vh,22rem)] overflow-y-auto overscroll-contain p-1"
+        >
+          <template v-for="(category, index) in props.categories" :key="category.key">
+            <DropdownMenuSeparator v-if="index > 0" />
 
-        <template v-if="tags.length">
-          <DropdownMenuSeparator />
+            <DropdownMenuGroup :aria-label="category.label">
+              <DropdownMenuLabel
+                class="flex items-center gap-2 px-2 py-1 text-xs font-bold tracking-wide text-brand-700 uppercase"
+              >
+                <span class="truncate">{{ category.label }}</span>
+                <span
+                  v-if="selectedOf(category.key).length"
+                  class="ml-auto shrink-0 rounded-[4px] bg-gray-warm-100 px-1 text-xs tabular-nums text-gray-warm-600"
+                >
+                  {{ selectedOf(category.key).length }}
+                </span>
+              </DropdownMenuLabel>
+
+              <DropdownMenuCheckboxItem
+                v-for="option in category.options"
+                :key="option.value"
+                :model-value="isSelected(category.key, option.value)"
+                class="cursor-pointer gap-2 pl-2 [&>span:first-child]:hidden"
+                @select.prevent
+                @update:model-value="toggle(category.key, option.value)"
+              >
+                <span
+                  aria-hidden="true"
+                  :class="
+                    cn(
+                      'flex size-4 shrink-0 items-center justify-center rounded-sm border',
+                      isSelected(category.key, option.value)
+                        ? 'border-brand-700 bg-brand-700'
+                        : 'border-input bg-base-white'
+                    )
+                  "
+                >
+                  <Icon
+                    v-if="isSelected(category.key, option.value)"
+                    name="check"
+                    size="xs"
+                    stroke-color="base-white"
+                  />
+                </span>
+                <span class="flex w-full items-center gap-1.5">
+                  <Icon
+                    v-if="option.icon"
+                    :name="option.icon"
+                    size="sm"
+                    :stroke-color="filterToneStyle(option.tone).iconColor"
+                    aria-hidden="true"
+                    class="shrink-0"
+                  />
+                  <span class="truncate">{{ option.label }}</span>
+                  <span
+                    v-if="option.count !== undefined"
+                    class="ml-auto shrink-0 pl-4 text-xs tabular-nums text-gray-warm-500"
+                  >
+                    {{ option.count }}
+                  </span>
+                </span>
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuGroup>
+          </template>
+        </div>
+
+        <div v-if="tags.length" role="presentation" class="border-t border-muted p-1">
           <DropdownMenuItem
-            class="text-gray-warm-700 hover:bg-error-100 hover:text-error-800 focus:bg-error-100 focus:text-error-800"
+            class="cursor-pointer text-gray-warm-700 hover:bg-error-100 hover:text-error-800 focus:bg-error-100 focus:text-error-800"
             @select="clear"
           >
             <Icon name="x-circle" size="sm" stroke-color="" aria-hidden="true" />
             {{ t('components.filters.clear') }}
           </DropdownMenuItem>
-        </template>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
 
@@ -258,57 +273,37 @@ watch(
       @remove="toggle(tag.categoryKey, tag.value)"
     />
 
-    <Popover v-model:open="panelOpen">
-      <PopoverAnchor as-child>
-        <span class="pointer-events-none absolute inset-0" aria-hidden="true" />
-      </PopoverAnchor>
-
-      <div
-        data-filter-actions
-        class="absolute top-1/2 right-1.5 flex -translate-y-1/2 flex-row items-center gap-1"
+    <div
+      data-filter-actions
+      class="absolute top-1/2 right-1.5 flex -translate-y-1/2 flex-row items-center gap-1"
+    >
+      <button
+        v-if="hiddenCount > 0"
+        type="button"
+        aria-haspopup="menu"
+        :aria-expanded="panelOpen"
+        :aria-label="t('components.filters.show-all', { count: tags.length })"
+        class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-[6px] bg-gray-warm-100 px-1.5 text-sm font-semibold text-gray-warm-700 tabular-nums hover:bg-gray-warm-200 focus:bg-gray-warm-200 focus:outline-none"
+        @click="panelOpen = true"
       >
-        <PopoverTrigger
-          v-if="hiddenCount > 0 || panelOpen"
-          :aria-label="t('components.filters.show-all', { count: tags.length })"
-          class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-[6px] bg-gray-warm-100 px-1.5 text-sm font-semibold text-gray-warm-700 tabular-nums hover:bg-gray-warm-200 focus:bg-gray-warm-200 focus:outline-none"
-        >
-          +{{ hiddenCount }}
-        </PopoverTrigger>
+        +{{ hiddenCount }}
+      </button>
 
-        <TooltipProvider v-if="tags.length">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <button
-                type="button"
-                :aria-label="t('components.filters.clear')"
-                class="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[6px] text-gray-warm-500 hover:bg-error-100 hover:text-error-800 focus:bg-error-100 focus:text-error-800 focus:outline-none"
-                @click="clear"
-              >
-                <Icon name="x-circle" size="sm" stroke-color="" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent :title="t('components.filters.clear')" side="top" />
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
-      <PopoverContent
-        align="start"
-        :side-offset="4"
-        class="w-(--reka-popover-trigger-width) min-w-44 p-1.5"
-      >
-        <div class="flex flex-row flex-wrap items-center gap-1.5">
-          <FilterTag
-            v-for="tag in tags"
-            :key="`${tag.categoryKey}:${tag.value}`"
-            :label="tag.label"
-            :count="tag.count"
-            :tone="tag.tone"
-            :icon="tag.icon"
-            @remove="toggle(tag.categoryKey, tag.value)"
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
+      <TooltipProvider v-if="tags.length">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              :aria-label="t('components.filters.clear')"
+              class="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[6px] text-gray-warm-500 hover:bg-error-100 hover:text-error-800 focus:bg-error-100 focus:text-error-800 focus:outline-none"
+              @click="clear"
+            >
+              <Icon name="x-circle" size="sm" stroke-color="" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent :title="t('components.filters.clear')" side="top" />
+        </Tooltip>
+      </TooltipProvider>
+    </div>
   </div>
 </template>

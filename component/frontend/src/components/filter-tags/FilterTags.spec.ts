@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 
 vi.mock('vue-i18n', () => ({
@@ -90,5 +91,49 @@ describe('FilterTags', () => {
     expect(wrapper.find('[aria-haspopup="menu"]').attributes('aria-label')).toBe(
       'components.filters.toggle-active::{"count":2}'
     )
+  })
+
+  it('lays every category out with its own options, no submenu in between', async () => {
+    const wrapper = mountTags({ kind: ['persistent'], status: [] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+
+    const panel = document.body.querySelector('[role="menu"]')
+    expect(panel).not.toBeNull()
+
+    const groups = panel?.querySelectorAll('[role="group"]') ?? []
+    expect(Array.from(groups).map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Type',
+      'Status'
+    ])
+    expect(panel?.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(3)
+    expect(panel?.querySelector('[aria-haspopup="menu"]')).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('ticks in the panel the values that are already on', async () => {
+    const wrapper = mountTags({ kind: ['volatile'], status: [] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+
+    const checked = Array.from(
+      document.body.querySelectorAll('[role="menuitemcheckbox"][aria-checked="true"]')
+    )
+    expect(checked.map((item) => item.textContent?.trim())).toEqual(['Temporaries3'])
+
+    wrapper.unmount()
+  })
+
+  it('clears from the panel too', async () => {
+    const wrapper = mountTags({ kind: ['persistent'], status: ['started'] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+
+    const clear = Array.from(document.body.querySelectorAll('[role="menuitem"]')).at(-1)
+    expect(clear?.textContent).toContain('components.filters.clear')
+    ;(clear as HTMLElement).click()
+    await nextTick()
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({ kind: [], status: [] })
+
+    wrapper.unmount()
   })
 })
