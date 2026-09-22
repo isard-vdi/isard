@@ -396,7 +396,22 @@ class TestConfig:
         assert resp.status_code == 200
         assert resp.json()["config"]["source_disposition"] == disposition
 
-    def test_config_defaults_the_source_disposition_to_system(self, test_client):
+    def test_config_keeps_the_stored_source_disposition(self, test_client):
+        job = _migration(status="planned")
+        job["config"]["source_disposition"] = "system"
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["source_disposition"] == "system"
+
+    def test_config_does_not_backfill_the_source_disposition(self, test_client):
+        # An absent source_disposition is the legacy park, not "system": writing
+        # the default onto a pre-upgrade job would make it follow delete_action.
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
             method="PUT",
@@ -405,7 +420,7 @@ class TestConfig:
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
         assert resp.status_code == 200
-        assert resp.json()["config"]["source_disposition"] == "system"
+        assert "source_disposition" not in resp.json()["config"]
 
     def test_config_rejects_an_unknown_source_disposition(self, test_client):
         resp = test_client(
