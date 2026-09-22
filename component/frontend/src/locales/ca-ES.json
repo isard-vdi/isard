@@ -1099,11 +1099,10 @@
         "existing-key": {
           "description-1": "La teva clau API és vàlida fins el {date}. Després d'això, caducarà i no podràs utilitzar-la més.",
           "description-2": "Pots fer-la caducar ara per generar-ne una de nova.",
-          "description-expired": "La teva clau API està caducada. Prem el botó per eliminar-la i generar-ne una de nova.",
+          "description-expired": "La teva clau API està caducada. Elimina-la per generar-ne una de nova.",
           "buttons": {
             "expire": "Caduca",
-            "delete": "Elimina",
-            "expire-tooltip": "Caduca la clau API existent"
+            "delete": "Elimina"
           }
         }
       },

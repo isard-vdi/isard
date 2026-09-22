@@ -1099,11 +1099,10 @@
         "existing-key": {
           "description-1": "Tu llave API es válida hasta el {date}. Después de eso, caducará y no podrás usarla más.",
           "description-2": "Puedes hacerla caducar ahora para generar una nueva.",
-          "description-expired": "Tu llave API ha caducado. Haz clic en el botón de abajo para eliminarla y generar una nueva.",
+          "description-expired": "Tu llave API ha caducado. Elimínala para generar una nueva.",
           "buttons": {
             "expire": "Caducar",
-            "delete": "Eliminar",
-            "expire-tooltip": "Caducar la llave existente"
+            "delete": "Eliminar"
           }
         }
       },
