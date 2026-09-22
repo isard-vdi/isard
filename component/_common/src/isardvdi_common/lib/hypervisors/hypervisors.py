@@ -2183,8 +2183,34 @@ class HypervisorsProcessed(RethinkSharedConnection):
         if not os.path.exists(path):
             os.mknod(path)
 
+        # Scan before removing: the stored entry is the only way in until a new
+        # key is in hand, so a failed scan must leave it untouched.
         try:
-            print("ssh-keygen", "-R", "[" + hostname + "]:" + str(port), "-f", path)
+            new_fingerprint = check_output(
+                ("ssh-keyscan", "-p", port, "-t", "rsa", "-T", "3", hostname), text=True
+            ).strip()
+        except Exception:
+            log.error("Could not get ssh-keyscan for " + hostname + ":" + str(port))
+            return False
+        # ssh-keyscan exits 0 and prints nothing when the host offers no key of
+        # the requested type, so the exception path above never sees it.
+        if not new_fingerprint:
+            log.error("Empty ssh-keyscan for " + hostname + ":" + str(port))
+            return False
+
+        new_lines = {
+            line.strip() for line in new_fingerprint.splitlines() if line.strip()
+        }
+        try:
+            with open(path) as f:
+                if new_lines and new_lines.issubset(
+                    {line.strip() for line in f if line.strip()}
+                ):
+                    return True
+        except OSError:
+            log.warning("Could not read " + path + ", rewriting the entry")
+
+        try:
             check_output(
                 ("ssh-keygen", "-R", "[" + hostname + "]:" + str(port), "-f", path),
                 text=True,
@@ -2207,17 +2233,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
             log.error("Could not remove ssh key for [" + hostname + "]" + str(port))
             return False
 
-        try:
-            new_fingerprint = check_output(
-                ("ssh-keyscan", "-p", port, "-t", "rsa", "-T", "3", hostname), text=True
-            ).strip()
-        except Exception:
-            log.error("Could not get ssh-keyscan for " + hostname + ":" + str(port))
-            return False
-
         with open(path, "a") as f:
-            new_fingerprint = new_fingerprint + "\n"
-            f.write(new_fingerprint)
+            f.write(new_fingerprint + "\n")
             log.warning("Keys added for hypervisor " + hostname + ":" + str(port))
 
         return True
