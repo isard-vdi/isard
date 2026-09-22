@@ -55,6 +55,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
+import type { UserSharedTemplate } from '@/gen/oas/apiv4'
 import DomainImage from '@/components/domain/DomainImage.vue'
 
 const router = useRouter()
@@ -99,11 +100,13 @@ const tableHeaders = computed(() => {
     {
       name: t('views.templates.table.headers.name'),
       key: 'name',
+      sortable: true,
       width: 'minmax(var(--spacing-48), var(--spacing-80))'
     },
     {
       name: t('views.templates.table.headers.description'),
       key: 'description',
+      sortable: true,
       width: 'minmax(var(--spacing-56), 1fr)'
     }
   ]
@@ -112,6 +115,7 @@ const tableHeaders = computed(() => {
     baseHeaders.push({
       name: t('views.templates.table.headers.owner'),
       key: 'owner',
+      sortable: true,
       width: 'minmax(var(--spacing-48), var(--spacing-64))'
     })
   }
@@ -120,10 +124,16 @@ const tableHeaders = computed(() => {
   return baseHeaders
 })
 
+// The owner column sorts on the row value, so flatten the user object into a string.
+const withOwnerName = (template: UserSharedTemplate) => ({
+  ...template,
+  owner: typeof template.user === 'string' ? template.user : (template.user?.name ?? '')
+})
+
 const tableRows = computed(() => {
   // Only owned templates carry a visibility flag, so the filter is theirs alone.
   if (activeTab.value === 'shared') {
-    return sharedTemplates.value?.templates || []
+    return (sharedTemplates.value?.templates || []).map(withOwnerName)
   }
 
   return (userTemplates.value?.templates || []).filter((template) => {
