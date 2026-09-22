@@ -9,6 +9,7 @@ create, pool aggregation) mock at the ``isardvdi_common.lib.storage.migration``
 boundary — that compute/DB layer is unit- and live-tested separately.
 """
 
+import pytest
 from tests.routes.helpers import MockJWT
 
 ADMIN = MockJWT(role_id="admin")
@@ -233,6 +234,50 @@ class TestConfig:
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
         assert resp.status_code == 400
+
+    @pytest.mark.parametrize("disposition", ["system", "recycle_bin", "delete"])
+    def test_config_accepts_every_source_disposition(self, test_client, disposition):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"source_disposition": disposition, "verify": True},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["source_disposition"] == disposition
+
+    def test_config_defaults_the_source_disposition_to_system(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["source_disposition"] == "system"
+
+    def test_config_rejects_an_unknown_source_disposition(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"source_disposition": "shred"},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+    def test_config_refuses_a_hard_delete_with_verify_off(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"source_disposition": "delete", "verify": False},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+        assert "verify" in resp.text
 
 
 # ── plan (mock the compute boundary) ────────────────────────────────────────
@@ -484,6 +529,19 @@ class TestCreate:
             },
         )
         assert resp.status_code == 400
+
+    def test_create_refuses_a_hard_delete_with_verify_off(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"source_disposition": "delete", "verify": False},
+            },
+        )
+        assert resp.status_code == 400
+        assert "verify" in resp.text
 
     def test_create_rejects_destination_no_worker_serves_the_move_lane(
         self, monkeypatch, test_client

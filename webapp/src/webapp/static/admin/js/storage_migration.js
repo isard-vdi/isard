@@ -47,6 +47,9 @@ const MIG_CADENCE_LABELS = {
 const MIG_FAILURE_LABELS = {
   retry_quarantine: "Retry, then quarantine", pause: "Pause for attention", retry_forever: "Retry forever"
 };
+const MIG_SOURCE_LABELS = {
+  system: "Follow system setting", recycle_bin: "Keep under deleted/", delete: "Delete"
+};
 
 function migStatusBadge (status) {
   const s = MIG_STATUS[status] || { cls: "default", icon: "fa-question", tip: status };
@@ -351,6 +354,11 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;" title="Stop a running desktop to move its disk (restartable after)." data-toggle="tooltip"><input type="checkbox" class="cfg-force" ${c.force_stop_desktops ? "checked" : ""} ${dis}> force-stop</label>
       <label style="margin-left:8px;" title="Checksum-verify each copy before removing the source." data-toggle="tooltip"><input type="checkbox" class="cfg-verify" ${c.verify === false ? "" : "checked"} ${dis}> verify</label>
+      <label style="margin-left:8px;" title="What happens to the original file once its copy is verified: follow the recycle bin's delete action, keep it under deleted/, or delete it (needs verify)." data-toggle="tooltip">Source
+        <select class="form-control input-sm cfg-source" ${dis}>
+          ${migOpt(["system", "recycle_bin", "delete"], c.source_disposition || "system", MIG_SOURCE_LABELS)}
+        </select>
+      </label>
       <label style="margin-left:8px;" title="Re-scan and run again each window instead of finishing once." data-toggle="tooltip"><input type="checkbox" class="cfg-recurring" ${c.recurring ? "checked" : ""} ${dis}> recurring</label>
       <span class="cfg-days" style="margin-left:8px;" title="Weekdays the window applies to." data-toggle="tooltip">Days
         ${MIG_DAY_NAMES.map(function (n, i) {
@@ -620,8 +628,19 @@ function migCreateConfig () {
     quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3,
     max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
     min_free_bytes: migGbToBytes($("#mig_min_free_gb").val()),
-    order: $("#mig_order").val() || "none"
+    order: $("#mig_order").val() || "none",
+    source_disposition: $("#mig_source_disposition").val() || "system"
   };
+}
+
+// the API refuses delete without verify, so the form never sends that pair
+function migCoupleSourceAndVerify ($source, $verify) {
+  $source.on("change", function () {
+    if ($(this).val() === "delete" && !$verify.is(":checked")) $verify.prop("checked", true);
+  });
+  $verify.on("change", function () {
+    if (!$(this).is(":checked") && $source.val() === "delete") $source.val("system");
+  });
 }
 
 // ── Live plan summary (dry-run counts/sizes) + ETA ──────────────────────────
@@ -856,6 +875,7 @@ $(document).ready(function () {
   }
   $("#mig_failure_policy").on("change", migToggleQuarantine);
   migToggleQuarantine();
+  migCoupleSourceAndVerify($("#mig_source_disposition"), $("#mig_verify"));
 
   // Preview = force an immediate re-estimate of the summary form.
   $("#mig_preview").on("click", function () { migLoadSummary(true); });
@@ -937,6 +957,15 @@ $(document).ready(function () {
   });
 
   // apply per-job config
+  $("#migrations").on("change", ".mig-config .cfg-source", function () {
+    const $f = $(this).closest(".mig-config");
+    if ($(this).val() === "delete") $f.find(".cfg-verify").prop("checked", true);
+  });
+  $("#migrations").on("change", ".mig-config .cfg-verify", function () {
+    const $f = $(this).closest(".mig-config");
+    if (!$(this).is(":checked") && $f.find(".cfg-source").val() === "delete") $f.find(".cfg-source").val("system");
+  });
+
   $("#migrations").on("click", ".mig-config-apply", function (e) {
     e.stopPropagation();
     const $f = $(this).closest(".mig-config");
@@ -952,7 +981,8 @@ $(document).ready(function () {
       failure_policy: $f.find(".cfg-failure").val(),
       quarantine_after: parseInt($f.find(".cfg-quarantine-after").val(), 10) || 3,
       max_bytes_per_occurrence: migGbToBytes($f.find(".cfg-budget-gb").val()),
-      min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val())
+      min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val()),
+      source_disposition: $f.find(".cfg-source").val() || "system"
     };
     $f.find(".mig-config-out").text("Saving…");
     $.ajax({ type: "PUT", url: `${MIG_API}/${id}/config`, contentType: "application/json", data: JSON.stringify(body) })

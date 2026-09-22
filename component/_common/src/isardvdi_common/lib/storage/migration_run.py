@@ -633,8 +633,56 @@ class MigrationRunner:
         restores autostart and the job flips to canceled."""
         for it in tree_items:
             self._restore_storage_status(it)
+            self._discard_destination(it)
             self._set(it, state=MigrationItemState.SKIPPED.value, error=reason)
             self._audit(it, "skipped")
+
+    #: states in which the disk has (part of) a copy on the destination while
+    #: its row still points at the source
+    _COPIED_UNCOMMITTED = (
+        MigrationItemState.MOVING.value,
+        MigrationItemState.MOVED.value,
+        MigrationItemState.REBASED.value,
+    )
+
+    def _discard_destination(self, item):
+        """Place the removal of a copy the saga abandoned on the destination.
+
+        Only a disk whose row does NOT point at the destination is touched: a
+        committed ancestor abandoned by a failing tree keeps its new location.
+        Same disposition and same lane rules as the source at release."""
+        if str(item.get("state")) not in self._COPIED_UNCOMMITTED:
+            return
+        dst_path = item.get("dst_path")
+        if not dst_path:
+            return
+        sid = item["storage_id"]
+        if self._is_media(item):
+            try:
+                if Media.exists(sid) and Media(sid).path == dst_path:
+                    return
+            except Exception:
+                return
+        else:
+            if Storage.exists(sid) and Storage(sid).directory_path == item.get(
+                "dst_dir"
+            ):
+                return
+        action, reason = self._source_action()
+        queue = self._pool_queue(dst_path, action)
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, retaining destination copy %s",
+                self.migration_id,
+                queue,
+                dst_path,
+            )
+            self._set(item, dst_retained=True, dst_retained_path=dst_path)
+            return
+        task_id = self._enqueue(action, queue, {"path": dst_path})
+        self._set(
+            item, dst_action=action, dst_action_reason=reason, dst_task_id=task_id
+        )
 
     def _gate_tree(self, tree_items):
         """Tree-level quiesce gate, evaluated BEFORE the tree starts moving.
@@ -1108,7 +1156,8 @@ class MigrationRunner:
                 )
                 self._audit(item, "moved_ok")
                 return
-        queue = self._pool_queue(item["src_path"], "move_delete")
+        action, reason = self._source_action()
+        queue = self._pool_queue(item["src_path"], action)
         if not self.lane_is_drainable(Task._redis, queue):
             # Mark, never defer: the tree is already committed, and holding the
             # release hostage to a pool outage would keep its desktops down.
@@ -1127,8 +1176,15 @@ class MigrationRunner:
             )
             self._audit(item, "moved_ok")
             return
+        if reason:
+            log.warning(
+                "migration %s: %s for %s, parking the source instead of deleting",
+                self.migration_id,
+                reason,
+                item["src_path"],
+            )
         del_task_id = self._enqueue(
-            "move_delete",
+            action,
             queue,
             {"path": item["src_path"]},
         )
@@ -1136,8 +1192,34 @@ class MigrationRunner:
             item,
             state=MigrationItemState.RELEASED.value,
             move_delete_task_id=del_task_id,
+            source_action=action,
+            source_action_reason=reason,
         )
         self._audit(item, "moved_ok")
+
+    def _source_action(self):
+        """The task to place for a committed disk's source, and why it differs
+        from what the job asked for (None when it does not)."""
+        # no value == created before the knob: keep parking, as it always did
+        disposition = self.config.get("source_disposition") or "recycle_bin"
+        if disposition == "recycle_bin":
+            return "move_delete", None
+        if disposition == "system":
+            try:
+                if self._system_delete_action() != "delete":
+                    return "move_delete", None
+            except Exception:
+                return "move_delete", "system_action_unreadable"
+        if not bool(self.config.get("verify", True)):
+            return "move_delete", "verify_off"
+        return "delete", None
+
+    @staticmethod
+    def _system_delete_action():
+        # lazy: the recycle-bin helper imports half the product
+        from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
+
+        return RecycleBinHelpers.get_delete_action()
 
     def _skip_release(self, item):
         # dst == src: there is no separate source to delete — move_delete would
@@ -1177,6 +1259,7 @@ class MigrationRunner:
             self._audit(item, "failed")
         for it, new_state, reason in changes:
             self._restore_storage_status(it)
+            self._discard_destination(it)
             self._set(it, state=new_state, error=reason)
             # AUDIT: the triggering disk -> failed, the rest of the tree -> skipped.
             self._audit(it, "failed" if new_state == "failed" else "skipped")

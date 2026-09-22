@@ -123,3 +123,93 @@ test.describe('Admin Storage-pool migration — permissions', () => {
     })
   }
 })
+
+// The new-migration modal's "Source after copy" <select> (#mig_source_disposition:
+// system | recycle_bin | delete). The API refuses "delete" without "verify", so the
+// browser couples the two: picking delete ticks #mig_verify, a non-delete choice
+// leaves it free. The create POST is stubbed; assertions read config.source_disposition
+// and config.verify from the {selection, config} body the form builds.
+test.describe('Admin Storage-pool migration — source disposition', () => {
+  const MIGRATIONS_RE = /\/api\/v4\/admin\/storage\/migrations(\?|$)/
+  const EMPTY_TOTALS = {
+    items_total: 0,
+    items_by_kind: {},
+    bytes_by_kind: {},
+    bytes_total: 0,
+    not_moving_total: 0,
+    not_moving_by_kind: {},
+    order: 'none',
+    trees: 0,
+  }
+
+  // Open the modal on a valid whole-pool selection, ready to press Create.
+  async function openModalReadyToCreate(page) {
+    await stubMigrationApis(page, EMPTY_TOTALS)
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_src_pool', 'e2e-pool-src')
+    await page.selectOption('#mig_dst_pool', 'e2e-pool-dst')
+  }
+
+  // #mig_verify is skinned by iCheck (real <input> is opacity:0); drive the
+  // underlying property and sync the skin, the way the other webapp specs do.
+  async function setVerify(page, on) {
+    await page.evaluate((checked) => {
+      window.$('#mig_verify').prop('checked', checked).iCheck('update')
+    }, on)
+  }
+
+  // Capture the {selection, config} body of the create POST for one click.
+  async function createAndCaptureBody(page) {
+    const req = page.waitForRequest(
+      (r) => MIGRATIONS_RE.test(r.url()) && r.method() === 'POST',
+      { timeout: 15000 },
+    )
+    await page.locator('#mig_create_only').click()
+    return (await req).postDataJSON()
+  }
+
+  test('SM4: default disposition is "system"; create sends config.source_disposition:"system" + verify:true', async ({
+    authenticatedPage: page,
+  }) => {
+    await openModalReadyToCreate(page)
+    await expect(page.locator('#mig_source_disposition')).toHaveValue('system')
+    await expect(page.locator('#mig_verify')).toBeChecked()
+
+    const body = await createAndCaptureBody(page)
+    expect(body.config.source_disposition).toBe('system')
+    expect(body.config.verify).toBe(true)
+  })
+
+  test('SM5: choosing "delete" forces verify on; create sends source_disposition:"delete" + verify:true', async ({
+    authenticatedPage: page,
+  }) => {
+    await openModalReadyToCreate(page)
+    // start from verify OFF so the coupling has something to do
+    await setVerify(page, false)
+    await expect(page.locator('#mig_verify')).not.toBeChecked()
+
+    await page.selectOption('#mig_source_disposition', 'delete')
+    // delete cannot be sent without verify -> the change handler ticks it back on
+    await expect(page.locator('#mig_verify')).toBeChecked()
+
+    const body = await createAndCaptureBody(page)
+    expect(body.config.source_disposition).toBe('delete')
+    expect(body.config.verify).toBe(true)
+  })
+
+  test('SM6: a non-delete disposition ("recycle_bin") leaves verify free; create sends source_disposition:"recycle_bin" + verify:false', async ({
+    authenticatedPage: page,
+  }) => {
+    await openModalReadyToCreate(page)
+    await setVerify(page, false)
+    await expect(page.locator('#mig_verify')).not.toBeChecked()
+
+    await page.selectOption('#mig_source_disposition', 'recycle_bin')
+    // recycle_bin does not require verify, so the coupling must NOT tick it on
+    await expect(page.locator('#mig_verify')).not.toBeChecked()
+
+    const body = await createAndCaptureBody(page)
+    expect(body.config.source_disposition).toBe('recycle_bin')
+    expect(body.config.verify).toBe(false)
+  })
+})

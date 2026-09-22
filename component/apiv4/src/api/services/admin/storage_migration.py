@@ -463,6 +463,10 @@ class AdminStorageMigrationService:
         "error",
         "started_at",
         "finished_at",
+        "source_action",
+        "source_action_reason",
+        "dst_action",
+        "dst_retained_path",
     ]
 
     @classmethod

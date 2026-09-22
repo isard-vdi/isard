@@ -22,7 +22,7 @@
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --------------------------------------------------------------------------- #
@@ -87,6 +87,16 @@ class MigrationConfigData(BaseModel):
     #: Free-space floor on the destination in bytes, 0 = off. Held against the
     #: PHYSICAL fill where known; on statvfs alone it protects nothing.
     min_free_bytes: int = Field(default=0, ge=0)
+    #: system == the recycle bin's global delete action; delete needs verify on
+    source_disposition: Literal["system", "recycle_bin", "delete"] = "system"
+
+    @model_validator(mode="after")
+    def _hard_delete_needs_verify(self):
+        if self.source_disposition == "delete" and not self.verify:
+            raise ValueError(
+                "source_disposition 'delete' requires verify to be enabled"
+            )
+        return self
 
 
 class MigrationPlanData(BaseModel):

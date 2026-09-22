@@ -162,6 +162,17 @@ a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_order": "olde
 assert.strictEqual(a.migCreateConfig().order, "oldest_first");
 console.log("migCreateConfig order: PASS");
 
+// source disposition: absent -> "system" (follow the global setting), a chosen
+// value travels, and the per-job form offers the same three values
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0" } });
+assert.strictEqual(a.migCreateConfig().source_disposition, "system");
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_source_disposition": "delete" } });
+assert.strictEqual(a.migCreateConfig().source_disposition, "delete");
+const configForm = extract("migConfigControls");
+assert(configForm.includes('"system", "recycle_bin", "delete"'), "the per-job form must offer the three dispositions");
+assert(configForm.includes("c.source_disposition"), "the per-job form must show the job's current value");
+console.log("migCreateConfig source_disposition: PASS");
+
 console.log("ALL PASS");
 
 // The exclusion reason comes from the API and lands in a title attribute, so it

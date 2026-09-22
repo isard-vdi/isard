@@ -277,6 +277,8 @@ class MigrationConfig(BaseModel):
     #: consecutive-occurrence failure budget before a disk is quarantined (used
     #: only by ``retry_quarantine``).
     quarantine_after: int = Field(default=3, ge=1)
+    #: system == the recycle bin's global delete_action; delete needs verify on
+    source_disposition: Literal["system", "recycle_bin", "delete"] = "system"
 
 
 class MigrationTotals(BaseModel):
@@ -365,6 +367,16 @@ class StorageMigrationItemModel(BaseModel):
     # move_delete could not be placed, and nothing will retry it.
     source_retained: bool = False
     source_retained_path: str | None = None
+    #: what the release placed for the source, and why it differs from the ask
+    source_action: str | None = None
+    source_action_reason: str | None = None
+    #: the copy an abandoned (canceled / failed) disk left on the destination:
+    #: the task placed to remove it, or the path when no lane could take it
+    dst_action: str | None = None
+    dst_action_reason: str | None = None
+    dst_task_id: str | None = None
+    dst_retained: bool = False
+    dst_retained_path: str | None = None
 
 
 # --------------------------------------------------------------------------- #

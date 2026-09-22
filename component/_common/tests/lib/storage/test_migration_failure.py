@@ -471,6 +471,7 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
         "item_updates": [],
         "storage_updates": [],
         "enqueued": [],
+        "enqueued_paths": [],
         "activated": [],
         "deactivated": [],
     }
@@ -518,6 +519,13 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
         def __init__(self, sid):
             self._sid = sid
 
+        @classmethod
+        def exists(cls, sid):
+            return True
+
+        #: every row still points at its source: nothing here is committed
+        directory_path = "/src"
+
         @property
         def status(self):
             for it in items:
@@ -552,6 +560,7 @@ def _tick_runner(monkeypatch, items, status, job_status_fn):
 
     def _enq(task, queue, kwargs, timeout=None):
         caps["enqueued"].append(task)
+        caps["enqueued_paths"].append((task, kwargs.get("path")))
         return f"tid-{task}"
 
     r._enqueue = _enq
@@ -593,8 +602,11 @@ def test_orphan_resume_is_bounded_and_never_move_deletes(monkeypatch):
     # resumed exactly MAX times, then terminalized on the (MAX+1)th tick
     assert ticks == mr.MAX_ABANDON_RESTARTS + 1
     assert caps["enqueued"].count("move") == mr.MAX_ABANDON_RESTARTS
+    # the source is never named by anything but the resumed moves; the copy the
+    # dead moves left on the destination is discarded once, at terminalization
+    assert [p for t, p in caps["enqueued_paths"] if t != "move"] == ["/dst/s0.qcow2"]
     # the data-loss invariant: a bounded failure NEVER deletes a source
-    assert "move_delete" not in caps["enqueued"]
+    assert all(p != "/src/s0.qcow2" for _t, p in caps["enqueued_paths"])
     # tree terminalized FAILED (failed disk -> failed, descendant -> skipped)
     assert root["state"] == "failed"
     assert child["state"] == "skipped"
@@ -634,8 +646,11 @@ def test_cancel_skips_uncommitted_in_flight_tree(monkeypatch):
 
     assert r.is_complete()
     assert root["state"] == "skipped" and child["state"] == "skipped"
-    # nothing enqueued at all -> no resumed move, and no move_delete (no data loss)
-    assert caps["enqueued"] == []
+    # no resumed move and nothing touches the SOURCE (no data loss); the only
+    # thing placed is the discard of the copy the abandoned move left behind
+    assert "move" not in caps["enqueued"]
+    assert all(path != "/src/s0.qcow2" for _t, path in caps["enqueued_paths"])
+    assert caps["enqueued_paths"] == [("move_delete", "/dst/s0.qcow2")]
     # recycled status restored, never clobbered to ready
     assert ("s0", {"status": "recycled"}) in caps["storage_updates"]
     assert ("s0", {"status": "ready"}) not in caps["storage_updates"]
