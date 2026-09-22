@@ -442,7 +442,8 @@
       },
       "select": {
         "title": "Selecciona un escritorio para crear una plantilla a partir de él",
-        "desktop-not-stopped": "El escritorio debe estar parado para crear una plantilla."
+        "desktop-not-stopped": "El escritorio debe estar parado para crear una plantilla.",
+        "desktop-server-autostart": "No se puede crear una plantilla de un servidor con arranque automático."
       },
       "form": {
         "sections": {
@@ -1383,6 +1384,7 @@
           "info": "Información",
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
+          "template-server-autostart": "No se puede crear una plantilla de un servidor con arranque automático. Por favor, contacta con un administrador para desactivar el arranque automático primero.",
           "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
@@ -2949,6 +2951,7 @@
     "new-template": {
       "errors": {
         "new_template_name_exists": "Ya existe una plantilla con este nombre. Por favor, elige un nombre diferente.",
+        "new_template_server_autostart": "No se puede crear una plantilla de un servidor con arranque automático. Por favor, contacta con un administrador para desactivar el arranque automático primero.",
         "generic": "Hubo un error al crear la plantilla, por favor, inténtalo de nuevo.",
         "storage_pending_task": "El disco de este escritorio está ocupado con otra operación. Espera un momento e inténtalo de nuevo.",
         "template_failed": "Esta plantilla ha fallado y no se puede duplicar."

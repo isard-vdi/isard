@@ -1530,7 +1530,7 @@
             "downloading-media": "Downloading media",
             "stopping-download": "Stopping download",
             "counting-desktops": "Counting how many desktops will be created",
-            "new-template-server": "Can't create a template from a server",
+            "new-template-server": "Can't create a template from a server with autostart",
             "edit-desktop-server": "Can't edit a server",
             "delete-desktop-stop": "To delete a desktop it must be stopped",
             "wireguard-network-added": "The wireguard network was added since it's required to use RDP viewers",

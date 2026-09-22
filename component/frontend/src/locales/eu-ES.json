@@ -297,7 +297,8 @@
       },
       "select": {
         "title": "Hautatu mahaigain bat txantiloia sortzeko",
-        "desktop-not-stopped": "Mahaigaina geldituta egon behar da txantiloia sortzeko."
+        "desktop-not-stopped": "Mahaigaina geldituta egon behar da txantiloia sortzeko.",
+        "desktop-server-autostart": "Ezin da txantiloirik sortu abiarazte automatikoa duen zerbitzari batetik."
       },
       "form": {
         "sections": {
@@ -1282,6 +1283,7 @@
           "info": "Informazioa",
           "edit": "Editatu",
           "template": "Txantiloi bihurtu",
+          "template-server-autostart": "Ezin da txantiloirik sortu abiarazte automatikoa duen zerbitzari batetik. Mesedez, jarri harremanetan administratzaile batekin abiarazte automatikoa lehenik desaktibatzeko.",
           "delete": "Ezabatu",
           "book": "Erreserbatu",
           "bastion": "Bastion",
@@ -1710,6 +1712,7 @@
     "new-template": {
       "errors": {
         "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat.",
+        "new_template_server_autostart": "Ezin da txantiloirik sortu abiarazte automatikoa duen zerbitzari batetik. Mesedez, jarri harremanetan administratzaile batekin abiarazte automatikoa lehenik desaktibatzeko.",
         "generic": "Errore bat gertatu da txantiloia sortzean, mesedez, saiatu berriro.",
         "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro."
       }

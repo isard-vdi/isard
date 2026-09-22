@@ -1153,7 +1153,7 @@
       "editing": "Editatzen",
       "no-availability-event": "Ez dago ezer erabilgarri hautatutako eremuan",
       "edit-desktop-stop": "Mahaigain bat editatzeko, gelditu egin behar da",
-      "new-template-server": "Zerbitzari batetik ezin da txantiloirik sortu",
+      "new-template-server": "Ezin da txantiloirik sortu abiarazte automatikoa duen zerbitzari batetik",
       "new-template-stop": "Txantiloi bat sortzeko mahaigaina gelditu behar da",
       "editing-event": "Gertaera editatzen",
       "not-created-event": "Ezin izan da gertaera sortu",

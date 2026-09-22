@@ -450,7 +450,8 @@
       },
       "select": {
         "title": "Select a desktop to create a template from",
-        "desktop-not-stopped": "Desktop must be stopped to create a template."
+        "desktop-not-stopped": "Desktop must be stopped to create a template.",
+        "desktop-server-autostart": "Can't create a template from a server with autostart."
       },
       "form": {
         "sections": {
@@ -2086,6 +2087,7 @@
           "info": "Info",
           "edit": "Edit",
           "template": "Template it",
+          "template-server-autostart": "Can't create a template from a server with autostart. Please contact with an administrator to disable autostart first.",
           "delete": "Delete",
           "book": "Book",
           "bastion": "Bastion",
@@ -2951,6 +2953,7 @@
     "new-template": {
       "errors": {
         "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
+        "new_template_server_autostart": "Can't create a template from a server with autostart. Please contact with an administrator to disable autostart first.",
         "generic": "There was an error creating the template, please try again.",
         "storage_pending_task": "This desktop's disk is busy with another operation. Please wait a moment and try again.",
         "template_failed": "This template failed and can't be duplicated."
