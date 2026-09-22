@@ -171,7 +171,7 @@ class UsersService:
             "email": email,
             "photo": photo,
             "default_templates": [],
-            "quota": group.quota,
+            "quota": group.quota or False,
             "secondary_groups": secondary_groups,
             "password_history": [password],
             "email_verification_token": None,

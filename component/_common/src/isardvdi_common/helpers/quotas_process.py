@@ -14,7 +14,6 @@ from rethinkdb import r
 
 
 class QuotasProcess(RethinkCustomBase):
-
     @classmethod
     @cached(
         SynchronizedTTLCache(maxsize=200, ttl=5),
@@ -164,70 +163,67 @@ class QuotasProcess(RethinkCustomBase):
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
-        if user["quota"] == False:
+        user_quota = user.get("quota") or False
+        if user_quota == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpDeployments = qpDktpDeployment = qpStartDeploymentDktp = 0  # fmt: skip
             dq = rq = tq = iq = vq = mq = deploymentsq = dktpDeploymentq = startDeploymentDktpq = 9999  # fmt: skip
         else:
             qpdesktops = (
-                desktops * 100 / user["quota"]["desktops"]
-                if user["quota"]["desktops"]
+                desktops * 100 / user_quota["desktops"]
+                if user_quota.get("desktops")
                 else 100
             )
-            dq = user["quota"]["desktops"]
+            dq = user_quota["desktops"]
 
             qpup = (
-                starteds["count"] * 100 / user["quota"]["running"]
-                if user["quota"]["running"]
+                starteds["count"] * 100 / user_quota["running"]
+                if user_quota.get("running")
                 else 100
             )
-            rq = user["quota"]["running"]
+            rq = user_quota["running"]
 
             qptemplates = (
-                templates * 100 / user["quota"]["templates"]
-                if user["quota"]["templates"]
+                templates * 100 / user_quota["templates"]
+                if user_quota.get("templates")
                 else 100
             )
-            tq = user["quota"]["templates"]
+            tq = user_quota["templates"]
 
-            qpisos = (
-                isos * 100 / user["quota"]["isos"] if user["quota"]["isos"] else 100
-            )
-            iq = user["quota"]["isos"]
+            qpisos = isos * 100 / user_quota["isos"] if user_quota.get("isos") else 100
+            iq = user_quota["isos"]
 
             qpvcpus = (
-                vcpus * 100 / user["quota"]["vcpus"] if user["quota"]["vcpus"] else 100
+                vcpus * 100 / user_quota["vcpus"] if user_quota.get("vcpus") else 100
             )
-            vq = user["quota"]["vcpus"]
+            vq = user_quota["vcpus"]
 
             qpmemory = (
-                memory * 100 / user["quota"]["memory"]
-                if user["quota"]["memory"]
-                else 100
+                memory * 100 / user_quota["memory"] if user_quota.get("memory") else 100
             )  # convert GB to KB (domains are in KB by default)
-            mq = user["quota"]["memory"]
+            mq = user_quota["memory"]
 
             qpDeployments = (
-                deployments * 100 / user["quota"]["deployments_total"]
-                if user["quota"]["deployments_total"]
+                deployments * 100 / user_quota["deployments_total"]
+                if user_quota.get("deployments_total")
                 else 100
             )
-            deploymentsq = user["quota"]["deployments_total"]
+            deploymentsq = user_quota["deployments_total"]
 
             qpDktpDeployment = (
-                deployment_desktops * 100 / user["quota"]["deployment_desktops"]
-                if user["quota"]["deployment_desktops"]
+                deployment_desktops * 100 / user_quota["deployment_desktops"]
+                if user_quota.get("deployment_desktops")
                 else 100
             )
-            dktpDeploymentq = user["quota"]["deployment_desktops"]
+            dktpDeploymentq = user_quota["deployment_desktops"]
 
             qpStartDeploymentDktp = (
                 started_deployment_desktops
                 * 100
-                / user["quota"]["started_deployment_desktops"]
-                if user["quota"]["started_deployment_desktops"]
+                / user_quota["started_deployment_desktops"]
+                if user_quota.get("started_deployment_desktops")
                 else 100
             )
-            startDeploymentDktpq = user["quota"]["started_deployment_desktops"]
+            startDeploymentDktpq = user_quota["started_deployment_desktops"]
 
         return {
             "user": user,
@@ -276,12 +272,11 @@ class QuotasProcess(RethinkCustomBase):
         if from_group_id:
             id = Caches.get_document("groups", id, ["parent_category"])
         category = Caches.get_document("categories", id)
+        if category == None:
+            return False
 
-        if (
-            category == None
-            or "limits" not in category.keys()
-            or category["limits"] == False
-        ):
+        category_limits = category.get("limits") or False
+        if category_limits == False:
             return False
 
         with cls._rdb_context():
@@ -348,65 +343,65 @@ class QuotasProcess(RethinkCustomBase):
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
-        if category["limits"] == False:
+        if category_limits == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = qpDeployments = 0  # fmt: skip
             dq = rq = tq = iq = vq = mq = uq = deploymentsq = 9999  # fmt: skip
         else:
             qpdesktops = (
-                desktops * 100 / category["limits"]["desktops"]
-                if category["limits"]["desktops"]
+                desktops * 100 / category_limits["desktops"]
+                if category_limits.get("desktops")
                 else 100
             )
-            dq = category["limits"]["desktops"]
+            dq = category_limits["desktops"]
 
             qpup = (
-                starteds["count"] * 100 / category["limits"]["running"]
-                if category["limits"]["running"]
+                starteds["count"] * 100 / category_limits["running"]
+                if category_limits.get("running")
                 else 100
             )
-            rq = category["limits"]["running"]
+            rq = category_limits["running"]
 
             qptemplates = (
-                templates * 100 / category["limits"]["templates"]
-                if category["limits"]["templates"]
+                templates * 100 / category_limits["templates"]
+                if category_limits.get("templates")
                 else 100
             )
-            tq = category["limits"]["templates"]
+            tq = category_limits["templates"]
 
             qpisos = (
-                isos * 100 / category["limits"]["isos"]
-                if category["limits"]["isos"]
+                isos * 100 / category_limits["isos"]
+                if category_limits.get("isos")
                 else 100
             )
-            iq = category["limits"]["isos"]
+            iq = category_limits["isos"]
 
             qpvcpus = (
-                vcpus * 100 / category["limits"]["vcpus"]
-                if category["limits"]["vcpus"]
+                vcpus * 100 / category_limits["vcpus"]
+                if category_limits.get("vcpus")
                 else 100
             )
-            vq = category["limits"]["vcpus"]
+            vq = category_limits["vcpus"]
 
             qpmemory = (
-                memory * 100 / category["limits"]["memory"]
-                if category["limits"]["memory"]
+                memory * 100 / category_limits["memory"]
+                if category_limits.get("memory")
                 else 100
             )
-            mq = category["limits"]["memory"]
+            mq = category_limits["memory"]
 
             qpusers = (
-                users * 100 / category["limits"]["users"]
-                if category["limits"]["users"]
+                users * 100 / category_limits["users"]
+                if category_limits.get("users")
                 else 100
             )
-            uq = category["limits"]["users"]
+            uq = category_limits["users"]
 
             qpDeployments = (
-                deployments * 100 / category["limits"]["deployments_total"]
-                if category["limits"]["deployments_total"]
+                deployments * 100 / category_limits["deployments_total"]
+                if category_limits.get("deployments_total")
                 else 100
             )
-            deploymentsq = category["limits"]["deployments_total"]
+            deploymentsq = category_limits["deployments_total"]
 
         return {
             "category": category,
@@ -448,8 +443,11 @@ class QuotasProcess(RethinkCustomBase):
         else:
             group_id = id
         group = Caches.get_document("groups", group_id)
+        if group == None:
+            return False
 
-        if group == None or "limits" not in group.keys() or group["limits"] == False:
+        group_limits = group.get("limits") or False
+        if group_limits == False:
             return False
 
         with cls._rdb_context():
@@ -515,63 +513,63 @@ class QuotasProcess(RethinkCustomBase):
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
-        if group["limits"] == False:
+        if group_limits == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = qpdeployments = 0  # fmt: skip
             dq = rq = tq = iq = vq = mq = uq = deploymentsq = 9999  # fmt: skip
         else:
             qpdesktops = (
-                desktops * 100 / group["limits"]["desktops"]
-                if group["limits"]["desktops"]
+                desktops * 100 / group_limits["desktops"]
+                if group_limits.get("desktops")
                 else 100
             )
-            dq = group["limits"]["desktops"]
+            dq = group_limits["desktops"]
 
             qpup = (
-                starteds["count"] * 100 / group["limits"]["running"]
-                if group["limits"]["running"]
+                starteds["count"] * 100 / group_limits["running"]
+                if group_limits.get("running")
                 else 100
             )
-            rq = group["limits"]["running"]
+            rq = group_limits["running"]
 
             qptemplates = (
-                templates * 100 / group["limits"]["templates"]
-                if group["limits"]["templates"]
+                templates * 100 / group_limits["templates"]
+                if group_limits.get("templates")
                 else 100
             )
-            tq = group["limits"]["templates"]
+            tq = group_limits["templates"]
 
             qpisos = (
-                isos * 100 / group["limits"]["isos"] if group["limits"]["isos"] else 100
+                isos * 100 / group_limits["isos"] if group_limits.get("isos") else 100
             )
-            iq = group["limits"]["isos"]
+            iq = group_limits["isos"]
 
             qpvcpus = (
-                vcpus * 100 / group["limits"]["vcpus"]
-                if group["limits"]["vcpus"]
+                vcpus * 100 / group_limits["vcpus"]
+                if group_limits.get("vcpus")
                 else 100
             )
-            vq = group["limits"]["vcpus"]
+            vq = group_limits["vcpus"]
 
             qpmemory = (
-                memory * 100 / group["limits"]["memory"]
-                if group["limits"]["memory"]
+                memory * 100 / group_limits["memory"]
+                if group_limits.get("memory")
                 else 100
             )
-            mq = group["limits"]["memory"]
+            mq = group_limits["memory"]
 
             qpusers = (
-                users * 100 / group["limits"]["users"]
-                if group["limits"]["users"]
+                users * 100 / group_limits["users"]
+                if group_limits.get("users")
                 else 100
             )
-            uq = group["limits"]["users"]
+            uq = group_limits["users"]
 
             qpdeployments = (
-                deployments * 100 / group["limits"]["deployments_total"]
-                if group["limits"]["deployments_total"]
+                deployments * 100 / group_limits["deployments_total"]
+                if group_limits.get("deployments_total")
                 else 100
             )
-            deploymentsq = group["limits"]["deployments_total"]
+            deploymentsq = group_limits["deployments_total"]
 
         return {
             "group": group,
@@ -1069,12 +1067,13 @@ class QuotasProcess(RethinkCustomBase):
         user = Caches.get_document("users", user_id)
         group = Caches.get_document("groups", user["group"])
 
-        limits = group.get("limits", False)
+        limits = group.get("limits") or False
         if limits == False:
-            limits = Caches.get_document(
-                "categories", group["parent_category"], ["limits"]
+            limits = (
+                Caches.get_document("categories", group["parent_category"], ["limits"])
+                or False
             )
-        return {"quota": user["quota"], "limits": limits}
+        return {"quota": user.get("quota") or False, "limits": limits}
 
     @classmethod
     def get_shutdown_timeouts(cls, payload, desktop_id=None):

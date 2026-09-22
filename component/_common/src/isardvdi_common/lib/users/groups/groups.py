@@ -200,10 +200,13 @@ class GroupsProcessed(RethinkSharedConnection):
     ):
         """_From api/libv2/api_users.py ApiUsers.UpdateGroupQuota()_"""
         category = Caches.get_document("categories", group["parent_category"])
+
+        category_quota = category.get("quota") or False
+        category_limits = category.get("limits") or False
         # Managers can't update a group quota with a higher value than its category quota
         if user_role == "manager":
-            if category["quota"] != False:
-                for k, v in category["quota"].items():
+            if category_quota != False:
+                for k, v in category_quota.items():
                     if quota and quota.get(k) and v < quota[k]:
                         raise Error(
                             "precondition_required",
@@ -216,8 +219,8 @@ class GroupsProcessed(RethinkSharedConnection):
                         )
 
         # Can't update a group quota with a higher value than its category limit
-        if category["limits"] != False:
-            for k, v in category["limits"].items():
+        if category_limits != False:
+            for k, v in category_limits.items():
                 if quota and quota.get(k) and v < quota[k]:
                     raise Error(
                         "precondition_required",
@@ -248,9 +251,10 @@ class GroupsProcessed(RethinkSharedConnection):
     def update_group_limits(cls, group, limits):
         """_From api/libv2/api_users.py ApiUsers.UpdateGroupLimits()_"""
         category = Caches.get_document("categories", group["parent_category"])
+        category_limits = category.get("limits") or False
         # Can't update a group limits with a higher value than its category limits
-        if category["limits"] != False:
-            for k, v in category["limits"].items():
+        if category_limits != False:
+            for k, v in category_limits.items():
                 if limits and limits.get(k) and v < limits[k]:
                     raise Error(
                         "precondition_required",
