@@ -1866,6 +1866,41 @@ def file_spice_shared_folder_enabled(dict_domain):
     )
 
 
+# Values seen in storage_pool.qos_disk_id that mean "none": the JSON null a
+# form posts arrives as the string "null", and older rows carry False or "".
+NON_QOS_DISK_IDS = frozenset({"", "null", "None", "false", "False"})
+
+
+def usable_qos_disk_id(storage_pool):
+    """The pool's qos_disk_id, or None when it is absent or a stored non-value."""
+    value = (storage_pool or {}).get("qos_disk_id")
+    if not isinstance(value, str) or value in NON_QOS_DISK_IDS:
+        return None
+    return value
+
+
+def resolve_qos_disk_iotune(storage_pool, hardware, lookup):
+    """The iotune to apply, and the ids that named a qos_disk which is not there.
+
+    The pool wins when it resolves; otherwise the domain's own id is still
+    honoured, so a pool carrying a dead id cannot leave a desktop unthrottled.
+    """
+    unresolved = []
+    pool_id = usable_qos_disk_id(storage_pool)
+    if pool_id:
+        iotune = lookup(pool_id)
+        if iotune:
+            return iotune, unresolved
+        unresolved.append((pool_id, (storage_pool or {}).get("id")))
+    own_id = (hardware or {}).get("qos_disk_id")
+    if own_id:
+        iotune = lookup(own_id)
+        if iotune:
+            return iotune, unresolved
+        unresolved.append((own_id, None))
+    return None, unresolved
+
+
 def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     remove_fieds_when_stopped(id_domain)
     dict_domain = get_domain(id_domain)
@@ -2066,25 +2101,19 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
                 storage_pool = get_path_storage_pool(boot_storage.get("directory_path"))
         if storage_pool is None:
             storage_pool = get_category_storage_pool(category_id)
-        if storage_pool and storage_pool.get("qos_disk_id") is not None:
-            qos_disk_id = storage_pool["qos_disk_id"]
-            iotune = get_qos_disk_iotune(qos_disk_id)
-            if iotune:
-                x.set_qos_disk(iotune)
-            else:
-                log.error(
-                    f"qos_disk_id {qos_disk_id} from storage_pool {storage_pool['id']} not found in qos_disk table"
-                )
-        else:
-            qos_disk_id = dict_domain["create_dict"]["hardware"].get(
-                "qos_disk_id", False
+        iotune, unresolved = resolve_qos_disk_iotune(
+            storage_pool,
+            dict_domain["create_dict"]["hardware"],
+            get_qos_disk_iotune,
+        )
+        for qos_disk_id, pool_id in unresolved:
+            log.error(
+                f"qos_disk_id {qos_disk_id} from storage_pool {pool_id} not found in qos_disk table"
+                if pool_id
+                else f"qos_disk_id {qos_disk_id} not found in qos_disk table"
             )
-            if qos_disk_id:
-                iotune = get_qos_disk_iotune(qos_disk_id)
-                if iotune:
-                    x.set_qos_disk(iotune)
-                else:
-                    log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
+        if iotune:
+            x.set_qos_disk(iotune)
 
     # cpu
     if "cpu" not in protected:
