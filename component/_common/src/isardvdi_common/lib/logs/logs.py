@@ -566,10 +566,10 @@ class LogsProcessed(RethinkSharedConnection):
     # Per-table retention index: the earliest ALWAYS-PRESENT, indexed lifecycle
     # timestamp. A row is old iff any of its event times precede the cutoff,
     # which — that field being the row's minimum and always present — is exactly
-    # ``<field> < cutoff``. Verified on 2.4M real gencat rows: ``logs_desktops``
-    # always has ``starting_time`` (~2% are incomplete sessions that never
-    # reached ``started_time``, so keying on ``started_time`` would leak them);
-    # ``logs_users`` always has ``started_time``.
+    # ``<field> < cutoff``. ``logs_desktops`` always has ``starting_time``,
+    # while an incomplete session never reaches ``started_time``, so keying on
+    # ``started_time`` would leak those rows; ``logs_users`` always has
+    # ``started_time``.
     RETENTION_INDEX = {
         "logs_desktops": "starting_time",
         "logs_users": "started_time",
