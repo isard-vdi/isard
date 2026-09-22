@@ -1426,6 +1426,10 @@ class DesktopsProcessed(RethinkSharedConnection):
 
         # move template disk to desktops path
         if len(template.storages) > 0:
+            # the row was born as a template's and nothing else rewrites the marker
+            Storage.update_document(
+                template.storages[0].id, {"perms": ["r", "w"]}, validate=False
+            )
             try:
                 # TODO: change to mv once properly implemented
                 template.storages[0].rsync(

@@ -826,3 +826,62 @@ def _system_upgrades(self):
     except Exception as e:
         print(e)
     return True
+
+
+def perms_for_disk(has_children, domain_kinds):
+    """The ``perms`` a storage row should carry, or ``None`` to leave it alone.
+
+    A parent or a template's disk is read-only; a desktop's disk is writable; a
+    disk no domain references (recycle bin, orphan, in creation) is left as it
+    is, because nothing here can say what it is.
+    """
+    kinds = set(domain_kinds or ())
+    if has_children or "template" in kinds:
+        return ["r"]
+    if "desktop" in kinds:
+        return ["r", "w"]
+    return None
+
+
+def v210_perms_follow_the_domain(upgrade):
+    """Recompute every storage row's ``perms`` from the domain that uses it.
+
+    Idempotent: a row already carrying the right value is not written. Logs how
+    many rows changed in each direction so the run can be checked against the
+    census that motivated it.
+    """
+    conn = upgrade.conn
+    parents = set(
+        r.table("storage")
+        .filter(lambda s: s.has_fields("parent") & s["parent"].ne(None))
+        .filter(lambda s: s["status"].ne("deleted"))["parent"]
+        .distinct()
+        .run(conn)
+    )
+    kinds_by_storage = {}
+    for d in (
+        r.table("domains")
+        .pluck("kind", {"create_dict": {"hardware": {"disks": True}}})
+        .run(conn)
+    ):
+        for disk in ((d.get("create_dict") or {}).get("hardware") or {}).get(
+            "disks"
+        ) or []:
+            sid = disk.get("storage_id")
+            if sid:
+                kinds_by_storage.setdefault(sid, set()).add(d.get("kind"))
+    to_ro, to_rw = [], []
+    for s in r.table("storage").pluck("id", "perms").run(conn):
+        wanted = perms_for_disk(s["id"] in parents, kinds_by_storage.get(s["id"]))
+        if wanted is None or s.get("perms") == wanted:
+            continue
+        (to_ro if wanted == ["r"] else to_rw).append(s["id"])
+    for ids, perms in ((to_ro, ["r"]), (to_rw, ["r", "w"])):
+        for i in range(0, len(ids), 500):
+            r.table("storage").get_all(r.args(ids[i : i + 500])).update(
+                {"perms": perms}
+            ).run(conn)
+    log.info(
+        f"v210: storage perms recomputed from the domains: {len(to_ro)} rows to "
+        f"read-only, {len(to_rw)} rows to read-write"
+    )
