@@ -33,6 +33,10 @@ class _World:
 def world(monkeypatch):
     state = _World()
 
+    # ``add`` takes a resource_lock, which talks to a real redis. What is under
+    # test is cache invalidation, not the lock, and a unit job has no redis.
+    monkeypatch.setattr(mod, "resource_lock", lambda *keys: _Ctx())
+
     monkeypatch.setattr(
         mod.BookingsProcessed, "_rdb_context", classmethod(lambda cls: _Ctx())
     )
