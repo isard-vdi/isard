@@ -28,6 +28,32 @@ if TYPE_CHECKING:
     from isardvdi_common.helpers.backup_writer import BackupWriter
 
 
+# Fields each grouping view reduces to, and so the ones its DataTables order
+# can name.
+_DESKTOP_GROUP_FIELDS = (
+    "count",
+    "desktop_name",
+    "desktop_id",
+    "owner_user_name",
+    "owner_user_id",
+    "owner_group_name",
+    "owner_group_id",
+    "owner_category_name",
+    "owner_category_id",
+    "starting_time",
+)
+_USER_GROUP_FIELDS = (
+    "count",
+    "owner_user_name",
+    "owner_user_id",
+    "owner_group_name",
+    "owner_group_id",
+    "owner_category_name",
+    "owner_category_id",
+    "started_time",
+)
+
+
 class LogsProcessed(RethinkSharedConnection):
     """Table-level queries for ``logs_desktops`` / ``logs_users``.
 
@@ -36,16 +62,47 @@ class LogsProcessed(RethinkSharedConnection):
     this class translates it into the right rdb chain.
     """
 
+    @staticmethod
+    def _order_from_parsed(parsed: dict) -> tuple:
+        """``(field, descending)`` of the first DataTables order clause."""
+        if not parsed.get("order") or not len(parsed["order"]):
+            return None, False
+        columns = parsed["columns"]
+        if isinstance(columns, dict):
+            columns = list(columns.values())
+        col_idx = int(parsed["order"][0]["column"])
+        field = columns[col_idx]["data"] if col_idx < len(columns) else None
+        return field, parsed["order"][0]["dir"] == "desc"
+
+    @staticmethod
+    def _order_grouped(query, parsed: dict, fields: tuple):
+        """Order an ungrouped result by the DataTables column, if it is one.
+
+        The grouped result is an array already, so any of its fields can
+        be sorted on — but only its own: the raw table columns the order
+        may name do not survive the grouping.
+        """
+        field, descending = LogsProcessed._order_from_parsed(parsed)
+        if field not in fields:
+            return query
+        return query.order_by(r.desc(field) if descending else r.asc(field))
+
     @classmethod
     def _build_query(
-        cls, table: str, parsed: dict, scope_category_id: str | None = None
+        cls,
+        table: str,
+        parsed: dict,
+        scope_category_id: str | None = None,
+        ordered: bool = True,
     ) -> tuple:
         """Build the base rdb query for ``parsed`` DataTables payload.
 
         ``scope_category_id`` restricts the query to rows whose
         ``owner_category_id`` matches — used to scope managers to
         their own category before any DataTables filter / order is
-        applied.
+        applied. ``ordered=False`` leaves the ordering off, for the
+        grouping views: their DataTables order names a column of the
+        grouped result, which means nothing to a row of the table.
 
         Returns ``(query, table_indexes)``. Internal helper — held in
         the same connection scope as the count/data run that consumes
@@ -55,58 +112,49 @@ class LogsProcessed(RethinkSharedConnection):
             table_indexes = r.table(table).index_list().run(cls._rdb_connection)
 
         query = r.table(table)
-        skip_indexs = False
 
-        # Add ordering
-        if parsed.get("order") and len(parsed["order"]):
-            order_field = parsed["columns"][int(parsed["order"][0]["column"])]["data"]
-            if order_field in table_indexes:
-                if parsed["order"][0]["dir"] == "desc":
-                    query = query.order_by(index=r.desc(order_field))
-                else:
-                    query = query.order_by(index=r.asc(order_field))
-                if parsed.get("range") and order_field != parsed["range"].get("field"):
-                    skip_indexs = True
-            else:
-                orders = parsed["order"]
-                if isinstance(orders, dict):
-                    orders = orders.values()
-                for order in orders:
-                    col_idx = int(order["column"])
-                    cols = parsed["columns"]
-                    if isinstance(cols, dict):
-                        cols = list(cols.values())
-                    col_data = cols[col_idx]["data"] if col_idx < len(cols) else None
-                    if col_data:
-                        if order["dir"] == "desc":
-                            query = query.order_by(r.desc(col_data))
-                        else:
-                            query = query.order_by(r.asc(col_data))
+        order_field, descending = cls._order_from_parsed(parsed)
+        if not ordered:
+            order_field = None
+        indexed_order = order_field in table_indexes
 
-        # Filter by category
-        if scope_category_id is not None:
-            query = query.filter({"owner_category_id": scope_category_id})
-
-        # Add range filters
+        range_start = range_end = range_field = None
         if parsed.get("range"):
             s = parsed["range"].get("start")
             e = parsed["range"].get("end")
             range_field = parsed["range"].get("field")
             if s and e and range_field:
-                start_str = (s if "T" in s else s + "T00:00:00") + "Z"
-                end_str = (e if "T" in e else e + "T23:59:59") + "Z"
-                if skip_indexs:
-                    query = query.filter(
-                        lambda doc: doc[range_field].during(
-                            r.iso8601(start_str), r.iso8601(end_str)
-                        )
-                    )
-                else:
-                    query = query.between(
-                        r.iso8601(start_str),
-                        r.iso8601(end_str),
-                        index=range_field,
-                    )
+                range_start = r.iso8601((s if "T" in s else s + "T00:00:00") + "Z")
+                range_end = r.iso8601((e if "T" in e else e + "T23:59:59") + "Z")
+            else:
+                range_field = None
+
+        # between() reads an index off the table itself, and a table can only be
+        # walked through one index, so it is available whenever the ordering is
+        # not claiming a different one.
+        range_on_index = range_field is not None and (
+            not indexed_order or order_field == range_field
+        )
+        if range_on_index:
+            query = query.between(range_start, range_end, index=range_field)
+
+        # An indexed order goes on the table first and keeps the query a lazy
+        # stream, so the filters below cost nothing to add. A non-indexed one
+        # has to materialise and sort whatever reaches it, which trips rethink's
+        # 100k array limit on these tables — it is applied last, once the
+        # filters have narrowed the set.
+        if indexed_order:
+            direction = r.desc if descending else r.asc
+            query = query.order_by(index=direction(order_field))
+
+        # Filter by category
+        if scope_category_id is not None:
+            query = query.filter({"owner_category_id": scope_category_id})
+
+        if range_field is not None and not range_on_index:
+            query = query.filter(
+                lambda doc: doc[range_field].during(range_start, range_end)
+            )
 
         # Add search filters
         if parsed.get("columns"):
@@ -129,6 +177,20 @@ class LogsProcessed(RethinkSharedConnection):
             ff = parsed["filter_field"]
             fv = parsed["filter_value"]
             query = query.filter(lambda doc: doc[ff] == fv)
+
+        if order_field is not None and not indexed_order:
+            orders = parsed["order"]
+            if isinstance(orders, dict):
+                orders = orders.values()
+            for order in orders:
+                col_idx = int(order["column"])
+                cols = parsed["columns"]
+                if isinstance(cols, dict):
+                    cols = list(cols.values())
+                col_data = cols[col_idx]["data"] if col_idx < len(cols) else None
+                if col_data:
+                    direction = r.desc if order["dir"] == "desc" else r.asc
+                    query = query.order_by(direction(col_data))
 
         # Add pluck
         if parsed.get("pluck"):
@@ -180,17 +242,16 @@ class LogsProcessed(RethinkSharedConnection):
             }
 
         if view == "desktop_grouping" and table == "logs_desktops":
-            query, _ = cls._build_query(
-                table, parsed, scope_category_id=scope_category_id
+            # Grouping the bare table materialises one element per group, past
+            # rethink's 100k array limit on a table this size, and silently
+            # drops the date range the caller asked for. Group what the
+            # filters left instead.
+            group_query, _ = cls._build_query(
+                table, parsed, scope_category_id=scope_category_id, ordered=False
             )
-            group_query = r.table(table)
-            if scope_category_id is not None:
-                group_query = group_query.filter(
-                    {"owner_category_id": scope_category_id}
-                )
-            group_query = group_query.group(index="desktop_id")
             group_query = (
-                group_query.map(
+                group_query.group("desktop_id")
+                .map(
                     lambda log_entry: {
                         "count": 1,
                         "desktop_name": log_entry["desktop_name"],
@@ -220,33 +281,34 @@ class LogsProcessed(RethinkSharedConnection):
                 )
                 .ungroup()["reduction"]
             )
+            group_query = cls._order_grouped(group_query, parsed, _DESKTOP_GROUP_FIELDS)
             with cls._rdb_context():
-                total = r.table(table).count().run(cls._rdb_connection)
-                filtered = query.count().run(cls._rdb_connection)
+                # Both counts are groups: the rows behind them are not what
+                # this view paginates.
+                groups = group_query.count().run(cls._rdb_connection)
                 paged = group_query.skip(int(parsed.get("start", 0))).limit(
                     int(parsed.get("length", 25))
                 )
                 data = list(paged.run(cls._rdb_connection))
             return {
                 "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": total,
-                "recordsFiltered": filtered,
+                "recordsTotal": groups,
+                "recordsFiltered": groups,
                 "data": data,
                 "indexs": [],
             }
 
         if view == "user_grouping" and table == "logs_users":
-            query, _ = cls._build_query(
-                table, parsed, scope_category_id=scope_category_id
+            # Grouping the bare table materialises one element per group, past
+            # rethink's 100k array limit on a table this size, and silently
+            # drops the date range the caller asked for. Group what the
+            # filters left instead.
+            group_query, _ = cls._build_query(
+                table, parsed, scope_category_id=scope_category_id, ordered=False
             )
-            group_query = r.table(table)
-            if scope_category_id is not None:
-                group_query = group_query.filter(
-                    {"owner_category_id": scope_category_id}
-                )
-            group_query = group_query.group(index="owner_user_id")
             group_query = (
-                group_query.map(
+                group_query.group("owner_user_id")
+                .map(
                     lambda log_entry: {
                         "count": 1,
                         "owner_user_name": log_entry["owner_user_name"],
@@ -272,17 +334,19 @@ class LogsProcessed(RethinkSharedConnection):
                 )
                 .ungroup()["reduction"]
             )
+            group_query = cls._order_grouped(group_query, parsed, _USER_GROUP_FIELDS)
             with cls._rdb_context():
-                total = r.table(table).count().run(cls._rdb_connection)
-                filtered = query.count().run(cls._rdb_connection)
+                # Both counts are groups: the rows behind them are not what
+                # this view paginates.
+                groups = group_query.count().run(cls._rdb_connection)
                 paged = group_query.skip(int(parsed.get("start", 0))).limit(
                     int(parsed.get("length", 25))
                 )
                 data = list(paged.run(cls._rdb_connection))
             return {
                 "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": total,
-                "recordsFiltered": filtered,
+                "recordsTotal": groups,
+                "recordsFiltered": groups,
                 "data": data,
                 "indexs": [],
             }
@@ -371,6 +435,35 @@ class LogsProcessed(RethinkSharedConnection):
 
         return {}
 
+    @staticmethod
+    def _ordered_log_table(
+        table: str,
+        time_index: str,
+        start_date: str | None,
+        end_date: str | None,
+    ):
+        """Table ordered newest-first by ``time_index``, narrowed to the date range.
+
+        ``order_by`` without ``index=`` materialises the whole table before
+        sorting, which blows past rethink's 100k array limit on these tables.
+        Going through the index keeps the query a lazy stream, so the
+        ``limit`` downstream stops the scan early.
+        """
+        query = r.table(table)
+        if start_date or end_date:
+            start = r.minval
+            end = r.maxval
+            if start_date:
+                s = (
+                    start_date if "T" in start_date else start_date + "T00:00:00"
+                ) + "Z"
+                start = r.iso8601(s)
+            if end_date:
+                e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
+                end = r.iso8601(e)
+            query = query.between(start, end, index=time_index, right_bound="closed")
+        return query.order_by(index=r.desc(time_index))
+
     @classmethod
     def list_simple_desktop(
         cls,
@@ -387,20 +480,16 @@ class LogsProcessed(RethinkSharedConnection):
         ``category_id`` scopes managers to their own category; admins
         pass ``None``.
         """
-        query = r.table("logs_desktops")
-        if category_id is not None:
+        query = cls._ordered_log_table(
+            "logs_desktops", "starting_time", start_date, end_date
+        )
+        if category_id:
             query = query.filter({"owner_category_id": category_id})
         if desktop_id:
             query = query.filter({"desktop_id": desktop_id})
         if user_id:
             query = query.filter({"owner_user_id": user_id})
-        if start_date:
-            s = (start_date if "T" in start_date else start_date + "T00:00:00") + "Z"
-            query = query.filter(lambda d: d["starting_time"] >= r.iso8601(s))
-        if end_date:
-            e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
-            query = query.filter(lambda d: d["starting_time"] <= r.iso8601(e))
-        query = query.order_by(r.desc("starting_time")).skip(offset).limit(limit)
+        query = query.skip(offset).limit(limit)
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
 
@@ -420,24 +509,16 @@ class LogsProcessed(RethinkSharedConnection):
         ``category_id`` scopes managers to their own category; admins
         pass ``None``.
         """
-        query = r.table("logs_users")
-        query = query.order_by(r.desc("started_time"))
-
-        if category_id is not None:
+        query = cls._ordered_log_table(
+            "logs_users", "started_time", start_date, end_date
+        )
+        if category_id:
             query = query.filter({"owner_category_id": category_id})
-        if user_id is not None:
+        if user_id:
             query = query.filter({"owner_user_id": user_id})
-        if group_id is not None:
+        if group_id:
             query = query.filter({"owner_group_id": group_id})
-        if start_date is not None:
-            s = (start_date if "T" in start_date else start_date + "T00:00:00") + "Z"
-            query = query.filter(lambda d: d["started_time"] >= r.iso8601(s))
-        if end_date is not None:
-            e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
-            query = query.filter(lambda d: d["started_time"] <= r.iso8601(e))
-
-        query.skip(offset).limit(limit)
-
+        query = query.skip(offset).limit(limit)
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
 
