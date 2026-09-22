@@ -1756,11 +1756,14 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Xarxes de l'escriptori '{name}'",
-      "description": "Interfícies de xarxa connectades a aquest escriptori. La interfície Wireguard es mostra primer quan hi és present i exposa la IP encaminable del convidat.",
+      "title": "Xarxes",
+      "loading": "Carregant la informació de xarxa…",
       "empty": "Aquest escriptori no té cap xarxa connectada",
       "error": "No s'ha pogut carregar la informació de xarxa",
       "no-ip": "Sense IP assignada",
+      "debug-options": {
+        "copy-id": "Copia l'ID de la interfície"
+      },
       "fields": {
         "id": "ID",
         "mac": "Adreça MAC",

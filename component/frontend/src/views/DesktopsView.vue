@@ -31,7 +31,6 @@ import {
   getUserDesktopsOptions,
   getUserDesktopsQueryKey,
   getUserConfigOptions,
-  getDesktopNetworksOptions,
   updateStatusDesktopMutation,
   deleteDesktopMutation,
   recreateDesktopMutation,
@@ -52,13 +51,10 @@ import {
   startDesktop,
   stopDesktop,
   stopDesktops,
-  getDesktopNetworks,
   deleteDesktop,
   updateDesktopBastionAuthorizedKeys,
   getDesktopViewerByType as getDesktopViewer,
   type GetDesktopViewerByTypeData as GetDesktopViewerData,
-  type DesktopNetwork,
-  type GetDesktopNetworksData,
   DesktopStatusEnum,
   type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop,
   getMaxBookingDate,
@@ -75,7 +71,7 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
 import { describeApiError } from '@/lib/api-errors'
-import { resolveDesktopKind } from '@/lib/desktops'
+import { resolveDesktopKind, type DesktopKind } from '@/lib/desktops'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 import { useUserStore } from '@/stores/user'
 import { canCreateAnyDesktop } from '@/lib/quotas'
@@ -358,9 +354,12 @@ const confirmStopAllDesktops = (force: boolean) => {
 const networksModalData = ref<{
   id: string
   name: string
-  ip?: string | null
-  status?: string
+  kind: DesktopKind
 } | null>(null)
+
+const networksModalDesktop = computed(() =>
+  desktops.value?.desktops.find((d) => d.id === networksModalData.value?.id)
+)
 
 // --------------------------------------------------
 
@@ -1211,9 +1210,10 @@ const missingCardRows = computed(() => {
     v-if="networksModalData !== null"
     :open="networksModalData !== null"
     :desktop-id="networksModalData.id"
-    :desktop-name="networksModalData.name"
-    :desktop-ip="networksModalData.ip"
-    :desktop-status="networksModalData.status"
+    :desktop-name="networksModalDesktop?.name ?? networksModalData.name"
+    :desktop-ip="networksModalDesktop?.ip"
+    :desktop-status="networksModalDesktop?.status"
+    :desktop-kind="networksModalData.kind"
     @close="networksModalData = null"
   />
 
@@ -1466,8 +1466,7 @@ const missingCardRows = computed(() => {
           networksModalData = {
             id: routeDesktop.id,
             name: routeDesktop.name,
-            ip: routeDesktop.ip,
-            status: routeDesktop.status
+            kind: resolveDesktopKind(routeDesktop)
           }
         "
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
@@ -1832,8 +1831,7 @@ const missingCardRows = computed(() => {
               networksModalData = {
                 id: dktp.id,
                 name: dktp.name,
-                ip: dktp.ip,
-                status: dktp.status
+                kind: resolveDesktopKind(dktp)
               }
             }
           "
@@ -1947,8 +1945,7 @@ const missingCardRows = computed(() => {
                   networksModalData = {
                     id: dktp.id,
                     name: dktp.name,
-                    ip: dktp.ip,
-                    status: dktp.status
+                    kind: resolveDesktopKind(dktp)
                   }
                 "
                 @show-info-modal="openDesktopInfoModal(dktp.id)"

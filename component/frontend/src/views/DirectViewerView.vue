@@ -596,6 +596,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :desktop-name="desktopViewer.name"
       :desktop-status="desktopViewer.status"
       :desktop-ip="desktopIp"
+      :desktop-kind="desktopCardKind"
       :direct-viewer-token="token"
       :direct-viewer-client="directViewerClient"
       @close="showNetworksModal = false"

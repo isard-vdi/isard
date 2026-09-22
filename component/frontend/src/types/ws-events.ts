@@ -42,6 +42,7 @@ export interface WsDesktopPayload {
   id: string
   name: string
   state: string
+  status: string
   type: 'persistent' | 'nonpersistent'
   template: string | null
   viewers: string[]
