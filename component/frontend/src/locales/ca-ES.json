@@ -837,6 +837,14 @@
           "title": "Escriptoris",
           "add-desktop": "Afegeix un escriptori",
           "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "empty": {
+            "title": "Afegeix escriptoris al desplegament",
+            "description": "Un desplegament necessita com a mínim un escriptori. Cada escriptori afegit es crearà per a tots els usuaris del desplegament."
+          },
+          "quota-reached": {
+            "title": "Quota d'escriptoris assolida",
+            "description": "La teva quota no permet més escriptoris en aquest desplegament."
+          },
           "errors": {
             "no-desktops": "Almenys un escriptori ha d'estar afegit al desplegament."
           }

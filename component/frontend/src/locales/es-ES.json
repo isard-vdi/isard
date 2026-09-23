@@ -837,6 +837,14 @@
           "title": "Escritorios",
           "add-desktop": "Añadir escritorio",
           "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "empty": {
+            "title": "Añade escritorios al despliegue",
+            "description": "Un despliegue necesita al menos un escritorio. Cada escritorio añadido se creará para todos los usuarios del despliegue."
+          },
+          "quota-reached": {
+            "title": "Cuota de escritorios alcanzada",
+            "description": "Tu cuota no permite más escritorios en este despliegue."
+          },
           "errors": {
             "no-desktops": "Al menos un escritorio debe ser añadido al despliegue."
           }

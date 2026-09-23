@@ -845,6 +845,14 @@
           "title": "Desktops",
           "add-desktop": "Add desktop",
           "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "empty": {
+            "title": "Add desktops to the deployment",
+            "description": "A deployment needs at least one desktop. Each of the added desktops will be created for every deployment user."
+          },
+          "quota-reached": {
+            "title": "Desktop quota reached",
+            "description": "Your quota does not allow any more desktops in this deployment."
+          },
           "errors": {
             "no-desktops": "At least one desktop must be added to the deployment."
           }
