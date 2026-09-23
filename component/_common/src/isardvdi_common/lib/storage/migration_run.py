@@ -1133,6 +1133,36 @@ class MigrationRunner:
         # ephemeral rq job result, which expires between ticks on a many-disk tree
         # and made the gate re-verify forever. Flagging it makes the pass durable.
         self._set(item, verify_passed=True)
+        self._flag_leaks(item)
+
+    def _flag_leaks(self, item):
+        """A gate that passed with leaked clusters leaves the mark on the disk;
+        the job result may already be gone, and then the mark is simply not
+        made -- the check is repeatable."""
+        if self._is_media(item):
+            return
+        try:
+            result = Task(item["verify_task_id"]).result
+            leaks = (
+                int((result or {}).get("leaks") or 0) if isinstance(result, dict) else 0
+            )
+        except Exception:
+            return
+        if leaks:
+            self._flag(item, "repair_leaks", {"leaks": leaks})
+
+    def _flag(self, item, action, detail):
+        try:
+            Storage.flag_pending(
+                item["storage_id"],
+                action,
+                f"migration:{self.migration_id}",
+                detail,
+            )
+        except Exception:
+            log.exception(
+                "migration: could not flag %s on %s", action, item["storage_id"]
+            )
 
     def _release(self, item):
         # Whole tree is committed AND every destination has passed the pre-release
@@ -1285,6 +1315,7 @@ class MigrationRunner:
             )
         except Exception:
             log.exception("migration: could not mark %s damaged", item["storage_id"])
+        self._flag(item, "review_damage", {"reason": reason})
 
     def _fail(self, item):
         self._terminalize_tree_failure(item)
