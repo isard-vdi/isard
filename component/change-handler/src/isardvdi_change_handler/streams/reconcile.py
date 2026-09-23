@@ -744,6 +744,58 @@ async def _reconcile_stuck_storage(redis_manager, grace_s=GRACE_S):
     return healed
 
 
+_UNCLAIMED_STORAGE_STATUS = "non_existing"
+
+
+def _claimed_by_a_domain(storage):
+    """True if a domain references this row through ``domains.storage_ids``."""
+    try:
+        return bool(storage.domains)
+    except Exception:
+        # Unreadable: claim it rather than retire a row we cannot vouch for.
+        return True
+
+
+async def _reconcile_unclaimed_allocations(redis_manager, grace_s=GRACE_S):
+    """Pass 5: retire an allocated storage row that neither a live chain nor a
+    domain ever claimed. ``non_existing`` is outside every other pass, so nothing
+    else would. Returns the count finalized."""
+    try:
+        allocated = await asyncio.to_thread(
+            Storage.get_index, [_UNCLAIMED_STORAGE_STATUS], "status"
+        )
+    except Exception:
+        log.exception("reconcile: could not list unclaimed storage allocations")
+        return 0
+    if not allocated:
+        return 0
+    migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    now = time()
+    healed = 0
+    for storage in allocated:
+        try:
+            if getattr(storage, "id", None) in migrating:
+                continue
+            if _within_status_grace(storage, now, grace_s):
+                continue
+            if _task_alive(storage):
+                continue
+            if await asyncio.to_thread(_claimed_by_a_domain, storage):
+                continue
+            log.warning(
+                "reconcile: storage %s allocated and unclaimed; re-issuing "
+                "check_backing_chain to observe the disk",
+                getattr(storage, "id", "?"),
+            )
+            healed += await _finalize_stuck_storage(redis_manager, storage)
+        except Exception:
+            log.exception(
+                "reconcile: unclaimed finalize failed for storage %s",
+                getattr(storage, "id", "?"),
+            )
+    return healed
+
+
 def _finalize_stuck_domain(domain):
     """Finalise one domain parked in a storage-lock status from its storage
     reality. Returns 1 if finalised in place, else 0.
@@ -967,6 +1019,7 @@ async def run(redis_manager, interval_s=RECONCILE_EVERY_S, grace_s=GRACE_S):
                 drained = True
             await _reconcile_orphan_deferred(redis_manager, grace_s=grace_s)
             await _reconcile_stuck_storage(redis_manager, grace_s=grace_s)
+            await _reconcile_unclaimed_allocations(redis_manager, grace_s=grace_s)
             await _reconcile_stuck_domains(redis_manager, grace_s=grace_s)
             await _reconcile_stuck_media(redis_manager, grace_s=grace_s)
             await _assert_core_empty()
