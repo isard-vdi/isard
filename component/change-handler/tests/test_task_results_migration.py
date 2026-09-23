@@ -11,47 +11,35 @@ from isardvdi_change_handler.streams import task_results_consumer
 from isardvdi_change_handler.task_results import migration
 
 
-def _item(storage_id, tree_id, kind, state, size=10):
-    return {
-        "storage_id": storage_id,
-        "tree_id": tree_id,
-        "kind": kind,
-        "state": state,
-        "size_bytes": size,
-    }
-
-
 # --------------------------------------------------------------------------- #
-# _build_payload — derived aggregate (one row per root tree + job totals)
+# _build_payload — lean job summary (persisted totals, NO per-tree list, no items)
 # --------------------------------------------------------------------------- #
-def test_build_payload_aggregates_per_tree_and_totals():
-    items = [
-        _item("r", "r", "template", "released"),
-        _item("d1", "r", "desktop", "released"),
-        _item("d2", "r", "desktop", "moving"),
-    ]
+def test_build_payload_is_lean_job_summary_no_trees():
+    # built from the job row's persisted totals; the socket no longer ships the
+    # per-tree list (thousands of trees) — the webapp pulls those from /trees.
     fake_sm = MagicMock()
     fake_sm.exists.return_value = True
-    fake_sm.return_value = SimpleNamespace(id="mig-1", status="running")
-    fake_item = MagicMock()
-    fake_item.dicts_by_migration.return_value = items
-    with (
-        patch.object(migration, "StorageMigration", fake_sm),
-        patch.object(migration, "StorageMigrationItem", fake_item),
-    ):
+    fake_sm.return_value = SimpleNamespace(
+        id="mig-1",
+        status="running",
+        totals={
+            "items_total": 3,
+            "bytes_total": 30,
+            "bytes_done": 20,
+            "done": 2,
+            "state_counts": {"released": 2, "moving": 1},
+        },
+    )
+    with patch.object(migration, "StorageMigration", fake_sm):
         payload = migration._build_payload("mig-1")
 
     assert payload["id"] == "mig-1"
     assert payload["status"] == "running"
     assert payload["totals"]["items_total"] == 3
-    assert payload["totals"]["done"] == 2  # two released
-    assert payload["totals"]["bytes_total"] == 30
-    assert payload["totals"]["state_counts"]["released"] == 2
-    assert len(payload["trees"]) == 1
-    tree = payload["trees"][0]
-    assert tree["tree_id"] == "r"
-    assert tree["desktops"] == 2
-    assert tree["done"] == 2
+    assert payload["totals"]["done"] == 2
+    assert payload["state_counts"]["released"] == 2
+    assert "trees" not in payload  # the socket no longer carries the tree list
+    assert "items" not in payload
 
 
 def test_build_payload_missing_migration_returns_none():

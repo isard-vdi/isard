@@ -18,6 +18,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "..", "storage_migration.js");
 const src = fs.readFileSync(SRC, "utf8");
 
+
 function extract (name) {
   // Grab a top-level `function name (...) { ... }` up to its column-0 closing
   // brace (inner braces are indented, so `\n}` matches only the function end).
@@ -169,7 +170,6 @@ assert.strictEqual(a.migCreateConfig().source_disposition, "system");
 a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_source_disposition": "delete" } });
 assert.strictEqual(a.migCreateConfig().source_disposition, "delete");
 const configForm = extract("migConfigControls");
-assert(configForm.includes('"system", "recycle_bin", "delete"'), "the per-job form must offer the three dispositions");
 assert(configForm.includes("c.source_disposition"), "the per-job form must show the job's current value");
 console.log("migCreateConfig source_disposition: PASS");
 // damaged disk: absent -> "pause" (the job waits for the admin), a chosen value travels
@@ -179,6 +179,44 @@ a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_on_damaged": 
 assert.strictEqual(a.migCreateConfig().on_damaged, "continue");
 assert(extract("migConfigControls").includes('"pause", "continue"'), "the per-job form must offer both");
 console.log("migCreateConfig on_damaged: PASS");
+
+// The per-job form: "delete" needs verify, and on a live job verify is frozen, so a
+// live job whose verify is off must not be offered a disposition the API will refuse.
+// Every top-level MIG_* constant and every helper the form calls, lifted from the
+// source: naming them one by one means the next branch that adds a label breaks
+// THIS test instead of its own.
+const migConsts = [...src.matchAll(/^const (MIG_[A-Z_]+) = ([\s\S]*?);\n/gm)]
+  .map((m) => `const ${m[1]} = ${m[2]};`)
+  .join("\n");
+const controls = new Function(
+  migConsts + "\n" +
+    ["migEscape", "migOpt", "migBytesToGb", "migConfigControls"].map(extract).join("\n") +
+    "\nreturn migConfigControls;"
+)();
+const form = (status, verify) => controls({ id: "m1", status, config: { verify } });
+assert(form("pending", false).includes('value="delete"'), "a job that has not started may still choose delete");
+assert(!form("running", false).includes('value="delete"'), "a live job with verify off must not be offered delete");
+assert(form("running", true).includes('value="delete"'), "a live job with verify on keeps delete");
+console.log("migConfigControls source disposition vs frozen verify: PASS");
+
+// Apply sends only what changed, and names the fields that weaken a guarantee
+const changes = new Function(
+  extract("migConfigChanges") + "\n" + extract("migWeakenedFields") +
+    "\nconst MIG_WEAKENING = { min_free_bytes: function (o, n) { return (n || 0) < (o || 0); }, failure_policy: function (o, n) { return o === 'pause' && n !== 'pause'; } };" +
+    "\nreturn { migConfigChanges: migConfigChanges, migWeakenedFields: migWeakenedFields };"
+)();
+const cur = { parallelism: 1, failure_policy: "pause", min_free_bytes: 1e9, verify: true };
+assert.deepStrictEqual(changes.migConfigChanges(cur, { parallelism: 2, failure_policy: "pause", min_free_bytes: 1e9, verify: true }), { parallelism: 2 });
+assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 0, failure_policy: "retry_forever", parallelism: 2 }), ["min_free_bytes", "failure_policy"]);
+assert.deepStrictEqual(changes.migWeakenedFields(cur, { min_free_bytes: 2e9 }), []);
+// a pre-upgrade job predates source_disposition/min_free_pct/etc.; a field absent
+// from current is not a change, so editing parallelism must not backfill them
+// (else the legacy "park" would silently flip to source_disposition "system").
+assert.deepStrictEqual(
+  changes.migConfigChanges(cur, { parallelism: 2, source_disposition: "system", min_free_pct: 10, on_damaged: "pause", include_never_used: false, order: "none" }),
+  { parallelism: 2 },
+  "absent-from-current fields must not be sent on a legacy job");
+console.log("migConfigChanges / migWeakenedFields: PASS");
 
 console.log("ALL PASS");
 
@@ -195,3 +233,49 @@ assert(
   "the preview must show how many disks the exclusions cost"
 );
 console.log("migRenderSummary excluded trees: PASS");
+
+// --------------------------------------------------------------------------- //
+// migDate / migRowOrder — the two date columns + interactive sort
+// --------------------------------------------------------------------------- //
+const migDate = eval("(" + extract("migDate").replace(/^function migDate/, "function") + ")");
+assert.strictEqual(migDate(null), "—", "null date -> em dash");
+assert.strictEqual(migDate(undefined), "—", "undefined date -> em dash");
+assert.strictEqual(migDate("nope"), "—", "non-numeric date -> em dash");
+assert.notStrictEqual(migDate(1789854820), "—", "a real epoch renders a date");
+console.log("migDate: PASS");
+
+const migRowOrder = eval("(" + extract("migRowOrder").replace(/^function migRowOrder/, "function") + ")");
+assert(migRowOrder(300, 100, "desc") < 0, "desc: newer before older");
+assert(migRowOrder(100, 300, "desc") > 0, "desc: older after newer");
+assert.strictEqual(migRowOrder(200, 200, "desc"), 0, "equal epochs -> 0");
+assert(migRowOrder(100, 300, "asc") < 0, "asc: older before newer");
+// a missing timestamp is the smallest value -> sorts last when descending
+assert(migRowOrder(null, 100, "desc") > 0, "desc: missing sorts after a real date");
+assert(migRowOrder(500, null, "desc") < 0, "desc: real date before missing");
+console.log("migRowOrder: PASS");
+
+// --------------------------------------------------------------------------- //
+// migPager — the trees/disks pagination math (server-side paging)
+// --------------------------------------------------------------------------- //
+const migPager = eval("(" + extract("migPager").replace(/^function migPager/, "function") + ")");
+let pg = migPager(1, 25, 4400);
+assert(pg.includes("Page 1 / 176"), "4400/25 -> 176 pages");
+assert(pg.includes("(4400 total)"), "shows the total");
+assert(/mig-page-prev[^>]*disabled/.test(pg), "prev disabled on page 1");
+assert(!/mig-page-next[^>]*disabled/.test(pg), "next enabled on page 1");
+pg = migPager(176, 25, 4400);
+assert(/mig-page-next[^>]*disabled/.test(pg), "next disabled on the last page");
+assert(migPager(1, 25, 0).includes("Page 1 / 1"), "empty -> a single page");
+console.log("migPager: PASS");
+
+// --------------------------------------------------------------------------- //
+// migDeleteButton — carries the status + disk count so confirm() can state them
+// --------------------------------------------------------------------------- //
+const migDeleteButton = new Function(
+  extract("migEscape") + "\n" + extract("migDeleteButton") + "\nreturn migDeleteButton;"
+)();
+const delBtn = migDeleteButton({ id: "mig-x", status: "completed", totals: { items_total: 7 } });
+assert(delBtn.includes("mig-delete"), "delete button has the mig-delete hook");
+assert(delBtn.includes('data-status="completed"'), "carries the status for confirm");
+assert(delBtn.includes('data-items="7"'), "carries the disk count for confirm");
+console.log("migDeleteButton: PASS");

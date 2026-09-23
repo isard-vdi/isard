@@ -24,8 +24,8 @@ fan-out via the shared :class:`AsyncRedisManager`), NOT on
 ``emit_task_feedback`` (which is per-user task-progress). The reconciler signals
 progress by XADD-ing a ``{kind: "migration", migration_id}`` entry to
 ``stream:task-results``; the stream consumer dispatches it here, and this builds
-the aggregate (one row per ROOT tree + job totals, COUNT(items WHERE state)) and
-broadcasts it to ``/administrators`` so the storage-pools admin view live-updates.
+the lean job summary (job totals + state_counts, no per-tree list) and broadcasts
+it to ``/administrators`` so the storage-pools admin view live-updates.
 """
 
 import asyncio
@@ -33,23 +33,17 @@ import json
 import logging as log
 
 from isardvdi_common.lib.storage import migration as mig
-from isardvdi_common.models.storage_migration import (
-    StorageMigration,
-    StorageMigrationItem,
-)
+from isardvdi_common.models.storage_migration import StorageMigration
 
 
 def _build_payload(migration_id):
-    """Aggregate the migration ledger into the admin-view shape via the shared
-    :func:`isardvdi_common.lib.storage.migration.aggregate_status`, so the socket
-    event and the apiv4 status endpoint render identically. Everything is derived
-    (COUNT(items WHERE state=X)) — never an incremental counter. Returns ``None``
-    when the migration no longer exists (nothing to emit)."""
+    """Lean job summary (totals + state_counts + status + dates + ETA + window, no
+    per-tree list) via :func:`mig.aggregate_summary`, built from the job row alone.
+    A change no longer ships thousands of trees; the webapp refreshes its open
+    trees page from /trees. Returns ``None`` when the migration is gone."""
     if not StorageMigration.exists(migration_id):
         return None
-    m = StorageMigration(migration_id)
-    items = StorageMigrationItem.dicts_by_migration(migration_id)
-    return mig.aggregate_status(m, items)
+    return mig.aggregate_summary(StorageMigration(migration_id))
 
 
 async def send_migration_socket(redis_manager, migration_id):

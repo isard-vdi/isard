@@ -101,6 +101,13 @@ class MigrationConfigData(BaseModel):
         return self
 
 
+class MigrationConfigUpdateData(MigrationConfigData):
+    """A partial update: only the fields sent are applied. Weakening a
+    guarantee on a live job needs ``confirm_weakening``."""
+
+    confirm_weakening: bool = False
+
+
 class MigrationPlanData(BaseModel):
     """Dry-run plan preview request — nothing is persisted.
 
@@ -233,15 +240,34 @@ class MigrationResponse(BaseModel):
     created_by: Optional[str] = None
     created_at: Optional[float] = None
     updated_at: Optional[float] = None
+    #: last progress (executor stamps it on any disk/job state change, API on any
+    #: action); None on jobs created before the field existed.
+    last_activity_at: Optional[float] = None
+
+
+class MigrationListItem(MigrationResponse):
+    """A list row: the job aggregate plus the few live fields the table renders,
+    all read off the job row so the list needs no per-disk load."""
+
+    state_counts: dict = Field(default_factory=dict)
+    eta_seconds: Optional[int] = None
+    current_window: Optional[dict] = None
+    recurring: bool = False
+    days: list[int] = Field(default_factory=list)
+    next_run_seconds: Optional[int] = None
 
 
 class MigrationListResponse(BaseModel):
-    migrations: list[MigrationResponse] = Field(default_factory=list)
+    migrations: list[MigrationListItem] = Field(default_factory=list)
 
 
 class MigrationStatusResponse(BaseModel):
     id: str
     status: str
+    #: creation time and last progress (epoch seconds) for the table's two date
+    #: columns; carried on status + socket so both render the dates identically.
+    created_at: Optional[float] = None
+    last_activity_at: Optional[float] = None
     #: what this job moves and where to (src/dst pool ids, kind, path/category) so
     #: the admin table + detail can show the origin → destination route.
     selection: dict = Field(default_factory=dict)
@@ -257,7 +283,35 @@ class MigrationStatusResponse(BaseModel):
     #: seconds until the next window opens on a selected weekday (None == always
     #: open / no schedule / cannot be computed)
     next_run_seconds: Optional[int] = None
+    #: per-disk rows, only when the request asks (?items=true); the disks are
+    #: otherwise served paginated by /items.
     items: list[MigrationItemSummary] = Field(default_factory=list)
+
+
+class MigrationTreesPageResponse(BaseModel):
+    """One page of per-tree summaries for a job's expand (server-paginated)."""
+
+    trees: list[MigrationTreeSummary] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    per_page: int = 25
+
+
+class MigrationItemsPageResponse(BaseModel):
+    """One page of disks for a tree's expand (server-paginated, index-sliced)."""
+
+    items: list[MigrationItemSummary] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    per_page: int = 50
+
+
+class MigrationDeleteResponse(BaseModel):
+    """Result of deleting a terminal or never-started migration and its ledger."""
+
+    id: str
+    status: str
+    deleted_items: int = 0
 
 
 class MigrationPathPrefixesResponse(BaseModel):

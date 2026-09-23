@@ -77,12 +77,62 @@ class TestList:
         )
         assert resp.status_code == 403
 
+    def test_list_ordered_by_created_at_desc(self, test_client):
+        # Newest first, stable. Seeded ascending so an unordered get_all would
+        # come back ascending; the endpoint must return descending.
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration("old", created_at=100.0),
+                    _migration("mid", created_at=200.0),
+                    _migration("new", created_at=300.0),
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        migs = resp.json()["migrations"]
+        assert [m["id"] for m in migs] == ["new", "mid", "old"]
+        cas = [m["created_at"] for m in migs]
+        assert cas == sorted(cas, reverse=True)
+
+    def test_list_exposes_last_activity_at(self, test_client):
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration("a", created_at=2.0, last_activity_at=42.0),
+                    _migration("b", created_at=1.0),  # absent -> None, not a crash
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        by_id = {m["id"]: m for m in resp.json()["migrations"]}
+        assert by_id["a"]["last_activity_at"] == 42.0
+        assert by_id["b"]["last_activity_at"] is None
+
+    def test_list_row_is_enriched_and_carries_no_disks(self, test_client):
+        # the row renders without a per-job GET /{id}: it carries the live fields
+        # (eta/window/recurring/days/state_counts) but never the disks or trees.
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration()]},
+        )
+        assert resp.status_code == 200
+        row = resp.json()["migrations"][0]
+        for k in ("eta_seconds", "current_window", "recurring", "days", "state_counts"):
+            assert k in row
+        assert "items" not in row and "trees" not in row
+
 
 # ── status ────────────────────────────────────────────────────────────────
 class TestStatus:
     def test_status_aggregates_item_states(self, test_client):
         resp = test_client(
-            url="/admin/storage/migrations/mig-1",
+            url="/admin/storage/migrations/mig-1?items=true",
             jwt=ADMIN,
             db_tables_data={
                 "storage_migration": [_migration()],
@@ -108,6 +158,39 @@ class TestStatus:
         }
         assert body["trees"][0]["done"] == 2
 
+    def test_status_carries_dates(self, test_client):
+        # both date columns come off the status aggregate (shared with the socket).
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(created_at=111.0, last_activity_at=222.0)
+                ],
+                "storage_migration_item": [_item("mig-1--a", state="released")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["created_at"] == 111.0
+        assert body["last_activity_at"] == 222.0
+
+    def test_status_omits_items_by_default(self, test_client):
+        # the disks are served paginated by /items now; status stays light unless
+        # ?items=true is asked (CSV/audit path).
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [_item("mig-1--a", state="released")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["items"] == []  # opt-in only
+        assert body["trees"]  # trees still present for backward compatibility
+
     def test_status_missing_404(self, monkeypatch, test_client):
         # Mock the DB-boundary existence check (the mock DB engine can't model
         # a missing-doc lookup) to exercise the real service not_found -> 404.
@@ -123,6 +206,92 @@ class TestStatus:
         assert resp.status_code == 404
 
 
+# ── trees (paginated / filterable) ──────────────────────────────────────────
+class TestTrees:
+    def test_trees_paginated(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/trees?page=1&per_page=2",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("t0", tree_id="t0"),
+                    _item("t1", tree_id="t1"),
+                    _item("t2", tree_id="t2"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 3
+        assert len(body["trees"]) == 2
+
+    def test_trees_state_filter(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/trees?state=moving",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("t0", tree_id="t0", state="pending"),
+                    _item("m", tree_id="m", state="moving"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert [t["tree_id"] for t in resp.json()["trees"]] == ["m"]
+
+
+# ── items (paginated / filterable / tree-scoped) ────────────────────────────
+class TestItems:
+    def test_items_scoped_to_tree(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?tree_id=r",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", tree_id="r"),
+                    _item("b", tree_id="r"),
+                    _item("c", tree_id="other"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 2
+        assert {i["storage_id"] for i in body["items"]} == {"a", "b"}
+
+    def test_items_paginated(self, test_client):
+        items = [_item(f"d{i}", tree_id="r") for i in range(5)]
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?tree_id=r&page=1&per_page=2",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": items,
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 5
+        assert len(resp.json()["items"]) == 2
+
+    def test_items_state_filter(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/items?state=failed",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration()],
+                "storage_migration_item": [
+                    _item("a", state="released"),
+                    _item("b", state="failed"),
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        assert {i["storage_id"] for i in resp.json()["items"]} == {"b"}
+
+
 # ── control (start / pause / cancel) ────────────────────────────────────────
 class TestControl:
     def test_start_sets_running(self, test_client):
@@ -134,6 +303,18 @@ class TestControl:
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "running"
+
+    def test_start_stamps_last_activity(self, test_client):
+        # an API action stamps last_activity_at too, so even a job that never
+        # moved a disk carries a timestamp for the table's Last-activity column.
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["last_activity_at"] is not None
 
     def test_cancel_running_finishes_current_tree(self, test_client):
         # cancel = finish-current-tree: a running job drains its in-flight tree
@@ -191,6 +372,124 @@ class TestConfig:
         assert resp.status_code == 200
         cfg = resp.json()["config"]
         assert cfg["bwlimit_kbs"] == 5000 and cfg["parallelism"] == 2
+        assert resp.json()["last_activity_at"] is not None
+
+    def test_a_partial_update_keeps_what_it_does_not_send(self, test_client):
+        """Raising the parallelism of a running job used to reset every field
+        it did not carry to its default: failure_policy back to
+        retry_quarantine and the free-space floor to 0, in silence."""
+        running = _migration(status="running")
+        running["config"] = {
+            "parallelism": 1,
+            "failure_policy": "pause",
+            "min_free_bytes": 10**9,
+            "verify": True,
+        }
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 2},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 2
+        assert cfg["failure_policy"] == "pause"
+        assert cfg["min_free_bytes"] == 10**9
+        # a partial update returns current+changes, never a defaults-backfilled
+        # config: backfilling would silently rewrite a pre-upgrade job (see the
+        # legacy no-backfill test)
+        assert cfg == {**running["config"], "parallelism": 2}
+
+    def test_weakening_a_guarantee_needs_an_explicit_confirmation(self, test_client):
+        running = _migration(status="running")
+        running["config"] = {"parallelism": 1, "min_free_bytes": 10**9}
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"min_free_bytes": 0},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 428
+        assert "min_free_bytes" in resp.text
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"min_free_bytes": 0, "confirm_weakening": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_bytes"] == 0
+
+    def test_verify_cannot_be_turned_off_on_a_job_that_moved(self, test_client):
+        running = _migration(status="running")
+        running["config"] = {"parallelism": 1, "verify": True}
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": False, "confirm_weakening": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 428
+        assert "verify" in resp.text
+        # the same value it already has is not a change
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": True},
+            db_tables_data={"storage_migration": [running]},
+        )
+        assert resp.status_code == 200
+
+    def test_a_planned_job_may_still_change_verify(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"verify": False},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["verify"] is False
+
+    def test_every_config_field_has_a_declared_policy(self):
+        from api.schemas.admin.storage_migration import MigrationConfigData
+        from isardvdi_common.lib.storage import migration as mig
+
+        missing = set(MigrationConfigData.model_fields) - set(mig.CONFIG_FIELD_POLICY)
+        assert not missing, f"fields without a live-change policy: {missing}"
+
+    def test_partial_update_on_a_legacy_job_does_not_backfill_new_fields(
+        self, test_client
+    ):
+        # a pre-upgrade job's config predates source_disposition / min_free_pct /
+        # on_damaged / usage_age_days / load_policy; editing one field must not
+        # backfill their defaults, or an absent source_disposition (legacy park)
+        # would silently become "system" and follow the global delete_action.
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"parallelism": 4},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 4
+        for f in (
+            "source_disposition",
+            "min_free_pct",
+            "on_damaged",
+            "usage_age_days",
+            "include_never_used",
+            "load_policy",
+        ):
+            assert f not in cfg, f"{f} was backfilled onto a legacy job's config"
 
     def test_config_on_terminal_job_conflicts(self, test_client):
         resp = test_client(
@@ -214,7 +513,10 @@ class TestConfig:
         assert resp.status_code == 200
         assert resp.json()["config"]["on_damaged"] == value
 
-    def test_config_defaults_on_damaged_to_pause(self, test_client):
+    def test_config_does_not_backfill_on_damaged(self, test_client):
+        # Unlike source_disposition, absent and "pause" mean the same thing here
+        # (the runner reads ``config.get("on_damaged") or "pause"``), so not
+        # writing the default costs nothing and keeps the partial update partial.
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
             method="PUT",
@@ -222,7 +524,19 @@ class TestConfig:
             body={"bwlimit_kbs": 1},
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
-        assert resp.json()["config"]["on_damaged"] == "pause"
+        assert "on_damaged" not in resp.json()["config"]
+
+    def test_config_keeps_a_chosen_on_damaged(self, test_client):
+        job = _migration(status="planned")
+        job["config"]["on_damaged"] = "continue"
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.json()["config"]["on_damaged"] == "continue"
 
     def test_config_rejects_an_unknown_on_damaged(self, test_client):
         resp = test_client(
@@ -279,7 +593,22 @@ class TestConfig:
         assert resp.status_code == 200
         assert resp.json()["config"]["source_disposition"] == disposition
 
-    def test_config_defaults_the_source_disposition_to_system(self, test_client):
+    def test_config_keeps_the_stored_source_disposition(self, test_client):
+        job = _migration(status="planned")
+        job["config"]["source_disposition"] = "system"
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 1},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["source_disposition"] == "system"
+
+    def test_config_does_not_backfill_the_source_disposition(self, test_client):
+        # An absent source_disposition is the legacy park, not "system": writing
+        # the default onto a pre-upgrade job would make it follow delete_action.
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
             method="PUT",
@@ -288,7 +617,7 @@ class TestConfig:
             db_tables_data={"storage_migration": [_migration(status="planned")]},
         )
         assert resp.status_code == 200
-        assert resp.json()["config"]["source_disposition"] == "system"
+        assert "source_disposition" not in resp.json()["config"]
 
     def test_config_rejects_an_unknown_source_disposition(self, test_client):
         resp = test_client(
@@ -310,6 +639,73 @@ class TestConfig:
         )
         assert resp.status_code == 400
         assert "verify" in resp.text
+
+
+# ── delete ──────────────────────────────────────────────────────────────────
+class TestDelete:
+    def test_delete_terminal_removes_job_and_items(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="completed")],
+                "storage_migration_item": [_item("a"), _item("b")],
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == "mig-1"
+        assert body["status"] == "completed"
+        assert body["deleted_items"] == 2
+
+    def test_delete_planned_is_allowed(self, test_client):
+        # never started -> no in-flight work, safe to abandon
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="planned")],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+
+    def test_delete_running_refused_428(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="running")],
+                "storage_migration_item": [_item("a")],
+            },
+        )
+        assert resp.status_code == 428
+        assert resp.json()["description_code"] == "storage_migration_not_deletable"
+
+    def test_delete_missing_404(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.models.storage_migration.StorageMigration.exists",
+            staticmethod(lambda mid: False),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/ghost",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration()]},
+        )
+        assert resp.status_code == 404
+
+    def test_delete_user_forbidden(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=MockJWT(role_id="user"),
+            db_tables_data={"storage_migration": [_migration(status="completed")]},
+        )
+        assert resp.status_code == 403
 
 
 # ── plan (mock the compute boundary) ────────────────────────────────────────
@@ -493,6 +889,7 @@ class TestCreate:
         body = resp.json()
         assert body["status"] == "planned"
         assert body["id"]
+        assert body["last_activity_at"] is not None  # create stamps it
 
     def test_create_refuses_a_plan_that_resolves_entirely_in_place(
         self, monkeypatch, test_client
