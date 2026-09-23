@@ -517,7 +517,8 @@
                 "viewer-token-error": "It is necessary to reopen the viewer to connect properly",
                 "cookie-expired": "The required cookie to establish a connection has expired",
                 "retrying": "Retry {retry} of {maxRetries}",
-                "rdp-not-running": "The RDP service in the desktop doesn't exist or is not running"
+                "rdp-not-running": "The RDP service in the desktop doesn't exist or is not running",
+                "desktop-stopped": "The desktop has been stopped. Start it again to reconnect."
             },
             "title": {
                 "connecting": "Connecting",
@@ -525,7 +526,8 @@
                 "unstable": "Unstable",
                 "error": "Client Error",
                 "retrying": "Waiting for desktop RDP to be available",
-                "rdp-not-running": "RDP service not running"
+                "rdp-not-running": "RDP service not running",
+                "desktop-stopped": "Desktop stopped"
             },
             "buttons": {
                 "retry": "Retry",

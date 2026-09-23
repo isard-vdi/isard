@@ -440,6 +440,18 @@ class DesktopDirectViewer(RethinkSharedConnection):
             )
         return docs_link
 
+    @staticmethod
+    def _viewer_access_denied():
+        """
+        The single error for every viewer-lookup denial. It carries no
+        details, so a missing desktop and someone else's look the same.
+        """
+        return Error(
+            "forbidden",
+            "Forbidden access to desktop viewer",
+            traceback.format_exc(),
+        )
+
     @classmethod
     def _check_viewer_ownership(cls, domain, user_id, category_id, role_id):
         """
@@ -542,6 +554,10 @@ class DesktopDirectViewer(RethinkSharedConnection):
         Looks up a running desktop by its viewer guest IP and checks
         caller ownership. Raises ``Error`` on any failure; returns
         ``True`` on success.
+
+        Every denial raises the same error, so callers can't tell a
+        missing desktop from someone else's and use this to enumerate
+        running desktops.
         """
         try:
             with cls._rdb_context():
@@ -558,33 +574,17 @@ class DesktopDirectViewer(RethinkSharedConnection):
                 )
         except Exception:
             log.error(traceback.format_exc())
-            raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
-                traceback.format_exc(),
-            )
-        if not len(domains):
-            raise Error(
-                "bad_request",
-                f"No desktop with requested guess_ip {guess_ip} to access viewer",
-                traceback.format_exc(),
-            )
+            raise cls._viewer_access_denied()
         if len(domains) > 1:
-            log.error(traceback.format_exc())
-            raise Error(
-                "internal_server",
-                "Two desktops with the same viewer guest_ip",
-                traceback.format_exc(),
-            )
+            log.error(f"Two desktops with the same viewer guest_ip {guess_ip}")
+            raise cls._viewer_access_denied()
 
-        if cls._check_viewer_ownership(domains[0], user_id, category_id, role_id):
+        if domains and cls._check_viewer_ownership(
+            domains[0], user_id, category_id, role_id
+        ):
             return True
 
-        raise Error(
-            "forbidden",
-            f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
-            traceback.format_exc(),
-        )
+        raise cls._viewer_access_denied()
 
     @classmethod
     def owns_desktop_viewer_by_proxies(
@@ -603,6 +603,10 @@ class DesktopDirectViewer(RethinkSharedConnection):
         proxy_hyper_host) tuple and viewer port, then checks caller
         ownership. Raises ``Error`` on any failure; returns ``True`` on
         success.
+
+        Every denial raises the same error, so callers can't tell a
+        missing desktop from someone else's and use this to enumerate
+        running desktops.
         """
         try:
             proxy_video_parts = proxy_video.split(":")
@@ -628,34 +632,18 @@ class DesktopDirectViewer(RethinkSharedConnection):
                     .run(cls._rdb_connection)
                 )
         except Exception:
-            raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
-                traceback.format_exc(),
-            )
-        if not len(domains):
-            raise Error(
-                "bad_request",
-                (
-                    "No desktop with requested parameters "
-                    f"(proxy_video: {proxy_video}, "
-                    f"proxy_hyper_host: {proxy_hyper_host}, "
-                    f"port: {port}) to access viewer"
-                ),
-                traceback.format_exc(),
-            )
+            raise cls._viewer_access_denied()
         if len(domains) > 1:
-            raise Error(
-                "internal_server",
-                "Two desktops with the same viewer proxies",
-                traceback.format_exc(),
+            log.error(
+                "Two desktops with the same viewer proxies "
+                f"(proxy_video: {proxy_video}, proxy_hyper_host: {proxy_hyper_host}, "
+                f"port: {port})"
             )
+            raise cls._viewer_access_denied()
 
-        if cls._check_viewer_ownership(domains[0], user_id, category_id, role_id):
+        if domains and cls._check_viewer_ownership(
+            domains[0], user_id, category_id, role_id
+        ):
             return True
 
-        raise Error(
-            "forbidden",
-            f"Forbidden access to user {user_id} to desktop viewer",
-            traceback.format_exc(),
-        )
+        raise cls._viewer_access_denied()

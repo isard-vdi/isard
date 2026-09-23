@@ -139,13 +139,37 @@ export default {
         this.clientRetries++
         this.connectionState = states.RETRYING
         console.log('Connection error. Retrying connection in 5 seconds...')
-        this.retryTimer = setTimeout(() => {
+        this.retryTimer = setTimeout(async () => {
+          // Checked when retrying, as right after a stop the desktop may still be shutting down
+          const desktopStopped = await this.isDesktopStopped()
           this.retryTimer = null
+          if (desktopStopped) {
+            console.log('Desktop stopped. Not retrying.')
+            this.connectionState = states.DESKTOP_STOPPED
+            return
+          }
           this.startViewer()
         }, 5000)
       } else {
         console.log('Max number of retries reached. Disconnecting.')
         this.connectionState = states.RDP_NOT_RUNNING
+      }
+    },
+    async isDesktopStopped () {
+      // Same check the guac server does before opening the tunnel. The API denies access (403 for a
+      // login token, 428 for a direct viewer token) when the desktop is not running
+      try {
+        const response = await fetch('/api/v4/item/user/owns-desktop', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${cookies.getCookie('viewerToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ip: this.desktopIp })
+        })
+        return [403, 428].includes(response.status)
+      } catch {
+        return false
       }
     },
     getWsUrl () {

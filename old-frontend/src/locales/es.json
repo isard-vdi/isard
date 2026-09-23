@@ -516,7 +516,8 @@
         "viewer-token-error": "Es necesario volver a abrir el visor para conectarse correctamente",
         "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado",
         "retrying": "Reintento {retry} de {maxRetries}",
-        "rdp-not-running": "El servicio RDP en el escritorio no existe o no está en ejecución"
+        "rdp-not-running": "El servicio RDP en el escritorio no existe o no está en ejecución",
+        "desktop-stopped": "El escritorio se ha detenido. Vuelve a iniciarlo para volver a conectar."
       },
       "title": {
         "connecting": "Conectando",
@@ -524,7 +525,8 @@
         "unstable": "Inestable",
         "error": "Error",
         "retrying": "Esperando a que el RDP del escritorio esté disponible",
-        "rdp-not-running": "El servicio RDP no está en ejecución"
+        "rdp-not-running": "El servicio RDP no está en ejecución",
+        "desktop-stopped": "Escritorio detenido"
       },
       "buttons": {
         "retry": "Reintentar",

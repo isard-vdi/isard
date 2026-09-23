@@ -91,5 +91,13 @@ export default {
    *
    * @type String
    */
-  RDP_NOT_RUNNING: 'RDP_NOT_RUNNING'
+  RDP_NOT_RUNNING: 'RDP_NOT_RUNNING',
+
+  /**
+   * The Guacamole connection cannot be established because the desktop is no
+   * longer running.
+   *
+   * @type String
+   */
+  DESKTOP_STOPPED: 'DESKTOP_STOPPED'
 }
