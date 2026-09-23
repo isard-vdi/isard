@@ -1443,6 +1443,7 @@ def move(
     remove_source_file=True,
     progress_domain_id=None,
     min_free_bytes=None,
+    trust_existing_destination=True,
 ):
     """
     Move disk.
@@ -1457,6 +1458,13 @@ def move(
         the ``rsync`` branch — with its free-space floor and its progress.
         ``"rsync"`` copies unconditionally (cross-fs, with progress).
     :type method: str
+    :param trust_existing_destination: When True (the default) a destination
+        that matches the origin by name, size and mtime is taken as the copy
+        already made and the call returns without copying — which is what makes
+        a redelivered task idempotent. A caller that KNOWS the previous attempt
+        failed passes False: the file left behind then proves nothing, and
+        trusting it makes every retry a no-op that fails the same way.
+    :type trust_existing_destination: bool
     :param progress_domain_id: Optional Domain row id to receive a
         ``progress = {"total_percent", "received_percent"}`` field for every
         rsync tick (and a final 100 on success). Mirrors the
@@ -1477,7 +1485,11 @@ def move(
     if not isfile(origin_path):
         raise ValueError(f"Path {origin_path} not found")
 
-    if isfile(destination_path) and _same_file(origin_path, destination_path):
+    if (
+        trust_existing_destination
+        and isfile(destination_path)
+        and _same_file(origin_path, destination_path)
+    ):
         if remove_source_file:
             return remove(origin_path)
         return 0
