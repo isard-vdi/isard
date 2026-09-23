@@ -12,6 +12,7 @@ import {
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getUserSharedTemplates } from '@/gen/oas/apiv4/'
+import type { UserSharedTemplate } from '@/gen/oas/apiv4'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
@@ -62,24 +63,55 @@ const myTemplates = computed(() => {
   return userTemplates?.value?.templates || []
 })
 
-const userTemplatesHeader = [
+const userTemplatesHeader = computed(() => [
   { name: '', key: 'image', width: 'var(--spacing-48)' },
-  { name: 'Name', key: 'name', width: 'minmax(var(--spacing-48), var(--spacing-80))' },
-  { name: 'Description', key: 'description', width: 'minmax(var(--spacing-56), 1fr)' },
+  {
+    name: t('views.templates.table.headers.name'),
+    key: 'name',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-80))'
+  },
+  {
+    name: t('views.templates.table.headers.description'),
+    key: 'description',
+    sortable: true,
+    width: 'minmax(var(--spacing-56), 1fr)'
+  },
   { name: '', key: 'actions', width: 'max-content' }
-]
+])
 
-const userSharedTemplates = computed(() => {
-  return sharedTemplates?.value?.templates || []
+// The owner column sorts on the row value, so flatten the user object into a string.
+const withOwnerName = (template: UserSharedTemplate) => ({
+  ...template,
+  owner: typeof template.user === 'string' ? template.user : (template.user?.name ?? '')
 })
 
-const userSharedTemplatesHeader = [
+const userSharedTemplates = computed(() => {
+  return (sharedTemplates?.value?.templates || []).map(withOwnerName)
+})
+
+const userSharedTemplatesHeader = computed(() => [
   { name: '', key: 'image', width: 'var(--spacing-48)' },
-  { name: 'Name', key: 'name', width: 'minmax(var(--spacing-48), var(--spacing-80))' },
-  { name: 'Description', key: 'description', width: 'minmax(var(--spacing-56), 1fr)' },
-  { name: 'Owner', key: 'owner', width: 'minmax(var(--spacing-48), var(--spacing-64))' },
+  {
+    name: t('views.templates.table.headers.name'),
+    key: 'name',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-80))'
+  },
+  {
+    name: t('views.templates.table.headers.description'),
+    key: 'description',
+    sortable: true,
+    width: 'minmax(var(--spacing-56), 1fr)'
+  },
+  {
+    name: t('views.templates.table.headers.owner'),
+    key: 'owner',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-64))'
+  },
   { name: '', key: 'actions', width: 'max-content' }
-]
+])
 
 const {
   mutate: fetchSharedTemplates,
