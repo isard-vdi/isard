@@ -1763,6 +1763,15 @@ class Storage(RethinkCustomBase):
 
         geometry = qcow2_geometry.policy()
 
+        # Build the lane once and hand the same string to create_task, so the two cannot diverge.
+        create_queue = f"storage.{StoragePool.get_best_for_action('create', new_storage_directory_path(self.user_id, self.pool_usage)).id}.{priority}"
+        queue_coverage.check_shed(
+            Task._redis,
+            queue_tiers.retier_queue(
+                create_queue, "create", queue_tiers.resolve_category(self.category)
+            ),
+        )
+
         # ``set_maintenance`` is the only step that validates this row's own
         # status, so nothing may be allocated before it has passed.
         self.set_maintenance("recreate")
@@ -1781,7 +1790,7 @@ class Storage(RethinkCustomBase):
         try:
             return self.create_task(
                 user_id=user_id,
-                queue=f"storage.{StoragePool.get_best_for_action('create', new_storage.directory_path).id}.{priority}",
+                queue=create_queue,
                 task="create",
                 retry=retry,
                 retry_intervals=15,

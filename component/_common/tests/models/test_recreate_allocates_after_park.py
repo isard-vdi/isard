@@ -59,6 +59,12 @@ def rec(monkeypatch):
         "get_best_for_action",
         staticmethod(lambda *a, **k: MagicMock(id="pool-1")),
     )
+    # recreate resolves the create lane and asks check_shed before parking; stub
+    # both so these tests exercise only the park/allocate/task ordering they pin.
+    monkeypatch.setattr(
+        mod, "new_storage_directory_path", staticmethod(lambda *a, **k: "/isard/groups")
+    )
+    monkeypatch.setattr(mod.queue_coverage, "check_shed", lambda *a, **k: None)
 
     # ``Storage(<id>)`` reads the row; hand back a bare object with the fields
     # ``recreate`` actually touches on the parent.
