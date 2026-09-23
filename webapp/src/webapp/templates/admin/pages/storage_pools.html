@@ -199,6 +199,17 @@
           </select>
           <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Only changes the OUTCOME together with &ldquo;Stop after&rdquo;: whatever is left at the end of the list does not move in that run. Usage comes from when each desktop was last started or opened; a disk with no usage data is moved last, never first. The order is frozen when the job is created, so a desktop somebody starts afterwards will not reshuffle it."></i>
         </label>
+        <label class="mig-age" style="margin-left:8px;">
+          <span id="mig_age_label">Move only trees unused for</span>
+          <input type="number" id="mig_usage_age_value" class="form-control input-sm" value="" min="1" style="width:60px;" title="Move only trees on the cold/hot side of this age; blank = no age threshold.">
+          <select id="mig_usage_age_unit" class="form-control input-sm" style="width:auto;" title="Unit for the usage-age threshold.">
+            <option value="days">days</option>
+            <option value="weeks">weeks</option>
+            <option value="months">months</option>
+          </select>
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Read against the move order: with &ldquo;least-used first&rdquo; it moves only trees unused for at least this long (stops at the recently-used); with &ldquo;most-used first&rdquo; it moves only trees used within this long (stops at the long-unused). Usage is when each desktop was last started or opened. Trees with no usage date are left out both ways unless &ldquo;incl. never-used&rdquo; is ticked. Needs an order."></i>
+        </label>
+        <label class="mig-age" style="font-weight:normal;margin-left:6px;"><input type="checkbox" id="mig_include_never_used"> incl. never-used</label>
         <label style="margin-left:8px;">Stop&nbsp;after
           <input type="number" id="mig_budget_gb" class="form-control input-sm" value="0" min="0" step="any" style="width:84px;" title="Move at most this much per run, then stop and wait for the next window. 0 = no limit."> GB
           <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="How much this run may move before it stops. Disks move as whole backing-chain trees, so the limit is honoured at TREE boundaries: trees already copying finish, and the run can overshoot by up to one tree per parallel slot. Set it to a few times your typical tree size, never below it. The job then reports &ldquo;budget reached&rdquo;; a recurring one resumes by itself next window, a one-off resumes once you raise the budget."></i>
@@ -206,6 +217,10 @@
         <label style="margin-left:8px;">Keep&nbsp;free
           <input type="number" id="mig_min_free_gb" class="form-control input-sm" value="0" min="0" step="any" style="width:84px;" title="Refuse a copy that would leave the destination with less free space than this. 0 = no floor."> GB
           <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Checked on the storage node immediately before each copy, which is the only moment the reading is true. NOTE: this reads the FILESYSTEM&rsquo;s free space. On a thin-provisioned pool (VDO) the filesystem reports logical space while the real limit is physical fill, so this floor does not protect there — use &ldquo;Stop after&rdquo; instead, which measures nothing and is always correct."></i>
+        </label>
+        <label style="margin-left:8px;">Min&nbsp;free&nbsp;%
+          <input type="number" id="mig_min_free_pct" class="form-control input-sm" value="10" min="0" max="100" style="width:64px;" title="Refuse to start (or pause) when the destination pool has less than this percent of its space free. 0 = no floor."> %
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Held against the destination&rsquo;s PHYSICAL free space (the figure that is right on thin/VDO pools too, unlike &ldquo;Keep free GB&rdquo;). Checked at start — the job is refused if the pool is already below the floor — and on every tick: a running job whose destination drops below it is paused, with the reason in its log, before it queues any more moves. Coexists with &ldquo;Keep free GB&rdquo;; the more restrictive wins."></i>
         </label>
       </fieldset>
     </form>
@@ -256,6 +271,10 @@
       <div class="mig-sum-eta" style="display:none;">
         <i class="fa fa-sort-amount-asc text-muted"></i> Move order
         <span class="val" id="mig_sum_order">–</span>
+      </div>
+      <div class="mig-sum-eta" id="mig_sum_usage_age_line" style="display:none;" title="Trees within the usage-age threshold move; the rest stay on the source pool." data-toggle="tooltip">
+        <i class="fa fa-hourglass-half text-muted"></i> Usage-age threshold
+        <span class="val" id="mig_sum_usage_age">–</span>
       </div>
       <div class="mig-sum-eta">
         <i class="fa fa-clock-o text-muted"></i> Estimated time

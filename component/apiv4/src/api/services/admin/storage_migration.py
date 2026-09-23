@@ -29,7 +29,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from os.path import dirname
-from time import time
+from time import sleep, time
 from zoneinfo import ZoneInfo
 
 from api.schemas.admin.storage_migration import MigrationConfigData
@@ -121,6 +121,18 @@ def _tree_summaries(items, order=None, budget=0):
             }
         )
     return out
+
+
+def _usage_age_keys(totals: dict) -> dict:
+    """The usage-age fields lifted from a plan builder's totals, with
+    safe defaults so re-summarising over disks+media (which loses them) keeps a
+    response valid even when the source totals predate the threshold."""
+    return {
+        "usage_age_days": (totals or {}).get("usage_age_days"),
+        "usage_age_excluded_trees": (totals or {}).get("usage_age_excluded_trees", 0),
+        "usage_age_excluded_disks": (totals or {}).get("usage_age_excluded_disks", 0),
+        "usage_age_excluded_bytes": (totals or {}).get("usage_age_excluded_bytes", 0),
+    }
 
 
 def _serialize(m: StorageMigration) -> dict:
@@ -253,9 +265,19 @@ class AdminStorageMigrationService:
         config = config or {}
         order = config.get("order")
         budget = int(config.get("max_bytes_per_occurrence") or 0)
-        # the two config knobs that change the preview belong in the cache key,
-        # or toggling the order silently re-serves the previous ordering
-        key = _plan_cache_key({**selection, "_order": order, "_budget": budget})
+        usage_age_days = config.get("usage_age_days")
+        include_never_used = bool(config.get("include_never_used"))
+        # every knob that changes the preview belongs in the cache key, or
+        # toggling it silently re-serves the previous result
+        key = _plan_cache_key(
+            {
+                **selection,
+                "_order": order,
+                "_budget": budget,
+                "_age": usage_age_days,
+                "_never": include_never_used,
+            }
+        )
         cached = _PLAN_CACHE.get(key)
         if cached is not None:
             return cached
@@ -267,11 +289,19 @@ class AdminStorageMigrationService:
             dst_pool,
             item_kinds=selection.get("item_kinds"),
             order=order,
+            usage_age_days=usage_age_days,
+            include_never_used=include_never_used,
         )
+        # media carries no usage date, so the usage-age threshold never filters
+        # it; it rides the selection's item_kinds as before.
         items = items + mig.build_media_plan(
             "__preview__", selection, dst_pool, item_kinds=selection.get("item_kinds")
         )
+        # re-summarise over disks+media, then graft back the usage-age exclusion
+        # counts (they are a property of the disk plan, not of the media half).
+        age_keys = _usage_age_keys(walk)
         totals = _resummarize(items, walk, order)
+        totals.update(age_keys)
         trees = _tree_summaries(items, order=order, budget=budget)
         totals["trees_within_budget"] = sum(1 for t in trees if t["within_budget"])
         totals["bytes_within_budget"] = sum(
@@ -340,6 +370,9 @@ class AdminStorageMigrationService:
         cls._validate_recurring_schedule(config)
         cls._check_no_overlap(selection, config)
         recurring = bool(config.get("recurring"))
+        order = config.get("order")
+        usage_age_days = config.get("usage_age_days")
+        include_never_used = bool(config.get("include_never_used"))
         roots = mig.roots_for_selection(selection)
         media = mig.build_media_plan(
             "__preview__", selection, dst_pool, item_kinds=selection.get("item_kinds")
@@ -349,9 +382,27 @@ class AdminStorageMigrationService:
         # A plan that resolves entirely in-place (every disk's dst == src) would
         # move nothing while the release move_deletes the live source. Same pool
         # is fine when its weighted paths differ -- only nothing moving is not.
+        # The usage-age threshold is applied here too so the emptiness / in-place
+        # checks see exactly the disks that will get a ledger row.
         preview, _ = mig.build_plan_for_roots(
-            "__preview__", roots, dst_pool, item_kinds=selection.get("item_kinds")
+            "__preview__",
+            roots,
+            dst_pool,
+            item_kinds=selection.get("item_kinds"),
+            order=order,
+            usage_age_days=usage_age_days,
+            include_never_used=include_never_used,
         )
+        # A one-shot whose whole selection falls outside the usage-age threshold
+        # would persist an empty ledger and sit "planned" moving nothing; say so
+        # instead. A recurring job may legitimately start empty (later
+        # occurrences, and a shifting threshold, bring disks into scope).
+        if usage_age_days and not preview and not media and not recurring:
+            raise Error(
+                "bad_request",
+                "Selection matched no migratable disks within the usage-age "
+                "threshold",
+            )
         preview = preview + media
         if mig.all_in_place(preview):
             raise Error(
@@ -376,12 +427,15 @@ class AdminStorageMigrationService:
             roots,
             dst_pool,
             item_kinds=selection.get("item_kinds"),
-            order=config.get("order"),
+            order=order,
+            usage_age_days=usage_age_days,
+            include_never_used=include_never_used,
         )
         items = items + mig.build_media_plan(
             migration.id, selection, dst_pool, item_kinds=selection.get("item_kinds")
         )
         totals = _resummarize(items, walk, config.get("order"))
+        totals.update(_usage_age_keys(walk))
         for item in items:
             StorageMigrationItem.upsert(item)
         migration.totals = totals
@@ -513,6 +567,79 @@ class AdminStorageMigrationService:
             now = datetime.now(timezone.utc)
         return mig.next_run_for_window(window, now)
 
+    @staticmethod
+    def _read_dst_free_space(dst_pool, timeout=10.0):
+        """(free_bytes, total_bytes) of the destination pool via a pool_free_space
+        storage task (the API has no pool mounts), or None on no-consumer /
+        timeout / failure — the caller then fails OPEN, leaving the per-move
+        worker floor and the tick pause as the backstops."""
+        from isardvdi_common.lib import queue_tiers
+
+        path = dst_pool.mountpoint
+        tier = queue_tiers.normalize_tier(DEFAULT_PRIORITY, "pool_free_space")
+        queue = f"storage.{dst_pool.id}.{tier}"
+        decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+        if decision == "reject" and ctx.get("reason") == "no_consumer":
+            return None
+        try:
+            task_id = Task(
+                task="pool_free_space",
+                queue=queue,
+                user_id="admin",
+                job_kwargs={"kwargs": {"path": path}},
+            ).id
+        except Exception:
+            return None
+        deadline = time() + timeout
+        while time() < deadline:
+            if not Task.exists(task_id):
+                return None
+            task = Task(task_id)
+            status = task.job_status
+            if mig._job_finished(status):
+                result = task.result or {}
+                return result.get("free_bytes"), result.get("total_bytes")
+            if mig._job_failed(status):
+                return None
+            sleep(0.5)
+        return None
+
+    @classmethod
+    def _assert_min_free_pct(cls, m: StorageMigration) -> None:
+        """Refuse a start when the destination is already below the free-space
+        floor (428), reading the physical figure through a storage task. Fails
+        OPEN on an unreadable pool: the tick pause and per-move floor still cover
+        it, and refusing every start on a probe failure would be worse."""
+        config = m.config or {}
+        min_free_pct = int(config.get("min_free_pct") or 0)
+        min_free_bytes = int(config.get("min_free_bytes") or 0)
+        if not (min_free_pct or min_free_bytes):
+            return
+        dst_id = (m.selection or {}).get("dst_pool_id")
+        if not dst_id or not StoragePool.exists(dst_id):
+            return
+        reading = cls._read_dst_free_space(StoragePool(dst_id))
+        if reading is None:
+            return
+        free, total = reading
+        if not mig.space_floor_breached(free, total, min_free_pct, min_free_bytes):
+            return
+        pct = mig.free_pct(free, total)
+        shown = "unknown" if pct is None else f"{pct:.1f}%"
+        raise Error(
+            "precondition_required",
+            f"Destination pool {dst_id} is {shown} free, below the "
+            f"{min_free_pct}% floor; not starting the migration",
+            description_code="storage_migration_min_free_pct",
+            data={
+                "free_bytes": free,
+                "total_bytes": total,
+                "free_pct": pct,
+                "min_free_pct": min_free_pct,
+                "min_free_bytes": min_free_bytes,
+            },
+        )
+
     @classmethod
     def set_action(cls, migration_id: str, action: str) -> dict:
         if not StorageMigration.exists(migration_id):
@@ -523,6 +650,11 @@ class AdminStorageMigrationService:
                 "precondition_required",
                 f"Migration {migration_id} is {m.status} and can no longer be {action}ed",
             )
+        # Start (incl. resuming a paused job): refuse if the destination is below
+        # the free-space floor, rather than starting a job that would only fail or
+        # pause on its first tick.
+        if action == "start":
+            cls._assert_min_free_pct(m)
         # Cancel = finish-current-tree: a started job drains its in-flight tree
         # (and restores autostart) via finishing_tree before becoming canceled;
         # the reconciler performs that transition. See mig.cancel_target.

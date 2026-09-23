@@ -91,12 +91,37 @@ class MigrationConfigData(BaseModel):
     min_free_bytes: int = Field(default=0, ge=0)
     #: system == the recycle bin's global delete action; delete needs verify on
     source_disposition: Literal["system", "recycle_bin", "delete"] = "system"
+    #: Free-space floor on the destination as a PERCENTAGE of its physical size,
+    #: 0 = off. Checked at start (428 if breached) and each tick (pause). Coexists
+    #: with min_free_bytes, most restrictive wins. Default 10.
+    min_free_pct: int = Field(default=10, ge=0, le=100)
+    #: Usage-age threshold in DAYS, tied to ``order``: oldest_first moves only
+    #: trees unused for at least N days, newest_first only those used within N.
+    #: None == off. UI converts days/weeks/months to days; requires an order.
+    usage_age_days: Optional[int] = Field(default=None, ge=1)
+    #: Whether trees with NO usage date pass the threshold. Off by default: an
+    #: unknown date is not evidence a disk is cold (or hot), so it is left out of
+    #: both directions unless the admin opts in.
+    include_never_used: bool = False
 
     @model_validator(mode="after")
     def _hard_delete_needs_verify(self):
         if self.source_disposition == "delete" and not self.verify:
             raise ValueError(
                 "source_disposition 'delete' requires verify to be enabled"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _usage_age_needs_a_direction(self):
+        """``usage_age_days`` is read AGAINST ``order`` — "stop at recently-used"
+        (oldest_first) or "stop at long-unused" (newest_first). With
+        ``order: none`` there is no direction to read it against, so the request
+        is rejected (422) rather than silently ignoring the threshold."""
+        if self.usage_age_days is not None and self.order == "none":
+            raise ValueError(
+                "usage_age_days needs a direction: set order to 'oldest_first' "
+                "(stop at recently-used) or 'newest_first' (stop at long-unused)"
             )
         return self
 
@@ -214,6 +239,13 @@ class MigrationTotalsResponse(BaseModel):
     #: when there is no budget.
     bytes_within_budget: int = 0
     trees_within_budget: int = 0
+    #: usage-age threshold: the cutoff in days (None == no threshold) and
+    #: the trees/disks/bytes that fell OUTSIDE it and so do NOT move. The counts
+    #: above (trees / bytes_total / …) are then exactly what falls WITHIN it.
+    usage_age_days: Optional[int] = None
+    usage_age_excluded_trees: int = 0
+    usage_age_excluded_disks: int = 0
+    usage_age_excluded_bytes: int = 0
 
 
 class MigrationPlanResponse(BaseModel):

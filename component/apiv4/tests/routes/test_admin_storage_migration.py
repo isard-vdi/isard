@@ -1404,3 +1404,216 @@ class TestPoolPlan:
         body = resp.json()
         assert body["pool_id"] == "dst"
         assert body["trees"][0]["desktops"] == 2
+
+
+# ── usage-age threshold ──────────────────────────────────────────────
+class TestUsageAgeThreshold:
+    def _mock_compute(self, monkeypatch, captured):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+
+        def _bp(mid, roots, pool, **k):
+            captured.update(k)
+            return (
+                [_item("r", state="pending", kind="desktop")],
+                {
+                    "trees": 1,
+                    "items_total": 1,
+                    "bytes_total": 10,
+                    "usage_age_days": 7,
+                    "usage_age_excluded_trees": 2,
+                    "usage_age_excluded_disks": 3,
+                    "usage_age_excluded_bytes": 500,
+                },
+            )
+
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots", _bp
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+
+    def test_threshold_without_order_is_rejected(self, test_client):
+        # usage_age_days with order=none (the default) has no direction -> 400
+        resp = test_client(
+            url="/admin/storage/migrations/plan",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"usage_age_days": 7},
+            },
+            db_tables_data={"storage_pool": [_pool()]},
+        )
+        assert resp.status_code == 400
+
+    def test_plan_threads_threshold_and_reports_exclusions(
+        self, monkeypatch, test_client
+    ):
+        captured = {}
+        self._mock_compute(monkeypatch, captured)
+        resp = test_client(
+            url="/admin/storage/migrations/plan",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {
+                    "order": "oldest_first",
+                    "usage_age_days": 7,
+                    "include_never_used": True,
+                },
+            },
+            db_tables_data={"storage_pool": [_pool()]},
+        )
+        assert resp.status_code == 200
+        # the service threaded the threshold down to the plan builder
+        assert captured["usage_age_days"] == 7
+        assert captured["include_never_used"] is True
+        # and surfaced the exclusion counts in the totals
+        totals = resp.json()["totals"]
+        assert totals["usage_age_days"] == 7
+        assert totals["usage_age_excluded_trees"] == 2
+        assert totals["usage_age_excluded_bytes"] == 500
+
+    def test_config_endpoint_also_rejects_threshold_without_order(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"usage_age_days": 30},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+
+# ── free-space percentage floor (min_free_pct) ───────────────────────────────
+class TestMinFreePct:
+    def _fixed_reading(self, monkeypatch, reading):
+        monkeypatch.setattr(
+            "api.services.admin.storage_migration."
+            "AdminStorageMigrationService._read_dst_free_space",
+            staticmethod(lambda pool, timeout=10.0: reading),
+        )
+
+    def test_start_refused_when_below_floor(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, (5, 100))  # 5% free
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 50})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 428
+        assert resp.json()["description_code"] == "storage_migration_min_free_pct"
+
+    def test_start_allowed_when_above_floor(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, (80, 100))  # 80% free
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 50})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "running"
+
+    def test_start_fails_open_when_probe_unreadable(self, monkeypatch, test_client):
+        self._fixed_reading(monkeypatch, None)  # probe could not read the pool
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="planned", config={"min_free_pct": 99})
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 200  # fail open: per-move floor + tick pause remain
+
+    def test_create_defaults_min_free_pct_to_10(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [_item(f"{mid}--r", migration_id=mid, state="pending")],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={"selection": {"kind": "pool", "dst_pool_id": "dst"}},
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_pct"] == 10
+
+    def test_create_min_free_pct_changeable(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel: ["r"],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_plan_for_roots",
+            lambda mid, roots, pool, **k: (
+                [_item(f"{mid}--r", migration_id=mid, state="pending")],
+                {"items_total": 1, "bytes_total": 10},
+            ),
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.build_media_plan",
+            lambda mid, sel, pool, **k: [],
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.queue_coverage.lane_shed_decision",
+            lambda conn, queue, **k: ("ok", {}),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"min_free_pct": 25},
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["min_free_pct"] == 25

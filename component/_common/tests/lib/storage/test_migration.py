@@ -952,3 +952,121 @@ def test_a_plan_with_nothing_wrong_reports_no_exclusions(monkeypatch):
 
     assert totals["excluded_trees"] == []
     assert totals["excluded_disks_total"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# usage-age threshold — DB-driven plan drops trees outside the window
+# --------------------------------------------------------------------------- #
+_AGE_NOW = 1_000_000
+_AGE_DAY = 86400
+
+
+def _patch_accessed(monkeypatch, accessed):
+    from isardvdi_common.models.domain import Domain
+
+    monkeypatch.setattr(
+        Domain, "accessed_by_storage", classmethod(lambda cls, ids: dict(accessed))
+    )
+
+
+def test_build_plan_oldest_first_drops_recently_used_trees(monkeypatch):
+    # two standalone desktops: "old" idle 30d, "new" used 2d ago. oldest_first + 7d
+    # moves only the long-unused one; the recent one is reported outside.
+    _patch_storage(
+        monkeypatch,
+        {
+            "old": {
+                "type": "qcow2",
+                "parent": None,
+                "perms": ["r", "w"],
+                "children": [],
+            },
+            "new": {
+                "type": "qcow2",
+                "parent": None,
+                "perms": ["r", "w"],
+                "children": [],
+            },
+        },
+    )
+    _patch_accessed(
+        monkeypatch,
+        {"old": _AGE_NOW - 30 * _AGE_DAY, "new": _AGE_NOW - 2 * _AGE_DAY},
+    )
+    items, totals = mig.build_plan_for_roots(
+        "m",
+        ["old", "new"],
+        _MultiPathPool(),
+        order="oldest_first",
+        usage_age_days=7,
+        now=_AGE_NOW,
+    )
+    moved = {it["storage_id"] for it in items}
+    assert moved == {"old"}  # the recently-used tree is NOT in the ledger
+    assert totals["usage_age_excluded_trees"] == 1
+    assert totals["usage_age_excluded_disks"] == 1
+    assert totals["trees"] == 1  # totals reflect what falls WITHIN the threshold
+
+
+def test_build_plan_newest_first_keeps_only_recently_used(monkeypatch):
+    _patch_storage(
+        monkeypatch,
+        {
+            "old": {
+                "type": "qcow2",
+                "parent": None,
+                "perms": ["r", "w"],
+                "children": [],
+            },
+            "new": {
+                "type": "qcow2",
+                "parent": None,
+                "perms": ["r", "w"],
+                "children": [],
+            },
+        },
+    )
+    _patch_accessed(
+        monkeypatch,
+        {"old": _AGE_NOW - 30 * _AGE_DAY, "new": _AGE_NOW - 2 * _AGE_DAY},
+    )
+    items, totals = mig.build_plan_for_roots(
+        "m",
+        ["old", "new"],
+        _MultiPathPool(),
+        order="newest_first",
+        usage_age_days=7,
+        now=_AGE_NOW,
+    )
+    assert {it["storage_id"] for it in items} == {"new"}
+    assert totals["usage_age_excluded_trees"] == 1
+
+
+def test_build_plan_never_used_excluded_then_included(monkeypatch):
+    _patch_storage(
+        monkeypatch,
+        {"nd": {"type": "qcow2", "parent": None, "perms": ["r", "w"], "children": []}},
+    )
+    _patch_accessed(monkeypatch, {})  # no usage date at all
+    # excluded by default
+    items, totals = mig.build_plan_for_roots(
+        "m",
+        ["nd"],
+        _MultiPathPool(),
+        order="oldest_first",
+        usage_age_days=7,
+        now=_AGE_NOW,
+    )
+    assert items == []
+    assert totals["usage_age_excluded_trees"] == 1
+    # included when the admin opts in
+    items, _ = mig.build_plan_for_roots(
+        "m",
+        ["nd"],
+        _MultiPathPool(),
+        order="oldest_first",
+        usage_age_days=7,
+        include_never_used=True,
+        now=_AGE_NOW,
+    )
+    assert {it["storage_id"] for it in items} == {"nd"}

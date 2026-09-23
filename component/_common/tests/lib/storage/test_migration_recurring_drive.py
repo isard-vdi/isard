@@ -237,3 +237,57 @@ def test_pause_policy_pauses_on_failure(monkeypatch):
     r.tick()
     assert m.status == MigrationStatus.PAUSED.value
     assert items[0]["state"] == "failed"  # tree terminalized
+
+
+# --------------------------------------------------------------------------- #
+# free-space floor (min_free_pct): pause a running job whose destination is full
+# --------------------------------------------------------------------------- #
+def test_min_free_pct_pauses_running_job(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _Mig("running", {"min_free_pct": 50, "window": WINDOW})
+    m.last_occurrence = "2026-07-01"  # same occurrence -> no rescan interference
+    m.logs = []
+    m.space_probe = {"free_bytes": 5, "total_bytes": 100}
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (5, 100)  # 5% free, below the 50% floor
+    result = r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert items[0]["state"] == "pending"  # returned before any move was enqueued
+    assert any(e["event"] == "paused_min_free" for e in m.logs)
+    assert result == [("__space__", None, "paused_min_free")]
+
+
+def test_min_free_pct_ok_does_not_pause(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _Mig("running", {"min_free_pct": 10, "window": WINDOW})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (80, 100)  # 80% free, above the 10% floor
+    assert r._space_floor_breached() is False
+
+
+def test_min_free_pct_unknown_reading_does_not_pause(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _Mig("running", {"min_free_pct": 90, "window": WINDOW})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: None  # probe not ready yet -> fail open
+    assert r._space_floor_breached() is False
+
+
+def test_min_free_pct_completed_job_not_paused(monkeypatch):
+    items = [_item("r", "released")]  # nothing left to protect
+    m = _Mig("running", {"min_free_pct": 90, "window": WINDOW})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (1, 100)
+    assert r._space_floor_breached() is False
+
+
+def test_no_floor_configured_skips_probe(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _Mig("running", {"window": WINDOW})  # no min_free_pct / min_free_bytes
+
+    def _boom():
+        raise AssertionError("free_space_fn must not be called when no floor is set")
+
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = _boom
+    assert r._space_floor_breached() is False

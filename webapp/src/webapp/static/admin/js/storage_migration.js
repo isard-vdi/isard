@@ -51,6 +51,7 @@ const MIG_CADENCE_LABELS = {
 const MIG_LIVE = ["running", "paused", "window_closed", "budget_reached", "finishing_tree", "scheduled"];
 const MIG_WEAKENING = {
   min_free_bytes: function (o, n) { return (n || 0) < (o || 0); },
+  min_free_pct: function (o, n) { return (n || 0) < (o || 0); },
   failure_policy: function (o, n) { return o === "pause" && n !== "pause"; },
   force_stop_desktops: function (o, n) { return !!n && !o; },
   source_disposition: function (o, n) { return n === "delete" && o !== "delete"; }
@@ -428,7 +429,13 @@ function migConfigControls (m) {
   const sourceOpts = disVerify && c.verify === false
     ? ["system", "recycle_bin"]
     : ["system", "recycle_bin", "delete"];
-  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" data-cfg="${migEscape(JSON.stringify(c))}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
+  // usage-age threshold reads against the job's frozen order; with none the
+  // inputs are locked (the API rejects a threshold without a direction).
+  const vu = migDaysToValueUnit(c.usage_age_days);
+  const ageDir = c.order === "newest_first" ? "used within"
+    : c.order === "oldest_first" ? "unused for" : "by age (needs order)";
+  const ageDis = (c.order === "oldest_first" || c.order === "newest_first") ? dis : "disabled";
+  return `<form class="form-inline mig-config" data-mig="${migEscape(m.id)}" data-cfg="${migEscape(JSON.stringify(c))}" data-order="${migEscape(c.order || "none")}" style="margin:8px 0;padding:8px;background:#fff;border:1px solid #eee;border-radius:3px;">
       <span class="text-muted" style="margin-right:8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;" title="Live settings for this job — edit and press Apply." data-toggle="tooltip">Settings</span>
       <label title="Daily copy window (24h UTC). Blank = always." data-toggle="tooltip">Window
         <input type="text" class="form-control input-sm cfg-win-start" placeholder="HH:MM" style="width:62px;" value="${migEscape(w.start || "")}" ${dis}>
@@ -479,6 +486,14 @@ function migConfigControls (m) {
       <label style="margin-left:8px;" title="Refuse a copy that would leave the destination below this much free. Filesystem-level: no protection on a thin-provisioned (VDO) pool — use Stop after there. 0 = off." data-toggle="tooltip">Keep&nbsp;free&nbsp;GB
         <input type="number" class="form-control input-sm cfg-minfree-gb" min="0" step="any" style="width:78px;" value="${migEscape(migBytesToGb(c.min_free_bytes))}" ${dis}>
       </label>
+      <label style="margin-left:8px;" title="Refuse to start / pause when the destination pool's PHYSICAL free space is below this percent. Coexists with Keep free GB; the more restrictive wins. 0 = off." data-toggle="tooltip">Min&nbsp;free&nbsp;%
+        <input type="number" class="form-control input-sm cfg-min-free-pct" min="0" max="100" style="width:56px;" value="${migEscape(c.min_free_pct != null ? c.min_free_pct : 0)}" ${dis}>
+      </label>
+      <label style="margin-left:8px;" title="Usage-age threshold, read against this job's move order. Blank = none." data-toggle="tooltip">Move&nbsp;only&nbsp;${ageDir}
+        <input type="number" class="form-control input-sm cfg-age-value" min="1" style="width:52px;" value="${migEscape(vu.value)}" ${ageDis}>
+        <select class="form-control input-sm cfg-age-unit" style="width:auto;" ${ageDis}>${migOpt(["days", "weeks", "months"], vu.unit)}</select>
+      </label>
+      <label style="font-weight:normal;margin-left:4px;" title="Include trees with no usage date." data-toggle="tooltip"><input type="checkbox" class="cfg-include-never" ${c.include_never_used ? "checked" : ""} ${ageDis}> incl. never-used</label>
       <button type="button" class="btn btn-default btn-xs mig-config-apply" style="margin-left:8px;" ${dis} title="Apply these settings to the running job." data-toggle="tooltip"><i class="fa fa-check"></i> Apply</button>
       <span class="mig-config-out" style="margin-left:8px;color:#888;"></span>
     </form>`;
@@ -845,6 +860,45 @@ function migWindowFrom (start, end, days) {
   return has ? w : null;
 }
 
+// Days per usage-age unit, and the inverse (a stored day count back to the
+// largest whole unit) so the Apply form re-shows what was set.
+function migUsageAgeUnitDays (unit) {
+  return unit === "weeks" ? 7 : unit === "months" ? 30 : 1;
+}
+function migDaysToValueUnit (days) {
+  if (!days) return { value: "", unit: "days" };
+  if (days % 30 === 0) return { value: days / 30, unit: "months" };
+  if (days % 7 === 0) return { value: days / 7, unit: "weeks" };
+  return { value: days, unit: "days" };
+}
+
+// The usage-age threshold in DAYS from the create form (null = none). Read only
+// against an order: it is meaningless — and rejected by the API — with "none".
+function migUsageAgeDays () {
+  const v = parseInt($("#mig_usage_age_value").val(), 10);
+  if (!v || v < 1) return null;
+  return v * migUsageAgeUnitDays($("#mig_usage_age_unit").val());
+}
+function migAgeConfig () {
+  const order = $("#mig_order").val() || "none";
+  return {
+    usage_age_days: order === "none" ? null : migUsageAgeDays(),
+    include_never_used: $("#mig_include_never_used").is(":checked")
+  };
+}
+
+// Read the threshold's direction off the order and lock the inputs when there is
+// no order to read it against.
+function migUpdateAgeLabel () {
+  const order = $("#mig_order").val() || "none";
+  $("#mig_age_label").text(
+    order === "newest_first" ? "Move only trees used within"
+      : order === "oldest_first" ? "Move only trees unused for"
+        : "Move only trees by age (pick a move order first)");
+  $("#mig_usage_age_value, #mig_usage_age_unit, #mig_include_never_used")
+    .prop("disabled", order === "none");
+}
+
 function migCreateConfig () {
   return {
     bwlimit_kbs: parseInt($("#mig_bwlimit").val(), 10) || 0,
@@ -859,8 +913,10 @@ function migCreateConfig () {
     on_damaged: $("#mig_on_damaged").val() || "pause",
     max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
     min_free_bytes: migGbToBytes($("#mig_min_free_gb").val()),
+    min_free_pct: parseInt($("#mig_min_free_pct").val(), 10) || 0,
     order: $("#mig_order").val() || "none",
-    source_disposition: $("#mig_source_disposition").val() || "system"
+    source_disposition: $("#mig_source_disposition").val() || "system",
+    ...migAgeConfig()
   };
 }
 
@@ -895,7 +951,8 @@ const migPlanCache = {};
 function migPreviewConfig () {
   return {
     order: $("#mig_order").val() || "none",
-    max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val())
+    max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
+    ...migAgeConfig()
   };
 }
 
@@ -956,6 +1013,15 @@ function migRenderSummary (totals) {
     }
     if (nodata) txt += ` · ${nodata} with no usage data, moved last`;
     $("#mig_sum_order").text(txt).parent().show();
+  }
+  // Usage-age threshold: how many trees fall within it (move) vs outside (stay).
+  if (totals.usage_age_days) {
+    const outside = totals.usage_age_excluded_trees || 0;
+    $("#mig_sum_usage_age").text(
+      `${totals.trees || 0} tree(s) within, ${outside} outside (${totals.usage_age_days} days)`);
+    $("#mig_sum_usage_age_line").show();
+  } else {
+    $("#mig_sum_usage_age_line").hide();
   }
   const nm = totals.not_moving_by_kind || {};
   const nmTotal = totals.not_moving_total || 0;
@@ -1091,6 +1157,12 @@ $(document).ready(function () {
   $("#mig_item_kinds").on("change ifChanged", ".mig-item-kind", function () { migLoadSummary(); });
   // both of these change WHAT would move, not just how it is displayed
   $("#mig_order, #mig_budget_gb").on("change", function () { migLoadSummary(); });
+  // order also drives the usage-age threshold's direction + enabled state
+  $("#mig_order").on("change", migUpdateAgeLabel);
+  // the usage-age threshold changes WHAT would move too
+  $("#mig_usage_age_value, #mig_usage_age_unit").on("change input", function () { migLoadSummary(); });
+  $("#mig_include_never_used").on("change ifChanged", function () { migLoadSummary(); });
+  migUpdateAgeLabel();
 
   // parallel / bwlimit -> recompute ETA only (no API call needed)
   $("#mig_parallel, #mig_bwlimit").on("input change", migRecalcEta);
@@ -1098,6 +1170,7 @@ $(document).ready(function () {
   // opening the New-migration modal -> init tooltips + load the live estimate
   $("#mig_new_modal").on("shown.bs.modal", function () {
     migInitTooltips($("#mig_new_modal"));
+    migUpdateAgeLabel();
     migLoadSummary();
   });
 
@@ -1299,8 +1372,16 @@ $(document).ready(function () {
       on_damaged: $f.find(".cfg-on-damaged").val() || "pause",
       max_bytes_per_occurrence: migGbToBytes($f.find(".cfg-budget-gb").val()),
       min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val()),
-      source_disposition: $f.find(".cfg-source").val() || "system"
+      source_disposition: $f.find(".cfg-source").val() || "system",
+      min_free_pct: parseInt($f.find(".cfg-min-free-pct").val(), 10) || 0,
+      // preserve the frozen move order (this form has no order control) so the
+      // usage-age threshold keeps a direction to be read against
+      order: $f.data("order") || "none"
     };
+    const ageV = parseInt($f.find(".cfg-age-value").val(), 10);
+    wanted.usage_age_days = (wanted.order !== "none" && ageV >= 1)
+      ? ageV * migUsageAgeUnitDays($f.find(".cfg-age-unit").val()) : null;
+    wanted.include_never_used = $f.find(".cfg-include-never").is(":checked");
     if ($f.find(".cfg-verify").is(":disabled")) delete wanted.verify;
     const body = migConfigChanges(current, wanted);
     if (!Object.keys(body).length) { $f.find(".mig-config-out").text("nothing changed"); return; }

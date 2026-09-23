@@ -105,6 +105,101 @@ test.describe('Admin Storage-pool migration — plan preview', () => {
     await expect(page.locator('#mig_sum_stay').locator('..')).toBeHidden()
     await expect(page.locator('#mig_sum_order')).toHaveText(/most-used first/)
   })
+
+  // Capture the plan + create POST bodies so the tests can assert what the form
+  // actually sends, and return a usable migration object for create.
+  function captureMigrationPosts(page, captured, planTotals) {
+    const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+    page.route(/\/api\/v4\/admin\/storage\/migrations\/plan(\?|$)/, (route) => {
+      captured.plan = route.request().postDataJSON()
+      route.fulfill(json({ totals: planTotals || {} }))
+    })
+    page.route(/\/api\/v4\/admin\/storage\/migrations(\?|$)/, (route) => {
+      if (route.request().method() === 'POST') {
+        captured.create = route.request().postDataJSON()
+        route.fulfill(json({ id: 'm-e2e', status: 'planned', config: captured.create.config }))
+      } else {
+        route.fulfill(json([]))
+      }
+    })
+  }
+
+  test('SM4: oldest_first + 7 days sends usage_age_days=7 on plan and create', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, {})
+    const captured = {}
+    await captureMigrationPosts(page, captured, {
+      items_total: 1, trees: 1, order: 'oldest_first', usage_age_days: 7,
+      usage_age_excluded_trees: 3, items_by_kind: {}, bytes_by_kind: {}, bytes_total: 0,
+    })
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_src_pool', 'e2e-pool-src')
+    await page.selectOption('#mig_dst_pool', 'e2e-pool-dst')
+    await page.selectOption('#mig_order', 'oldest_first')
+    await page.fill('#mig_usage_age_value', '7')
+
+    const planned = page.waitForResponse(
+      (r) => r.url().includes('/migrations/plan') && r.request().method() === 'POST',
+    )
+    await page.locator('#mig_preview').click()
+    await planned
+    expect(captured.plan.config.usage_age_days).toBe(7)
+
+    const created = page.waitForResponse(
+      (r) => /\/migrations(\?|$)/.test(r.url()) && r.request().method() === 'POST',
+    )
+    await page.locator('#mig_create_only').click()
+    await created
+    expect(captured.create.config.usage_age_days).toBe(7)
+  })
+
+  test('SM5: the preview shows how many trees fall within the usage-age threshold', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, {
+      items_total: 2, trees: 2, order: 'oldest_first', usage_age_days: 7,
+      usage_age_excluded_trees: 3, items_by_kind: { desktop: 2 }, bytes_by_kind: {}, bytes_total: 0,
+    })
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_order', 'oldest_first')
+    await page.fill('#mig_usage_age_value', '7')
+    await previewWholePoolPlan(page)
+
+    const line = page.locator('#mig_sum_usage_age')
+    await expect(line.locator('..')).toBeVisible()
+    await expect(line).toContainText('2 tree(s) within')
+    await expect(line).toContainText('3 outside')
+  })
+
+  test('SM6: min_free_pct defaults to 10 on create and is changeable', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, {})
+    const captured = {}
+    await captureMigrationPosts(page, captured, {})
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_src_pool', 'e2e-pool-src')
+    await page.selectOption('#mig_dst_pool', 'e2e-pool-dst')
+
+    let created = page.waitForResponse(
+      (r) => /\/migrations(\?|$)/.test(r.url()) && r.request().method() === 'POST',
+    )
+    await page.locator('#mig_create_only').click()
+    await created
+    expect(captured.create.config.min_free_pct).toBe(10)
+
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_src_pool', 'e2e-pool-src')
+    await page.selectOption('#mig_dst_pool', 'e2e-pool-dst')
+    await page.fill('#mig_min_free_pct', '25')
+    created = page.waitForResponse(
+      (r) => /\/migrations(\?|$)/.test(r.url()) && r.request().method() === 'POST',
+    )
+    await page.locator('#mig_create_only').click()
+    await created
+    expect(captured.create.config.min_free_pct).toBe(25)
+  })
 })
 
 test.describe('Admin Storage-pool migration — permissions', () => {

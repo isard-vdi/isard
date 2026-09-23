@@ -1716,6 +1716,45 @@ def migration_verify_destination(
 
 
 @_publishes_result
+def pool_free_space(path):
+    """Read a pool's free/total space for the migration percentage floor.
+
+    Runs on the storage worker because the migration runner (isard-scheduler) has
+    no pool mounts. Reports the PHYSICAL figure where it is known (a thin pool,
+    via the same source ``_require_free_space`` reads), otherwise statvfs. Never
+    raises: an unreadable pool returns ``None`` figures and the caller fails open
+    (the per-move worker floor stays the backstop).
+    """
+    from isardvdi_common.lib.storage.physical_usage import (
+        pool_physical_usage,
+        read_usage_for_path,
+    )
+
+    free = total = source = None
+    try:
+        usage = pool_physical_usage(path)
+        free = usage.get("physical_free_bytes")
+        total = usage.get("physical_total_bytes")
+        source = usage.get("source")
+        # thin pool without the local device-mapper ioctl: the fill is published
+        # to redis by isard-storage-vdo-stats, the only figure a networked mount
+        # can read (mirrors _physical_free_space's fallback).
+        if usage.get("thin") and (free is None or total is None):
+            published = read_usage_for_path(_redis_connection(), path)
+            if published:
+                free = published.get("physical_free_bytes", free)
+                total = published.get("physical_total_bytes", total)
+                source = published.get("source", source)
+        if free is None:
+            free = usage.get("filesystem_free_bytes")
+            total = total or usage.get("filesystem_total_bytes")
+            source = source or "statvfs"
+    except Exception:
+        log.exception("pool_free_space: could not read the free space at %s", path)
+    return {"path": path, "free_bytes": free, "total_bytes": total, "source": source}
+
+
+@_publishes_result
 def convert(
     source_disk_path,
     dest_disk_path,
