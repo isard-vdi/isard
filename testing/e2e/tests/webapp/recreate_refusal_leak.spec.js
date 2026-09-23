@@ -37,13 +37,37 @@ async function waitForDiskReady(page, domainId, timeoutMs = 90000) {
   return last
 }
 
-async function countNonExisting(page) {
+async function firstDiskId(page, domainId) {
+  const resp = await page.request.get(
+    `/api/v4/admin/item/domain/storage/${domainId}`,
+  )
+  expect(resp.ok(), `domain storage returned ${resp.status()}`).toBeTruthy()
+  const disks = await resp.json()
+  expect(Array.isArray(disks) && disks.length).toBeTruthy()
+  return disks[0].id
+}
+
+async function nonExistingIds(page) {
   const resp = await page.request.get(
     '/api/v4/admin/items/storage/by-status/non_existing',
   )
   expect(resp.ok(), `by-status returned ${resp.status()}`).toBeTruthy()
   const body = await resp.json()
-  return Array.isArray(body) ? body.length : (body.items || []).length
+  const rows = Array.isArray(body) ? body : body.items || []
+  return rows.map((r) => r.id).filter(Boolean)
+}
+
+async function storageInfo(page, storageId) {
+  const resp = await page.request.get(
+    `/api/v4/admin/item/storage/info/${storageId}`,
+  )
+  return resp.ok() ? await resp.json() : null
+}
+
+// ``Storage.recreate`` stamps this on the row it allocates, so a leak of THIS
+// call is identifiable without counting anything global.
+function marker(diskId) {
+  return `recreated from ${diskId}`
 }
 
 test.describe('A refused recreate leaks no storage row', () => {
@@ -66,6 +90,14 @@ test.describe('A refused recreate leaks no storage row', () => {
       await waitForDiskReady(page, created.id),
       'the disk must be ready before a recreate can be accepted',
     ).toBe('ready')
+    const diskId = await firstDiskId(page, created.id)
+
+    // The leak check reads ``status_logs``; if the field ever stops being
+    // exposed the check would pass by finding nothing, so prove it is there.
+    expect(
+      Array.isArray((await storageInfo(page, diskId))?.status_logs),
+      'the leak check needs status_logs exposed on the storage row',
+    ).toBe(true)
 
     // First click is accepted: it parks the disk and starts the replacement.
     const first = await page.request.put(
@@ -73,9 +105,9 @@ test.describe('A refused recreate leaks no storage row', () => {
     )
     expect(first.status(), 'the first recreate must be accepted').toBe(200)
 
-    // Counted AFTER the accepted click, so the row that click legitimately
-    // allocates is inside both readings and cancels out.
-    const before = await countNonExisting(page)
+    // Taken AFTER the accepted click, so the row that click legitimately
+    // allocates is already inside the baseline.
+    const before = new Set(await nonExistingIds(page))
 
     // The user cannot tell the disk is busy, so they click again. Every one of
     // these is refused because the disk is no longer ready.
@@ -91,11 +123,20 @@ test.describe('A refused recreate leaks no storage row', () => {
       'a recreate over a parked disk must be refused, not accepted',
     ).toEqual(Array(REFUSALS).fill(428))
 
-    const after = await countNonExisting(page)
+    // Counting rows globally made this spec fail whenever a parallel spec had a
+    // desktop mid-creation: its transient row landed after the baseline. Ask
+    // instead which of the new rows this call wrote, by its own marker.
+    const fresh = (await nonExistingIds(page)).filter((id) => !before.has(id))
+    const mine = []
+    for (const id of fresh) {
+      const row = await storageInfo(page, id)
+      if ((row?.status_logs || []).some((l) => l.status === marker(diskId)))
+        mine.push(id)
+    }
     expect(
-      after - before,
-      `${REFUSALS} refused recreates left ${after - before} storage rows behind; ` +
+      mine,
+      `${REFUSALS} refused recreates left ${mine.length} storage rows behind; ` +
         'a refusal must write nothing',
-    ).toBeLessThanOrEqual(0)
+    ).toEqual([])
   })
 })
