@@ -1309,11 +1309,11 @@ async def get_desktop_viewer(
     try:
         connection_string = await asyncio.to_thread(
             DesktopService.get_desktop_viewer,
-            request.token_payload["user_id"],
-            desktop_id,
-            viewer_type,
-            request.token_payload["role_id"] == "admin",
-            request,
+            user_id=request.token_payload["user_id"],
+            desktop_id=desktop_id,
+            viewer_type=viewer_type,
+            host=request.headers.get("host"),
+            is_admin=request.token_payload["role_id"] == "admin",
         )
         # Log here, not in the @cached service: cache hits skip the body and would drop the audit entry.
         from isardvdi_common.helpers.logging import Logging

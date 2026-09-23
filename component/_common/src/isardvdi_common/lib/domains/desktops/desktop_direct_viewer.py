@@ -194,7 +194,13 @@ class DesktopDirectViewer(RethinkSharedConnection):
 
     @classmethod
     def desktop_viewer(
-        cls, desktop_id, protocol, get_cookie=False, admin_role=False, desktop=None
+        cls,
+        desktop_id,
+        protocol,
+        get_cookie=False,
+        admin_role=False,
+        desktop=None,
+        host=None,
     ):
         if protocol in ["url", "file"]:
             direct_protocol = protocol
@@ -203,7 +209,11 @@ class DesktopDirectViewer(RethinkSharedConnection):
             direct_protocol = False
 
         viewer_txt = isard_viewer.viewer_data(
-            desktop_id, protocol=protocol, admin_role=admin_role, domain=desktop
+            desktop_id,
+            protocol=protocol,
+            admin_role=admin_role,
+            domain=desktop,
+            host=host,
         )
 
         with cls._rdb_context():
@@ -278,7 +288,9 @@ class DesktopDirectViewer(RethinkSharedConnection):
             )
 
     @classmethod
-    def desktop_viewer_from_token(cls, token, start_desktop=True, request=None):
+    def desktop_viewer_from_token(
+        cls, token, start_desktop=True, request=None, host=None
+    ):
         domain = cls.desktop_from_token(token)
 
         cls._ensure_bookable_or_raise(domain)
@@ -335,7 +347,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
             )
         if "browser_vnc" in desktop_viewers:
             desktop["viewers"]["browser-vnc"] = cls.desktop_viewer(
-                domain["id"], protocol="browser-vnc", get_cookie=True
+                domain["id"], protocol="browser-vnc", get_cookie=True, host=host
             )
         if "browser_rdp" in desktop_viewers:
             if domain.get("viewer", True) == False:
@@ -355,6 +367,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
                     domain["id"],
                     protocol="browser-rdp",
                     get_cookie=True,
+                    host=host,
                 )
         if "file_rdpgw" in desktop_viewers:
             if domain.get("viewer", True) == False:
