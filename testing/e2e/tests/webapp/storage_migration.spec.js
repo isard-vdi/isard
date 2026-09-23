@@ -284,3 +284,55 @@ test.describe('Admin Storage-pool migration — non-moving disks breakdown', () 
     expect(tip).toContain('… and 1 more')
   })
 })
+
+// The new-migration form gains #mig_on_damaged (pause | continue): what to do when a
+// disk fails its integrity check mid-migration. migCreateConfig() sends the value as
+// config.on_damaged in the create POST, which is stubbed so the assertions read the
+// request body the form builds.
+test.describe('Admin Storage-pool migration — on-damaged policy', () => {
+  const MIGRATIONS_RE = /\/api\/v4\/admin\/storage\/migrations(\?|$)/
+  const EMPTY_TOTALS = {
+    items_total: 0,
+    items_by_kind: {},
+    bytes_by_kind: {},
+    bytes_total: 0,
+    not_moving_total: 0,
+    not_moving_by_kind: {},
+    order: 'none',
+    trees: 0,
+  }
+
+  async function openModalReadyToCreate(page) {
+    await stubMigrationApis(page, EMPTY_TOTALS)
+    await openNewMigrationModal(page)
+    await page.selectOption('#mig_src_pool', 'e2e-pool-src')
+    await page.selectOption('#mig_dst_pool', 'e2e-pool-dst')
+  }
+
+  async function createAndCaptureBody(page) {
+    const req = page.waitForRequest(
+      (r) => MIGRATIONS_RE.test(r.url()) && r.method() === 'POST',
+      { timeout: 15000 },
+    )
+    await page.locator('#mig_create_only').click()
+    return (await req).postDataJSON()
+  }
+
+  test('SM9: default on-damaged is "pause"; create sends config.on_damaged:"pause"', async ({
+    authenticatedPage: page,
+  }) => {
+    await openModalReadyToCreate(page)
+    await expect(page.locator('#mig_on_damaged')).toHaveValue('pause')
+    const body = await createAndCaptureBody(page)
+    expect(body.config.on_damaged).toBe('pause')
+  })
+
+  test('SM10: choosing "continue" sends config.on_damaged:"continue"', async ({
+    authenticatedPage: page,
+  }) => {
+    await openModalReadyToCreate(page)
+    await page.selectOption('#mig_on_damaged', 'continue')
+    const body = await createAndCaptureBody(page)
+    expect(body.config.on_damaged).toBe('continue')
+  })
+})

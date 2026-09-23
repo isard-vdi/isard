@@ -279,6 +279,9 @@ class MigrationConfig(BaseModel):
     quarantine_after: int = Field(default=3, ge=1)
     #: system == the recycle bin's global delete_action; delete needs verify on
     source_disposition: Literal["system", "recycle_bin", "delete"] = "system"
+    #: a source that fails qemu-img check is marked damaged and its tree skipped;
+    #: pause == stop the job for the admin, continue == go on with the rest
+    on_damaged: Literal["pause", "continue"] = "pause"
 
 
 class MigrationTotals(BaseModel):
@@ -377,6 +380,9 @@ class StorageMigrationItemModel(BaseModel):
     dst_task_id: str | None = None
     dst_retained: bool = False
     dst_retained_path: str | None = None
+    #: the source failed qemu-img check during the pre-release gate
+    damaged: bool = False
+    damage_reason: str | None = None
 
 
 # --------------------------------------------------------------------------- #

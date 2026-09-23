@@ -50,6 +50,7 @@ const MIG_FAILURE_LABELS = {
 const MIG_SOURCE_LABELS = {
   system: "Follow system setting", recycle_bin: "Keep under deleted/", delete: "Delete"
 };
+const MIG_DAMAGED_LABELS = { pause: "Pause the job", continue: "Mark it and continue" };
 
 function migStatusBadge (status) {
   const s = MIG_STATUS[status] || { cls: "default", icon: "fa-question", tip: status };
@@ -379,6 +380,11 @@ function migConfigControls (m) {
       <label style="margin-left:8px;" title="Failed attempts before a disk is quarantined." data-toggle="tooltip">after
         <input type="number" class="form-control input-sm cfg-quarantine-after" min="1" style="width:52px;" value="${migEscape(c.quarantine_after != null ? c.quarantine_after : 3)}" ${dis}>
       </label>
+      <label style="margin-left:8px;" title="A disk that fails its integrity check is marked damaged and its chain stays; pause the job for you, or continue." data-toggle="tooltip">Damaged
+        <select class="form-control input-sm cfg-on-damaged" ${dis}>
+          ${migOpt(["pause", "continue"], c.on_damaged || "pause", MIG_DAMAGED_LABELS)}
+        </select>
+      </label>
       <label style="margin-left:8px;" title="Move at most this much per run, then stop until the next window. Honoured at tree boundaries, so the run may overshoot by one tree. 0 = no limit." data-toggle="tooltip">Stop&nbsp;after&nbsp;GB
         <input type="number" class="form-control input-sm cfg-budget-gb" min="0" step="any" style="width:78px;" value="${migEscape(migBytesToGb(c.max_bytes_per_occurrence))}" ${dis}>
       </label>
@@ -626,6 +632,7 @@ function migCreateConfig () {
     rescan_cadence: $("#mig_rescan_cadence").val(),
     failure_policy: $("#mig_failure_policy").val(),
     quarantine_after: parseInt($("#mig_quarantine_after").val(), 10) || 3,
+    on_damaged: $("#mig_on_damaged").val() || "pause",
     max_bytes_per_occurrence: migGbToBytes($("#mig_budget_gb").val()),
     min_free_bytes: migGbToBytes($("#mig_min_free_gb").val()),
     order: $("#mig_order").val() || "none",
@@ -988,6 +995,7 @@ $(document).ready(function () {
       rescan_cadence: $f.find(".cfg-cadence").val(),
       failure_policy: $f.find(".cfg-failure").val(),
       quarantine_after: parseInt($f.find(".cfg-quarantine-after").val(), 10) || 3,
+      on_damaged: $f.find(".cfg-on-damaged").val() || "pause",
       max_bytes_per_occurrence: migGbToBytes($f.find(".cfg-budget-gb").val()),
       min_free_bytes: migGbToBytes($f.find(".cfg-minfree-gb").val()),
       source_disposition: $f.find(".cfg-source").val() || "system"

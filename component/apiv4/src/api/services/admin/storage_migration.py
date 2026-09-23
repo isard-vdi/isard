@@ -479,6 +479,8 @@ class AdminStorageMigrationService:
         "source_action_reason",
         "dst_action",
         "dst_retained_path",
+        "damaged",
+        "damage_reason",
     ]
 
     @classmethod

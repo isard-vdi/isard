@@ -1576,6 +1576,7 @@
           "deleted": "Esborrat",
           "orphan": "Orfe",
           "broken_chain": "Cadena trencada",
+          "damaged": "Malmès",
           "non_existing": "Encara no creat",
           "downloading": "Descarregant",
           "unknown": "Desconegut"
