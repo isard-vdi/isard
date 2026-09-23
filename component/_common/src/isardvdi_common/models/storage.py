@@ -919,23 +919,34 @@ class Storage(RethinkCustomBase):
         from isardvdi_common.helpers.error_factory import Error
 
         excluded = set(exclude_domains or [])
+        # The statuses this action may be claimed FROM; None where it has no
+        # status precondition and so nothing to carry into the write.
+        claimable = None
+        refusal = None
         if action == "move":
-            if self.status not in ["ready", "recycled"]:
+            claimable = ["ready", "recycled"]
+            refusal = (
+                f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
+                "storage_invalid_status_for_move",
+            )
+            if self.status not in claimable:
                 raise Error(
                     "precondition_required",
-                    f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
-                    description_code="storage_invalid_status_for_move",
+                    refusal[0],
+                    description_code=refusal[1],
                 )
-        elif self.status != "ready" and action not in (
-            "create",
-            "delete",
-            "download",
-        ):
-            raise Error(
-                "precondition_required",
+        elif action not in ("create", "delete", "download"):
+            claimable = ["ready"]
+            refusal = (
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                description_code="storage_not_ready",
+                "storage_not_ready",
             )
+            if self.status != "ready":
+                raise Error(
+                    "precondition_required",
+                    refusal[0],
+                    description_code=refusal[1],
+                )
         # "create" / "download" are fresh-storage actions — the domain
         # being wired in is the whole point, and by construction it is
         # not yet Stopped (it is in a Creating* / DownloadStarting
@@ -955,10 +966,24 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} has children storages that depend on it as backing file",
                     description_code="storage_has_children",
                 )
+        if claimable is None:
+            self.status = "maintenance"
+        elif Storage.update_document_if(
+            self.id, {"status": "maintenance"}, field="status", values=claimable
+        ):
+            # The write carries the test the checks above made, so of two callers
+            # that both read a claimable status exactly one parks the row.
+            self._update_cache(status="maintenance")
+        else:
+            raise Error(
+                "precondition_required",
+                refusal[0],
+                description_code=refusal[1],
+            )
+        if action not in ("create", "download"):
             for domain in self.domains:
                 domain.current_action = action
                 domain.status = "Maintenance"
-        self.status = "maintenance"
 
     def set_ready(self):
         # Same reason as ``set_maintenance``: a precondition must not reach
