@@ -124,6 +124,12 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
         update["status"] = "CreatingDomain"
         update["status_time"] = time.time()
+    elif domain.status == "Maintenance":
+        # The park this chain was handed: release it in the write that repoints,
+        # the same pair ``Storage.set_ready`` writes.
+        update["status"] = "Stopped"
+        update["status_time"] = time.time()
+        update["current_action"] = None
     # Guarded on the status this decision was made from, so a row that moved on
     # between the read above and this write keeps what moved it.
     Domain.update_document_if(
