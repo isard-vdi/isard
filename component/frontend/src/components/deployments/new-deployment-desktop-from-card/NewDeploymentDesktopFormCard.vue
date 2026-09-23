@@ -273,9 +273,11 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               v-if="restrictedFieldNames.length"
               class="w-full"
               :label="
-                t('components.domain.configuration.hardware-limited.summary', {
-                  count: restrictedFieldNames.length
-                })
+                t(
+                  'components.domain.configuration.hardware-limited.summary',
+                  { count: restrictedFieldNames.length },
+                  restrictedFieldNames.length
+                )
               "
               :items="restrictedFieldNames"
             />
@@ -284,9 +286,11 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               v-if="removedViewerLabels.length"
               class="w-full"
               :label="
-                t('components.domain.access.viewers-removed.summary', {
-                  count: removedViewerLabels.length
-                })
+                t(
+                  'components.domain.access.viewers-removed.summary',
+                  { count: removedViewerLabels.length },
+                  removedViewerLabels.length
+                )
               "
               :items="removedViewerLabels"
             />

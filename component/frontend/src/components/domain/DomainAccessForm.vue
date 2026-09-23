@@ -490,9 +490,11 @@ defineExpose({
           <AdjustmentStrip
             v-if="removedViewerLabels.length"
             :label="
-              t('components.domain.access.viewers-removed.summary', {
-                count: removedViewerLabels.length
-              })
+              t(
+                'components.domain.access.viewers-removed.summary',
+                { count: removedViewerLabels.length },
+                removedViewerLabels.length
+              )
             "
             :items="removedViewerLabels"
           />

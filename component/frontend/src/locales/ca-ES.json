@@ -2232,7 +2232,7 @@
         "viewers-removed": {
           "title": "Visors RDP eliminats",
           "toast-description": "Aquests visors RDP s'han eliminat perquè aquest escriptori no té interfície de xarxa wireguard: {viewers}",
-          "summary": "{count} visors retirats: aquest escriptori no té xarxa wireguard"
+          "summary": "{count} visor retirat: aquest escriptori no té xarxa wireguard | {count} visors retirats: aquest escriptori no té xarxa wireguard"
         }
       },
       "hardware": {
@@ -2297,14 +2297,10 @@
             "title": "Restriccions aplicades"
           },
           "quota": "Aquest valor supera la teva quota",
-          "chip": {
-            "replaced": "abans: {old_value}",
-            "removed": "tret: {old_value}",
-            "removed-count": "{count} trets"
-          },
           "detail": {
-            "replaced": "{old_value} supera el que et permeten els teus permisos, així que s'ha desat {new_value}.",
-            "removed": "{old_value} no està dins dels teus permisos, així que s'ha retirat."
+            "replaced": "{old_value} supera el que et permeten els teus permisos, per la qual cosa s'ha desat {new_value}.",
+            "removed": "{old_value} no està dins dels teus permisos, per la qual cosa s'ha retirat.",
+            "removed-count": "{count} valors no estan dins dels teus permisos, per la qual cosa s'han retirat: {old_value}."
           }
         }
       },
@@ -2371,7 +2367,7 @@
           "description": "El maquinari es pot editar mitjançant el formulari següent"
         },
         "hardware-limited": {
-          "summary": "{count} valors ajustats pels teus permisos",
+          "summary": "{count} valor ajustat pels teus permisos | {count} valors ajustats pels teus permisos",
           "review": "Revisa-ho"
         }
       }

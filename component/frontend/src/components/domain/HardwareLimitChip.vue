@@ -10,8 +10,7 @@ import {
   type LimitedHardwareValue
 } from '@/lib/hardwareLimits'
 
-// Marks a field the API already adjusted. Only the value the user asked for is
-// shown; the one that was kept is right above, in the control itself.
+// Marks a hardware field the API already adjusted.
 
 const props = defineProps<{
   limited?: LimitedHardwareValue | null
@@ -19,47 +18,37 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const oldValue = computed(() => formatLimitedValue(props.limited?.old_value))
-const newValue = computed(() => formatLimitedValue(props.limited?.new_value))
-const removed = computed(() => !!props.limited && isLimitedRemoval(props.limited))
-
-const label = computed(() => {
-  if (!props.limited) return ''
-  if (!removed.value) {
-    return t('components.domain.hardware.limited.chip.replaced', { old_value: oldValue.value })
-  }
-  const count = limitedValueCount(props.limited.old_value)
-  return count > 1
-    ? t('components.domain.hardware.limited.chip.removed-count', { count })
-    : t('components.domain.hardware.limited.chip.removed', { old_value: oldValue.value })
-})
+const title = computed(() => t('components.domain.hardware.limited.warning.title'))
 
 const detail = computed(() => {
   if (!props.limited) return ''
-  return removed.value
-    ? t('components.domain.hardware.limited.detail.removed', { old_value: oldValue.value })
-    : t('components.domain.hardware.limited.detail.replaced', {
-        old_value: oldValue.value,
-        new_value: newValue.value
-      })
+
+  const oldValue = formatLimitedValue(props.limited.old_value)
+  if (!isLimitedRemoval(props.limited)) {
+    return t('components.domain.hardware.limited.detail.replaced', {
+      old_value: oldValue,
+      new_value: formatLimitedValue(props.limited.new_value)
+    })
+  }
+
+  const count = limitedValueCount(props.limited.old_value)
+  return count > 1
+    ? t('components.domain.hardware.limited.detail.removed-count', { count, old_value: oldValue })
+    : t('components.domain.hardware.limited.detail.removed', { old_value: oldValue })
 })
 </script>
 
 <template>
   <Tooltip v-if="limited">
-    <!-- `w-fit!`: Field forces `w-full` on each of its direct children. -->
     <TooltipTrigger as-child>
-      <span
-        class="inline-flex w-fit! max-w-full items-center gap-1 rounded-md border border-warning-200 bg-warning-25 px-2 py-1 text-xs font-medium text-warning-800"
+      <button
+        type="button"
+        :aria-label="title"
+        class="inline-flex shrink-0 cursor-default! items-center rounded-md border border-warning-200 bg-warning-25 p-1 text-warning-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <Icon name="alert-triangle" size="xs" stroke-color="warning-800" aria-hidden="true" />
-        <span class="truncate">{{ label }}</span>
-      </span>
+      </button>
     </TooltipTrigger>
-    <TooltipContent
-      :title="t('components.domain.hardware.limited.warning.title')"
-      :subtitle="detail"
-      side="top"
-    />
+    <TooltipContent :title="title" :subtitle="detail" side="top" />
   </Tooltip>
 </template>

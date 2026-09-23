@@ -2244,7 +2244,7 @@
         "viewers-removed": {
           "title": "Visores RDP eliminados",
           "toast-description": "Estos visores RDP se eliminaron porque este escritorio no tiene interfaz de red wireguard: {viewers}",
-          "summary": "{count} visores retirados: este escritorio no tiene red wireguard"
+          "summary": "{count} visor retirado: este escritorio no tiene red wireguard | {count} visores retirados: este escritorio no tiene red wireguard"
         }
       },
       "hardware": {
@@ -2309,14 +2309,10 @@
             "title": "Restricciones aplicadas"
           },
           "quota": "Este valor supera tu cuota",
-          "chip": {
-            "replaced": "antes: {old_value}",
-            "removed": "quitado: {old_value}",
-            "removed-count": "{count} quitados"
-          },
           "detail": {
-            "replaced": "{old_value} supera lo que permiten tus permisos, así que se ha guardado {new_value}.",
-            "removed": "{old_value} no está dentro de tus permisos, así que se ha retirado."
+            "replaced": "{old_value} supera lo que permiten tus permisos, por lo que se ha guardado {new_value}.",
+            "removed": "{old_value} no está dentro de tus permisos, por lo que se ha retirado.",
+            "removed-count": "{count} valores no están dentro de tus permisos, por lo que se han retirado: {old_value}."
           }
         }
       },
@@ -2383,7 +2379,7 @@
           "description": "El hardware se puede editar mediante el siguiente formulario"
         },
         "hardware-limited": {
-          "summary": "{count} valores ajustados por tus permisos",
+          "summary": "{count} valor ajustado por tus permisos | {count} valores ajustados por tus permisos",
           "review": "Revisarlo"
         }
       }
