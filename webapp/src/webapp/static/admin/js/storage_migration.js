@@ -23,6 +23,8 @@ const MIG_API = "/api/v4/admin/storage/migrations";
 const POOLS_API = "/api/v4/storage-pools";
 const CATEGORIES_API = "/api/v4/admin/items/categories";
 const MIG_TERMINAL = ["completed", "completed_with_skips", "failed", "canceled"];
+// deletable = terminal (nothing more happens) or never started (no in-flight work)
+const MIG_DELETABLE = MIG_TERMINAL.concat(["planned", "draft"]);
 const MIG_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // status -> {bootstrap label class, font-awesome icon, human tooltip}
@@ -99,6 +101,24 @@ function migInitTooltips ($scope) {
 
 // migrations expanded in the table (preserved across re-render)
 const migExpanded = {};
+
+// Table sort for the two date columns. Default = newest created first, which is
+// the order the API already returns; a header click drives the interactive re-sort.
+const migSort = { key: "created", dir: "desc" };
+
+// id -> last-rendered migration object, so expanding a row re-renders from the
+// list data instead of re-fetching the (large) per-job status.
+const migData = {};
+// id -> {page, per_page, state, q} paging state for a job's trees panel, and
+// "id|tree" -> {page, per_page} for a tree's disks table.
+const migTreeState = {};
+const migDiskState = {};
+// item states offered in the per-tree state filter (a tree matches if it has a
+// disk in the chosen state).
+const MIG_ITEM_STATES = [
+  "pending", "preflight_ok", "moving", "moved", "rebased",
+  "db_updated", "released", "failed", "skipped", "quarantined"
+];
 
 // id -> {name, mountpoint} for storage pools, and id -> name for categories,
 // filled from the same lists that populate the create-form <select>s. Used to
@@ -220,6 +240,33 @@ function migEta (secs) {
   return (h ? h + "h " : "") + m + "m";
 }
 
+// Local date + time for a date column; "—" when the job has no such timestamp
+// (e.g. last_activity_at absent on a job created before that field existed).
+function migDate (epoch) {
+  const n = Number(epoch);
+  if (epoch == null || !isFinite(n)) return "—";
+  const d = new Date(n * 1000);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString() + " " + d.toLocaleTimeString();
+}
+
+// A date <td> carrying the epoch both in the title (exact value) and in data-sort
+// (the interactive sort key); a missing timestamp sorts last in both directions.
+function migDateCell (cls, epoch) {
+  const n = Number(epoch);
+  const key = (epoch != null && isFinite(n)) ? n : -1;
+  return `<td class="${cls}" data-sort="${key}" title="epoch ${migEscape(epoch == null ? "" : epoch)}">${migEscape(migDate(epoch))}</td>`;
+}
+
+// Pure -1/0/1 ordering of two epochs for the active column + direction; a missing
+// timestamp is the smallest value (last when desc). Extracted for unit testing.
+function migRowOrder (aEpoch, bEpoch, dir) {
+  const na = Number(aEpoch), nb = Number(bEpoch);
+  const va = (aEpoch != null && isFinite(na)) ? na : -1;
+  const vb = (bEpoch != null && isFinite(nb)) ? nb : -1;
+  const d = dir === "asc" ? 1 : -1;
+  return va === vb ? 0 : (va < vb ? -d : d);
+}
+
 function migWindowLabel (m) {
   const w = m.current_window;
   if (!w || !w.has_window) return "always";
@@ -324,6 +371,13 @@ function migLogButton (m) {
   return `<button class="btn btn-xs btn-default mig-log" data-mig="${migEscape(m.id)}" title="Download the full per-disk audit report (CSV)." data-toggle="tooltip"><i class="fa fa-download"></i> Log</button>`;
 }
 
+// Delete button for a terminal or never-started job. Carries the status + disk
+// count so the click handler's confirm() can state exactly what is being removed.
+function migDeleteButton (m) {
+  const items = (m.totals || {}).items_total || 0;
+  return `<button class="btn btn-xs btn-danger mig-delete" data-mig="${migEscape(m.id)}" data-status="${migEscape(m.status)}" data-items="${migEscape(items)}" title="Delete this job and its ledger rows. The disks are not touched." data-toggle="tooltip"><i class="fa fa-trash"></i> Delete</button>`;
+}
+
 // Which admin actions make sense for a given status (so we don't offer Start on
 // an already-running job, or Pause on a paused one).
 function migActionEnabled (status, action) {
@@ -339,8 +393,9 @@ function migActionEnabled (status, action) {
 }
 
 function migActionButtons (m) {
+  const del = MIG_DELETABLE.indexOf(m.status) !== -1 ? " " + migDeleteButton(m) : "";
   if (MIG_TERMINAL.indexOf(m.status) !== -1) {
-    return migStatusBadge(m.status) + " " + migLogButton(m);
+    return migStatusBadge(m.status) + " " + migLogButton(m) + del;
   }
   const btn = function (action, cls, icon, text, tip) {
     const off = migActionEnabled(m.status, action) ? "" : "disabled";
@@ -350,7 +405,7 @@ function migActionButtons (m) {
     ${btn("start", "success", "fa-play", "Start", "Start or resume this migration.")}
     ${btn("pause", "warning", "fa-pause", "Pause", "Pause after in-flight disks finish; resume later with no data loss.")}
     ${btn("cancel", "danger", "fa-stop", "Cancel", "Stop and abandon this migration. Already-moved disks stay in the destination.")}
-    ${migLogButton(m)}`;
+    ${migLogButton(m)}${del}`;
 }
 
 function migCard (label, value, tip) {
@@ -438,41 +493,124 @@ function migOpt (values, current, labels) {
   }).join("");
 }
 
-function migTreeRows (m) {
-  let html = `<table class="table table-condensed" style="margin:6px 0;background:#fafafa;">
-    <thead><tr><th style="width:18px;"></th>
-      <th title="Base template at the root of the backing-chain tree." data-toggle="tooltip">Root tree</th>
-      <th title="Derived templates in this tree." data-toggle="tooltip">Derivative templates</th>
-      <th title="Desktops in this tree." data-toggle="tooltip">Desktops</th>
-      <th>Progress</th></tr></thead><tbody>`;
-  (m.trees || []).forEach(function (t) {
-    html += `<tr class="mig-tree" data-mig="${migEscape(m.id)}" data-tree="${migEscape(t.tree_id)}" style="cursor:pointer;" title="Click to list the individual disks in this tree." data-toggle="tooltip">
-        <td><i class="fa fa-caret-right"></i></td>
-        <td>${migShortId(t.root_storage_id || t.tree_id)}</td>
-        <td>${migEscape(t.derivative_templates || 0)}</td>
-        <td>${migEscape(t.desktops || 0)}</td>
-        <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
-      </tr>`;
-  });
-  html += "</tbody></table>";
-  return html;
+// Server-paginated prev/next pager, shared by the trees panel and the disks table.
+function migPager (page, perPage, total) {
+  perPage = Math.max(1, parseInt(perPage, 10) || 1);
+  const pages = Math.max(1, Math.ceil((total || 0) / perPage));
+  page = Math.min(Math.max(1, page), pages);
+  return `<div class="mig-pager" style="margin:6px 0;font-size:12px;">
+      <button type="button" class="btn btn-xs btn-default mig-page-prev" ${page <= 1 ? "disabled" : ""}><i class="fa fa-chevron-left"></i></button>
+      <span style="margin:0 6px;">Page ${page} / ${pages} <span class="text-muted">(${total || 0} total)</span></span>
+      <button type="button" class="btn btn-xs btn-default mig-page-next" ${page >= pages ? "disabled" : ""}><i class="fa fa-chevron-right"></i></button>
+    </div>`;
 }
 
-// Detail row: totals cards + config controls + per-tree table.
+// One <tr> for a root tree; clicking it lazily loads that tree's disks page.
+function migTreeRowHtml (migId, t) {
+  return `<tr class="mig-tree" data-mig="${migEscape(migId)}" data-tree="${migEscape(t.tree_id)}" style="cursor:pointer;" title="Click to list the individual disks in this tree." data-toggle="tooltip">
+      <td><i class="fa fa-caret-right"></i></td>
+      <td>${migShortId(t.root_storage_id || t.tree_id)}</td>
+      <td>${migEscape(t.derivative_templates || 0)}</td>
+      <td>${migEscape(t.desktops || 0)}</td>
+      <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
+    </tr>`;
+}
+
+// The tree table for one /trees page (rows + pager).
+function migTreeTableHtml (migId, data) {
+  const trees = data.trees || [];
+  const body = trees.length
+    ? trees.map(function (t) { return migTreeRowHtml(migId, t); }).join("")
+    : '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:10px;">No trees match.</td></tr>';
+  return `<table class="table table-condensed" style="margin:6px 0;background:#fafafa;">
+      <thead><tr><th style="width:18px;"></th>
+        <th title="Base template at the root of the backing-chain tree." data-toggle="tooltip">Root tree</th>
+        <th title="Derived templates in this tree." data-toggle="tooltip">Derivative templates</th>
+        <th title="Desktops in this tree." data-toggle="tooltip">Desktops</th>
+        <th>Progress</th></tr></thead>
+      <tbody>${body}</tbody></table>${migPager(data.page, data.per_page, data.total)}`;
+}
+
+function migTreeStateOpts (cur) {
+  return '<option value="">all states</option>' + MIG_ITEM_STATES.map(function (s) {
+    return `<option value="${s}"${s === cur ? " selected" : ""}>${s}</option>`;
+  }).join("");
+}
+
+// The trees panel inside a job's detail: search / state / page-size controls and a
+// body the trees page is loaded into on expand — never the whole tree list inline.
+function migTreesPanel (migId) {
+  const st = migTreeState[migId] || (migTreeState[migId] = { page: 1, per_page: 25, state: "", q: "" });
+  const sizes = [25, 50, 100].map(function (n) {
+    return `<option value="${n}"${n === st.per_page ? " selected" : ""}>${n}/page</option>`;
+  }).join("");
+  return `<div class="mig-trees" data-mig="${migEscape(migId)}">
+      <div class="mig-tree-controls" style="margin:6px 0;">
+        <input type="text" class="form-control input-sm mig-tree-q" placeholder="search id / path" style="width:180px;display:inline-block;" value="${migEscape(st.q)}">
+        <select class="form-control input-sm mig-tree-state" style="width:140px;display:inline-block;">${migTreeStateOpts(st.state)}</select>
+        <select class="form-control input-sm mig-tree-perpage" style="width:90px;display:inline-block;">${sizes}</select>
+      </div>
+      <div class="mig-trees-body"><i class="fa fa-spinner fa-spin"></i> loading…</div>
+    </div>`;
+}
+
+// Fetch and render the current trees page for a job (server-side page/filter).
+function migLoadTrees (migId) {
+  const st = migTreeState[migId] || (migTreeState[migId] = { page: 1, per_page: 25, state: "", q: "" });
+  const $body = $(`#migrations tbody tr.mig-detail[data-mig="${migId}"] .mig-trees-body`);
+  if (!$body.length) return;
+  let url = `${MIG_API}/${encodeURIComponent(migId)}/trees?page=${st.page}&per_page=${st.per_page}`;
+  if (st.state) url += "&state=" + encodeURIComponent(st.state);
+  if (st.q) url += "&q=" + encodeURIComponent(st.q);
+  $.ajax({ type: "GET", url: url })
+    .done(function (data) { $body.html(migTreeTableHtml(migId, data)); migInitTooltips($body); })
+    .fail(function () { $body.html('<span class="text-danger">Failed to load trees.</span>'); });
+}
+
+// The disks table for one /items page (rows + pager).
+function migDiskTableHtml (data) {
+  const disks = data.items || [];
+  const rows = disks.length
+    ? disks.map(function (d) {
+      const err = d.error
+        ? `<span class="text-danger" title="${migEscape(d.error)}" data-toggle="tooltip"><i class="fa fa-exclamation-circle"></i> ${migEscape(d.error)}</span>`
+        : "";
+      return `<tr><td>${migShortId(d.storage_id)}</td><td>${migEscape(d.kind || "")}</td>
+          <td>${migEscape(d.state)}</td><td>${migBytes(d.size_bytes)}</td><td>${err}</td></tr>`;
+    }).join("")
+    : '<tr><td colspan="5" class="text-muted" style="text-align:center;">No disks.</td></tr>';
+  return `<table class="table table-condensed" style="margin:0;">
+      <thead><tr><th>Disk</th><th>Kind</th><th>State</th><th>Size</th><th>Error</th></tr></thead>
+      <tbody>${rows}</tbody></table>${migPager(data.page, data.per_page, data.total)}`;
+}
+
+// Fetch and render the current disks page for one tree (via the migration_tree index).
+function migLoadDisks (migId, treeId) {
+  const key = migId + "|" + treeId;
+  const st = migDiskState[key] || (migDiskState[key] = { page: 1, per_page: 50 });
+  const $cell = $(`#migrations tbody tr.mig-disks[data-mig="${migId}"][data-tree="${treeId}"] td:last-child`);
+  if (!$cell.length) return;
+  const url = `${MIG_API}/${encodeURIComponent(migId)}/items?tree_id=${encodeURIComponent(treeId)}&page=${st.page}&per_page=${st.per_page}`;
+  $.ajax({ type: "GET", url: url })
+    .done(function (data) { $cell.html(migDiskTableHtml(data)); migInitTooltips($cell); })
+    .fail(function () { $cell.html('<span class="text-danger">Failed to load disks.</span>'); });
+}
+
+// Detail row: totals cards + config controls + the paginated trees panel.
 function migDetail (m) {
   const t = m.totals || {};
   const cards =
-    migCard("trees", t.trees || (m.trees || []).length, "Independent backing-chain trees (a base template with its descendants). Each tree moves atomically.") +
+    migCard("trees", t.trees || 0, "Independent backing-chain trees (a base template with its descendants). Each tree moves atomically.") +
     migCard("derivative templates", t.derivative_templates || 0, "Templates derived from a base that also move as part of the tree.") +
     migCard("desktops", t.desktops || 0, "Desktops whose disks are moved.") +
     migCard("disks", t.items_total || 0, "Total qcow2 disks to copy.") +
     migCard("bytes", migBytes(t.bytes_total || 0), "Total data to copy across all disks.") +
     migCard("ETA", migEta(m.eta_seconds), "Estimated time remaining at the current copy rate.");
-  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="7">
+  return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="9">
       ${migRouteLine(m)}
       <div style="margin-bottom:6px;">${cards}</div>
       ${migConfigControls(m)}
-      ${migTreeRows(m)}
+      ${migTreesPanel(m.id)}
     </td></tr>`;
 }
 
@@ -487,16 +625,45 @@ function migRowHtml (m) {
       <td>${migBar(t.done || 0, t.items_total || 0, t.bytes_done || 0, t.bytes_total || 0, t.state_counts, t.bytes_copied)}</td>
       <td>${migEta(m.eta_seconds)}</td>
       <td>${migEscape(migScheduleLabel(m))}</td>
+      ${migDateCell("mig-created", m.created_at)}
+      ${migDateCell("mig-last-activity", m.last_activity_at)}
       <td class="mig-actions-cell">${migActionButtons(m)}</td>
     </tr>`;
   if (open) html += migDetail(m);
   return html;
 }
 
-// Render/replace one migration's row(s) (the aggregate shape is shared by the
-// status endpoint and the socket event).
+// Reorder the drawn rows by the active date column, keeping each expanded detail
+// row with its row (the interactive re-sort a header click triggers).
+function migSortRows () {
+  const $tb = $("#migrations tbody");
+  const cls = migSort.key === "last-activity" ? ".mig-last-activity" : ".mig-created";
+  const rows = $tb.children("tr.mig-row").get();
+  rows.sort(function (a, b) {
+    return migRowOrder($(a).find(cls).attr("data-sort"), $(b).find(cls).attr("data-sort"), migSort.dir);
+  });
+  rows.forEach(function (row) {
+    const $row = $(row);
+    const $detail = $row.next("tr.mig-detail");
+    $tb.append($row);
+    if ($detail.length) $tb.append($detail);
+  });
+  migUpdateSortIndicators();
+}
+
+function migUpdateSortIndicators () {
+  $("#migrations thead .mig-sort").each(function () {
+    const on = $(this).data("sortkey") === migSort.key;
+    $(this).find(".mig-sort-caret").attr("class", "fa mig-sort-caret " +
+      (on ? (migSort.dir === "asc" ? "fa-caret-up" : "fa-caret-down") : "fa-sort"));
+  });
+}
+
+// Render/replace one migration's row(s) from a list/status/socket payload; the
+// disks/trees are NOT inline — an expanded row loads its trees page from /trees.
 function renderMigration (m) {
   if (!m || !m.id) return;
+  migData[m.id] = m;  // so expand/collapse re-renders without re-fetching the job
   if (m.selection) migSelById[m.id] = m.selection;  // for route re-render on cache load
   $("#migrations tbody tr.mig-empty").remove();
   const $existing = $(`#migrations tbody tr[data-mig="${m.id}"]`);
@@ -505,15 +672,38 @@ function renderMigration (m) {
   else $("#migrations tbody").append($html.first());
   // detail row (only when expanded)
   $(`#migrations tbody tr.mig-detail[data-mig="${m.id}"]`).remove();
-  if (migExpanded[m.id]) $(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`).after($html.filter(".mig-detail"));
+  if (migExpanded[m.id]) {
+    $(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`).after($html.filter(".mig-detail"));
+    migLoadTrees(m.id);
+  }
   migInitTooltips($(`#migrations tbody tr[data-mig="${m.id}"]`));
+}
+
+// per-migration debounce timers for the socket-driven trees refresh
+const migSocketDebounce = {};
+
+// Apply a socket update: refresh the ROW in place and, if the job is expanded,
+// debounce-reload only its CURRENT trees page — never repaint every tree.
+function migApplySocket (m) {
+  if (!m || !m.id) return;
+  migData[m.id] = m;
+  if (m.selection) migSelById[m.id] = m.selection;
+  const $row = $(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`);
+  if (!$row.length) { renderMigration(m); return; }
+  $row.replaceWith($(migRowHtml(m)).filter(".mig-row"));
+  migInitTooltips($(`#migrations tbody tr.mig-row[data-mig="${m.id}"]`));
+  migSortRows();
+  if (migExpanded[m.id]) {
+    clearTimeout(migSocketDebounce[m.id]);
+    migSocketDebounce[m.id] = setTimeout(function () { migLoadTrees(m.id); }, 2000);
+  }
 }
 
 // Friendly placeholder when the table is empty.
 function migShowEmpty () {
   if ($("#migrations tbody tr").length) return;
   $("#migrations tbody").html(
-    '<tr class="mig-empty"><td colspan="8"><i class="fa fa-inbox"></i> ' +
+    '<tr class="mig-empty"><td colspan="10"><i class="fa fa-inbox"></i> ' +
     'No disk migrations yet. Choose what to move above, click <b>Preview</b> to size the plan, then <b>Create &amp; start</b>.' +
     "</td></tr>");
 }
@@ -527,9 +717,10 @@ function loadMigrations () {
     $("#migrations tbody").empty();
     const migs = data.migrations || [];
     if (!migs.length) { migShowEmpty(); return; }
-    migs.forEach(function (mig) {
-      loadMigration(mig.id).fail(function () { renderMigration(mig); });
-    });
+    // Render straight from the list rows (they carry totals, dates, eta, window
+    // and schedule) — no GET /{id} per row — then apply the active sort.
+    migs.forEach(renderMigration);
+    migSortRows();
   });
 }
 
@@ -876,7 +1067,7 @@ function socketio_on () {
   socket.on("storage:migration", function (raw) {
     let m;
     try { m = (typeof raw === "string") ? JSON.parse(raw) : raw; } catch (e) { return; }
-    renderMigration(m);
+    migApplySocket(m);
   });
 }
 
@@ -957,11 +1148,64 @@ $(document).ready(function () {
   $("#mig_create").on("click", function () { migCreate(true); });
   $("#mig_create_only").on("click", function () { migCreate(false); });
 
-  // expand / collapse a migration
+  // sort the table by a date column (header click toggles direction)
+  $("#migrations").on("click", "thead .mig-sort", function () {
+    const key = $(this).data("sortkey");
+    if (migSort.key === key) migSort.dir = (migSort.dir === "asc" ? "desc" : "asc");
+    else { migSort.key = key; migSort.dir = "desc"; }
+    migSortRows();
+  });
+
+  // expand / collapse a migration — re-render from the cached list row (which has
+  // everything the row + detail cards need); the trees load lazily on expand.
   $("#migrations").on("click", ".mig-row", function () {
     const id = $(this).data("mig");
     migExpanded[id] = !migExpanded[id];
-    loadMigration(id);
+    if (migData[id]) renderMigration(migData[id]);
+    else loadMigration(id);
+  });
+
+  // trees panel: text search (debounced), state filter, page size, and pager.
+  $("#migrations").on("input", ".mig-tree-q", function (e) {
+    e.stopPropagation();
+    const migId = $(this).closest(".mig-trees").data("mig");
+    const st = migTreeState[migId];
+    if (!st) return;
+    st.q = $(this).val(); st.page = 1;
+    clearTimeout(st._t);
+    st._t = setTimeout(function () { migLoadTrees(migId); }, 300);
+  });
+  $("#migrations").on("change", ".mig-tree-state", function (e) {
+    e.stopPropagation();
+    const migId = $(this).closest(".mig-trees").data("mig");
+    const st = migTreeState[migId];
+    if (!st) return;
+    st.state = $(this).val(); st.page = 1; migLoadTrees(migId);
+  });
+  $("#migrations").on("change", ".mig-tree-perpage", function (e) {
+    e.stopPropagation();
+    const migId = $(this).closest(".mig-trees").data("mig");
+    const st = migTreeState[migId];
+    if (!st) return;
+    st.per_page = parseInt($(this).val(), 10) || 25; st.page = 1; migLoadTrees(migId);
+  });
+  $("#migrations").on("click", ".mig-trees .mig-page-prev, .mig-trees .mig-page-next", function (e) {
+    e.stopPropagation();
+    const migId = $(this).closest(".mig-trees").data("mig");
+    const st = migTreeState[migId];
+    if (!st) return;
+    st.page = Math.max(1, st.page + ($(this).hasClass("mig-page-next") ? 1 : -1));
+    migLoadTrees(migId);
+  });
+  // disks pager
+  $("#migrations").on("click", ".mig-disks .mig-page-prev, .mig-disks .mig-page-next", function (e) {
+    e.stopPropagation();
+    const $disks = $(this).closest("tr.mig-disks");
+    const migId = $disks.data("mig"); const treeId = $disks.data("tree");
+    const st = migDiskState[migId + "|" + treeId];
+    if (!st) return;
+    st.page = Math.max(1, st.page + ($(this).hasClass("mig-page-next") ? 1 : -1));
+    migLoadDisks(migId, treeId);
   });
 
   // start / pause / cancel
@@ -977,7 +1221,7 @@ $(document).ready(function () {
         // pause/cancel take effect on the next reconciler tick (~60s), so give
         // immediate confirmation instead of a silently unchanged row.
         migToast(`${action} requested — applies on the next cycle`, "success");
-        loadMigration(id);
+        loadMigrations();
       })
       .fail(function (xhr) {
         migToast(`${action} failed: ` + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
@@ -1001,6 +1245,29 @@ $(document).ready(function () {
       })
       .fail(function (xhr) {
         migToast("Log download failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+      });
+  });
+
+  // Delete a terminal / never-started job; confirm() states the status and disk
+  // count first. The disks are ledger rows, not storage, so nothing on disk moves.
+  $("#migrations").on("click", ".mig-delete", function (e) {
+    e.stopPropagation();
+    const $btn = $(this);
+    const id = $btn.data("mig");
+    const status = $btn.data("status");
+    const items = $btn.data("items");
+    if (!window.confirm(
+      "Delete migration " + id + "?\n" +
+      "Status: " + status + "\n" +
+      "Disks in the ledger: " + items + "\n\n" +
+      "This removes the job and its ledger rows. The disks themselves are not touched."
+    )) return;
+    $btn.prop("disabled", true);
+    $.ajax({ type: "DELETE", url: `${MIG_API}/${encodeURIComponent(id)}` })
+      .done(function () { migToast("Migration deleted", "success"); loadMigrations(); })
+      .fail(function (xhr) {
+        migToast("Delete failed: " + ((xhr.responseJSON && xhr.responseJSON.description) || ("HTTP " + xhr.status)), "danger");
+        $btn.prop("disabled", false);
       });
   });
 
@@ -1044,34 +1311,23 @@ $(document).ready(function () {
     }
     $f.find(".mig-config-out").text("Saving…");
     $.ajax({ type: "PUT", url: `${MIG_API}/${id}/config`, contentType: "application/json", data: JSON.stringify(body) })
-      .done(function () { $f.find(".mig-config-out").text("saved"); loadMigration(id); })
+      .done(function () { $f.find(".mig-config-out").text("saved"); loadMigrations(); })
       .fail(function (xhr) { $f.find(".mig-config-out").text("error: " + ((xhr.responseJSON && xhr.responseJSON.description) || xhr.status)); });
   });
 
-  // expand a tree -> show its disks (fetched lazily from the status endpoint)
+  // expand a tree -> load that tree's disks page (via the migration_tree index),
+  // never the whole job.
   $("#migrations").on("click", ".mig-tree", function (e) {
     e.stopPropagation();
     const $row = $(this);
-    const id = $row.data("mig");
-    const tree = $row.data("tree");
+    const migId = $row.data("mig");
+    const treeId = $row.data("tree");
     const $next = $row.next("tr.mig-disks");
-    if ($next.length) { $next.remove(); $row.find("i").attr("class", "fa fa-caret-right"); return; }
-    $row.find("i").attr("class", "fa fa-caret-down");
-    $.ajax({ type: "GET", url: `${MIG_API}/${id}` }).done(function (m) {
-      const disks = (m.items || []).filter(function (it) { return it.tree_id === tree; });
-      let h = `<tr class="mig-disks"><td></td><td colspan="4"><table class="table table-condensed" style="margin:0;">
-        <thead><tr><th>Disk</th><th>Kind</th><th>State</th><th>Size</th><th>Error</th></tr></thead><tbody>`;
-      disks.forEach(function (d) {
-        const err = d.error
-          ? `<span class="text-danger" title="${migEscape(d.error)}" data-toggle="tooltip"><i class="fa fa-exclamation-circle"></i> ${migEscape(d.error)}</span>`
-          : "";
-        h += `<tr><td>${migShortId(d.storage_id)}</td><td>${migEscape(d.kind || "")}</td>
-          <td>${migEscape(d.state)}</td><td>${migBytes(d.size_bytes)}</td><td>${err}</td></tr>`;
-      });
-      h += "</tbody></table></td></tr>";
-      $row.after(h);
-      migInitTooltips($row.next("tr.mig-disks"));
-    });
+    if ($next.length) { $next.remove(); $row.find("i").first().attr("class", "fa fa-caret-right"); return; }
+    $row.find("i").first().attr("class", "fa fa-caret-down");
+    migDiskState[migId + "|" + treeId] = { page: 1, per_page: 50 };
+    $row.after(`<tr class="mig-disks" data-mig="${migEscape(migId)}" data-tree="${migEscape(treeId)}"><td></td><td colspan="4"><i class="fa fa-spinner fa-spin"></i> loading…</td></tr>`);
+    migLoadDisks(migId, treeId);
   });
 
   // Load the shared /administrators SocketIO connector; it calls

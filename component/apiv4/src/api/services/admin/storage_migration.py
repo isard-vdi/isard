@@ -78,6 +78,12 @@ _TERMINAL = {
     MigrationStatus.FAILED.value,
     MigrationStatus.CANCELED.value,
 }
+#: a job an admin may delete: terminal (nothing more will happen) or never started
+#: (planned/draft — no in-flight work, no disks parked in maintenance).
+_DELETABLE = _TERMINAL | {
+    MigrationStatus.PLANNED.value,
+    MigrationStatus.DRAFT.value,
+}
 
 
 def _tree_summaries(items, order=None, budget=0):
@@ -129,6 +135,7 @@ def _serialize(m: StorageMigration) -> dict:
         "created_by": m.created_by,
         "created_at": m.created_at,
         "updated_at": m.updated_at,
+        "last_activity_at": m.last_activity_at,
     }
 
 
@@ -362,6 +369,7 @@ class AdminStorageMigrationService:
             created_by=payload.get("user_id"),
             created_at=now,
             updated_at=now,
+            last_activity_at=now,
         )
         items, walk = mig.build_plan_for_roots(
             migration.id,
@@ -382,9 +390,41 @@ class AdminStorageMigrationService:
         _PLAN_CACHE.clear()
         return cls.get(migration.id)
 
-    @staticmethod
-    def list() -> list:
-        return [_serialize(m) for m in StorageMigration.get_all()]
+    @classmethod
+    def _list_row(cls, m: StorageMigration) -> dict:
+        """A list row: the persisted job aggregate plus the few live fields the
+        table renders (state_counts, eta, window, schedule) — all read off the JOB
+        row, never loading the disks. This is what lets the list render without a
+        GET /{id} per row."""
+        totals = m.totals or {}
+        cfg = m.config or {}
+        window = cfg.get("window") or {}
+        ewma = m.throughput_ewma or {}
+        mbps = max(ewma.values()) if ewma else None
+        remaining = max(
+            0, int(totals.get("bytes_total") or 0) - int(totals.get("bytes_done") or 0)
+        )
+        eta = mig.tree_eta_seconds(remaining, mbps)
+        return {
+            **_serialize(m),
+            "state_counts": totals.get("state_counts", {}),
+            "eta_seconds": None if eta is None else int(eta),
+            "current_window": m.current_window,
+            "recurring": bool(cfg.get("recurring")),
+            "days": window.get("days") or [],
+            "next_run_seconds": cls._next_run_seconds(m),
+        }
+
+    @classmethod
+    def list(cls) -> list:
+        migrations = StorageMigration.get_all()
+        # Newest first (the table's default). Jobs are few, so an in-memory sort
+        # suffices, no secondary index. A missing created_at sorts last.
+        migrations.sort(
+            key=lambda m: (m.created_at is not None, m.created_at or 0, m.id),
+            reverse=True,
+        )
+        return [cls._list_row(m) for m in migrations]
 
     @staticmethod
     def get(migration_id: str) -> dict:
@@ -393,20 +433,71 @@ class AdminStorageMigrationService:
         return _serialize(StorageMigration(migration_id))
 
     @classmethod
-    def status(cls, migration_id: str) -> dict:
+    def status(cls, migration_id: str, *, include_items: bool = False) -> dict:
         if not StorageMigration.exists(migration_id):
             raise Error("not_found", f"Migration {migration_id} not found")
         m = StorageMigration(migration_id)
         items = StorageMigrationItem.dicts_by_migration(migration_id)
         m.recompute_totals()  # keep the persisted ledger totals fresh (list view)
-        # The full admin-view aggregate (totals + per-tree progress + ETA +
-        # window + per-disk rows) is built by the shared helper so the status
-        # endpoint and the storage:migration socket event render identically.
-        payload = mig.aggregate_status(m, items, include_items=True)
+        # Per-disk rows are opt-in (?items=true, for the CSV/audit path); by default
+        # the disks are served paginated by /items. Trees stay for compatibility.
+        payload = mig.aggregate_status(m, items, include_items=include_items)
         payload["state_counts"] = payload["totals"].get("state_counts", {})
         # Live next-run lookahead (needs now-in-tz) for the admin table.
         payload["next_run_seconds"] = cls._next_run_seconds(m)
         return payload
+
+    @classmethod
+    def trees(
+        cls, migration_id: str, *, page=1, per_page=25, state=None, q=None
+    ) -> dict:
+        """One page of per-tree summaries, filterable by aggregated state and text.
+        Reads only light disk rows (no audit/checkpoints) and cuts the page on the
+        server, so a job with thousands of trees never floods the browser."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        rows = StorageMigrationItem.light_rows(migration_id)
+        return mig.tree_summaries_page(
+            rows, page=page, per_page=per_page, state=state, q=q
+        )
+
+    @classmethod
+    def items(
+        cls, migration_id: str, *, page=1, per_page=50, state=None, tree_id=None, q=None
+    ) -> dict:
+        """One page of disks, sliced on the server via the migration_id /
+        migration_tree indexes — never the whole job."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        return StorageMigrationItem.page_items(
+            migration_id,
+            page=page,
+            per_page=per_page,
+            state=state,
+            tree_id=tree_id,
+            q=q,
+        )
+
+    @classmethod
+    def delete(cls, migration_id: str) -> dict:
+        """Delete a terminal (completed / completed_with_skips / failed / canceled)
+        or never-started (planned / draft) job and its ledger rows. Any other
+        status is live work and is refused with 428. The disks are untouched — the
+        ledger is not the storage."""
+        if not StorageMigration.exists(migration_id):
+            raise Error("not_found", f"Migration {migration_id} not found")
+        m = StorageMigration(migration_id)
+        status = str(m.status)
+        if status not in _DELETABLE:
+            raise Error(
+                "precondition_required",
+                f"Migration {migration_id} is {status}; only a terminal or "
+                "never-started job can be deleted (pause or cancel it first)",
+                description_code="storage_migration_not_deletable",
+            )
+        deleted = StorageMigrationItem.delete_by_migration(migration_id)
+        StorageMigration.delete(migration_id)
+        return {"id": migration_id, "status": status, "deleted_items": deleted}
 
     @staticmethod
     def _next_run_seconds(m: StorageMigration):
@@ -439,7 +530,9 @@ class AdminStorageMigrationService:
             m.status = mig.cancel_target(m.status)
         else:
             m.status = _ACTION_TARGET[action]
-        m.updated_at = time()
+        now = time()
+        m.updated_at = now
+        m.last_activity_at = now
         return cls.get(migration_id)
 
     @classmethod
@@ -485,7 +578,9 @@ class AdminStorageMigrationService:
         validated = MigrationConfigData(**effective).model_dump()
         cls._validate_recurring_schedule(validated)
         m.config = effective
-        m.updated_at = time()
+        now = time()
+        m.updated_at = now
+        m.last_activity_at = now
         return cls.get(migration_id)
 
     @staticmethod

@@ -233,3 +233,49 @@ assert(
   "the preview must show how many disks the exclusions cost"
 );
 console.log("migRenderSummary excluded trees: PASS");
+
+// --------------------------------------------------------------------------- //
+// migDate / migRowOrder — the two date columns + interactive sort
+// --------------------------------------------------------------------------- //
+const migDate = eval("(" + extract("migDate").replace(/^function migDate/, "function") + ")");
+assert.strictEqual(migDate(null), "—", "null date -> em dash");
+assert.strictEqual(migDate(undefined), "—", "undefined date -> em dash");
+assert.strictEqual(migDate("nope"), "—", "non-numeric date -> em dash");
+assert.notStrictEqual(migDate(1789854820), "—", "a real epoch renders a date");
+console.log("migDate: PASS");
+
+const migRowOrder = eval("(" + extract("migRowOrder").replace(/^function migRowOrder/, "function") + ")");
+assert(migRowOrder(300, 100, "desc") < 0, "desc: newer before older");
+assert(migRowOrder(100, 300, "desc") > 0, "desc: older after newer");
+assert.strictEqual(migRowOrder(200, 200, "desc"), 0, "equal epochs -> 0");
+assert(migRowOrder(100, 300, "asc") < 0, "asc: older before newer");
+// a missing timestamp is the smallest value -> sorts last when descending
+assert(migRowOrder(null, 100, "desc") > 0, "desc: missing sorts after a real date");
+assert(migRowOrder(500, null, "desc") < 0, "desc: real date before missing");
+console.log("migRowOrder: PASS");
+
+// --------------------------------------------------------------------------- //
+// migPager — the trees/disks pagination math (server-side paging)
+// --------------------------------------------------------------------------- //
+const migPager = eval("(" + extract("migPager").replace(/^function migPager/, "function") + ")");
+let pg = migPager(1, 25, 4400);
+assert(pg.includes("Page 1 / 176"), "4400/25 -> 176 pages");
+assert(pg.includes("(4400 total)"), "shows the total");
+assert(/mig-page-prev[^>]*disabled/.test(pg), "prev disabled on page 1");
+assert(!/mig-page-next[^>]*disabled/.test(pg), "next enabled on page 1");
+pg = migPager(176, 25, 4400);
+assert(/mig-page-next[^>]*disabled/.test(pg), "next disabled on the last page");
+assert(migPager(1, 25, 0).includes("Page 1 / 1"), "empty -> a single page");
+console.log("migPager: PASS");
+
+// --------------------------------------------------------------------------- //
+// migDeleteButton — carries the status + disk count so confirm() can state them
+// --------------------------------------------------------------------------- //
+const migDeleteButton = new Function(
+  extract("migEscape") + "\n" + extract("migDeleteButton") + "\nreturn migDeleteButton;"
+)();
+const delBtn = migDeleteButton({ id: "mig-x", status: "completed", totals: { items_total: 7 } });
+assert(delBtn.includes("mig-delete"), "delete button has the mig-delete hook");
+assert(delBtn.includes('data-status="completed"'), "carries the status for confirm");
+assert(delBtn.includes('data-items="7"'), "carries the disk count for confirm");
+console.log("migDeleteButton: PASS");

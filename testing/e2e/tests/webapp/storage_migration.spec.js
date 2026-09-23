@@ -494,3 +494,173 @@ test.describe('Admin Storage-pool migration — running-job config apply', () =>
     await expect(page.locator('form.mig-config[data-mig="mig-plan"] .cfg-verify')).toBeEnabled()
   })
 })
+
+// The list rows are stubbed (the assertions are on how the JS orders/renders the
+// table, paginates a job's trees/disks and deletes), so they hold in an
+// environment with no real migrations.
+const json = (body) => (route) =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+
+function migRow(id, status, createdAt, lastActivityAt, totals) {
+  return {
+    id,
+    status,
+    selection: { kind: 'pool', src_pool_id: 'e2e-pool-src', dst_pool_id: 'e2e-pool-dst' },
+    config: {},
+    totals: Object.assign({ items_total: 0, state_counts: {} }, totals || {}),
+    created_at: createdAt,
+    last_activity_at: lastActivityAt,
+    eta_seconds: null,
+    current_window: null,
+    recurring: false,
+    days: [],
+    next_run_seconds: null,
+  }
+}
+
+// Stub the reads the pools page makes on open, plus the migration LIST.
+async function stubPageAndList(page, migrations) {
+  await page.route(/\/api\/v4\/storage-pools(\?|$)/, json(POOLS))
+  await page.route(/\/api\/v4\/admin\/items\/categories(\?|$)/, json([]))
+  await page.route(/\/api\/v4\/admin\/storage\/migrations\/path-prefixes/, json({ prefixes: [] }))
+  await page.route(/\/api\/v4\/admin\/storage\/migrations\/plan(\?|$)/, json({ totals: {} }))
+  await page.route(/\/api\/v4\/admin\/storage\/migrations(\?|$)/, json({ migrations }))
+}
+
+async function openPools(page, migrations) {
+  await stubPageAndList(page, migrations)
+  await page.goto(STORAGE_POOLS_URL)
+  await expect(page.locator('#migrations tbody tr.mig-row')).toHaveCount(migrations.length)
+}
+
+test.describe('Admin Storage-pool migration — list, pagination and delete', () => {
+  test('SM4: list is created-desc, shows both date columns, and re-sorts on click', async ({
+    authenticatedPage: page,
+  }) => {
+    await openPools(page, [
+      migRow('mig-old', 'completed', 1000, 1500, { items_total: 1, state_counts: { released: 1 } }),
+      migRow('mig-new', 'completed', 3000, null, { items_total: 1, state_counts: { released: 1 } }),
+    ])
+    const rows = page.locator('#migrations tbody tr.mig-row')
+    // default: newest created first
+    await expect(rows.nth(0)).toHaveAttribute('data-mig', 'mig-new')
+    await expect(rows.nth(1)).toHaveAttribute('data-mig', 'mig-old')
+    // both date columns render; a missing last_activity shows the em dash
+    await expect(page.locator('tr.mig-row[data-mig="mig-new"] td.mig-created')).not.toHaveText('—')
+    await expect(page.locator('tr.mig-row[data-mig="mig-new"] td.mig-last-activity')).toHaveText('—')
+    await expect(page.locator('tr.mig-row[data-mig="mig-old"] td.mig-last-activity')).not.toHaveText('—')
+    // sort by last activity: mig-old (1500) before mig-new (missing sorts last)
+    await page.locator('#migrations thead .mig-sort[data-sortkey="last-activity"]').click()
+    await expect(rows.nth(0)).toHaveAttribute('data-mig', 'mig-old')
+  })
+
+  test('SM5: the list renders without a per-row GET /{id}', async ({ authenticatedPage: page }) => {
+    let statusHits = 0
+    // the per-job status is /migrations/<id> with no further segment
+    await page.route(/\/admin\/storage\/migrations\/m1(\?|$)/, (route) => {
+      statusHits++
+      return json({})(route)
+    })
+    await openPools(page, [
+      migRow('m1', 'planned', 2000, null, { items_total: 5, state_counts: { pending: 5 } }),
+    ])
+    await page.waitForTimeout(500)
+    expect(statusHits).toBe(0)
+  })
+
+  test('SM6: expanding a job paginates/searches/filters trees; a tree lists its disks', async ({
+    authenticatedPage: page,
+  }) => {
+    let lastTreesQuery = ''
+    await page.route(/\/admin\/storage\/migrations\/m1\/trees(\?|$)/, (route) => {
+      const u = new URL(route.request().url())
+      lastTreesQuery = u.search
+      const pg = parseInt(u.searchParams.get('page') || '1', 10)
+      const start = (pg - 1) * 2
+      const trees = [start, start + 1]
+        .filter((i) => i < 6)
+        .map((i) => ({
+          tree_id: 't' + i, root_storage_id: 't' + i, derivative_templates: 0,
+          desktops: 1, items_total: 1, done: 0, bytes_total: 10, state_counts: { pending: 1 },
+        }))
+      return json({ trees, total: 6, page: pg, per_page: 2 })(route)
+    })
+    await page.route(/\/admin\/storage\/migrations\/m1\/items(\?|$)/, (route) => {
+      const tree = new URL(route.request().url()).searchParams.get('tree_id')
+      return json({
+        items: [{ storage_id: 'disk-' + tree, kind: 'desktop', state: 'pending', size_bytes: 10, error: null }],
+        total: 1, page: 1, per_page: 50,
+      })(route)
+    })
+    await openPools(page, [
+      migRow('m1', 'running', 2000, 2500, { items_total: 6, trees: 6, state_counts: { pending: 6 } }),
+    ])
+    await page.locator('tr.mig-row[data-mig="m1"]').click()
+    // page 1 = 2 trees of 6
+    await expect(page.locator('tr.mig-tree[data-mig="m1"]')).toHaveCount(2)
+    // the trees pager is the one directly in the panel body (a tree's disks table
+    // has its own pager, so scope to avoid matching both)
+    const treesPager = '.mig-trees[data-mig="m1"] > .mig-trees-body > .mig-pager'
+    await expect(page.locator(treesPager)).toContainText('Page 1 / 3')
+    // next page -> page=2 requested, t2 shown
+    await page.locator(`${treesPager} .mig-page-next`).click()
+    await expect.poll(() => lastTreesQuery).toContain('page=2')
+    await expect(page.locator('tr.mig-tree[data-tree="t2"]')).toHaveCount(1)
+    // search + state filter travel to the server (debounced); each resets to page 1
+    await page.locator('.mig-trees[data-mig="m1"] .mig-tree-q').fill('needle')
+    await expect.poll(() => lastTreesQuery).toContain('q=needle')
+    await page.locator('.mig-trees[data-mig="m1"] .mig-tree-state').selectOption('moving')
+    await expect.poll(() => lastTreesQuery).toContain('state=moving')
+    // finally, a tree lists its disks on its own page (via /items?tree_id)
+    await page.locator('tr.mig-tree[data-tree="t0"]').click()
+    await expect(page.locator('tr.mig-disks[data-tree="t0"]')).toContainText('disk-t0')
+  })
+
+  test('SM7: delete a terminal job with confirm; cancel = no call; a live job has no delete', async ({
+    authenticatedPage: page,
+  }) => {
+    let deletes = 0
+    await page.route(/\/admin\/storage\/migrations\/done(\?|$)/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        deletes++
+        return json({ id: 'done', status: 'completed', deleted_items: 3 })(route)
+      }
+      return json({})(route)
+    })
+    // a completed job the server refuses (428) — the row must stay
+    await page.route(/\/admin\/storage\/migrations\/stale(\?|$)/, (route) => {
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({
+          status: 428, contentType: 'application/json',
+          body: JSON.stringify({ error: 'precondition_required', description: 'is running', description_code: 'storage_migration_not_deletable' }),
+        })
+      }
+      return json({})(route)
+    })
+    await openPools(page, [
+      migRow('done', 'completed', 3000, 3100, { items_total: 3, state_counts: { released: 3 } }),
+      migRow('stale', 'completed', 2000, 2100, { items_total: 2, state_counts: { released: 2 } }),
+      migRow('run', 'running', 1000, 1100, { items_total: 3, state_counts: { moving: 3 } }),
+    ])
+    // a running (non-terminal) job offers no Delete; terminal ones do
+    await expect(page.locator('tr.mig-row[data-mig="run"] .mig-delete')).toHaveCount(0)
+    await expect(page.locator('tr.mig-row[data-mig="done"] .mig-delete')).toHaveCount(1)
+    // dismiss the confirm -> no DELETE call
+    page.once('dialog', (d) => d.dismiss())
+    await page.locator('tr.mig-row[data-mig="done"] .mig-delete').click()
+    await page.waitForTimeout(300)
+    expect(deletes).toBe(0)
+    // accept the confirm -> DELETE sent; the confirm states the status + disk count
+    let confirmMsg = ''
+    page.once('dialog', (d) => { confirmMsg = d.message(); d.accept() })
+    await page.locator('tr.mig-row[data-mig="done"] .mig-delete').click()
+    await expect.poll(() => deletes).toBe(1)
+    expect(confirmMsg).toContain('completed')
+    expect(confirmMsg).toContain('3')
+    // a delete the server rejects with 428 leaves the row in place
+    page.once('dialog', (d) => d.accept())
+    await page.locator('tr.mig-row[data-mig="stale"] .mig-delete').click()
+    await page.waitForTimeout(400)
+    await expect(page.locator('tr.mig-row[data-mig="stale"]')).toHaveCount(1)
+  })
+})

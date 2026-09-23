@@ -443,7 +443,79 @@ def summarize_plan(
     }
 
 
-def aggregate_status(migration, items, *, include_items=False):
+def tree_summary(tree_id, tit):
+    """Per-tree progress row (counts + bytes + state_counts) for one tree's items.
+    Shared by the aggregate and the paginated trees endpoint so both render
+    identically."""
+    from isardvdi_common.models.storage_migration import (
+        MigrationItemState,
+        compute_bytes_copied,
+        compute_bytes_done,
+        compute_state_counts,
+        item_is_done,
+        item_is_migrated,
+    )
+
+    s = summarize_plan(tit)
+    return {
+        "tree_id": tree_id,
+        "root_storage_id": tree_id,
+        "items_total": s["items_total"],
+        "derivative_templates": s["derivative_templates"],
+        "desktops": s["desktops"],
+        "media": s["media"],
+        "done": sum(1 for it in tit if item_is_done(it["state"])),
+        "migrated": sum(1 for it in tit if item_is_migrated(it["state"])),
+        "completed": sum(
+            1 for it in tit if str(it["state"]) == MigrationItemState.RELEASED
+        ),
+        "bytes_total": s["bytes_total"],
+        "bytes_done": compute_bytes_done(tit),
+        "bytes_copied": compute_bytes_copied(tit),
+        "state_counts": compute_state_counts(tit),
+    }
+
+
+def tree_summaries_page(items, *, page=1, per_page=25, state=None, q=None):
+    """Paginated, filterable per-tree summaries from LIGHT item rows (tree_id /
+    state / kind / size / storage_id / paths). Server-side cut so the browser never
+    receives thousands of trees. ``state`` keeps trees with at least one disk in
+    that state; ``q`` matches the tree id or any disk's id / source / dest path."""
+    by_tree = {}
+    for it in items:
+        by_tree.setdefault(it["tree_id"], []).append(it)
+    needle = q.lower() if q else None
+
+    def q_match(tid, tit):
+        if needle in str(tid).lower():
+            return True
+        for it in tit:
+            for field in ("storage_id", "src_path", "dst_path"):
+                val = it.get(field)
+                if val and needle in str(val).lower():
+                    return True
+        return False
+
+    rows = []
+    for tid in sorted(by_tree, key=str):
+        tit = by_tree[tid]
+        summary = tree_summary(tid, tit)
+        if state and not summary["state_counts"].get(state):
+            continue
+        if needle and not q_match(tid, tit):
+            continue
+        rows.append(summary)
+    total = len(rows)
+    start = max(0, (int(page) - 1) * int(per_page))
+    return {
+        "trees": rows[start : start + int(per_page)],
+        "total": total,
+        "page": int(page),
+        "per_page": int(per_page),
+    }
+
+
+def aggregate_status(migration, items, *, include_items=False, include_trees=True):
     """Build the admin-view aggregate for a migration from its loaded ledger
     (pure given ``migration`` + its ``items``).
 
@@ -466,28 +538,14 @@ def aggregate_status(migration, items, *, include_items=False):
     by_tree = {}
     for it in items:
         by_tree.setdefault(it["tree_id"], []).append(it)
-    trees = []
-    for tree_id, tit in by_tree.items():
-        s = summarize_plan(tit)
-        trees.append(
-            {
-                "tree_id": tree_id,
-                "root_storage_id": tree_id,
-                "items_total": s["items_total"],
-                "derivative_templates": s["derivative_templates"],
-                "desktops": s["desktops"],
-                "media": s["media"],
-                "done": sum(1 for it in tit if item_is_done(it["state"])),
-                "migrated": sum(1 for it in tit if item_is_migrated(it["state"])),
-                "completed": sum(
-                    1 for it in tit if str(it["state"]) == MigrationItemState.RELEASED
-                ),
-                "bytes_total": s["bytes_total"],
-                "bytes_done": compute_bytes_done(tit),
-                "bytes_copied": compute_bytes_copied(tit),
-                "state_counts": compute_state_counts(tit),
-            }
-        )
+    # include_trees=False (the socket) skips building thousands of per-tree rows;
+    # totals come from items below, not summed over trees, so they hold either way.
+    trees = (
+        [tree_summary(tid, tit) for tid, tit in by_tree.items()]
+        if include_trees
+        else []
+    )
+    base = summarize_plan(items)
     bytes_total = sum(int(it.get("size_bytes") or 0) for it in items)
     bytes_done = compute_bytes_done(items)
     ewma = getattr(migration, "throughput_ewma", None) or {}
@@ -498,6 +556,8 @@ def aggregate_status(migration, items, *, include_items=False):
     payload = {
         "id": migration.id,
         "status": str(migration.status),
+        "created_at": getattr(migration, "created_at", None),
+        "last_activity_at": getattr(migration, "last_activity_at", None),
         # what this job moves and where to (src/dst pool ids, kind, path/category)
         # — static, but carried on every aggregate so the admin table + detail can
         # always show the origin → destination route (resolved to pool names in the
@@ -516,9 +576,9 @@ def aggregate_status(migration, items, *, include_items=False):
         ),
         "totals": {
             "trees": len(by_tree),
-            "derivative_templates": sum(t["derivative_templates"] for t in trees),
-            "desktops": sum(t["desktops"] for t in trees),
-            "media": sum(t["media"] for t in trees),
+            "derivative_templates": base["derivative_templates"],
+            "desktops": base["desktops"],
+            "media": base["media"],
             "items_total": len(items),
             "items_by_kind": _count_by_kind(items),
             "bytes_total": bytes_total,
@@ -552,6 +612,40 @@ def aggregate_status(migration, items, *, include_items=False):
             )
         ]
     return payload
+
+
+def aggregate_summary(migration):
+    """Lean job summary for the ``storage:migration`` socket event: the persisted
+    aggregate (totals + state_counts) plus status, dates, ETA and the schedule
+    window, and NO per-tree list — so a change never ships (nor the webapp
+    repaints) thousands of trees; the trees are served paginated by /trees. Built
+    from the job row alone (the runner persists fresh totals each tick before it
+    signals), so it is O(1), never O(disks)."""
+    totals = getattr(migration, "totals", None) or {}
+    cfg = getattr(migration, "config", None) or {}
+    window = cfg.get("window") or {}
+    ewma = getattr(migration, "throughput_ewma", None) or {}
+    mbps = max(ewma.values()) if ewma else None
+    remaining = max(
+        0, int(totals.get("bytes_total") or 0) - int(totals.get("bytes_done") or 0)
+    )
+    eta = tree_eta_seconds(remaining, mbps)
+    cw = getattr(migration, "current_window", None)
+    return {
+        "id": migration.id,
+        "status": str(migration.status),
+        "created_at": getattr(migration, "created_at", None),
+        "last_activity_at": getattr(migration, "last_activity_at", None),
+        "selection": getattr(migration, "selection", None) or {},
+        "config": cfg,
+        "current_window": cw,
+        "eta_seconds": None if eta is None else int(eta),
+        "recurring": bool(cfg.get("recurring")),
+        "days": window.get("days") or [],
+        "next_run_seconds": (cw or {}).get("next_run_seconds"),
+        "totals": totals,
+        "state_counts": totals.get("state_counts", {}),
+    }
 
 
 def probe_actual_size(path, timeout=30):
