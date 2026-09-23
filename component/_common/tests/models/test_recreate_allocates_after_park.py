@@ -53,6 +53,16 @@ def rec(monkeypatch):
     # of the chain definition walks it.
     monkeypatch.setattr(Storage, "domains", [])
     monkeypatch.setattr(Storage, "exists", staticmethod(lambda _id: True))
+
+    # ``recreate`` reads the domain's disk count before anything else, so a
+    # fixture that leaves it real opens a database socket instead of testing.
+    single_disk = MagicMock()
+    single_disk.create_dict = {"hardware": {"disks": [{"storage_id": "old-1"}]}}
+    fake_domain = MagicMock()
+    fake_domain.exists.return_value = True
+    fake_domain.return_value = single_disk
+    monkeypatch.setattr(mod.domain, "Domain", fake_domain)
+
     monkeypatch.setattr(mod.qcow2_geometry, "policy", staticmethod(lambda: {}))
     monkeypatch.setattr(
         mod.StoragePool,
