@@ -57,10 +57,10 @@ async function nonExistingIds(page) {
   return rows.map((r) => r.id).filter(Boolean)
 }
 
+// The admin projection replaces ``status_logs`` with a single ``last``
+// timestamp whenever it is non-empty, so the marker is only visible here.
 async function storageInfo(page, storageId) {
-  const resp = await page.request.get(
-    `/api/v4/admin/item/storage/info/${storageId}`,
-  )
+  const resp = await page.request.get(`/api/v4/item/storage/${storageId}`)
   return resp.ok() ? await resp.json() : null
 }
 
