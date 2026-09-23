@@ -295,6 +295,9 @@ class Storage(RethinkCustomBase):
             "parent": parent_id,
             "user_id": user_id,
             "status": "non_existing",
+            # A raw insert never goes through ``__setattr__``, which is the only
+            # thing that stamps this, and the reconcile's status grace reads it.
+            "status_time": time(),
             "perms": ["r", "w"] if pool_usage == "desktop" else ["r"],
             "status_logs": [],
         }
@@ -1794,6 +1797,9 @@ class Storage(RethinkCustomBase):
                 task="create",
                 retry=retry,
                 retry_intervals=15,
+                # The row this chain allocates must answer for itself in the
+                # per-owner index; the old row is the one the chain deletes.
+                index_owners=[self.id, new_storage.id],
                 job_kwargs={
                     "kwargs": {
                         "storage_path": new_storage_path,
