@@ -85,6 +85,7 @@ const bundle = [
   extract("migUsageAgeUnitDays"),
   extract("migUsageAgeDays"),
   extract("migAgeConfig"),
+  extract("migLoadPolicyObj"),
   extract("migCreateConfig")
 ].join("\n");
 const factory = new Function(
@@ -221,6 +222,54 @@ assert(form("pending", false).includes('value="delete"'), "a job that has not st
 assert(!form("running", false).includes('value="delete"'), "a live job with verify off must not be offered delete");
 assert(form("running", true).includes('value="delete"'), "a live job with verify on keeps delete");
 console.log("migConfigControls source disposition vs frozen verify: PASS");
+
+// load policy: the create POST carries load_policy per the form; default static
+a = api({ vals: { "#mig_parallel": "1", "#mig_bwlimit": "0" } });
+assert.deepStrictEqual(a.migCreateConfig().load_policy,
+  { mode: "static", parallelism_min: 1, parallelism_max: 4, pause_above: 0, baseline_window: 5 },
+  "default create load_policy is safe/static");
+a = api({ vals: {
+  "#mig_parallel": "1", "#mig_bwlimit": "0", "#mig_load_mode": "adaptive",
+  "#mig_parallel_min": "2", "#mig_parallel_max": "6", "#mig_pause_above": "40"
+} });
+assert.deepStrictEqual(a.migCreateConfig().load_policy,
+  { mode: "adaptive", parallelism_min: 2, parallelism_max: 6, pause_above: 40, baseline_window: 5 },
+  "adaptive load_policy rides the form values into the config");
+console.log("migCreateConfig load_policy: PASS");
+
+// migLoadBadge: the row shows effective parallelism + the last decision reason
+const badge = new Function(
+  extract("migEscape") + "\n" + extract("migLoadBadge") + "\nreturn migLoadBadge;"
+)();
+assert.strictEqual(badge({ config: { load_policy: { mode: "static" } } }), "", "static shows no badge");
+assert.strictEqual(badge({ config: {} }), "", "no load_policy shows no badge");
+let b = badge({
+  config: { load_policy: { mode: "adaptive" }, parallelism: 2 },
+  load_state: { effective_parallelism: 3, last_reason: "idle 3 ticks: parallelism 2 -> 3" }
+});
+assert(b.includes("p=3"), "effective parallelism is shown on the row");
+assert(b.includes("idle 3 ticks"), "the last decision reason is shown on the row");
+assert(b.includes("mig-load-parallel") && b.includes("mig-load-reason"), "stable hooks for the e2e");
+b = badge({ config: { load_policy: { mode: "adaptive" }, parallelism: 1 }, pause_reason: "load", load_state: {} });
+assert(b.includes("label-warning") && b.includes("paused by load"), "a load-paused row is highlighted");
+console.log("migLoadBadge: PASS");
+
+// migLoadPolicyKey: an inert static default == an absent policy, so editing
+// another field on an old job (no load_policy) sends no load_policy (SM11/SM12).
+const lp = new Function(
+  extract("migLoadPolicyObj") + "\n" + extract("migLoadPolicyKey") +
+    "\nreturn { key: migLoadPolicyKey, obj: migLoadPolicyObj };"
+)();
+assert.strictEqual(lp.key(null), "none");
+assert.strictEqual(
+  lp.key({ mode: "static", parallelism_min: 1, parallelism_max: 4, pause_above: 0, baseline_window: 5 }),
+  "none", "inert static default is treated as no policy");
+assert.strictEqual(
+  lp.key(lp.obj("static", "1", "4", "0", 5)), lp.key(undefined),
+  "an old job with the form at static-default carries no load_policy");
+assert.notStrictEqual(lp.key(lp.obj("adaptive", "1", "4", "0", 5)), "none", "adaptive is a real policy");
+assert.notStrictEqual(lp.key(lp.obj("static", "2", "6", "0", 5)), "none", "static with a non-default range is a real value");
+console.log("migLoadPolicyKey: PASS");
 
 // Apply sends only what changed, and names the fields that weaken a guarantee
 const changes = new Function(

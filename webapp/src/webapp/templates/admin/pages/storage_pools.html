@@ -178,6 +178,22 @@
         <label>Parallel
           <input type="number" id="mig_parallel" class="form-control input-sm" value="1" min="1" style="width:58px;" title="How many disks to copy at the same time. Higher = faster but more I/O load.">
         </label>
+        <label style="margin-left:8px;">Load
+          <select id="mig_load_mode" class="form-control input-sm" title="Static keeps parallelism fixed. Adaptive throttles it to real load each tick: it steps parallelism between min and max and soft-pauses over the desktop ceiling.">
+            <option value="static">Static</option>
+            <option value="adaptive">Adaptive</option>
+          </select>
+          <i class="fa fa-question-circle mig-help" data-toggle="tooltip" title="Adaptive regulates by REAL load, not a clock: it lowers parallelism the moment the system is busy, raises it while idle, and soft-pauses above the Started-desktop ceiling, resuming on its own when load clears. Leave Static for the fixed behaviour."></i>
+        </label>
+        <label style="margin-left:8px;" title="Adaptive: parallelism stays within this range.">min
+          <input type="number" id="mig_parallel_min" class="form-control input-sm" value="1" min="1" style="width:48px;">
+        </label>
+        <label style="margin-left:4px;" title="Adaptive: parallelism stays within this range.">max
+          <input type="number" id="mig_parallel_max" class="form-control input-sm" value="4" min="1" style="width:48px;">
+        </label>
+        <label style="margin-left:4px;" title="Adaptive: soft-pause the job above this many Started desktops. 0 = never pause on load.">pause&nbsp;above
+          <input type="number" id="mig_pause_above" class="form-control input-sm" value="0" min="0" style="width:58px;">
+        </label>
         <label style="margin-left:8px;">bwlimit&nbsp;KB/s
           <input type="number" id="mig_bwlimit" class="form-control input-sm" value="0" min="0" style="width:84px;" title="Cap copy bandwidth per disk, in KB/s. 0 = unlimited.">
         </label>

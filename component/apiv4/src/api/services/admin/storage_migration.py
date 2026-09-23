@@ -144,6 +144,8 @@ def _serialize(m: StorageMigration) -> dict:
         "selection": m.selection or {},
         "config": m.config or {},
         "totals": m.totals or {},
+        "pause_reason": m.pause_reason,
+        "load_state": m.load_state or {},
         "created_by": m.created_by,
         "created_at": m.created_at,
         "updated_at": m.updated_at,
@@ -182,6 +184,16 @@ class AdminStorageMigrationService:
                 "A recurring migration needs a schedule window "
                 "(selected weekdays and/or a daily time range)",
             )
+
+    @staticmethod
+    def _validate_load_policy(config: dict) -> None:
+        """Reject a load_policy whose bounds are inconsistent, or whose current
+        parallelism sits outside the adaptive range (checked on the merged
+        config, since a partial update may raise the floor without the
+        parallelism)."""
+        errors = mig.load_policy_errors(config)
+        if errors:
+            raise Error("bad_request", "; ".join(errors))
 
     @staticmethod
     def _descriptor_claims_for(selection: dict) -> set:
@@ -368,6 +380,7 @@ class AdminStorageMigrationService:
         """
         dst_pool = cls._dst_pool(selection)
         cls._validate_recurring_schedule(config)
+        cls._validate_load_policy(config)
         cls._check_no_overlap(selection, config)
         recurring = bool(config.get("recurring"))
         order = config.get("order")
@@ -662,6 +675,12 @@ class AdminStorageMigrationService:
             m.status = mig.cancel_target(m.status)
         else:
             m.status = _ACTION_TARGET[action]
+        # An admin pause is manual, so the adaptive loop never auto-resumes it;
+        # starting clears the reason so a later load pause is recognised as such.
+        if action == "pause":
+            m.pause_reason = "manual"
+        elif action == "start":
+            m.pause_reason = None
         now = time()
         m.updated_at = now
         m.last_activity_at = now
@@ -709,6 +728,7 @@ class AdminStorageMigrationService:
         effective = {**current, **changes}
         validated = MigrationConfigData(**effective).model_dump()
         cls._validate_recurring_schedule(validated)
+        cls._validate_load_policy(validated)
         m.config = effective
         now = time()
         m.updated_at = now

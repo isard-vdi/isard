@@ -54,6 +54,26 @@ class MigrationSelectionData(BaseModel):
     )
 
 
+class MigrationLoadPolicyData(BaseModel):
+    """Adaptive-load throttle. ``static`` (the default) keeps a fixed
+    ``parallelism``; ``adaptive`` samples real load each tick and steps
+    parallelism within [min, max], soft-pausing above ``pause_above`` Started
+    desktops. The parallelism-in-range check runs on the merged config in the
+    service (a partial update sends the whole load_policy object)."""
+
+    mode: Literal["static", "adaptive"] = "static"
+    parallelism_min: int = Field(default=1, ge=1, le=64)
+    parallelism_max: int = Field(default=4, ge=1, le=64)
+    pause_above: int = Field(default=0, ge=0)
+    baseline_window: int = Field(default=5, ge=1)
+
+    @model_validator(mode="after")
+    def _min_le_max(self):
+        if self.parallelism_min > self.parallelism_max:
+            raise ValueError("parallelism_min must be <= parallelism_max")
+        return self
+
+
 class MigrationConfigData(BaseModel):
     """Admin-set per-job knobs."""
 
@@ -103,6 +123,8 @@ class MigrationConfigData(BaseModel):
     #: unknown date is not evidence a disk is cold (or hot), so it is left out of
     #: both directions unless the admin opts in.
     include_never_used: bool = False
+    #: adaptive-load throttle; None/static == fixed ``parallelism`` (the default).
+    load_policy: Optional[MigrationLoadPolicyData] = None
 
     @model_validator(mode="after")
     def _hard_delete_needs_verify(self):
@@ -269,6 +291,10 @@ class MigrationResponse(BaseModel):
     selection: dict = Field(default_factory=dict)
     config: dict = Field(default_factory=dict)
     totals: MigrationTotalsResponse = Field(default_factory=MigrationTotalsResponse)
+    #: why a paused job is paused (``load`` == adaptive soft-pause) and the last
+    #: adaptive decision (effective parallelism + reason) for the admin row.
+    pause_reason: Optional[str] = None
+    load_state: dict = Field(default_factory=dict)
     created_by: Optional[str] = None
     created_at: Optional[float] = None
     updated_at: Optional[float] = None
@@ -308,6 +334,10 @@ class MigrationStatusResponse(BaseModel):
     trees: list[MigrationTreeSummary] = Field(default_factory=list)
     config: dict = Field(default_factory=dict)
     current_window: Optional[dict] = None
+    #: why a paused job is paused (``load`` == adaptive soft-pause) and the last
+    #: adaptive decision (effective parallelism + reason) for the admin row.
+    pause_reason: Optional[str] = None
+    load_state: dict = Field(default_factory=dict)
     eta_seconds: Optional[int] = None
     #: schedule surface for the admin table (recurring badge + days + next-run)
     recurring: bool = False

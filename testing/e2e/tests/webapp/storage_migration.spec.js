@@ -588,6 +588,70 @@ test.describe('Admin Storage-pool migration — running-job config apply', () =>
     await planRow.click()
     await expect(page.locator('form.mig-config[data-mig="mig-plan"] .cfg-verify')).toBeEnabled()
   })
+
+  test('SM15: an adaptive running job shows its effective parallelism and last decision', async ({
+    authenticatedPage: page,
+  }) => {
+    const j = job('mig-adaptive', 'running')
+    j.config.load_policy = {
+      mode: 'adaptive',
+      parallelism_min: 1,
+      parallelism_max: 4,
+      pause_above: 50,
+      baseline_window: 5,
+    }
+    j.load_state = { effective_parallelism: 3, last_reason: 'idle 3 ticks: parallelism 2 -> 3' }
+    await stubJobs(page, [j])
+    await page.goto(STORAGE_POOLS_URL)
+
+    const row = page.locator('#migrations tr.mig-row[data-mig="mig-adaptive"]')
+    await row.waitFor({ state: 'visible', timeout: 10000 })
+    await expect(row.locator('.mig-load-parallel')).toHaveText('p=3')
+    await expect(row.locator('.mig-load-reason')).toContainText('idle 3 ticks')
+  })
+})
+
+// The create POST must carry the load policy the form shows, so an adaptive job
+// is born adaptive (default static leaves it exactly as before).
+test.describe('Admin Storage-pool migration — create carries the load policy', () => {
+  test('SM16: the create POST body carries load_policy from the form', async ({
+    authenticatedPage: page,
+  }) => {
+    await stubMigrationApis(page, {})
+    const posts = []
+    await page.route(/\/api\/v4\/admin\/storage\/migrations(\?|$)/, (route) => {
+      if (route.request().method() === 'POST') {
+        posts.push(route.request().postDataJSON())
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'mig-new', status: 'planned' }),
+        })
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+    })
+
+    await openNewMigrationModal(page)
+    await previewWholePoolPlan(page)
+    await page.selectOption('#mig_load_mode', 'adaptive')
+    await page.locator('#mig_parallel_min').fill('2')
+    await page.locator('#mig_parallel_max').fill('6')
+    await page.locator('#mig_pause_above').fill('40')
+
+    const posted = page.waitForRequest(
+      (r) => r.url().includes('/admin/storage/migrations') && r.method() === 'POST',
+      { timeout: 8000 },
+    )
+    await page.locator('#mig_create_only').click()
+    const body = (await posted).postDataJSON()
+    expect(body.config.load_policy).toEqual({
+      mode: 'adaptive',
+      parallelism_min: 2,
+      parallelism_max: 6,
+      pause_above: 40,
+      baseline_window: 5,
+    })
+  })
 })
 
 // The list rows are stubbed (the assertions are on how the JS orders/renders the
