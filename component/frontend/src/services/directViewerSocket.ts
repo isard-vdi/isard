@@ -7,7 +7,12 @@ import { createSocket } from './socket'
  * This is separate from the main user socket so that logged-in users
  * keep their existing connection while also receiving directviewer_update events.
  */
-export function useDirectViewerSocket(token: Ref<string>, queryClient: QueryClient, queryKey: any) {
+export function useDirectViewerSocket(
+  token: Ref<string>,
+  queryClient: QueryClient,
+  queryKey: any,
+  onViewersChanged: () => void
+) {
   const isConnected = ref(false)
   let socket: ReturnType<typeof createSocket> | null = null
 
@@ -25,12 +30,13 @@ export function useDirectViewerSocket(token: Ref<string>, queryClient: QueryClie
     })
 
     socket.on('directviewer_update', (payload: string) => {
-      const data = JSON.parse(payload)
+      const { viewers_changed, ...data } = JSON.parse(payload)
 
       queryClient.setQueryData(queryKey, (old: any) => {
         if (!old) return data
         return { ...old, ...data }
       })
+      if (viewers_changed) onViewersChanged()
     })
 
     socket.connect()

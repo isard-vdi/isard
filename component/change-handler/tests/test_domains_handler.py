@@ -618,3 +618,87 @@ class TestDirectViewerStatusNormalisation:
             await desktop_handler.on_update(no_passwd, with_passwd)
 
         assert self._viewer_statuses(fake_socketio) == ["Starting", "Started"]
+
+
+class TestDirectViewerViewersChanged:
+    """The direct viewer room says when the viewers changed but never carries
+    them: they are built for the domain the page is open on, which only the
+    page's own request knows, so the page fetches them again."""
+
+    @staticmethod
+    def _viewer_updates(fake_socketio):
+        import json
+
+        return [
+            json.loads(payload)
+            for event, payload, _ns, _room in fake_socketio.emitted
+            if event == "directviewer_update"
+        ]
+
+    async def _update(self, handler, row, old_viewer, new_viewer, new_status):
+        with patch(
+            "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+            side_effect=TestDirectViewerStatusNormalisation._parse_desktop_stub,
+        ):
+            await handler.on_update(
+                row(
+                    status="Started",
+                    additional_properties={"jumperurl": "tk", "viewer": old_viewer},
+                ),
+                row(
+                    status=new_status,
+                    additional_properties={"jumperurl": "tk", "viewer": new_viewer},
+                ),
+            )
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.domains.Logging")
+    @patch("isardvdi_change_handler.handlers.domains.Scheduler")
+    async def test_guest_ip_arriving_flags_the_viewers_without_sending_them(
+        self, _scheduler, _logging, desktop_handler, fake_socketio, domain_row_factory
+    ):
+        await self._update(
+            desktop_handler,
+            domain_row_factory,
+            {"passwd": "p"},
+            {"passwd": "p", "guest_ip": "10.2.0.5"},
+            "Started",
+        )
+
+        assert self._viewer_updates(fake_socketio) == [
+            {"id": "d1", "status": "Started", "viewers_changed": True}
+        ]
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.domains.Logging")
+    @patch("isardvdi_change_handler.handlers.domains.Scheduler")
+    async def test_new_viewer_password_flags_the_viewers(
+        self, _scheduler, _logging, desktop_handler, fake_socketio, domain_row_factory
+    ):
+        """The engine regenerates the password on every start, so a desktop
+        restarted without a guest IP still needs its viewers fetched again."""
+        await self._update(
+            desktop_handler,
+            domain_row_factory,
+            {"passwd": "old"},
+            {"passwd": "new"},
+            "Started",
+        )
+
+        assert self._viewer_updates(fake_socketio) == [
+            {"id": "d1", "status": "Started", "viewers_changed": True}
+        ]
+
+    @pytest.mark.asyncio
+    @patch("isardvdi_change_handler.handlers.domains.Logging")
+    @patch("isardvdi_change_handler.handlers.domains.Scheduler")
+    async def test_status_only_change_does_not_flag_the_viewers(
+        self, _scheduler, _logging, desktop_handler, fake_socketio, domain_row_factory
+    ):
+        await self._update(
+            desktop_handler, domain_row_factory, {"passwd": "p"}, {}, "Stopped"
+        )
+
+        assert self._viewer_updates(fake_socketio) == [
+            {"id": "d1", "status": "Stopped", "viewers_changed": False}
+        ]
