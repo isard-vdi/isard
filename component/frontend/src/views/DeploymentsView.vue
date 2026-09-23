@@ -29,21 +29,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useRoute, useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import {
-  EmptyState,
-  FilterPanel,
-  FilterToggle,
-  PageContainer,
-  PageToolbar,
-  SearchInput
-} from '@/components/page'
-import { useFilterPanel } from '@/composables/useFilterPanel'
+  FilterTags,
+  countFilterTags,
+  emptyFilterTags,
+  type FilterCategory
+} from '@/components/filter-tags'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -78,18 +75,40 @@ const goToNewDeployment = async () => {
 }
 
 // Filters
-interface DeploymentFilters {
-  status: 'all' | 'visible' | 'hidden'
+const DEPLOYMENT_FILTER_CATEGORIES = ['status']
+
+const deploymentFilterTags = ref(emptyFilterTags(DEPLOYMENT_FILTER_CATEGORIES))
+
+const activeDeploymentFilterCount = computed(() => countFilterTags(deploymentFilterTags.value))
+
+const clearDeploymentFilters = () => {
+  deploymentFilterTags.value = emptyFilterTags(DEPLOYMENT_FILTER_CATEGORIES)
 }
 
-const deploymentFilters = ref<DeploymentFilters>({ status: 'all' })
-
-const showDeploymentFilters = useFilterPanel('deployments_filters_state')
-
-// Search has its own always-visible input; only the ones the panel hides count.
-const activeDeploymentFilterCount = computed(() =>
-  deploymentFilters.value.status === 'all' ? 0 : 1
-)
+const deploymentFilterCategories = computed<FilterCategory[]>(() => {
+  const all = deployments.value?.deployments ?? []
+  const visible = all.filter((deployment) => deployment.tag_visible === true).length
+  return [
+    {
+      key: 'status',
+      label: t('views.deployments.filters.status.label'),
+      options: [
+        {
+          value: 'visible',
+          label: t('views.deployments.filters.status.visible'),
+          count: visible,
+          icon: 'eye'
+        },
+        {
+          value: 'hidden',
+          label: t('views.deployments.filters.status.hidden'),
+          count: all.length - visible,
+          icon: 'eye-off'
+        }
+      ]
+    }
+  ]
+})
 
 const filteredDeployments = computed(() => {
   const allDeployments = deployments.value?.deployments ?? []
@@ -104,11 +123,10 @@ const areDeploymentsVisible = (deployments: OwnedDeployment) => {
     deployments.name.toLowerCase().includes(inputSearch.value.toLowerCase()) ||
     deployments.description?.toLowerCase().includes(inputSearch.value.toLowerCase())
 
-  // Visibility filter
+  const statuses = deploymentFilterTags.value.status ?? []
   const matchesVisibility =
-    deploymentFilters.value.status === 'all' ||
-    (deploymentFilters.value.status === 'visible' && deployments.tag_visible === true) ||
-    (deploymentFilters.value.status === 'hidden' && deployments.tag_visible !== true)
+    statuses.length === 0 ||
+    statuses.includes(deployments.tag_visible === true ? 'visible' : 'hidden')
 
   return matchesSearch && matchesVisibility
 }
@@ -163,10 +181,6 @@ const header = computed(() => [
 const totalDeployments = computed(() => deployments.value?.deployments?.length ?? 0)
 
 const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
-
-const clearDeploymentFilters = () => {
-  deploymentFilters.value.status = 'all'
-}
 
 const badgeState = (isVisible: boolean) => ({
   color: isVisible ? 'blue' : ('gray' as const),
@@ -467,7 +481,7 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
         />
       </template>
       <template #filters>
-        <FilterToggle v-model="showDeploymentFilters" :active-count="activeDeploymentFilterCount" />
+        <FilterTags v-model="deploymentFilterTags" :categories="deploymentFilterCategories" />
       </template>
       <template #actions>
         <Button
@@ -478,27 +492,6 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
         >
           {{ t('router.deployments.new.title') }}
         </Button>
-      </template>
-      <template #panel>
-        <FilterPanel :open="showDeploymentFilters">
-          <ToggleGroup
-            v-model="deploymentFilters.status"
-            :spacing="1"
-            type="single"
-            size="default"
-            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-          >
-            <ToggleGroupItem value="all" variant="gray-warm">
-              <span>{{ t('views.deployments.filters.status.all') }}</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="visible" variant="gray-warm">
-              <span>{{ t('views.deployments.filters.status.visible') }}</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="hidden" variant="gray-warm">
-              <span>{{ t('views.deployments.filters.status.hidden') }}</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </FilterPanel>
       </template>
     </PageToolbar>
     <div v-if="deploymentsArePending" class="flex flex-col gap-4 mt-8">

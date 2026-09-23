@@ -29,6 +29,7 @@ interface Props {
   pageSize?: number
   paginationPageSizes?: number[]
   selectedId?: string
+  inlineTabs?: boolean
 }
 
 const props = defineProps<Props>()
@@ -180,6 +181,7 @@ function templateProgressPercent(progress: unknown): number {
       :loading="tableIsLoading"
       :page-size="props.pageSize"
       :pagination-page-sizes="props.paginationPageSizes"
+      :inline-tabs="props.inlineTabs"
       :is-clickable="true"
       :is-row-disabled="isFailed"
       :disabled-tooltip="t('views.templates.table.failed-message')"

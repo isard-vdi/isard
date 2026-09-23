@@ -374,18 +374,16 @@
         "search": {
           "placeholder": "Search desktops"
         },
-        "toggle": "Filters",
-        "toggle-active": "Filters ({count} active)",
         "kind": {
-          "all": "All",
           "persistent": "Persistent | Persistents",
           "nonpersistent": "Temporary | Temporaries",
-          "deployment": "Deployment | Deployments"
+          "deployment": "Deployment | Deployments",
+          "label": "Type"
         },
         "status": {
-          "all": "All",
           "started": "Started",
-          "stopped": "Stopped"
+          "stopped": "Stopped",
+          "label": "Status"
         }
       },
       "view-mode": {
@@ -410,9 +408,9 @@
           "placeholder": "Search"
         },
         "visibility": {
-          "all": "All",
           "visible": "Visible",
-          "hidden": "Hidden"
+          "hidden": "Hidden",
+          "label": "Visibility"
         }
       },
       "alloweds": {
@@ -650,10 +648,10 @@
           "placeholder": "Search deployments"
         },
         "status": {
-          "all": "All",
           "started": "Started",
           "visible": "Visible",
-          "hidden": "Hidden"
+          "hidden": "Hidden",
+          "label": "Status"
         }
       },
       "dropdown": {
@@ -2006,7 +2004,10 @@
     },
     "filters": {
       "toggle": "Filters",
-      "toggle-active": "Filters ({count} active)"
+      "toggle-active": "Filters ({count} active)",
+      "remove": "Remove filter {name}",
+      "clear": "Clear filters",
+      "show-all": "Show all {count} active filters"
     },
     "empty-search": {
       "title": "No results found",

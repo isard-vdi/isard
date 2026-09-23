@@ -5,7 +5,15 @@ import { reactiveOmit } from '@vueuse/core'
 import { DropdownMenuSubContent, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<DropdownMenuSubContentProps & { class?: HTMLAttributes['class'] }>()
+// Both offsets undo the 5px (p-1 plus border) that insets a menu's items from
+// its box: the sub trigger this anchors on, and this menu's own first item.
+// Without them the submenu opens over the menu that spawned it, with its first
+// option sitting below the row that opened it. The extra 4 is the gap a
+// top-level menu leaves.
+const props = withDefaults(
+  defineProps<DropdownMenuSubContentProps & { class?: HTMLAttributes['class'] }>(),
+  { sideOffset: 9, alignOffset: -5 }
+)
 const emits = defineEmits<DropdownMenuSubContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')

@@ -201,6 +201,7 @@
     --secondary-1-300: hsl(67, 53%, 82%, 1);
     --secondary-1-400: hsl(67, 53%, 73%, 1);
     --secondary-1-500: hsl(67, 58%, 59%, 1);
+    --secondary-1-550: hsl(68, 72%, 32%, 1);
     --secondary-1-600: hsl(68, 100%, 18%, 1);
     --secondary-1-700: hsl(68, 90%, 12%, 1);
     --secondary-2-100: hsl(16, 65%, 93%, 1);
@@ -208,6 +209,7 @@
     --secondary-2-300: hsl(16, 72%, 82%, 1);
     --secondary-2-400: hsl(16, 72%, 72%, 1);
     --secondary-2-500: hsl(16, 81%, 60%, 1);
+    --secondary-2-550: hsl(18, 85%, 42%, 1);
     --secondary-2-600: hsl(21, 100%, 23%, 1);
     --secondary-2-700: hsl(22, 29%, 54%, 1);
     --secondary-2-800: hsl(21, 18%, 75%, 1);
@@ -217,6 +219,7 @@
     --secondary-3-300: hsl(174, 47%, 82%, 1);
     --secondary-3-400: hsl(174, 47%, 73%, 1);
     --secondary-3-500: hsl(173, 41%, 56%, 1);
+    --secondary-3-550: hsl(173, 52%, 34%, 1);
     --secondary-3-600: hsl(173, 63%, 19%, 1);
     --secondary-3-700: hsl(173, 63%, 12%, 1);
     --secondary-4-400: hsla(174, 47%, 73%, 1);
@@ -405,8 +408,14 @@
 }
 
 @layer base {
-  * {
-    /* @apply border-border; */
+  /* Tailwind v4 leaves a bare `border` at currentColor, which paints the
+     shadcn primitives (dropdown, select, combobox, dialog) near-black. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--base-border);
   }
 
   body {
