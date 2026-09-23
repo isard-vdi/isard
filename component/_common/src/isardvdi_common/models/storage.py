@@ -1755,6 +1755,22 @@ class Storage(RethinkCustomBase):
                 "Storage parent missing",
                 description_code="storage_has_no_parent",
             )
+
+        if domain_id and domain.Domain.exists(domain_id):
+            disks = (
+                domain.Domain(domain_id)
+                .create_dict.get("hardware", {})
+                .get("disks", [])
+            )
+            if len(disks) > 1:
+                # The repoint writes ``disks[0]``, so replacing any other disk of
+                # a multi-disk desktop would wire the wrong one.
+                raise Error(
+                    "bad_request",
+                    "Multi-disk desktops are not supported by recreate",
+                    description_code="multi_disk_recreate_unsupported",
+                )
+
         storage_parent = Storage(self.parent)
         parent_args = {
             "parent_path": storage_parent.path,
