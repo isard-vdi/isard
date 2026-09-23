@@ -61,7 +61,8 @@ export default {
       desktopIp: '',
       clientState: 0,
       clientRetries: 0,
-      maxClientRetries: 3
+      maxClientRetries: 3,
+      retryTimer: null
     }
   },
   watch: {
@@ -127,6 +128,25 @@ export default {
       this.connected = true
 
       this.connect(query)
+    },
+    scheduleRetry () {
+      // Both the client and the tunnel may report the same failure, retry only once for it
+      if (this.retryTimer) {
+        return
+      }
+      // Retry to connect until the max number of retries is reached. Each retry must be done after 5 seconds
+      if (this.clientRetries < this.maxClientRetries) {
+        this.clientRetries++
+        this.connectionState = states.RETRYING
+        console.log('Connection error. Retrying connection in 5 seconds...')
+        this.retryTimer = setTimeout(() => {
+          this.retryTimer = null
+          this.startViewer()
+        }, 5000)
+      } else {
+        console.log('Max number of retries reached. Disconnecting.')
+        this.connectionState = states.RDP_NOT_RUNNING
+      }
     },
     getWsUrl () {
       return `ws${location.protocol === 'https:' ? 's' : ''}://${this.host}/websocket-tunnel`
@@ -249,18 +269,15 @@ export default {
       tunnel.onerror = (status) => {
         // eslint-disable-next-line no-console
         console.error(`Tunnel failed ${JSON.stringify(status)}`)
-        this.connectionState = states.TUNNEL_ERROR
-        // Retry connection
-        setTimeout(() => {
-          this.startViewer()
-        }, 5000)
+        this.scheduleRetry()
       }
 
       tunnel.onstatechange = (state) => {
         switch (state) {
           // Connection is being established
           case Guacamole.Tunnel.State.CONNECTING:
-            this.connectionState = states.CONNECTING
+            // Keep showing the retry progress while a retry attempt connects
+            this.connectionState = this.clientRetries > 0 ? states.RETRYING : states.CONNECTING
             break
 
           // Connection is established / no longer unstable
@@ -275,6 +292,10 @@ export default {
 
           // Connection has closed
           case Guacamole.Tunnel.State.CLOSED:
+            // The tunnel closes right after reporting its error, don't hide the pending retry
+            if (this.retryTimer) {
+              break
+            }
             this.connectionState = states.DISCONNECTED
             break
         }
@@ -294,6 +315,7 @@ export default {
             break
           case 3:
             this.connectionState = states.CONNECTED
+            this.clientRetries = 0
             // without this manual resize, the viewer is never going to "start" correctly. Maybe 2000ms isn't enough for all the situations?
             setTimeout(() => this.resize(), 2000)
             window.addEventListener('resize', this.resize)
@@ -315,19 +337,7 @@ export default {
         this.client.disconnect()
         // eslint-disable-next-line no-console
         console.error(`Client error ${JSON.stringify(error)}`)
-        this.connectionState = states.RETRYING
-        // Retry to connect until the max number of retries is reached. Each retry must be done after 5 seconds
-        if (this.clientRetries < this.maxClientRetries) {
-          this.clientRetries++
-          console.log('Client error. Retrying connection in 5 seconds...')
-          // Retry connection
-          setTimeout(() => {
-            this.startViewer()
-          }, 5000)
-        } else {
-          console.log('Max number of retries reached. Disconnecting.')
-          this.connectionState = states.RDP_NOT_RUNNING
-        }
+        this.scheduleRetry()
       }
 
       this.client.onsync = () => { }
@@ -363,6 +373,8 @@ export default {
       this.client.onclipboard = clipboard.onClipboard
       this.display = this.client.getDisplay()
       const displayElm = this.$refs.display
+      // Drop the display of a previous connection attempt
+      displayElm.replaceChildren()
       displayElm.appendChild(this.display.getElement())
       displayElm.addEventListener('contextmenu', (e) => {
         e.stopPropagation()
@@ -401,6 +413,7 @@ export default {
 
       this.client.connect(query)
       window.onunload = () => {
+        clearTimeout(this.retryTimer)
         this.client.disconnect()
         cookies.removeCookie('viewerToken')
       }
