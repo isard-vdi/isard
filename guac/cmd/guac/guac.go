@@ -131,14 +131,22 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 
 		if _, ok := res.(*apiv4.EmptyResponse); !ok {
 			apiErr := ogenclient.AsAPIError(res)
-			if errors.Is(apiErr, ogenclient.ErrUnauthorized) || errors.Is(apiErr, ogenclient.ErrForbidden) {
-				logrus.Errorf("%s doesn't own desktop %s", subject, hostname)
+			switch {
+			case errors.Is(apiErr, ogenclient.ErrUnauthorized), errors.Is(apiErr, ogenclient.ErrForbidden):
+				logrus.Warnf("%s can't access desktop %s, doesn't own it or it isn't running: %v", subject, hostname, apiErr)
 				w.WriteHeader(http.StatusUnauthorized)
-				return
+
+			case errors.Is(apiErr, ogenclient.ErrNotFound),
+				errors.Is(apiErr, ogenclient.ErrBadRequest),
+				errors.Is(apiErr, ogenclient.ErrPreconditionRequired):
+				logrus.Warnf("%s can't access desktop %s, not found or not running: %v", subject, hostname, apiErr)
+				w.WriteHeader(http.StatusNotFound)
+
+			default:
+				logrus.Errorf("unexpected API response checking if %s owns desktop %s: %v", subject, hostname, apiErr)
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 
-			logrus.Errorf("error checking if %s owns desktop %s: %v", subject, hostname, apiErr)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 

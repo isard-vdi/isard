@@ -211,7 +211,8 @@
         "viewer-token-error": "És necessari tornar a obrir el visor per connectar-se correctament",
         "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat",
         "retrying": "Reintent {retry} de {maxRetries}",
-        "rdp-not-running": "El servei RDP a l'escriptori no existeix o no està en execució"
+        "rdp-not-running": "El servei RDP a l'escriptori no existeix o no està en execució",
+        "desktop-stopped": "L'escriptori s'ha aturat. Torna'l a iniciar per tornar a connectar."
       },
       "title": {
         "connecting": "Connectant",
@@ -219,7 +220,8 @@
         "unstable": "Inestable",
         "error": "Error",
         "retrying": "Esperant a que l'RDP de l'escriptori estigui disponible",
-        "rdp-not-running": "El servei RDP no està en execució"
+        "rdp-not-running": "El servei RDP no està en execució",
+        "desktop-stopped": "Escriptori aturat"
       },
       "buttons": {
         "retry": "Reintentar",
