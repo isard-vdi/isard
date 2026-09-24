@@ -250,7 +250,7 @@ class TemplatesProcessed(RethinkSharedConnection):
             # templates were never wired, and the apiv4 chain isn't
             # designed for them. Stay explicit until that lands.
             raise Error(
-                "not_implemented",
+                "bad_request",
                 "Multi-disk templates are not supported",
                 description_code="multi_disk_templates_unsupported",
             )

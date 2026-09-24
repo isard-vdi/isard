@@ -1,5 +1,5 @@
-// Regression spec: a refused recreate must leave no storage row behind.
-// A refused recreate must leave no storage row behind.
+// Regression spec: of several repairs racing for one disk, one wins and the
+// rest are refused -- and a refusal writes no storage row.
 
 import {
   test,
@@ -10,7 +10,8 @@ import {
 
 // Seeded template with a ready storage in the default category (populate_test_db.py).
 const TEMPLATE_ID = 'template-test-001'
-const REFUSALS = 3
+// One of these wins the disk; the rest must be refused and must write nothing.
+const CLICKS = 4
 
 // `Stopped` says the domain settled, not the disk: the chain that creates the
 // qcow2 finishes after it, and a recreate over a disk that is not yet `ready`
@@ -71,7 +72,7 @@ function marker(diskId) {
 }
 
 test.describe('A refused recreate leaks no storage row', () => {
-  test('clicking recreate again while the disk is parked leaves no row behind', async ({
+  test('one of several racing recreates wins and the refused ones write nothing', async ({
     apiv4Admin,
     authenticatedPage,
   }, testInfo) => {
@@ -99,33 +100,34 @@ test.describe('A refused recreate leaks no storage row', () => {
       'the leak check needs status_logs exposed on the storage row',
     ).toBe(true)
 
-    // First click is accepted: it parks the disk and starts the replacement.
-    const first = await page.request.put(
-      `/api/v4/item/desktop/${created.id}/recreate`,
-    )
-    expect(first.status(), 'the first recreate must be accepted').toBe(200)
-
-    // Taken AFTER the accepted click, so the row that click legitimately
-    // allocates is already inside the baseline.
     const before = new Set(await nonExistingIds(page))
 
-    // The user cannot tell the disk is busy, so they click again. Every one of
-    // these is refused because the disk is no longer ready.
-    const statuses = []
-    for (let i = 0; i < REFUSALS; i++) {
-      const again = await page.request.put(
-        `/api/v4/item/desktop/${created.id}/recreate`,
+    // All of them together, on a ready disk. A repair finishes now, so a click
+    // sent after one has completed lands on the replacement and is accepted --
+    // the product working, not the case this spec is about. Claiming a disk is
+    // a single-winner write, so exactly one of these takes it.
+    const statuses = (
+      await Promise.all(
+        Array.from({ length: CLICKS }, () =>
+          page.request.put(`/api/v4/item/desktop/${created.id}/recreate`),
+        ),
       )
-      statuses.push(again.status())
-    }
+    ).map((r) => r.status())
     expect(
-      statuses,
-      'a recreate over a parked disk must be refused, not accepted',
-    ).toEqual(Array(REFUSALS).fill(428))
+      statuses.filter((s) => s === 200).length,
+      `concurrent recreates over one disk answered ${statuses}; ` +
+        'exactly one may be accepted',
+    ).toBe(1)
+    expect(
+      statuses.filter((s) => s === 428).length,
+      `concurrent recreates over one disk answered ${statuses}; ` +
+        'every caller that lost must be refused',
+    ).toBe(CLICKS - 1)
 
     // Counting rows globally made this spec fail whenever a parallel spec had a
     // desktop mid-creation: its transient row landed after the baseline. Ask
-    // instead which of the new rows this call wrote, by its own marker.
+    // instead which of the new rows this call wrote, by its own marker. The
+    // winner legitimately allocates one, so one is the ceiling, not zero.
     const fresh = (await nonExistingIds(page)).filter((id) => !before.has(id))
     const mine = []
     for (const id of fresh) {
@@ -134,9 +136,9 @@ test.describe('A refused recreate leaks no storage row', () => {
         mine.push(id)
     }
     expect(
-      mine,
-      `${REFUSALS} refused recreates left ${mine.length} storage rows behind; ` +
-        'a refusal must write nothing',
-    ).toEqual([])
+      mine.length,
+      `${CLICKS} concurrent recreates left ${mine.length} rows (${mine}); ` +
+        'only the one that was accepted may write one',
+    ).toBeLessThanOrEqual(1)
   })
 })

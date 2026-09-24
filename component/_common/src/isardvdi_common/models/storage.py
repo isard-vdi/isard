@@ -919,23 +919,34 @@ class Storage(RethinkCustomBase):
         from isardvdi_common.helpers.error_factory import Error
 
         excluded = set(exclude_domains or [])
+        # The statuses this action may be claimed FROM; None where it has no
+        # status precondition and so nothing to carry into the write.
+        claimable = None
+        refusal = None
         if action == "move":
-            if self.status not in ["ready", "recycled"]:
+            claimable = ["ready", "recycled"]
+            refusal = (
+                f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
+                "storage_invalid_status_for_move",
+            )
+            if self.status not in claimable:
                 raise Error(
                     "precondition_required",
-                    f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
-                    description_code="storage_invalid_status_for_move",
+                    refusal[0],
+                    description_code=refusal[1],
                 )
-        elif self.status != "ready" and action not in (
-            "create",
-            "delete",
-            "download",
-        ):
-            raise Error(
-                "precondition_required",
+        elif action not in ("create", "delete", "download"):
+            claimable = ["ready"]
+            refusal = (
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                description_code="storage_not_ready",
+                "storage_not_ready",
             )
+            if self.status != "ready":
+                raise Error(
+                    "precondition_required",
+                    refusal[0],
+                    description_code=refusal[1],
+                )
         # "create" / "download" are fresh-storage actions — the domain
         # being wired in is the whole point, and by construction it is
         # not yet Stopped (it is in a Creating* / DownloadStarting
@@ -955,10 +966,24 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} has children storages that depend on it as backing file",
                     description_code="storage_has_children",
                 )
+        if claimable is None:
+            self.status = "maintenance"
+        elif Storage.update_document_if(
+            self.id, {"status": "maintenance"}, field="status", values=claimable
+        ):
+            # The write carries the test the checks above made, so of two callers
+            # that both read a claimable status exactly one parks the row.
+            self._update_cache(status="maintenance")
+        else:
+            raise Error(
+                "precondition_required",
+                refusal[0],
+                description_code=refusal[1],
+            )
+        if action not in ("create", "download"):
             for domain in self.domains:
                 domain.current_action = action
                 domain.status = "Maintenance"
-        self.status = "maintenance"
 
     def set_ready(self):
         # Same reason as ``set_maintenance``: a precondition must not reach
@@ -1755,6 +1780,22 @@ class Storage(RethinkCustomBase):
                 "Storage parent missing",
                 description_code="storage_has_no_parent",
             )
+
+        if domain_id and domain.Domain.exists(domain_id):
+            disks = (
+                domain.Domain(domain_id)
+                .create_dict.get("hardware", {})
+                .get("disks", [])
+            )
+            if len(disks) > 1:
+                # The repoint writes ``disks[0]``, so replacing any other disk of
+                # a multi-disk desktop would wire the wrong one.
+                raise Error(
+                    "bad_request",
+                    "Multi-disk desktops are not supported by recreate",
+                    description_code="multi_disk_recreate_unsupported",
+                )
+
         storage_parent = Storage(self.parent)
         parent_args = {
             "parent_path": storage_parent.path,
@@ -1789,6 +1830,9 @@ class Storage(RethinkCustomBase):
         new_storage_path = str(
             new_storage.directory_path + "/" + new_storage.id + "." + new_storage.type
         )
+        # The caller may recreate a disk that no domain uses; an empty list keeps
+        # the release branch from handing the handler a None to look up.
+        release_domain_ids = [domain_id] if domain_id else []
 
         try:
             return self.create_task(
@@ -1810,99 +1854,117 @@ class Storage(RethinkCustomBase):
                 },
                 dependents=[
                     {
-                        "queue": f"core",
-                        "task": "domain_change_storage",
+                        # Only fires when the create itself died: nothing was
+                        # repointed, so give the desktop back its intact disk.
+                        "queue": "core",
+                        "task": "update_status",
                         "job_kwargs": {
                             "kwargs": {
-                                "domain_id": domain_id,
+                                "statuses": {
+                                    "failed": {
+                                        "ready": {"storage": [self.id]},
+                                        "Stopped": {"domain": release_domain_ids},
+                                        new_storage.status: {
+                                            "storage": [new_storage.id]
+                                        },
+                                    },
+                                    "canceled": {
+                                        "ready": {"storage": [self.id]},
+                                        "Stopped": {"domain": release_domain_ids},
+                                        new_storage.status: {
+                                            "storage": [new_storage.id]
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    {
+                        "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', new_storage.directory_path).id}.{priority}",
+                        "task": "qemu_img_info_backing_chain",
+                        "job_kwargs": {
+                            "kwargs": {
                                 "storage_id": new_storage.id,
-                            },
+                                "storage_path": new_storage_path,
+                                "qcow2_geometry": geometry,
+                            }
                         },
                         "dependents": [
                             {
-                                "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', new_storage.directory_path).id}.{priority}",
-                                "task": "qemu_img_info_backing_chain",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "storage_id": new_storage.id,
-                                        "storage_path": new_storage_path,
-                                        "qcow2_geometry": geometry,
-                                    }
-                                },
+                                "queue": "core",
+                                "task": "storage_update",
                                 "dependents": [
                                     {
                                         "queue": "core",
-                                        "task": "storage_update",
-                                    }
-                                ],
-                            },
-                            {
-                                "queue": f"storage.{StoragePool.get_best_for_action('delete', self.directory_path).id}.{priority}",
-                                "task": "delete",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "path": self.path,
-                                    }
-                                },
-                                "dependents": [
-                                    {
-                                        "queue": "core",
-                                        "task": "storage_delete",
+                                        "task": "domain_change_storage",
                                         "job_kwargs": {
                                             "kwargs": {
-                                                "storage_id": self.id,
-                                            }
+                                                "domain_id": domain_id,
+                                                "storage_id": new_storage.id,
+                                            },
                                         },
                                         "dependents": [
                                             {
-                                                "queue": "core",
-                                                "task": "update_status",
+                                                # Below the repoint, never beside it: the
+                                                # old file outlives the desktop's move.
+                                                "queue": f"storage.{StoragePool.get_best_for_action('delete', self.directory_path).id}.{priority}",
+                                                "task": "delete",
                                                 "job_kwargs": {
                                                     "kwargs": {
-                                                        "statuses": {
-                                                            "_all": {
-                                                                "deleted": {
-                                                                    "storage": [
-                                                                        self.id
-                                                                    ],
-                                                                }
-                                                            },
-                                                            JobStatus.FAILED: {
-                                                                new_storage.status: {
-                                                                    "storage": [
-                                                                        new_storage.id
-                                                                    ],
-                                                                },
-                                                                "Failed": {
-                                                                    "domain": [
-                                                                        domain.id
-                                                                        for domain in new_storage.domains
-                                                                    ],
-                                                                },
-                                                            },
-                                                            JobStatus.CANCELED: {
-                                                                new_storage.status: {
-                                                                    "storage": [
-                                                                        new_storage.id
-                                                                    ],
-                                                                },
-                                                                "Stopped": {
-                                                                    "domain": [
-                                                                        domain.id
-                                                                        for domain in new_storage.domains
-                                                                    ]
-                                                                },
-                                                            },
-                                                        }
+                                                        "path": self.path,
                                                     }
                                                 },
+                                                "dependents": [
+                                                    {
+                                                        "queue": "core",
+                                                        "task": "update_status",
+                                                        "job_kwargs": {
+                                                            "kwargs": {
+                                                                "statuses": {
+                                                                    "finished": {
+                                                                        "deleted": {
+                                                                            "storage": [
+                                                                                self.id
+                                                                            ],
+                                                                        }
+                                                                    },
+                                                                    "failed": {
+                                                                        "ready": {
+                                                                            "storage": [
+                                                                                self.id
+                                                                            ],
+                                                                        }
+                                                                    },
+                                                                    "canceled": {
+                                                                        "ready": {
+                                                                            "storage": [
+                                                                                self.id
+                                                                            ],
+                                                                        }
+                                                                    },
+                                                                }
+                                                            }
+                                                        },
+                                                        "dependents": [
+                                                            {
+                                                                "queue": "core",
+                                                                "task": "storage_delete",
+                                                                "job_kwargs": {
+                                                                    "kwargs": {
+                                                                        "storage_id": self.id,
+                                                                    }
+                                                                },
+                                                            }
+                                                        ],
+                                                    }
+                                                ],
                                             }
                                         ],
                                     }
                                 ],
-                            },
+                            }
                         ],
-                    }
+                    },
                 ],
             )
         except Exception:
