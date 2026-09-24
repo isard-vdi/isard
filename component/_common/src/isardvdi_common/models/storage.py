@@ -295,6 +295,9 @@ class Storage(RethinkCustomBase):
             "parent": parent_id,
             "user_id": user_id,
             "status": "non_existing",
+            # A raw insert never goes through ``__setattr__``, which is the only
+            # thing that stamps this, and the reconcile's status grace reads it.
+            "status_time": time(),
             "perms": ["r", "w"] if pool_usage == "desktop" else ["r"],
             "status_logs": [],
         }
@@ -1761,6 +1764,21 @@ class Storage(RethinkCustomBase):
         status_logs = self.status_logs
         status_logs.append({"time": int(time()), "status": f"recreated from {self.id}"})
 
+        geometry = qcow2_geometry.policy()
+
+        # Build the lane once and hand the same string to create_task, so the two cannot diverge.
+        create_queue = f"storage.{StoragePool.get_best_for_action('create', new_storage_directory_path(self.user_id, self.pool_usage)).id}.{priority}"
+        queue_coverage.check_shed(
+            Task._redis,
+            queue_tiers.retier_queue(
+                create_queue, "create", queue_tiers.resolve_category(self.category)
+            ),
+        )
+
+        # ``set_maintenance`` is the only step that validates this row's own
+        # status, so nothing may be allocated before it has passed.
+        self.set_maintenance("recreate")
+
         new_storage = Storage.new_dict(
             self.user_id,
             self.pool_usage,
@@ -1772,117 +1790,128 @@ class Storage(RethinkCustomBase):
             new_storage.directory_path + "/" + new_storage.id + "." + new_storage.type
         )
 
-        geometry = qcow2_geometry.policy()
-        self.set_maintenance("recreate")
-        return self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('create', new_storage.directory_path).id}.{priority}",
-            task="create",
-            retry=retry,
-            retry_intervals=15,
-            job_kwargs={
-                "kwargs": {
-                    "storage_path": new_storage_path,
-                    "storage_type": new_storage.type,
-                    **geometry,
-                    **parent_args,
-                },
-            },
-            dependents=[
-                {
-                    "queue": f"core",
-                    "task": "domain_change_storage",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "domain_id": domain_id,
-                            "storage_id": new_storage.id,
-                        },
+        try:
+            return self.create_task(
+                user_id=user_id,
+                queue=create_queue,
+                task="create",
+                retry=retry,
+                retry_intervals=15,
+                # The row this chain allocates must answer for itself in the
+                # per-owner index; the old row is the one the chain deletes.
+                index_owners=[self.id, new_storage.id],
+                job_kwargs={
+                    "kwargs": {
+                        "storage_path": new_storage_path,
+                        "storage_type": new_storage.type,
+                        **geometry,
+                        **parent_args,
                     },
-                    "dependents": [
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', new_storage.directory_path).id}.{priority}",
-                            "task": "qemu_img_info_backing_chain",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "storage_id": new_storage.id,
-                                    "storage_path": new_storage_path,
-                                    "qcow2_geometry": geometry,
-                                }
+                },
+                dependents=[
+                    {
+                        "queue": f"core",
+                        "task": "domain_change_storage",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "domain_id": domain_id,
+                                "storage_id": new_storage.id,
                             },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "storage_update",
-                                }
-                            ],
                         },
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('delete', self.directory_path).id}.{priority}",
-                            "task": "delete",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "path": self.path,
-                                }
+                        "dependents": [
+                            {
+                                "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', new_storage.directory_path).id}.{priority}",
+                                "task": "qemu_img_info_backing_chain",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "storage_id": new_storage.id,
+                                        "storage_path": new_storage_path,
+                                        "qcow2_geometry": geometry,
+                                    }
+                                },
+                                "dependents": [
+                                    {
+                                        "queue": "core",
+                                        "task": "storage_update",
+                                    }
+                                ],
                             },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "storage_delete",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": self.id,
-                                        }
-                                    },
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "update_status",
-                                            "job_kwargs": {
-                                                "kwargs": {
-                                                    "statuses": {
-                                                        "_all": {
-                                                            "deleted": {
-                                                                "storage": [self.id],
-                                                            }
-                                                        },
-                                                        JobStatus.FAILED: {
-                                                            new_storage.status: {
-                                                                "storage": [
-                                                                    new_storage.id
-                                                                ],
+                            {
+                                "queue": f"storage.{StoragePool.get_best_for_action('delete', self.directory_path).id}.{priority}",
+                                "task": "delete",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "path": self.path,
+                                    }
+                                },
+                                "dependents": [
+                                    {
+                                        "queue": "core",
+                                        "task": "storage_delete",
+                                        "job_kwargs": {
+                                            "kwargs": {
+                                                "storage_id": self.id,
+                                            }
+                                        },
+                                        "dependents": [
+                                            {
+                                                "queue": "core",
+                                                "task": "update_status",
+                                                "job_kwargs": {
+                                                    "kwargs": {
+                                                        "statuses": {
+                                                            "_all": {
+                                                                "deleted": {
+                                                                    "storage": [
+                                                                        self.id
+                                                                    ],
+                                                                }
                                                             },
-                                                            "Failed": {
-                                                                "domain": [
-                                                                    domain.id
-                                                                    for domain in new_storage.domains
-                                                                ],
+                                                            JobStatus.FAILED: {
+                                                                new_storage.status: {
+                                                                    "storage": [
+                                                                        new_storage.id
+                                                                    ],
+                                                                },
+                                                                "Failed": {
+                                                                    "domain": [
+                                                                        domain.id
+                                                                        for domain in new_storage.domains
+                                                                    ],
+                                                                },
                                                             },
-                                                        },
-                                                        JobStatus.CANCELED: {
-                                                            new_storage.status: {
-                                                                "storage": [
-                                                                    new_storage.id
-                                                                ],
+                                                            JobStatus.CANCELED: {
+                                                                new_storage.status: {
+                                                                    "storage": [
+                                                                        new_storage.id
+                                                                    ],
+                                                                },
+                                                                "Stopped": {
+                                                                    "domain": [
+                                                                        domain.id
+                                                                        for domain in new_storage.domains
+                                                                    ]
+                                                                },
                                                             },
-                                                            "Stopped": {
-                                                                "domain": [
-                                                                    domain.id
-                                                                    for domain in new_storage.domains
-                                                                ]
-                                                            },
-                                                        },
+                                                        }
                                                     }
-                                                }
-                                            },
-                                        }
-                                    ],
-                                }
-                            ],
-                        },
-                    ],
-                }
-            ],
-        )
+                                                },
+                                            }
+                                        ],
+                                    }
+                                ],
+                            },
+                        ],
+                    }
+                ],
+            )
+        except Exception:
+            # Admission can still refuse after the row exists; drop it while it
+            # is still the untouched row this call allocated.
+            Storage.delete_document_if(
+                new_storage.id, field="status", values=["non_existing"]
+            )
+            raise
 
     @classmethod
     def create_new_storage(
