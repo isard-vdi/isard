@@ -111,6 +111,20 @@ class DiskEffect(str, Enum):
     PATH = "path"
 
 
+#: The reconcile retries exactly these and the engine decides ``Stopped``
+#: against ``Failed`` from them: one list, or the two drift.
+RECOVERABLE_STATUSES = ("maintenance", "creating")
+
+
+def verdict_for_blocked_disks(statuses):
+    """``Stopped`` while every blocker can still become ready, else ``Failed``."""
+    return (
+        "Stopped"
+        if all(status in RECOVERABLE_STATUSES for status in statuses)
+        else "Failed"
+    )
+
+
 #: Every pending action a disk can carry: who may flag it and what clears it.
 #: ``test_pending_actions_contract`` fails when the enum and this table drift.
 PENDING_ACTIONS = {
