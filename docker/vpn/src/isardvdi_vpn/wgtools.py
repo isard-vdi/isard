@@ -21,6 +21,8 @@ from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 # Not /usr/bin/wg-quick: the host AppArmor profile attaches to that path.
 WG_QUICK = "/isard/bin/wg-quick"
+# The dhcp hook pins from this same file, so both sides bind the identical pair.
+VLAN_WG_LEASES = "/var/lib/misc/vlan-wg.leases"
 
 
 class WgQuickError(RuntimeError):
@@ -1174,6 +1176,7 @@ PostUp = %s
             if nv_status == "Started" and "guest_ip" in new_viewer:
                 # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
                 self.uipt.desktop_add(nv_user, new_viewer.get("guest_ip"))
+                self._add_table2_flow(new_viewer.get("guest_ip"))
                 self._remember_applied_desktop(
                     new_val.get("id"), nv_user, new_viewer.get("guest_ip")
                 )
@@ -1182,6 +1185,41 @@ PostUp = %s
                 self.uipt.desktop_remove(ov_user, guest_ip)
                 self._remove_table2_flow(guest_ip)
                 self._forget_applied_desktop(old_val.get("id"))
+
+    def _lease_mac_for(self, guest_ip):
+        """The mac dnsmasq handed this ip, or ``None`` if it never handed it."""
+        try:
+            with open(VLAN_WG_LEASES) as leases:
+                for line in leases:
+                    fields = line.split()
+                    # <expiry> <mac> <ip> <hostname> <clientid>
+                    if len(fields) >= 3 and fields[2] == guest_ip:
+                        return fields[1]
+        except OSError as error:
+            log.warning("desktop pinning: cannot read %s: %s", VLAN_WG_LEASES, error)
+        return None
+
+    def _add_table2_flow(self, guest_ip):
+        """Restate the source-ip pin ``_remove_table2_flow`` takes away."""
+        if not guest_ip:
+            return
+        mac = self._lease_mac_for(guest_ip)
+        if mac is None:
+            # A pin with a guessed mac would authorise the wrong guest.
+            log.warning(
+                "desktop pinning: no dhcp lease for %s, leaving table 2 alone",
+                guest_ip,
+            )
+            return
+        subprocess.run(
+            [
+                "ovs-ofctl",
+                "add-flow",
+                "ovsbr0",
+                f"table=2,priority=100,ip,dl_src={mac},nw_src={guest_ip},actions=NORMAL",
+            ],
+            capture_output=True,
+        )
 
     def _remove_table2_flow(self, guest_ip):
         """Remove table 2 source IP pinning flow and ARP entry for a stopped domain."""
