@@ -120,8 +120,13 @@ def env(monkeypatch):
     fake_storage = MagicMock(name="Storage")
     fake_storage.new_dict.return_value = pending
     fake_storage.exists.return_value = True
-    # Storage(sid) re-read in the rollback: unstarted by default.
-    fake_storage.return_value = SimpleNamespace(status="maintenance")
+    # ``Storage(sid)`` is read for two different rows on this path: the
+    # template's disk, which the derive guard requires ready, and the pending
+    # row the rollback re-reads. Dispatch by id so moving one leaves the other.
+    statuses = {"st-parent": "ready", "st-1": "maintenance"}
+    fake_storage.side_effect = lambda sid: SimpleNamespace(
+        status=statuses.get(sid, "maintenance")
+    )
     monkeypatch.setattr(mod, "Storage", fake_storage)
 
     monkeypatch.setattr(mod.Domain, "delete", MagicMock(name="Domain.delete"))
@@ -141,6 +146,7 @@ def env(monkeypatch):
         "docs": docs,
         "pending": pending,
         "storage": fake_storage,
+        "statuses": statuses,
         "current_task_id": tix.current_task_id,
         "task": fake_task,
     }
@@ -189,7 +195,7 @@ class TestNewFromTemplateRollback:
     def test_storage_that_is_no_longer_unstarted_is_not_deleted(self, env):
         # A row that reached ready (a real disk) must never be deleted, even if
         # something after it raised.
-        env["storage"].return_value = SimpleNamespace(status="ready")
+        env["statuses"]["st-1"] = "ready"
         env["pending"].enqueue_disk_creation_chain_for_domain.side_effect = (
             _pending_task_error()
         )
