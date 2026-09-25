@@ -17,6 +17,11 @@ import {
   updateDeploymentCoOwners,
   adminSearchUsers,
   adminTableList,
+  adminTableUpdate,
+  adminTableInsert,
+  adminTableDelete,
+  duplicateTemplate,
+  deleteTemplate,
 } from '../../src/gen/apiv4/sdk.gen'
 import { getFirstAllowedTemplate } from '../../fixtures/apiv4/desktops.js'
 
@@ -177,6 +182,21 @@ test.describe('Admin Deployments — webapp', () => {
       .map((a) => a.description)
     for (const id of ids) {
       await deleteDeploymentViaApi(apiv4Admin, id)
+    }
+    const tplIds = testInfo.annotations
+      .filter((a) => a.type === 'bad-template-id')
+      .map((a) => a.description)
+    for (const id of tplIds) {
+      await deleteTemplate({ client: apiv4Admin, path: { template_id: id } }).catch(() => {})
+    }
+    const diskIds = testInfo.annotations
+      .filter((a) => a.type === 'deleted-disk-id')
+      .map((a) => a.description)
+    for (const id of diskIds) {
+      await adminTableDelete({
+        client: apiv4Admin,
+        path: { table: 'storage', item_id: id },
+      }).catch(() => {})
     }
   })
 
@@ -673,6 +693,102 @@ test.describe('Admin Deployments — webapp', () => {
       getDeploymentCoOwners({ client: apiv4Admin, path: { deployment_id: dep.id } }),
     )
     expect(coOwners.co_owners, 'co_owners should be empty after removal').toHaveLength(0)
+  })
+
+  // S11 — a bad-disk desktop (disk row present but marked deleted) must not abort the create loop.
+  test('S11: a not-ready-disk desktop does not abort the deployment create loop', async ({
+    authenticatedPage: page,
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!sharedTemplateId, 'no template available in the dev DB')
+
+    const searchResults = await unwrap(
+      adminSearchUsers({ client: apiv4Admin, body: { term: 'E2E Manager 01' } }),
+    ).catch(() => [])
+    const allowedUser = Array.isArray(searchResults)
+      ? searchResults.find((u) => u.uid === 'manager_e2e_01')
+      : null
+    test.skip(!allowedUser, 'manager_e2e_01 not found via admin user search')
+
+    // Bad template: a throwaway duplicate whose disk points at a storage row that
+    // exists but is marked deleted -- the only case new_dict admits and the guard refuses.
+    const badName = `e2e-dep-badtpl-${testInfo.workerIndex}-${Date.now()}`
+    const bad = await unwrap(
+      duplicateTemplate({
+        client: apiv4Admin,
+        path: { template_id: sharedTemplateId },
+        body: { name: badName, description: 'e2e bad-disk template', enabled: true, allowed: {} },
+      }),
+    )
+    testInfo.annotations.push({ type: 'bad-template-id', description: bad.id })
+    const deletedDiskId = `e2e-deleted-disk-${testInfo.workerIndex}-${Date.now()}`
+    await unwrap(
+      adminTableInsert({
+        client: apiv4Admin,
+        path: { table: 'storage' },
+        body: { id: deletedDiskId, status: 'deleted' },
+      }),
+    )
+    testInfo.annotations.push({ type: 'deleted-disk-id', description: deletedDiskId })
+    await unwrap(
+      adminTableUpdate({
+        client: apiv4Admin,
+        path: { table: 'domains' },
+        body: { id: bad.id, create_dict: { hardware: { disks: [{ storage_id: deletedDiskId }] } } },
+      }),
+    )
+
+    // The bad-disk desktop is listed FIRST, the good (seed) desktop SECOND.
+    const name = uniqueDeploymentName(testInfo, 's11')
+    const dep = await unwrap(
+      createDeployment({
+        client: apiv4Admin,
+        body: {
+          name,
+          description: 'e2e bad+good deployment',
+          allowed: { users: [allowedUser.id], groups: false },
+          create_owner_desktop: false,
+          desktops: [
+            { template_id: bad.id, name: 'bad-desktop' },
+            { template_id: sharedTemplateId, name: 'good-desktop' },
+          ],
+        },
+      }),
+    )
+    testInfo.annotations.push({ type: 'deployment-id', description: dep.id })
+
+    // Exactly the good desktop must be created: the guard refuses the deleted-disk
+    // derive; drop the guard and new_dict admits the bad parent, so how_many stays 2.
+    await expect
+      .poll(
+        async () => {
+          const all = await listAllDeployments(apiv4Admin)
+          return all.find((d) => d.id === dep.id)?.how_many_desktops ?? 0
+        },
+        { timeout: 25000, intervals: [1500, 2000, 3000] },
+      )
+      .toBe(1)
+
+    // The surviving desktop is the good one; the refused bad one left no row.
+    const domains = await unwrap(
+      adminTableList({ client: apiv4Admin, path: { table: 'domains' }, body: { kind: 'desktop' } }),
+    ).catch(() => [])
+    const depDesktops = (Array.isArray(domains) ? domains : []).filter((d) => d.tag === dep.id)
+    expect(depDesktops).toHaveLength(1)
+    expect(depDesktops[0].name).toContain('good-desktop')
+
+    // The deployment appears on the admin Deployments screen.
+    await findDeploymentRow(page, dep.id)
+
+    // And it can be deleted.
+    const del = await deleteDeployment({
+      client: apiv4Admin,
+      path: { deployment_id: dep.id },
+      query: { permanent: true },
+    })
+    expect(del.response?.status ?? 500).toBeLessThan(400)
+
+    await deleteTemplate({ client: apiv4Admin, path: { template_id: bad.id } }).catch(() => {})
   })
 
 })
