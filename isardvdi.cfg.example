@@ -1,4 +1,4 @@
-# Isard main config v3.0.18
+# Isard main config v3.0.19
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -285,7 +285,7 @@ DOCKER_IMAGE_TAG=main
 #GOLANG_RUN_IMAGE=alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.24@sha256:c0afc4864dca9c68694cd1290433f0ee79b5c55be80f6745a165ffe373b9a564
+HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.24@sha256:93a44f8c41de9ff3b7590316dc940d160544c537d04cc737dfbb6ae5769e13f4
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
@@ -309,12 +309,10 @@ LOG_LEVEL=INFO
 #SOCKETIO_DEBUG=
 
 ## ------ HAPROXIES
-## Comment/uncomment to deactivate/activate haproxy logging
-## (by default will log only bad response status)
+## Comment/uncomment to deactivate/activate haproxy logging.
+## Every stream is logged as one JSON line (timers, termination state, load,
+## client TCP round trip time and retransmits), plus connection errors.
 HAPROXY_LOGGING=.
-## Comment/uncomment to deactivate/activate haproxy success response status
-## (disabled by default)
-#HAPROXY_LOGGING_NORMAL=.
 
 ## ------ PROXY PROTOCOL
 ## Enable if IsardVDI runs behind a load balancer that sends PROXY protocol v2.
