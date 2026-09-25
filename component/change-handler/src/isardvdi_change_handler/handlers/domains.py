@@ -301,33 +301,26 @@ class DesktopDomainHandler:
             DesktopsProcessed._parse_desktop,
             new_val.model_dump(exclude_none=True),
         )
-        if start_logs_id:
-            if old_val.status != new_val.status:
-                if new_val.status == DesktopStatusEnum.started.value:
-                    Logging.logs_domain_start_engine(
-                        start_logs_id, new_val.id, new_val.hyp_started
-                    )
-                elif new_val.status in [
-                    DesktopStatusEnum.stopped.value,
-                    DesktopStatusEnum.failed.value,
-                ]:
-                    Logging.logs_domain_stop_engine(start_logs_id, new_val.status)
-                    await asyncio.to_thread(
-                        Scheduler.remove_desktop_timeouts, new_val.id
-                    )
-                    if new_val.persistent is False:
-                        await asyncio.to_thread(
-                            Scheduler.add_nonpersistent_desktop_delete_timeout,
-                            new_val.id,
-                        )
-        else:
-            if (
-                new_val.status == DesktopStatusEnum.started.value
-                and old_val.status != new_val.status
-            ):
+        if old_val.status != new_val.status:
+            if new_val.status == DesktopStatusEnum.started.value:
                 Logging.logs_domain_start_engine(
                     start_logs_id, new_val.id, new_val.hyp_started
                 )
+            elif new_val.status in [
+                DesktopStatusEnum.stopped.value,
+                DesktopStatusEnum.failed.value,
+            ]:
+                if start_logs_id:
+                    Logging.logs_domain_stop_engine(start_logs_id, new_val.status)
+                await asyncio.to_thread(Scheduler.remove_desktop_timeouts, new_val.id)
+                if (
+                    new_val.status == DesktopStatusEnum.stopped.value
+                    and new_val.persistent is False
+                ):
+                    await asyncio.to_thread(
+                        Scheduler.add_nonpersistent_desktop_delete_timeout,
+                        new_val.id,
+                    )
 
         # Send the updated desktop information to the user
         await self.emit(
