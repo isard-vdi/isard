@@ -1,0 +1,23 @@
+From 22e019344519b67ceeb31e13e4bd334d919cae90 Mon Sep 17 00:00:00 2001
+From: Bradley Bennett <bbennett@keepersecurity.com>
+Date: Thu, 2 Apr 2026 13:09:41 -0400
+Subject: [PATCH] GUACAMOLE-2255: Fix intermittent RDP error handling due to
+ uninitialized variable.
+
+---
+ src/protocols/rdp/rdp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/protocols/rdp/rdp.c b/src/protocols/rdp/rdp.c
+index e2524d63ca..3342079d04 100644
+--- a/src/protocols/rdp/rdp.c
++++ b/src/protocols/rdp/rdp.c
+@@ -624,7 +624,7 @@ static int guac_rdp_handle_connection(guac_client* client) {
+         if (wait_result < 0)
+             break;
+ 
+-        int connection_closing;
++        int connection_closing = 0;
+         do {
+ 
+             /* Handle any queued FreeRDP events (this may result in RDP messages
