@@ -39,6 +39,7 @@ from isardvdi_common.helpers.recycle_bin import (
 )
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.storage import verdict_for_blocked_disks
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 
 log = logging.getLogger(__name__)
@@ -757,6 +758,16 @@ class DesktopEvents(RethinkCustomBase):
         without clobbering an in-flight transition started by another
         process.
         """
+        # Only a terminal disk is refused: a disk still on its way is what the
+        # retry is for, and the engine answers ``Stopped`` for it truthfully.
+        blocked = [s.status for s in Domain(desktop_id).storages if s.status != "ready"]
+        if blocked and verdict_for_blocked_disks(blocked) != "Stopped":
+            raise Error(
+                error="precondition_required",
+                description="Desktop storage is %s and will not become ready"
+                % ", ".join(sorted(set(blocked))),
+                description_code="desktop_storage_not_ready",
+            )
         with cls._rdb_context():
             result = (
                 r.table("domains")
