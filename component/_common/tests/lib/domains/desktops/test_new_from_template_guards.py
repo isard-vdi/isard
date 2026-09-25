@@ -21,6 +21,7 @@ Guards pinned (line numbers on ``origin/main``):
 * template in an unusable status           (L575) -> template_not_ready
 * user not found                           (L586) -> not_found
 * allocate_storage with no parent storage  (L633) -> template_no_storage_id
+* template disk not ready (deleted/...)     (new)  -> template_storage_not_ready
 * media-info parsing failure re-raised      (L658) -> unable_to_parse_media
 * invalid desktop data re-raised            (L733) -> invalid_desktop_data
 """
@@ -149,3 +150,51 @@ class TestNewFromTemplateGuards:
             DP.new_from_template("d", "desc", "tmpl-1", "u-1", allocate_storage=False)
         assert exc.value.error["error"] == "bad_request"
         assert exc.value.error["description_code"] == "invalid_desktop_data"
+
+
+class TestTemplateStorageGuard:
+    """The template's disk must be ready, not only its status, before anything is inserted."""
+
+    @pytest.fixture
+    def parent_storage(self, monkeypatch):
+        state = {"status": "ready", "allocated": False}
+
+        class FakeStorage:
+            def __init__(self, storage_id):
+                assert storage_id == "st-parent"
+                self.status = state["status"]
+
+            @classmethod
+            def exists(cls, storage_id):
+                return storage_id == "st-parent"
+
+            @classmethod
+            def new_dict(cls, *args, **kwargs):
+                state["allocated"] = True
+                raise AssertionError("a disk was allocated under a non-ready parent")
+
+        monkeypatch.setattr(mod, "Storage", FakeStorage)
+        return state
+
+    def test_template_disk_not_ready_is_rejected_before_allocating(
+        self, stub, parent_storage
+    ):
+        parent_storage["status"] = "deleted"
+        with pytest.raises(Error) as exc:
+            DP.new_from_template("d", "desc", "tmpl-1", "u-1", allocate_storage=True)
+        assert exc.value.error["error"] == "precondition_required"
+        assert exc.value.error["description_code"] == "template_storage_not_ready"
+        assert parent_storage["allocated"] is False
+
+    @pytest.mark.parametrize("status", ["maintenance", "non_existing", "recycled"])
+    def test_any_non_ready_disk_status_is_rejected(self, stub, parent_storage, status):
+        parent_storage["status"] = status
+        with pytest.raises(Error) as exc:
+            DP.new_from_template("d", "desc", "tmpl-1", "u-1", allocate_storage=True)
+        assert exc.value.error["description_code"] == "template_storage_not_ready"
+
+    def test_a_ready_disk_passes_the_guard(self, stub, parent_storage):
+        # Reaching new_dict (which the fake turns into an AssertionError)
+        # proves the guard let the ready disk through.
+        with pytest.raises(AssertionError, match="allocated under a non-ready"):
+            DP.new_from_template("d", "desc", "tmpl-1", "u-1", allocate_storage=True)

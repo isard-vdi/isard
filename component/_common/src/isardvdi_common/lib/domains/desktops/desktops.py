@@ -452,58 +452,52 @@ class DesktopsProcessed(RethinkSharedConnection):
                 {"deployment_id": deployment["id"]},
                 [deployment["user"]] + deployment["co_owners"],
             )
-            for desktop in desktops:
-                # ``new_from_template`` and ``set_current_booking`` are
-                # both sync and hit RethinkDB / Redis. Running them in
-                # the asyncio event loop blocks every other request
-                # served by this process for the duration of the call
-                # (~250 ms each, more on a slow disk). ``asyncio.to_thread``
-                # offloads the sync work to the default executor while
-                # ``await`` keeps the event loop free for HTTP traffic
-                # and SocketIO broadcasts. The loop body remains
-                # sequential — the rethinkdb sync driver serialises
-                # access through ``_rdb_connection`` anyway, so true
-                # parallelism would need a per-task connection or the
-                # rethinkdb asyncio backend; not the goal here. The
-                # win is just keeping the event loop responsive during
-                # a bulk deployment.
-                result = await asyncio.to_thread(
-                    cls.new_from_template,
-                    desktop["name"],
-                    desktop["description"],
-                    desktop["template_id"],
-                    desktop["user_id"],
-                    desktop["domain_id"],
-                    desktop["deployment_tag_dict"],
-                    desktop["new_data"],
-                    desktop["image"],
-                    soft=True,
-                    # Phase-1 tiering: a deployment is a *bulk* mass-create, so
-                    # its per-desktop disk chains land on the bulk tier and can
-                    # never crowd the reserved interactive workers that serve
-                    # single user-is-waiting creates.
-                    priority="bulk",
+            try:
+                for desktop in desktops:
+                    # Sequential on purpose: the rethinkdb sync driver serialises
+                    # every call through ``_rdb_connection``.
+                    try:
+                        result = await asyncio.to_thread(
+                            cls.new_from_template,
+                            desktop["name"],
+                            desktop["description"],
+                            desktop["template_id"],
+                            desktop["user_id"],
+                            desktop["domain_id"],
+                            desktop["deployment_tag_dict"],
+                            desktop["new_data"],
+                            desktop["image"],
+                            soft=True,
+                            # A deployment must not crowd the interactive workers.
+                            priority="bulk",
+                        )
+                    except Error:
+                        # One desktop that cannot be built must not take the
+                        # rest of the deployment with it: log it and go on.
+                        log.exception(
+                            "new_from_templateTh: desktop %r for user %r in "
+                            "deployment %r could not be created; continuing",
+                            desktop.get("name"),
+                            desktop.get("user_id"),
+                            deployment["id"],
+                        )
+                        continue
+                    if result is not None:
+                        await asyncio.to_thread(
+                            Helpers.set_current_booking,
+                            {
+                                "id": result["id"],
+                                "tag": result["tag"],
+                                "create_dict": result["create_dict"],
+                            },
+                        )
+                    await asyncio.sleep(0.25)
+            finally:
+                send_socket_user(
+                    "end_creating_desktops",
+                    {"deployment_id": deployment["id"]},
+                    [deployment["user"]] + deployment["co_owners"],
                 )
-                if result is not None:
-                    await asyncio.to_thread(
-                        Helpers.set_current_booking,
-                        {
-                            "id": result["id"],
-                            "tag": result["tag"],
-                            "create_dict": result["create_dict"],
-                        },
-                    )
-                # Throttle ported from the legacy gevent.spawn version
-                # (api/src/api/libv2/api_desktops_persistent.py on main).
-                # Under gevent the original ``time.sleep(0.25)`` was
-                # monkey-patched into a cooperative yield. Under
-                # asyncio ``await asyncio.sleep`` is the equivalent.
-                await asyncio.sleep(0.25)
-            send_socket_user(
-                "end_creating_desktops",
-                {"deployment_id": deployment["id"]},
-                [deployment["user"]] + deployment["co_owners"],
-            )
 
         # Fire-and-forget the coroutine. Caller may be either an async
         # FastAPI route handler (we have a running event loop and can
@@ -712,6 +706,21 @@ class DesktopsProcessed(RethinkSharedConnection):
                     f"Template {template['id']} has no storage_id on disk 0; "
                     "cannot create via storage task.",
                     description_code="template_no_storage_id",
+                )
+            # The template's status is not enough: refuse a non-ready disk
+            # row here, before inserting, not later in the chain dispatch.
+            parent_status = (
+                Storage(parent_storage_id).status
+                if Storage.exists(parent_storage_id)
+                else None
+            )
+            if parent_status != "ready":
+                raise Error(
+                    "precondition_required",
+                    f"Template {template['id']} disk {parent_storage_id} is not "
+                    f"available (status={parent_status!r}); the template cannot "
+                    "be derived until its disk is repaired",
+                    description_code="template_storage_not_ready",
                 )
             pending_storage = Storage.new_dict(
                 user_id=user_id,
