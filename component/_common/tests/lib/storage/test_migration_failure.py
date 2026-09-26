@@ -587,6 +587,7 @@ def test_orphan_resume_is_bounded_and_never_move_deletes(monkeypatch):
         autostart_domains=[{"id": "d1", "was_on": True}],
         src_path="/src/s0.qcow2",
         dst_path="/dst/s0.qcow2",
+        dst_owned=True,
     )
     child = _it("s1", "s0", "pending")
     items = [root, child]
@@ -638,6 +639,7 @@ def test_cancel_skips_uncommitted_in_flight_tree(monkeypatch):
         autostart_domains=[{"id": "d1", "was_on": True}],
         src_path="/src/s0.qcow2",
         dst_path="/dst/s0.qcow2",
+        dst_owned=True,
     )
     child = _it("s1", "s0", "pending")
     items = [root, child]

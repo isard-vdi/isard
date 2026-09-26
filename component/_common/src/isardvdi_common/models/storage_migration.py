@@ -417,6 +417,8 @@ class StorageMigrationItemModel(BaseModel):
     dst_action: str | None = None
     dst_action_reason: str | None = None
     dst_task_id: str | None = None
+    #: the preflight found ``dst_path`` clear before this attempt's move
+    dst_owned: bool = False
     dst_retained: bool = False
     dst_retained_path: str | None = None
     #: the source failed qemu-img check during the pre-release gate

@@ -555,6 +555,7 @@ class MigrationRunner:
             verify_task_id=None,
             verify_passed=False,
             move_delete_task_id=None,
+            dst_owned=False,
             storage_orig_status=None,
             maintenance_domains=None,
             autostart_domains=None,
@@ -794,6 +795,17 @@ class MigrationRunner:
             return
         dst_path = item.get("dst_path")
         if not dst_path:
+            return
+        # without the preflight's proof the file may be the disk's only copy
+        if not item.get("dst_owned"):
+            log.warning(
+                "migration %s: not discarding %s for %s: not proven written by "
+                "this attempt",
+                self.migration_id,
+                dst_path,
+                item["storage_id"],
+            )
+            self._set(item, dst_retained=True, dst_retained_path=dst_path)
             return
         sid = item["storage_id"]
         if self._is_media(item):
@@ -1054,6 +1066,8 @@ class MigrationRunner:
                 set_fields={
                     "state": MigrationItemState.MOVING.value,
                     "move_task_id": fence,
+                    # a fresh move only ever follows a clear preflight
+                    "dst_owned": True,
                 },
             )
         else:
@@ -1073,6 +1087,8 @@ class MigrationRunner:
             )
         if not won:
             return  # another driver won the claim; do not double-submit the rsync
+        if observed is None:
+            item["dst_owned"] = True
         item["state"] = MigrationItemState.MOVING.value
         item["move_task_id"] = fence
         # RESUME of a gone move -> bound the orphan-resume (only the winner counts).

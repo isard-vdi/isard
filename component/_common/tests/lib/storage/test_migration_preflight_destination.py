@@ -182,3 +182,38 @@ def test_destination_exists_fails_the_disk_without_touching_anything(monkeypatch
     assert item["dst_retained_path"] == f"{DST_DIR}/s1.qcow2"
     assert caps["enqueued"] == [], "the pre-existing file must not be touched"
     assert item["audit"][-1]["result"] == "failed"
+
+
+# --------------------------------------------------------------------------- #
+# _start_move — a fresh move claims the destination, a resume does not
+# --------------------------------------------------------------------------- #
+def _move_runner(monkeypatch, item):
+    r, caps = _runner()
+    r._is_media = lambda it: False
+    r._prepare_disk_for_move = lambda it: True
+    r._move_queue = lambda path: "storage.pool-src.maintenance"
+    r._abandon_resume_blocked = lambda it: False
+    _fake_claim(monkeypatch, item, caps)
+    return r, caps
+
+
+def test_a_fresh_move_after_a_clear_preflight_owns_the_destination(monkeypatch):
+    item = _item("pending", preflight_task_id="pf-done", move_task_id=None)
+    r, caps = _move_runner(monkeypatch, item)
+
+    r._start_move(item)
+
+    assert caps["claims"][0]["dst_owned"] is True
+    assert item["dst_owned"] is True
+    assert item["state"] == "moving"
+    assert [t for t, _q, _k in caps["enqueued"]] == ["move"]
+
+
+def test_a_resumed_move_does_not_claim_a_destination_it_never_proved(monkeypatch):
+    item = _item("moving", preflight_task_id=None, move_task_id="gone-tid")
+    r, caps = _move_runner(monkeypatch, item)
+
+    r._start_move(item)
+
+    assert "dst_owned" not in caps["claims"][0]
+    assert not item.get("dst_owned")
