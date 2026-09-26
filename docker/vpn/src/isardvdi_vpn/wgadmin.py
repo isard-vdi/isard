@@ -25,7 +25,7 @@ log.basicConfig(
 
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from isardvdi_common.redis_stream import RedisStreamConsumer
-from isardvdi_vpn import tunnel_monitor
+from isardvdi_vpn import dhcp_reports, tunnel_monitor
 from isardvdi_vpn.db import vpn_rethink_conn
 from isardvdi_vpn.wg_monitor import start_monitoring_vpn_status
 from isardvdi_vpn.wgtools import Wg
@@ -259,6 +259,7 @@ geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "tru
 def main():
     start_monitoring_vpn_status()
     tunnel_monitor.start()
+    dhcp_reports.start()
 
     log.info("Starting isard-vpn...")
 
