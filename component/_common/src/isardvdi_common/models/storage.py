@@ -713,6 +713,36 @@ class Storage(RethinkCustomBase):
         if cls.exists(storage_id):
             return cls(storage_id)
 
+    @classmethod
+    def write_reading(cls, reading):
+        """Write a task's reading of the disk in one operation; a ``ready``
+        reading keeps a row already sent to the recycle bin ``recycled``.
+        Returns the row's status afterwards, or None when there is no row."""
+        data = {k: v for k, v in reading.items() if k != "id"}
+        if "status" in data:
+            data["status_time"] = time()
+        change = data
+        if data.get("status") == "ready":
+            change = lambda row: r.branch(
+                row["status"].default(None).eq("recycled"),
+                r.expr(data).without("status", "status_time"),
+                data,
+            )
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(reading["id"])
+                .update(change, return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if new is None:
+            return None
+        return new.get("status")
+
     @property
     def statuses(self):
         """

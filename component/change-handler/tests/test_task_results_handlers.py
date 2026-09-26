@@ -43,7 +43,7 @@ async def test_storage_update_skips_when_depending_status_not_finished():
         await storage.handle_storage_update(
             redis_manager, task, id="s1", status="ready"
         )
-    mock_storage_cls.init_document.assert_not_called()
+    mock_storage_cls.write_reading.assert_not_called()
     mock_send.assert_not_awaited()
 
 
@@ -68,11 +68,58 @@ async def test_storage_update_indirect_walks_qemu_img_info_dependency():
         patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
     ):
         mock_storage_cls.exists.return_value = True
-        mock_storage_cls.init_document.return_value = storage_obj
+        mock_storage_cls.write_reading.return_value = "ready"
+        mock_storage_cls.return_value = storage_obj
         await storage.handle_storage_update(redis_manager, task)
 
-    mock_storage_cls.init_document.assert_called_once_with(id="s1", status="ready")
+    mock_storage_cls.write_reading.assert_called_once_with(
+        {"id": "s1", "status": "ready"}
+    )
     mock_send.assert_awaited_once_with(redis_manager, "s1", "ready", "u1")
+
+
+@pytest.mark.asyncio
+async def test_storage_update_reports_the_status_the_row_kept():
+    """A disk sent to the recycle bin while its task read it stays recycled:
+    the socket says so, and no desktop is promoted to Stopped for it."""
+    from isardvdi_change_handler.task_results import storage
+
+    task = _task()
+    redis_manager = AsyncMock()
+    domain_obj = MagicMock(status="Maintenance")
+    storage_obj = MagicMock()
+    storage_obj.domains = [domain_obj]
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.write_reading.return_value = "recycled"
+        mock_storage_cls.return_value = storage_obj
+        await storage.handle_storage_update(
+            redis_manager, task, id="s1", status="ready"
+        )
+
+    mock_send.assert_awaited_once_with(redis_manager, "s1", "recycled", "u1")
+    assert domain_obj.status == "Maintenance"
+
+
+@pytest.mark.asyncio
+async def test_storage_update_writes_nothing_once_the_row_is_gone():
+    from isardvdi_change_handler.task_results import storage
+
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.write_reading.return_value = None
+        await storage.handle_storage_update(
+            AsyncMock(), _task(), id="s1", status="ready"
+        )
+
+    mock_storage_cls.assert_not_called()
+    mock_send.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -547,7 +594,8 @@ def test_orphan_propagation_walks_through_already_deleted_rows():
 
     with patch.object(storage, "Storage") as mock_storage_cls:
         mock_storage_cls.exists.return_value = True
-        mock_storage_cls.init_document.return_value = storage_obj
+        mock_storage_cls.write_reading.return_value = "orphan"
+        mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
 
     assert storage_obj.asked_with == [True]
@@ -565,7 +613,8 @@ def test_orphan_propagation_is_skipped_for_a_healthy_status():
 
     with patch.object(storage, "Storage") as mock_storage_cls:
         mock_storage_cls.exists.return_value = True
-        mock_storage_cls.init_document.return_value = storage_obj
+        mock_storage_cls.write_reading.return_value = "maintenance"
+        mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "maintenance"})
 
     assert storage_obj.asked_with == []
@@ -599,7 +648,8 @@ def test_orphan_propagation_fails_domains_behind_a_deleted_row():
 
     with patch.object(storage, "Storage") as mock_storage_cls:
         mock_storage_cls.exists.return_value = True
-        mock_storage_cls.init_document.return_value = storage_obj
+        mock_storage_cls.write_reading.return_value = "orphan"
+        mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
 
     assert ("domains", True) in storage_obj.asked_with

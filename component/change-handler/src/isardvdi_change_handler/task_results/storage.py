@@ -106,11 +106,14 @@ def _apply_storage_update(storage_dict):
     Factored out of :func:`handle_storage_update` so
     :func:`handle_storage_update_pool` (which composes multiple
     storage updates inline) can reuse the same body without
-    re-checking ``depending_status``.
+    re-checking ``depending_status``. Returns the row's status afterwards.
     """
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
-    storage_object = Storage.init_document(**storage_dict)
+    status = Storage.write_reading(storage_dict)
+    if status is None:
+        return None
+    storage_object = Storage(storage_dict["id"])
     if storage_dict.get("status") in ("deleted", "orphan", "broken_chain"):
         # Walk *through* the already-deleted rows: a purge run with ``move``
         # renames the file into ``deleted/`` instead of unlinking it, so a
@@ -126,9 +129,9 @@ def _apply_storage_update(storage_dict):
         for child in storage_object.dependents(include_deleted=True):
             if child.status != "deleted":
                 child.status = "orphan"
-    if storage_dict.get("status") == "ready":
+    if storage_dict.get("status") == "ready" and status == "ready":
         _promote_domains_to_stopped(storage_object)
-    return storage_object
+    return status
 
 
 def _resolve_user_category(user_id):
@@ -232,12 +235,13 @@ async def handle_storage_update(redis_manager, task, **storage_dict):
     if task.depending_status != "finished":
         return
     if storage_dict:
-        if _apply_storage_update(storage_dict) is None:
+        status = _apply_storage_update(storage_dict)
+        if status is None:
             return
         await send_status_socket(
             redis_manager,
             storage_dict["id"],
-            storage_dict.get("status"),
+            status,
             task.user_id,
         )
         return
@@ -271,12 +275,13 @@ async def handle_storage_update_dict(redis_manager, task, **storage_dict):
     """
     if not storage_dict:
         return
-    if _apply_storage_update(storage_dict) is None:
+    status = _apply_storage_update(storage_dict)
+    if status is None:
         return
     await send_status_socket(
         redis_manager,
         storage_dict["id"],
-        storage_dict.get("status"),
+        status,
     )
 
 
