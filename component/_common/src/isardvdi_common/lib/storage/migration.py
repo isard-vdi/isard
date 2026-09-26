@@ -1439,6 +1439,27 @@ def plan_tree_rearm(tree_ledger, policy, quarantine_after):
     return [], rearm
 
 
+def plan_tree_return(tree_ledger):
+    """Released disks of a settled tree, to move afresh: the re-plan only offers
+    a disk that sits on the source again, so a released one came back."""
+    settled = {"released", "failed", "skipped"}
+    if any(str(it["state"]) not in settled for it in tree_ledger):
+        return []
+    return [it for it in tree_ledger if str(it["state"]) == "released"]
+
+
+def reserving_items(items):
+    """Ledger items that still hold their disk: all but the released disks of a
+    tree with nothing left to do."""
+    settled = {"released", "failed", "skipped", "quarantined"}
+    open_trees = {it["tree_id"] for it in items if str(it["state"]) not in settled}
+    return [
+        it
+        for it in items
+        if str(it["state"]) != "released" or it["tree_id"] in open_trees
+    ]
+
+
 def build_audit_record(item, result, occurrence, now):
     """One append-only AUDIT record for the downloadable log: what happened to a
     disk on a given occurrence. ``result`` is one of moved_ok | failed | skipped |

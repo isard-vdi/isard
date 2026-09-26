@@ -236,10 +236,13 @@ class AdminStorageMigrationService:
         existing = []
         for m in active:
             recurring = bool((m.config or {}).get("recurring"))
-            # one-shot reserves its ledger disks (read, never rebuilt); a
+            # one-shot reserves the ledger disks it still holds; a
             # recurring job additionally reserves its live re-resolved scope.
             reserved = {
-                it["storage_id"] for it in StorageMigrationItem.dicts_by_migration(m.id)
+                it["storage_id"]
+                for it in mig.reserving_items(
+                    StorageMigrationItem.dicts_by_migration(m.id)
+                )
             }
             if recurring:
                 reserved |= mig.resolved_disk_ids(m.selection or {})
