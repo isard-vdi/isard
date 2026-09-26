@@ -43,13 +43,20 @@ def stub_rdb(monkeypatch):
     )
 
     mock_table = MagicMock(name="r.table")
+    mock_table.return_value.get_all.return_value.filter.return_value.update.return_value.run.return_value = {
+        "replaced": 1,
+        "unchanged": 0,
+        "skipped": 0,
+        "errors": 0,
+    }
     monkeypatch.setattr(mod.r, "table", mock_table)
     yield {"mock_table": mock_table, "Processed": mod.HypervisorsProcessed}
 
 
 class TestUpdateWgAddressAlwaysWrites:
     def test_repeated_same_mac_and_ip_writes_every_time(self, stub_rdb):
-        get = stub_rdb["mock_table"].return_value.get
+        get = stub_rdb["mock_table"].return_value.get_all
+        write = get.return_value.filter.return_value.update
         data = {"viewer": {"guest_ip": "192.168.128.76"}}
 
         first = stub_rdb["Processed"].update_wg_address("52:54:00:2c:7a:13", data)
@@ -57,8 +64,8 @@ class TestUpdateWgAddressAlwaysWrites:
 
         assert first == "desktop-1"
         assert second == "desktop-1"
-        assert get.return_value.update.call_count == 2
-        assert get.return_value.update.return_value.run.call_count == 2
+        assert write.call_count == 2
+        assert write.return_value.run.call_count == 2
 
     def test_mac_is_resolved_again_on_every_call(self, stub_rdb, monkeypatch):
         """The write must target what the MAC resolves to now, not an earlier result."""
@@ -70,7 +77,7 @@ class TestUpdateWgAddressAlwaysWrites:
             "get_domain_id_from_wg_mac",
             classmethod(lambda cls, wg_mac: next(resolved)),
         )
-        get = stub_rdb["mock_table"].return_value.get
+        get = stub_rdb["mock_table"].return_value.get_all
         data = {"viewer": {"guest_ip": "192.168.128.76"}}
 
         assert stub_rdb["Processed"].update_wg_address("52:54:00:2c:7a:13", data) == (
