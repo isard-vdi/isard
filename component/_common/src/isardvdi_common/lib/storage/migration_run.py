@@ -677,26 +677,40 @@ class MigrationRunner:
         free, total = probe.get("free_bytes"), probe.get("total_bytes")
         return None if free is None else (free, total)
 
-    def _space_floor_breached(self):
-        """Whether the destination has dropped below the free-space floor
-        (percentage and/or bytes). Only for an actively-moving job; a complete or
-        idle one has nothing to protect, and an unknown reading never breaches."""
+    def _paused_for_space(self):
+        return (
+            str(self.migration.status) == MigrationStatus.PAUSED.value
+            and getattr(self.migration, "pause_reason", None) == "space"
+        )
+
+    def _space_floor_state(self):
+        """True below the floor, False above it, None when there is no reading."""
         min_free_pct = int(self.config.get("min_free_pct") or 0)
         min_free_bytes = int(self.config.get("min_free_bytes") or 0)
         if not (min_free_pct or min_free_bytes):
             return False
-        if str(self.migration.status) not in (
-            MigrationStatus.RUNNING.value,
-            MigrationStatus.WINDOW_CLOSED.value,
+        if (
+            str(self.migration.status)
+            not in (
+                MigrationStatus.RUNNING.value,
+                MigrationStatus.WINDOW_CLOSED.value,
+            )
+            and not self._paused_for_space()
         ):
             return False
         if self.is_complete():
             return False
         reading = self.free_space_fn()
         if reading is None:
-            return False
+            return None
         free, total = reading
         return mig.space_floor_breached(free, total, min_free_pct, min_free_bytes)
+
+    def _space_floor_breached(self):
+        """Whether the destination has dropped below the free-space floor
+        (percentage and/or bytes). Only for an actively-moving job; a complete or
+        idle one has nothing to protect, and an unknown reading never breaches."""
+        return self._space_floor_state() is True
 
     def _pause_for_space(self):
         """Pause the job and record why in the durable log. No more moves are
@@ -706,17 +720,39 @@ class MigrationRunner:
         free, total = probe.get("free_bytes"), probe.get("total_bytes")
         pct = mig.free_pct(free, total)
         min_free_pct = int(self.config.get("min_free_pct") or 0)
-        shown = "unknown" if pct is None else f"{pct:.1f}%"
+        min_free_bytes = int(self.config.get("min_free_bytes") or 0)
         self._log(
             "paused_min_free",
-            f"destination below the free-space floor ({shown} free, floor "
-            f"{min_free_pct}%); pausing, no more moves enqueued",
+            f"destination below the free-space floor "
+            f"({mig.describe_space_floor(free, total, min_free_pct, min_free_bytes)})"
+            "; pausing, no more trees started until it clears",
             free_bytes=free,
             total_bytes=total,
             free_pct=pct,
             min_free_pct=min_free_pct,
+            min_free_bytes=min_free_bytes,
         )
+        self.migration.pause_reason = "space"
         self.migration.status = MigrationStatus.PAUSED.value
+
+    def _resume_after_space(self):
+        probe = getattr(self.migration, "space_probe", None) or {}
+        free, total = probe.get("free_bytes"), probe.get("total_bytes")
+        min_free_pct = int(self.config.get("min_free_pct") or 0)
+        min_free_bytes = int(self.config.get("min_free_bytes") or 0)
+        self._log(
+            "resumed_min_free",
+            f"destination back above the free-space floor "
+            f"({mig.describe_space_floor(free, total, min_free_pct, min_free_bytes)})"
+            "; resuming",
+            free_bytes=free,
+            total_bytes=total,
+            free_pct=mig.free_pct(free, total),
+            min_free_pct=min_free_pct,
+            min_free_bytes=min_free_bytes,
+        )
+        self.migration.pause_reason = None
+        self.migration.status = MigrationStatus.RUNNING.value
 
     def _log(self, event, message, **data):
         """Append one entry to the migration's durable ``logs`` list."""
@@ -1566,7 +1602,7 @@ class MigrationRunner:
             # the loop only throttles a running job and only resumes its own
             # pause; a manual/failure pause and every other parked status are left.
             if status == MigrationStatus.PAUSED.value:
-                return True
+                return not self._paused_for_space()
             if status != MigrationStatus.RUNNING.value:
                 return False
         load_state = dict(self.migration.load_state or {})
@@ -1634,16 +1670,22 @@ class MigrationRunner:
         # dropped below the floor is PAUSED before any more moves are enqueued
         # (in-flight ones finish). Checked while the window is open, when trees
         # would otherwise start/advance; the start gate is the apiv4 service's.
-        if not finishing and win_open and self._space_floor_breached():
-            self._pause_for_space()
-            self._publish_progress()
-            return [("__space__", None, "paused_min_free")]
+        space_paused = self._paused_for_space()
+        if not finishing and win_open:
+            if space_paused:
+                if self._space_floor_state() is False:
+                    self._resume_after_space()
+                    space_paused = False
+            elif self._space_floor_breached():
+                self._pause_for_space()
+                self._publish_progress()
+                return [("__space__", None, "paused_min_free")]
 
         # RECURRING re-scan (per rescan_cadence): re-resolve the selection and add
         # newly-matching disks (occurrence edge also re-arms failed/skipped disks
         # + quarantines per failure_policy). Runs BEFORE reading items so fresh
         # pending rows drain this same tick. No-op for a one-shot job.
-        if not finishing:
+        if not finishing and not space_paused:
             self._maybe_rescan_occurrence()
 
         # Mandatory autostart guard: deactivate autostart for the whole job before
@@ -1710,8 +1752,10 @@ class MigrationRunner:
                     )
                     results.append((tree_id, None, "canceled"))
                     continue
-                if slots <= 0 or not self._admit_tree(
-                    tree_items, win_open, remaining_s
+                if (
+                    space_paused
+                    or slots <= 0
+                    or not self._admit_tree(tree_items, win_open, remaining_s)
                 ):
                     results.append((tree_id, None, "deferred"))
                     continue
@@ -1791,7 +1835,7 @@ class MigrationRunner:
             # failed disk next occurrence. Autostart stays suppressed (a
             # mid-migration disk must not autostart) until the job truly
             # completes or is canceled.
-            if cur != MigrationStatus.PAUSED.value:
+            if cur != MigrationStatus.PAUSED.value or space_paused:
                 # tag the reason so the adaptive loop never mistakes a failure
                 # pause for its own load pause and auto-resumes it.
                 self.migration.pause_reason = "failure"
@@ -1814,7 +1858,9 @@ class MigrationRunner:
             if cur != target:
                 self.reactivate()  # crash-safe autostart restore, once per settle
                 self.migration.status = target
-        else:
+                if space_paused:
+                    self.migration.pause_reason = None
+        elif not space_paused:
             target = mig.recurring_status_target(
                 False,
                 any_in_flight,
@@ -1955,10 +2001,10 @@ def advance(migration_id, *, check_abandon=True):
         return "gone"
     m = StorageMigration(migration_id)
     status = str(m.status)
-    # A load-paused adaptive job stays drivable so the loop can re-sample and
+    # A load- or space-paused job stays drivable so the tick can re-sample and
     # resume it; a manual/failure pause does not (it waits for the admin).
     if status not in _DRIVABLE_STATUSES and not (
-        status == MigrationStatus.PAUSED.value and m.pause_reason == "load"
+        status == MigrationStatus.PAUSED.value and m.pause_reason in ("load", "space")
     ):
         return "not_drivable"
     # ONE connection per advance(), reused for acquire/reacquire/release, with a

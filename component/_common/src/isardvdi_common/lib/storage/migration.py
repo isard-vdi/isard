@@ -314,6 +314,25 @@ def space_floor_breached(free_bytes, total_bytes, min_free_pct, min_free_bytes=0
     return False
 
 
+def describe_space_floor(free_bytes, total_bytes, min_free_pct, min_free_bytes=0):
+    """``"<free> free of <total>; floor <pct>% and/or <bytes>"`` for logs and errors."""
+    gib = 1024**3
+    pct = free_pct(free_bytes, total_bytes)
+    shown = "unknown" if free_bytes is None else f"{free_bytes / gib:,.0f} GiB"
+    if pct is not None:
+        shown += f" ({pct:.1f}%)"
+    if total_bytes:
+        shown += f" free of {total_bytes / gib:,.0f} GiB"
+    else:
+        shown += " free"
+    floors = []
+    if min_free_pct:
+        floors.append(f"{min_free_pct}%")
+    if min_free_bytes:
+        floors.append(f"{min_free_bytes / gib:,.0f} GiB")
+    return f"{shown}; floor {' and '.join(floors) or 'none'}"
+
+
 def build_tree_items(migration_id, root_id, get_children, node_info, order=None):
     """Build the ``storage_migration_item`` dicts (state ``pending``) for ONE
     tree, in topo order.
