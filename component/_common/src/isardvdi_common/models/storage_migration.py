@@ -329,6 +329,8 @@ class StorageMigrationModel(BaseModel):
     totals: MigrationTotals = Field(default_factory=MigrationTotals)
     #: EWMA MB/s keyed on "<src_pool>:<dst_pool>" (P2 window/ETA)
     throughput_ewma: dict = Field(default_factory=dict)
+    #: bytes committed and seconds spent with a tree in flight, for the job ETA
+    job_rate: dict = Field(default_factory=dict)
     current_window: dict | None = None
     #: occurrence key (start-date string, e.g. "2026-07-01") of the most recent
     #: re-scan; drives fresh-occurrence detection for a recurring job. None until
