@@ -14,8 +14,7 @@ broken one ready, so the mapping is pinned:
 * "Could not open '<parent>'" where parent is this disk's backing -> orphan
 * "Could not open '<parent>'" where it is NOT the backing -> broken_chain
 
-DB-free: it runs with no RQ job (the _publishes_result decorator no-ops),
-and only the qemu-img subprocess (``run``) and the sibling ``qemu_img_info``
+DB-free: it runs with no RQ job, and only the qemu-img subprocess (``run``) and the sibling ``qemu_img_info``
 lookup are stubbed.
 """
 

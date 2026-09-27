@@ -26,7 +26,6 @@ import tempfile
 import threading
 import traceback
 from contextlib import contextmanager
-from functools import wraps
 from json import loads
 from os import makedirs, remove, rename
 from os import stat as os_stat
@@ -109,62 +108,6 @@ def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra)
         )
     except Exception:
         log.exception("Failed to XADD task-result event for %s", task_id)
-
-
-def _publishes_result(func):
-    """Decorator for storage-worker RQ task functions.
-
-    Publishes a single ``kind=result`` event to ``stream:task-results``
-    when the wrapped function returns (``job_status=finished``) or
-    raises (``job_status=failed``). Re-raises the original exception so
-    RQ's chain semantics are unchanged. A no-op outside an RQ context
-    so unit tests that call the bare function still work.
-    """
-    task_name = func.__name__
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            result = func(*args, **kwargs)
-        except BaseException:
-            job = get_current_job()
-            # Only announce a failure once RQ has actually given up. It retries
-            # while ``retries_left`` is positive (``Job.should_retry``), and
-            # ``find`` / ``check_backing_chain`` are created with ``retry=3``,
-            # so publishing on every raised attempt made the change-handler run
-            # the chain's FAILURE branch and delete its core dependents while
-            # the task was still going to run again — leaving the successful
-            # retry with no finalizers to drive.
-            retries_left = getattr(job, "retries_left", None) if job else None
-            if job is not None and not (retries_left and retries_left > 0):
-                _publish_task_event(
-                    job.connection,
-                    kind="result",
-                    task_id=job.id,
-                    task_name=task_name,
-                    queue=job.origin,
-                    job_status="failed",
-                    # echo the migration id (stamped into job.meta by the
-                    # reconciler _enqueue) so an edge-triggered consumer can route
-                    # a wake to advance(this migration). None for non-migration
-                    # tasks -> dropped by _publish_task_event.
-                    migration_id=(getattr(job, "meta", None) or {}).get("migration_id"),
-                )
-            raise
-        job = get_current_job()
-        if job is not None:
-            _publish_task_event(
-                job.connection,
-                kind="result",
-                task_id=job.id,
-                task_name=task_name,
-                queue=job.origin,
-                job_status="finished",
-                migration_id=(getattr(job, "meta", None) or {}).get("migration_id"),
-            )
-        return result
-
-    return wrapper
 
 
 def _safe_unlink(path):
@@ -432,9 +375,8 @@ def _run_cancellable(command):
     cancel could be honoured until the child finished.
 
     :raises subprocess.CalledProcessError: rc 130 when cancelled mid-run
-        (so the ``_publishes_result`` decorator publishes
-        ``job_status="failed"`` and the chain takes its cleanup branch), or
-        the real non-zero rc on a genuine failure.
+        (so the job's result is ``job_status="failed"`` and the chain takes its
+        cleanup branch), or the real non-zero rc on a genuine failure.
     """
     job = get_current_job()
     if job is None:
@@ -723,8 +665,7 @@ def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
                 # progress meta value, defer to it.
                 #
                 # The XADD is open-coded (rather than calling the shared
-                # ``_publish_task_event`` helper that ``_publishes_result``
-                # uses) so this branch is self-contained — it lands
+                # ``_publish_task_event`` helper) so this branch is self-contained — it lands
                 # independently of the task-results-stream-consumer MR
                 # chain. If both code paths converge later, the two XADD
                 # shapes are identical (``stream:task-results``,
@@ -767,7 +708,6 @@ def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
         thread.join(timeout=1.0)
 
 
-@_publishes_result
 def create(
     storage_path,
     storage_type,
@@ -890,7 +830,6 @@ def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
 
 
-@_publishes_result
 def qemu_img_info_backing_chain(
     storage_id, storage_path, storage_type="qcow2", qcow2_geometry=None
 ):
@@ -1268,7 +1207,6 @@ def _run_curl_download(
     return True
 
 
-@_publishes_result
 def download_url(
     media_id,
     url,
@@ -1323,7 +1261,6 @@ def download_url(
     }
 
 
-@_publishes_result
 def download_url_for_domain(
     domain_id,
     storage_id,
@@ -1393,7 +1330,6 @@ def download_url_for_domain(
     }
 
 
-@_publishes_result
 def check_media_existence(media_id, path):
     """
     Returns Media data with `Downloaded` status if file exists otherwise with `deleted` status.
@@ -1412,7 +1348,6 @@ def check_media_existence(media_id, path):
     return media
 
 
-@_publishes_result
 def check_backing_filename():
     """
     Check backing filename
@@ -1434,7 +1369,6 @@ def check_backing_filename():
     return result
 
 
-@_publishes_result
 def move(
     origin_path,
     destination_path,
@@ -1558,7 +1492,6 @@ def move(
     )
 
 
-@_publishes_result
 def move_delete(path):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
@@ -1598,7 +1531,6 @@ def _storage_qcow():
     return qcow
 
 
-@_publishes_result
 def rebase(child_path, new_backing_path, verify=False):
     """Re-point a qcow2 child's backing file to its parent's NEW path.
 
@@ -1608,10 +1540,9 @@ def rebase(child_path, new_backing_path, verify=False):
     which runs ``qemu-img rebase -u -b <new_backing_path> -F qcow2 <child>`` and
     refuses (returns failure) if the child is locked by a hypervisor.
 
-    Runs on a ``storage.*`` queue and is decorated ``@_publishes_result`` so its
-    completion is published to ``stream:task-results`` and change-handler
-    advances the chain (its ``core`` dependents — ``storage_update`` /
-    ``update_status``).
+    Runs on a ``storage.*`` queue, so its completion is published to
+    ``stream:task-results`` and change-handler advances the chain (its ``core``
+    dependents — ``storage_update`` / ``update_status``).
 
     ``-u`` (unsafe / metadata-only) is correct ONLY when the backing CONTENT is
     unchanged and only its path moved — exactly the migration case, where the
@@ -1647,7 +1578,6 @@ def rebase(child_path, new_backing_path, verify=False):
 DAMAGED_SOURCE_MARK = "migration: damaged source"
 
 
-@_publishes_result
 def migration_verify_destination(
     dst_path, expect_backing=None, expect_bytes=None, src_path=None
 ):
@@ -1727,7 +1657,6 @@ def migration_verify_destination(
     return {"leaks": int(report.get("leaks") or 0), "summary": report["summary"]}
 
 
-@_publishes_result
 def pool_free_space(path):
     """Read a pool's free/total space for the migration percentage floor.
 
@@ -1766,7 +1695,6 @@ def pool_free_space(path):
     return {"path": path, "free_bytes": free, "total_bytes": total, "source": source}
 
 
-@_publishes_result
 def migration_verify_destination_absent(dst_path):
     """Refuse a migration copy onto a path that already holds a file.
 
@@ -1782,7 +1710,6 @@ def migration_verify_destination_absent(dst_path):
     return 0
 
 
-@_publishes_result
 def convert(
     source_disk_path,
     dest_disk_path,
@@ -1889,8 +1816,8 @@ def convert(
         raise
     if rc != 0:
         # qemu-img convert failed (e.g. ENOSPC). run_with_progress returns the
-        # non-zero rc instead of raising, so returning it here would let the
-        # _publishes_result decorator publish job_status="finished" and the
+        # non-zero rc instead of raising, so returning it here would publish
+        # job_status="finished" and the
         # destination would be marked ready — a partial/corrupt disk read as a
         # good one. Remove it and raise.
         _safe_unlink(dest_disk_path)
@@ -1898,7 +1825,6 @@ def convert(
     return rc
 
 
-@_publishes_result
 def delete(path):
     """
     Delete disk.
@@ -1919,7 +1845,6 @@ def delete(path):
     raise FileNotFoundError(f"delete: {path} parent directory unreachable")
 
 
-@_publishes_result
 def virt_win_reg(storage_path, registry_patch):
     """
     Copy reg file to tmp
@@ -1976,7 +1901,6 @@ def virt_win_reg(storage_path, registry_patch):
         raise
 
 
-@_publishes_result
 def resize(storage_path, increment):
     """
     Increase disk size
@@ -2009,7 +1933,6 @@ def resize(storage_path, increment):
         raise
 
 
-@_publishes_result
 def find(storage_id, storage_path, full_walk=False):
     """
     Find storage path from storage_id recursively in base_path.
@@ -2111,7 +2034,6 @@ def find(storage_id, storage_path, full_walk=False):
         raise
 
 
-@_publishes_result
 def touch(path):
     """
     Update the access and modification times of a file.
@@ -2144,7 +2066,6 @@ def _format_size(kb):
         return f"{kb / (1024 * 1024):.2f} GB"
 
 
-@_publishes_result
 def sparsify(storage_path):
     """
     Sparsify disk
@@ -2246,7 +2167,6 @@ def sparsify(storage_path):
     }
 
 
-@_publishes_result
 def disconnect(
     storage_path,
     *,
