@@ -755,6 +755,34 @@ class Storage(RethinkCustomBase):
             return None
         return new.get("status")
 
+    @classmethod
+    def write_status(cls, storage_id, status):
+        """Write a chain's final status in one operation. A row in the recycle
+        bin, or deleted, only takes ``deleted``. Returns the row's status
+        afterwards, or None when there is no row."""
+        data = {"status": status, "status_time": time()}
+        change = data
+        if status != "deleted":
+            change = lambda row: r.branch(
+                r.expr(["recycled", "deleted"]).contains(row["status"].default(None)),
+                {},
+                data,
+            )
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(storage_id)
+                .update(change, return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if new is None:
+            return None
+        return new.get("status")
+
     def _refuse_if_recycled(self):
         if self.status == "recycled":
             from isardvdi_common.helpers.error_factory import Error

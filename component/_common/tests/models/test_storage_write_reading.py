@@ -54,6 +54,11 @@ class _Expr(dict):
         return {k: v for k, v in self.items() if k not in fields}
 
 
+class _List(list):
+    def contains(self, value):
+        return _Bool(value._value in self)
+
+
 class _Get:
     def __init__(self, store, doc_id):
         self.store, self.doc_id = store, doc_id
@@ -86,7 +91,7 @@ class _R:
 
     @staticmethod
     def expr(value):
-        return _Expr(value)
+        return _List(value) if isinstance(value, list) else _Expr(value)
 
 
 @pytest.fixture
@@ -161,6 +166,32 @@ def test_a_reading_started_after_the_deletion_recovers_the_row(store):
     assert Storage.write_reading({"id": "s1", "status": "ready"}, read_at=200) == (
         "ready"
     )
+
+
+@pytest.mark.parametrize(
+    "current, written, expected",
+    [
+        ("recycled", "ready", "recycled"),
+        ("recycled", "maintenance", "recycled"),
+        ("deleted", "ready", "deleted"),
+        ("recycled", "deleted", "deleted"),
+        ("maintenance", "ready", "ready"),
+        ("ready", "deleted", "deleted"),
+    ],
+)
+def test_write_status_never_brings_a_row_out_of_the_bin(
+    store, current, written, expected
+):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": current}
+    assert Storage.write_status("s1", written) == expected
+    assert rows["s1"]["status"] == expected
+
+
+def test_write_status_for_a_row_that_is_gone_writes_nothing(store):
+    Storage, rows = store
+    assert Storage.write_status("s1", "ready") is None
+    assert rows == {}
 
 
 def test_a_reading_for_a_row_that_is_gone_writes_nothing(store):

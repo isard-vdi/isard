@@ -194,13 +194,14 @@ async def test_update_status_applies_all_branch_and_storage_socket():
     }
     with (
         patch.object(storage, "_ITEM_CLASS_MAP", fake_map),
+        patch.object(storage, "Storage") as mock_storage_cls,
         patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
     ):
+        mock_storage_cls.write_status.return_value = "ready"
         await storage.handle_update_status(redis_manager, task, statuses=statuses)
 
-    fake_storage_model.insert_document.assert_called_once_with(
-        {"id": "s1", "status": "ready"}, conflict="update"
-    )
+    mock_storage_cls.write_status.assert_called_once_with("s1", "ready")
+    fake_storage_model.insert_document.assert_not_called()
     mock_send.assert_awaited_once_with(redis_manager, "s1", "ready")
 
 
@@ -218,12 +219,52 @@ async def test_update_status_dispatches_per_depending_status():
     fake_map = {"storage": fake_storage_model}
     with (
         patch.object(storage, "_ITEM_CLASS_MAP", fake_map),
+        patch.object(storage, "Storage") as mock_storage_cls,
         patch.object(storage, "send_status_socket", new=AsyncMock()),
     ):
+        mock_storage_cls.write_status.return_value = "maintenance"
         await storage.handle_update_status(redis_manager, task, statuses=statuses)
-    fake_storage_model.insert_document.assert_called_once_with(
-        {"id": "s2", "status": "maintenance"}, conflict="update"
+    mock_storage_cls.write_status.assert_called_once_with("s2", "maintenance")
+
+
+@pytest.mark.asyncio
+async def test_update_status_reports_the_status_a_binned_row_kept():
+    from isardvdi_change_handler.task_results import storage
+
+    statuses = {"_all": {"ready": {"storage": ["s1"]}, "Stopped": {"domain": ["d1"]}}}
+    fake_domain_model = MagicMock()
+    with (
+        patch.object(
+            storage,
+            "_ITEM_CLASS_MAP",
+            {"storage": MagicMock(), "domain": fake_domain_model},
+        ),
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
+    ):
+        mock_storage_cls.write_status.return_value = "recycled"
+        await storage.handle_update_status(AsyncMock(), _task(), statuses=statuses)
+    mock_send.assert_awaited_once()
+    assert mock_send.await_args.args[1:] == ("s1", "recycled")
+    fake_domain_model.insert_document.assert_called_once_with(
+        {"id": "d1", "status": "Stopped"}, conflict="update"
     )
+
+
+@pytest.mark.asyncio
+async def test_update_status_emits_nothing_for_a_row_that_is_gone():
+    from isardvdi_change_handler.task_results import storage
+
+    with (
+        patch.object(storage, "_ITEM_CLASS_MAP", {"storage": MagicMock()}),
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
+    ):
+        mock_storage_cls.write_status.return_value = None
+        await storage.handle_update_status(
+            AsyncMock(), _task(), statuses={"_all": {"ready": {"storage": ["s1"]}}}
+        )
+    mock_send.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

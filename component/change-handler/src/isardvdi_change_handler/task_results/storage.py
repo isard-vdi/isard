@@ -358,12 +358,15 @@ async def handle_update_status(redis_manager, task, statuses=None):
                         # status here would re-create it as a zombie with
                         # nothing but an id and a status.
                         continue
+                    if item_class.lower() == "storage":
+                        status = Storage.write_status(item_id, item_status)
+                        if status is not None:
+                            await send_status_socket(redis_manager, item_id, status)
+                        continue
                     model.insert_document(
                         {"id": item_id, "status": item_status},
                         conflict="update",
                     )
-                    if item_class.lower() == "storage":
-                        await send_status_socket(redis_manager, item_id, item_status)
 
 
 def _valid_storage_pool(storage, new_path):
