@@ -666,7 +666,9 @@ async def _finalize_stuck_storage(redis_manager, storage):
         # pool — no user desktop is blocked on it. Trigger-driven, like the admin
         # datatable "check" click.
         storage.check_backing_chain(
-            user_id=getattr(storage, "user_id", None), priority="standard"
+            user_id=getattr(storage, "user_id", None),
+            priority="standard",
+            release_maintenance=True,
         )
         log.warning(
             "reconcile: stuck storage %s (%s); re-issued check_backing_chain to "

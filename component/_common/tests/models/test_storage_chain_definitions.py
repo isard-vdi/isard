@@ -81,6 +81,7 @@ def _bare_storage(
     object.__setattr__(s, "type", type)
     object.__setattr__(s, "user_id", user_id)
     object.__setattr__(s, "parent", parent)
+    object.__setattr__(s, "status", "ready")
     # Chain methods end with ``return self.task``. With ``create_task``
     # mocked out, ``self.task`` is never set; __getattr__ would fall
     # through to RethinkDB. Pre-seed it.

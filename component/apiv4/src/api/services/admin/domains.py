@@ -160,7 +160,10 @@ class AdminDomainsService:
             try:
                 if not Storage.exists(storage_id):
                     continue
-                Storage(storage_id).find(payload.get("user_id"))
+                storage = Storage(storage_id)
+                if storage.status == "recycled":
+                    continue
+                storage.find(payload.get("user_id"))
                 tasks_created += 1
             except Exception:
                 notify_admin(

@@ -132,6 +132,20 @@ class TestBatchCheckBackingChain:
             assert call.kwargs["user_id"] == "u-admin"
 
 
+class TestBatchesSkipRecycledDisks:
+    @patch("api.services.storage.get_storage")
+    def test_a_recycled_disk_is_skipped(self, mock_get):
+        binned = MagicMock(status="recycled")
+        live = MagicMock(status="ready")
+        mock_get.side_effect = [binned, live, binned, live]
+        StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1", "s2"])
+        StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["s1", "s2"])
+        binned.check_backing_chain.assert_not_called()
+        binned.find.assert_not_called()
+        live.check_backing_chain.assert_called_once()
+        live.find.assert_called_once()
+
+
 class TestGetStorageDetail:
     @patch("api.services.storage.get_storage")
     @patch("api.services.storage.StorageProcessed.get_storage_row")

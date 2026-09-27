@@ -13,6 +13,20 @@ from contextlib import nullcontext
 import pytest
 
 
+class _Bool:
+    def __init__(self, value):
+        self._value = bool(value)
+
+    def __bool__(self):
+        return self._value
+
+    def or_(self, other):
+        return _Bool(self._value or bool(other))
+
+    def and_(self, other):
+        return _Bool(self._value and bool(other))
+
+
 class _Value:
     def __init__(self, value):
         self._value = value
@@ -21,7 +35,10 @@ class _Value:
         return _Value(fallback if self._value is None else self._value)
 
     def eq(self, other):
-        return self._value == other
+        return _Bool(self._value == other)
+
+    def gt(self, other):
+        return _Bool(self._value > other)
 
 
 class _Row:
@@ -105,11 +122,44 @@ def test_a_ready_reading_sets_ready_on_any_other_row(store, current):
     assert rows["s1"]["status_time"] > 1
 
 
-def test_a_reading_that_the_file_is_gone_still_applies_to_a_recycled_row(store):
+@pytest.mark.parametrize("reading", ["broken_chain", "orphan", "deleted"])
+def test_no_reading_moves_a_recycled_row(store, reading):
     Storage, rows = store
     rows["s1"] = {"id": "s1", "status": "recycled"}
-    assert Storage.write_reading({"id": "s1", "status": "broken_chain"}) == (
-        "broken_chain"
+    assert Storage.write_reading({"id": "s1", "status": reading}) == "recycled"
+
+
+def test_an_observer_leaves_a_row_in_maintenance_to_its_chain(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "maintenance", "status_time": 1}
+    status = Storage.write_reading(
+        {"id": "s1", "status": "ready", "qemu-img-info": {"actual-size": 7}},
+        observer=True,
+    )
+    assert status == "maintenance"
+    assert rows["s1"]["status_time"] == 1
+    assert rows["s1"]["qemu-img-info"] == {"actual-size": 7}
+
+
+def test_the_chain_that_holds_maintenance_releases_it(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "maintenance", "status_time": 1}
+    assert Storage.write_reading({"id": "s1", "status": "ready"}) == "ready"
+
+
+def test_a_row_deleted_after_the_reading_started_stays_deleted(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "deleted", "status_time": 200}
+    assert Storage.write_reading({"id": "s1", "status": "ready"}, read_at=100) == (
+        "deleted"
+    )
+
+
+def test_a_reading_started_after_the_deletion_recovers_the_row(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "deleted", "status_time": 100}
+    assert Storage.write_reading({"id": "s1", "status": "ready"}, read_at=200) == (
+        "ready"
     )
 
 

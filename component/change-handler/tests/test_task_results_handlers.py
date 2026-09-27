@@ -73,9 +73,55 @@ async def test_storage_update_indirect_walks_qemu_img_info_dependency():
         await storage.handle_storage_update(redis_manager, task)
 
     mock_storage_cls.write_reading.assert_called_once_with(
-        {"id": "s1", "status": "ready"}
+        {"id": "s1", "status": "ready"}, observer=False, read_at=None
     )
     mock_send.assert_awaited_once_with(redis_manager, "s1", "ready", "u1")
+
+
+@pytest.mark.asyncio
+async def test_a_check_writes_its_reading_as_an_observer_from_when_it_started():
+    from datetime import datetime
+
+    from isardvdi_change_handler.task_results import storage
+
+    started = datetime(2026, 9, 26, 12, 0, 0)
+    dep = SimpleNamespace(
+        task="qemu_img_info_backing_chain",
+        result={"id": "s1", "status": "ready"},
+        job=SimpleNamespace(started_at=started),
+    )
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()),
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.write_reading.return_value = "maintenance"
+        mock_storage_cls.return_value = MagicMock(domains=[])
+        await storage.handle_storage_update(
+            AsyncMock(), _task(dependencies=[dep]), observer=True
+        )
+    kwargs = mock_storage_cls.write_reading.call_args.kwargs
+    assert kwargs["observer"] is True
+    assert kwargs["read_at"] == 1790424000.0
+
+
+@pytest.mark.asyncio
+async def test_a_refused_deleted_reading_fails_no_desktop():
+    from isardvdi_change_handler.task_results import storage
+
+    domain_obj = MagicMock(status="Stopped")
+    storage_obj = MagicMock(domains=[domain_obj])
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()),
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.write_reading.return_value = "recycled"
+        mock_storage_cls.return_value = storage_obj
+        await storage.handle_storage_update(
+            AsyncMock(), _task(), id="s1", status="deleted"
+        )
+    assert domain_obj.status == "Stopped"
 
 
 @pytest.mark.asyncio
