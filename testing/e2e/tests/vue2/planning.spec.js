@@ -16,6 +16,7 @@ import {
   unwrap,
 } from '../../fixtures/apiv4/index.js'
 import { createPlan, deletePlan, listAllPlans } from '../../src/gen/apiv4/sdk.gen'
+import { showWeekOf } from '../../fixtures/calendar.js'
 
 const PLANNER_URL = '/api/v4/item/reservables-planner'
 const BY_ITEM_RE = /\/api\/v4\/item\/reservables-planner\/by-item\//
@@ -201,6 +202,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
     // and it displays the persisted data (PlanningUtils.parseEvent
     // title = "<subitem> (<units> units)").
     await refetchPlanning(page, startMs, endMs)
+    await showWeekOf(page, startMs)
     const block = page.locator(`#vuecal .vuecal__event.unavailable:has-text("${PROFILE}")`)
     await expect(block).toHaveCount(1, { timeout: 10000 })
     await expect(block.first()).toBeVisible()
@@ -246,6 +248,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
 
     await page.goto('/planning')
     await selectTypeAndItem(page)
+    await showWeekOf(page, startMs)
 
     const block = page
       .locator(`#vuecal .vuecal__event.unavailable:has-text("${PROFILE}")`)
@@ -321,6 +324,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
     ).toBeGreaterThan(aEnd)
 
     await refetchPlanning(page, aStart, bEnd)
+    await showWeekOf(page, aStart)
     await expect(
       page.locator(`#vuecal .vuecal__event.unavailable:has-text("${PROFILE}")`),
       'a single merged block, no seam at A end',
@@ -365,6 +369,7 @@ test.describe('Vue 2 — Planning (admin — serial)', () => {
     for (const p of plans) track(testInfo, 'plan-id', p.id)
 
     await refetchPlanning(page, aStart, bEnd)
+    await showWeekOf(page, aStart)
     await expect(
       page.locator(`#vuecal .vuecal__event.unavailable:has-text("${PROFILE}")`),
       'two distinct blocks',
