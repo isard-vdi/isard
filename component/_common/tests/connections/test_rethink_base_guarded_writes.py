@@ -241,3 +241,37 @@ class TestDeleteDocumentIf:
         predicate = _replace_predicate(stub_rdb)
         row = _Row({})
         assert predicate(row) is row
+
+
+class TestInitDocumentClock:
+    """``init_document`` is the third writer of a status, and it used to skip the clock.
+
+    The two writers above stamp ``status_time``; this one did a raw insert of
+    whatever it was handed. A row inserted with a status and no clock arrives
+    with no age at all, and every age-based guard downstream then reads it as
+    either forever young or forever stale depending on which way its comparison
+    falls — measured on a real install as 17,251 rows in exactly that shape.
+    """
+
+    @staticmethod
+    def _inserted(stub_rdb):
+        """The document the insert was actually handed."""
+        return stub_rdb["table"].insert.call_args[0][0]
+
+    def test_an_insert_that_asserts_a_status_carries_its_clock(self, stub_rdb):
+        stub_rdb["table"].insert.return_value.run.return_value = {}
+        stub_rdb["Cls"].init_document("s1", status="creating")
+        written = self._inserted(stub_rdb)
+        assert written["status"] == "creating"
+        assert isinstance(written.get("status_time"), float)
+
+    def test_an_explicit_clock_is_not_overwritten(self, stub_rdb):
+        stub_rdb["table"].insert.return_value.run.return_value = {}
+        stub_rdb["Cls"].init_document("s1", status="creating", status_time=1.0)
+        assert self._inserted(stub_rdb)["status_time"] == 1.0
+
+    def test_an_insert_with_no_status_gets_no_clock(self, stub_rdb):
+        """A table with no status field must not grow one."""
+        stub_rdb["table"].insert.return_value.run.return_value = {}
+        stub_rdb["Cls"].init_document("s1", name="whatever")
+        assert "status_time" not in self._inserted(stub_rdb)
