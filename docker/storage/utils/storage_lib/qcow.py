@@ -12,6 +12,7 @@ QCOW2_MAGIC = b"QFI\xfb"
 
 from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 
+from . import qcow_header
 from .formatting import format_time_remaining, log
 
 _UUID_RE = re.compile(
@@ -213,6 +214,14 @@ def get_backing_file(file_path):
     return info.get("full-backing-filename") or info.get("backing-filename") or None
 
 
+def read_backing_file(file_path):
+    """get_backing_file without spawning qemu-img when the header is readable."""
+    try:
+        return qcow_header.backing_file(file_path)
+    except (qcow_header.Qcow2HeaderError, OSError):
+        return get_backing_file(file_path)
+
+
 def get_backing_chain(file_path):
     """Get the full backing chain output for a qcow2 image.
 
@@ -292,7 +301,7 @@ def analyze_dependencies(qcow_files):
     start_time = time()
 
     for qcow in qcow_files:
-        backing_file = get_backing_file(qcow)
+        backing_file = read_backing_file(qcow)
         dependency_map[qcow] = backing_file
 
         if backing_file:
