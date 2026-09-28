@@ -486,3 +486,73 @@ def test_describe_space_floor_names_both_floors():
     gib = 1024**3
     text = mig.describe_space_floor(5 * gib, 100 * gib, 10, 20 * gib)
     assert text == "5 GiB (5.0%) free of 100 GiB; floor 10% and 20 GiB"
+
+
+# --------------------------------------------------------------------------- #
+# a disk that came back to the source moves again on the next occurrence
+# --------------------------------------------------------------------------- #
+def _returned_job():
+    m = _Mig(
+        "scheduled",
+        {"recurring": True, "window": WINDOW, "rescan_cadence": "edge_on_drain"},
+    )
+    m.last_occurrence = "2026-06-30"
+    return m
+
+
+def _released(sid="r"):
+    return _item(
+        sid,
+        "released",
+        src_path=f"/src/old/{sid}.qcow2",
+        verify_passed=True,
+        source_action="delete",
+        move_task_id="old",
+        audit=[{"occurrence": "2026-06-30", "result": "moved_ok"}],
+    )
+
+
+def test_a_released_disk_back_on_the_source_moves_again(monkeypatch):
+    items = [_released()]
+    planned = [_item("r", "pending", src_path="/src/new/r.qcow2")]
+    m = _returned_job()
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    it = items[0]
+    assert m.last_occurrence == "2026-07-01"
+    assert it["state"] != "released"
+    assert it["src_path"] == "/src/new/r.qcow2"
+    assert it["verify_passed"] is False
+    assert it["source_action"] is None
+    assert it["move_task_id"] != "old"
+    assert it["audit"] == [{"occurrence": "2026-06-30", "result": "moved_ok"}]
+
+
+def test_a_returned_disk_of_an_ordered_job_moves_again(monkeypatch):
+    items = [_released()]
+    planned = [_item("r", "pending", tree_order_key=1790446574.4959528)]
+    m = _returned_job()
+    m.config["order"] = "oldest_first"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    assert items[0]["state"] != "released"
+    assert items[0]["tree_order_key"] == 1790446574.4959528
+
+
+def test_a_released_disk_not_back_on_the_source_stays_released(monkeypatch):
+    items = [_released()]
+    m = _returned_job()
+    r = _runner(monkeypatch, items, m, now=NOW, planned=[])
+    r.tick()
+    assert items[0]["state"] == "released"
+    assert items[0]["source_action"] == "delete"
+
+
+def test_a_disk_moves_at_most_once_per_occurrence(monkeypatch):
+    items = [_released()]
+    planned = [_item("r", "pending", src_path="/src/new/r.qcow2")]
+    m = _returned_job()
+    m.last_occurrence = "2026-07-01"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    assert items[0]["state"] == "released"

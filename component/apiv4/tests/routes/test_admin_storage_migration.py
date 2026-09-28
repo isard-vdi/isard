@@ -1274,6 +1274,43 @@ class TestCreate:
         assert resp.status_code == 409
         assert "mig-x" in resp.json()["description"]
 
+    @pytest.mark.parametrize(
+        "ledger, refused",
+        [
+            ([_item("d1", migration_id="mig-x", state="released")], False),
+            (
+                [
+                    _item("d1", migration_id="mig-x", state="released"),
+                    _item("d2", migration_id="mig-x", state="moving"),
+                ],
+                True,
+            ),
+        ],
+    )
+    def test_a_released_disk_of_a_settled_tree_is_not_reserved(
+        self, monkeypatch, test_client, ledger, refused
+    ):
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.resolved_disk_ids",
+            lambda sel: {"d1"},
+        )
+        monkeypatch.setattr(
+            "isardvdi_common.lib.storage.migration.roots_for_selection",
+            lambda sel, **k: [],
+        )
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={"selection": {"kind": "pool", "dst_pool_id": "dst"}},
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [_migration(id="mig-x", status="running")],
+                "storage_migration_item": ledger,
+            },
+        )
+        assert (resp.status_code == 409) is refused
+
 
 # ── downloadable log ────────────────────────────────────────────────────────
 def _audit_rec(sid="a", result="moved_ok", occ="initial", size=100):

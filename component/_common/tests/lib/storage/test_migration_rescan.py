@@ -11,6 +11,7 @@
     and their summary header.
 """
 
+import pytest
 from isardvdi_common.lib.storage import migration as mig
 
 
@@ -101,6 +102,29 @@ def test_rearm_leaves_released_and_inflight():
 # --------------------------------------------------------------------------- #
 # build_audit_record / summarize_audit
 # --------------------------------------------------------------------------- #
+def test_return_offers_the_released_disks_of_a_settled_tree():
+    tree = [_it("r", "released"), _it("c", "failed")]
+    assert [it["storage_id"] for it in mig.plan_tree_return(tree)] == ["r"]
+
+
+@pytest.mark.parametrize("other", ["pending", "moving", "rebased", "quarantined"])
+def test_return_leaves_a_tree_that_is_not_settled(other):
+    assert mig.plan_tree_return([_it("r", "released"), _it("c", other)]) == []
+
+
+def test_reserving_items_drops_released_disks_of_settled_trees():
+    items = [
+        _it("a", "released", tree="a"),
+        _it("b", "released", tree="b"),
+        _it("b2", "moving", tree="b"),
+        _it("c", "failed", tree="c"),
+        _it("d", "pending", tree="d"),
+        _it("e", "quarantined", tree="e"),
+    ]
+    kept = {it["storage_id"] for it in mig.reserving_items(items)}
+    assert kept == {"b", "b2", "c", "d", "e"}
+
+
 def test_build_audit_record_shape():
     item = {
         "storage_id": "s1",

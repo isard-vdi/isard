@@ -59,6 +59,7 @@ from isardvdi_common.models.storage_migration import (
     MigrationStatus,
     StorageMigration,
     StorageMigrationItem,
+    StorageMigrationItemModel,
 )
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
@@ -494,8 +495,9 @@ class MigrationRunner:
         prior occurrence's failed/skipped in-scope disks so they retry, applying
         the failure policy per tree (``mig.plan_tree_rearm``): a disk that hits the
         ``retry_quarantine`` budget is quarantined and its tree left dead; other
-        failed/skipped disks are reset to pending. Released disks left the source
-        scope and never reappear; in-flight disks are left untouched."""
+        failed/skipped disks are reset to pending. A released disk the re-plan finds
+        on the source again starts over as a fresh item; in-flight disks are left
+        untouched."""
         selection = self.migration.selection or {}
         roots = mig.roots_for_selection(selection)
         planned, _ = mig.build_plan_for_roots(
@@ -517,12 +519,15 @@ class MigrationRunner:
         by_tree = {}
         for item in planned:
             by_tree.setdefault(item["tree_id"], []).append(item)
+        planned_by_sid = {p["storage_id"]: p for p in planned}
         for planned_items in by_tree.values():
             ledger = [
                 existing[p["storage_id"]]
                 for p in planned_items
                 if p["storage_id"] in existing
             ]
+            for item in mig.plan_tree_return(ledger):
+                self._rearm_returned(item, planned_by_sid[item["storage_id"]])
             to_quarantine, to_rearm = mig.plan_tree_rearm(ledger, policy, qafter)
             for item, occ in to_quarantine:
                 self._set(
@@ -538,6 +543,18 @@ class MigrationRunner:
             for p in planned_items:
                 if p["storage_id"] not in existing:
                     StorageMigrationItem.upsert(p)
+
+    def _rearm_returned(self, item, planned):
+        """A released disk back on the source: a fresh item from the re-plan,
+        keeping only the audit trail."""
+        fresh = {
+            name: field.get_default(call_default_factory=True)
+            for name, field in StorageMigrationItemModel.model_fields.items()
+        }
+        fresh.update(planned, audit=list(item.get("audit") or []))
+        fresh.pop("id", None)
+        self._set(item, **fresh)
+        self._rearm_item(item, 0)
 
     def _rearm_item(self, item, occurrence_failures):
         """Reset a failed/skipped disk to pending for another occurrence attempt:
