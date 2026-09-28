@@ -49,7 +49,6 @@ from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.hypervisor import HypervisorModel
 from isardvdi_common.schemas.hypervisor import HypervisorStatus
 from rethinkdb import r
-from rethinkdb.errors import ReqlNonExistenceError
 
 _get_desktops_max_timeout_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=200, ttl=100
@@ -2257,19 +2256,32 @@ class HypervisorsProcessed(RethinkSharedConnection):
             )
         try:
             with cls._rdb_context():
-                r.table("domains").get(domain_id).update(data).run(cls._rdb_connection)
-            return domain_id
-        except ReqlNonExistenceError:
-            raise Error(
-                "not_found",
-                "Domain with ID " + domain_id + " not found in database",
-            )
+                # the cache keeps a mac for its whole ttl after the desktop stops
+                result = (
+                    r.table("domains")
+                    .get_all(domain_id)
+                    .filter(
+                        lambda domain: r.expr(Caches.wg_mac_live_statuses).contains(
+                            domain["status"]
+                        )
+                    )
+                    .update(data)
+                    .run(cls._rdb_connection)
+                )
         except Exception:
             raise Error(
                 "internal_server",
                 "Unable to update wireguard address",
                 traceback.format_exc(),
             )
+        if not result.get("replaced") and not result.get("unchanged"):
+            with Caches.wg_mac_domain_cache.lock:
+                Caches.wg_mac_domain_cache.pop(mac, None)
+            raise Error(
+                "not_found",
+                "Domain with mac " + mac + " is not running",
+            )
+        return domain_id
 
     @classmethod
     def get_hypervisor_vpn(cls, hyper_id):

@@ -323,5 +323,9 @@ cat <<EOT > /var/lib/misc/README
 EOT
 fi
 
+# dnsmasq re-runs the hook for every lease one at a time, and the hook is the
+# only writer of table 2: pin them all now so running desktops keep traffic
+/.venv/bin/python3 -m isardvdi_vpn.lease_pins /var/lib/misc/vlan-wg.leases
+
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Starting dnsmasq wireguard server"
 /usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --dhcp-script=/dnsmasq-hook/update-client-ips.sh >> /var/log/dnsmasq 2>&1 &

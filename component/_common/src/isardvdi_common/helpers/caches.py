@@ -214,6 +214,7 @@ class Caches(RethinkSharedConnection):
     ## Domains wg mac
 
     wg_mac_domain_cache = SynchronizedTTLCache(maxsize=50, ttl=200)
+    wg_mac_live_statuses = ["Starting", "StartingDomainDisposable", "Started"]
 
     @classmethod
     def set_cached_domain_wg_mac(cls, domain_id, interfaces):
@@ -258,9 +259,7 @@ class Caches(RethinkSharedConnection):
                 r.table("domains")
                 .get_all(wg_mac, index="wg_mac")
                 .filter(
-                    lambda d: r.expr(
-                        ["Starting", "StartingDomainDisposable", "Started"]
-                    ).contains(d["status"])
+                    lambda d: r.expr(cls.wg_mac_live_statuses).contains(d["status"])
                 )
                 .pluck("id")
                 .limit(1)

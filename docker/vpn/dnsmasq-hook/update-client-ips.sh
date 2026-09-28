@@ -5,12 +5,7 @@
 ACTION=$1
 MAC=$2
 IP=$3
-
-export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
-
-# Notify API of IP assignment (existing functionality).
-# Use the venv interpreter: python:3.13-alpine has no /usr/bin/python3, and isardvdi_apiv4_client only lives in the venv.
-/.venv/bin/python3 /dnsmasq-hook/update-client-ips.py "$@"
+QUEUE=${DHCP_REPORTS_DIR:-/run/isard-dhcp-reports}
 
 # Static ARP entries for ARP cache poisoning protection
 # Static entries cannot be overwritten by ARP replies
@@ -25,6 +20,14 @@ case "$ACTION" in
         if [ -n "$GW_MAC" ]; then
             ovs-ofctl add-flow ovsbr0 "table=2,priority=110,ip,dl_src=$MAC,nw_src=$IP,dl_dst=$GW_MAC,actions=strip_vlan,output:vlan-wg"
         fi
+        # dnsmasq runs one hook at a time, so the API report is queued for
+        # isardvdi-vpn-admin (isardvdi_vpn.dhcp_reports) instead of made here
+        mkdir -p "$QUEUE"
+        read -r UPTIME _ < /proc/uptime
+        PRIO=1
+        [ "$ACTION" = add ] && PRIO=0
+        NAME="$PRIO.$(printf '%012d' "${UPTIME%.*}${UPTIME#*.}").$$.$ACTION.$(echo "$MAC" | tr : -).$IP"
+        : > "$QUEUE/.$NAME" && mv "$QUEUE/.$NAME" "$QUEUE/$NAME"
         ;;
     del)
         arp -d "$IP" dev vlan-wg 2>/dev/null || true
