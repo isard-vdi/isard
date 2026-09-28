@@ -536,9 +536,12 @@ defineExpose({
         >
           <form.Field v-slot="{ field }" name="vcpus">
             <Field :data-invalid="isInvalid(field)">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.vcpus.label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.vcpus.label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('vcpus')" />
+              </div>
               <Select
                 name="vcpus"
                 :model-value="field.state.value"
@@ -558,14 +561,16 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <HardwareLimitChip :limited="limitedField('vcpus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="memory">
             <Field :data-invalid="isInvalid(field)">
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.memory.label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.memory.label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('memory')" />
+              </div>
               <Select
                 name="memory"
                 :model-value="field.state.value"
@@ -585,7 +590,6 @@ defineExpose({
                 </SelectContent>
               </Select>
               <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-              <HardwareLimitChip :limited="limitedField('memory')" />
             </Field>
           </form.Field>
           <form.Field v-if="props.showDiskSize" v-slot="{ field }" name="diskSize">
@@ -609,9 +613,12 @@ defineExpose({
           </form.Field>
           <form.Field v-slot="{ field }" name="diskBus">
             <Field>
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.disk-bus.label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.disk-bus.label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('disk_bus')" />
+              </div>
               <Select
                 name="diskBus"
                 :model-value="field.state.value"
@@ -628,14 +635,16 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <HardwareLimitChip :limited="limitedField('disk_bus')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="videos">
             <Field>
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.videos.label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.videos.label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('videos')" />
+              </div>
               <Select
                 name="videos"
                 :model-value="field.state.value"
@@ -650,14 +659,16 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <HardwareLimitChip :limited="limitedField('videos')" />
             </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="bootOrder">
             <Field>
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.boot-order.label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.boot-order.label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('boot_order')" />
+              </div>
               <Select
                 name="bootOrder"
                 :model-value="field.state.value"
@@ -674,7 +685,6 @@ defineExpose({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <HardwareLimitChip :limited="limitedField('boot_order')" />
             </Field>
           </form.Field>
         </div>
@@ -694,9 +704,12 @@ defineExpose({
           <div class="grid grid-cols-1 gap-2.5 md:gap-5">
             <form.Field v-slot="{ field }" name="isos">
               <Field>
-                <FieldLabel :for="field.name">
-                  {{ $t('components.domain.hardware.isos.label') }}
-                </FieldLabel>
+                <div class="flex items-center gap-2">
+                  <FieldLabel :for="field.name">
+                    {{ $t('components.domain.hardware.isos.label') }}
+                  </FieldLabel>
+                  <HardwareLimitChip :limited="limitedField('isos')" />
+                </div>
                 <SearchableTags
                   :tags="isosTags"
                   :placeholder="
@@ -711,22 +724,23 @@ defineExpose({
                   @update:model-value="field.handleChange($event)"
                 />
                 <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
-                <HardwareLimitChip :limited="limitedField('isos')" />
               </Field>
             </form.Field>
             <!-- TODO: Test how to add floppies to the system -->
             <!-- <form.Field name="floppies" #default="{ field }">
               <Field>
-                <FieldLabel :for="field.name">
-                  {{ $t('components.domain.hardware.floppies.label') }}
-                </FieldLabel>
+                <div class="flex items-center gap-2">
+                  <FieldLabel :for="field.name">
+                    {{ $t('components.domain.hardware.floppies.label') }}
+                  </FieldLabel>
+                  <HardwareLimitChip :limited="limitedField('floppies')" />
+                </div>
                 <SearchableTags
                   :selected="field.state.value"
                   :tags="floppiesOptions.map((floppy) => ({ label: floppy.name, value: floppy.id }))"
                   :placeholder="t('components.domain.hardware.floppies.placeholder')"
                   @update:modelValue="field.handleChange"
                 />
-                <HardwareLimitChip :limited="limitedField('floppies')" />
               </Field>
             </form.Field> -->
           </div>
@@ -742,9 +756,12 @@ defineExpose({
           <div class="grid grid-cols-1">
             <form.Field v-slot="{ field }" name="reservables.vgpus">
               <Field>
-                <FieldLabel :for="field.name">
-                  {{ $t('components.domain.hardware.vgpus.label') }}
-                </FieldLabel>
+                <div class="flex items-center gap-2">
+                  <FieldLabel :for="field.name">
+                    {{ $t('components.domain.hardware.vgpus.label') }}
+                  </FieldLabel>
+                  <HardwareLimitChip :limited="limitedField('vgpus')" />
+                </div>
                 <SearchableTags
                   :tags="vgpuTagsFor(field.state.value)"
                   :placeholder="
@@ -764,7 +781,6 @@ defineExpose({
                 >
                   {{ t('components.domain.hardware.vgpus.hint', { max: MAX_VGPU_PROFILES }) }}
                 </FieldDescription>
-                <HardwareLimitChip :limited="limitedField('vgpus')" />
               </Field>
             </form.Field>
           </div>
@@ -787,9 +803,12 @@ defineExpose({
         <div class="grid grid-cols-1 gap-2.5 md:gap-5">
           <form.Field v-slot="{ field }" name="interfaces">
             <Field>
-              <FieldLabel :for="field.name">
-                {{ $t('components.domain.hardware.networks.interfaces-label') }}
-              </FieldLabel>
+              <div class="flex items-center gap-2">
+                <FieldLabel :for="field.name">
+                  {{ $t('components.domain.hardware.networks.interfaces-label') }}
+                </FieldLabel>
+                <HardwareLimitChip :limited="limitedField('interfaces')" />
+              </div>
               <NetworkSelector
                 :id="field.name"
                 :model-value="(field.state.value as string[]) ?? []"
@@ -798,7 +817,6 @@ defineExpose({
                 :required-ids="props.requiredInterfaces"
                 @update:model-value="field.handleChange($event)"
               />
-              <HardwareLimitChip :limited="limitedField('interfaces')" />
             </Field>
           </form.Field>
         </div>

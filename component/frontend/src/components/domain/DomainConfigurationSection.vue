@@ -232,33 +232,38 @@ defineExpose({
 
 <template>
   <div>
-    <!-- An index of what the API adjusted, not a report: each value is spelled
-         out on its own field, right below. -->
+    <!-- An index of what the API adjusted, for as long as the fields it names
+         are out of sight. Once the configuration is open each one carries its
+         own badge, so repeating them here would say it twice. -->
     <div
-      v-if="restrictedFieldNames.length || (removedViewerLabels.length && !isOpen)"
+      v-if="!isOpen && (restrictedFieldNames.length || removedViewerLabels.length)"
       class="mb-6 flex flex-col gap-2"
     >
       <AdjustmentStrip
         v-if="restrictedFieldNames.length"
         :label="
-          t('components.domain.configuration.hardware-limited.summary', {
-            count: restrictedFieldNames.length
-          })
+          t(
+            'components.domain.configuration.hardware-limited.summary',
+            { count: restrictedFieldNames.length },
+            restrictedFieldNames.length
+          )
         "
         :items="restrictedFieldNames"
       >
-        <template v-if="!isOpen" #action>
+        <template #action>
           <Button hierarchy="link-gray" size="sm" class="ml-auto" @click="open">
             {{ t('components.domain.configuration.hardware-limited.review') }}
           </Button>
         </template>
       </AdjustmentStrip>
       <AdjustmentStrip
-        v-if="removedViewerLabels.length && !isOpen"
+        v-if="removedViewerLabels.length"
         :label="
-          t('components.domain.access.viewers-removed.summary', {
-            count: removedViewerLabels.length
-          })
+          t(
+            'components.domain.access.viewers-removed.summary',
+            { count: removedViewerLabels.length },
+            removedViewerLabels.length
+          )
         "
         :items="removedViewerLabels"
       />

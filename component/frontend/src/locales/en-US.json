@@ -1477,7 +1477,7 @@
         "viewers-removed": {
           "title": "RDP viewers removed",
           "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}",
-          "summary": "{count} viewers removed: this desktop has no wireguard network"
+          "summary": "{count} viewer removed: this desktop has no wireguard network | {count} viewers removed: this desktop has no wireguard network"
         }
       },
       "hardware": {
@@ -1542,14 +1542,10 @@
             "title": "Restrictions applied"
           },
           "quota": "This value exceeds your quota",
-          "chip": {
-            "replaced": "was {old_value}",
-            "removed": "removed: {old_value}",
-            "removed-count": "{count} removed"
-          },
           "detail": {
             "replaced": "{old_value} is above what your permissions allow, so {new_value} was kept instead.",
-            "removed": "{old_value} is not within your permissions, so it was removed."
+            "removed": "{old_value} is not within your permissions, so it was removed.",
+            "removed-count": "{count} values are not within your permissions, so they were removed: {old_value}."
           }
         }
       },
@@ -1616,7 +1612,7 @@
           "description": "The hardware can be edited through the following form"
         },
         "hardware-limited": {
-          "summary": "{count} values adjusted by your permissions",
+          "summary": "{count} value adjusted by your permissions | {count} values adjusted by your permissions",
           "review": "Review them"
         }
       }

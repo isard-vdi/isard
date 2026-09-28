@@ -867,14 +867,10 @@
             "title": "Murrizketak aplikatuta"
           },
           "quota": "Balio honek zure kuota gainditzen du",
-          "chip": {
-            "replaced": "lehen: {old_value}",
-            "removed": "kenduta: {old_value}",
-            "removed-count": "{count} kenduta"
-          },
           "detail": {
             "replaced": "{old_value} zure baimenek uzten dutena gainditzen du, beraz {new_value} gorde da.",
-            "removed": "{old_value} ez dago zure baimenen barruan, beraz kendu egin da."
+            "removed": "{old_value} ez dago zure baimenen barruan, beraz kendu egin da.",
+            "removed-count": "{count} balio ez daude zure baimenen barruan, beraz kendu egin dira: {old_value}."
           }
         }
       },
