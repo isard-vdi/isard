@@ -1,0 +1,25 @@
+From: Josep Maria Viñolas Auquer <josepmaria@isardvdi.com>
+Subject: [PATCH] RDP: report a FreeRDP failure through guac_rdp_client_abort()
+
+With the busy-loop fix the connection loop also exits when FreeRDP has
+recorded an error before freerdp_shall_disconnect() is set. That path
+reported a generic "Connection closed." (UPSTREAM_UNAVAILABLE), so a user
+logoff reached the client as an error and the web viewer reconnected.
+Translate the FreeRDP error info instead, as the closing path does.
+---
+diff --git a/src/protocols/rdp/rdp.c b/src/protocols/rdp/rdp.c
+--- a/src/protocols/rdp/rdp.c
++++ b/src/protocols/rdp/rdp.c
+@@ -652,8 +652,10 @@
+         /* Handle any input events that have been received */
+         guac_rdp_handle_input_events(rdp_client);
+ 
+-        /* Close connection cleanly if server is disconnecting */
+-        if (connection_closing)
++        /* Close connection cleanly if server is disconnecting, or report why
++         * FreeRDP failed (a logoff must not look like a transport error) */
++        if (connection_closing || (wait_result < 0
++                    && freerdp_get_last_error(GUAC_RDP_CONTEXT(rdp_inst)) != FREERDP_ERROR_SUCCESS))
+             guac_rdp_client_abort(client, rdp_inst);
+ 
+         /* If a low-level connection error occurred, fail */

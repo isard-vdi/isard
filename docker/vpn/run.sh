@@ -37,7 +37,7 @@ ovs_stats_loop &
 
 # Start guacd
 echo "$(date): INFO: Starting guacd server"
-guacd -b 0.0.0.0 -L info -f >> /var/log/guacd 2>&1 &
+guacd -b 0.0.0.0 -L info -f &
 
 # Start RDPGW
 echo "$(date): INFO: Starting RDPGW server"
