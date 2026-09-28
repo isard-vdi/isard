@@ -16,6 +16,7 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 
 import { Locale } from '@/lib/i18n'
+import { useOwnershipTab } from '@/composables/useOwnershipTab'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
@@ -41,7 +42,11 @@ const router = useRouter()
 
 const queryClient = useQueryClient()
 
-const activeTab = ref<'user' | 'shared'>('user')
+const { activeTab, isResolving: tabIsResolving } = useOwnershipTab({
+  hasOwned: async () => (await queryClient.fetchQuery(getUserMediaOptions())).media.length > 0,
+  hasShared: async () =>
+    (await queryClient.fetchQuery(getUserSharedMediaOptions())).media.length > 0
+})
 const showNewMediaModal = ref(false)
 const showQuotaExceededModal = ref(false)
 const checkQuotaIsPending = ref(false)
@@ -94,11 +99,10 @@ const {
   isFetching: sharedMediaIsFetching,
   isError: sharedMediaIsError,
   error: sharedMediaError,
-  data: sharedMedia,
-  refetch: fetchSharedMedia
+  data: sharedMedia
 } = useQuery({
   ...getUserSharedMediaOptions(),
-  enabled: false
+  enabled: computed(() => activeTab.value === 'shared')
 })
 
 const actionErrorModal = ref<{ messageKey: string; detail: string } | null>(null)
@@ -204,9 +208,9 @@ const getStatusConfig = (status: MediaStatusEnum) => {
 const mediaIconName = (kind: string) => (kind === 'iso' ? 'disc-02' : 'save-02')
 
 const currentMedia = computed(() => {
-  return activeTab.value === 'user'
-    ? (userMedia.value?.media ?? [])
-    : (sharedMedia.value?.media ?? [])
+  return activeTab.value === 'shared'
+    ? (sharedMedia.value?.media ?? [])
+    : (userMedia.value?.media ?? [])
 })
 
 const visibleMedia = computed(() => {
@@ -348,26 +352,21 @@ const sharedHeaders = computed(() => [
 ])
 
 const headers = computed(() =>
-  activeTab.value === 'user' ? userHeaders.value : sharedHeaders.value
+  activeTab.value === 'shared' ? sharedHeaders.value : userHeaders.value
 )
 
-// The shared tab loads lazily, so an unfetched cache still counts as pending.
 const mediaArePending = computed(() =>
-  activeTab.value === 'user'
-    ? userMediaIsPending.value
-    : sharedMediaIsFetching.value || !sharedMedia.value
+  tabIsResolving.value
+    ? true
+    : activeTab.value === 'shared'
+      ? sharedMediaIsFetching.value || !sharedMedia.value
+      : userMediaIsPending.value
 )
 
 // `currentMedia` is unfiltered, so it tells a first run from a fruitless search.
 const isFirstRun = computed(() => !mediaArePending.value && currentMedia.value.length === 0)
 
 const emptyKind = computed(() => (activeTab.value === 'shared' ? 'shared-media' : 'media'))
-
-const handleSharedTabClick = () => {
-  if (!sharedMedia.value) {
-    fetchSharedMedia()
-  }
-}
 
 const handleDownloadMedia = (mediaId: string) => {
   downloadMedia({ path: { media_id: mediaId } })
@@ -453,7 +452,6 @@ const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
             <TabsTrigger
               value="shared"
               :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-              @click="handleSharedTabClick"
             >
               <Icon name="share-06" stroke-color="currentColor" />
               {{ t('components.media.media-type.shared') }}

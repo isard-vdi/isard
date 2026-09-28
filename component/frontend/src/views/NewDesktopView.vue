@@ -24,6 +24,7 @@ import { useUserStore } from '@/stores/user'
 import router from '@/router'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vue'
+import type { OwnershipTab } from '@/composables/useOwnershipTab'
 import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDesktop.vue'
 import type { DomainConfigurationPanelData } from '@/components/domain/DomainConfigurationPanel.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
@@ -73,6 +74,8 @@ const storageQuery = useQuery({
 const quotaCheckPassed = computed(() => storageQuery.isSuccess.value)
 
 // --------------------------------------------------
+
+const templateTab = ref<OwnershipTab>()
 
 const currentStep = ref(1)
 const showStepsControls = computed(() => {
@@ -259,6 +262,7 @@ const steps = computed<StepperFormStep[]>(() => {
         <!-- Step 1 -->
         <div v-if="currentStep === 1">
           <Step1SelectTemplate
+            v-model:active-template-tab="templateTab"
             :selected-id="selectedTemplate?.id ?? ''"
             @select-template="selectTemplate"
           />

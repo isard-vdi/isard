@@ -5,12 +5,15 @@ import TemplatesList from '@/components/templates/TemplatesList.vue'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
+import type { OwnershipTab } from '@/composables/useOwnershipTab'
 
 interface Props {
   selectedId?: string
 }
 
 const props = defineProps<Props>()
+
+const templateTab = defineModel<OwnershipTab | undefined>('activeTemplateTab')
 
 interface Template {
   id: string
@@ -78,7 +81,7 @@ const {
     "
   />
   <TemplatesList
-    active-template-tab="user"
+    v-model:active-template-tab="templateTab"
     :inline-tabs="true"
     :selectable="true"
     :selected-id="props.selectedId"
