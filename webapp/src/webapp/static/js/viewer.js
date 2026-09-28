@@ -30,11 +30,14 @@ function startClientVpnSocket(socket){
 
 
 function setViewerButtons(desktop_id){
+    $('#modalOpenViewer').data('desktop-id', desktop_id)
     $.ajax({
         type: "GET",
         url:"/api/v4/admin/item/domain/" + desktop_id + "/viewer_data",
         // async: false,
         success: function (resp) {
+            // The modal may have been reopened for another desktop meanwhile
+            if ($('#modalOpenViewer').data('desktop-id') !== desktop_id) return
             setViewerButtonData(desktop_id,resp)
         }
     });
@@ -169,6 +172,7 @@ function setViewerButtonData(desktop_id,data){
 }
 
 function viewerButtonsIP(id,ip){
+    if (!$('#modalOpenViewer').hasClass('in') || $('#modalOpenViewer').data('desktop-id') !== id) return
     // Re-fetch viewer data and re-render buttons now that IP is available
     setViewerButtons(id);
 }
