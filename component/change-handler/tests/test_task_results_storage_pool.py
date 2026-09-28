@@ -49,7 +49,7 @@ def _task(matching_files, *, depending_status="finished", result_status=None):
     )
 
 
-async def _run(row, task, *, pool_for=None):
+async def _run(row, task, *, pool_for=None, owner=False):
     """Run the handler and return (applied_payload_or_None, emitted_status)."""
     from isardvdi_change_handler.task_results import storage
 
@@ -72,11 +72,12 @@ async def _run(row, task, *, pool_for=None):
     ):
         mock_storage_cls.exists.return_value = True
         mock_storage_cls.return_value = row
-        await storage.handle_storage_update_pool(AsyncMock(), task, "s1")
+        kwargs = {"owner": True} if owner else {}
+        await storage.handle_storage_update_pool(AsyncMock(), task, "s1", **kwargs)
 
     applied = mock_apply.call_args.args[0] if mock_apply.call_args else None
     if mock_apply.call_args:
-        assert mock_apply.call_args.kwargs["observer"] is True
+        assert mock_apply.call_args.kwargs["observer"] is not owner
     emitted = mock_send.await_args.args[2] if mock_send.await_args else None
     return applied, emitted
 
@@ -257,3 +258,30 @@ async def test_a_row_a_chain_holds_is_not_moved_to_another_copy():
     applied, emitted = await _run(row, _task([_found("/new/s1.qcow2")]))
     assert applied is None and emitted is None
     row.set_storage_pool.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# the chain that parks the row (set_path, delete_path) is its owner
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_the_owner_chain_releases_the_row_on_its_own_copy():
+    row = _row(status="maintenance")
+    applied, emitted = await _run(row, _task([_found("/pool/s1.qcow2")]), owner=True)
+    assert applied["status"] == "ready" and emitted == "ready"
+
+
+@pytest.mark.asyncio
+async def test_the_owner_chain_moves_the_row_to_the_newest_copy():
+    row = _row(path="/nowhere/s1.qcow2", status="maintenance")
+    applied, emitted = await _run(row, _task([_found("/new/s1.qcow2")]), owner=True)
+    assert applied["status"] == "ready" and emitted == "ready"
+    row.set_storage_pool.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_the_owner_chain_marks_the_row_deleted_when_no_copy_is_left():
+    row = _row(status="maintenance")
+    applied, _ = await _run(row, _task([], result_status="deleted"), owner=True)
+    assert applied["status"] == "deleted"

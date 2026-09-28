@@ -380,7 +380,7 @@ def _valid_storage_pool(storage, new_path):
     return False
 
 
-async def handle_storage_update_pool(redis_manager, task, storage_id):
+async def handle_storage_update_pool(redis_manager, task, storage_id, owner=False):
     """Port of core_worker.task.storage_update_pool.
 
     Walks the task's ``find`` dependency results, classifies every
@@ -407,7 +407,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                         "status": "deleted",
                         "storages_with_uuid": [],
                     },
-                    observer=True,
+                    observer=not owner,
                     read_at=read_at,
                 )
                 if status is not None:
@@ -481,7 +481,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                 "storages_with_uuid": _uuid_list_from(duplicated_storages),
             }
             status = _apply_storage_update(
-                update_payload, observer=True, read_at=read_at
+                update_payload, observer=not owner, read_at=read_at
             )
             if status is not None:
                 await send_status_socket(
@@ -490,7 +490,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
             return
 
         if duplicated_storages:
-            if storage.status == "maintenance":
+            if storage.status == "maintenance" and not owner:
                 # the chain holding the row decides where its file lives
                 return
             first_storage = duplicated_storages.pop(0)
@@ -505,7 +505,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                 "storages_with_uuid": _uuid_list_from(duplicated_storages),
             }
             status = _apply_storage_update(
-                update_payload, observer=True, read_at=read_at
+                update_payload, observer=not owner, read_at=read_at
             )
             if status is not None:
                 await send_status_socket(
@@ -519,7 +519,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                 "status": "deleted",
                 "storages_with_uuid": _uuid_list_from([]),
             },
-            observer=True,
+            observer=not owner,
             read_at=read_at,
         )
         if status is not None:

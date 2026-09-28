@@ -2951,12 +2951,13 @@ class Storage(RethinkCustomBase):
             job_kwargs={"kwargs": {"path": new_path}},
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
+                    "queue": f"storage.{StoragePool.get_best_for_action('find', path=new_path).id}.{priority}",
                     "task": "find",
                     "job_kwargs": {
                         "kwargs": {
                             "storage_id": self.id,
-                            "storage_path": self.path,
+                            # self.path still reads the old path here
+                            "storage_path": new_path,
                         }
                     },
                     "dependents": [
@@ -2966,6 +2967,7 @@ class Storage(RethinkCustomBase):
                             "job_kwargs": {
                                 "kwargs": {
                                     "storage_id": self.id,
+                                    "owner": True,
                                 }
                             },
                             "dependents": [
@@ -3044,6 +3046,7 @@ class Storage(RethinkCustomBase):
                             "job_kwargs": {
                                 "kwargs": {
                                     "storage_id": self.id,
+                                    "owner": True,
                                 }
                             },
                         }
