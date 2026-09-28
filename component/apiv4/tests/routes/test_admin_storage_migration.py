@@ -1516,6 +1516,26 @@ class TestMinFreePct:
         assert resp.status_code == 428
         assert resp.json()["description_code"] == "storage_migration_min_free_pct"
 
+    def test_start_refused_below_the_byte_floor(self, monkeypatch, test_client):
+        tib = 1024**4
+        self._fixed_reading(monkeypatch, (5 * tib, 100 * tib))
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(
+                        status="planned",
+                        config={"min_free_pct": 0, "min_free_bytes": 10 * tib},
+                    )
+                ],
+                "storage_pool": [_pool()],
+            },
+        )
+        assert resp.status_code == 428
+        assert "floor 10,240 GiB" in resp.json()["description"]
+
     def test_start_allowed_when_above_floor(self, monkeypatch, test_client):
         self._fixed_reading(monkeypatch, (80, 100))  # 80% free
         resp = test_client(

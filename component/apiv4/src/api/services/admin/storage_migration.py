@@ -638,11 +638,11 @@ class AdminStorageMigrationService:
         if not mig.space_floor_breached(free, total, min_free_pct, min_free_bytes):
             return
         pct = mig.free_pct(free, total)
-        shown = "unknown" if pct is None else f"{pct:.1f}%"
         raise Error(
             "precondition_required",
-            f"Destination pool {dst_id} is {shown} free, below the "
-            f"{min_free_pct}% floor; not starting the migration",
+            f"Destination pool {dst_id} is below the free-space floor "
+            f"({mig.describe_space_floor(free, total, min_free_pct, min_free_bytes)})"
+            "; not starting the migration",
             description_code="storage_migration_min_free_pct",
             data={
                 "free_bytes": free,

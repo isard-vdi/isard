@@ -14,6 +14,7 @@ enqueue boundaries stubbed:
 
 from datetime import datetime
 
+import pytest
 from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage import migration_run as mr
 from isardvdi_common.models.storage_migration import MigrationStatus
@@ -295,3 +296,193 @@ def test_no_floor_configured_skips_probe(monkeypatch):
     r = _runner(monkeypatch, items, m, now=NOW)
     r.free_space_fn = _boom
     assert r._space_floor_breached() is False
+
+
+# --------------------------------------------------------------------------- #
+# a pause for space resumes by itself once the destination clears the floor
+# --------------------------------------------------------------------------- #
+def _space_paused(config, **kw):
+    m = _Mig("paused", {"window": WINDOW, **config}, **kw)
+    m.pause_reason = "space"
+    m.last_occurrence = "2026-07-01"
+    m.logs = []
+    m.space_probe = {}
+    return m
+
+
+def test_space_pause_is_tagged_as_space(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _Mig("running", {"min_free_bytes": 50, "window": WINDOW})
+    m.pause_reason = None
+    m.last_occurrence = "2026-07-01"
+    m.logs = []
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (20, 100)
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.pause_reason == "space"
+    entry = [e for e in m.logs if e["event"] == "paused_min_free"][-1]
+    assert entry["min_free_bytes"] == 50
+
+
+def test_space_pause_resumes_when_the_floor_clears(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _space_paused({"min_free_pct": 10})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (80, 100)
+    result = r.tick()
+    assert m.status == MigrationStatus.RUNNING.value
+    assert m.pause_reason is None
+    assert any(e["event"] == "resumed_min_free" for e in m.logs)
+    assert ("r", None, "deferred") not in result
+
+
+def test_space_pause_stays_while_still_below_the_floor(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _space_paused({"min_free_bytes": 50})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: (20, 100)
+    result = r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.pause_reason == "space"
+    assert items[0]["state"] == "pending"
+    assert result == [("r", None, "deferred")]
+
+
+def test_space_pause_does_not_resume_on_an_unknown_reading(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _space_paused({"min_free_pct": 10})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r.free_space_fn = lambda: None
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert items[0]["state"] == "pending"
+
+
+def test_space_pause_is_not_rechecked_outside_the_window(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _space_paused({"min_free_pct": 10})
+
+    def _boom():
+        raise AssertionError("no probe outside the window")
+
+    r = _runner(monkeypatch, items, m, now=datetime(2026, 7, 1, 20, 0))
+    r.free_space_fn = _boom
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.pause_reason == "space"
+    assert items[0]["state"] == "pending"
+
+
+def test_space_pause_still_drives_trees_in_flight(monkeypatch):
+    items = [
+        _item("a", "moving", tree="a", move_task_id="mt"),
+        _item("b", "pending", tree="b"),
+    ]
+    m = _space_paused({"min_free_bytes": 50})
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "finished")
+    r.free_space_fn = lambda: (20, 100)
+    r.tick()
+    assert items[0]["state"] != "moving"
+    assert items[1]["state"] == "pending"
+    assert m.status == MigrationStatus.PAUSED.value
+
+
+def test_a_failure_during_a_space_pause_becomes_a_failure_pause(monkeypatch):
+    items = [
+        _item("a", "moving", tree="a", move_task_id="mt"),
+        _item("b", "pending", tree="b"),
+    ]
+    m = _space_paused({"min_free_bytes": 50, "failure_policy": "pause"})
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "failed")
+    r.free_space_fn = lambda: (20, 100)
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.pause_reason == "failure"
+
+
+def test_recurring_job_paused_for_space_resumes_next_night(monkeypatch):
+    items = [_item("r", "released"), _item("n", "pending", tree="n")]
+    planned = [_item("n", "pending", tree="n")]
+    m = _space_paused(
+        {"recurring": True, "rescan_cadence": "edge", "min_free_bytes": 50}
+    )
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.free_space_fn = lambda: (80, 100)
+    result = r.tick()
+    assert m.status == MigrationStatus.RUNNING.value
+    assert m.last_occurrence == "2026-07-01"
+    assert ("n", None, "deferred") not in result
+
+
+def test_recurring_job_still_short_of_space_next_night_stays_paused(monkeypatch):
+    items = [_item("r", "released"), _item("n", "pending", tree="n")]
+    planned = [_item("n", "pending", tree="n")]
+    m = _space_paused(
+        {"recurring": True, "rescan_cadence": "edge", "min_free_bytes": 50}
+    )
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.free_space_fn = lambda: (20, 100)
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.last_occurrence == "2026-06-30"
+    assert items[1]["state"] == "pending"
+
+
+def test_space_pause_completes_when_its_last_tree_lands(monkeypatch):
+    items = [_item("r", "released")]
+    m = _space_paused({"min_free_bytes": 50})
+    r = _runner(monkeypatch, items, m, now=datetime(2026, 7, 1, 20, 0))
+    r.tick()
+    assert m.status == MigrationStatus.COMPLETED.value
+    assert m.pause_reason is None
+
+
+def test_load_policy_leaves_a_space_pause_to_the_tick(monkeypatch):
+    items = [_item("r", "pending")]
+    m = _space_paused({"min_free_pct": 10})
+    r = _runner(monkeypatch, items, m, now=NOW)
+    assert r._apply_load_policy() is False
+    m.pause_reason = "manual"
+    assert r._apply_load_policy() is True
+
+
+class _Lock:
+    def acquire(self):
+        return False
+
+
+class _Conn:
+    def lock(self, *a, **k):
+        return _Lock()
+
+
+@pytest.mark.parametrize(
+    "reason, outcome",
+    [
+        ("space", "busy"),
+        ("load", "busy"),
+        ("manual", "not_drivable"),
+        ("failure", "not_drivable"),
+    ],
+)
+def test_advance_drives_only_self_resuming_pauses(monkeypatch, reason, outcome):
+    job = type("M", (), {"status": "paused", "pause_reason": reason})()
+
+    class _SM:
+        exists = staticmethod(lambda mid: True)
+
+        def __new__(cls, mid):
+            return job
+
+    monkeypatch.setattr(mr, "StorageMigration", _SM)
+    monkeypatch.setattr(mr.redis, "from_url", lambda *a, **k: _Conn())
+    assert mr.advance("m") == outcome
+
+
+def test_describe_space_floor_names_both_floors():
+    gib = 1024**3
+    text = mig.describe_space_floor(5 * gib, 100 * gib, 10, 20 * gib)
+    assert text == "5 GiB (5.0%) free of 100 GiB; floor 10% and 20 GiB"
