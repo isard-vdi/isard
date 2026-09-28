@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button'
 import { NewDeploymentForm } from '@/components/deployments/new-deployment-form'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import { FormHeader } from '@/components/form-header'
+import { EmptyState } from '@/components/page'
 import { DomainInfoModal } from '@/components/desktops'
 
 import { NewDeploymentDesktopFormCard } from '@/components/deployments/new-deployment-desktop-from-card'
@@ -35,6 +36,7 @@ import { Modal, QuotaExceededModal } from '@/components/modal'
 import TemplatesList from '@/components/templates/TemplatesList.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FieldError } from '@/components/ui/field'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import Separator from '@/components/ui/separator/Separator.vue'
 import AlertModal from '@/components/modal/AlertModal.vue'
@@ -337,6 +339,26 @@ const form = useForm({
 // Reactively get field metadata from the form to track errors per step
 const formFieldMeta = form.useStore((state) => state.fieldMeta)
 const formValues = form.useStore((state) => state.values)
+
+const desktopQuota = computed(() =>
+  userQuotas.value?.quota ? userQuotas.value.quota.deployment_desktops : undefined
+)
+
+const addDesktopQuotaReached = computed(
+  () => desktopQuota.value !== undefined && desktopQuota.value <= formValues.value.desktops.length
+)
+
+const addDesktopIsDisabled = computed(
+  () => userQuotasIsPending.value || userQuotasIsError.value || addDesktopQuotaReached.value
+)
+
+const addDesktopLabel = computed(() =>
+  t(
+    `views.new-deployment.steps.select-desktops.add-desktop${desktopQuota.value === undefined ? '' : '-max'}`,
+    { current: formValues.value.desktops.length, max: desktopQuota.value ?? '' }
+  )
+)
+
 const formIsTouched = form.useStore((state) => !state.isPristine)
 
 const deploymentName = form.useStore((state) => state.values.name)
@@ -736,7 +758,7 @@ const updateHardware = (
         </form.Subscribe>
       </template>
     </FormHeader>
-    <main class="max-w-320 w-full mx-auto flex flex-col gap-6">
+    <main class="max-w-320 w-full mx-auto flex flex-1 flex-col gap-6">
       <!-- TODO: try to deduplicate `createDeploymentError as DesktopNameExistsErrorResponse` -->
       <Alert
         v-if="(createDeploymentError as DesktopNameExistsErrorResponse)?.description_code"
@@ -792,7 +814,7 @@ const updateHardware = (
         />
       </template>
       <template v-else-if="currentStep === 2">
-        <div class="flex flex-col gap-10">
+        <div class="flex flex-col gap-10" :class="{ 'flex-1': formValues.desktops.length === 0 }">
           <form.Subscribe v-slot="{ values }">
             <template v-for="(desktop, index) in values.desktops" :key="desktop._id">
               <NewDeploymentDesktopFormCard
@@ -828,41 +850,75 @@ const updateHardware = (
             </template>
 
             <form.Field v-slot="{ field }" name="desktops">
-              <div class="flex flex-col items-center justify-center gap-2">
-                <div class="flex flex-row items-center justify-center gap-6 shrink-0 w-full">
-                  <Separator />
-                  <Button
-                    hierarchy="secondary-gray"
-                    icon="plus"
-                    :disabled="
-                      userQuotasIsPending ||
-                      userQuotasIsError ||
-                      (userQuotas?.quota &&
-                        userQuotas.quota.deployment_desktops <= values.desktops.length)
-                    "
-                    :class="{
-                      'border-error-300! ring-error-200!': isInvalid(field)
-                    }"
-                    @click="
-                      selectTemplateModalData = {
-                        type: 'add',
-                        action: addDesktop
-                      }
-                    "
-                    >{{
-                      t(
-                        `views.new-deployment.steps.select-desktops.add-desktop${userQuotas?.quota ? '-max' : ''}`,
-                        {
-                          current: values.desktops.length,
-                          max: userQuotas?.quota ? userQuotas.quota.deployment_desktops : ''
-                        }
-                      )
-                    }}</Button
-                  >
-                  <Separator />
-                </div>
+              <EmptyState
+                v-if="values.desktops.length === 0"
+                kind="desktops"
+                :title="t('views.new-deployment.steps.select-desktops.empty.title')"
+                :description="t('views.new-deployment.steps.select-desktops.empty.description')"
+              >
+                <template #actions>
+                  <div class="flex flex-col items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span class="inline-flex">
+                          <Button
+                            icon="plus"
+                            size="lg"
+                            :disabled="addDesktopIsDisabled"
+                            @click="
+                              selectTemplateModalData = {
+                                type: 'add',
+                                action: addDesktop
+                              }
+                            "
+                          >
+                            {{ addDesktopLabel }}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        v-if="addDesktopQuotaReached"
+                        side="bottom"
+                        :title="t('views.new-deployment.steps.select-desktops.quota-reached.title')"
+                        :subtitle="
+                          t('views.new-deployment.steps.select-desktops.quota-reached.description')
+                        "
+                      />
+                    </Tooltip>
 
-                <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors.flat()" />
+                    <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors.flat()" />
+                  </div>
+                </template>
+              </EmptyState>
+
+              <div v-else class="flex flex-row items-center justify-center gap-6 shrink-0 w-full">
+                <Separator />
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex">
+                      <Button
+                        hierarchy="secondary-gray"
+                        icon="plus"
+                        :disabled="addDesktopIsDisabled"
+                        @click="
+                          selectTemplateModalData = {
+                            type: 'add',
+                            action: addDesktop
+                          }
+                        "
+                        >{{ addDesktopLabel }}</Button
+                      >
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    v-if="addDesktopQuotaReached"
+                    :title="t('views.new-deployment.steps.select-desktops.quota-reached.title')"
+                    :subtitle="
+                      t('views.new-deployment.steps.select-desktops.quota-reached.description')
+                    "
+                  />
+                </Tooltip>
+                <Separator />
               </div>
             </form.Field>
           </form.Subscribe>
