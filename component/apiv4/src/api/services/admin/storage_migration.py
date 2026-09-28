@@ -469,12 +469,10 @@ class AdminStorageMigrationService:
         totals = m.totals or {}
         cfg = m.config or {}
         window = cfg.get("window") or {}
-        ewma = m.throughput_ewma or {}
-        mbps = max(ewma.values()) if ewma else None
         remaining = max(
             0, int(totals.get("bytes_total") or 0) - int(totals.get("bytes_done") or 0)
         )
-        eta = mig.tree_eta_seconds(remaining, mbps)
+        eta = mig.job_eta_seconds(m, remaining)
         return {
             **_serialize(m),
             "state_counts": totals.get("state_counts", {}),

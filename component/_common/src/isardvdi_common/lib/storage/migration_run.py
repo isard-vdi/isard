@@ -654,6 +654,18 @@ class MigrationRunner:
         ewma[key] = mig.ewma_update(ewma.get(key), mbps)
         self.migration.throughput_ewma = ewma
 
+    def _record_job_rate(self, active, bytes_done=None):
+        if bytes_done is None:
+            bytes_done = (getattr(self.migration, "totals", None) or {}).get(
+                "bytes_done"
+            )
+        self.migration.job_rate = mig.job_rate_update(
+            getattr(self.migration, "job_rate", None),
+            int(bytes_done or 0),
+            active,
+            time(),
+        )
+
     # -- free-space percentage floor (start gate is in the apiv4 service) ---- #
     def _probe_free_space(self):
         """``(free_bytes, total_bytes)`` for the destination, or ``None`` until a
@@ -1756,6 +1768,7 @@ class MigrationRunner:
         # job parked by load drives no trees and resumes on a later clean tick.
         if mig.load_policy_is_adaptive(self.config):
             if self._apply_load_policy():
+                self._record_job_rate(False)
                 self._publish_progress()
                 return []
         # Cancel = finish-current-tree (P2.4): once an admin cancels, the job is
@@ -1782,6 +1795,7 @@ class MigrationRunner:
                     space_paused = False
             elif self._space_floor_breached():
                 self._pause_for_space()
+                self._record_job_rate(False)
                 self._publish_progress()
                 return [("__space__", None, "paused_min_free")]
 
@@ -1901,7 +1915,7 @@ class MigrationRunner:
             for (_t, _i, action) in results
         ):
             failed_this_tick = True
-        self.migration.recompute_totals()
+        totals = self.migration.recompute_totals() or {}
 
         recurring = bool(self.config.get("recurring"))
         policy = self.config.get("failure_policy") or "retry_quarantine"
@@ -1934,6 +1948,7 @@ class MigrationRunner:
             MigrationItemState.QUARANTINED.value,
         }
         any_in_flight = any(str(it["state"]) not in _settled for it in fresh)
+        self._record_job_rate(any_in_flight, totals.get("bytes_done"))
 
         cur = str(self.migration.status)
         if pause_now:

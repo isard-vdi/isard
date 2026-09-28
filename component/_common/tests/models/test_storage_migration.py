@@ -257,6 +257,16 @@ def test_build_totals_includes_done_and_preserves_static():
     assert t["state_counts"] == {"released": 1, "skipped": 1, "moving": 1}
 
 
+def test_build_totals_follows_a_ledger_that_grew():
+    items = [
+        {"state": "released", "size_bytes": 10},
+        {"state": "pending", "size_bytes": 20},
+    ]
+    t = build_totals({"trees": 1, "bytes_total": 10}, items)
+    assert t["bytes_total"] == 30
+    assert t["bytes_total"] - t["bytes_done"] == 20
+
+
 # --------------------------------------------------------------------------- #
 # recompute_totals — ledger-0: persisted with r.literal so emptied state_counts
 # keys are REPLACED, not deep-merged (no stale phantom pending/moving counts).

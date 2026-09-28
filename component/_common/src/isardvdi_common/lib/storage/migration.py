@@ -630,8 +630,8 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
     The single source of truth shared by the apiv4 status endpoint and the
     change-handler ``storage:migration`` socket emit, so both render identically.
     Everything is COUNT/SUM over the items (never an incremental counter); the
-    aggregate ETA is bytes-remaining over the best observed EWMA throughput
-    (``None`` until the first move completes). ``include_items`` adds the per-disk
+    aggregate ETA is bytes-remaining over the job's committed throughput
+    (``job_eta_seconds``). ``include_items`` adds the per-disk
     rows for the UI's expand.
     """
     from isardvdi_common.models.storage_migration import (
@@ -656,9 +656,7 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
     base = summarize_plan(items)
     bytes_total = sum(int(it.get("size_bytes") or 0) for it in items)
     bytes_done = compute_bytes_done(items)
-    ewma = getattr(migration, "throughput_ewma", None) or {}
-    mbps = max(ewma.values()) if ewma else None
-    eta = tree_eta_seconds(max(0, bytes_total - bytes_done), mbps)
+    eta = job_eta_seconds(migration, max(0, bytes_total - bytes_done))
     cfg = getattr(migration, "config", None) or {}
     cfg_window = cfg.get("window") or {}
     payload = {
@@ -736,12 +734,10 @@ def aggregate_summary(migration):
     totals = getattr(migration, "totals", None) or {}
     cfg = getattr(migration, "config", None) or {}
     window = cfg.get("window") or {}
-    ewma = getattr(migration, "throughput_ewma", None) or {}
-    mbps = max(ewma.values()) if ewma else None
     remaining = max(
         0, int(totals.get("bytes_total") or 0) - int(totals.get("bytes_done") or 0)
     )
-    eta = tree_eta_seconds(remaining, mbps)
+    eta = job_eta_seconds(migration, remaining)
     cw = getattr(migration, "current_window", None)
     return {
         "id": migration.id,
@@ -1234,6 +1230,37 @@ def tree_eta_seconds(bytes_remaining, mbps):
     if bytes_remaining <= 0:
         return 0.0
     return bytes_remaining / (mbps * 1_000_000)
+
+
+#: active seconds the job must have run before its own rate replaces the per-tree one
+JOB_RATE_MIN_SECONDS = 60
+
+
+def job_rate_update(state, bytes_done, active, now):
+    """Fold one tick into ``{at, bytes_done, active, bytes, seconds}``: the gap
+    since the previous tick counts only if a tree was in flight at that tick."""
+    state = dict(state or {})
+    if state.get("active") and state.get("at") is not None:
+        state["seconds"] = float(state.get("seconds") or 0) + max(
+            0.0, now - float(state["at"])
+        )
+        state["bytes"] = int(state.get("bytes") or 0) + max(
+            0, int(bytes_done) - int(state.get("bytes_done") or 0)
+        )
+    state.update(at=now, bytes_done=int(bytes_done), active=bool(active))
+    return state
+
+
+def job_eta_seconds(migration, bytes_remaining):
+    """Seconds left at the job's own committed bytes per active second, or at
+    the fastest per-tree rate until the job has a minute of history."""
+    state = getattr(migration, "job_rate", None) or {}
+    seconds = float(state.get("seconds") or 0)
+    moved = int(state.get("bytes") or 0)
+    if seconds >= JOB_RATE_MIN_SECONDS and moved > 0:
+        return 0.0 if bytes_remaining <= 0 else bytes_remaining * seconds / moved
+    ewma = getattr(migration, "throughput_ewma", None) or {}
+    return tree_eta_seconds(bytes_remaining, max(ewma.values()) if ewma else None)
 
 
 def tree_admitted(tree_eta_s, max_disk_eta_s, remaining_window_s, task_timeout=43200):

@@ -127,6 +127,28 @@ class TestList:
             assert k in row
         assert "items" not in row and "trees" not in row
 
+    def test_list_eta_follows_the_job_rate(self, test_client):
+        mib, tib = 1024**2, 1024**4
+        done = 555 * mib * 1800
+        resp = test_client(
+            url=self.URL,
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(
+                        "mig-eta",
+                        status="running",
+                        totals={"bytes_total": 4 * tib + done, "bytes_done": done},
+                        throughput_ewma={"fast:slow": 80.0},
+                        job_rate={"seconds": 1800, "bytes": done},
+                    )
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        eta = resp.json()["migrations"][0]["eta_seconds"]
+        assert eta == int(4 * tib / (555 * mib))
+
 
 # ── status ────────────────────────────────────────────────────────────────
 class TestStatus:

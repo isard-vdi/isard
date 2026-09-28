@@ -200,8 +200,9 @@ def compute_bytes_copied(items: Iterable) -> int:
 def build_totals(current: dict, items: list) -> dict:
     """Re-derive the live aggregate from item states (pure, never incremental).
 
-    The static plan fields in ``current`` (trees / desktops / bytes_total / ...)
-    are preserved; the dynamic ones are recomputed. ``done`` is the count of
+    The static plan fields in ``current`` (trees / desktops / ...) are
+    preserved; the dynamic ones, ``bytes_total`` included since a recurring
+    re-scan grows the ledger, are recomputed. ``done`` is the count of
     disks past the saga (released/skipped) — the UI progress field (ledger-1).
     """
     if not isinstance(current, dict):
@@ -209,6 +210,7 @@ def build_totals(current: dict, items: list) -> dict:
     return {
         **current,
         "items_total": len(items),
+        "bytes_total": sum(_size_of(it) for it in items),
         "state_counts": compute_state_counts(items),
         "bytes_done": compute_bytes_done(items),
         "bytes_copied": compute_bytes_copied(items),
@@ -329,6 +331,8 @@ class StorageMigrationModel(BaseModel):
     totals: MigrationTotals = Field(default_factory=MigrationTotals)
     #: EWMA MB/s keyed on "<src_pool>:<dst_pool>" (P2 window/ETA)
     throughput_ewma: dict = Field(default_factory=dict)
+    #: bytes committed and seconds spent with a tree in flight, for the job ETA
+    job_rate: dict = Field(default_factory=dict)
     current_window: dict | None = None
     #: occurrence key (start-date string, e.g. "2026-07-01") of the most recent
     #: re-scan; drives fresh-occurrence detection for a recurring job. None until
