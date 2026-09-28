@@ -1046,7 +1046,7 @@ see A39/M11/M16).
 1. The External apps panel is not present (gated server-side by
    `role != 'manager'`).
 
-## Scenario M15 — *manager logs action* — **expected failure (POST 500)**
+## Scenario M15 — *manager logs action*
 
 ### Given
 
@@ -1058,10 +1058,8 @@ see A39/M11/M16).
 
 ### Then
 
-1. **Known bug**: for a manager, `POST /api/v4/admin/items/logs_users` returns
-   `500` (admin logs work — see A30). The test asserts the desired `< 400` and
-   is wrapped in `test.fail`, so it is an expected failure until the manager
-   logs path is fixed.
+1. `POST /api/v4/admin/items/logs_users` returns `< 400` with the manager's own
+   category logs — the same endpoint admin logs use (A30).
 
 ## Scenario M16 — *manager sees category action buttons only for enabled permissions*
 
@@ -1120,8 +1118,8 @@ setup so the rest of the suite can run.
 2. Manager password-policy — `GET .../item/user/password-policy/{id}` → `500` (M4).
 3. Manager impersonation — `GET /api/v4/admin/item/jwt/{id}` → `500` (M5).
 4. Enable/disable — `PUT .../item/user/{id}` → `405` (A9). *(Reset password bug fixed — A6 now passes normally.)*
-5. Manager logs — `POST /api/v4/admin/items/logs_users` → `500` for a manager
-   (M15, marked `test.fail`). Admin logs work at the same `/items/` path (A30 passes).
+5. ~~Manager logs — `POST /api/v4/admin/items/logs_users` → `500` for a manager
+   (M15)~~ — **fixed**; M15 now asserts `< 400` like A30.
 6. Manager delete-user preview — `POST .../item/user/delete/check` → `500` (M6).
 7. Manager Bastion — modal opens with "Bastion Domain" title (M12).
 8. Edit-role modal shows corrupted migration/merge content (A23).

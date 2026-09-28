@@ -278,7 +278,16 @@ function raw_table(){
 
 						input.addEventListener('keyup', debouncedKeyUp);
 					}else{
-						// TODO: remove sort event and icon
+						// Ordering by a column with no db index makes the api
+						// materialise the whole logs table and fail. sSortingClass
+						// is what DataTables re-applies to the header on every draw.
+						let settings = column.settings()[0];
+						let columnSettings = settings.aoColumns[column.index()];
+						columnSettings.bSortable = false;
+						columnSettings.sSortingClass = settings.oClasses.sSortableNone;
+						$(column.header()).off('click.DT keypress.DT');
+						column.header().classList.remove('sorting', 'sorting_asc', 'sorting_desc');
+						column.header().classList.add(settings.oClasses.sSortableNone);
 					}
 				});
 
@@ -417,7 +426,16 @@ function desktop_table(){
 
 						input.addEventListener('keyup', debouncedKeyUp);
 					}else{
-						// TODO: remove sort event and icon
+						// Ordering by a column with no db index makes the api
+						// materialise the whole logs table and fail. sSortingClass
+						// is what DataTables re-applies to the header on every draw.
+						let settings = column.settings()[0];
+						let columnSettings = settings.aoColumns[column.index()];
+						columnSettings.bSortable = false;
+						columnSettings.sSortingClass = settings.oClasses.sSortableNone;
+						$(column.header()).off('click.DT keypress.DT');
+						column.header().classList.remove('sorting', 'sorting_asc', 'sorting_desc');
+						column.header().classList.add(settings.oClasses.sSortableNone);
 					}
 				});
 
@@ -489,7 +507,16 @@ function desktop_by_category_table(){
 
 						input.addEventListener('keyup', debouncedKeyUp);
 					}else{
-						// TODO: remove sort event and icon
+						// Ordering by a column with no db index makes the api
+						// materialise the whole logs table and fail. sSortingClass
+						// is what DataTables re-applies to the header on every draw.
+						let settings = column.settings()[0];
+						let columnSettings = settings.aoColumns[column.index()];
+						columnSettings.bSortable = false;
+						columnSettings.sSortingClass = settings.oClasses.sSortableNone;
+						$(column.header()).off('click.DT keypress.DT');
+						column.header().classList.remove('sorting', 'sorting_asc', 'sorting_desc');
+						column.header().classList.add(settings.oClasses.sSortableNone);
 					}
 				});
 

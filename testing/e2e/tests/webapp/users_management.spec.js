@@ -3121,38 +3121,30 @@ test.describe("Users Management — manager role", () => {
   });
 
   // -------------------------------------------------------------------------
-  // M15 — Manager logs action fails (KNOWN BUG: returns 500)
+  // M15 — Manager logs action loads the user's logs
   // -------------------------------------------------------------------------
-  // Admin logs work (see A30), but a manager opening a user's logs gets a 500
-  // from POST /api/v4/admin/items/logs_users instead of the own-category logs.
-  // Marked test.fail (expected failure) per the file's known-bug convention.
-  // TODO: remove test.fail() once the manager logs endpoint no longer 500s.
-  test(
-    "M15 — Manager logs endpoint returns 500 (known bug)",
-    async ({ page }) => {
-      test.fail();
-      await page.goto(MGMT_URL);
+  // Same endpoint as A30, driven by a manager: the POST to
+  // /api/v4/admin/items/logs_users must return their own category's logs.
+  test("M15 — Manager logs endpoint returns the user's logs", async ({
+    page,
+  }) => {
+    await page.goto(MGMT_URL);
     await waitForManagementReady(page);
 
-      await expect(page.locator("#users tbody tr").first()).toBeVisible();
+    await expect(page.locator("#users tbody tr").first()).toBeVisible();
 
-      await expandUserRow(page);
+    await expandUserRow(page);
 
-      const logsPromise = page.waitForResponse(
-        (r) =>
-          r.url().includes("/api/v4/admin/items/logs_users") &&
-          r.request().method() === "POST",
-        { timeout: 7500 },
-      );
-      await page
-        .locator(".template-detail-users .btn-user-logs")
-        .first()
-        .click();
-      const logsResp = await logsPromise;
-      // Bug: returns 500 (should be < 400 once fixed).
-      expect(logsResp.status()).toBeLessThan(400);
-    },
-  );
+    const logsPromise = page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/v4/admin/items/logs_users") &&
+        r.request().method() === "POST",
+      { timeout: 15000 },
+    );
+    await page.locator(".template-detail-users .btn-user-logs").first().click();
+    const logsResp = await logsPromise;
+    expect(logsResp.status(), "logs_users POST status").toBeLessThan(400);
+  });
 });
 
 // ---------------------------------------------------------------------------
