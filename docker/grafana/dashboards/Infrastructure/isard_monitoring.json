@@ -714,7 +714,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"})",
+          "expr": "max by (domain) ((100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"})) or on(domain, instance) (100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard\", fstype!=\"rootfs\"})))",
+          "legendFormat": "{{domain}}",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
