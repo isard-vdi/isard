@@ -373,6 +373,9 @@ class StorageMigrationItemModel(BaseModel):
     parent_dst_dir: str | None = None
     parent_dst_path: str | None = None  # rebase target (parent's NEW path)
     state: MigrationItemState = MigrationItemState.PENDING
+    #: pre-move destination-absent check (refuses adopting a byte-stale orphan a
+    #: prior run left; rsync -a skips a same-size same-mtime file)
+    preflight_task_id: str | None = None
     move_task_id: str | None = None
     rebase_task_id: str | None = None
     #: pre-release destination-verify task (the unconditional gate that proves the
@@ -414,6 +417,8 @@ class StorageMigrationItemModel(BaseModel):
     dst_action: str | None = None
     dst_action_reason: str | None = None
     dst_task_id: str | None = None
+    #: the preflight found ``dst_path`` clear before this attempt's move
+    dst_owned: bool = False
     dst_retained: bool = False
     dst_retained_path: str | None = None
     #: the source failed qemu-img check during the pre-release gate

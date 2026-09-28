@@ -1767,6 +1767,22 @@ def pool_free_space(path):
 
 
 @_publishes_result
+def migration_verify_destination_absent(dst_path):
+    """Refuse a migration copy onto a path that already holds a file.
+
+    The pre-move mirror of :func:`migration_verify_destination`: ``move``'s rsync
+    runs ``-a``, whose quick-check SKIPS a destination whose size and mtime match
+    the source, so a complete orphan a prior cancel/failure left (or one this
+    stack retained) would be adopted instead of copied. Runs on the storage
+    worker (the only role that mounts the pools). Returns 0 when the destination
+    is clear; raises when it is occupied.
+    """
+    if os.path.exists(dst_path):
+        raise RuntimeError(f"destination_exists: {dst_path}")
+    return 0
+
+
+@_publishes_result
 def convert(
     source_disk_path,
     dest_disk_path,

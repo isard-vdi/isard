@@ -120,6 +120,7 @@ _MAINTENANCE_ACTIONS = frozenset(
         "virt_win_reg",
         "rebase",
         "migration_verify_destination",
+        "migration_verify_destination_absent",
     }
 )
 

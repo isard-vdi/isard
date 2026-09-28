@@ -548,12 +548,14 @@ class MigrationRunner:
             item,
             state=MigrationItemState.PENDING.value,
             occurrence_failures=int(occurrence_failures),
+            preflight_task_id=None,
             move_task_id=None,
             move_started_at=None,
             rebase_task_id=None,
             verify_task_id=None,
             verify_passed=False,
             move_delete_task_id=None,
+            dst_owned=False,
             storage_orig_status=None,
             maintenance_domains=None,
             autostart_domains=None,
@@ -794,6 +796,17 @@ class MigrationRunner:
         dst_path = item.get("dst_path")
         if not dst_path:
             return
+        # without the preflight's proof the file may be the disk's only copy
+        if not item.get("dst_owned"):
+            log.warning(
+                "migration %s: not discarding %s for %s: not proven written by "
+                "this attempt",
+                self.migration_id,
+                dst_path,
+                item["storage_id"],
+            )
+            self._set(item, dst_retained=True, dst_retained_path=dst_path)
+            return
         sid = item["storage_id"]
         if self._is_media(item):
             try:
@@ -985,6 +998,57 @@ class MigrationRunner:
             return True
         return False
 
+    def _start_preflight(self, item):
+        # Read-only destination-clear check on the destination pool's worker (the
+        # runner cannot see the pools). Before the claim, so a deferred tick
+        # leaves no fence behind; idempotent, so a lost job re-enqueues.
+        queue = self._pool_queue(
+            item["dst_path"], "migration_verify_destination_absent"
+        )
+        if not self.lane_is_drainable(Task._redis, queue):
+            log.warning(
+                "migration %s: no consumer for %s, deferring preflight of %s",
+                self.migration_id,
+                queue,
+                item["storage_id"],
+            )
+            return
+        observed = item.get("preflight_task_id")
+        # Atomic single-writer claim: fence preflight_task_id (None fresh / the
+        # gone id on resume) so exactly one driver (re-)enqueues. State stays pending.
+        fence = f"claim:{uuid4().hex}"
+        if not StorageMigrationItem.claim(
+            item["id"],
+            when={
+                "state": MigrationItemState.PENDING.value,
+                "preflight_task_id": observed,
+            },
+            set_fields={"preflight_task_id": fence},
+        ):
+            return
+        item["preflight_task_id"] = fence
+        # A real (non-fence) prior id is an abandoned check we re-drive: bound the
+        # resume. A fence is a reserved slot, not an abandonment, so never charged.
+        observed_real = observed and not str(observed).startswith("claim:")
+        if observed_real and self._abandon_resume_blocked(item):
+            return
+        task_id = self._enqueue(
+            "migration_verify_destination_absent",
+            queue,
+            {"dst_path": item["dst_path"]},
+        )
+        self._claim_storage_task(item, task_id)
+        self._set(item, preflight_task_id=task_id)
+
+    def _destination_exists(self, item):
+        # The destination holds an orphan a prior run left. Refuse the disk
+        # without touching it (it never left pending) and record the path for the
+        # census; the tree terminalizes and failure_policy decides the job.
+        self._set(item, dst_retained_path=item["dst_path"])
+        self._terminalize_tree_failure(
+            item, reason=f"destination_exists: {item['dst_path']}"
+        )
+
     def _start_move(self, item):
         observed = item.get("move_task_id")
         # Atomic single-writer claim: exactly one driver may (re-)enqueue this
@@ -1002,6 +1066,8 @@ class MigrationRunner:
                 set_fields={
                     "state": MigrationItemState.MOVING.value,
                     "move_task_id": fence,
+                    # a fresh move only ever follows a clear preflight
+                    "dst_owned": True,
                 },
             )
         else:
@@ -1021,6 +1087,8 @@ class MigrationRunner:
             )
         if not won:
             return  # another driver won the claim; do not double-submit the rsync
+        if observed is None:
+            item["dst_owned"] = True
         item["state"] = MigrationItemState.MOVING.value
         item["move_task_id"] = fence
         # RESUME of a gone move -> bound the orphan-resume (only the winner counts).
@@ -1405,7 +1473,7 @@ class MigrationRunner:
         self._restore_storage_status(item)
         self._audit(item, "in_place")
 
-    def _terminalize_tree_failure(self, item):
+    def _terminalize_tree_failure(self, item, reason=None):
         """A disk's move/rebase failed (action ``fail``) or it is already failed
         and blocks its tree (action ``blocked``). Terminalize the WHOLE tree so
         the job can finish and ``reactivate()`` runs (autostart restored),
@@ -1423,7 +1491,7 @@ class MigrationRunner:
         # exception handler), which plan_tree_failure leaves untouched — reset
         # its storage explicitly so it never stays stuck in maintenance.
         self._restore_storage_status(item)
-        reason = self._failure_reason(item)
+        reason = reason if reason is not None else self._failure_reason(item)
         damage = mig.damage_from_reason(reason)
         changes = mig.plan_tree_failure(tree_items, item["storage_id"], reason=reason)
         changed_ids = {it["id"] for it, _s, _r in changes}
@@ -1468,6 +1536,8 @@ class MigrationRunner:
         self._terminalize_tree_failure(item)
 
     _ACTIONS = {
+        "start_preflight": _start_preflight,
+        "destination_exists": _destination_exists,
         "start_move": _start_move,
         "skip_move": _skip_move,
         "mark_moved": _mark_moved,
@@ -1748,7 +1818,10 @@ class MigrationRunner:
                             error=f"action {action} raised",
                         )
                         failed_this_tick = True
-        if any(action in ("fail", "blocked") for (_t, _i, action) in results):
+        if any(
+            action in ("fail", "blocked", "destination_exists")
+            for (_t, _i, action) in results
+        ):
             failed_this_tick = True
         self.migration.recompute_totals()
 

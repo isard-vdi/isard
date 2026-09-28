@@ -75,7 +75,7 @@ def test_cancel_discards_the_copy_of_a_disk_that_reached_the_destination(
     nothing removed it."""
     _Storage.rows = {"a": SRC_DIR}
     r, caps = _runner(monkeypatch)
-    item = _item("a", state)
+    item = _item("a", state, dst_owned=True)
 
     r._cancel_skip_tree([item], "canceled before tree committed")
 
@@ -114,7 +114,7 @@ def test_a_committed_disk_keeps_its_destination_whatever_the_state_says(monkeypa
 def test_the_destination_follows_the_same_disposition_as_the_source(monkeypatch):
     _Storage.rows = {"a": SRC_DIR}
     r, caps = _runner(monkeypatch, system_action="move")
-    item = _item("a", "moved")
+    item = _item("a", "moved", dst_owned=True)
 
     r._cancel_skip_tree([item], "canceled")
 
@@ -125,7 +125,7 @@ def test_the_destination_follows_the_same_disposition_as_the_source(monkeypatch)
 def test_a_dead_destination_lane_records_the_retained_copy(monkeypatch):
     _Storage.rows = {"a": SRC_DIR}
     r, caps = _runner(monkeypatch, drainable=False)
-    item = _item("a", "moved")
+    item = _item("a", "moved", dst_owned=True)
 
     r._cancel_skip_tree([item], "canceled")
 
@@ -141,7 +141,7 @@ def test_a_failed_tree_discards_the_copies_of_its_abandoned_disks(monkeypatch):
     _Storage.rows = {"root": DST_DIR, "a": SRC_DIR, "b": SRC_DIR}
     r, caps = _runner(monkeypatch)
     root = _item("root", "db_updated")  # committed ancestor: row on destination
-    a = _item("a", "moved", parent_storage_id="root")
+    a = _item("a", "moved", parent_storage_id="root", dst_owned=True)
     b = _item("b", "pending", parent_storage_id="root")
     r._items = lambda: [root, a, b]
     r._failure_reason = lambda item: "verify said no"
@@ -153,3 +153,44 @@ def test_a_failed_tree_discards_the_copies_of_its_abandoned_disks(monkeypatch):
     ]
     assert a["state"] == "failed" and b["state"] == "skipped"
     assert root.get("dst_action") is None
+
+
+@pytest.mark.parametrize("state", ["moving", "moved", "rebased"])
+def test_a_destination_the_attempt_never_proved_clear_is_kept(monkeypatch, state):
+    """Unproven destination files are recorded, never discarded."""
+    _Storage.rows = {"a": SRC_DIR}
+    r, caps = _runner(monkeypatch)
+    item = _item("a", state)
+
+    r._cancel_skip_tree([item], "canceled")
+
+    assert caps["enqueued"] == [], "a file this attempt did not write was discarded"
+    assert item["dst_retained"] is True
+    assert item["dst_retained_path"] == item["dst_path"]
+    assert item.get("dst_action") is None
+
+
+def test_a_move_that_failed_before_writing_keeps_the_file_it_found(monkeypatch):
+    """A move that failed on a missing source keeps the file found at the destination."""
+    _Storage.rows = {"a": SRC_DIR}
+    r, caps = _runner(monkeypatch)
+    item = _item("a", "moving", move_task_id="t-move")
+    r._items = lambda: [item]
+    r._failure_reason = lambda it: "ValueError: Path /pool-src/a.qcow2 not found"
+
+    r._terminalize_tree_failure(item)
+
+    assert caps["enqueued"] == [], "the disk's only copy was sent to be deleted"
+    assert item["state"] == "failed"
+    assert item["dst_retained_path"] == item["dst_path"]
+
+
+def test_a_rearm_forgets_that_the_destination_was_ours(monkeypatch):
+    _Storage.rows = {"a": SRC_DIR}
+    r, caps = _runner(monkeypatch)
+    item = _item("a", "failed", dst_owned=True)
+
+    r._rearm_item(item, 1)
+
+    assert item["state"] == "pending"
+    assert item["dst_owned"] is False
