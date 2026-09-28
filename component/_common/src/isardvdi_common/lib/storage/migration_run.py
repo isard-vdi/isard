@@ -835,6 +835,19 @@ class MigrationRunner:
             item, dst_action=action, dst_action_reason=reason, dst_task_id=task_id
         )
 
+    def _unmovable_disk(self, tree_items):
+        """Why the tree must not start, if one of its disks left ``ready`` since the plan."""
+        for it in tree_items:
+            if self._is_media(it):
+                continue
+            sid = it["storage_id"]
+            status = Storage(sid).status if Storage.exists(sid) else None
+            if status == "recycled":
+                return f"disk {sid} is in the recycle bin"
+            if status != "ready":
+                return f"disk {sid} is {status or 'gone'}, not ready"
+        return None
+
     def _gate_tree(self, tree_items):
         """Tree-level quiesce gate, evaluated BEFORE the tree starts moving.
 
@@ -849,6 +862,10 @@ class MigrationRunner:
             str(it["state"]) != MigrationItemState.PENDING.value for it in tree_items
         ):
             return True
+        unmovable = self._unmovable_disk(tree_items)
+        if unmovable:
+            self._skip_tree(tree_items, MigrationItemState.SKIPPED.value, unmovable)
+            return False
         force = bool(self.config.get("force_stop_desktops"))
         running = []
         for it in tree_items:

@@ -111,6 +111,10 @@ def _runner(
         def __init__(self, sid):
             self.status = "ready"
 
+        @staticmethod
+        def exists(sid):
+            return True
+
         @classmethod
         def update_document(cls, sid, fields, validate=True):
             pass
