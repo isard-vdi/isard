@@ -303,6 +303,23 @@ async def test_pass2_never_promotes_from_the_rows_cached_disk_info():
 
 
 @pytest.mark.asyncio
+async def test_pass2_heals_with_a_check_that_may_release_maintenance():
+    """A check is an observer and leaves ``maintenance`` to the chain that
+    holds it. Here that chain is dead, so the heal must be allowed to."""
+    from isardvdi_change_handler.streams import reconcile
+
+    storage = _storage(virtual_size=1)
+    with (
+        patch.object(reconcile.Storage, "get_index", return_value=[storage]),
+        patch.object(reconcile, "_task_alive", return_value=False),
+        patch.object(reconcile, "send_status_socket", new=AsyncMock()),
+    ):
+        await reconcile._reconcile_stuck_storage(AsyncMock())
+
+    assert storage.check_backing_chain.call_args.kwargs["release_maintenance"] is True
+
+
+@pytest.mark.asyncio
 async def test_pass2_skips_storage_with_live_task():
     from isardvdi_change_handler.streams import reconcile
 

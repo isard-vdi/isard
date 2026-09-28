@@ -727,6 +727,86 @@ class Storage(RethinkCustomBase):
         if cls.exists(storage_id):
             return cls(storage_id)
 
+    @classmethod
+    def write_reading(cls, reading, observer=False, read_at=None):
+        """Write a task's reading of the disk in one operation. Its status is
+        dropped, its measurements kept, when the row is in the recycle bin, when
+        an ``observer`` reads a row some chain holds in ``maintenance``, or when
+        the row was deleted after the reading started (``read_at``).
+        Returns the row's status afterwards, or None when there is no row."""
+        data = {k: v for k, v in reading.items() if k != "id"}
+        change = data
+        if "status" in data:
+            data["status_time"] = time()
+
+            def change(row):
+                status = row["status"].default(None)
+                keep = status.eq("recycled")
+                if observer:
+                    keep = keep.or_(status.eq("maintenance"))
+                if read_at is not None and data["status"] != "deleted":
+                    keep = keep.or_(
+                        status.eq("deleted").and_(
+                            row["status_time"].default(0).gt(read_at)
+                        )
+                    )
+                return r.branch(
+                    keep, r.expr(data).without("status", "status_time"), data
+                )
+
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(reading["id"])
+                .update(change, return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if new is None:
+            return None
+        return new.get("status")
+
+    @classmethod
+    def write_status(cls, storage_id, status):
+        """Write a chain's final status in one operation. A row in the recycle
+        bin, or deleted, only takes ``deleted``. Returns the row's status
+        afterwards, or None when there is no row."""
+        data = {"status": status, "status_time": time()}
+        change = data
+        if status != "deleted":
+            change = lambda row: r.branch(
+                r.expr(["recycled", "deleted"]).contains(row["status"].default(None)),
+                {},
+                data,
+            )
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(storage_id)
+                .update(change, return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if new is None:
+            return None
+        return new.get("status")
+
+    def _refuse_if_recycled(self):
+        if self.status == "recycled":
+            from isardvdi_common.helpers.error_factory import Error
+
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} is in the recycle bin",
+                description_code="storage_recycled",
+            )
+
     @property
     def statuses(self):
         """
@@ -835,7 +915,7 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
-
+        self._refuse_if_recycled()
         return self.create_task(
             blocking=blocking,
             user_id=user_id,
@@ -870,7 +950,12 @@ class Storage(RethinkCustomBase):
         )
 
     def check_backing_chain(
-        self, user_id, blocking=True, retry=3, priority="background"
+        self,
+        user_id,
+        blocking=True,
+        retry=3,
+        priority="background",
+        release_maintenance=False,
     ):
         """
         Create a task to check the storage.
@@ -886,10 +971,16 @@ class Storage(RethinkCustomBase):
         :param priority: Requested tier for the refresh (``background`` by default
             for idle lifecycle refreshes; ``standard`` for an admin-triggered one)
         :type priority: str
+        :param release_maintenance: The row's own chain is dead and this check
+            is what brings it out of ``maintenance``
+        :type release_maintenance: bool
         :return: Task ID
         :rtype: str
         """
-
+        self._refuse_if_recycled()
+        update = {"queue": "core", "task": "storage_update"}
+        if not release_maintenance:
+            update["job_kwargs"] = {"kwargs": {"observer": True}}
         return self.create_task(
             blocking=blocking,
             user_id=user_id,
@@ -903,12 +994,7 @@ class Storage(RethinkCustomBase):
                     "storage_path": self.path,
                 }
             },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
+            dependents=[update],
         )
 
     def set_maintenance(self, action="system maintenance", exclude_domains=None):
@@ -1232,6 +1318,7 @@ class Storage(RethinkCustomBase):
         """
         domains_to_failed = [domain.id for domain in self.domains]
         domains_to_failed.extend([domain.id for domain in self.domains_derivatives])
+        self._refuse_if_recycled()
         self.set_maintenance("delete", exclude_domains=exclude_domains)
         return self.create_task(
             user_id=user_id,

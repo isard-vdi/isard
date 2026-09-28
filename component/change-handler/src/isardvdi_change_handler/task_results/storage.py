@@ -34,6 +34,7 @@ import contextvars
 import json
 import logging as log
 from contextlib import contextmanager
+from datetime import timezone
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
@@ -100,18 +101,40 @@ def _promote_domains_to_stopped(storage_object):
             domain.current_action = None
 
 
-def _apply_storage_update(storage_dict):
+def _read_started_at(task):
+    """When the earliest reading this step applies started, or None."""
+    starts = []
+    for dependency in getattr(task, "dependencies", None) or []:
+        try:
+            started = dependency.job.started_at
+        except Exception:
+            continue
+        if started is not None:
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            starts.append(started.timestamp())
+    return min(starts) if starts else None
+
+
+def _apply_storage_update(storage_dict, observer=False, read_at=None):
     """Run the rethinkdb writes from a storage_update payload.
 
     Factored out of :func:`handle_storage_update` so
     :func:`handle_storage_update_pool` (which composes multiple
     storage updates inline) can reuse the same body without
-    re-checking ``depending_status``.
+    re-checking ``depending_status``. Returns the row's status afterwards.
     """
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
-    storage_object = Storage.init_document(**storage_dict)
-    if storage_dict.get("status") in ("deleted", "orphan", "broken_chain"):
+    status = Storage.write_reading(storage_dict, observer=observer, read_at=read_at)
+    if status is None:
+        return None
+    storage_object = Storage(storage_dict["id"])
+    if storage_dict.get("status") == status and status in (
+        "deleted",
+        "orphan",
+        "broken_chain",
+    ):
         # Walk *through* the already-deleted rows: a purge run with ``move``
         # renames the file into ``deleted/`` instead of unlinking it, so a
         # live disk can sit behind one. Skipping those rows as the walk goes
@@ -126,9 +149,9 @@ def _apply_storage_update(storage_dict):
         for child in storage_object.dependents(include_deleted=True):
             if child.status != "deleted":
                 child.status = "orphan"
-    if storage_dict.get("status") == "ready":
+    if storage_dict.get("status") == "ready" and status == "ready":
         _promote_domains_to_stopped(storage_object)
-    return storage_object
+    return status
 
 
 def _resolve_user_category(user_id):
@@ -220,7 +243,7 @@ def handle_storage_update_parent(task, storage_id):
         storage.parent = None
 
 
-async def handle_storage_update(redis_manager, task, **storage_dict):
+async def handle_storage_update(redis_manager, task, observer=False, **storage_dict):
     """Port of core_worker.task.storage_update.
 
     Direct call site (``storage_dict`` provided) writes the payload and
@@ -232,12 +255,15 @@ async def handle_storage_update(redis_manager, task, **storage_dict):
     if task.depending_status != "finished":
         return
     if storage_dict:
-        if _apply_storage_update(storage_dict) is None:
+        status = _apply_storage_update(
+            storage_dict, observer=observer, read_at=_read_started_at(task)
+        )
+        if status is None:
             return
         await send_status_socket(
             redis_manager,
             storage_dict["id"],
-            storage_dict.get("status"),
+            status,
             task.user_id,
         )
         return
@@ -254,12 +280,16 @@ async def handle_storage_update(redis_manager, task, **storage_dict):
             # handle_storage_update re-walk the dependencies and recurse).
             if dependency.result is None:
                 continue
-            await handle_storage_update(redis_manager, task, **dependency.result)
+            await handle_storage_update(
+                redis_manager, task, observer=observer, **dependency.result
+            )
         if dependency.task == "check_backing_filename":
             for result in dependency.result or []:
                 if result is None:
                     continue
-                await handle_storage_update(redis_manager, task, **result)
+                await handle_storage_update(
+                    redis_manager, task, observer=observer, **result
+                )
 
 
 async def handle_storage_update_dict(redis_manager, task, **storage_dict):
@@ -271,12 +301,13 @@ async def handle_storage_update_dict(redis_manager, task, **storage_dict):
     """
     if not storage_dict:
         return
-    if _apply_storage_update(storage_dict) is None:
+    status = _apply_storage_update(storage_dict, read_at=_read_started_at(task))
+    if status is None:
         return
     await send_status_socket(
         redis_manager,
         storage_dict["id"],
-        storage_dict.get("status"),
+        status,
     )
 
 
@@ -327,12 +358,15 @@ async def handle_update_status(redis_manager, task, statuses=None):
                         # status here would re-create it as a zombie with
                         # nothing but an id and a status.
                         continue
+                    if item_class.lower() == "storage":
+                        status = Storage.write_status(item_id, item_status)
+                        if status is not None:
+                            await send_status_socket(redis_manager, item_id, status)
+                        continue
                     model.insert_document(
                         {"id": item_id, "status": item_status},
                         conflict="update",
                     )
-                    if item_class.lower() == "storage":
-                        await send_status_socket(redis_manager, item_id, item_status)
 
 
 def _valid_storage_pool(storage, new_path):
@@ -359,6 +393,7 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
     if not Storage.exists(storage_id):
         return
     storage = Storage(storage_id)
+    read_at = _read_started_at(task)
     for dependency in task.dependencies:
         if dependency.task != "find":
             continue
@@ -366,16 +401,19 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
         dependency_results = (dependency.result or {}).get("matching_files", [])
         if not dependency_results:
             if (dependency.result or {}).get("status") == "deleted":
-                _apply_storage_update(
+                status = _apply_storage_update(
                     {
                         "id": storage_id,
                         "status": "deleted",
                         "storages_with_uuid": [],
-                    }
+                    },
+                    observer=True,
+                    read_at=read_at,
                 )
-                await send_status_socket(
-                    redis_manager, storage_id, "deleted", task.user_id
-                )
+                if status is not None:
+                    await send_status_socket(
+                        redis_manager, storage_id, status, task.user_id
+                    )
             return
 
         invalid_storages = []
@@ -442,13 +480,19 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                 "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
                 "storages_with_uuid": _uuid_list_from(duplicated_storages),
             }
-            _apply_storage_update(update_payload)
-            await send_status_socket(
-                redis_manager, storage_id, found_status, task.user_id
+            status = _apply_storage_update(
+                update_payload, observer=True, read_at=read_at
             )
+            if status is not None:
+                await send_status_socket(
+                    redis_manager, storage_id, status, task.user_id
+                )
             return
 
         if duplicated_storages:
+            if storage.status == "maintenance":
+                # the chain holding the row decides where its file lives
+                return
             first_storage = duplicated_storages.pop(0)
             storage.set_storage_pool(first_storage["storage_pool"])
             found_status = first_storage["storage_data"]["status"]
@@ -460,20 +504,26 @@ async def handle_storage_update_pool(redis_manager, task, storage_id):
                 "qemu-img-info": first_storage["storage_data"]["qemu-img-info"],
                 "storages_with_uuid": _uuid_list_from(duplicated_storages),
             }
-            _apply_storage_update(update_payload)
-            await send_status_socket(
-                redis_manager, storage_id, found_status, task.user_id
+            status = _apply_storage_update(
+                update_payload, observer=True, read_at=read_at
             )
+            if status is not None:
+                await send_status_socket(
+                    redis_manager, storage_id, status, task.user_id
+                )
             return
 
-        _apply_storage_update(
+        status = _apply_storage_update(
             {
                 "id": storage_id,
                 "status": "deleted",
                 "storages_with_uuid": _uuid_list_from([]),
-            }
+            },
+            observer=True,
+            read_at=read_at,
         )
-        await send_status_socket(redis_manager, storage_id, "deleted", task.user_id)
+        if status is not None:
+            await send_status_socket(redis_manager, storage_id, status, task.user_id)
 
 
 # Resolved lazily at module load — keeps the import side-effect-free.

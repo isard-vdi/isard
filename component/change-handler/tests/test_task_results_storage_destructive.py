@@ -141,8 +141,10 @@ async def test_update_status_skips_an_unknown_item_class_and_keeps_going():
 
     with (
         patch.dict(storage._ITEM_CLASS_MAP, {"storage": model}, clear=False),
+        patch.object(storage, "Storage") as mock_storage_cls,
         patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
     ):
+        mock_storage_cls.write_status.return_value = "ready"
         await storage.handle_update_status(
             redis_manager,
             _task(),
@@ -156,9 +158,7 @@ async def test_update_status_skips_an_unknown_item_class_and_keeps_going():
             },
         )
 
-    model.insert_document.assert_called_once_with(
-        {"id": "s1", "status": "ready"}, conflict="update"
-    )
+    mock_storage_cls.write_status.assert_called_once_with("s1", "ready")
     mock_send.assert_awaited_once()
 
 

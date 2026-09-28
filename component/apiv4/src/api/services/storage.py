@@ -218,6 +218,8 @@ class StorageService:
         """Check backing chain for a batch of storages by IDs."""
         for storage_id in storage_ids:
             storage = get_storage(payload, storage_id)
+            if storage.status == "recycled":
+                continue
             storage.check_backing_chain(user_id=payload.get("user_id"))
 
     @staticmethod
@@ -227,6 +229,8 @@ class StorageService:
         for storage_id in storages_ids:
             try:
                 storage = get_storage(payload, storage_id)
+                if storage.status == "recycled":
+                    continue
                 storage.check_backing_chain(user_id=payload.get("user_id"))
             except Exception:
                 notify_admin(
@@ -897,6 +901,8 @@ class StorageService:
         """Find multiple storages on disk."""
         for storage_id in storage_ids:
             storage = get_storage(payload, storage_id)
+            if storage.status == "recycled":
+                continue
             storage.find(payload.get("user_id"))
 
     @staticmethod

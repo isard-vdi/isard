@@ -63,7 +63,11 @@ async def _run(row, task, *, pool_for=None):
             "_valid_storage_pool",
             side_effect=lambda _row, path: table.get(path, default_pool),
         ),
-        patch.object(storage, "_apply_storage_update") as mock_apply,
+        patch.object(
+            storage,
+            "_apply_storage_update",
+            side_effect=lambda payload, **_: payload["status"],
+        ) as mock_apply,
         patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
     ):
         mock_storage_cls.exists.return_value = True
@@ -71,6 +75,8 @@ async def _run(row, task, *, pool_for=None):
         await storage.handle_storage_update_pool(AsyncMock(), task, "s1")
 
     applied = mock_apply.call_args.args[0] if mock_apply.call_args else None
+    if mock_apply.call_args:
+        assert mock_apply.call_args.kwargs["observer"] is True
     emitted = mock_send.await_args.args[2] if mock_send.await_args else None
     return applied, emitted
 
@@ -171,9 +177,8 @@ async def test_a_recycled_row_is_not_resurrected_by_a_ready_looking_file():
 
 @pytest.mark.asyncio
 async def test_a_non_ready_status_on_disk_is_still_adopted_over_recycled():
-    """The guard is narrow on purpose: only ``ready`` is refused. A file
-    that reports, say, ``maintenance`` describes real in-flight work and
-    must not be masked by the row's recycled state."""
+    """The handler passes the file's status on; the write itself keeps a
+    recycled row recycled whatever the reading says."""
     row = _row(status="recycled")
     applied, _ = await _run(
         row, _task([_found("/pool/s1.qcow2", status="maintenance")])
@@ -244,3 +249,11 @@ async def test_a_copy_a_pool_does_not_claim_is_recorded_not_adopted():
     entries = applied["storages_with_uuid"]
     assert {"status": "not_in_pool", "path": "/unclaimed/s1.qcow2"} in entries
     assert {"status": "bad_path", "path": "/claimed/s1.qcow2"} in entries
+
+
+@pytest.mark.asyncio
+async def test_a_row_a_chain_holds_is_not_moved_to_another_copy():
+    row = _row(path="/nowhere/s1.qcow2", status="maintenance")
+    applied, emitted = await _run(row, _task([_found("/new/s1.qcow2")]))
+    assert applied is None and emitted is None
+    row.set_storage_pool.assert_not_called()
