@@ -111,6 +111,18 @@ const userSharedTemplatesHeader = computed(() => [
     sortable: true,
     width: 'minmax(var(--spacing-48), var(--spacing-64))'
   },
+  {
+    name: t('views.templates.table.headers.category'),
+    key: 'category_name',
+    sortable: true,
+    width: 'minmax(max-content, var(--spacing-40))'
+  },
+  {
+    name: t('views.templates.table.headers.group'),
+    key: 'group_name',
+    sortable: true,
+    width: 'minmax(max-content, var(--spacing-40))'
+  },
   { name: '', key: 'actions', width: 'max-content' }
 ])
 
@@ -258,6 +270,14 @@ function templateProgressPercent(progress: unknown): number {
 
       <template #cell-owner="{ row }">
         <AvatarLabel :src="row.user.photo" :name="row.user.name" class="text-gray-warm-900" />
+      </template>
+
+      <template #cell-category_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.category_name }}</p>
+      </template>
+
+      <template #cell-group_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.group_name }}</p>
       </template>
 
       <template #cell-actions="{ row }">
