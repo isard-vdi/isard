@@ -12,7 +12,7 @@ from cachetools import cached
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.models.domain import Domain
-from isardvdi_common.models.storage import Storage
+from isardvdi_common.models.storage import Storage, verdict_for_blocked_disks
 from rethinkdb import r
 
 from engine.models.domain_xml import (
@@ -137,7 +137,8 @@ class UiActions(object):
             )
             return False
         if not domain_obj.storage_ready:
-            if any([s.status == "non_existing" for s in domain_obj.storages]):
+            blocked = [s for s in domain_obj.storages if s.status != "ready"]
+            if any(s.status == "non_existing" for s in blocked):
                 log.error(
                     f"Domain {id_domain} ({domain['name']}) storage non existing. Can't start."
                 )
@@ -146,11 +147,18 @@ class UiActions(object):
                     id_domain,
                     detail=f"Desktop storage non existing",
                 )
-            else:
+            elif verdict_for_blocked_disks(s.status for s in blocked) == "Stopped":
                 update_domain_status(
                     "Stopped",
                     id_domain,
                     detail=f"Desktop storage not ready",
+                )
+            else:
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail="Desktop storage is %s and will not become ready"
+                    % ", ".join(sorted({s.status for s in blocked})),
                 )
             return False
         domain_storage_objs = domain_obj.storages
@@ -300,11 +308,20 @@ class UiActions(object):
                 )
                 return False
             if not domain_obj.storage_ready:
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail=f"Desktop storage not ready",
-                )
+                blocked = [s for s in domain_obj.storages if s.status != "ready"]
+                if verdict_for_blocked_disks(s.status for s in blocked) == "Stopped":
+                    update_domain_status(
+                        "Stopped",
+                        id_domain,
+                        detail=f"Desktop storage not ready",
+                    )
+                else:
+                    update_domain_status(
+                        "Failed",
+                        id_domain,
+                        detail="Desktop storage is %s and will not become ready"
+                        % ", ".join(sorted({s.status for s in blocked})),
+                    )
                 return False
             domain_storage_objs = domain_obj.storages
             if len(domain_storage_objs) == 0:
@@ -1011,6 +1028,18 @@ class UiActions(object):
                 detail="Updated hardware",
             )
             return True
+
+        blocked = [
+            st.status for st in Domain(id_domain).storages if st.status != "ready"
+        ]
+        if blocked and verdict_for_blocked_disks(blocked) != "Stopped":
+            update_domain_status(
+                "Failed",
+                id_domain,
+                detail="Desktop storage is %s and will not become ready"
+                % ", ".join(sorted(set(blocked))),
+            )
+            return False
 
         pool_id_var = domain.get("hypervisors_pools")
         if not pool_id_var:

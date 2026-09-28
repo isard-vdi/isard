@@ -7,6 +7,8 @@
   status it can't start from and an un-ready storage (``precondition_required``).
 * ``desktop_stop`` -- returns early (no write) when already stopped; refuses a
   status it can't stop from.
+* ``desktop_retry_failed`` -- refuses a terminal blocking disk and still retries a
+  recoverable one; a row not in ``Failed`` is left alone.
 
 Only rethink and the ``Domain`` model / ``Caches`` are stubbed; the state
 decision is the code's. Guards assert the ``Error`` type + ``description_code``
@@ -45,6 +47,7 @@ def stub(monkeypatch):
     )
     dom = MagicMock(name="Domain")
     dom.return_value.storage_ready = True
+    dom.return_value.storages = []
     monkeypatch.setattr(mod, "Domain", dom)
     return {
         "mod": mod,
@@ -162,3 +165,57 @@ class TestGetDesktopQosDiskId:
     def test_empty_roles_still_wins_as_the_global_default(self, stub):
         self._rows(stub, [{"id": "any", "allowed": {"roles": []}}])
         assert stub["Cls"].get_desktop_qos_disk_id({"role": "user"}) == "any"
+
+
+class TestDesktopRetryFailed:
+    """``retry`` reaches ``StartingPaused``, the state ``desktop_start`` guards."""
+
+    def _replaced(self, stub, n=1):
+        stub[
+            "table"
+        ].return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": n
+        }
+
+    def _disks(self, stub, *statuses):
+        # ``storage_ready`` is derived from the disks on the real model, so the stub
+        # has to move together or a guard that reads it looks fine on a broken disk.
+        stub["Domain"].return_value.storages = [
+            MagicMock(status=status) for status in statuses
+        ]
+        stub["Domain"].return_value.storage_ready = all(s == "ready" for s in statuses)
+
+    @pytest.mark.parametrize(
+        "terminal", ["deleted", "non_existing", "orphan", "broken_chain", "recycled"]
+    )
+    def test_a_terminal_disk_is_refused(self, stub, terminal):
+        self._disks(stub, terminal)
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].desktop_retry_failed("d1")
+        assert exc.value.error["error"] == "precondition_required"
+        assert exc.value.error["description_code"] == "desktop_storage_not_ready"
+        assert terminal in exc.value.error["description"]
+        _no_update(stub)
+
+    @pytest.mark.parametrize("recoverable", ["maintenance", "creating"])
+    def test_a_recoverable_disk_is_still_retried(self, stub, recoverable):
+        # The case the retry exists for. Refusing it here would make the action
+        # useless for the desktops that most need it.
+        self._disks(stub, recoverable)
+        self._replaced(stub)
+        assert stub["Cls"].desktop_retry_failed("d1") == "StartingPaused"
+
+    def test_one_terminal_disk_among_recoverable_ones_is_refused(self, stub):
+        self._disks(stub, "maintenance", "deleted")
+        with pytest.raises(ErrorBase):
+            stub["Cls"].desktop_retry_failed("d1")
+        _no_update(stub)
+
+    def test_ready_storage_still_flips(self, stub):
+        self._replaced(stub)
+        assert stub["Cls"].desktop_retry_failed("d1") == "StartingPaused"
+        stub["table"].return_value.get.return_value.update.assert_called_once()
+
+    def test_row_not_in_failed_is_not_changed(self, stub):
+        self._replaced(stub, 0)
+        assert stub["Cls"].desktop_retry_failed("d1") == "not_changed"
