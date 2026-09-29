@@ -511,6 +511,79 @@ def _get_vgpu_profiles_vfio(vf_bdf):
     ]
 
 
+def _vfio_variant_card(sysfs_pci_id):
+    """True when the PF's VFs expose ``nvidia/creatable_vgpu_types`` -- the file
+    is present on the vendor VFIO framework even when it lists nothing."""
+    try:
+        for entry in os.listdir(f"{_SYSFS_PCI_BASE}/{sysfs_pci_id}"):
+            if entry.startswith("virtfn") and os.path.exists(
+                f"{_SYSFS_PCI_BASE}/{sysfs_pci_id}/{entry}/nvidia/creatable_vgpu_types"
+            ):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def _get_vgpu_types_smi(pci_bus_id):
+    """Card's static vGPU catalogue, keyed by canonical name, from nvidia-smi."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "vgpu", "-s", "-v", "-i", str(pci_bus_id)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return {}
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    types, cur = {}, None
+    for line in result.stdout.splitlines():
+        if ":" not in line:
+            continue
+        key, val = (x.strip() for x in line.split(":", 1))
+        if key == "vGPU Type ID":
+            cur = {"type_id": str(int(val, 16) if val.startswith("0x") else int(val))}
+        elif cur is None:
+            continue
+        elif key == "Name":
+            name = val.replace("NVIDIA ", "")
+            if name and name[-1] in ("C", "Q"):
+                cur["name"] = _canon_vgpu_profile_name(name)
+            else:
+                cur = None
+        elif key == "Max Instances":
+            cur["max_instances"] = int(val) if val.isdigit() else 0
+        elif key == "FB Memory":
+            cur["framebuffer_mb"] = (
+                int(val.split()[0]) if val.split()[0].isdigit() else 0
+            )
+            if cur.get("name"):
+                types[cur["name"]] = cur
+            cur = None
+    return types
+
+
+def _count_free_vfs(sysfs_pci_id):
+    """VFs of a PF with no vGPU type configured (``current_vgpu_type`` == 0)."""
+    free = 0
+    try:
+        for entry in sorted(os.listdir(f"{_SYSFS_PCI_BASE}/{sysfs_pci_id}")):
+            if not entry.startswith("virtfn"):
+                continue
+            path = f"{_SYSFS_PCI_BASE}/{sysfs_pci_id}/{entry}/nvidia/current_vgpu_type"
+            try:
+                with open(path) as f:
+                    if f.read().strip() in ("0", ""):
+                        free += 1
+            except OSError:
+                continue
+    except OSError:
+        return 0
+    return free
+
+
 def _get_mig_profiles(gpu_index):
     """Query MIG GPU Instance profiles for a given GPU index.
 
@@ -1259,6 +1332,29 @@ def _aggregate_subdevice_profiles(pci_bus_id):
                     ]
                 else:
                     profile_map[p["name"]] = dict(p)
+
+        if framework == FRAMEWORK_VFIO_VARIANT or (
+            not profile_map and _vfio_variant_card(sysfs_pci_id)
+        ):
+            framework = FRAMEWORK_VFIO_VARIANT
+            free_vfs = _count_free_vfs(sysfs_pci_id)
+            for name, t in _get_vgpu_types_smi(pci_bus_id).items():
+                entry = profile_map.setdefault(
+                    name,
+                    {
+                        "name": name,
+                        "type_id": t["type_id"],
+                        "available_instances": 0,
+                        "framebuffer_mb": t.get("framebuffer_mb", 0),
+                        "max_instances": 0,
+                    },
+                )
+                cap = t.get("max_instances", 0)
+                entry["max_instances"] = cap
+                # 16 free VFs is not 16 bookable 2Q: framebuffer is the ceiling.
+                entry["available_instances"] = min(
+                    entry["available_instances"] or free_vfs, cap
+                )
 
         if not profile_map:
             return [], None, None, FRAMEWORK_LEGACY_MDEV

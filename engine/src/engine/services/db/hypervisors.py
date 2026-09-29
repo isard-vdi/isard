@@ -1445,7 +1445,7 @@ def get_vgpu_model_profile_change(vgpu_id):
     try:
         d = (
             rtable.get(vgpu_id)
-            .pluck("model", "vgpu_profile", "changing_to_profile")
+            .pluck("model", "vgpu_profile", "changing_to_profile", "last_apply_error")
             .run(r_conn)
         )
     except ReqlNonExistenceError:

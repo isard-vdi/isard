@@ -246,17 +246,26 @@ def set_gpu_profile(payload, gpu_id):
     # profile is already active). Treat False as a hard failure so the
     # webapp surfaces the real outcome instead of always showing success.
     if result is False:
+        # 409, not 500: the card refused a state change, the engine did not fault.
+        try:
+            reason = (get_vgpu_model_profile_change(gpu_id) or {}).get(
+                "last_apply_error"
+            )
+        except Exception:
+            reason = None
         return (
             jsonify(
                 {
                     "error": "profile_change_failed",
                     "description": (
-                        f"Could not switch {gpu_id} to profile {profile!r}. "
-                        f"Check engine logs for the underlying error."
+                        f"Could not switch {gpu_id} to profile {profile!r}: "
+                        f"{reason or 'see engine logs'}. The intent was recorded "
+                        "and the reconcile loop will retry it."
                     ),
+                    "reason": reason,
                 }
             ),
-            500,
+            409,
         )
     return jsonify(True)
 
