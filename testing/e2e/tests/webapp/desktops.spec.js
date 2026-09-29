@@ -1756,6 +1756,15 @@ test.describe('Admin Desktops — webapp', () => {
     authenticatedPage: page,
     apiv4Admin,
   }) => {
+    test.setTimeout(120000)
+    // The detail panel disables .btn-favouritehyp while the desktop is in a running state.
+    await ensureDesktopStopped(apiv4Admin, SEEDED.test.id)
+    await editDesktop({
+      client: apiv4Admin,
+      path: { desktop_id: SEEDED.test.id },
+      body: { favourite_hyp: false },
+    }).catch(() => {})
+
     await findDesktopRow(page, SEEDED.test.id)
     const detailPanel = await expandRowDetail(page, SEEDED.test.id)
 
@@ -2119,10 +2128,10 @@ test.describe('Admin Desktops — webapp', () => {
     await expect(descEl).toHaveText('Base desktop', { timeout: 8000 })
 
     // Hardware values come from GET /hardware.
-    // Seed: vcpus=1, memory=524288 bytes (0.5 GB), disk_bus="default".
+    // Seed: vcpus=1, memory=0.5 GB; sub-GB memory renders in MB.
     const hwPanel = page.locator(`#hardware-${SEEDED.test.id}`)
     await expect(hwPanel.locator('#vcpu')).toHaveText('1 CPU(s)', { timeout: 8000 })
-    await expect(hwPanel.locator('#ram')).toHaveText('0.50GB', { timeout: 8000 })
+    await expect(hwPanel.locator('#ram')).toHaveText('512 MB', { timeout: 8000 })
   })
 
   // ──────────────────────────────────────────────────────────────────────────
