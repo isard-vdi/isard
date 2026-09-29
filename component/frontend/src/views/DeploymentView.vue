@@ -690,6 +690,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
           <span @click.stop>
             <DropdownMenuTrigger>
               <Button
+                :aria-label="t('common.actions.more')"
                 hierarchy="secondary-gray"
                 icon="dots-vertical"
                 class="aspect-square p-[10px]"

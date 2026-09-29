@@ -389,7 +389,13 @@ const RECYCLE_BIN_ENTRY_SEARCH_INPUT_ID = 'recycle-bin-entry-search'
         >
           {{ t('views.recycle-bin.actions.restore') }}
         </Button>
-        <Button hierarchy="destructive" icon="trash-04" :disabled="!entry" @click="handleDelete">
+        <Button
+          :aria-label="t('common.actions.delete')"
+          hierarchy="destructive"
+          icon="trash-04"
+          :disabled="!entry"
+          @click="handleDelete"
+        >
         </Button>
       </div>
     </div>

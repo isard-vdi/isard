@@ -3178,7 +3178,16 @@
     "actions": {
       "more": "Més accions",
       "copy": "Copia",
-      "copied": "Copiat"
+      "copied": "Copiat",
+      "expand": "Desplega",
+      "collapse": "Plega",
+      "change-image": "Canvia la imatge",
+      "save": "Desa",
+      "remove": "Treu",
+      "delete": "Esborra",
+      "info": "Informació",
+      "other-viewers": "Altres visors",
+      "sort": "Ordena"
     }
   }
 }

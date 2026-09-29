@@ -3178,7 +3178,16 @@
     "actions": {
       "more": "Más acciones",
       "copy": "Copiar",
-      "copied": "Copiado"
+      "copied": "Copiado",
+      "expand": "Expandir",
+      "collapse": "Contraer",
+      "change-image": "Cambiar imagen",
+      "save": "Guardar",
+      "remove": "Quitar",
+      "delete": "Eliminar",
+      "info": "Información",
+      "other-viewers": "Otros visores",
+      "sort": "Ordenar"
     }
   }
 }

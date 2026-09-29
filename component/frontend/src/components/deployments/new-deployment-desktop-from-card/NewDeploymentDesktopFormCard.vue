@@ -107,6 +107,7 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
     <div class="flex items-center gap-4">
       <CollapsibleTrigger class="flex items-center gap-4 mr-auto overflow-hidden">
         <Button
+          :aria-label="t(open ? 'common.actions.collapse' : 'common.actions.expand')"
           hierarchy="secondary-gray"
           class="p-[10px]"
           :icon="open ? 'chevron-up' : 'chevron-down'"
@@ -155,6 +156,7 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               >
                 <template #header-actions>
                   <Button
+                    :aria-label="t('common.actions.change-image')"
                     icon="image-plus"
                     hierarchy="secondary-gray"
                     size="sm"

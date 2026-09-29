@@ -120,6 +120,7 @@ const selectViewer = (viewer: Viewer) => {
       <DropdownMenu>
         <DropdownMenuTrigger @click.stop>
           <Button
+            :aria-label="t('common.actions.other-viewers')"
             icon="chevron-down"
             :class="cn(props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none')"
           />

@@ -221,6 +221,7 @@ const displayIsos = computed(() => {
     <div class="flex items-center p-5 w-120 lg:w-256">
       <Button
         v-if="isTemplateSelected"
+        :aria-label="t(isExpanded ? 'common.actions.collapse' : 'common.actions.expand')"
         type="button"
         hierarchy="secondary-gray"
         size="sm"
@@ -274,6 +275,7 @@ const displayIsos = computed(() => {
               />
               <div class="absolute inset-0 flex items-center justify-center">
                 <Button
+                  :aria-label="t('common.actions.change-image')"
                   hierarchy="secondary-gray"
                   size="sm"
                   type="button"

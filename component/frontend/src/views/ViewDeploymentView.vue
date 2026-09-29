@@ -361,6 +361,7 @@ const openDeploymentInfoModal = () => {
   >
     <div class="flex flex-row items-center justify-start gap-4 xl:col-start-1 xl:row-start-1">
       <Button
+        :aria-label="t('common.actions.info')"
         hierarchy="secondary-gray"
         class="p-[10px]"
         icon="info-circle"
