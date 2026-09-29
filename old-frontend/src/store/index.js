@@ -143,7 +143,8 @@ export default new Vuex.Store({
     },
     checkHyperAvailableAndQuota (context, data) {
       return context.dispatch('checkHypervisorAvailability').then(response => {
-        if (response.status === 200) {
+        // checkHypervisorAvailability resolves undefined after handling an error
+        if (response?.status === 200) {
           context.dispatch('checkCreateQuota', data)
         }
       })

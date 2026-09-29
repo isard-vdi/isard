@@ -127,7 +127,7 @@ export default {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         sendEmailButtonDisabled.value = false
         return
       }

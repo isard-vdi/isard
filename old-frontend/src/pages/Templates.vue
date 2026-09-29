@@ -35,7 +35,7 @@
         >
           <template #cell(image)="data">
             <b-icon
-              v-if="data.item.status.toLowerCase() === desktopStates.failed"
+              v-if="(data.item.status || '').toLowerCase() === desktopStates.failed"
               v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
               icon="exclamation-triangle-fill"
               variant="danger"
@@ -160,7 +160,7 @@
         >
           <template #cell(image)="data">
             <b-icon
-              v-if="data.item.status.toLowerCase() === desktopStates.failed"
+              v-if="(data.item.status || '').toLowerCase() === desktopStates.failed"
               v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
               icon="exclamation-triangle-fill"
               variant="danger"

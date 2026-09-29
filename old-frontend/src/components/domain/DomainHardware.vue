@@ -267,11 +267,11 @@
             >
           </template>
         </v-select>
-        <span v-if="domain.kind === 'desktop'">
+        <span v-if="domain.kind === 'desktop' && availableHardware.interfaces">
           <template
             v-for="(network, index) in interfaces"
           >
-            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === interfaces[index]).name} - ${interfacesMac[index] ? interfacesMac[index] : `${$t("validations.undefined")}` }` }}
+            <template v-if="index > 0">, </template>{{ `${interfaceName(interfaces[index])} - ${interfacesMac[index] ? interfacesMac[index] : `${$t("validations.undefined")}` }` }}
           </template>
         </span>
       </b-col>
@@ -359,6 +359,8 @@ export default {
     })
 
     const interfacesMac = computed(() => $store.getters.getDomain.hardware.interfacesMac)
+    // The domain may reference an interface no longer in the user's allowed list
+    const interfaceName = (id) => (availableHardware.value.interfaces.find(e => e.id === id) || { name: id }).name
 
     // When creating a desktop from a media if the user has the iso boot option it will be selected by default
     watch(availableHardware, (availableHardware, prevVal) => {
@@ -379,6 +381,7 @@ export default {
       diskBus,
       interfaces,
       interfacesMac,
+      interfaceName,
       availableHardware,
       domain,
       hardwareWarningTitle,
