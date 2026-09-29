@@ -46,3 +46,29 @@ export function roundToNearestTier(value: number, options: number[]): number {
     options[0]
   )
 }
+
+// Not folded into MEMORY_TIERS: buildTieredOptions' +toFixed(2) rounds 0.0625 to 0.06.
+export const MEMORY_SUB_GB_OPTIONS: number[] = [0.0625, 0.125, 0.25]
+
+export function buildMemoryOptions(quotaMax: number | undefined | null): number[] {
+  if (quotaMax == null || !(quotaMax > 0)) return []
+  return [
+    ...MEMORY_SUB_GB_OPTIONS.filter((v) => v <= quotaMax),
+    ...buildTieredOptions(quotaMax, MEMORY_TIERS)
+  ]
+}
+
+export function memoryOptionLabel(value: number, mbUnit = 'MB'): string {
+  return value < 1 ? `${Math.round(value * 1024)} ${mbUnit}` : String(value)
+}
+
+export function ramLabel(
+  t: (key: string, params: Record<string, unknown>) => string,
+  memory: number | undefined | null,
+  formatGb: (value: number) => string | number = (value) => value.toFixed(2)
+): string {
+  if (memory == null) return ''
+  return memory < 1
+    ? t('components.domain-info-modal.fields.hardware.ram-mb', { ram: Math.round(memory * 1024) })
+    : t('components.domain-info-modal.fields.hardware.ram', { ram: formatGb(memory) })
+}

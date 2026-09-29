@@ -70,6 +70,7 @@ WEBAPP_ADMIN_PWD=IsardVDI
 ## Documentation URI where the user will be redirected.
 FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
 FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+FRONTEND_DIRECT_VIEWER_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/direct_viewer/
 
 # ------ Frontend exposure mode ---------------------------------------------
 ## Controls which of the two frontends (old vue2 / new vue3) the user can reach

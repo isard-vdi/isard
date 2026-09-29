@@ -390,6 +390,8 @@ function dtUpdateInsert(table, data, append){
 // A live progress tick carries only {id, progress}: merge it into the row the
 // table already holds, unlike dtUpdateOnly which replaces the row wholesale.
 function dtMergeProgress(table, data){
+    // Progress can arrive before the caller has built its DataTable
+    if(!table || typeof(table.row)!='function'){ return; }
     var row = table.row('#'+data.id);
     if(typeof(row.id())=='undefined'){ return; }
     row.data($.extend({}, row.data(), data)).invalidate();
@@ -1061,6 +1063,15 @@ function showLoading(loading) {
         $('#modal-loading').modal('hide');
     }
     return false;
+}
+
+/**
+ * Format a RAM amount for display. Values below 1 GB read in MB.
+ * @param {number} memoryGb - Amount of RAM in GB (GiB)
+ * @returns {string} Formatted amount (e.g., "64 MB", "2.00 GB")
+ */
+function formatRamLabel(memoryGb) {
+  return memoryGb < 1 ? Math.round(memoryGb * 1024) + ' MB' : memoryGb.toFixed(2) + ' GB';
 }
 
 /**

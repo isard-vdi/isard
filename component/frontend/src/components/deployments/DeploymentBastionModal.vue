@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { z } from 'zod'
 
 import {
@@ -63,6 +64,7 @@ const formSchema = z.object({
 })
 
 // Hydrate from the deployment's stored config once the query resolves.
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: reactive({
     sshEnabled: computed(() => bastionConfig.value?.ssh?.enabled ?? false),

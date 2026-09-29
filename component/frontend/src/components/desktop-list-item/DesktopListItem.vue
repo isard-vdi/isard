@@ -9,7 +9,7 @@ import Select from '@/components/ui/select/Select.vue'
 import TemplateListItem from '@/components/template-list-item/TemplateListItem.vue'
 import ImageSelectModal from '@/components/image/ImageSelectModal.vue'
 
-import mountains from '@/assets/img/mountains.svg'
+import DomainImage from '@/components/domain/DomainImage.vue'
 import { useI18n } from 'vue-i18n'
 
 interface IsoObject {
@@ -259,19 +259,11 @@ const displayIsos = computed(() => {
             {{ t('components.desktop-list-item.preview-description') }}
           </p>
           <div class="flex gap-4">
-            <div class="relative w-24 h-24 bg-gray-warm-200 rounded shrink-0">
-              <img
-                v-if="localImage && localImage.url"
-                :src="localImage.url"
-                class="w-full h-full object-cover rounded"
-                alt="Desktop preview"
-              />
-              <img
-                v-else
-                :src="mountains"
-                class="w-full h-full object-cover rounded"
-                alt="Default desktop preview"
-              />
+            <DomainImage
+              :image-url="localImage?.url"
+              variant="compact"
+              class="w-24 h-24 rounded shrink-0"
+            >
               <div class="absolute inset-0 flex items-center justify-center">
                 <Button
                   hierarchy="secondary-gray"
@@ -281,7 +273,7 @@ const displayIsos = computed(() => {
                   @click="changeImage"
                 />
               </div>
-            </div>
+            </DomainImage>
 
             <div class="flex flex-col gap-4 grow">
               <div>

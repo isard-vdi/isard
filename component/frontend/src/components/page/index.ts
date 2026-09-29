@@ -1,6 +1,4 @@
 export { default as EmptyState } from './EmptyState.vue'
-export { default as FilterPanel } from './FilterPanel.vue'
-export { default as FilterToggle } from './FilterToggle.vue'
 export { default as PageContainer } from './PageContainer.vue'
 export { default as PageToolbar } from './PageToolbar.vue'
 export { default as ScrollToTop } from './ScrollToTop.vue'

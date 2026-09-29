@@ -20,7 +20,6 @@ from rethinkdb.errors import ReqlNonExistenceError
 
 
 class Quotas(RethinkCustomBase):
-
     @classmethod
     def get_applied_quota(cls, user_id):
         user = Caches.get_document(
@@ -201,8 +200,8 @@ class Quotas(RethinkCustomBase):
                 .run(cls._rdb_connection)
             )
         return {
-            "quota": category.get("quota", False),
-            "limits": category.get("limits", False),
+            "quota": category.get("quota") or False,
+            "limits": category.get("limits") or False,
         }
 
     @classmethod
@@ -218,7 +217,7 @@ class Quotas(RethinkCustomBase):
                 .pluck("parent_category", "limits", "quota")
                 .run(cls._rdb_connection)
             )
-        limits = group.get("limits", False)
+        limits = group.get("limits") or False
         if limits == False:
             with cls._rdb_context():
                 limits = (
@@ -226,12 +225,13 @@ class Quotas(RethinkCustomBase):
                     .get(group["parent_category"])
                     .pluck("limits")
                     .run(cls._rdb_connection)
-                    .get("limits", False)
+                    .get("limits")
+                    or False
                 )
         return {
-            "quota": group.get("quota", False),
+            "quota": group.get("quota") or False,
             "limits": limits,  ##Category limits as maximum
-            "grouplimits": group.get("limits", False),
+            "grouplimits": group.get("limits") or False,
         }
 
     # Not cached: cachetools memoizes the return value, never the raise, so a
@@ -1808,6 +1808,7 @@ class Quotas(RethinkCustomBase):
                 query_merge=False,
                 order="name",
             )
+            cls._attach_media_owner(media_allowed)
             # Classify the media in isos and floppies
             dict["isos"] = [m for m in media_allowed if m["kind"] == "iso"]
             dict["floppies"] = [m for m in media_allowed if m["kind"] == "floppy"]
@@ -1819,6 +1820,25 @@ class Quotas(RethinkCustomBase):
 
         dict = {**dict, **quota}
         return dict
+
+    @classmethod
+    def _attach_media_owner(cls, media):
+        """Media is shareable, so the pickers need the owner to tell apart same-named items."""
+        owner_ids = list({m["user"] for m in media if m.get("user")})
+        owners = {}
+        if owner_ids:
+            with cls._rdb_context():
+                owners = {
+                    owner["id"]: owner
+                    for owner in r.table("users")
+                    .get_all(r.args(owner_ids))
+                    .pluck("id", "name", "username")
+                    .run(cls._rdb_connection)
+                }
+        for item in media:
+            owner = owners.get(item.get("user"), {})
+            item["user_name"] = owner.get("name")
+            item["username"] = owner.get("username")
 
     @classmethod
     def get_user_migration_check_quota_config(cls):
@@ -1841,7 +1861,7 @@ class Quotas(RethinkCustomBase):
                 .run(cls._rdb_connection)
             )
 
-        new_quota = group.get("quota", False)
+        new_quota = group.get("quota") or False
         if new_quota == False:
             with cls._rdb_context():
                 new_quota = (
@@ -1849,10 +1869,11 @@ class Quotas(RethinkCustomBase):
                     .get(group["parent_category"])
                     .pluck("quota")
                     .run(cls._rdb_connection)
-                    .get("quota", False)
+                    .get("quota")
+                    or False
                 )
 
-        new_limits = group.get("limits", False)
+        new_limits = group.get("limits") or False
         if new_limits == False:
             with cls._rdb_context():
                 new_limits = (
@@ -1860,7 +1881,8 @@ class Quotas(RethinkCustomBase):
                     .get(group["parent_category"])
                     .pluck("limits")
                     .run(cls._rdb_connection)
-                    .get("limits", False)
+                    .get("limits")
+                    or False
                 )
         new_quota = {
             "quota": new_quota,

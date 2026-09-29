@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -24,7 +24,7 @@ import { FormHeader } from '@/components/form-header'
 import { toGuestProperties, toImageInput, toMediaHardware } from '@/lib/domainPayload'
 import router from '@/router'
 import type { DomainImageOutput, MediaKindEnum, VirtInstallItem } from '@/gen/oas/apiv4/types.gen'
-import { newDesktopErrorKey } from '@/lib/api-errors'
+import { newDesktopErrorKey, isNameConflictError } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -79,7 +79,7 @@ const hasOsTemplateOptions = computed(() => osTemplateOptions.value.length > 0)
 // the summaries, so the two can no longer disagree.
 const defaults: DomainConfigurationDefaults = {
   access: {
-    credentials: { username: 'isard', password: '' },
+    credentials: { username: '', password: '' },
     fullscreen: false,
     viewers: ['browser_vnc', 'file_spice']
   },
@@ -152,6 +152,15 @@ const { mutate: submitCreateFromMedia } = useMutation({
     isCreating.value = false
   }
 })
+
+watch(
+  () => panelRef.value?.name,
+  (name, previous) => {
+    if (name === undefined || previous === undefined) return
+    if (!isNameConflictError(creationError.value)) return
+    creationError.value = null
+  }
+)
 
 const handleSubmit = () => {
   if (!areFormsValid.value || !panelRef.value) return

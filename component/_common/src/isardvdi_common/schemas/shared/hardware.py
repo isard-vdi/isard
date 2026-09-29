@@ -76,8 +76,8 @@ class Hardware(BaseModel):
 
 class GuestProperties(BaseModel):
     class _GuestPropertiesCredentials(BaseModel):
-        username: str = "isard"
-        password: str = "pirineus"
+        username: str = ""
+        password: str = ""
 
     class _GuestPropertiesViewers(BaseModel):
         browser_rdp: dict | None | MISSING = MISSING

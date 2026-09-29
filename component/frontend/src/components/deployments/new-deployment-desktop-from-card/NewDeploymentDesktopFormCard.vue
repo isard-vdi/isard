@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { isInvalid } from '@/lib/utils'
+import { isInvalid, validateOnBlur } from '@/lib/utils'
 
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
@@ -191,7 +191,7 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                 :key="`${formPrefix}.name`"
                 :name="`${formPrefix}.name`"
               >
-                <Field>
+                <Field :data-invalid="isInvalid(field)">
                   <FieldLabel :for="field.name">{{
                     t('components.deployments.form-desktop-card.sections.preview.fields.name.label')
                   }}</FieldLabel>
@@ -205,12 +205,15 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                         'components.deployments.form-desktop-card.sections.preview.fields.name.placeholder'
                       )
                     "
+                    :aria-invalid="isInvalid(field)"
+                    :destructive="isInvalid(field)"
                     autocomplete="off"
                     type="text"
                     maxlength="50"
-                    @blur="field.handleBlur"
+                    @blur="validateOnBlur(field)"
                     @input="field.handleChange($event.target.value)"
                   />
+                  <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
                 </Field>
               </props.form.Field>
 
@@ -219,7 +222,7 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                 :key="`${formPrefix}.description`"
                 :name="`${formPrefix}.description`"
               >
-                <Field>
+                <Field :data-invalid="isInvalid(field)">
                   <FieldLabel :for="field.name">{{
                     t(
                       'components.deployments.form-desktop-card.sections.preview.fields.description.label'
@@ -235,11 +238,14 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                         'components.deployments.form-desktop-card.sections.preview.fields.description.placeholder'
                       )
                     "
+                    :aria-invalid="isInvalid(field)"
+                    :destructive="isInvalid(field)"
                     autocomplete="off"
                     maxlength="255"
-                    @blur="field.handleBlur"
+                    @blur="validateOnBlur(field)"
                     @input="field.handleChange($event.target.value)"
                   />
+                  <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
                 </Field>
               </props.form.Field>
             </form>
@@ -267,9 +273,11 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               v-if="restrictedFieldNames.length"
               class="w-full"
               :label="
-                t('components.domain.configuration.hardware-limited.summary', {
-                  count: restrictedFieldNames.length
-                })
+                t(
+                  'components.domain.configuration.hardware-limited.summary',
+                  { count: restrictedFieldNames.length },
+                  restrictedFieldNames.length
+                )
               "
               :items="restrictedFieldNames"
             />
@@ -278,9 +286,11 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
               v-if="removedViewerLabels.length"
               class="w-full"
               :label="
-                t('components.domain.access.viewers-removed.summary', {
-                  count: removedViewerLabels.length
-                })
+                t(
+                  'components.domain.access.viewers-removed.summary',
+                  { count: removedViewerLabels.length },
+                  removedViewerLabels.length
+                )
               "
               :items="removedViewerLabels"
             />

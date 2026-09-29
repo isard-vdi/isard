@@ -95,7 +95,13 @@ apiv4Client.interceptors.request.use(async (config) => {
   return config
 })
 
+const SELF_HANDLED_ERROR_ROUTES = ['/item/user-migration/import-user']
+
 apiv4Client.interceptors.response.use(async (response) => {
+  if (SELF_HANDLED_ERROR_ROUTES.some((route) => response.url.includes(route))) {
+    return response
+  }
+
   if (response.status === 401) {
     // Handle unauthorized response, e.g., by logging out the user
     authStore.logout()

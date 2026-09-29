@@ -1,20 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 
 import {
   getDesktopNetworksOptions,
   getNetworksFromTokenOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import { DesktopStatusEnum, type DesktopNetwork } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
 
-import { Modal } from '@/components/modal'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Icon, CopyIcon } from '@/components/icon'
-import { Label } from '@/components/ui/label'
+import { Modal } from '@/components/modal'
 import { TruncatedText } from '@/components/truncated-text'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { domainKindStyle, resolveDomainKind, type DesktopKind } from '@/lib/domainKind'
+import { copyToClipboard } from '@/lib/utils'
 
 const { t } = useI18n()
 
@@ -22,9 +34,10 @@ interface Props {
   open?: boolean
   desktopId: string
   desktopName: string
-  // The top-level desktop IP — used as the wireguard guest IP when present.
+  // The top-level desktop IP. Used as the wireguard guest IP when present.
   desktopIp?: string | null
   desktopStatus?: string
+  desktopKind?: DesktopKind | null
   // When provided, fetches networks via the direct-viewer token endpoint
   // (using the supplied client's viewer JWT) instead of the standard
   // user-authenticated endpoint keyed by desktopId.
@@ -36,6 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   open: false,
   desktopIp: undefined,
   desktopStatus: undefined,
+  desktopKind: undefined,
   directViewerToken: undefined,
   directViewerClient: undefined
 })
@@ -82,26 +96,101 @@ const interfaceIcon = (id: string) => {
   if (id.includes('shared')) return 'share-04'
   return 'modem-02'
 }
+
+const wantedColumns = computed(() => {
+  const count = sortedNetworks.value.length
+  if (count > 15) return 3
+  if (count > 5) return 2
+  return 1
+})
+
+const fitsTwoColumns = useMediaQuery('(min-width: 768px)')
+const fitsThreeColumns = useMediaQuery('(min-width: 1024px)')
+const columns = computed(() =>
+  Math.min(wantedColumns.value, fitsThreeColumns.value ? 3 : fitsTwoColumns.value ? 2 : 1)
+)
+
+const gridColumnsClass = computed(
+  () => ['grid-cols-1', 'grid-cols-2', 'grid-cols-3'][columns.value - 1]
+)
+
+const modalSize = computed(() => (['2xl', '4xl', '6xl'] as const)[wantedColumns.value - 1])
+
+const lastRowStart = computed(
+  () => Math.floor((sortedNetworks.value.length - 1) / columns.value) * columns.value
+)
+
+const fillerCount = computed(() => {
+  const remainder = sortedNetworks.value.length % columns.value
+  return remainder === 0 ? 0 : columns.value - remainder
+})
+
+const sectionClass = (index: number) => [
+  index >= columns.value ? 'border-t border-gray-warm-200 pt-3' : 'pt-1.5',
+  index >= lastRowStart.value ? 'pb-0' : 'pb-3',
+  index % columns.value !== 0
+    ? 'relative pl-4 before:absolute before:inset-y-3 before:left-0 before:w-px before:bg-gray-warm-200'
+    : '',
+  (index + 1) % columns.value !== 0 ? 'pr-4' : ''
+]
+
+const kindStyle = computed(() => domainKindStyle(resolveDomainKind('desktop', props.desktopKind)))
+
+const kindLabel = computed(() =>
+  t(`components.domain-info-modal.kind.${props.desktopKind ?? 'desktop'}`)
+)
+
+const showIds = ref(false)
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 'i') {
+    showIds.value = !showIds.value
+  }
+})
+
+const copyableFields = (network: DesktopNetwork) => {
+  const fields = showIds.value
+    ? [{ key: 'id', label: t('components.desktop-networks-modal.fields.id'), value: network.id }]
+    : []
+  fields.push({
+    key: 'mac',
+    label: t('components.desktop-networks-modal.fields.mac'),
+    value: network.mac
+  })
+  return fields
+}
+
+const closeModal = () => {
+  showIds.value = false
+  emit('close')
+}
 </script>
 
 <template>
   <Modal
     :open="props.open"
     show-close-button
-    size="2xl"
-    class="pt-6"
-    :title="t('components.desktop-networks-modal.title', { name: props.desktopName })"
-    :description="t('components.desktop-networks-modal.description')"
-    @close="emit('close')"
+    :size="modalSize"
+    :title="t('components.desktop-networks-modal.title')"
+    @close="closeModal()"
   >
-    <div class="flex flex-col gap-3 pb-4">
+    <div class="flex flex-col gap-6">
       <div
         v-if="isPending"
-        class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-3"
+        class="bg-base-white p-3 rounded-lg border border-gray-warm-300"
+        role="status"
+        aria-busy="true"
       >
-        <Skeleton class="h-6 w-48" />
-        <Skeleton class="h-9 w-full" />
-        <Skeleton class="h-9 w-3/4" />
+        <span class="sr-only">{{ t('components.desktop-networks-modal.loading') }}</span>
+        <div class="flex items-center pb-2" aria-hidden="true">
+          <Skeleton class="h-7 w-40" />
+        </div>
+        <Separator class="my-1.5" />
+        <div class="flex flex-col gap-3 pt-1" aria-hidden="true">
+          <Skeleton class="h-4 w-28" />
+          <Skeleton class="h-8 w-56" />
+          <Skeleton class="h-4 w-24" />
+          <Skeleton class="h-8 w-56" />
+        </div>
       </div>
 
       <div
@@ -120,86 +209,137 @@ const interfaceIcon = (id: string) => {
       </div>
 
       <div
-        v-else-if="!sortedNetworks.length"
-        class="bg-base-white p-6 rounded-lg border border-gray-warm-300 flex flex-col items-center text-center gap-2"
-      >
-        <Icon name="modem-02" size="lg" stroke-color="gray-warm-400" />
-        <p class="font-semibold text-gray-warm-700">
-          {{ t('components.desktop-networks-modal.empty') }}
-        </p>
-      </div>
-
-      <section
-        v-for="network in sortedNetworks"
         v-else
-        :key="network.id"
-        class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-3"
+        class="bg-base-white py-5 px-4 rounded-lg border border-gray-warm-300"
+        :class="kindStyle.accent"
       >
-        <div class="flex items-center gap-2">
-          <Icon :name="interfaceIcon(network.id)" size="md" stroke-color="gray-warm-700" />
-          <TruncatedText as="h3" :title="network.name" class="font-semibold text-gray-warm-700" />
+        <div class="flex items-center pb-2">
+          <h3
+            class="flex flex-wrap items-baseline gap-x-1.5 px-1.5 rounded-xs font-semibold text-md min-w-0"
+            :class="kindStyle.badge"
+          >
+            <span class="shrink-0 text-sm font-regular">{{ kindLabel }}</span>
+            <span class="min-w-0 break-words">{{ props.desktopName }}</span>
+          </h3>
         </div>
+        <Separator class="my-1.5" />
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-          <div class="flex flex-col gap-1 min-w-0">
-            <Label class="text-xs uppercase tracking-wide text-gray-warm-500">
-              {{ t('components.desktop-networks-modal.fields.id') }}
-            </Label>
-            <div class="flex items-center gap-2 min-w-0">
-              <TruncatedText
-                as="code"
-                :title="network.id"
-                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
-              />
-              <CopyIcon :value="network.id" size="sm" stroke-color="gray-warm-600" />
-            </div>
-          </div>
+        <div class="flex flex-col gap-3 text-gray-warm-700">
+          <Empty v-if="!sortedNetworks.length" class="p-6">
+            <EmptyHeader class="gap-1.5">
+              <EmptyMedia variant="icon">
+                <Icon name="modem-02" />
+              </EmptyMedia>
+              <EmptyTitle class="text-sm font-medium">
+                {{ t('components.desktop-networks-modal.empty') }}
+              </EmptyTitle>
+            </EmptyHeader>
+          </Empty>
 
-          <div class="flex flex-col gap-1 min-w-0">
-            <Label class="text-xs uppercase tracking-wide text-gray-warm-500">
-              {{ t('components.desktop-networks-modal.fields.mac') }}
-            </Label>
-            <div class="flex items-center gap-2 min-w-0">
-              <TruncatedText
-                as="code"
-                :title="network.mac"
-                class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
-              />
-              <CopyIcon :value="network.mac" size="sm" stroke-color="gray-warm-600" />
-            </div>
-          </div>
-
-          <div v-if="network.id === 'wireguard'" class="flex flex-col gap-1 min-w-0">
-            <Label class="text-xs uppercase tracking-wide text-gray-warm-500">
-              {{ t('components.desktop-networks-modal.fields.ip') }}
-            </Label>
-            <div class="flex items-center gap-2 min-w-0">
-              <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
-                <Icon
-                  name="loading-02"
-                  size="sm"
-                  class="animate-spin"
-                  stroke-color="gray-warm-600"
-                />
-                <span class="text-xs italic text-gray-warm-600">
-                  {{ t('components.desktops.desktop-card.status.waitingip.text') }}
-                </span>
-              </template>
-              <template v-else-if="props.desktopIp">
+          <div v-else class="grid" :class="gridColumnsClass">
+            <section
+              v-for="(network, index) in sortedNetworks"
+              :key="network.id"
+              class="flex flex-col gap-1.5"
+              :class="sectionClass(index)"
+            >
+              <div class="flex items-center gap-1.5">
+                <ContextMenu>
+                  <ContextMenuTrigger>
+                    <span class="flex shrink-0">
+                      <Icon :name="interfaceIcon(network.id)" size="md" stroke-color="brand-700" />
+                    </span>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
+                    <ContextMenuItem @click="copyToClipboard(network.id)">
+                      {{ t('components.desktop-networks-modal.debug-options.copy-id') }}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
                 <TruncatedText
-                  as="code"
-                  :title="props.desktopIp"
-                  class="font-mono text-xs bg-gray-warm-50 border border-gray-warm-200 rounded px-2 py-1 flex-1"
+                  as="h4"
+                  :title="network.name"
+                  class="min-w-0 text-xs font-bold text-brand-700 uppercase tracking-wide"
                 />
-                <CopyIcon :value="props.desktopIp" size="sm" stroke-color="gray-warm-600" />
-              </template>
-              <span v-else class="text-xs italic text-gray-warm-500">
-                {{ t('components.desktop-networks-modal.no-ip') }}
-              </span>
-            </div>
+              </div>
+
+              <dl class="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2">
+                <template v-for="field in copyableFields(network)" :key="field.key">
+                  <dt class="text-xs font-medium text-brand-600 uppercase tracking-wide">
+                    {{ field.label }}
+                  </dt>
+                  <dd
+                    class="m-0 min-w-0 max-w-fit flex items-center gap-2.5 shadow-xs px-2 py-1 rounded-lg border border-gray-warm-200 text-sm font-regular"
+                    :class="kindStyle.tint"
+                  >
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span
+                          tabindex="0"
+                          class="truncate min-w-0 rounded-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >{{ field.value }}</span
+                        >
+                      </TooltipTrigger>
+                      <TooltipContent :title="field.value" side="top" />
+                    </Tooltip>
+                    <CopyIcon :value="field.value" size="md" stroke-color="gray-warm-600" />
+                  </dd>
+                </template>
+
+                <template v-if="network.id === 'wireguard'">
+                  <dt
+                    class="self-center text-xs font-medium text-brand-600 uppercase tracking-wide"
+                  >
+                    {{ t('components.desktop-networks-modal.fields.ip') }}
+                  </dt>
+                  <dd
+                    v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP"
+                    class="m-0 min-w-0 self-center flex items-center gap-1.5 text-sm font-regular italic text-gray-warm-600"
+                  >
+                    <Icon
+                      name="loading-02"
+                      size="sm"
+                      class="animate-spin"
+                      stroke-color="gray-warm-600"
+                    />
+                    {{ t('components.desktops.desktop-card.status.waitingip.text') }}
+                  </dd>
+                  <dd
+                    v-else-if="props.desktopIp"
+                    class="m-0 min-w-0 max-w-fit flex items-center gap-2.5 shadow-xs px-2 py-1 rounded-lg border border-gray-warm-200 text-sm font-regular"
+                    :class="kindStyle.tint"
+                  >
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span
+                          tabindex="0"
+                          class="truncate min-w-0 rounded-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >{{ props.desktopIp }}</span
+                        >
+                      </TooltipTrigger>
+                      <TooltipContent :title="props.desktopIp" side="top" />
+                    </Tooltip>
+                    <CopyIcon :value="props.desktopIp" size="md" stroke-color="gray-warm-600" />
+                  </dd>
+                  <dd
+                    v-else
+                    class="m-0 min-w-0 self-center text-sm font-regular italic text-gray-warm-500"
+                  >
+                    {{ t('components.desktop-networks-modal.no-ip') }}
+                  </dd>
+                </template>
+              </dl>
+            </section>
+
+            <div
+              v-for="filler in fillerCount"
+              :key="`filler-${filler}`"
+              aria-hidden="true"
+              :class="sectionClass(sortedNetworks.length + filler - 1)"
+            />
           </div>
         </div>
-      </section>
+      </div>
     </div>
   </Modal>
 </template>

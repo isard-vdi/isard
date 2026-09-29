@@ -98,6 +98,7 @@
         <v-select
           v-model="memory"
           :options="availableHardware.memory"
+          :get-option-label="memoryOptionLabel"
           label="name"
           @search:blur="v$.memory.$touch"
         >
@@ -266,11 +267,11 @@
             >
           </template>
         </v-select>
-        <span v-if="domain.kind === 'desktop'">
+        <span v-if="domain.kind === 'desktop' && availableHardware.interfaces">
           <template
             v-for="(network, index) in interfaces"
           >
-            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === interfaces[index]).name} - ${interfacesMac[index] ? interfacesMac[index] : `${$t("validations.undefined")}` }` }}
+            <template v-if="index > 0">, </template>{{ `${interfaceName(interfaces[index])} - ${interfacesMac[index] ? interfacesMac[index] : `${$t("validations.undefined")}` }` }}
           </template>
         </span>
       </b-col>
@@ -281,6 +282,7 @@
 <script>
 import { computed, onMounted, watch } from '@vue/composition-api'
 import { hardwareWarningTitle } from '@/shared/constants'
+import { memoryOptionLabel } from '@/utils/domainsUtils'
 import useVuelidate from '@vuelidate/core'
 import { required, requiredIf } from '@vuelidate/validators'
 
@@ -357,6 +359,8 @@ export default {
     })
 
     const interfacesMac = computed(() => $store.getters.getDomain.hardware.interfacesMac)
+    // The domain may reference an interface no longer in the user's allowed list
+    const interfaceName = (id) => (availableHardware.value.interfaces.find(e => e.id === id) || { name: id }).name
 
     // When creating a desktop from a media if the user has the iso boot option it will be selected by default
     watch(availableHardware, (availableHardware, prevVal) => {
@@ -377,9 +381,11 @@ export default {
       diskBus,
       interfaces,
       interfacesMac,
+      interfaceName,
       availableHardware,
       domain,
       hardwareWarningTitle,
+      memoryOptionLabel,
       v$: useVuelidate({
         vcpus: {
           required

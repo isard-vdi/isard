@@ -1046,7 +1046,7 @@
             "disable-template": "Uczynienie szablonu niewidocznym",
             "stopping-download": "Zatrzymywanie pobierania",
             "counting-desktops": "Liczenie, ile pulpitów zostanie utworzonych",
-            "new-template-server": "Nie można utworzyć szablonu z serwera",
+            "new-template-server": "Nie można utworzyć szablonu z serwera z autostartem",
             "file-downloaded": "Plik pobrany",
             "making-invisible-deployment": "Uczynienie floty niewidoczną",
             "opening-desktop": "Otwieranie pulpitu",

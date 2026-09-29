@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import * as z from 'zod'
 
@@ -24,7 +25,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 
 import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
 import newMediaImg from '@/assets/img/modal/new-media.svg'
-import { errorCodeKey } from '@/lib/api-errors'
+import { errorCodeKey, isNameConflictError } from '@/lib/api-errors'
 
 interface Props {
   open?: boolean
@@ -91,6 +92,7 @@ const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   }
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: reactive({
     name: '',
@@ -117,6 +119,16 @@ const form = useForm({
       }
     })
   }
+})
+
+// The conflict answers the name that was sent: editing it makes both the banner
+// and the field message stale.
+const mediaName = form.useStore((state) => state.values.name)
+
+watch(mediaName, () => {
+  if (!isNameConflictError(creationError.value)) return
+  creationError.value = null
+  form.getFieldInfo('name').instance?.setErrorMap({ onSubmit: undefined })
 })
 
 const isFormDirty = form.useStore(

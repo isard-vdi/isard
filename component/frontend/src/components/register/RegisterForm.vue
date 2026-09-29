@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ const formSchema = z.object({
   code: z.string().nonempty({ error: t('forms.validation.required') })
 })
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: {
     code: ''

@@ -79,6 +79,7 @@ const {
   />
   <TemplatesList
     active-template-tab="user"
+    :inline-tabs="true"
     :selectable="true"
     :selected-id="props.selectedId"
     @row-click="handleRowClick"

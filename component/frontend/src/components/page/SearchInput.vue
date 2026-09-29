@@ -24,7 +24,7 @@ useSearchShortcuts(() => props.id)
     v-model="model"
     :placeholder="props.placeholder"
     icon="search-lg"
-    :class="cn('h-full w-full min-w-0 max-w-120', props.class)"
+    :class="cn('h-full w-full min-w-0 max-w-80', props.class)"
   >
     <template #inline-end>
       <Kbd class="max-sm:hidden">/</Kbd>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
   useVueTable,
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   type ColumnFiltersState,
+  type SortingFn,
+  type SortingState,
   getFilteredRowModel
 } from '@tanstack/vue-table'
 
@@ -14,14 +17,18 @@ import { valueUpdater } from '@/lib/utils'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
+import { DataTableHead } from '@/components/ui/data-table'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { EmptyState, PageToolbar, SearchInput, type EmptyStateKind } from '@/components/page'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 export interface HeaderCell {
   name: string
   key: string
+
+  sortable?: boolean
+
   width?: string
 }
 
@@ -35,7 +42,9 @@ interface Props {
   isRowDisabled?: (row: Record<string, unknown>) => boolean
   disabledTooltip?: string
   selectedId?: string
+  defaultSort?: { key: string; desc?: boolean }
   hideToolbar?: boolean
+  inlineTabs?: boolean
   emptyKind?: EmptyStateKind
   // Row count before any filtering, so a first run can be told from a fruitless search.
   totalRows?: number
@@ -46,7 +55,9 @@ const props = withDefaults(defineProps<Props>(), {
   paginationPageSizes: undefined,
   loading: false,
   isClickable: false,
+  defaultSort: undefined,
   hideToolbar: false,
+  inlineTabs: false,
   emptyKind: 'templates',
   totalRows: undefined
 })
@@ -61,6 +72,26 @@ const emit = defineEmits<{
 const pageSize = computed(() => props.pageSize ?? 10)
 const columnFilters = ref<ColumnFiltersState>([])
 
+// Left to itself tanstack picks a comparator by peeking at the rows past the
+// tenth, so the same table sorts case-sensitively with ten templates and
+// case-insensitively with eleven. Pin one, and let it order the way the
+// reader's language does: accents in place, "Template 2" before "Template 10".
+const collator = computed(() => new Intl.Collator(locale.value, { numeric: true }))
+
+const compareRows: SortingFn<Record<string, unknown>> = (rowA, rowB, columnId) => {
+  const a = rowA.getValue(columnId)
+  const b = rowB.getValue(columnId)
+
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+
+  // A missing value reads as an empty one, and sorts with them.
+  return collator.value.compare(a == null ? '' : String(a), b == null ? '' : String(b))
+}
+
+const sorting = ref<SortingState>(
+  props.defaultSort ? [{ id: props.defaultSort.key, desc: props.defaultSort.desc ?? false }] : []
+)
+
 const table = useVueTable({
   get data() {
     return props.rows
@@ -68,12 +99,16 @@ const table = useVueTable({
   get columns() {
     return props.headers.map((header) => ({
       accessorKey: header.key,
-      header: header.name
+      header: header.name,
+      sortingFn: compareRows
     }))
   },
   getCoreRowModel: getCoreRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  autoResetPageIndex: false,
+  sortDescFirst: false,
   initialState: {
     pagination: {
       pageSize: pageSize.value,
@@ -81,16 +116,26 @@ const table = useVueTable({
     }
   },
   onColumnFiltersChange: (updaterOrValue) => valueUpdater(updaterOrValue, columnFilters),
+  onSortingChange: (updaterOrValue) => valueUpdater(updaterOrValue, sorting),
   onGlobalFilterChange: (updaterOrValue) => valueUpdater(updaterOrValue, search),
   state: {
     get columnFilters() {
       return columnFilters.value
+    },
+    get sorting() {
+      return sorting.value
     },
     get globalFilter() {
       return search.value
     }
   }
 })
+
+// Identity, not the array itself: a refetch brings the same templates back in a
+// brand new one, and that must not move the user.
+const rowsKey = computed(() => props.rows.map((row, index) => row.id ?? index).join('|'))
+
+watch([search, rowsKey], () => table.setPageIndex(0))
 
 const filteredRowCount = computed(() => table.getFilteredRowModel().rows.length)
 
@@ -106,7 +151,7 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 </script>
 
 <template>
-  <PageToolbar v-if="!props.hideToolbar">
+  <PageToolbar v-if="!props.hideToolbar" :inline-tabs="props.inlineTabs">
     <template v-if="$slots.tabs" #tabs>
       <slot name="tabs" />
     </template>
@@ -150,14 +195,17 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
       role="table"
     >
       <div role="row" class="grid col-span-full" style="grid-template-columns: subgrid">
-        <div
+        <DataTableHead
           v-for="(header, index) in headers"
           :key="'header-grid-' + index"
-          class="text-sm font-semibold text-gray-warm-900 px-4"
+          class="h-auto px-4 text-sm text-gray-warm-900"
           role="columnheader"
+          :sortable="header.sortable"
+          :sorted="table.getColumn(header.key)?.getIsSorted()"
+          @togle-sorting="table.getColumn(header.key)?.toggleSorting()"
         >
           {{ header.name }}
-        </div>
+        </DataTableHead>
       </div>
 
       <Tooltip

@@ -214,6 +214,7 @@ export default {
           300: 'var(--secondary-1-300)',
           400: 'var(--secondary-1-400)',
           500: 'var(--secondary-1-500)',
+          550: 'var(--secondary-1-550)',
           600: 'var(--secondary-1-600)',
           700: 'var(--secondary-1-700)'
         },
@@ -223,6 +224,7 @@ export default {
           300: 'var(--secondary-2-300)',
           400: 'var(--secondary-2-400)',
           500: 'var(--secondary-2-500)',
+          550: 'var(--secondary-2-550)',
           600: 'var(--secondary-2-600)',
           700: 'var(--secondary-2-700)',
           800: 'var(--secondary-2-800)',
@@ -234,6 +236,7 @@ export default {
           300: 'var(--secondary-3-300)',
           400: 'var(--secondary-3-400)',
           500: 'var(--secondary-3-500)',
+          550: 'var(--secondary-3-550)',
           600: 'var(--secondary-3-600)',
           700: 'var(--secondary-3-700)'
         },

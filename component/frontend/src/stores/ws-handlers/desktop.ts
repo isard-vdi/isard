@@ -8,11 +8,20 @@ import type {
 } from '@/types/ws-events'
 import type { UserDesktop } from '@/gen/oas/apiv4'
 import { QueryClient } from '@tanstack/vue-query'
-import { getUserDesktopsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import {
+  getDesktopNetworksQueryKey,
+  getUserDesktopsOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const key = getUserDesktopsOptions().queryKey
 
 type DesktopWithQueue = UserDesktop & { queue?: number }
+
+const interfaceSignature = (interfaces?: { id: string; mac?: string | null }[]) =>
+  (interfaces ?? [])
+    .map((iface) => `${iface.id}:${iface.mac ?? ''}`)
+    .sort()
+    .join('|')
 
 export const desktopEventHandlers = {
   desktop_add: (queryClient: QueryClient, payload: string) => {
@@ -30,6 +39,7 @@ export const desktopEventHandlers = {
 
   desktop_update: (queryClient: QueryClient, payload: string) => {
     const data: WsDesktopPayload = JSON.parse(payload)
+    const previous = queryClient.getQueryData(key)?.desktops?.find((d) => d.id === data.id)
     queryClient.setQueryData(key, (old) => {
       if (!old) {
         queryClient.setQueryDefaults(key, { staleTime: 0 })
@@ -39,6 +49,14 @@ export const desktopEventHandlers = {
         desktops: patchEntityList(old?.desktops || [], 'update', data)
       }
     })
+    if (
+      previous &&
+      interfaceSignature(previous.interfaces) !== interfaceSignature(data.interfaces)
+    ) {
+      queryClient.invalidateQueries({
+        queryKey: getDesktopNetworksQueryKey({ path: { desktop_id: data.id } })
+      })
+    }
   },
 
   desktop_delete: (queryClient: QueryClient, payload: string) => {

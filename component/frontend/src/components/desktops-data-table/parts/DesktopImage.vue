@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
 import { desktopKindStyle as desktopKindStyleFunc } from '@/lib/desktops'
+import { cn } from '@/lib/utils'
 
 import {
   ContextMenu,
@@ -12,15 +13,41 @@ import {
   ContextMenuContent,
   ContextMenuItem
 } from '@/components/ui/context-menu'
-import { Icon } from '@/components/icon'
+import { Icon, type IconVariants } from '@/components/icon'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const { t } = useI18n()
 
-interface Props {
-  desktop: UserDesktop
+interface Size {
+  frame: string
+  thumbnail: string
+  swatch: string
+  icon: NonNullable<IconVariants['size']>
 }
 
-const props = withDefaults(defineProps<Props>(), {})
+const sizes = {
+  sm: {
+    frame: 'h-8 rounded-md',
+    thumbnail: 'size-8 rounded-md',
+    swatch: 'px-1',
+    icon: 'sm'
+  },
+  md: {
+    frame: 'h-16 rounded-lg',
+    thumbnail: 'size-16 rounded-lg',
+    swatch: 'p-2',
+    icon: 'md'
+  }
+} satisfies Record<string, Size>
+
+interface Props {
+  desktop: UserDesktop
+  size?: keyof typeof sizes
+}
+
+const props = withDefaults(defineProps<Props>(), { size: 'sm' })
+
+const size = computed(() => sizes[props.size] ?? sizes.md)
 
 const emit = defineEmits<{
   copyToClipboard: [string]
@@ -33,15 +60,19 @@ const desktopKindStyle = computed(() => {
 
 <template>
   <div
-    class="flex flex-row gap-0 w-min h-16 rounded-lg overflow-hidden text-secondary-3-600"
+    :class="cn('flex flex-row gap-0 w-min overflow-hidden text-secondary-3-600', size.frame)"
     :style="{
       backgroundColor: `var(--${desktopKindStyle.color})`
     }"
   >
     <ContextMenu>
       <ContextMenuTrigger>
-        <div class="h-full flex items-center justify-center p-2">
-          <Icon :name="desktopKindStyle.icon" :stroke-color="desktopKindStyle.iconColor" />
+        <div :class="cn('h-full flex items-center justify-center', size.swatch)">
+          <Icon
+            :name="desktopKindStyle.icon"
+            :size="size.icon"
+            :stroke-color="desktopKindStyle.iconColor"
+          />
         </div>
       </ContextMenuTrigger>
 
@@ -52,11 +83,10 @@ const desktopKindStyle = computed(() => {
         }}</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-    <div
-      class="size-16 overflow-hidden shrink-0 rounded-lg object-cover bg-center bg-cover relative"
-      :style="{
-        backgroundImage: `url(${props.desktop.image?.url ?? ''})`
-      }"
-    ></div>
+    <DomainImage
+      :image-url="props.desktop.image?.url"
+      variant="compact"
+      :class="cn('shrink-0', size.thumbnail)"
+    />
   </div>
 </template>

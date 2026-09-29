@@ -6,6 +6,7 @@ import SummaryValue from '@/components/domain/SummaryValue.vue'
 import { domainKindStyle, type DomainKind } from '@/lib/domainKind'
 import { cn } from '@/lib/utils'
 import { hasWireguardRequiringViewer } from '@/lib/viewers'
+import { ramLabel } from '@/lib/hardwareTiers'
 
 // Access + hardware summary of a domain (desktop or template) in a single card.
 
@@ -127,8 +128,7 @@ const fullscreenLabel = (enabled?: boolean) =>
   )
 const vcpuLabel = (vcpu?: number) =>
   t('components.domain-info-modal.fields.hardware.vcpu', { vcpu })
-const memoryLabel = (memory?: number) =>
-  t('components.domain-info-modal.fields.hardware.ram', { ram: memory?.toFixed(2) })
+const memoryLabel = (memory?: number) => ramLabel(t, memory)
 const diskSizeLabel = (size?: number) => `${size} ${t('common.units.gb')}`
 
 // Credentials only make sense for the viewers that go through Wireguard; the

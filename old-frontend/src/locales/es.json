@@ -1542,7 +1542,7 @@
       "downloading-media": "Descargando medio",
       "stopping-download": "Parando la descarga",
       "counting-desktops": "Contado cuántos escritorios se crearán",
-      "new-template-server": "No se puede crear una plantilla de servidor",
+      "new-template-server": "No se puede crear una plantilla de un servidor con arranque automático",
       "edit-desktop-server": "No se puede editar un servidor",
       "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado",
       "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",

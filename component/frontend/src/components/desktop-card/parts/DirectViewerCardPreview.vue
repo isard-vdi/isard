@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { DesktopStatusEnum, type BrowserVncValues } from '@/gen/oas/apiv4/'
 import NoVNC from '@/components/noVNC/NoVNC.vue'
 
+import DomainImage from '@/components/domain/DomainImage.vue'
+
 interface Props {
   status: DesktopStatusEnum
   imageUrl: string
@@ -47,10 +49,7 @@ const showLivePreview = computed(
 
 <template>
   <div ref="root" class="absolute inset-0">
-    <div
-      class="absolute inset-0 bg-center bg-cover"
-      :style="{ backgroundImage: `url(${props.imageUrl})` }"
-    />
+    <DomainImage :image-url="props.imageUrl" class="absolute inset-0" />
     <div
       v-if="showLivePreview"
       class="absolute inset-3 rounded-sm ring-1 ring-base-black/70 shadow-lg overflow-hidden bg-gray-warm-900"

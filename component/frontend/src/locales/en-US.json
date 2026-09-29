@@ -374,18 +374,16 @@
         "search": {
           "placeholder": "Search desktops"
         },
-        "toggle": "Filters",
-        "toggle-active": "Filters ({count} active)",
         "kind": {
-          "all": "All",
           "persistent": "Persistent | Persistents",
           "nonpersistent": "Temporary | Temporaries",
-          "deployment": "Deployment | Deployments"
+          "deployment": "Deployment | Deployments",
+          "label": "Type"
         },
         "status": {
-          "all": "All",
           "started": "Started",
-          "stopped": "Stopped"
+          "stopped": "Stopped",
+          "label": "Status"
         }
       },
       "view-mode": {
@@ -410,9 +408,9 @@
           "placeholder": "Search"
         },
         "visibility": {
-          "all": "All",
           "visible": "Visible",
-          "hidden": "Hidden"
+          "hidden": "Hidden",
+          "label": "Visibility"
         }
       },
       "alloweds": {
@@ -423,7 +421,9 @@
         "headers": {
           "name": "Name",
           "description": "Description",
-          "owner": "Owner"
+          "owner": "Owner",
+          "category": "Category",
+          "group": "Group"
         },
         "actions": {
           "edit": "Edit Template",
@@ -450,7 +450,8 @@
       },
       "select": {
         "title": "Select a desktop to create a template from",
-        "desktop-not-stopped": "Desktop must be stopped to create a template."
+        "desktop-not-stopped": "Desktop must be stopped to create a template.",
+        "desktop-server-autostart": "Can't create a template from a server with autostart."
       },
       "form": {
         "sections": {
@@ -649,10 +650,10 @@
           "placeholder": "Search deployments"
         },
         "status": {
-          "all": "All",
           "started": "Started",
           "visible": "Visible",
-          "hidden": "Hidden"
+          "hidden": "Hidden",
+          "label": "Status"
         }
       },
       "dropdown": {
@@ -846,6 +847,14 @@
           "title": "Desktops",
           "add-desktop": "Add desktop",
           "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "empty": {
+            "title": "Add desktops to the deployment",
+            "description": "A deployment needs at least one desktop. Each of the added desktops will be created for every deployment user."
+          },
+          "quota-reached": {
+            "title": "Desktop quota reached",
+            "description": "Your quota does not allow any more desktops in this deployment."
+          },
           "errors": {
             "no-desktops": "At least one desktop must be added to the deployment."
           }
@@ -889,6 +898,10 @@
           "title": "Desktop not booked",
           "description": "The desktop you are trying to access needs to be booked in order to start it. \nContact the owner of the desktop to book it in order to access it."
         }
+      },
+      "help": {
+        "text": "This page connects you to a remote desktop that someone shared with you.",
+        "link": "Need help? Read the direct viewer guide"
       },
       "reset-modal": {
         "title": "Force reset the desktop?",
@@ -1116,11 +1129,10 @@
         "existing-key": {
           "description-1": "Your API Key is valid until {date}. After that, it will expire and you will not be able to use it anymore.",
           "description-2": "You can expire it now to generate a new one.",
-          "description-expired": "Your API key is expired. Click the button below to clear it and generate a new one.",
+          "description-expired": "Your API key is expired. Clear it to generate a new one.",
           "buttons": {
             "expire": "Expire",
-            "delete": "Delete",
-            "expire-tooltip": "Expire the existing key"
+            "delete": "Delete"
           }
         }
       },
@@ -1186,21 +1198,7 @@
         },
         "errors": {
           "title": "Import error",
-          "generic": "There was an error importing the user. Please try again.",
-          "unknown": "An error has ocurred",
-          "migration_not_found": "Migration token not found",
-          "token_expired": "The token you provided has expired",
-          "invalid_token": "The token you provided is invalid",
-          "no_items_to_migrate": "There are no items to migrate",
-          "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
-          "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
-          "different_category_migration": "You can't migrate to an account from a different category",
-          "role_migration_admin": "You can't migrate from an admin account",
-          "role_migration_user": "You can't migrate to a user account from an account with a higher role",
-          "migration_desktop_quota_error": "The user has more desktops than the new user quota",
-          "migration_template_quota_error": "The user has more templates than the new user quota",
-          "migration_media_quota_error": "The user has more media than the new user quota",
-          "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+          "generic": "There was an error importing the user. Please try again."
         }
       },
       "password-modal": {
@@ -1394,12 +1392,14 @@
         "credentials": {
           "username": {
             "label": "Username",
-            "placeholder": "Enter username"
+            "placeholder": "Enter username",
+            "required": "Enter a username to reach the desktop with"
           },
           "password": {
             "label": "Password",
             "placeholder": "Enter password",
-            "help": "WARNING: The password will be stored unencrypted in the database."
+            "help": "WARNING: The password will be stored unencrypted in the database.",
+            "required": "Enter a password to reach the desktop with"
           }
         },
         "fullscreen": {
@@ -1485,7 +1485,7 @@
         "viewers-removed": {
           "title": "RDP viewers removed",
           "toast-description": "These RDP viewers were removed because this desktop has no wireguard network interface: {viewers}",
-          "summary": "{count} viewers removed: this desktop has no wireguard network"
+          "summary": "{count} viewer removed: this desktop has no wireguard network | {count} viewers removed: this desktop has no wireguard network"
         }
       },
       "hardware": {
@@ -1515,7 +1515,8 @@
         },
         "isos": {
           "label": "ISOs",
-          "placeholder": "Select ISOs"
+          "placeholder": "Select ISOs",
+          "unavailable": "No ISO available for your user"
         },
         "floppies": {
           "label": "Floppies",
@@ -1549,14 +1550,10 @@
             "title": "Restrictions applied"
           },
           "quota": "This value exceeds your quota",
-          "chip": {
-            "replaced": "was {old_value}",
-            "removed": "removed: {old_value}",
-            "removed-count": "{count} removed"
-          },
           "detail": {
             "replaced": "{old_value} is above what your permissions allow, so {new_value} was kept instead.",
-            "removed": "{old_value} is not within your permissions, so it was removed."
+            "removed": "{old_value} is not within your permissions, so it was removed.",
+            "removed-count": "{count} values are not within your permissions, so they were removed: {old_value}."
           }
         }
       },
@@ -1623,12 +1620,16 @@
           "description": "The hardware can be edited through the following form"
         },
         "hardware-limited": {
-          "summary": "{count} values adjusted by your permissions",
+          "summary": "{count} value adjusted by your permissions | {count} values adjusted by your permissions",
           "review": "Review them"
         }
       }
     },
     "form": {
+      "required": {
+        "marker": "*",
+        "text": "required"
+      },
       "validation": {
         "required": "The field {field} is required",
         "min-length": "The field {field} must be at least {min} characters long",
@@ -1810,7 +1811,8 @@
         "hardware": {
           "title": "Hardware",
           "vcpu": "{vcpu} vCPU",
-          "ram": "{ram} GB RAM"
+          "ram": "{ram} GB RAM",
+          "ram-mb": "{ram} MB RAM"
         },
         "system": {
           "title": "System"
@@ -1832,11 +1834,14 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Networks from the desktop {name}",
-      "description": "Network interfaces attached to this desktop. The Wireguard interface is shown first when present and exposes the routable guest IP.",
+      "title": "Networks",
+      "loading": "Loading network information…",
       "empty": "No networks attached to this desktop",
       "error": "Could not load network information",
       "no-ip": "No IP assigned",
+      "debug-options": {
+        "copy-id": "Copy Interface ID"
+      },
       "fields": {
         "id": "ID",
         "mac": "MAC address",
@@ -2011,7 +2016,10 @@
     },
     "filters": {
       "toggle": "Filters",
-      "toggle-active": "Filters ({count} active)"
+      "toggle-active": "Filters ({count} active)",
+      "remove": "Remove filter {name}",
+      "clear": "Clear filters",
+      "show-all": "Show all {count} active filters"
     },
     "empty-search": {
       "title": "No results found",
@@ -2092,6 +2100,7 @@
           "info": "Info",
           "edit": "Edit",
           "template": "Template it",
+          "template-server-autostart": "Can't create a template from a server with autostart. Please contact with an administrator to disable autostart first.",
           "delete": "Delete",
           "book": "Book",
           "bastion": "Bastion",
@@ -2880,6 +2889,11 @@
       "errors": {
         "unknown": "An error has ocurred",
         "token_expired": "The token you provided has expired",
+        "migration_import_disabled": "User import is not enabled for your authentication provider",
+        "migration_not_found": "Migration token not found",
+        "multiple_migrations_found": "There are multiple migrations for this token",
+        "token_invalid": "The token you provided is not a migration token",
+        "internal_server": "An internal server error occurred. Please try again later",
         "invalid_token": "The token you provided is invalid",
         "no_active_migration": "There is no active migration for your account.",
         "no_items_to_migrate": "There are no items to migrate",
@@ -2952,6 +2966,7 @@
     "new-template": {
       "errors": {
         "new_template_name_exists": "A template with this name already exists. Please choose a different name.",
+        "new_template_server_autostart": "Can't create a template from a server with autostart. Please contact with an administrator to disable autostart first.",
         "generic": "There was an error creating the template, please try again.",
         "storage_pending_task": "This desktop's disk is busy with another operation. Please wait a moment and try again.",
         "template_failed": "This template failed and can't be duplicated."

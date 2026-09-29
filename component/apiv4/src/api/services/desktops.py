@@ -42,6 +42,7 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
     DesktopNonpersistentEvents,
 )
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.isard_viewer import with_default_credentials
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
@@ -99,6 +100,20 @@ def _get_desktop_viewer_cache_key(
 ) -> tuple:
     # user_id is in the key so different users never share a cached viewer credential (e.g. SPICE password); `request` is unhashable.
     return hashkey(user_id, desktop_id, viewer_type, is_admin)
+
+
+def _bastion_request_enabled(bastion_data):
+    if bastion_data is None:
+        return None
+    ssh = bastion_data.get("ssh") or {}
+    http = bastion_data.get("http") or {}
+    if ssh.get("enabled") or http.get("enabled"):
+        return True
+    if "enabled" in ssh and "enabled" in http:
+        return False
+
+    # The request carries no bastion config.
+    return None
 
 
 class DesktopService:
@@ -415,7 +430,9 @@ class DesktopService:
             "group": user.group,
             "icon": "",
             "image": image_data,
-            "guest_properties": data.guest_properties.model_dump(exclude_unset=True),
+            "guest_properties": with_default_credentials(
+                data.guest_properties.model_dump(exclude_unset=True)
+            ),
             "create_dict": {
                 "create_from_virt_install_xml": data.os_template,
                 "hardware": hardware,
@@ -746,6 +763,10 @@ class DesktopService:
     def get_direct_viewer_docs():
         docs_link = DesktopDirectViewer.desktop_viewer_docs()
         return docs_link
+
+    @staticmethod
+    def get_direct_viewer_page_docs():
+        return DesktopDirectViewer.direct_viewer_docs()
 
     @staticmethod
     def reset_desktop_from_token(token: str, request: Request) -> str:
@@ -1300,6 +1321,7 @@ class DesktopService:
             admin_or_manager=payload["role_id"] in ["admin", "manager"],
             bulk=False,
             payload=payload,
+            bastion_enabled=_bastion_request_enabled(bastion_data),
         )
 
         if bastion_data is not None:

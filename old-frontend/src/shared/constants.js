@@ -148,6 +148,14 @@ export const availableViewers = [
   }
 ]
 
+export const rdpViewerKeys = availableViewers
+  .filter(viewer => viewer.needsWireguard)
+  .map(viewer => viewer.key)
+
+/** Whether a `guest_properties.viewers` object has a viewer that uses the guest credentials. */
+export const hasRdpViewer = (viewers) =>
+  rdpViewerKeys.some(key => Boolean((viewers || {})[key]))
+
 export const diskBus = [
   {
     id: 'default',

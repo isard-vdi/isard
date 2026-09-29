@@ -79,7 +79,7 @@ columns = [
         "data": "ram", "width": "100px",
         "render": function (data, type, full, meta) {
             if (type == "display" || type === 'filter') {
-                return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+                return formatRamLabel(full.create_dict.hardware.memory / 1024 / 1024)
             }
             return full.create_dict.hardware.memory
         }
@@ -2460,7 +2460,7 @@ function renderStorageActionsButton(data) {
                         success: function (data) {
                             $.each(data.field, function(pos, field) {
                                 // Must match the RAM(GB) column render
-                                const value = Number(field).toFixed(2) + 'GB'
+                                const value = formatRamLabel(Number(field))
                                 if (elem.find('option[value="' + value + '"]').length === 0) {
                                     elem.append('<option value="' + value + '">' + value + '</option>');
                                 }

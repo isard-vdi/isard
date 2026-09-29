@@ -33,7 +33,9 @@ def mod_with_stubs(monkeypatch):
     # last update payload sent to ``r.table().update(...)``.
     captured = {"updates": []}
 
-    def fake_parse_domain_update(cls, domain_id, new_data, admin_or_manager=False):
+    def fake_parse_domain_update(
+        cls, domain_id, new_data, admin_or_manager=False, bastion_enabled=None
+    ):
         # Mirror parse_domain_update's actual output shape for the
         # hardware+reservables case: top-level ``hardware`` plus a
         # ``create_dict`` that carries ``reservables``.

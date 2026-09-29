@@ -126,11 +126,11 @@ class DomainGuestProperties(BaseModel):
 
     class _GuestPropertiesCredentials(BaseModel):
         username: Optional[str] = Field(
-            default="isard",
+            default="",
             description="Username for accessing the desktop using RDP.",
         )
         password: Optional[str] = Field(
-            default="pirineus",
+            default="",
             description="Password for accessing the desktop using RDP.",
         )
 

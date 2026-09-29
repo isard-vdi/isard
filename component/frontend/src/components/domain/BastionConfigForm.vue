@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
 import { reactive } from 'vue'
@@ -94,6 +95,7 @@ const formSchema = z.object({
 
 const defaultValues = reactive(props.bastion)
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues,
   validators: {
@@ -218,7 +220,7 @@ const removeCustomDomain = (index: number) => {
     <div class="flex items-center gap-2">
       <!-- Empty stroke-color clears Icon's inline color so the class below can drive
            currentColor and pick up the focus-within highlight. -->
-      <Icon name="shield-01" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+      <Icon name="globe-04" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
       <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
         {{ t('components.domain.access.sections.bastion') }}
       </h4>
@@ -261,9 +263,9 @@ const removeCustomDomain = (index: number) => {
   <template v-if="bastionEnabled">
     <!-- Bastion configuration -->
     <section class="grid gap-4 items-start">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 pl-6">
         <Icon
-          name="shield-zap"
+          name="settings-01"
           size="sm"
           stroke-color=""
           aria-hidden="true"

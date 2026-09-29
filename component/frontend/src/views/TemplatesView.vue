@@ -26,15 +26,13 @@ import {
   ContextMenuItem
 } from '@/components/ui/context-menu'
 import { TemplateDataTable } from '@/components/data-table'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import {
-  EmptyState,
-  FilterPanel,
-  FilterToggle,
-  PageContainer,
-  PageToolbar,
-  SearchInput
-} from '@/components/page'
-import { useFilterPanel } from '@/composables/useFilterPanel'
+  FilterTags,
+  countFilterTags,
+  emptyFilterTags,
+  type FilterCategory
+} from '@/components/filter-tags'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -49,12 +47,13 @@ import { TemplateDeleteModal } from '@/components/templates/template-delete-moda
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
+import type { UserSharedTemplate } from '@/gen/oas/apiv4'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -66,11 +65,43 @@ const activeTab = ref<'user' | 'shared'>('user')
 const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 const inputSearch = ref('')
 
-const showTemplateFilters = useFilterPanel('templates_filters_state')
-const templateVisibility = ref<'all' | 'visible' | 'hidden'>('all')
+const TEMPLATE_FILTER_CATEGORIES = ['visibility']
 
-// Search has its own always-visible input; only the ones the panel hides count.
-const activeTemplateFilterCount = computed(() => (templateVisibility.value === 'all' ? 0 : 1))
+const templateFilterTags = ref(emptyFilterTags(TEMPLATE_FILTER_CATEGORIES))
+
+const activeTemplateFilterCount = computed(() => countFilterTags(templateFilterTags.value))
+
+const clearTemplateFilters = () => {
+  templateFilterTags.value = emptyFilterTags(TEMPLATE_FILTER_CATEGORIES)
+}
+
+// Legacy rows come back without the field and are visible.
+const isTemplateVisible = (template: { enabled?: boolean }) => template.enabled !== false
+
+const templateFilterCategories = computed<FilterCategory[]>(() => {
+  const templates = userTemplates.value?.templates ?? []
+  const visible = templates.filter(isTemplateVisible).length
+  return [
+    {
+      key: 'visibility',
+      label: t('views.templates.filters.visibility.label'),
+      options: [
+        {
+          value: 'visible',
+          label: t('views.templates.filters.visibility.visible'),
+          count: visible,
+          icon: 'eye'
+        },
+        {
+          value: 'hidden',
+          label: t('views.templates.filters.visibility.hidden'),
+          count: templates.length - visible,
+          icon: 'eye-off'
+        }
+      ]
+    }
+  ]
+})
 
 // Queries
 const {
@@ -98,11 +129,13 @@ const tableHeaders = computed(() => {
     {
       name: t('views.templates.table.headers.name'),
       key: 'name',
+      sortable: true,
       width: 'minmax(var(--spacing-48), var(--spacing-80))'
     },
     {
       name: t('views.templates.table.headers.description'),
       key: 'description',
+      sortable: true,
       width: 'minmax(var(--spacing-56), 1fr)'
     }
   ]
@@ -111,29 +144,47 @@ const tableHeaders = computed(() => {
     baseHeaders.push({
       name: t('views.templates.table.headers.owner'),
       key: 'owner',
+      sortable: true,
       width: 'minmax(var(--spacing-48), var(--spacing-64))'
     })
+    baseHeaders.push(
+      {
+        name: t('views.templates.table.headers.category'),
+        key: 'category_name',
+        sortable: true,
+        width: 'minmax(max-content, var(--spacing-40))'
+      },
+      {
+        name: t('views.templates.table.headers.group'),
+        key: 'group_name',
+        sortable: true,
+        width: 'minmax(max-content, var(--spacing-40))'
+      }
+    )
   }
 
   baseHeaders.push({ name: '', key: 'actions', width: 'max-content' })
   return baseHeaders
 })
 
+// The owner column sorts on the row value, so flatten the user object into a string.
+const withOwnerName = (template: UserSharedTemplate) => ({
+  ...template,
+  owner: typeof template.user === 'string' ? template.user : (template.user?.name ?? '')
+})
+
 const tableRows = computed(() => {
   // Only owned templates carry a visibility flag, so the filter is theirs alone.
   if (activeTab.value === 'shared') {
-    return sharedTemplates.value?.templates || []
+    return (sharedTemplates.value?.templates || []).map(withOwnerName)
   }
 
-  return (userTemplates.value?.templates || []).filter((template) => {
-    if (templateVisibility.value === 'all') {
-      return true
-    }
-
-    // Legacy rows come back without the field and are visible
-    const isVisible = template.enabled !== false
-    return templateVisibility.value === 'visible' ? isVisible : !isVisible
-  })
+  const visibility = templateFilterTags.value.visibility ?? []
+  return (userTemplates.value?.templates || []).filter(
+    (template) =>
+      visibility.length === 0 ||
+      visibility.includes(isTemplateVisible(template) ? 'visible' : 'hidden')
+  )
 })
 
 // Unfiltered count of the active tab, to tell a first run from a fruitless search.
@@ -386,12 +437,8 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
         />
       </template>
 
-      <template v-if="!isFirstRun" #filters>
-        <FilterToggle
-          v-if="activeTab === 'user'"
-          v-model="showTemplateFilters"
-          :active-count="activeTemplateFilterCount"
-        />
+      <template v-if="!isFirstRun && activeTab === 'user'" #filters>
+        <FilterTags v-model="templateFilterTags" :categories="templateFilterCategories" />
       </template>
 
       <template v-if="!isFirstRun" #actions>
@@ -404,28 +451,6 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
           @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
           >{{ t('views.templates.new-template') }}</Button
         >
-      </template>
-
-      <template v-if="!isFirstRun" #panel>
-        <FilterPanel :open="showTemplateFilters && activeTab === 'user'">
-          <ToggleGroup
-            v-model="templateVisibility"
-            :spacing="1"
-            type="single"
-            size="default"
-            class="bg-base-white border border-1-5 border-gray-warm-300 p-1 rounded-lg"
-          >
-            <ToggleGroupItem value="all" variant="gray-warm">
-              <span>{{ t('views.templates.filters.visibility.all') }}</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="visible" variant="gray-warm">
-              <span>{{ t('views.templates.filters.visibility.visible') }}</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="hidden" variant="gray-warm">
-              <span>{{ t('views.templates.filters.visibility.hidden') }}</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </FilterPanel>
       </template>
     </PageToolbar>
 
@@ -445,7 +470,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
           :searching="inputSearch.length > 0"
           :active-filters="activeTab === 'user' ? activeTemplateFilterCount : 0"
           @clear-search="inputSearch = ''"
-          @clear-filters="templateVisibility = 'all'"
+          @clear-filters="clearTemplateFilters()"
         >
           <template v-if="variant === 'first-run' && activeTab === 'user'" #actions>
             <Button
@@ -464,12 +489,10 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-image="{ row }">
         <div class="relative">
-          <div
-            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover relative"
-            :class="{ 'grayscale opacity-40': isFailed(row) }"
-            :style="{
-              backgroundImage: `url(${row.image.url})`
-            }"
+          <DomainImage
+            :image-url="row.image.url"
+            variant="compact"
+            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'grayscale opacity-40': isFailed(row) }]"
           >
             <ContextMenu>
               <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
@@ -480,7 +503,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 }}</ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
-          </div>
+          </DomainImage>
 
           <Tooltip v-if="isFailed(row)">
             <TooltipTrigger as-child>
@@ -530,6 +553,14 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
 
       <template #cell-owner="{ row }">
         <AvatarLabel :src="row.user.photo" :name="row.user.name" class="text-gray-warm-900" />
+      </template>
+
+      <template #cell-category_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.category_name }}</p>
+      </template>
+
+      <template #cell-group_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.group_name }}</p>
       </template>
 
       <template v-if="activeTab === 'user'" #cell-actions="{ row }">

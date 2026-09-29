@@ -9,6 +9,7 @@ import type { DesktopTemplate } from '@/gen/oas/apiv4'
 import Badge from '@/components/badge/Badge.vue'
 import { TruncatedText } from '@/components/truncated-text'
 import { hasWireguardRequiringViewer } from '@/lib/viewers'
+import { ramLabel } from '@/lib/hardwareTiers'
 import { domainKindStyle, resolveDomainKind, type DesktopKind } from '@/lib/domainKind'
 
 const { t } = useI18n()
@@ -334,11 +335,7 @@ const gridSectionOrder = (key: GridSectionKey): number => {
             />
             <Badge
               v-if="props.ram != null"
-              :content="
-                t('components.domain-info-modal.fields.hardware.ram', {
-                  ram: props.ram?.toFixed(2)
-                })
-              "
+              :content="ramLabel(t, props.ram)"
               icon="memory"
               color="gray"
               shape="square"

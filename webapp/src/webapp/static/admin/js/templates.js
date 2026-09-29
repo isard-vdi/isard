@@ -84,7 +84,7 @@ columnDefs = [
         "width": "100px",
         "render": function (data, type, full, meta) {
             if (type === 'display' || type === 'filter') {
-                return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + " GB";
+                return formatRamLabel(full.create_dict.hardware.memory / 1024 / 1024);
             }
             return full.create_dict.hardware.memory;
         }

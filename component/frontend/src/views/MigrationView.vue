@@ -13,6 +13,7 @@ import { migrationMigrateUser } from '@/gen/oas/apiv4'
 import { useQuery } from '@tanstack/vue-query'
 
 import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -214,6 +215,7 @@ watch(
 
 onUnmounted(() => migrationStore.$reset())
 
+provideFormSchema(formSchema)
 const form = useForm({
   defaultValues: {
     accept: false

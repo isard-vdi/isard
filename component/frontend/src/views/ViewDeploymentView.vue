@@ -37,6 +37,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import { desktopActionsData } from '@/lib/desktops'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const route = useRoute()
 
@@ -555,16 +556,17 @@ const openDeploymentInfoModal = () => {
           <template v-for="desktop in desktops?.desktops" :key="desktop.id">
             <Tooltip>
               <TooltipTrigger as-child>
-                <div
-                  class="size-16 shrink-0 bg-cover bg-center rounded-md relative"
-                  :class="{
-                    'ring-3 ring-brand-700': viewerVariables === desktop.id,
-                    'cursor-pointer': viewerVariables !== desktop.id && canViewDesktop(desktop),
-                    'contrast-50 cursor-not-allowed!': !canViewDesktop(desktop)
-                  }"
-                  :style="{
-                    backgroundImage: `url(${desktop.image.url})`
-                  }"
+                <DomainImage
+                  :image-url="desktop.image.url"
+                  variant="compact"
+                  :class="[
+                    'size-16 shrink-0 rounded-md',
+                    {
+                      'ring-3 ring-brand-700': viewerVariables === desktop.id,
+                      'cursor-pointer': viewerVariables !== desktop.id && canViewDesktop(desktop),
+                      'contrast-50 cursor-not-allowed!': !canViewDesktop(desktop)
+                    }
+                  ]"
                   @click="
                     () => {
                       if (canViewDesktop(desktop) && viewerVariables !== desktop.id) {

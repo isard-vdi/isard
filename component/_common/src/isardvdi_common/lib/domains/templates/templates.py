@@ -30,6 +30,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.isard_viewer import with_default_credentials
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.models.domain import Domain
@@ -217,11 +218,12 @@ class TemplatesProcessed(RethinkSharedConnection):
                 "To create a template, status desktop must be Stopped",
                 traceback.format_exc(),
             )
-        if desktop.get("server"):
+        if desktop.get("server_autostart"):
             raise Error(
-                "internal_server",
-                "Can't create a template from a server",
+                "bad_request",
+                "Can't create a template from a server with autostart",
                 traceback.format_exc(),
+                description_code="new_template_server_autostart",
             )
         if not Domain(desktop.get("id")).storage_ready:
             raise Error(
@@ -384,7 +386,7 @@ class TemplatesProcessed(RethinkSharedConnection):
             # bears no relation to the source desktop's card.
             "image": _as_card(image) or Cards.get_domain_stock_card(template_id),
             "os": desktop.get("os", ""),
-            "guest_properties": desktop["guest_properties"],
+            "guest_properties": with_default_credentials(desktop["guest_properties"]),
             "create_dict": create_dict,
             "hypervisors_pools": ["default"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],

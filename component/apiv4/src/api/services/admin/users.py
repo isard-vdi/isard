@@ -656,6 +656,9 @@ class AdminUsersService:
         if not data.get("uid"):
             data["uid"] = str(uuid4())
 
+        data.setdefault("quota", False)
+        data.setdefault("limits", False)
+
         RethinkGroup.init_document(**data)
         return data
 
@@ -777,6 +780,8 @@ class AdminUsersService:
                 "login_notification": False,
                 **(data.get("manager_permissions") or {}),
             },
+            "quota": False,
+            "limits": False,
         }
 
         RethinkCategory.init_document(**category_data)
@@ -788,6 +793,8 @@ class AdminUsersService:
             "description": f"[{data['name']}] main group",
             "parent_category": category_id,
             "name": "Main",
+            "quota": False,
+            "limits": False,
         }
         RethinkGroup.init_document(**group_data)
 

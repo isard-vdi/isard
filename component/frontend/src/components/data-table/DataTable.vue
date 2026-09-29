@@ -39,6 +39,22 @@ export interface HeaderCell {
   width?: string
 }
 
+export type DataTableDensity = 'comfortable' | 'compact'
+
+// `cellClass` still wins over the density defaults.
+const DENSITY: Record<DataTableDensity, { container: string; head: string; cell: string }> = {
+  comfortable: {
+    container: '',
+    head: '',
+    cell: ''
+  },
+  compact: {
+    container: 'py-3 px-5 gap-2',
+    head: 'h-8 px-2.5',
+    cell: 'h-10 px-2.5 py-2'
+  }
+}
+
 interface Props {
   headers: HeaderCell[]
   rows: Record<string, unknown>[]
@@ -46,16 +62,21 @@ interface Props {
   rowClass?: HTMLAttributes['class']
   higlightedRowId?: string
   isClickable: boolean
-  cellClass: HTMLAttributes['class']
   defaultSort?: { key: string; desc?: boolean }
+  cellClass?: HTMLAttributes['class']
+  density?: DataTableDensity
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
   higlightedRowId: undefined,
   isClickable: false,
-  defaultSort: undefined
+  defaultSort: undefined,
+  cellClass: undefined,
+  density: 'comfortable'
 })
+
+const density = computed(() => DENSITY[props.density] ?? DENSITY.comfortable)
 
 const emit = defineEmits<{
   rowClick: [(typeof props.rows)[number]]
@@ -113,7 +134,7 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
 </script>
 
 <template>
-  <DataTableBackground>
+  <DataTableBackground :class="density.container">
     <DataTable
       :template-cols="headers.map((header) => header.width || 'minmax(var(--spacing-48), 1fr)')"
     >
@@ -121,7 +142,7 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
         <DataTableHead
           v-for="(header, index) in headers"
           :key="'header-' + index"
-          :class="header.headerClass"
+          :class="cn(density.head, header.headerClass)"
           :sortable="header.sortable"
           :sorted="table.getColumn(header.key)?.getIsSorted()"
           @togle-sorting="table.getColumn(header.key)?.toggleSorting()"
@@ -152,7 +173,7 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
             <DataTableCell
               v-for="(header, cellIndex) in headers"
               :key="'cell-' + rowIndex + '-' + cellIndex"
-              :class="props.cellClass"
+              :class="cn(density.cell, props.cellClass)"
             >
               <slot
                 :name="`cell-${header.key}`"

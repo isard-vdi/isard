@@ -177,8 +177,18 @@ watch(currentStep, (newStep) => {
 
 const selectedDesktopId = ref<string | null>((route.params.desktopId as string) || null)
 
+const desktopBlockedReason = (desktop: any): string | null => {
+  if (desktop.server_autostart) {
+    return t('views.new-template.select.desktop-server-autostart')
+  }
+  if (desktop.status !== DesktopStatusEnum.STOPPED) {
+    return t('views.new-template.select.desktop-not-stopped')
+  }
+  return null
+}
+
 const handleRowClick = (row: any) => {
-  if (row.status === DesktopStatusEnum.STOPPED) {
+  if (!desktopBlockedReason(row)) {
     selectedDesktopId.value = selectedDesktopId.value === row.id ? null : row.id
   }
 }
@@ -354,8 +364,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
                   :class="{
                     'bg-brand-100 hover:bg-brand-200':
                       row.original.id && row.original.id === selectedDesktopId,
-                    'cursor-not-allowed *:opacity-50':
-                      row.original.status !== DesktopStatusEnum.STOPPED
+                    'cursor-not-allowed *:opacity-50': !!desktopBlockedReason(row.original)
                   }"
                   tabindex="0"
                   @click="handleRowClick(row.original)"
@@ -374,11 +383,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
                   <DataTableCell>
                     <DesktopCellName
                       :desktop-name="row.original.name"
-                      :notification-text="
-                        row.original.status === DesktopStatusEnum.STOPPED
-                          ? null
-                          : t('views.new-template.select.desktop-not-stopped')
-                      "
+                      :notification-text="desktopBlockedReason(row.original)"
                       notification-text-color="error-600"
                       notification-icon-color="currentColor"
                     />

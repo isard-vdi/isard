@@ -12,12 +12,14 @@ import {
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getUserSharedTemplates } from '@/gen/oas/apiv4/'
+import type { UserSharedTemplate } from '@/gen/oas/apiv4'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
 import { ref } from 'vue'
 import { TruncatedText } from '@/components/truncated-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 const { t } = useI18n()
 
@@ -27,6 +29,7 @@ interface Props {
   pageSize?: number
   paginationPageSizes?: number[]
   selectedId?: string
+  inlineTabs?: boolean
 }
 
 const props = defineProps<Props>()
@@ -61,24 +64,67 @@ const myTemplates = computed(() => {
   return userTemplates?.value?.templates || []
 })
 
-const userTemplatesHeader = [
+const userTemplatesHeader = computed(() => [
   { name: '', key: 'image', width: 'var(--spacing-48)' },
-  { name: 'Name', key: 'name', width: 'minmax(var(--spacing-48), var(--spacing-80))' },
-  { name: 'Description', key: 'description', width: 'minmax(var(--spacing-56), 1fr)' },
+  {
+    name: t('views.templates.table.headers.name'),
+    key: 'name',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-80))'
+  },
+  {
+    name: t('views.templates.table.headers.description'),
+    key: 'description',
+    sortable: true,
+    width: 'minmax(var(--spacing-56), 1fr)'
+  },
   { name: '', key: 'actions', width: 'max-content' }
-]
+])
 
-const userSharedTemplates = computed(() => {
-  return sharedTemplates?.value?.templates || []
+// The owner column sorts on the row value, so flatten the user object into a string.
+const withOwnerName = (template: UserSharedTemplate) => ({
+  ...template,
+  owner: typeof template.user === 'string' ? template.user : (template.user?.name ?? '')
 })
 
-const userSharedTemplatesHeader = [
+const userSharedTemplates = computed(() => {
+  return (sharedTemplates?.value?.templates || []).map(withOwnerName)
+})
+
+const userSharedTemplatesHeader = computed(() => [
   { name: '', key: 'image', width: 'var(--spacing-48)' },
-  { name: 'Name', key: 'name', width: 'minmax(var(--spacing-48), var(--spacing-80))' },
-  { name: 'Description', key: 'description', width: 'minmax(var(--spacing-56), 1fr)' },
-  { name: 'Owner', key: 'owner', width: 'minmax(var(--spacing-48), var(--spacing-64))' },
+  {
+    name: t('views.templates.table.headers.name'),
+    key: 'name',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-80))'
+  },
+  {
+    name: t('views.templates.table.headers.description'),
+    key: 'description',
+    sortable: true,
+    width: 'minmax(var(--spacing-56), 1fr)'
+  },
+  {
+    name: t('views.templates.table.headers.owner'),
+    key: 'owner',
+    sortable: true,
+    width: 'minmax(var(--spacing-48), var(--spacing-64))'
+  },
+  {
+    name: t('views.templates.table.headers.category'),
+    key: 'category_name',
+    sortable: true,
+    width: 'minmax(max-content, var(--spacing-40))'
+  },
+  {
+    name: t('views.templates.table.headers.group'),
+    key: 'group_name',
+    sortable: true,
+    width: 'minmax(max-content, var(--spacing-40))'
+  },
   { name: '', key: 'actions', width: 'max-content' }
-]
+])
 
 const {
   mutate: fetchSharedTemplates,
@@ -147,6 +193,7 @@ function templateProgressPercent(progress: unknown): number {
       :loading="tableIsLoading"
       :page-size="props.pageSize"
       :pagination-page-sizes="props.paginationPageSizes"
+      :inline-tabs="props.inlineTabs"
       :is-clickable="true"
       :is-row-disabled="isFailed"
       :disabled-tooltip="t('views.templates.table.failed-message')"
@@ -178,13 +225,11 @@ function templateProgressPercent(progress: unknown): number {
 
       <template #cell-image="{ row }">
         <div class="relative">
-          <div
-            class="w-48 h-16 overflow-hidden shrink-0 rounded-l-2xl object-cover bg-center bg-cover"
-            :class="{ 'opacity-40 grayscale': isFailed(row) }"
-            :style="{
-              backgroundImage: `url(${row.image.url})`
-            }"
-          ></div>
+          <DomainImage
+            :image-url="row.image.url"
+            variant="compact"
+            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'opacity-40 grayscale': isFailed(row) }]"
+          />
           <div
             v-if="isFailed(row)"
             aria-hidden="true"
@@ -225,6 +270,14 @@ function templateProgressPercent(progress: unknown): number {
 
       <template #cell-owner="{ row }">
         <AvatarLabel :src="row.user.photo" :name="row.user.name" class="text-gray-warm-900" />
+      </template>
+
+      <template #cell-category_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.category_name }}</p>
+      </template>
+
+      <template #cell-group_name="{ row }">
+        <p class="text-sm text-gray-warm-900 truncate">{{ row.group_name }}</p>
       </template>
 
       <template #cell-actions="{ row }">

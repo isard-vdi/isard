@@ -10,7 +10,7 @@ import {
   desktopNeedsBooking as checkDesktopNeedsBooking
 } from '@/lib/desktops'
 
-import { Button } from '@/components/ui/button'
+import { Button, type ButtonVariants } from '@/components/ui/button'
 
 const { t } = useI18n()
 
@@ -43,6 +43,10 @@ const mainButtonData = computed(() => {
     props.desktop.type !== 'nonpersistent'
   )
 })
+
+const buttonHierarchy = computed(
+  () => mainButtonData.value.actionButton?.hierarchy as ButtonVariants['hierarchy']
+)
 
 const handleDesktopAction = (action: DesktopActionsEnum) => {
   // TODO: probably could just emit(action) directly, but typescript complains
@@ -83,10 +87,13 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
 </template> -->
   <Button
     v-if="mainButtonData.actionButton"
-    :hierarchy="mainButtonData.actionButton.hierarchy"
+    :key="mainButtonData.actionButton.action"
+    :hierarchy="buttonHierarchy"
     :icon="mainButtonData.actionButton.icon"
     :icon-class="mainButtonData.actionButton.iconClass"
-    class="w-full"
+    icon-size="xs"
+    size="sm"
+    class="h-7 w-full gap-1 px-2 py-0 text-xs transition-none motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
     @click="handleDesktopAction(mainButtonData.actionButton.action)"
   >
     {{

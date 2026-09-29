@@ -346,7 +346,7 @@ import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
 import DeploymentUserPermissions from '@/components/deployments/DeploymentUserPermissions.vue'
-import { desktopStates } from '@/shared/constants'
+import { desktopStates, hasRdpViewer } from '@/shared/constants'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -488,7 +488,7 @@ export default {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         return
       }
       const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
@@ -529,11 +529,11 @@ export default {
                 template_id: selected.value[0].id,
                 name: domain.value.name,
                 description: domain.value.description,
+                // No credentials form on this page: send the empty pair when no
+                // viewer can use them, so the desktop does not inherit the
+                // template's, and leave the key out otherwise so it still does.
                 guest_properties: {
-                  credentials: {
-                    username: domain.value.guestProperties.credentials.username,
-                    password: domain.value.guestProperties.credentials.password
-                  },
+                  ...(hasRdpViewer(viewers) ? {} : { credentials: { username: '', password: '' } }),
                   fullscreen: domain.value.guestProperties.fullscreen,
                   viewers: viewers
                 },

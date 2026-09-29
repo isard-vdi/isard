@@ -1,5 +1,6 @@
 import { computed, reactive, toValue, type MaybeRefOrGetter } from 'vue'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import * as z from 'zod'
 
@@ -28,17 +29,28 @@ export interface UseDomainInfoFormOptions {
 export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
   const { t } = useI18n()
 
+  const nameLabel = t('components.domain.info.name.label')
+  const descriptionLabel = t('components.domain.info.description.label')
+
+  // Piped so an empty name only reports being required, never that on top of
+  // the minimum length.
+  const nameSchema = z
+    .string()
+    .trim()
+    .min(1, t('components.form.validation.required', { field: nameLabel }))
+    .pipe(
+      z
+        .string()
+        .min(4, t('components.form.validation.min-length', { field: nameLabel, min: 4 }))
+        .max(50, t('components.form.validation.max-length', { field: nameLabel, max: 50 }))
+    )
+
   const baseSchema = z.object({
-    name: z
-      .string()
-      .trim()
-      .min(1, t('components.form.validation.required'))
-      .min(4, t('components.form.validation.min-length', { min: 4 }))
-      .max(50, t('components.form.validation.max-length', { max: 50 })),
+    name: nameSchema,
     description: z
       .string()
       .trim()
-      .max(255, t('components.form.validation.max-length', { max: 255 }))
+      .max(255, t('components.form.validation.max-length', { field: descriptionLabel, max: 255 }))
   })
 
   // The extra shape is only known at runtime, so the widened `extend()` result
@@ -56,6 +68,7 @@ export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
     ...(options.extraDefaults ?? {})
   }) as DomainInfoValues
 
+  provideFormSchema(schema)
   const form = useForm({
     defaultValues,
     validators: { onChange: schema }
@@ -68,5 +81,5 @@ export function useDomainInfoForm(options: UseDomainInfoFormOptions = {}) {
   // ever run.
   const isValid = computed(() => schema.safeParse(values.value).success)
 
-  return { form, values, isDirty, isValid }
+  return { form, values, isDirty, isValid, nameSchema }
 }

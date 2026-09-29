@@ -245,7 +245,7 @@ import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import { ErrorUtils } from '@/utils/errorUtils'
-import { desktopStates } from '@/shared/constants'
+import { desktopStates, hasRdpViewer } from '@/shared/constants'
 
 const templateTable = ref(null)
 
@@ -368,7 +368,7 @@ export default {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         return
       }
       // Parse viewers data
@@ -381,11 +381,11 @@ export default {
         template_id: selected.value[0].id,
         name: domain.value.name,
         description: domain.value.description,
+        // No credentials form on this page: send the empty pair when no
+        // viewer can use them, so the desktop does not inherit the template's,
+        // and leave the key out otherwise so it still does.
         guest_properties: {
-          credentials: {
-            username: domain.value.guestProperties.credentials.username,
-            password: domain.value.guestProperties.credentials.password
-          },
+          ...(hasRdpViewer(viewers) ? {} : { credentials: { username: '', password: '' } }),
           fullscreen: domain.value.guestProperties.fullscreen,
           viewers: viewers
         },

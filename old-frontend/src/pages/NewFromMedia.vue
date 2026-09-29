@@ -86,7 +86,7 @@ export default {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         return
       }
       // Parse viewers data
@@ -102,10 +102,12 @@ export default {
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
-          credentials: {
-            username: domain.value.guestProperties.credentials.username,
-            password: domain.value.guestProperties.credentials.password
-          },
+          credentials: rdpViewersEnabled.value
+            ? {
+                username: domain.value.guestProperties.credentials.username,
+                password: domain.value.guestProperties.credentials.password
+              }
+            : { username: '', password: '' },
           fullscreen: domain.value.guestProperties.fullscreen,
           viewers: viewers
         },

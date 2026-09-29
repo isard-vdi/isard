@@ -2,10 +2,11 @@
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
+import { provideFormSchema } from '@/composables/useFormSchema'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FieldLabel } from '@/components/ui/field'
 import { bookingEventSchema } from '@/lib/booking/schema'
 import type { BookingEventDraft, BookingModalMode } from '@/stores/booking'
 
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+provideFormSchema(bookingEventSchema)
 const form = useForm({
   defaultValues: { ...props.draft },
   validators: { onChange: bookingEventSchema },
@@ -99,7 +101,7 @@ function isInvalid(errors: readonly unknown[]): boolean {
       <form.Field name="title">
         <template #default="{ field }">
           <div class="col-span-2">
-            <Label for="title">{{ t('components.bookings.item.modal.title') }}</Label>
+            <FieldLabel for="title">{{ t('components.bookings.item.modal.title') }}</FieldLabel>
             <Input
               id="title"
               :model-value="field.state.value"
@@ -113,7 +115,9 @@ function isInvalid(errors: readonly unknown[]): boolean {
       <form.Field name="startDate">
         <template #default="{ field }">
           <div>
-            <Label for="startDate">{{ t('components.bookings.item.modal.start-date') }}*</Label>
+            <FieldLabel for="startDate">{{
+              t('components.bookings.item.modal.start-date')
+            }}</FieldLabel>
             <Input
               id="startDate"
               type="date"
@@ -131,7 +135,9 @@ function isInvalid(errors: readonly unknown[]): boolean {
       <form.Field name="startTime">
         <template #default="{ field }">
           <div>
-            <Label for="startTime">{{ t('components.bookings.item.modal.start-time') }}*</Label>
+            <FieldLabel for="startTime">{{
+              t('components.bookings.item.modal.start-time')
+            }}</FieldLabel>
             <Input
               id="startTime"
               type="time"
@@ -149,7 +155,9 @@ function isInvalid(errors: readonly unknown[]): boolean {
       <form.Field name="endDate">
         <template #default="{ field }">
           <div>
-            <Label for="endDate">{{ t('components.bookings.item.modal.end-date') }}*</Label>
+            <FieldLabel for="endDate">{{
+              t('components.bookings.item.modal.end-date')
+            }}</FieldLabel>
             <Input
               id="endDate"
               type="date"
@@ -167,7 +175,9 @@ function isInvalid(errors: readonly unknown[]): boolean {
       <form.Field name="endTime">
         <template #default="{ field }">
           <div>
-            <Label for="endTime">{{ t('components.bookings.item.modal.end-time') }}*</Label>
+            <FieldLabel for="endTime">{{
+              t('components.bookings.item.modal.end-time')
+            }}</FieldLabel>
             <Input
               id="endTime"
               type="time"

@@ -173,3 +173,65 @@ class TestCreateNonpersistentDesktop:
     def test_raises_not_found_for_unknown_user(self, _exists):
         with pytest.raises(Error):
             DesktopService.create_nonpersistent_desktop({"user_id": "ghost"}, "t1")
+
+
+class TestEditDesktopBastionCredentialsHandoff:
+    """``edit_desktop`` writes the bastion target *after* the domain, so the
+    guest-credentials cleanup in ``parse_domain_update`` would otherwise read
+    the pre-edit target and blank the credentials of a bastion the very same
+    request is turning on. The pending answer has to be handed down."""
+
+    def _run(self, monkeypatch, bastion_target):
+        captured = {}
+
+        monkeypatch.setattr(
+            "api.services.desktops.RethinkDomain.exists", lambda _id: True
+        )
+        monkeypatch.setattr(
+            "api.services.desktops.CommonDesktops.validate_desktop_update",
+            lambda data, desktop_id: None,
+        )
+        monkeypatch.setattr(
+            "api.services.desktops.CommonDesktops.update_desktop",
+            lambda **kwargs: captured.update(kwargs),
+        )
+        monkeypatch.setattr(
+            "api.services.desktops.RethinkTargets.update_domain_target",
+            lambda desktop_id, data: None,
+        )
+
+        data = {"guest_properties": {"viewers": {"file_spice": {"options": None}}}}
+        if bastion_target is not None:
+            data["bastion_target"] = bastion_target
+        DesktopService.edit_desktop("d-1", data, dict(JWT_PAYLOAD))
+        return captured
+
+    def test_no_bastion_body_leaves_the_answer_to_the_stored_target(self, monkeypatch):
+        captured = self._run(monkeypatch, None)
+        assert captured["bastion_enabled"] is None
+
+    @pytest.mark.parametrize(
+        "bastion_target",
+        [
+            pytest.param({"ssh": {"enabled": True}}, id="ssh"),
+            pytest.param({"http": {"enabled": True}}, id="http"),
+        ],
+    )
+    def test_a_bastion_being_turned_on_keeps_the_credentials(
+        self, monkeypatch, bastion_target
+    ):
+        captured = self._run(monkeypatch, bastion_target)
+        assert captured["bastion_enabled"] is True
+
+    def test_both_protocols_explicitly_off_means_off(self, monkeypatch):
+        captured = self._run(
+            monkeypatch, {"ssh": {"enabled": False}, "http": {"enabled": False}}
+        )
+        assert captured["bastion_enabled"] is False
+
+    def test_a_partial_body_reports_no_opinion(self, monkeypatch):
+        # ``update_domain_target`` merges per protocol, so the one this body
+        # says nothing about keeps whatever is stored — guessing "off" here
+        # would blank the credentials of a still-reachable desktop.
+        captured = self._run(monkeypatch, {"ssh": {"enabled": False}})
+        assert captured["bastion_enabled"] is None
