@@ -339,8 +339,14 @@ $(document).ready(function() {
               });
           }
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+    // Until a status is picked, mediaOtherTable resolves to the #mediaOtherTable DOM element
+    function otherTableReady(){
+        return $.fn.DataTable.isDataTable('#mediaOtherTable');
+    }
+
     function socketio_on(){
         socket.on('media_add', function(data){
+            if (!otherTableReady()) { return; }
             var data = JSON.parse(data);
             data = {...mediaOtherTable.row("#"+data.id).data(),...data}
             dtUpdateInsert(mediaOtherTable,data,false);
@@ -351,15 +357,15 @@ $(document).ready(function() {
             if (data.status == 'Downloaded') {
                 data = {...mediaReady.row("#"+data.id).data(),...data}
                 dtUpdateInsert(mediaReady,data,false);
-                mediaOtherTable.row('#'+data.id).remove().draw();
-            } else {
+                if (otherTableReady()) { mediaOtherTable.row('#'+data.id).remove().draw(); }
+            } else if (otherTableReady()) {
                 data = {...mediaOtherTable.row("#"+data.id).data(),...data}
                 dtUpdateInsert(mediaOtherTable,data,false);
             }
         });
     
         socket.on('media_progress', function(data){
-            dtMergeProgress(mediaOtherTable,JSON.parse(data));
+            if (otherTableReady()) { dtMergeProgress(mediaOtherTable,JSON.parse(data)); }
         });
 
         socket.on('media_delete', function(data){
