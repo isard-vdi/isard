@@ -220,7 +220,7 @@ export default {
       if (v$.value.$invalid) {
         console.log('NOT VALID')
         console.log(v$.value.$errors)
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         return
       }
 

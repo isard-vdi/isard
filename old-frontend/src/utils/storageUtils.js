@@ -1,8 +1,9 @@
 export class StorageUtils {
   static parseStorageList (items) {
+    if (!Array.isArray(items)) return []
     return items.map((item) => {
       return StorageUtils.parseStorage(item)
-    }) || []
+    })
   }
 
   static parseStorage (item) {

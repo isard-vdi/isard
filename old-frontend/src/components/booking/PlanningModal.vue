@@ -262,7 +262,7 @@ export default {
     const createEvent = () => {
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
+        document.getElementById(v$.value.$errors[0].$property)?.focus()
         return
       }
       const eventData = {
