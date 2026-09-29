@@ -21,7 +21,6 @@ import asyncio
 import logging as log
 
 from isardvdi_common.helpers.caches import Caches
-from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.scheduler import Scheduler
@@ -65,18 +64,9 @@ class DomainsHandler(BaseHandler):
         return await self._delegate("on_update", old_val=old_val, new_val=new_val)
 
     async def on_delete(self, old_val):
-        # Delete user-uploaded card image if no other domain references it
-        image = old_val.image or {}
-        if isinstance(image, dict) and image.get("type") == "user":
-            try:
-                await asyncio.to_thread(Cards.delete_card, image["id"])
-            except Exception:
-                # Anything this raises must stay contained: the deployment
-                # cleanup and the delegate below are what tell the client the
-                # desktop is gone, and a card that could not be removed is not
-                # a reason to skip them. Narrowing this to OSError/KeyError let
-                # a NameError from the helper abort the rest of on_delete.
-                log.exception("Failed to delete card image for domain %s", old_val.id)
+        # The card is deliberately NOT deleted here: the row also disappears when
+        # the desktop is binned, and ``restore()`` puts it back with its ``image``
+        # intact. ``Cards.cleanup_missing`` frees the file once nothing claims it.
 
         # Clean up empty deployments in "deleting" status. The rdb
         # work runs on a worker thread (via asyncio.to_thread) so the
