@@ -413,7 +413,9 @@
         "headers": {
           "name": "Nom",
           "description": "Descripció",
-          "owner": "Propietari"
+          "owner": "Propietari",
+          "category": "Categoria",
+          "group": "Grup"
         },
         "actions": {
           "edit": "Edita la plantilla",

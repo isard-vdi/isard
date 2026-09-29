@@ -421,7 +421,9 @@
         "headers": {
           "name": "Name",
           "description": "Description",
-          "owner": "Owner"
+          "owner": "Owner",
+          "category": "Category",
+          "group": "Group"
         },
         "actions": {
           "edit": "Edit Template",

@@ -270,7 +270,9 @@
         "headers": {
           "name": "Izena",
           "description": "Deskribapena",
-          "owner": "Jabea"
+          "owner": "Jabea",
+          "category": "Kategoria",
+          "group": "Taldea"
         },
         "actions": {
           "edit": "Editatu txantiloia",
