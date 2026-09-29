@@ -481,36 +481,38 @@ function actionsGroupDetail(){
             type: 'GET',
             url: '/api/v4/admin/item/group/' + pk,
         }).done(function(data) {
-            if(data.enrollment.manager != false){
+            // groups created without enrollment codes have enrollment null
+            var enrollment = data.enrollment || { manager: false, advanced: false, user: false };
+            if(enrollment.manager != false){
                 $('#manager-key').show();
                 $('.btn-copy-manager').show();
                 $('#manager-key').val('test');
                 $('#manager-check').iCheck('check');
-                $('#manager-key').val(data.enrollment.manager);
+                $('#manager-key').val(enrollment.manager);
             }else{
                 // https://github.com/dargullin/icheck/issues/159
                 $('#manager-check').iCheck('uncheck').iCheck('update');
                 $('#manager-key').hide();
                 $('.btn-copy-manager').hide();
             }
-            if(data.enrollment.advanced != false){
+            if(enrollment.advanced != false){
                 $('#advanced-key').show();
                 $('.btn-copy-advanced').show();
                 $('#advanced-key').val('test');
                 $('#advanced-check').iCheck('check');
-                $('#advanced-key').val(data.enrollment.advanced);
+                $('#advanced-key').val(enrollment.advanced);
             }else{
                 // https://github.com/dargullin/icheck/issues/159
                 $('#advanced-check').iCheck('uncheck').iCheck('update');
                 $('#advanced-key').hide();
                 $('.btn-copy-advanced').hide();
             }
-            if(data.enrollment.user != false){
+            if(enrollment.user != false){
                 $('#user-key').show();
                 $('.btn-copy-user').show();
                 $('#user-key').val('test');
                 $('#user-check').iCheck('check');
-                $('#user-key').val(data.enrollment.user);
+                $('#user-key').val(enrollment.user);
             }else{
                 // https://github.com/dargullin/icheck/issues/159
                 $('#user-check').iCheck('uncheck').iCheck('update');

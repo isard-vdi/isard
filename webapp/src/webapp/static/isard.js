@@ -390,6 +390,8 @@ function dtUpdateInsert(table, data, append){
 // A live progress tick carries only {id, progress}: merge it into the row the
 // table already holds, unlike dtUpdateOnly which replaces the row wholesale.
 function dtMergeProgress(table, data){
+    // Progress can arrive before the caller has built its DataTable
+    if(!table || typeof(table.row)!='function'){ return; }
     var row = table.row('#'+data.id);
     if(typeof(row.id())=='undefined'){ return; }
     row.data($.extend({}, row.data(), data)).invalidate();
