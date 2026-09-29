@@ -246,7 +246,8 @@ const loginHelpers = {
     // accessibility tree. Vue 3's old InputField wrapper dropped the name
     // attribute (fixed on this branch); the role-based fallback keeps the
     // fixture working against both old and current frontend builds.
-    const username = page.getByRole('textbox', { name: /^username$/i }).first()
+    // Vue 3 appends a screen-reader "required" marker to the label
+    const username = page.getByRole('textbox', { name: /^username\b/i }).first()
     const password = page.locator('input[type="password"]').first()
 
     await username.waitFor({ state: 'visible', timeout: 10000 })
