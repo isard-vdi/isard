@@ -21,14 +21,14 @@ class _Entry:
 def queue(monkeypatch):
     q = mod.RecycleBinDeleteQueue.__new__(mod.RecycleBinDeleteQueue)
     update = MagicMock(name="update_status")
-    revert = MagicMock(name="revert_to_recycled")
+    claim = MagicMock(name="claim_status")
     monkeypatch.setattr(mod.Helpers, "update_status", update)
-    monkeypatch.setattr(mod.Helpers, "revert_to_recycled", revert, raising=False)
-    return q, update, revert
+    monkeypatch.setattr(mod.Helpers, "claim_status", claim)
+    return q, update, claim
 
 
 def test_an_entry_already_deleted_is_left_alone(queue, monkeypatch, caplog):
-    q, update, revert = queue
+    q, update, claim = queue
     entry = _Entry("deleted")
     monkeypatch.setattr(mod, "RecycleBin", lambda id: entry)
 
@@ -37,14 +37,14 @@ def test_an_entry_already_deleted_is_left_alone(queue, monkeypatch, caplog):
 
     entry.delete_storage.assert_not_called()
     update.assert_not_called()
-    revert.assert_not_called()
+    claim.assert_not_called()
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
-def test_a_failed_delete_is_logged_with_its_reason_and_reverted(
+def test_a_failed_delete_is_logged_with_its_reason_and_gives_back_its_claim(
     queue, monkeypatch, caplog
 ):
-    q, update, revert = queue
+    q, update, claim = queue
     error = mod.Error(
         "precondition_required", "Cannot delete entry with status restored"
     )
@@ -59,4 +59,11 @@ def test_a_failed_delete_is_logged_with_its_reason_and_reverted(
         for r in caplog.records
     )
     update.assert_not_called()
-    revert.assert_called_once_with("rb-2")
+    claim.assert_called_once_with(
+        "rb-2",
+        [
+            mod.RecycleBinStatusEnum.queued.value,
+            mod.RecycleBinStatusEnum.deleting.value,
+        ],
+        mod.RecycleBinStatusEnum.recycled.value,
+    )

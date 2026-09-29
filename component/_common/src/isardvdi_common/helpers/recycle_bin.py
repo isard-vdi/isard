@@ -66,6 +66,18 @@ _get_recycle_bin_cuttoff_time_cache: SynchronizedTTLCache = SynchronizedTTLCache
     maxsize=1, ttl=10
 )
 
+# a purge starts from recycled, and resumes from queued or deleting after a restart
+_PURGEABLE = [
+    RecycleBinStatusEnum.recycled.value,
+    RecycleBinStatusEnum.queued.value,
+    RecycleBinStatusEnum.deleting.value,
+]
+
+
+def _exists_now(table, item_id):
+    """Whether the row exists, read past the process cache."""
+    return Caches.get_document(table, item_id, invalidate=True) is not None
+
 
 class RecycleBinDeleteQueue(RethinkSharedConnection):
     _instance = None
@@ -122,18 +134,16 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             self._task = asyncio.create_task(self._background_worker())
 
     async def enqueue(self, item):
+        """Queue the entry's purge; False when the entry can no longer be purged."""
         recycle_bin_id = item.get("recycle_bin_id")
         if recycle_bin_id not in self.recycle_bin_ids:
             # Both helpers are sync RethinkDB writes. Offload them so
             # callers awaiting ``enqueue`` from inside an asyncio
             # request handler don't block the event loop on every
             # bulk-delete iteration.
-            await asyncio.to_thread(
-                Helpers.update_status,
-                recycle_bin_id,
-                item.get("user_id"),
-                RecycleBinStatusEnum.queued.value,
-            )
+            if not await asyncio.to_thread(Helpers.claim_for_purge, recycle_bin_id):
+                log.info(f"Recycle bin {recycle_bin_id} can no longer be purged")
+                return False
             await asyncio.to_thread(
                 Helpers.add_log,
                 "queued",
@@ -152,6 +162,7 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             log.debug(
                 f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
             )
+        return True
 
     def enqueue_sync(self, item):
         """
@@ -245,9 +256,16 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                 f"Error processing recycle bin {recycle_bin_id}: {reason}",
                 exc_info=True,
             )
-            # Put it back so it can be retried or manually handled
+            # Give back only the purge's own claim, so it can be retried or manually handled
             try:
-                Helpers.revert_to_recycled(recycle_bin_id)
+                Helpers.claim_status(
+                    recycle_bin_id,
+                    [
+                        RecycleBinStatusEnum.queued.value,
+                        RecycleBinStatusEnum.deleting.value,
+                    ],
+                    RecycleBinStatusEnum.recycled.value,
+                )
             except Exception as status_error:
                 log.error(
                     f"Failed to update status for recycle bin {recycle_bin_id}: {str(status_error)}"
@@ -719,18 +737,21 @@ class Helpers(RethinkSharedConnection):
 
     @classmethod
     def claim_status(cls, rb_id, expected, status):
-        """Flip the entry only while it still reads ``expected``.
+        """Flip the entry only while it still reads ``expected`` (one status or several).
 
         Returns False when another writer moved it first, so the caller can
         stop before doing work the entry is no longer entitled to.
         """
+        allowed = [expected] if isinstance(expected, str) else list(expected)
         with cls._rdb_context():
             result = (
                 r.table("recycle_bin")
                 .get(rb_id)
                 .update(
                     lambda doc: r.branch(
-                        doc["status"] == expected, {"status": status}, {}
+                        r.expr(allowed).contains(doc["status"]),
+                        {"status": status},
+                        {},
                     ),
                     return_changes=True,
                 )
@@ -738,26 +759,38 @@ class Helpers(RethinkSharedConnection):
             )
         if not result.get("replaced"):
             return False
-        cls.clear_get_item_count_cache()
-        cls.clear_get_count_cache()
-        cls.clear_get_user_amount_cache()
-        cls.clear_get_user_recycle_bin_ids_cache()
+        cls._clear_status_caches()
         return True
 
+    @staticmethod
+    def purge_claim():
+        """The update that takes an entry for its purge: never a restored or deleted one."""
+        return lambda doc: r.branch(
+            r.expr(_PURGEABLE).contains(doc["status"]),
+            {"status": RecycleBinStatusEnum.queued.value},
+            {},
+        )
+
     @classmethod
-    def revert_to_recycled(cls, rb_id):
-        terminal = [
-            RecycleBinStatusEnum.deleted.value,
-            RecycleBinStatusEnum.restored.value,
-        ]
+    def claim_for_purge(cls, rb_id):
+        """Take the entry for its purge; True when it is queued for it afterwards."""
         with cls._rdb_context():
-            r.table("recycle_bin").get(rb_id).update(
-                lambda row: r.branch(
-                    r.expr(terminal).contains(row["status"]),
-                    {},
-                    {"status": RecycleBinStatusEnum.recycled.value},
-                )
-            ).run(cls._rdb_connection)
+            result = (
+                r.table("recycle_bin")
+                .get(rb_id)
+                .update(cls.purge_claim(), return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if result.get("replaced"):
+            cls._clear_status_caches()
+        return bool(new) and new.get("status") == RecycleBinStatusEnum.queued.value
+
+    @classmethod
+    def _clear_status_caches(cls):
         cls.clear_get_item_count_cache()
         cls.clear_get_count_cache()
         cls.clear_get_user_amount_cache()
@@ -1694,17 +1727,13 @@ class RecycleBin(RethinkSharedConnection):
         )
         users_in_entry = set([user["id"] for user in self.users])
         for user, username in users_to_check:
-            if user not in users_in_entry:
-                try:
-                    CommonHelpers.itemExists("users", user)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. User "{str(username)}" has been deleted and owns items in this entry.',
-                            description_code="unable_to_restore_user",
-                            params={"user": username},
-                        )
+            if user not in users_in_entry and not _exists_now("users", user):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. User "{str(username)}" has been deleted and owns items in this entry.',
+                    description_code="unable_to_restore_user",
+                    params={"user": username},
+                )
 
         ## Check if any item has associated deleted cateogry
         categories_to_check = set(
@@ -1713,31 +1742,25 @@ class RecycleBin(RethinkSharedConnection):
         )
         categories_in_entry = set([category["id"] for category in self.categories])
         for category in categories_to_check:
-            if category not in categories_in_entry:
-                try:
-                    CommonHelpers.itemExists("categories", category)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. Category "{str(category)}" has been deleted is associated to items in this entry.',
-                            description_code="unable_to_restore_category",
-                        )
+            if category not in categories_in_entry and not _exists_now(
+                "categories", category
+            ):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. Category "{str(category)}" has been deleted is associated to items in this entry.',
+                    description_code="unable_to_restore_category",
+                )
 
         ## Check if any item has associated deleted group
         groups_to_check = set([user["group"] for user in self.users])
         groups_in_entry = set([group["id"] for group in self.groups])
         for group in groups_to_check:
-            if group not in groups_in_entry:
-                try:
-                    CommonHelpers.itemExists("groups", group)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. Group "{str(group)}" has been deleted and is associated to items in this entry.',
-                            description_code="unable_to_restore_group",
-                        )
+            if group not in groups_in_entry and not _exists_now("groups", group):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. Group "{str(group)}" has been deleted and is associated to items in this entry.',
+                    description_code="unable_to_restore_group",
+                )
 
         if self.item_type not in ["user", "group", "category"]:
             ## Check quotas
@@ -1845,7 +1868,17 @@ class RecycleBin(RethinkSharedConnection):
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
-        # The check above is a snapshot; only the server can see the row move.
+        if self.item_type != "user" and not _exists_now("users", self.owner_id):
+            raise Error(
+                "not_found",
+                f"Can't restore entry. User "
+                + str(self.owner_name)
+                + " has been deleted.",
+                description_code="unable_to_restore_user",
+                params={"user": str(self.owner_name)},
+            )
+        self.check_can_restore()
+        # The status read first is a snapshot; only the server can see the row move.
         if not Helpers.claim_status(
             self.id,
             RecycleBinStatusEnum.recycled.value,
@@ -1855,19 +1888,6 @@ class RecycleBin(RethinkSharedConnection):
                 "precondition_required",
                 "Entry is no longer restorable",
             )
-        if self.item_type != "user":
-            try:
-                CommonHelpers.itemExists("users", self.owner_id)
-            except Exception:
-                raise Error(
-                    "not_found",
-                    f"Can't restore entry. User "
-                    + str(self.owner_name)
-                    + " has been deleted.",
-                    description_code="unable_to_restore_user",
-                    params={"user": str(self.owner_name)},
-                )
-        self.check_can_restore()
 
         with self._rdb_context():
             r.table("users").insert(self.users).run(self._rdb_connection)

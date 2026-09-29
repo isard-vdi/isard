@@ -100,13 +100,18 @@ class RecycleBinService:
                 "not_found",
                 f"User {user_id} does not exist",
             )
-        await RecycleBinDeleteQueue().enqueue(
+        if not await RecycleBinDeleteQueue().enqueue(
             {
                 "action": "delete",
                 "recycle_bin_id": recycle_bin_id,
                 "user_id": user_id,
             }
-        )
+        ):
+            raise Error(
+                "precondition_required",
+                f"Recycle bin entry {recycle_bin_id} is restored or already deleted",
+                description_code="recycle_bin_entry_not_deletable",
+            )
 
     @staticmethod
     async def empty_user_recycle_bin(user_id: str) -> str:
