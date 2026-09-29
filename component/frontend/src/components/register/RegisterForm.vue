@@ -7,6 +7,7 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t } = useI18n()
 
@@ -58,6 +59,7 @@ function isInvalid(field) {
         <FieldLabel :for="field.name">{{ t('components.register.register-form.code') }}</FieldLabel>
         <InputField
           :id="field.name"
+          v-autofocus
           :name="field.name"
           :model-value="field.state.value"
           :aria-invalid="isInvalid(field)"

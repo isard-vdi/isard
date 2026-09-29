@@ -20,6 +20,7 @@ import { PASSWORD_REGEX } from '@/lib/password'
 import { getBearer, TokenType, useCookies as useAuthCookies } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -287,6 +288,7 @@ onBeforeUnmount(() => {
                       <InputField
                         :id="field.name"
                         v-model="field.state.value"
+                        v-autofocus
                         :name="field.name"
                         :placeholder="
                           t('components.profile.password-modal.new-password.placeholder')

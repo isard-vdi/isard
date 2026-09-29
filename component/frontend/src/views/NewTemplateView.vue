@@ -333,6 +333,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
             :id="NEW_TEMPLATE_SEARCH_INPUT_ID"
             v-model="globalFilter"
             class="min-w-48"
+            autofocus
             :placeholder="t('views.desktops.filters.search.placeholder')"
           />
         </div>

@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DesktopCardBaseStacked, DesktopCardHeader } from '@/components/desktop-card'
 import { BadgeInfo } from '@/components/badge/info'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import { vAutofocus } from '@/directives/autofocus'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t, d } = useI18n()
@@ -124,12 +125,12 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
             }}</FieldLabel>
             <InputField
               :id="field.name"
+              v-autofocus
               :name="field.name"
               :model-value="field.state.value"
               :placeholder="t('components.deployments.form-sections.info.fields.name.placeholder')"
               :aria-invalid="isInvalid(field)"
               :destructive="isInvalid(field)"
-              autofocus
               autocomplete="off"
               type="text"
               maxlength="50"

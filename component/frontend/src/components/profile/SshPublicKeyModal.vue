@@ -17,6 +17,7 @@ import {
   deleteUserBastionSshKeyMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Skeleton } from '@/components/ui/skeleton'
+import { vAutofocus } from '@/directives/autofocus'
 
 interface Props {
   open?: boolean
@@ -154,8 +155,8 @@ const handleRemove = async () => {
         </Alert>
 
         <form.Field v-slot="{ field }" name="sshKey">
-          <div class="space-y-2">
-            <FieldLabel class="mb-2">
+          <div v-autofocus class="space-y-2">
+            <FieldLabel :for="field.name" class="mb-2">
               {{ t('components.profile.ssh-key-modal.label') }}
             </FieldLabel>
             <Textarea

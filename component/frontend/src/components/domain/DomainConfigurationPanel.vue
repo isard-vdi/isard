@@ -191,6 +191,7 @@ defineExpose({
       :temporal-quota-exceeded="temporalQuotaExceeded"
       :entity="entity"
       :preview="preview"
+      :autofocus-name="context !== 'deployment-desktop'"
       @change-image="showChangeImageModal = true"
       @update:kind="emit('update:kind', $event)"
     >

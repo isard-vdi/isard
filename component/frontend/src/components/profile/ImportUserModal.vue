@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import Modal from '@/components/modal/Modal.vue'
@@ -11,6 +11,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { useI18n } from 'vue-i18n'
 import { migrationImportUserMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { apiErrorCodes, describeErrorCode } from '@/lib/api-errors'
+import { vAutofocus } from '@/directives/autofocus'
 
 interface Props {
   open?: boolean
@@ -28,6 +29,7 @@ const { t, te } = useI18n()
 const router = useRouter()
 
 const importToken = ref('')
+const tokenInputId = useId()
 const apiError = ref('')
 
 watch(
@@ -110,11 +112,13 @@ const handleSubmit = async () => {
       </div>
 
       <div class="space-y-3">
-        <Label class="block text-sm font-medium text-gray-warm-900">
+        <Label :for="tokenInputId" class="block text-sm font-medium text-gray-warm-900">
           {{ t('components.profile.import-user-modal.token-label') }}
         </Label>
         <InputField
+          :id="tokenInputId"
           v-model="importToken"
+          v-autofocus
           :placeholder="t('components.profile.import-user-modal.placeholder')"
           icon="key-01"
           :disabled="isSubmitting"

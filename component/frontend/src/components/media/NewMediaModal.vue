@@ -26,6 +26,7 @@ import type { ErrorResponse } from '@/gen/oas/apiv4'
 import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
 import newMediaImg from '@/assets/img/modal/new-media.svg'
 import { errorCodeKey, isNameConflictError } from '@/lib/api-errors'
+import { vAutofocus } from '@/directives/autofocus'
 
 interface Props {
   open?: boolean
@@ -202,6 +203,7 @@ const handleClose = () => {
           <FieldContent>
             <InputField
               :id="field.name"
+              v-autofocus
               :name="field.name"
               :model-value="field.state.value"
               :placeholder="t('components.media.new.fields.url.placeholder')"
