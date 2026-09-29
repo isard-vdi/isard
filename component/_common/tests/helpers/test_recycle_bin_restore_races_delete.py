@@ -42,7 +42,7 @@ class TestOnlyARecycledEntryCanBeRestored:
 
     def test_an_entry_that_moved_after_the_snapshot_is_refused(self):
         """The snapshot says recycled and the row no longer is: only the claim
-        can see that, and it must stop the call before any restore work."""
+        can see that, and it must stop the call before any restore write."""
         from isardvdi_common.helpers.recycle_bin import Error
 
         rb = _bare_entry(status="recycled", id="rb1", owner_id="u1", item_type="user")
@@ -50,13 +50,12 @@ class TestOnlyARecycledEntryCanBeRestored:
             "isardvdi_common.helpers.recycle_bin.Helpers.claim_status",
             return_value=False,
         ) as claim:
-            with patch.object(
-                type(rb), "check_can_restore", MagicMock()
-            ) as can_restore:
-                with pytest.raises(Error) as exc:
-                    rb.restore()
+            with patch.object(type(rb), "check_can_restore", MagicMock()):
+                with patch("isardvdi_common.helpers.recycle_bin.r") as rethink:
+                    with pytest.raises(Error) as exc:
+                        rb.restore()
         assert exc.value.status_code == 428
-        can_restore.assert_not_called()
+        rethink.table.assert_not_called()
         claim.assert_called_once()
         assert claim.call_args[0][1] == "recycled"
         assert claim.call_args[0][2] == "restored"

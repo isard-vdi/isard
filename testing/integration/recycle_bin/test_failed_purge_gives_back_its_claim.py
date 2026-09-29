@@ -1,11 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Putting a recycle-bin entry back to ``recycled`` after a failed delete, on a real RethinkDB.
-
-The failure handler runs after the cascade of another entry may already have deleted (or a
-restore restored) this one, so the write must not overwrite a terminal status. That is the
-server's ``r.branch`` inside the update, which a mocked connection cannot show.
-"""
+"""A failed purge gives back only its own claim: a deleted or restored entry keeps its status."""
 
 from __future__ import annotations
 
@@ -50,16 +45,21 @@ def entry(conn):
 @pytest.mark.parametrize(
     "status, expected",
     [
+        ("recycled", "recycled"),
         ("queued", "recycled"),
         ("deleting", "recycled"),
         ("deleted", "deleted"),
         ("restored", "restored"),
     ],
 )
-def test_revert_to_recycled_keeps_a_terminal_status(conn, entry, status, expected):
-    from isardvdi_common.helpers.recycle_bin import Helpers
+def test_a_failed_purge_gives_back_only_its_claim(conn, entry, status, expected):
+    from isardvdi_common.helpers.recycle_bin import Helpers, RecycleBinStatusEnum
 
     rb_id = entry(status)
-    Helpers.revert_to_recycled(rb_id)
+    Helpers.claim_status(
+        rb_id,
+        [RecycleBinStatusEnum.queued.value, RecycleBinStatusEnum.deleting.value],
+        RecycleBinStatusEnum.recycled.value,
+    )
 
     assert r.table("recycle_bin").get(rb_id)["status"].run(conn) == expected

@@ -114,6 +114,15 @@ class TestDeleteRecycleBinEntry:
                 {"action": "delete", "recycle_bin_id": "rb1", "user_id": "u1"}
             )
 
+    @patch("api.services.recycle_bin.RethinkUser.exists", return_value=True)
+    @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=True)
+    async def test_refuses_an_entry_the_purge_cannot_claim(self, _rb, _user):
+        with patch("api.services.recycle_bin.RecycleBinDeleteQueue") as mock_q:
+            mock_q.return_value.enqueue = AsyncMock(return_value=False)
+            with pytest.raises(Error) as exc:
+                await RecycleBinService.delete_recycle_bin_entry("rb1", "u1")
+        assert exc.value.status_code == 428
+
     @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=False)
     async def test_raises_not_found_for_missing_entry(self, _rb):
         with pytest.raises(Error):
