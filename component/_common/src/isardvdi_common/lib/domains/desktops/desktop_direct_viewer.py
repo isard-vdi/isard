@@ -453,6 +453,13 @@ class DesktopDirectViewer(RethinkSharedConnection):
         )
 
     @classmethod
+    def direct_viewer_docs(cls):
+        return os.getenv(
+            "FRONTEND_DIRECT_VIEWER_DOCS_URI",
+            "https://isard.gitlab.io/isardvdi-docs/direct_viewer/",
+        )
+
+    @classmethod
     def _check_viewer_ownership(cls, domain, user_id, category_id, role_id):
         """
         Shared ownership check for viewer-access helpers.

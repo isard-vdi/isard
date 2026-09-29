@@ -13,7 +13,8 @@ import {
   getDesktopDetailsFromTokenOptions,
   startDesktopFromTokenMutation,
   resetDesktopMutation,
-  apiV4LoginConfigOptions
+  apiV4LoginConfigOptions,
+  getDirectViewerDocsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   renewDesktopViewerByToken,
@@ -32,6 +33,7 @@ import {
 
 import { withOptimisticStatus } from '@/lib/optimistic'
 import { setBrowserViewerCookie, setViewerToken } from '@/lib/viewers'
+import { DEFAULT_DIRECT_VIEWER_DOCS_URL, docsUrl } from '@/lib/docs'
 
 import { useDirectViewerSocket } from '@/services/directViewerSocket'
 import { useJwtRenewal } from '@/composables/useJwtRenewal'
@@ -51,17 +53,15 @@ import {
 import type { CardSize } from '@/components/desktop-card'
 import DirectViewerCardPreview from '@/components/desktop-card/parts/DirectViewerCardPreview.vue'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
 import { Spinner } from '@/components/ui/spinner'
 import { DirectViewerLoadingHint } from '@/components/direct-viewer'
 import { LoginNotification } from '@/components/login'
-import { ChangeViewerModal } from '@/components/modal'
 import { DesktopBastionInfoModal, DesktopNetworksModal } from '@/components/desktops'
 import { BrandLogo } from '@/components/logo'
 
-const { t, d } = useI18n()
+const { t, d, locale } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
 const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
@@ -120,6 +120,16 @@ const { data: desktopDetails } = useQuery({
   enabled: computed(() => !!viewerJwt.value && showDesktopInfoModal.value)
 })
 
+const { data: viewerDocs } = useQuery(getDirectViewerDocsOptions({ client: directViewerClient }))
+
+const helpUrl = computed(() =>
+  docsUrl(
+    viewerDocs.value?.direct_viewer_documentation_url,
+    DEFAULT_DIRECT_VIEWER_DOCS_URL,
+    locale.value
+  )
+)
+
 const bastion = computed(() => desktopViewer.value?.bastion)
 const desktopIp = computed(() => desktopViewer.value?.ip)
 
@@ -171,7 +181,6 @@ const mainButtonData = computed(() => {
 })
 
 const desktopCardKind = computed(() => desktopViewer.value?.type as 'persistent' | 'nonpersistent')
-const showViewers = computed(() => mainButtonData.value.viewers)
 
 const normalizeViewerId = (viewerId: string) => viewerId.replace(/_/g, '-')
 
@@ -185,28 +194,6 @@ const viewerIds = computed<string[]>(() => {
 
 const selectedViewerId = ref<string | undefined>(undefined)
 
-const activeViewer = computed(() => {
-  if (selectedViewerId.value && viewerIds.value.includes(selectedViewerId.value)) {
-    return selectedViewerId.value
-  }
-  return viewerIds.value[0] ?? null
-})
-
-const activeViewerLabel = computed(() => {
-  if (!activeViewer.value) return ''
-  return t(`viewers.${activeViewer.value}`)
-})
-
-watch(
-  viewerIds,
-  (ids) => {
-    if (!selectedViewerId.value && ids.length > 0) {
-      selectedViewerId.value = ids[0]
-    }
-  },
-  { immediate: true }
-)
-
 // The card is rendered whenever `desktopViewer` exists, across every
 // status (started, stopped, failed, etc.) so the user always has an
 // action button and is never stranded when the owner stops the desktop
@@ -219,16 +206,6 @@ const vncValues = computed<BrowserVncValues | null>(() => {
   const vnc = viewers['browser-vnc'] ?? viewers['browser_vnc']
   return vnc?.values ?? null
 })
-
-const isWaitingIp = computed(() => desktopViewer.value?.status === DesktopStatusEnum.WAITING_IP)
-
-const viewerNeedsIp = (viewerId: string) => viewerId.includes('rdp')
-
-const isViewerLoading = (viewerId: string) => isWaitingIp.value && viewerNeedsIp(viewerId)
-
-const activeViewerLoading = computed(() =>
-  activeViewer.value ? isViewerLoading(activeViewer.value) : false
-)
 
 const notificationText = computed<string | null>(() => {
   if (!desktopViewer.value) return null
@@ -253,8 +230,6 @@ const notificationText = computed<string | null>(() => {
 
   return null
 })
-
-const isViewerChangeModalOpen = ref(false)
 
 const showResetModal = ref(false)
 
@@ -335,6 +310,11 @@ const openViewer = (viewerId: string) => {
   } else if (viewer.kind === 'file' && viewer.name && viewer.ext && viewer.mime && viewer.content) {
     downloadFile(viewer.name, viewer.ext, viewer.mime, viewer.content)
   }
+}
+
+const handleOpenViewer = (viewerId: string) => {
+  selectedViewerId.value = viewerId
+  openViewer(viewerId)
 }
 
 const downloadFile = (name: string, ext: string, mime: string, content: string) => {
@@ -537,40 +517,14 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                       <DesktopCardFooter
                         :main-button-data="mainButtonData"
                         :desktop-status="desktopViewer.status"
-                        :desktop-viewers="[]"
-                        :desktop-ip="null"
+                        :desktop-viewers="viewerIds"
+                        :desktop-ip="desktopIp"
                         :preferred-viewer="selectedViewerId"
                         @main-button-click="
                           handleDesktopAction(mainButtonData.actionButton!.action)
                         "
+                        @open-viewer="handleOpenViewer"
                       />
-                      <ButtonGroup
-                        v-if="showViewers && viewerIds.length > 0"
-                        class="ml-auto min-w-0"
-                      >
-                        <Button
-                          class="min-w-0 overflow-hidden"
-                          :icon="activeViewerLoading ? 'loading-02' : ''"
-                          :icon-class="
-                            activeViewerLoading
-                              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
-                              : ''
-                          "
-                          :disabled="activeViewerLoading"
-                          @click="openViewer(activeViewer!)"
-                        >
-                          <span class="min-w-0 truncate">{{ activeViewerLabel }}</span>
-                        </Button>
-                        <template v-if="viewerIds.length > 1">
-                          <ButtonGroupSeparator color="brand-800" />
-                          <Button
-                            icon="settings-02"
-                            class="rounded-l-none"
-                            :aria-label="t('components.change-viewer-modal.title')"
-                            @click="isViewerChangeModalOpen = true"
-                          />
-                        </template>
-                      </ButtonGroup>
                     </template>
                   </DesktopCardBase>
                 </div>
@@ -580,6 +534,22 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
         </template>
       </div>
     </main>
+    <footer class="flex flex-col items-center gap-1 px-6 pb-10 pt-6 text-center">
+      <p class="text-sm text-gray-warm-600">
+        {{ t('views.direct-viewer.help.text') }}
+      </p>
+      <Button
+        as="a"
+        hierarchy="link-color"
+        size="sm"
+        icon="help-circle"
+        :href="helpUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ t('views.direct-viewer.help.link') }}
+      </Button>
+    </footer>
     <!-- `bastion` puts the card's modal in read-only mode: no queries, no editors. -->
     <DesktopBastionInfoModal
       v-if="showBastionModal && bastion && desktopViewer"
@@ -600,13 +570,6 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       :direct-viewer-token="token"
       :direct-viewer-client="directViewerClient"
       @close="showNetworksModal = false"
-    />
-    <ChangeViewerModal
-      :open="isViewerChangeModalOpen"
-      :available-viewer-ids="viewerIds"
-      :current-viewer-id="activeViewer ?? ''"
-      @close="isViewerChangeModalOpen = false"
-      @change="(id) => (selectedViewerId = id)"
     />
     <DomainInfoModal
       :open="showDesktopInfoModal"

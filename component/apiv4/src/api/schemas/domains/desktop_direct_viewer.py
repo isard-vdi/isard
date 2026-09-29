@@ -189,6 +189,12 @@ class ViewersDocsResponse(BaseModel):
     )
 
 
+class DirectViewerDocsResponse(BaseModel):
+    direct_viewer_documentation_url: str = Field(
+        description="URL to the documentation of the direct viewer page.",
+    )
+
+
 class DesktopShareLinkResponse(BaseModel):
     link: Optional[str] = Field(
         default=None,

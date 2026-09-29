@@ -889,6 +889,10 @@
           "description": "L'escriptori que estàs intentant accedir necessita ser reservat per poder-lo iniciar. \nContacta amb el propietari de l'escriptori per reservar-lo i així poder accedir-hi."
         }
       },
+      "help": {
+        "text": "Aquesta pàgina et connecta a un escriptori remot que algú ha compartit amb tu.",
+        "link": "Necessites ajuda? Llegeix la guia del visor directe"
+      },
       "reset-modal": {
         "title": "Forçar reinici de l'escriptori?",
         "description": "Forçar el reinici de l'escriptori es una acció perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor.",
