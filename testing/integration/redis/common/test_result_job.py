@@ -6,7 +6,7 @@ from isardvdi_common.helpers.task_streams import RESULT_STREAM
 from isardvdi_common.lib.result_job import ResultJob
 from rq import Queue, Retry, SimpleWorker, Worker
 from rq.job import JobStatus
-from rq.registry import StartedJobRegistry
+from rq.registry import FailedJobRegistry, StartedJobRegistry
 from rq.utils import current_timestamp
 
 LANE = "storage.p1.default"
@@ -88,3 +88,37 @@ def test_a_job_found_abandoned_is_published_as_failed(scratch_redis):
     StartedJobRegistry(LANE, connection=scratch_redis, job_class=ResultJob).cleanup()
 
     assert [e["job_status"] for e in _events(scratch_redis, job.id)] == ["failed"]
+
+
+def _leave_a_stale_entry(connection, job_id):
+    connection.zadd(
+        StartedJobRegistry(LANE, connection=connection).key,
+        {f"{job_id}:stale-execution": current_timestamp() - 10},
+    )
+
+
+def test_a_finished_job_found_abandoned_stays_finished(scratch_redis):
+    job = _queue(scratch_redis).enqueue("builtins.len", [1, 2])
+    _work(scratch_redis)
+    _leave_a_stale_entry(scratch_redis, job.id)
+
+    StartedJobRegistry(LANE, connection=scratch_redis, job_class=ResultJob).cleanup()
+
+    job = ResultJob.fetch(job.id, connection=scratch_redis)
+    assert job.get_status() == JobStatus.FINISHED
+    assert job.return_value() == 2
+    assert job.id not in FailedJobRegistry(LANE, connection=scratch_redis)
+    assert [e["job_status"] for e in _events(scratch_redis, job.id)] == ["finished"]
+
+
+def test_a_finished_job_found_abandoned_is_never_run_again(scratch_redis):
+    job = _queue(scratch_redis).enqueue("builtins.len", [1], retry=Retry(max=2))
+    _work(scratch_redis)
+    _leave_a_stale_entry(scratch_redis, job.id)
+
+    StartedJobRegistry(LANE, connection=scratch_redis, job_class=ResultJob).cleanup()
+
+    assert _queue(scratch_redis).job_ids == []
+    assert ResultJob.fetch(job.id, connection=scratch_redis).get_status() == (
+        JobStatus.FINISHED
+    )

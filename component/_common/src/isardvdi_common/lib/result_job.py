@@ -6,7 +6,8 @@
 
 """The storage workers' job class: a job's result event is committed with its outcome."""
 
-from rq.job import Job
+from rq.job import Job, JobStatus
+from rq.utils import as_text
 
 from ..helpers.task_streams import RESULT_STREAM, maxlen_for_stream
 
@@ -14,11 +15,23 @@ from ..helpers.task_streams import RESULT_STREAM, maxlen_for_stream
 class ResultJob(Job):
     """Publishes ``kind=result`` in the transaction that writes the final status."""
 
+    def set_status(self, status, pipeline=None):
+        if status == JobStatus.FAILED and self._finished():
+            return
+        super().set_status(status, pipeline=pipeline)
+
+    def retry(self, queue, pipeline):
+        if self._finished():
+            return
+        super().retry(queue, pipeline)
+
     def _handle_success(self, result_ttl, pipeline, *args, **kwargs):
         super()._handle_success(result_ttl, pipeline, *args, **kwargs)
         self._publish_result(pipeline, "finished")
 
     def _handle_failure(self, exc_string, pipeline, *args, **kwargs):
+        if self._finished():
+            return
         super()._handle_failure(exc_string, pipeline, *args, **kwargs)
         self._publish_result(pipeline, "failed")
 
@@ -39,3 +52,8 @@ class ResultJob(Job):
             maxlen=maxlen_for_stream(RESULT_STREAM),
             approximate=True,
         )
+
+    def _finished(self):
+        """Whether the job's stored outcome is already a success."""
+        stored = self.connection.hget(self.key, "status")
+        return as_text(stored) == JobStatus.FINISHED
