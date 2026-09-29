@@ -410,10 +410,8 @@ router.beforeEach(async (to, from, next) => {
         adjustedNow > sessionData.exp * 1000 - 60000
       ) {
         // If the token is expired or expiring soon, try to renew it
-        try {
-          await store.dispatch('renew')
-        } catch (e) {
-          console.warn('The session was expired and could not be renewed:', e)
+        if (!await store.dispatch('renew')) {
+          console.warn('The session was expired and could not be renewed')
           store.dispatch('logout')
           window.location.pathname = '/login'
           return

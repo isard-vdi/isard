@@ -72,10 +72,10 @@ export default function axiosSetUp () {
         if (timeToExpiry < 60000) {
           console.debug('🔄 Token expiring soon, renewing before request')
           try {
-            await store.dispatch('renew')
-            if (!store.getters.getSession) {
-              console.error('❌ Token renewal failed')
-              return Promise.reject(new Error('Session cannot be renewed'))
+            if (!await store.dispatch('renew')) {
+              // Sent with the expired token it would 401 and log out behind the notice.
+              store.dispatch('showExpiredSessionModal', 'max-renew-time')
+              return Promise.reject(new axios.CanceledError('session ended'))
             }
             console.debug('✅ Token renewed successfully before request')
           } catch (error) {

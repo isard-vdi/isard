@@ -20,6 +20,8 @@ webapp.interceptors.request.use(function (config) {
   return config
 })
 
+let renewInFlight = null
+
 // Keep Faro's identity in sync with the session from the single mutation
 // every auth path goes through, instead of remembering to call setFaroUser
 // on each of login, renew, category-select, logout and expiry.
@@ -202,6 +204,11 @@ export default {
       })
     },
     renew (context, closeModal = false) {
+      // Concurrent callers share one renewal: renew() rotates the token.
+      if (renewInFlight) {
+        return renewInFlight
+      }
+
       // Set a flag to prevent renewal loops across tabs
       context.commit('setRenewingFlag', true)
 
@@ -212,25 +219,33 @@ export default {
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
         return config
       })
-      return authentication
+      renewInFlight = authentication
         .post('/renew', {})
-        .then(async (response) => {
-          if (closeModal) {
-            context.commit('setExpiredSessionModal', { show: false, kind: 'renew' })
+        .then(
+          async (response) => {
+            if (closeModal) {
+              context.commit('setExpiredSessionModal', { show: false, kind: 'renew' })
+            }
+            context.commit('setSession', response.data.token)
+            context.dispatch('updateTimeDrift', jwtDecode(response.data.token))
+            context.dispatch('openSocket', {})
+            context.dispatch('fetchUser')
+            await context.dispatch('fetchConfig').catch((e) => {
+              console.warn('Could not refresh the configuration after renewing the session:', e)
+            })
+            return true
+          },
+          (e) => {
+            console.warn('Session renewal failed:', e.response?.status ?? e.message)
+            return false
           }
-          context.commit('setSession', response.data.token)
-          context.dispatch('updateTimeDrift', jwtDecode(response.data.token))
-          context.dispatch('openSocket', {})
-          context.dispatch('fetchUser')
-          await context.dispatch('fetchConfig')
-        })
-        .catch((e) => {
-          console.error('Session renewal failed:', e)
-        })
+        )
         .finally(() => {
           // Clear the renewal flag
           context.commit('setRenewingFlag', false)
+          renewInFlight = null
         })
+      return renewInFlight
     },
     logout (context, redirect = true) {
       // Re-entrancy guard: if a logout is already in progress, do nothing.
@@ -346,8 +361,12 @@ export default {
       context.dispatch('login', loginData)
     },
     fetchUser (context) {
+      const session = context.getters.getSession
+      if (!session) {
+        return
+      }
       // Get basic user info from token
-      const tokenPayload = jwtDecode(context.getters.getSession)
+      const tokenPayload = jwtDecode(session)
       if (tokenPayload.data) {
         context.commit('setUser', tokenPayload.data)
 

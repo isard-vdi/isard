@@ -34,7 +34,11 @@ export default {
 
     const buttonClick = () => {
       if (expiredSessionModal.value.kind === 'renew') {
-        $store.dispatch('renew', true)
+        $store.dispatch('renew', true).then((renewed) => {
+          if (!renewed) {
+            $store.dispatch('showExpiredSessionModal', 'max-renew-time')
+          }
+        })
       } else {
         $store.dispatch('logout', true)
       }
