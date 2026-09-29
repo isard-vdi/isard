@@ -1392,12 +1392,14 @@
         "credentials": {
           "username": {
             "label": "Username",
-            "placeholder": "Enter username"
+            "placeholder": "Enter username",
+            "required": "Enter a username to reach the desktop with"
           },
           "password": {
             "label": "Password",
             "placeholder": "Enter password",
-            "help": "WARNING: The password will be stored unencrypted in the database."
+            "help": "WARNING: The password will be stored unencrypted in the database.",
+            "required": "Enter a password to reach the desktop with"
           }
         },
         "fullscreen": {

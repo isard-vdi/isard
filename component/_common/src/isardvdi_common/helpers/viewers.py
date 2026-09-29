@@ -35,3 +35,12 @@ def strip_unavailable_viewers(viewers):
     if not viewers:
         return {}
     return {key: value for key, value in viewers.items() if value is not None}
+
+
+RDP_VIEWERS = ("browser_rdp", "file_rdpgw", "file_rdpvpn")
+
+
+def has_rdp_viewer(viewers):
+    """True when a viewer that logs in with the guest credentials is selected."""
+    available = strip_unavailable_viewers(viewers)
+    return any(available.get(viewer) for viewer in RDP_VIEWERS)

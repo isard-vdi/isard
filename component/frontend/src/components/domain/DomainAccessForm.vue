@@ -3,7 +3,7 @@ import { useForm } from '@tanstack/vue-form'
 import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { computed, ref, reactive, watch } from 'vue'
+import { computed, onMounted, ref, reactive, watch } from 'vue'
 
 import { z } from 'zod'
 import {
@@ -82,8 +82,8 @@ const props = withDefaults(defineProps<Props>(), {
   templateId: undefined,
   desktopId: undefined,
   credentials: () => ({
-    username: 'isard',
-    password: 'pirineus'
+    username: '',
+    password: ''
   }),
   fullscreen: false,
   showBastionConfig: false,
@@ -146,17 +146,26 @@ const {
 
 // Computed access values from template or desktop data or props
 
+// Every RDP viewer and the bastion reach the guest over the wireguard network,
+// so a source without it holds a pair nothing could log in with.
+const sourceHasWireguard = computed(() =>
+  ((templateData.value ?? desktopData.value)?.interfaces ?? []).some(
+    (iface) => iface.id === WIREGUARD_INTERFACE_ID
+  )
+)
+
 const credentials = computed<Credentials>(() => {
   // Null for domains whose row has no guest_properties.credentials.
   const stored =
     templateData.value?.guest_properties?.credentials ??
     desktopData.value?.guest_properties?.credentials
-  if (!stored) {
+  // Start empty rather than carrying over a pair the source cannot use.
+  if (!stored || !sourceHasWireguard.value) {
     return props.credentials!
   }
   return {
-    username: stored.username ?? props.credentials!.username,
-    password: stored.password ?? props.credentials!.password
+    username: stored.username ?? props.credentials?.username ?? '',
+    password: stored.password ?? props.credentials?.password ?? ''
   }
 })
 
@@ -230,10 +239,19 @@ const bastion = computed<Bastion>(() => {
 
 const { t } = useI18n()
 
+const credentialsRequired = ref(false)
+
+const requiredWhenShown = (message: () => string) =>
+  z.string().superRefine((value, ctx) => {
+    if (!credentialsRequired.value) return
+    if (value.trim().length > 0) return
+    ctx.addIssue({ code: 'custom', message: message() })
+  })
+
 const formSchema = z.object({
   credentials: z.object({
-    username: z.string().optional(),
-    password: z.string().optional()
+    username: requiredWhenShown(() => t('components.domain.access.credentials.username.required')),
+    password: requiredWhenShown(() => t('components.domain.access.credentials.password.required'))
   }),
   fullscreen: z.boolean(),
   viewers: z.array(z.string()).min(1, {
@@ -263,11 +281,6 @@ function handleBastionEnabled(enabled: boolean) {
   bastionEnabled.value = enabled
   emit('bastion-enabled', enabled)
 }
-// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
-// but never over edits in progress: the edit views refetch on focus.
-watch([templateData, desktopData], () => {
-  if (form.state.isPristine) form.reset()
-})
 
 const ownFieldsAreDirty = form.useStore((state) => !state.isDefaultValue)
 
@@ -346,6 +359,26 @@ const showCredentials = computed(() => {
   return hasRdpViewer.value || (props.showBastionConfig && bastionEnabled.value)
 })
 
+const isInvalid = (field: { state: { meta: { isValid: boolean } } }) => !field.state.meta.isValid
+
+const syncCredentialsRequirement = () => {
+  credentialsRequired.value = showCredentials.value
+  form.validate('change')
+}
+
+watch(showCredentials, syncCredentialsRequirement)
+
+onMounted(syncCredentialsRequirement)
+
+// Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
+// but never over edits in progress: the edit views refetch on focus.
+watch([templateData, desktopData], () => {
+  if (!form.state.isPristine) return
+  form.reset()
+  // `form.reset()` wipes every error map without revalidating.
+  syncCredentialsRequirement()
+})
+
 const bastionFormRef = ref<InstanceType<typeof BastionConfigForm>>()
 
 const getFormData = () => {
@@ -360,10 +393,12 @@ const getFormData = () => {
   )
 
   const data: any = {
-    credentials: form.getFieldValue('credentials'),
     fullscreen: form.getFieldValue('fullscreen'),
     viewers: viewersObject
   }
+  data.credentials = showCredentials.value
+    ? form.getFieldValue('credentials')
+    : { username: '', password: '' }
   if (props.showBastionConfig) {
     data.bastion = bastionFormRef.value?.getFormData()
   }
@@ -409,6 +444,7 @@ const isDirty = computed(() => {
 const reset = () => {
   form.reset()
   bastionFormRef.value?.reset()
+  syncCredentialsRequirement()
 }
 
 defineExpose({
@@ -512,43 +548,43 @@ defineExpose({
         </div>
         <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:w-auto md:grid-cols-2">
           <form.Field v-slot="{ field }" name="credentials.username">
-            <div class="flex flex-col gap-2">
-              <FieldLabel>{{
+            <Field :data-invalid="isInvalid(field)">
+              <FieldLabel :for="field.name">{{
                 t('components.domain.access.credentials.username.label')
               }}</FieldLabel>
-              <FieldContent>
-                <InputField
-                  :id="field.name"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  type="text"
-                  :placeholder="t('components.domain.access.credentials.username.placeholder')"
-                  @update:model-value="(value) => field.handleChange(String(value))"
-                />
-              </FieldContent>
-              <FieldError :errors="field.state.meta.errors" />
-            </div>
+              <InputField
+                :id="field.name"
+                :name="field.name"
+                :model-value="field.state.value"
+                :aria-invalid="isInvalid(field)"
+                :destructive="isInvalid(field)"
+                type="text"
+                :placeholder="t('components.domain.access.credentials.username.placeholder')"
+                @update:model-value="(value) => field.handleChange(String(value))"
+              />
+              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+            </Field>
           </form.Field>
           <form.Field v-slot="{ field }" name="credentials.password">
-            <div class="flex flex-col gap-2">
-              <FieldLabel>{{
+            <Field :data-invalid="isInvalid(field)">
+              <FieldLabel :for="field.name">{{
                 t('components.domain.access.credentials.password.label')
               }}</FieldLabel>
-              <FieldContent>
-                <InputField
-                  :id="field.name"
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  autocomplete="new-password"
-                  :placeholder="t('components.domain.access.credentials.password.placeholder')"
-                  @update:model-value="(value) => field.handleChange(String(value))"
-                />
-                <FieldDescription class="text-brand-600">
-                  {{ t('components.domain.access.credentials.password.help') }}
-                </FieldDescription>
-              </FieldContent>
-              <FieldError :errors="field.state.meta.errors" />
-            </div>
+              <InputField
+                :id="field.name"
+                :name="field.name"
+                :model-value="field.state.value"
+                :aria-invalid="isInvalid(field)"
+                :destructive="isInvalid(field)"
+                autocomplete="new-password"
+                :placeholder="t('components.domain.access.credentials.password.placeholder')"
+                @update:model-value="(value) => field.handleChange(String(value))"
+              />
+              <FieldDescription class="text-brand-600">
+                {{ t('components.domain.access.credentials.password.help') }}
+              </FieldDescription>
+              <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+            </Field>
           </form.Field>
         </div>
       </section>

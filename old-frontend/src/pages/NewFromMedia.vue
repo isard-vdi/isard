@@ -102,10 +102,12 @@ export default {
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
-          credentials: {
-            username: domain.value.guestProperties.credentials.username,
-            password: domain.value.guestProperties.credentials.password
-          },
+          credentials: rdpViewersEnabled.value
+            ? {
+                username: domain.value.guestProperties.credentials.username,
+                password: domain.value.guestProperties.credentials.password
+              }
+            : { username: '', password: '' },
           fullscreen: domain.value.guestProperties.fullscreen,
           viewers: viewers
         },

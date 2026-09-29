@@ -11,10 +11,7 @@
       </b-row>
       <DomainInfo />
       <DomainViewers @rdpViewersSelected="value => rdpViewersEnabled = value" />
-      <DomainBastion
-        v-if="config.canUseBastion && domain.kind == 'desktop'"
-        @toggleBastion="value => bastionEnabled = value"
-      />
+      <DomainBastion v-if="canEditBastion" />
       <DomainCredentials
         v-if="showCredentialsForm"
         :can-use-bastion="config.canUseBastion"
@@ -79,7 +76,18 @@ export default {
     const domain = computed(() => $store.getters.getDomain)
     const domainName = ref('') // Displayed name in the form title
     const rdpViewersEnabled = ref(false)
-    const bastionEnabled = ref(false)
+    const canEditBastion = computed(
+      () => config.value.canUseBastion && domain.value.kind === 'desktop'
+    )
+    const bastionEnabled = computed(() => {
+      if (!canEditBastion.value) {
+        return false
+      }
+      const bastion = $store.getters.getBastion || {}
+      return Boolean(
+        bastion.enabled || (bastion.ssh || {}).enabled || (bastion.http || {}).enabled
+      )
+    })
     const showCredentialsForm = computed(() => rdpViewersEnabled.value || bastionEnabled.value)
 
     watch(domain, (newVal, prevVal) => {
@@ -147,10 +155,12 @@ export default {
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
-          credentials: {
-            username: domain.value.guestProperties.credentials.username,
-            password: domain.value.guestProperties.credentials.password
-          },
+          credentials: showCredentialsForm.value
+            ? {
+                username: domain.value.guestProperties.credentials.username,
+                password: domain.value.guestProperties.credentials.password
+              }
+            : { username: '', password: '' },
           fullscreen: domain.value.guestProperties.fullscreen,
           viewers: viewers
         },
@@ -178,6 +188,7 @@ export default {
       navigate,
       config,
       rdpViewersEnabled,
+      canEditBastion,
       bastionEnabled,
       showCredentialsForm
     }

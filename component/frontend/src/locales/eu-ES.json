@@ -754,12 +754,14 @@
         "credentials": {
           "username": {
             "label": "Erabiltzaile-izena",
-            "placeholder": "Sartu erabiltzaile-izena"
+            "placeholder": "Sartu erabiltzaile-izena",
+            "required": "Sartu erabiltzaile-izen bat mahaigainera sartzeko"
           },
           "password": {
             "label": "Pasahitza",
             "placeholder": "Sartu pasahitza",
-            "help": "ABISUA: pasahitza enkriptatu gabe gordeko da datu-basean."
+            "help": "ABISUA: pasahitza enkriptatu gabe gordeko da datu-basean.",
+            "required": "Sartu pasahitz bat mahaigainera sartzeko"
           }
         },
         "fullscreen": {

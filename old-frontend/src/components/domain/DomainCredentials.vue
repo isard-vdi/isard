@@ -33,7 +33,15 @@
           v-model="username"
           type="text"
           size="sm"
+          :state="v$.usernameField.$error ? false : null"
+          @blur="v$.usernameField.$touch"
         />
+        <b-form-invalid-feedback
+          v-if="v$.usernameField.$error"
+          id="usernameFieldError"
+        >
+          {{ $t(`validations.${v$.usernameField.$errors[0].$validator}`, { property: $t('forms.domain.guest.username') }) }}
+        </b-form-invalid-feedback>
       </b-col>
     </b-row>
     <b-row class="mt-4">
@@ -71,14 +79,25 @@
             :type="showPassword ? 'text' : 'password'"
             autocomplete="new-password"
             size="sm"
+            :state="v$.passwordField.$error ? false : null"
+            @blur="v$.passwordField.$touch"
           />
         </b-input-group>
+        <b-form-invalid-feedback
+          v-if="v$.passwordField.$error"
+          id="passwordFieldError"
+          :force-show="true"
+        >
+          {{ $t(`validations.${v$.passwordField.$errors[0].$validator}`, { property: $t('forms.domain.guest.password') }) }}
+        </b-form-invalid-feedback>
       </b-col>
     </b-row>
   </div>
 </template>
 <script>
 import { computed, ref } from '@vue/composition-api'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   props: {
@@ -109,6 +128,10 @@ export default {
       username,
       password,
       showPassword,
+      v$: useVuelidate({
+        usernameField: { required },
+        passwordField: { required }
+      }, { usernameField: username, passwordField: password }),
       togglePassword () {
         this.showPassword = !this.showPassword
       }

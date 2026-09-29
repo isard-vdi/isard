@@ -79,7 +79,7 @@ const hasOsTemplateOptions = computed(() => osTemplateOptions.value.length > 0)
 // the summaries, so the two can no longer disagree.
 const defaults: DomainConfigurationDefaults = {
   access: {
-    credentials: { username: 'isard', password: '' },
+    credentials: { username: '', password: '' },
     fullscreen: false,
     viewers: ['browser_vnc', 'file_spice']
   },

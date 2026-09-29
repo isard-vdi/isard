@@ -30,6 +30,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.isard_viewer import with_default_credentials
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.models.domain import Domain
@@ -385,7 +386,7 @@ class TemplatesProcessed(RethinkSharedConnection):
             # bears no relation to the source desktop's card.
             "image": _as_card(image) or Cards.get_domain_stock_card(template_id),
             "os": desktop.get("os", ""),
-            "guest_properties": desktop["guest_properties"],
+            "guest_properties": with_default_credentials(desktop["guest_properties"]),
             "create_dict": create_dict,
             "hypervisors_pools": ["default"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
