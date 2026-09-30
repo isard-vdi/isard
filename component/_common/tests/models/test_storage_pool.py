@@ -7,9 +7,8 @@ touch RethinkDB or socketio (the custom ``__init__``/``__setattr__`` hit the
 DB on every access). Class methods that query the DB are driven by
 monkeypatching the module-level ``r`` and the connection context.
 
-apiv4 layout note: ``get_by_user_kind`` returns ``cls.init_document(**sp)``
-(which would INSERT into RethinkDB and re-fetch), so the ``patched_kind``
-fixture monkeypatches ``init_document`` to build a bare pool from the kwargs.
+``get_by_user_kind`` builds the pool from the row it already read
+(``build_from``), so the ``patched_kind`` fixture only fakes ``r``.
 ``get_by_path`` returns ``cls(best["id"])`` so ``patched_path`` monkeypatches
 ``__init__`` instead — mirroring the harness style of the sibling
 ``test_storage_chain_definitions.py``.
@@ -105,18 +104,10 @@ def patched_kind(monkeypatch):
         raising=False,
     )
 
-    # apiv4's get_by_user_kind returns ``cls.init_document(**sp)`` which would
-    # INSERT into RethinkDB and re-fetch. Replace it with a bare-pool builder
-    # so the selection logic can be asserted without a DB.
-    def fake_init_document(cls, *args, **kw):
-        pool = cls.__new__(cls)
-        if args:
-            object.__setattr__(pool, "id", args[0])
-        for k, v in kw.items():
-            object.__setattr__(pool, k, v)
-        return pool
+    def fail_init_document(cls, *args, **kw):
+        raise AssertionError("get_by_user_kind must not write the pool row")
 
-    monkeypatch.setattr(StoragePool, "init_document", classmethod(fake_init_document))
+    monkeypatch.setattr(StoragePool, "init_document", classmethod(fail_init_document))
 
     def _setup(category_id, pools):
         def fake_table(name):
