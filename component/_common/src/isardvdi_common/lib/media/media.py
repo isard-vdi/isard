@@ -1,6 +1,13 @@
+import time
+from uuid import uuid4
+
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.models.media import Media, MediaModel
+from isardvdi_common.models.user import User
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
@@ -278,3 +285,95 @@ class MediaProcessed(RethinkSharedConnection):
                     }
                 )
         return attached
+
+    @classmethod
+    def create(
+        cls,
+        payload,
+        name,
+        description,
+        url,
+        kind,
+        hypervisors_pools,
+        allowed,
+        insecure_ssl,
+    ):
+        """Insert a media row and enqueue its download on isard-storage."""
+        user = User.get(payload["user_id"])
+        if not user:
+            raise Error("not_found", f"User with ID {payload['user_id']} not found.")
+
+        Helpers.check_duplicate(
+            item_table=cls._rdb_table,
+            item_name=name,
+            user=payload["user_id"],
+            ignore_deleted=True,
+        )
+
+        # Human label only; the file itself is stored flat by id under the
+        # pool (see ``Media.resolve_download_path``).
+        urlpath = "/".join(
+            [
+                payload["category_id"],
+                payload["group_id"],
+                payload["provider"],
+                f"{user['uid']}-{user['username']}",
+                name.replace(" ", "_"),
+            ]
+        )
+
+        media_id = str(uuid4())
+        _pool, dest_path = Media.resolve_download_path(
+            user_id=payload["user_id"],
+            category_id=payload["category_id"],
+            media_id=media_id,
+            kind=kind,
+        )
+
+        media = MediaModel(
+            **{
+                "id": media_id,
+                "name": name,
+                "description": description,
+                "user": payload["user_id"],
+                "username": user["username"],
+                "category": payload["category_id"],
+                "group": payload["group_id"],
+                "url": url,
+                "url-web": url,
+                "kind": kind,
+                "hypervisors_pools": hypervisors_pools or ["default"],
+                "allowed": allowed,
+                "status": "DownloadStarting",
+                "progress": {
+                    "received": "0",
+                    "received_percent": 0,
+                    "speed_current": "",
+                    "speed_download_average": "",
+                    "speed_upload_average": "",
+                    "time_left": "",
+                    "time_spent": "",
+                    "time_total": "",
+                    "total": "",
+                    "total_percent": 0,
+                    "xferd": "0",
+                    "xferd_percent": "0",
+                },
+                "path": urlpath,
+                "url-isard": False,
+                "accessed": int(time.time()),
+                "icon": "fa-circle-o",
+                "path_downloaded": dest_path,
+                "detail": "",
+            }
+        ).model_dump(mode="json", by_alias=True)
+        Media.insert_document(media)
+
+        # The chain moves the row through Downloading -> Downloaded /
+        # DownloadFailed and writes the progress back.
+        Media.build_from(media).enqueue_download_chain(
+            user_id=payload["user_id"],
+            url=url,
+            insecure_ssl=insecure_ssl,
+        )
+        return media_id

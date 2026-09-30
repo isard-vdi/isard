@@ -20,9 +20,7 @@
 
 import os
 import re
-import time
 from urllib.parse import quote, urlparse
-from uuid import uuid4
 
 import requests
 from api.schemas.media import CreateMediaRequest
@@ -34,7 +32,6 @@ from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.lib.task_index import MEDIA, current_task_id
 from isardvdi_common.models.media import Media as RethinkMedia
-from isardvdi_common.models.media import MediaModel
 from isardvdi_common.models.task import Task
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.schemas.media import MediaStatusEnum
@@ -346,108 +343,16 @@ class MediaService:
 
         Quotas.media_create(payload["user_id"], media_size)
 
-        if not RethinkUser.exists(payload["user_id"]):
-            raise Error(
-                "not_found",
-                f"User with ID {payload['user_id']} not found.",
-            )
-        user = RethinkUser.get(payload["user_id"])
-
-        Helpers.check_duplicate(
-            item_table="media",
-            item_name=media_data.name,
-            user=payload["user_id"],
-            ignore_deleted=True,
-        )
-
-        username = user["username"]
-        uid = user["uid"]
-
-        urlpath = (
-            payload["category_id"]
-            + "/"
-            + payload["group_id"]
-            + "/"
-            + payload["provider"]
-            + "/"
-            + uid
-            + "-"
-            + username
-            + "/"
-            + media_data.name.replace(" ", "_")
-        )
-
-        # Resolve the absolute destination path under the user's media
-        # storage pool *before* inserting the row so the download task
-        # has it from the start. Replaces the engine's
-        # ``get_path_to_disk(type_path="media")`` plumbing. The media is stored
-        # FLAT by its id (``<pool media dir>/<media_id>.<kind>``) exactly like
-        # main and like desktop/template disks; the human ``urlpath`` label is
-        # kept only in the ``path`` field below.
-        media_id = str(uuid4())
-        _pool, dest_path = RethinkMedia.resolve_download_path(
-            user_id=payload["user_id"],
-            category_id=payload["category_id"],
-            media_id=media_id,
-            kind=media_data.kind.value,
-        )
-
-        media_dict = {
-            "id": media_id,
-            "name": media_data.name,
-            "description": media_data.description,
-            "user": payload["user_id"],
-            "username": username,
-            "category": payload["category_id"],
-            "group": payload["group_id"],
-            "url": str(media_data.url),
-            "url-web": str(media_data.url),
-            "kind": media_data.kind.value,
-            "hypervisors_pools": (
-                media_data.hypervisors_pools
-                if media_data.hypervisors_pools
-                else ["default"]
-            ),
-            "allowed": media_data.allowed.model_dump(),
-            "status": "DownloadStarting",
-            "progress": {
-                "received": "0",
-                "received_percent": 0,
-                "speed_current": "",
-                "speed_download_average": "",
-                "speed_upload_average": "",
-                "time_left": "",
-                "time_spent": "",
-                "time_total": "",
-                "total": "",
-                "total_percent": 0,
-                "xferd": "0",
-                "xferd_percent": "0",
-            },
-            "path": urlpath,
-            "url-isard": False,
-            "accessed": int(time.time()),
-            "icon": "fa-circle-o",
-            "path_downloaded": dest_path,
-            "detail": "",
-        }
-
-        media_model = MediaModel(**media_dict)
-        media = media_model.model_dump(mode="json", by_alias=True)
-
-        RethinkMedia.insert_document(media)
-
-        # Kick off the download chain on isard-storage's low-priority
-        # queue. The chain handles status transitions
-        # (Downloading → Downloaded / DownloadFailed) and progress
-        # writes back to the media row.
-        RethinkMedia(media_model.id).enqueue_download_chain(
-            user_id=payload["user_id"],
+        return CommonMedia.create(
+            payload=payload,
+            name=media_data.name,
+            description=media_data.description,
             url=str(media_data.url),
+            kind=media_data.kind.value,
+            hypervisors_pools=media_data.hypervisors_pools,
+            allowed=media_data.allowed.model_dump(),
             insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
         )
-
-        return media_model.id
 
     def update_media_allowed(media_id: str, allowed: dict) -> None:
         if not RethinkMedia.exists(media_id):
