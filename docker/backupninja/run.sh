@@ -257,6 +257,9 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
         echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
         echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
         echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
+        if [ -n "$BACKUP_DISKS_CREATE_OPTIONS" ]; then
+            echo "               Extra borg create options: $BACKUP_DISKS_CREATE_OPTIONS"
+        fi
         echo "               Logs can be found at $LOG_FILE folder"
     fi
 
@@ -543,7 +546,9 @@ case "$1" in
         fi
 
         cd /backup/extract
-        borg extract --list $BACKUP_PATH::$3 $4
+        # restore holes as holes: a sparse disk image would otherwise be
+        # written out at its full apparent size
+        borg extract --sparse --list $BACKUP_PATH::$3 $4
 
         umount_nfs
         ;;

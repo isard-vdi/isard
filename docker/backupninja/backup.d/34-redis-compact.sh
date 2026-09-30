@@ -18,10 +18,7 @@ if [ "${BACKUP_COMPACT_ENABLED:-true}" != "true" ]; then
     echo "Compact disabled via BACKUP_COMPACT_ENABLED=false. Skipping /backup/redis compact."
 elif [ $(date +%u) -eq 6 ]; then
     # Saturday-only compact
-    if [ -d "/backup/redis" ]; then
-        echo "Compacting Borg repository at /backup/redis..."
-        borg compact --progress --cleanup-commits --verbose --threshold 5 "/backup/redis"
-    fi
+    borg_compact.sh "/backup/redis"
 else
     echo "Today is not Saturday. Skipping the /backup/redis backup compacting."
 fi
