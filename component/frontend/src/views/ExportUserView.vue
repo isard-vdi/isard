@@ -9,6 +9,7 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useAuthStore } from '@/stores/auth'
 import { TokenType } from '@/lib/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 import { SinglePageLayout } from '@/layouts/single-page'
 import { ExportUserContent } from '@/components/export-user'
 import { Spinner } from '@/components/ui/spinner'
@@ -17,6 +18,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+useClearTokenOnLeave([TokenType.UserMigrationRequired])
 
 const isStandalone = computed(() => route.name === 'export-user-standalone')
 

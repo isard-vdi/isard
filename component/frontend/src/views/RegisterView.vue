@@ -18,9 +18,11 @@ import {
   removeToken as removeAuthToken,
   isRegisterClaims,
   isReRegisterClaims,
-  checkLoginRegister as checkAuthLoginRegister
+  checkLoginRegister as checkAuthLoginRegister,
+  TokenType
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 import { dateIsToday } from '@/lib/utils'
 import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
@@ -34,6 +36,8 @@ const route = useRoute()
 const router = useRouter()
 const cookies = useAuthCookies()
 const authStore = useAuthStore()
+
+useClearTokenOnLeave([TokenType.Register, TokenType.ReRegister])
 
 /*
  * Data loading

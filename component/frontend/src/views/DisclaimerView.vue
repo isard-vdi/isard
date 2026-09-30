@@ -9,9 +9,11 @@ import { acknowledgeDisclaimer, login } from '@/gen/oas/authentication'
 import {
   parseToken as parseAuthToken,
   isLoginClaims,
-  checkLoginRegister as checkAuthLoginRegister
+  checkLoginRegister as checkAuthLoginRegister,
+  TokenType
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import mountainsSvg from '@/assets/img/mountains.svg'
@@ -21,6 +23,8 @@ import { BrandLogo } from '@/components/logo'
 const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
+
+useClearTokenOnLeave([TokenType.DisclaimerAcknowledgeRequired])
 
 const error = ref<string | undefined>(undefined)
 const isAccepting = ref(false)

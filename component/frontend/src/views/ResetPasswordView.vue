@@ -16,12 +16,17 @@ import { getUserPasswordPolicyOptions } from '@/gen/oas/apiv4/@tanstack/vue-quer
 import PasswordRequirements from '@/components/password-requirements/PasswordRequirements.vue'
 import { cn } from '@/lib/utils'
 import { PASSWORD_REGEX } from '@/lib/password'
-import { getBearer, useCookies as useAuthCookies } from '@/lib/auth'
+import { getBearer, TokenType, useCookies as useAuthCookies } from '@/lib/auth'
+import { useAuthStore } from '@/stores/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const cookies = useAuthCookies()
+const authStore = useAuthStore()
+
+useClearTokenOnLeave([TokenType.PasswordResetRequired, TokenType.PasswordReset])
 
 const { mutateAsync: resetPassword, isPending: isSending } = useMutation({
   ...resetPasswordMutation()
@@ -159,6 +164,7 @@ const form = useForm({
         body: { password: value.newPassword },
         headers: { Authorization: `Bearer ${resetToken.value}` }
       })
+      authStore.logout()
       startCountdown()
     } catch (err) {
       const parsed = parseApiError(err)
