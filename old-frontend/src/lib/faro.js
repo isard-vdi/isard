@@ -62,6 +62,8 @@ export function initFaro (url, options) {
     pageTracking: {
       generatePageId: (location) => pageIdFor(location.pathname)
     },
+    // Requests withheld after the session ended (utils/axios.js).
+    ignoreErrors: [/^session ended$/],
     instrumentations: [
       ...getWebInstrumentations({
         captureConsole: false,
