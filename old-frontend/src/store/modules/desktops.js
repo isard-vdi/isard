@@ -405,7 +405,6 @@ export default {
         // Clear immediately on error so user can retry
         context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
         ErrorUtils.handleErrors(e, this._vm.$snotify)
-        throw e
       })
     },
     cancelOperation (_, data) {
