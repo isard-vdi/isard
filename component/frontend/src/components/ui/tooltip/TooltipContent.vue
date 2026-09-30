@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { TooltipContentEmits, TooltipContentProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
+import { onBeforeUnmount, watchEffect, type HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { TooltipContent, TooltipPortal, useForwardPropsEmits, TooltipArrow } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import { injectTooltipTitle } from './context'
 
 defineOptions({
   inheritAttrs: false
@@ -29,6 +30,16 @@ const emits = defineEmits<TooltipContentEmits & { dismiss: [] }>()
 const delegatedProps = reactiveOmit(props, 'class', 'title', 'subtitle', 'arrow', 'dismissLabel')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
+
+const tooltipTitle = injectTooltipTitle()
+if (tooltipTitle) {
+  watchEffect(() => {
+    tooltipTitle.value = props.title
+  })
+  onBeforeUnmount(() => {
+    tooltipTitle.value = undefined
+  })
+}
 </script>
 
 <template>

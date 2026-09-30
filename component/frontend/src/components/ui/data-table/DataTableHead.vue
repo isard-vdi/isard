@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { HTMLAttributes } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,8 @@ interface Props {
   sorted?: 'asc' | 'desc' | false
   class?: HTMLAttributes['class']
 }
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<Props>(), {
   sortable: false,
@@ -51,6 +54,7 @@ const sortButtonIcon = computed(() => {
       hierarchy="link-gray"
       class="mx-1 size-4 p-0 text-current/70"
       :icon="sortButtonIcon"
+      :aria-label="t('common.actions.sort')"
       @click="emit('togleSorting')"
     />
   </div>

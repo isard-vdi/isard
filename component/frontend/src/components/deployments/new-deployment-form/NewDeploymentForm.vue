@@ -79,6 +79,7 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
           >
             <template #header-actions>
               <Button
+                :aria-label="t('common.actions.change-image')"
                 icon="image-plus"
                 hierarchy="secondary-gray"
                 size="sm"

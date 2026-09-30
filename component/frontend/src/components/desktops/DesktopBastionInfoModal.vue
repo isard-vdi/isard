@@ -390,6 +390,7 @@ const authorizedKeysForm = useForm({
                 />
               </domainNameForm.Field>
               <Button
+                :aria-label="t('common.actions.save')"
                 hierarchy="primary"
                 icon="save-02"
                 :disabled="saveBastionHttpDomainIsPending"
@@ -509,6 +510,7 @@ const authorizedKeysForm = useForm({
                 />
               </authorizedKeysForm.Field>
               <Button
+                :aria-label="t('common.actions.save')"
                 hierarchy="primary"
                 icon="save-02"
                 :disabled="saveBastionSshAuthorizedKeysIsPending"

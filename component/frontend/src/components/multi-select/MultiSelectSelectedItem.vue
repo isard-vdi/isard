@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Icon } from '@/components/icon'
@@ -11,6 +12,8 @@ interface Props {
   label: string
   subLabel?: string | undefined
 }
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<Props>(), {})
 
@@ -42,6 +45,7 @@ const emit = defineEmits<(e: 'remove-tag', id: string) => void>()
     </span>
 
     <Button
+      :aria-label="t('common.actions.remove')"
       size="sm"
       hierarchy="link-color"
       icon="trash-04"

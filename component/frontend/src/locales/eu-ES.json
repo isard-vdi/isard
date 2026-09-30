@@ -1832,7 +1832,16 @@
     "actions": {
       "more": "Ekintza gehiago",
       "copy": "Kopiatu",
-      "copied": "Kopiatuta"
+      "copied": "Kopiatuta",
+      "expand": "Zabaldu",
+      "collapse": "Tolestu",
+      "change-image": "Aldatu irudia",
+      "save": "Gorde",
+      "remove": "Kendu",
+      "delete": "Ezabatu",
+      "info": "Informazioa",
+      "other-viewers": "Beste ikustaile batzuk",
+      "sort": "Ordenatu"
     }
   }
 }

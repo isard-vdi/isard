@@ -3193,7 +3193,16 @@
     "actions": {
       "more": "More actions",
       "copy": "Copy",
-      "copied": "Copied"
+      "copied": "Copied",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "change-image": "Change image",
+      "save": "Save",
+      "remove": "Remove",
+      "delete": "Delete",
+      "info": "Information",
+      "other-viewers": "Other viewers",
+      "sort": "Sort"
     }
   }
 }

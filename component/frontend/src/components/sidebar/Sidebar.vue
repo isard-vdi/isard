@@ -109,7 +109,11 @@ const expandedLogoClass = computed(() => {
             <BrandLogo variant="collapsed" class="mx-auto hidden md:flex" />
             <Tooltip>
               <TooltipTrigger as-child>
-                <SidebarToggle :open="open" @click="toggleSidebar" />
+                <SidebarToggle
+                  :open="open"
+                  :aria-label="t('components.sidebar.expand')"
+                  @click="toggleSidebar"
+                />
               </TooltipTrigger>
               <TooltipContent side="right" :title="t('components.sidebar.expand')">
               </TooltipContent>
@@ -123,6 +127,7 @@ const expandedLogoClass = computed(() => {
               <TooltipTrigger as-child>
                 <SidebarToggle
                   :open="open"
+                  :aria-label="t('components.sidebar.collapse')"
                   class="hidden md:flex shrink-0"
                   @click="toggleSidebar"
                 />

@@ -130,6 +130,7 @@ const selectViewer = (viewer: Viewer) => {
       <DropdownMenu>
         <DropdownMenuTrigger @click.stop>
           <Button
+            :aria-label="t('common.actions.other-viewers')"
             icon="chevron-down"
             :size="props.buttonSize"
             :icon-size="props.dense ? 'sm' : undefined"
