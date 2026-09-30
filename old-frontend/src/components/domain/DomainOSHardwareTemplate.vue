@@ -148,7 +148,8 @@ export default {
     }
 
     const onRowSelected = (items) => {
-      $store.dispatch('setSelectedOSTemplateId', items[0].id)
+      // Deselecting the row leaves no item; clear it so the required check applies.
+      $store.dispatch('setSelectedOSTemplateId', items[0]?.id ?? '')
     }
 
     const items = computed(() => $store.getters.getMediaInstalls)
