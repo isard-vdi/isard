@@ -25,6 +25,8 @@ export { default as DesktopCardPreview } from './parts/DesktopCardPreview.vue'
 export const cardSizes = ['2xs', 'xs', 'sm', 'md', 'lg', 'xl'] as const
 export type CardSize = (typeof cardSizes)[number]
 
+export type OverlayKind = 'info' | 'networks' | 'bastion'
+
 export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSize>
 
 // --- Header icon buttons ---
