@@ -234,6 +234,15 @@ class MigrationRunner:
         self._load_sample_fn = load_sample_fn or self._sample_load
 
     # -- helpers ----------------------------------------------------------- #
+    def _held(self):
+        """Paused by an admin or a failure: finish the trees in flight, start none."""
+        return str(
+            self.migration.status
+        ) == MigrationStatus.PAUSED.value and self.migration.pause_reason not in (
+            "load",
+            "space",
+        )
+
     def _items(self):
         if self._snapshot is None:
             self._snapshot = StorageMigrationItem.ledger_rows(self.migration_id)
@@ -491,11 +500,34 @@ class MigrationRunner:
             usage_age_days=self.config.get("usage_age_days"),
             include_never_used=bool(self.config.get("include_never_used")),
         )
+        self._skip_stale_trees({it["storage_id"] for it in items})
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
             if item["storage_id"] not in existing:
                 StorageMigrationItem.upsert(item)
                 self._snapshot = None
+
+    def _skip_stale_trees(self, planned_sids):
+        """Skip not-started trees that left the selection; re-armed if it returns."""
+        trees = {}
+        for it in self._items():
+            trees.setdefault(it["tree_id"], []).append(it)
+        for tree_items in trees.values():
+            if mig.tree_phase([it["state"] for it in tree_items]) != "not_started":
+                continue
+            if any(it["storage_id"] in planned_sids for it in tree_items):
+                continue
+            if not all(self._storage_ready(it["storage_id"]) for it in tree_items):
+                continue
+            self._skip_tree(
+                tree_items,
+                MigrationItemState.SKIPPED.value,
+                "no longer matches the selection",
+            )
+
+    @staticmethod
+    def _storage_ready(storage_id):
+        return Storage.exists(storage_id) and str(Storage(storage_id).status) == "ready"
 
     def _rearm_for_occurrence(self, occurrence_key):
         """New-occurrence re-scan: insert newly-matching disks AND re-arm the
@@ -519,6 +551,7 @@ class MigrationRunner:
             usage_age_days=self.config.get("usage_age_days"),
             include_never_used=bool(self.config.get("include_never_used")),
         )
+        self._skip_stale_trees({p["storage_id"] for p in planned})
         existing = {it["storage_id"]: it for it in self._items()}
         policy = self.config.get("failure_policy") or "retry_quarantine"
         qafter = int(self.config.get("quarantine_after") or 3)
@@ -1779,6 +1812,14 @@ class MigrationRunner:
         )
         if claimed:
             self.migration._update_cache(**data)
+        else:
+            self.migration.fresh_status()
+            log.info(
+                "migration %s: status changed under the tick, keeping %s (wanted %s)",
+                self.migration_id,
+                self.migration.status,
+                target,
+            )
         return claimed
 
     # -- adaptive load policy ---------------------------------------------- #
@@ -1860,8 +1901,6 @@ class MigrationRunner:
         if not paused_by_load:
             # the loop only throttles a running job and only resumes its own
             # pause; a manual/failure pause and every other parked status are left.
-            if status == MigrationStatus.PAUSED.value:
-                return not self._paused_for_space()
             if status != MigrationStatus.RUNNING.value:
                 return False
         load_state = dict(self.migration.load_state or {})
@@ -1908,6 +1947,7 @@ class MigrationRunner:
         """Advance every tree by at most one step. Returns a list of
         ``(tree_id, item_id|None, action)`` describing what happened."""
         self._snapshot = None
+        self.migration.fresh_status()
         # Adaptive load policy runs BEFORE the tree-driving reads parallelism; a
         # job parked by load drives no trees and resumes on a later clean tick.
         if mig.load_policy_is_adaptive(self.config):
@@ -1919,6 +1959,7 @@ class MigrationRunner:
         # in finishing_tree — stop starting new trees (skip the not-started
         # ones), let in-flight trees finish, then flip to canceled.
         finishing = str(self.migration.status) == MigrationStatus.FINISHING_TREE.value
+        held = self._held()
 
         # Window + ETA admission gate (P2.2): a not-yet-started tree only begins
         # inside the window and only if its ETA fits; in-flight trees always run
@@ -1932,7 +1973,7 @@ class MigrationRunner:
         # (in-flight ones finish). Checked while the window is open, when trees
         # would otherwise start/advance; the start gate is the apiv4 service's.
         space_paused = self._paused_for_space()
-        if not finishing and win_open:
+        if not finishing and win_open and not held:
             if space_paused:
                 if self._space_floor_state() is False:
                     self._resume_after_space()
@@ -1947,14 +1988,14 @@ class MigrationRunner:
         # newly-matching disks (occurrence edge also re-arms failed/skipped disks
         # + quarantines per failure_policy). Runs BEFORE reading items so fresh
         # pending rows drain this same tick. No-op for a one-shot job.
-        if not finishing and not space_paused:
+        if not finishing and not space_paused and not held:
             self._maybe_rescan_occurrence()
 
         # Mandatory autostart guard: deactivate autostart for the whole job before
         # any disk is touched (idempotent — only un-prepared items). Only while the
         # window is open (when trees may actually start): between occurrences a
         # recurring job must NOT re-suppress autostart it already restored.
-        if not finishing and win_open:
+        if not finishing and win_open and not held:
             self.prepare()
         items = self._items()
         trees = {}
@@ -2032,6 +2073,7 @@ class MigrationRunner:
                     continue
                 if (
                     space_paused
+                    or held
                     or slots <= 0
                     or not self._admit_tree(tree_items, win_open, remaining_s)
                 ):
@@ -2130,7 +2172,10 @@ class MigrationRunner:
         self._record_job_rate(any_in_flight, totals.get("bytes_done"))
 
         cur = str(self.migration.status)
-        if pause_now:
+        if held:
+            # stays paused; only the trees already moving were driven this tick
+            pass
+        elif pause_now:
             # stop driving and wait for the admin. The driver does not tick paused
             # jobs; a resume (start) continues, and a recurring job re-arms the
             # failed disk next occurrence. Autostart stays suppressed (a
@@ -2265,6 +2310,18 @@ ADVANCE_LOCK_TTL = 90
 ADVANCE_MAX_ITERATIONS = 500
 
 
+def _has_in_flight(migration_id):
+    counts = StorageMigrationItem.state_counts(migration_id) or {}
+    settled = {
+        MigrationItemState.PENDING.value,
+        MigrationItemState.RELEASED.value,
+        MigrationItemState.SKIPPED.value,
+        MigrationItemState.FAILED.value,
+        MigrationItemState.QUARANTINED.value,
+    }
+    return any(n for state, n in counts.items() if str(state) not in settled)
+
+
 def advance(migration_id, *, check_abandon=True):
     """Drive ONE migration forward through a single, serialized drain.
 
@@ -2305,9 +2362,10 @@ def advance(migration_id, *, check_abandon=True):
     m = StorageMigration(migration_id)
     status = str(m.status)
     # A load- or space-paused job stays drivable so the tick can re-sample and
-    # resume it; a manual/failure pause does not (it waits for the admin).
+    # resume it; a manual/failure pause only while its trees in flight finish.
     if status not in _DRIVABLE_STATUSES and not (
-        status == MigrationStatus.PAUSED.value and m.pause_reason in ("load", "space")
+        status == MigrationStatus.PAUSED.value
+        and (m.pause_reason in ("load", "space") or _has_in_flight(migration_id))
     ):
         return "not_drivable"
     # the socket timeout makes a stalled redis raise instead of hanging past the lease TTL

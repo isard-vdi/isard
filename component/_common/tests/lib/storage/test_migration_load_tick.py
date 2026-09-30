@@ -36,6 +36,9 @@ class _Mig:
     def _update_cache(self, **fields):
         pass
 
+    def fresh_status(self):
+        return self.status, self.pause_reason
+
 
 _CLAIMED = {}
 
@@ -58,6 +61,7 @@ def _status_claim(monkeypatch):
 def _runner(mig_obj, sample):
     _CLAIMED["mig"] = mig_obj
     r = object.__new__(mr.MigrationRunner)
+    r.migration_id = "m"
     r.migration = mig_obj
     r.config = mig_obj.config
     r._load_sample_fn = lambda: sample
@@ -132,6 +136,7 @@ def test_load_paused_stays_paused_while_load_persists():
 # --- a manual/failure pause is never the loop's to resume ------------------- #
 @pytest.mark.parametrize("reason", ["manual", "failure", None])
 def test_a_non_load_pause_is_left_untouched_and_never_sampled(reason):
+    """Not parked by the loop: the tick holds it so the trees in flight finish."""
     m = _Mig("paused", {"parallelism": 2, "load_policy": _lp()}, pause_reason=reason)
     sampled = {"hit": False}
     r = object.__new__(mr.MigrationRunner)
@@ -144,7 +149,7 @@ def test_a_non_load_pause_is_left_untouched_and_never_sampled(reason):
 
     r._load_sample_fn = _sample
     parked = r._apply_load_policy()
-    assert parked is True
+    assert parked is False
     assert str(m.status) == PAUSED
     assert m.pause_reason == reason  # unchanged
     assert sampled["hit"] is False  # never even sampled
@@ -217,6 +222,23 @@ def test_advance_drives_a_load_paused_job(monkeypatch):
 
 
 @pytest.mark.parametrize("reason", ["manual", "failure", None])
-def test_advance_skips_a_non_load_pause(monkeypatch, reason):
+def test_advance_skips_a_non_load_pause_with_nothing_moving(monkeypatch, reason):
     _fake_migration(monkeypatch, status=PAUSED, pause_reason=reason)
+    monkeypatch.setattr(
+        mr.StorageMigrationItem,
+        "state_counts",
+        classmethod(lambda cls, mid: {"pending": 3, "released": 2}),
+    )
     assert mr.advance("m") == "not_drivable"
+
+
+@pytest.mark.parametrize("reason", ["manual", "failure", None])
+def test_advance_drives_a_non_load_pause_while_disks_are_moving(monkeypatch, reason):
+    _fake_migration(monkeypatch, status=PAUSED, pause_reason=reason)
+    monkeypatch.setattr(
+        mr.StorageMigrationItem,
+        "state_counts",
+        classmethod(lambda cls, mid: {"pending": 3, "moving": 1}),
+    )
+    monkeypatch.setattr(mr, "shared_client", lambda *a, **k: _busy_conn())
+    assert mr.advance("m") == "busy"
