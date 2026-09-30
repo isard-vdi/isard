@@ -2060,3 +2060,49 @@ def test_remove_devices_beyond_keeps_the_first_ones_in_order():
         "/isard/groups/dbase0.qcow2"
     ]
 
+
+class TestHardwareWithoutAVideo:
+    """A create_dict can list no video: rows left behind by older code on vGPU
+    desktops whose template carries ``["none"]`` hold ``[]``. Resolving it used
+    to raise IndexError and the desktop could never start; the base XML, which
+    came from the template, already carries the right video.
+    """
+
+    def _create_dict(self, videos):
+        return {
+            "id": "d",
+            "create_dict": {"hardware": {"vcpus": 1, "memory": 1, "videos": videos}},
+        }
+
+    def test_no_video_listed_resolves_without_one(self):
+        hw = dxml.resolve_hardware_from_create_dict(self._create_dict([]))
+        assert "video" not in hw
+
+    def test_a_listed_video_is_still_resolved(self, monkeypatch):
+        monkeypatch.setattr(dxml, "create_dict_video_from_id", lambda i: {"id": i})
+        hw = dxml.resolve_hardware_from_create_dict(self._create_dict(["qxl32"]))
+        assert hw["video"] == {"id": "qxl32"}
+
+    def test_the_start_keeps_the_base_video(self, monkeypatch):
+        start = TestStartXmlCarriesTheHardwareDevices()
+        base = start._base_xml({}).replace(
+            "</devices>", "<video><model type='none'/></video></devices>"
+        )
+        dict_domain = {
+            "id": "d",
+            "xml": base,
+            "user": "u",
+            "group": "g",
+            "category": "c",
+            "create_dict": {
+                "hardware": {"vcpus": 1, "memory": 1, "videos": []},
+                "xml_protected_sections": [p for p in start.PROTECTED if p != "video"],
+            },
+        }
+        monkeypatch.setattr(dxml, "remove_fieds_when_stopped", lambda _id: None)
+        monkeypatch.setattr(dxml, "get_domain", lambda _id: dict_domain)
+        monkeypatch.setattr(dxml, "lazy_compress_in_place", lambda *a, **k: None)
+        result = dxml.recreate_xml_to_start("d")
+        assert result, "the start was refused"
+        tree = _parse(result[0])
+        assert tree.xpath("/domain/devices/video/model/@type") == ["none"]

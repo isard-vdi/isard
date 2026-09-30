@@ -1850,9 +1850,11 @@ def resolve_hardware_from_create_dict(domain):
     resolved_hardware["currentMemory_unit"] = "KiB"
     resolved_hardware["memory_unit"] = "KiB"
 
-    # VIDEO - resolve video ID to full configuration
-    id_video = create_dict["hardware"]["videos"][0]
-    resolved_hardware["video"] = create_dict_video_from_id(id_video)
+    # VIDEO - resolve video ID to full configuration. With none listed the
+    # base XML keeps the video it inherited from its template.
+    videos = create_dict["hardware"].get("videos")
+    if videos:
+        resolved_hardware["video"] = create_dict_video_from_id(videos[0])
 
     # BOOT MENU
     if "boot_order" in create_dict["hardware"]:
@@ -2010,7 +2012,7 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         x.set_vcpu(hw["vcpus"])
 
     # Video
-    if "video" not in protected:
+    if "video" not in protected and "video" in hw:
         x.set_video_type(hw["video"])
 
     # Boot order
