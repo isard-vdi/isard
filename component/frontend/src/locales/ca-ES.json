@@ -3092,7 +3092,9 @@
     },
     "start-desktop": {
       "errors": {
-        "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar."
+        "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar.",
+        "desktop_storage_not_ready": "El disc de l'escriptori encara no està a punt. Espera uns minuts i torna-ho a provar.",
+        "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador."
       }
     },
     "extend-desktop": {

@@ -3052,7 +3052,9 @@
     },
     "start-desktop": {
       "errors": {
-        "generic": "The desktop could not be started. Please try again."
+        "generic": "The desktop could not be started. Please try again.",
+        "desktop_storage_not_ready": "The desktop's disk is not ready yet. Wait a few minutes and try again.",
+        "storage_not_found": "The desktop's disk could not be found. Contact your administrator."
       }
     },
     "extend-desktop": {

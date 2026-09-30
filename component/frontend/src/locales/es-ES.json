@@ -3065,7 +3065,9 @@
     },
     "start-desktop": {
       "errors": {
-        "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo."
+        "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo.",
+        "desktop_storage_not_ready": "El disco del escritorio todavía no está listo. Espera unos minutos y vuelve a intentarlo.",
+        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador."
       }
     },
     "extend-desktop": {

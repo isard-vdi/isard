@@ -1741,7 +1741,9 @@
     },
     "start-desktop": {
       "errors": {
-        "generic": "Ezin izan da mahaigaina abiarazi. Saiatu berriro."
+        "generic": "Ezin izan da mahaigaina abiarazi. Saiatu berriro.",
+        "desktop_storage_not_ready": "Mahaigainaren diskoa ez dago prest oraindik. Itxaron minutu batzuk eta saiatu berriro.",
+        "storage_not_found": "Ez da aurkitu mahaigainaren diskoa. Jarri harremanetan administratzailearekin."
       }
     },
     "delete-deployment": {
