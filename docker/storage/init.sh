@@ -109,6 +109,7 @@ start_worker() {
         --path "${TASK_IMPORT_PATH}" \
         --logging_level ${LOG_LEVEL:-INFO} \
         --with-scheduler \
+        --job-class isardvdi_common.lib.result_job.ResultJob \
         ${_class_arg} \
         --name storage-${_role}:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) \
         "$@" &

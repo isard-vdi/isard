@@ -2,8 +2,8 @@
 
 """Storage-worker tasks must RAISE on failure, not return an error value.
 
-The ``_publishes_result`` decorator publishes ``job_status="finished"``
-whenever the wrapped body *returns* and ``"failed"`` only when it *raises*.
+A job's result is published as ``job_status="finished"`` whenever its body
+*returns* and ``"failed"`` only when it *raises*.
 Several tasks historically caught their failure and returned an error string
 / dict / rc, so a failed convert / virt_win_reg / resize / sparsify / disconnect
 was published as ``finished`` — the change-handler then took the success branch
