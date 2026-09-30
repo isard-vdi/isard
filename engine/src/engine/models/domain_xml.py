@@ -1375,6 +1375,15 @@ class DomainXML(object):
         except Exception as e:
             log.error("Exception when setting domain type and emulator: {}".format(e))
 
+    def remove_devices_beyond(self, xpath, keep):
+        """Remove the devices matching ``xpath`` past the first ``keep``.
+
+        ``remove_device(order_num=-1)`` removes every match, so it cannot be
+        used to drop only the surplus.
+        """
+        for device in reversed(self.tree.xpath(xpath)[keep:]):
+            device.getparent().remove(device)
+
     def remove_disk(self, order=-1):
         xpath = '/domain/devices/disk[@device="disk"]'
         self.remove_device(xpath, order_num=order)
@@ -1742,6 +1751,23 @@ def create_template_from_dict(dict_template_new):
     pass
 
 
+XPATH_DISKS = '/domain/devices/disk[@device="disk"]'
+XPATH_CDROMS = '/domain/devices/disk[@device="cdrom"]'
+XPATH_FLOPPIES = '/domain/devices/disk[@device="floppy"]'
+
+
+def devices_match_hardware(x, xpath, wanted, id_domain):
+    """The start XML must carry one device per hardware entry, no more, no less."""
+    found = len(x.tree.xpath(xpath))
+    if found != len(wanted):
+        log.error(
+            f"Domain {id_domain}: start XML has {found} devices for {xpath}, "
+            f"hardware lists {len(wanted)}"
+        )
+        return False
+    return True
+
+
 def resolve_hardware_from_create_dict(domain):
     """Resolve hardware specifications from create_dict without storing to database.
 
@@ -1996,10 +2022,9 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if "disks" not in protected:
         total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
         if "disks" in hw:
-            num_remove_disks = total_disks_in_xml - len(hw["disks"])
-            if num_remove_disks > 0:
-                for i in range(num_remove_disks):
-                    x.remove_disk()
+            if total_disks_in_xml > len(hw["disks"]):
+                x.remove_devices_beyond(XPATH_DISKS, len(hw["disks"]))
+                total_disks_in_xml = len(hw["disks"])
             for i, disk in enumerate(hw["disks"]):
                 if not disk.get("file"):
                     log.error(f"disk {i} in domain {id_domain} not resolved")
@@ -2020,6 +2045,8 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
                         )
                     else:
                         x.set_vdisk(s, index=i, type_disk=type_disk)
+            if not devices_match_hardware(x, XPATH_DISKS, hw["disks"], id_domain):
+                return False
         elif total_disks_in_xml > 0:
             for i in range(total_disks_in_xml):
                 x.remove_disk()
@@ -2028,15 +2055,16 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if "isos" not in protected:
         total_cdroms_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
         if "isos" in hw:
-            num_remove = total_cdroms_in_xml - len(hw["isos"])
-            if num_remove > 0:
-                for i in range(num_remove):
-                    x.remove_cdrom()
+            if total_cdroms_in_xml > len(hw["isos"]):
+                x.remove_devices_beyond(XPATH_CDROMS, len(hw["isos"]))
+                total_cdroms_in_xml = len(hw["isos"])
             for i in range(len(hw["isos"])):
                 if i >= total_cdroms_in_xml:
                     x.add_cdrom(path_cdrom=hw["isos"][i]["path"])
                 else:
                     x.set_cdrom(hw["isos"][i]["path"], index=i)
+            if not devices_match_hardware(x, XPATH_CDROMS, hw["isos"], id_domain):
+                return False
         elif total_cdroms_in_xml > 0:
             for i in range(total_cdroms_in_xml):
                 x.remove_cdrom()
@@ -2054,15 +2082,16 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
             x.tree.xpath('/domain/devices/disk[@device="floppy"]')
         )
         if "floppies" in hw:
-            num_remove = total_floppies_in_xml - len(hw["floppies"])
-            if num_remove > 0:
-                for i in range(num_remove):
-                    x.remove_floppy()
+            if total_floppies_in_xml > len(hw["floppies"]):
+                x.remove_devices_beyond(XPATH_FLOPPIES, len(hw["floppies"]))
+                total_floppies_in_xml = len(hw["floppies"])
             for i in range(len(hw["floppies"])):
                 if i >= total_floppies_in_xml:
                     x.add_floppy(path_floppy=hw["floppies"][i]["path"])
                 else:
                     x.set_floppy(hw["floppies"][i]["path"], index=i)
+            if not devices_match_hardware(x, XPATH_FLOPPIES, hw["floppies"], id_domain):
+                return False
         elif total_floppies_in_xml > 0:
             for i in range(total_floppies_in_xml):
                 x.remove_floppy()

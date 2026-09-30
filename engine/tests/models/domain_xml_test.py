@@ -1929,3 +1929,134 @@ class TestResolveQosDiskIotune:
             None,
             [],
         )
+
+
+class TestStartXmlCarriesTheHardwareDevices:
+    """The start XML must carry exactly the disks, CD-ROMs and floppies in the
+    hardware, whatever the stored base XML carries.
+
+    The stored XML is a base template: a desktop inherits its template's, and the
+    hardware can list fewer devices than it holds (an ISO removed from the
+    desktop). Trimming the surplus used to wipe every device of that kind, so a
+    desktop with two ISOs over a three-CD-ROM base started with none and UEFI
+    fell through to network boot.
+    """
+
+    # Everything except the device kinds, so only the device reconciliation
+    # touches the XML.
+    PROTECTED = [
+        "memory",
+        "vcpus",
+        "video",
+        "boot_order",
+        "disk_cache",
+        "qos_disk",
+        "cpu",
+        "graphics",
+        "network",
+        "hostdev",
+        "shared_folder",
+        "seclabel",
+        "domain_type",
+        "qemu_guest_agent",
+    ]
+    KINDS = {
+        "disk": ("disks", "file", "/isard/groups/d{}.qcow2", "vd", "virtio"),
+        "cdrom": ("isos", "path", "/isard/media/iso{}.iso", "sd", "sata"),
+        "floppy": ("floppies", "path", "/isard/media/fd{}.img", "fd", "fdc"),
+    }
+
+    def _base_xml(self, counts):
+        devices = []
+        for device, n in counts.items():
+            _key, _field, path, prefix, bus = self.KINDS[device]
+            for i in range(n):
+                devices.append(
+                    f'<disk type="file" device="{device}">'
+                    '<driver name="qemu" type="raw"/>'
+                    f'<source file="{path.format(f"base{i}")}"/>'
+                    f'<target dev="{prefix}{"abcdefgh"[i]}" bus="{bus}"/>'
+                    "</disk>"
+                )
+        return (
+            '<domain type="kvm"><name>d</name><uuid>u</uuid>'
+            "<memory unit='KiB'>1048576</memory><vcpu>1</vcpu>"
+            "<os><type arch='x86_64' machine='q35'>hvm</type><boot dev='cdrom'/></os>"
+            "<devices><emulator>/usr/bin/qemu-kvm</emulator>"
+            + "".join(devices)
+            + "<graphics type='spice' autoport='yes'/>"
+            "</devices></domain>"
+        )
+
+    def _start_xml(self, monkeypatch, base_counts, hw_counts):
+        hw = {"memory": 1, "memory_unit": "GiB", "vcpus": 1}
+        for device, n in hw_counts.items():
+            key, field, path, _prefix, _bus = self.KINDS[device]
+            hw[key] = [{field: path.format(i)} for i in range(n)]
+        dict_domain = {
+            "id": "d",
+            "xml": self._base_xml(base_counts),
+            "user": "u",
+            "group": "g",
+            "category": "c",
+            "create_dict": {
+                "hardware": {},
+                "xml_protected_sections": self.PROTECTED,
+            },
+        }
+        monkeypatch.setattr(dxml, "remove_fieds_when_stopped", lambda _id: None)
+        monkeypatch.setattr(dxml, "get_domain", lambda _id: dict_domain)
+        monkeypatch.setattr(dxml, "lazy_compress_in_place", lambda *a, **k: None)
+        monkeypatch.setattr(dxml, "resolve_hardware_from_create_dict", lambda _d: hw)
+        result = dxml.recreate_xml_to_start("d")
+        assert result, "the start was refused"
+        return _parse(result[0])
+
+    def _sources(self, tree, device):
+        return [
+            d.xpath("source")[0].get("file")
+            for d in tree.xpath(f'/domain/devices/disk[@device="{device}"]')
+        ]
+
+    @pytest.mark.parametrize("device", ["disk", "cdrom", "floppy"])
+    @pytest.mark.parametrize(
+        "in_base, in_hw",
+        [(3, 2), (2, 1), (3, 1), (1, 1), (2, 2), (1, 3), (0, 2), (2, 0)],
+    )
+    def test_the_start_xml_has_exactly_the_hardware_devices(
+        self, monkeypatch, device, in_base, in_hw
+    ):
+        _key, _field, path, _prefix, _bus = self.KINDS[device]
+        tree = self._start_xml(monkeypatch, {device: in_base}, {device: in_hw})
+        assert self._sources(tree, device) == [path.format(i) for i in range(in_hw)]
+
+    def test_trimming_one_kind_leaves_the_others_alone(self, monkeypatch):
+        tree = self._start_xml(
+            monkeypatch,
+            {"disk": 1, "cdrom": 3, "floppy": 1},
+            {"disk": 1, "cdrom": 2, "floppy": 1},
+        )
+        assert self._sources(tree, "disk") == ["/isard/groups/d0.qcow2"]
+        assert self._sources(tree, "cdrom") == [
+            "/isard/media/iso0.iso",
+            "/isard/media/iso1.iso",
+        ]
+        assert self._sources(tree, "floppy") == ["/isard/media/fd0.img"]
+
+    def test_a_device_that_could_not_be_added_refuses_the_start(self, monkeypatch):
+        monkeypatch.setattr(DomainXML, "add_cdrom", lambda self, path_cdrom: None)
+        with pytest.raises(AssertionError, match="refused"):
+            self._start_xml(monkeypatch, {"cdrom": 1}, {"cdrom": 2})
+
+
+def test_remove_devices_beyond_keeps_the_first_ones_in_order():
+    base = TestStartXmlCarriesTheHardwareDevices()._base_xml({"disk": 1, "cdrom": 3})
+    x = DomainXML(base)
+    x.remove_devices_beyond('/domain/devices/disk[@device="cdrom"]', 1)
+    tree = _parse(x.return_xml())
+    cdroms = tree.xpath('//disk[@device="cdrom"]/source/@file')
+    assert cdroms == ["/isard/media/isobase0.iso"]
+    assert tree.xpath('//disk[@device="disk"]/source/@file') == [
+        "/isard/groups/dbase0.qcow2"
+    ]
+
