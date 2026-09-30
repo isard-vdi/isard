@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { TokenType, isRegisterClaims, isReRegisterClaims, parseToken } from './auth'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  TokenType,
+  isRegisterClaims,
+  isReRegisterClaims,
+  parseToken,
+  stashToken,
+  takeStashedToken
+} from './auth'
 
 const buildJwt = (payload: object): string => {
   const encode = (o: object) =>
@@ -26,5 +33,31 @@ describe('parseToken', () => {
 
     expect(isRegisterClaims(claims)).toBe(true)
     expect(isReRegisterClaims(claims)).toBe(false)
+  })
+})
+
+describe('token stash', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    sessionStorage.clear()
+  })
+
+  it('hands the stashed token back exactly once', () => {
+    stashToken('the.stashed.token')
+
+    expect(takeStashedToken()).toBe('the.stashed.token')
+    expect(takeStashedToken()).toBeUndefined()
+  })
+
+  it('treats unavailable storage as an empty stash', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError')
+    })
+
+    expect(() => stashToken('the.stashed.token')).not.toThrow()
+    expect(takeStashedToken()).toBeUndefined()
   })
 })

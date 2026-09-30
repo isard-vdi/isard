@@ -213,6 +213,26 @@ export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
   cookies.remove(sessionTokenName, cookieOpts)
 }
 
+const stashedTokenKey = 'isardvdi_intermediate_token'
+
+export const stashToken = (bearer: string) => {
+  try {
+    sessionStorage.setItem(stashedTokenKey, bearer)
+  } catch {
+    // Storage is unavailable in private mode or with blocked site data
+  }
+}
+
+export const takeStashedToken = (): string | undefined => {
+  try {
+    const bearer = sessionStorage.getItem(stashedTokenKey)
+    sessionStorage.removeItem(stashedTokenKey)
+    return bearer ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
 // TODO: Type this!
 type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
 type RegisterError =
