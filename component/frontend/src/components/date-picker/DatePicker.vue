@@ -27,6 +27,7 @@ import { useDateFormatter } from 'reka-ui'
 import { createYear, createYearRange, toDate } from 'reka-ui/date'
 import { DateFormatter, getLocalTimeZone, type DateValue, today } from '@internationalized/date'
 import { cn } from '@/lib/utils'
+import { vAutofocus } from '@/directives/autofocus'
 import { useI18n } from 'vue-i18n'
 
 export interface Props {
@@ -38,6 +39,7 @@ export interface Props {
   class?: HTMLAttributes['class']
   locale?: string
   maxHint?: string
+  autofocus?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -48,7 +50,8 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: 'Select date',
   class: '',
   locale: 'en-US',
-  maxHint: undefined
+  maxHint: undefined,
+  autofocus: false
 })
 
 const emit = defineEmits<{
@@ -165,6 +168,7 @@ const handleOpenChange = (open: boolean) => {
   <Popover :open="isOpen" @update:open="handleOpenChange">
     <PopoverTrigger as-child>
       <Button
+        v-autofocus="props.autofocus"
         hierarchy="secondary-gray"
         size="md"
         :class="

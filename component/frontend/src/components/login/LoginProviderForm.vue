@@ -7,17 +7,20 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t } = useI18n()
 
 interface Props {
   text?: string
   hideForgotPassword?: boolean
+  autofocus?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   text: undefined,
-  hideForgotPassword: false
+  hideForgotPassword: false,
+  autofocus: false
 })
 
 const emit = defineEmits<{
@@ -62,6 +65,7 @@ function isInvalid(field) {
         }}</FieldLabel>
         <InputField
           :id="field.name"
+          v-autofocus="props.autofocus"
           :name="field.name"
           :model-value="field.state.value"
           :aria-invalid="isInvalid(field)"

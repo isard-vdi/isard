@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { DesktopKind } from '@/lib/domainKind'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DomainImage from '@/components/domain/DomainImage.vue'
+import { vAutofocus } from '@/directives/autofocus'
 
 export type DomainInfoPreview = 'desktop-card' | 'template-row'
 
@@ -39,6 +40,8 @@ const props = withDefaults(
     temporalQuotaExceeded?: boolean
     entity?: 'desktops' | 'templates'
     preview?: DomainInfoPreview
+    /** Focuses the name field on mount; only creation forms want it. */
+    autofocusName?: boolean
   }>(),
   {
     loading: false,
@@ -52,7 +55,8 @@ const props = withDefaults(
     persistentQuotaExceeded: false,
     temporalQuotaExceeded: false,
     entity: 'desktops',
-    preview: 'desktop-card'
+    preview: 'desktop-card',
+    autofocusName: false
   }
 )
 
@@ -262,6 +266,7 @@ defineExpose({
             >
               <InputField
                 :id="field.name"
+                v-autofocus="autofocusName"
                 :name="field.name"
                 :model-value="field.state.value"
                 :placeholder="t('views.new-template.form.sections.preview.fields.name.placeholder')"
@@ -424,6 +429,7 @@ defineExpose({
               }}</FieldLabel>
               <InputField
                 :id="field.name"
+                v-autofocus="autofocusName"
                 :name="field.name"
                 :model-value="field.state.value"
                 :aria-label="t('components.domain.info.name.label')"
@@ -431,7 +437,6 @@ defineExpose({
                 :aria-invalid="nameErrors.length > 0"
                 :destructive="nameErrors.length > 0"
                 maxlength="50"
-                autofocus
                 @update:model-value="(value) => handleNameInput(field, String(value))"
                 @input="handleNameInput(field, String(($event.target as HTMLInputElement).value))"
                 @blur="handleNameBlur(field)"

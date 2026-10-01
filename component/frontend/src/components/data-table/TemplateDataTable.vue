@@ -48,6 +48,7 @@ interface Props {
   emptyKind?: EmptyStateKind
   // Row count before any filtering, so a first run can be told from a fruitless search.
   totalRows?: number
+  autofocusSearch?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -59,7 +60,8 @@ const props = withDefaults(defineProps<Props>(), {
   hideToolbar: false,
   inlineTabs: false,
   emptyKind: 'templates',
-  totalRows: undefined
+  totalRows: undefined,
+  autofocusSearch: false
 })
 
 // Owned here by default, but a view laying out its own toolbar can drive it.
@@ -160,6 +162,7 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
         :id="TEMPLATES_SEARCH_INPUT_ID"
         v-model="search"
         :placeholder="t('views.templates.filters.search.placeholder')"
+        :autofocus="props.autofocusSearch"
       />
     </template>
     <template #filters>

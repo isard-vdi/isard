@@ -20,6 +20,7 @@ import type { PasswordPolicyErrorResponse } from '@/gen/oas/apiv4'
 import { PASSWORD_REGEX } from '@/lib/password'
 
 import { whenever } from '@vueuse/core'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t } = useI18n()
 
@@ -174,6 +175,7 @@ const hasErrors = form.useStore((state) => {
               <InputField
                 :id="toId(field.name)"
                 v-model="field.state.value"
+                v-autofocus
                 :name="field.name"
                 :aria-invalid="isInvalid(field)"
                 :destructive="isInvalid(field)"

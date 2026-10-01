@@ -200,6 +200,7 @@ function templateProgressPercent(progress: unknown): number {
       :inline-tabs="props.inlineTabs"
       :is-clickable="true"
       :is-row-disabled="isFailed"
+      autofocus-search
       :disabled-tooltip="t('views.templates.table.failed-message')"
       @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
       :selected-id="props.selectedId"

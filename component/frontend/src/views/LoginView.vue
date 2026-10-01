@@ -749,6 +749,7 @@ watch(categoryError, (newErr) => {
               v-if="showProvider(Provider.Form).value"
               :text="config?.providers?.form?.submit_text"
               :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
+              :autofocus="!showCategoriesDropdown"
               :style="config?.providers?.form?.submit_extra_styles"
               @submit="onFormSubmit"
               @forgot-password="onForgotPassword"
