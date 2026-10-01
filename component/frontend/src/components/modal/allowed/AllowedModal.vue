@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { refDebounced } from '@vueuse/core'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
@@ -274,27 +274,22 @@ const usersInGroup = useQuery({
   enabled: computed(() => props.open && !!viewedGroup.value)
 })
 
-const MIN_TERM_LENGTH = 2
-
 const userTerm = computed(() => userSearch.value.trim())
 const debouncedUserTerm = refDebounced(userTerm, 250)
 
-const termSearchActive = computed(
-  () => !viewedGroup.value && debouncedUserTerm.value.length >= MIN_TERM_LENGTH
-)
+const USERS_LIMIT = 200
 
-const USER_SEARCH_LIMIT = 50
-
-const searchedUsers = useQuery({
+const categoryUsers = useQuery({
   ...searchUsersInCategoryOptions({
-    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
+    query: { search: debouncedUserTerm.value, limit: USERS_LIMIT, ...roleQuery.value }
   }),
   queryKey: computed(() =>
     searchUsersInCategoryQueryKey({
-      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
+      query: { search: debouncedUserTerm.value, limit: USERS_LIMIT, ...roleQuery.value }
     })
   ),
-  enabled: computed(() => props.open && termSearchActive.value)
+  enabled: computed(() => props.open && !viewedGroup.value),
+  placeholderData: keepPreviousData
 })
 
 const toOption = (user: AvailableUser): AllowedOption => ({
@@ -304,8 +299,8 @@ const toOption = (user: AvailableUser): AllowedOption => ({
   avatar: user.photo ?? ''
 })
 
-const searchedUserOptions = computed<AllowedOption[]>(() =>
-  (searchedUsers.data.value?.users ?? []).map(toOption)
+const categoryUserOptions = computed<AllowedOption[]>(() =>
+  (categoryUsers.data.value?.users ?? []).map(toOption)
 )
 
 watch(
@@ -336,51 +331,32 @@ const checkedUsers = computed(() => {
   return selectedUsers.value
 })
 
-const knownUsers = computed<Record<string, AllowedOption>>(() => {
-  const known: Record<string, AllowedOption> = {}
-  for (const user of props.preselectedUsers ?? []) known[user.value] = user
-  for (const members of Object.values(usersByGroup.value)) {
-    for (const member of members) known[member.value] = member
-  }
-  for (const user of searchedUserOptions.value) known[user.value] = user
-  return known
-})
-
-const showsSelectionWhenIdle = computed(() => props.preselectedUsers !== undefined)
-
-const idleUserOptions = computed<AllowedOption[]>(() => {
-  const options = [...(props.preselectedUsers ?? [])]
-  const seen = new Set(options.map((option) => option.value))
-  for (const id of selectedUsers.value) {
-    if (seen.has(id)) continue
-    const option = knownUsers.value[id]
-    if (!option) continue
-    options.push(option)
-    seen.add(id)
-  }
-  return options
-})
-
 const usersColumnItems = computed<AllowedOption[]>(() => {
   if (viewedGroup.value) return viewedGroupUsers.value
-  if (termSearchActive.value) return searchedUserOptions.value
-  return showsSelectionWhenIdle.value ? idleUserOptions.value : []
+  if (!props.preselectedUsers || userTerm.value) return categoryUserOptions.value
+
+  const fetched = new Map(categoryUserOptions.value.map((user) => [user.value, user]))
+  const preselected = props.preselectedUsers.map((user) => fetched.get(user.value) ?? user)
+  const preselectedIds = new Set(preselected.map((user) => user.value))
+  return [
+    ...preselected,
+    ...categoryUserOptions.value.filter((user) => !preselectedIds.has(user.value))
+  ]
 })
 
 const usersLoading = computed(() => {
   if (viewedGroup.value) {
     return usersInGroup.isPending.value && viewedGroupUsers.value.length === 0
   }
-  return termSearchActive.value && searchedUsers.isFetching.value
+  return categoryUsers.isPending.value
 })
 
 const searchSettled = computed(() => debouncedUserTerm.value === userTerm.value)
 
 const usersFooterText = computed(() => {
-  if (viewedGroup.value || !termSearchActive.value) return ''
-  if (usersLoading.value || !searchSettled.value) return ''
-  const shown = searchedUserOptions.value.length
-  const total = searchedUsers.data.value?.total ?? 0
+  if (viewedGroup.value || categoryUsers.isFetching.value || !searchSettled.value) return ''
+  const shown = categoryUserOptions.value.length
+  const total = categoryUsers.data.value?.total ?? 0
   if (shown === 0 || total <= shown) return ''
   return t('components.allowed-modal.search.user.truncated', { shown, total })
 })
@@ -404,17 +380,9 @@ const usersEmptyText = computed(() => {
     if (usersInGroup.error.value) return t('api.loading-error')
     return t('components.allowed-modal.empty.users')
   }
-  if (userTerm.value.length > 0 && userTerm.value.length < MIN_TERM_LENGTH) {
-    return t('components.allowed-modal.empty.no-group-short-term')
-  }
-  if (searchedUsers.error.value) return t('api.loading-error')
-  if (termSearchActive.value && !searchedUsers.isFetching.value) {
-    return t('components.allowed-modal.search.user.empty')
-  }
-  if (showsSelectionWhenIdle.value) {
-    return t('components.allowed-modal.empty.no-users-selected')
-  }
-  return t('components.allowed-modal.empty.no-group')
+  if (categoryUsers.error.value) return t('api.loading-error')
+  if (userTerm.value) return t('components.allowed-modal.search.user.empty')
+  return t('components.allowed-modal.empty.no-users')
 })
 
 // --- Handlers --------------------------------------------------------------

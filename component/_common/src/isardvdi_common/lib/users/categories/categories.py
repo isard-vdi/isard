@@ -176,16 +176,17 @@ class CategoriesProcessed(RethinkSharedConnection):
         limit: int = 50,
         roles: list[str] | None = None,
     ) -> dict:
-        pattern = "(?i)" + re.escape(search)
         matches = (
             r.table("users")
             .get_all(category_id, index="category")
             .filter(lambda user: user["active"].default(False).eq(True))
-            .filter(
+        )
+        if search:
+            pattern = "(?i)" + re.escape(search)
+            matches = matches.filter(
                 lambda user: user["name"].match(pattern)
                 | user["username"].match(pattern)
             )
-        )
         if roles:
             matches = matches.filter(lambda user: r.expr(roles).contains(user["role"]))
 
@@ -195,6 +196,7 @@ class CategoriesProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             users = list(
                 matches.pluck("id", "name", "username", "photo")
+                .order_by(lambda user: user["name"].default("").downcase())
                 .limit(limit)
                 .run(cls._rdb_connection)
             )

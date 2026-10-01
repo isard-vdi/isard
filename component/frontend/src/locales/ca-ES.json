@@ -2801,9 +2801,7 @@
       "empty": {
         "groups": "No hi ha grups disponibles",
         "users": "Aquest grup no té usuaris",
-        "no-group": "Selecciona un grup o cerca usuaris",
-        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris",
-        "no-users-selected": "Encara no hi ha usuaris seleccionats: cerca'ls per afegir-los"
+        "no-users": "No hi ha usuaris disponibles"
       },
       "share-everyone": {
         "unchecked": {

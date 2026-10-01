@@ -112,14 +112,23 @@ def test_search_users_in_category_rejects_user_role(monkeypatch, test_client):
 
 
 @pytest.mark.clear_cache
-def test_search_users_in_category_missing_search_param_is_400(test_client):
-    """`search` is declared Query(..., ...) — required. Omitting it must
-    surface a validation error, not a 500 from the service layer. apiv4's
-    global RequestValidationError handler returns 400 (not FastAPI's
-    default 422) with {"error": "validation_error", ...}."""
+def test_search_users_in_category_without_search_lists_all(monkeypatch, test_client):
+    """Omitting `search` lists every user of the category: the service
+    receives an empty string, not a validation error."""
+    captured = {}
+
+    def fake_search(category_id, search, limit, roles=None):
+        captured["search"] = search
+        return {"users": [], "total": 0}
+
+    monkeypatch.setattr(
+        "api.services.categories.CategoryService.search_users_in_category",
+        staticmethod(fake_search),
+    )
     jwt = MockJWT(role_id="advanced", category_id="default")
     response = test_client(url="/item/category/users/search", jwt=jwt)
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert captured["search"] == ""
 
 
 @pytest.mark.clear_cache
