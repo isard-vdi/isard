@@ -2817,6 +2817,8 @@
       },
       "view-group": "Show the users in '{group_name}'",
       "unview-group": "Stop showing the users in '{group_name}'",
+      "add": "Add '{name}'",
+      "remove": "Remove '{name}'",
       "require-selection": "Select at least one group or user",
       "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",

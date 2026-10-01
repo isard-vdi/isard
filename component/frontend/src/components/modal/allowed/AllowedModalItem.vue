@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +15,7 @@ interface Props {
   checked?: boolean | 'indeterminate'
   active?: boolean
   disabled?: boolean
-  selectable?: boolean // When false the row has no checkbox and can only be activated.
+  selectable?: boolean // When false the row has no add/remove button.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,6 +32,8 @@ const emit = defineEmits<{
   (e: 'update:checked', value: boolean): void
   (e: 'select'): void
 }>()
+
+const { t } = useI18n()
 
 const initials = computed(() =>
   props.label
@@ -65,17 +68,22 @@ const select = () => {
     :data-active="props.active || undefined"
     @click="select"
   >
-    <span v-if="props.selectable" class="flex shrink-0 items-center" @click.stop>
-      <Checkbox
-        :model-value="props.checked"
-        :indeterminate="props.checked === 'indeterminate'"
-        :disabled="props.disabled"
-        :aria-label="props.label"
-        size="md"
-        class="bg-base-white"
-        @update:model-value="toggle"
-      />
-    </span>
+    <Button
+      v-if="props.selectable"
+      :icon="props.checked === true ? 'minus' : 'plus'"
+      :hierarchy="props.checked === false ? 'secondary-gray' : 'secondary-color'"
+      size="sm"
+      icon-size="sm"
+      class="shrink-0 p-1.5"
+      :disabled="props.disabled"
+      :aria-label="
+        t(`components.allowed-modal.${props.checked === true ? 'remove' : 'add'}`, {
+          name: props.label
+        })
+      "
+      data-slot="toggle-button"
+      @click.stop="toggle"
+    />
 
     <Icon v-if="props.icon !== undefined" :name="props.icon" size="md" class="shrink-0" />
     <Avatar v-if="props.avatar !== undefined" size="xs" class="shrink-0">

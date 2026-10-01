@@ -631,7 +631,7 @@ const handleClose = () => {
       >
         <template #actions="{ item }">
           <Button
-            :icon="item.value === viewedGroup ? 'minus-circle' : 'arrow-circle-broken-right'"
+            :icon="item.value === viewedGroup ? 'x-circle' : 'arrow-circle-broken-right'"
             hierarchy="link-color"
             :aria-label="
               item.value === viewedGroup

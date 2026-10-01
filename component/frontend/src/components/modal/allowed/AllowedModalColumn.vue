@@ -17,7 +17,7 @@ interface Props {
   activeId?: string | null
   loading?: boolean
   disabled?: boolean
-  selectable?: boolean // When false the rows have no checkboxes and no select-all header.
+  selectable?: boolean // When false the rows have no add/remove buttons and no select-all header.
   searchPlaceholder: string
   emptyText: string
   notFoundText: string

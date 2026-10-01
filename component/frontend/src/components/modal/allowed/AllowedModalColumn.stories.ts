@@ -23,10 +23,10 @@ const meta = {
   argTypes: {
     title: { control: 'text', description: 'Heading above the search input.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
-    selected: { control: 'object', description: 'Values rendered as fully checked.' },
+    selected: { control: 'object', description: 'Values rendered with the remove button.' },
     indeterminate: {
       control: 'object',
-      description: 'Values rendered with the indeterminate dash.'
+      description: 'Partially selected values, whose add button is highlighted.'
     },
     activeId: { control: 'text', description: 'Value of the highlighted row, if any.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
@@ -75,7 +75,7 @@ const meta = {
       return { args, search, selected, activeId, selectAllChecked, toggle, toggleAll }
     },
     // The column only sizes itself correctly inside a parent with a definite height.
-    // Only the checkboxes select; clicking a row is a separate event.
+    // Only the add/remove buttons select; clicking a row is a separate event.
     template: `
       <div class="flex h-[420px] w-96 gap-6">
         <AllowedModalColumn
@@ -160,7 +160,7 @@ export const SelectAll: Story = {
 
 /**
  * The row is only *checked* when the caller's "everyone" sentinel is on, which is what clicking
- * the row sets. Note the rows below are ticked too, but that is a consequence, not the cause.
+ * the row sets. Note the rows below are selected too, but that is a consequence, not the cause.
  */
 export const SelectAllChecked: Story = {
   args: {
@@ -174,7 +174,7 @@ export const SelectAllChecked: Story = {
 }
 
 /**
- * Every row ticked one by one, with no sentinel: a different payload, so the row reads
+ * Every row added one by one, with no sentinel: a different payload, so the row reads
  * indeterminate rather than checked — the same way a group reads indeterminate when its users
  * are picked individually.
  */

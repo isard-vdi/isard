@@ -21,7 +21,8 @@ const meta = {
     checked: {
       control: 'select',
       options: [true, false, 'indeterminate'],
-      description: 'Checked state of the item.'
+      description:
+        'Selection state: true shows the remove button, false and indeterminate the add button.'
     },
     label: {
       control: 'text',
@@ -61,7 +62,7 @@ const meta = {
         () => args.checked,
         (value) => (checked.value = value ?? false)
       )
-      // The row click is a separate event from the checkbox: it does not select.
+      // The row click is a separate event from the add/remove button: it does not select.
       const selects = ref(0)
       return { args, checked, selects }
     },
