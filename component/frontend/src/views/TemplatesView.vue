@@ -568,12 +568,13 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <Button
                 hierarchy="secondary-gray"
-                icon="edit-01"
+                icon="info-circle"
                 class="aspect-square p-[10px]"
-                @click="router.push({ name: 'edit-template', params: { templateId: row.id } })"
+                :aria-label="t('views.templates.table.actions.info')"
+                @click="openTemplateInfoModal(row.id)"
               />
             </TooltipTrigger>
-            <TooltipContent :title="t('views.templates.table.actions.edit')" />
+            <TooltipContent :title="t('views.templates.table.actions.info')" />
           </Tooltip>
 
           <Tooltip>
@@ -582,6 +583,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 hierarchy="secondary-gray"
                 :icon="row.enabled ? 'eye' : 'eye-off'"
                 class="aspect-square p-[10px]"
+                :aria-label="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
                 @click="
                   visibilityModalData = {
                     id: row.id,
@@ -600,11 +602,12 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <span class="inline-flex">
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
+                  <DropdownMenuTrigger as-child>
                     <Button
                       hierarchy="secondary-gray"
                       icon="dots-vertical"
                       class="aspect-square p-[10px]"
+                      :aria-label="t('common.actions.more')"
                     />
                   </DropdownMenuTrigger>
 
@@ -613,15 +616,19 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                     align="end"
                   >
                     <DropdownMenuGroup>
-                      <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
+                      <DropdownMenuItem
+                        @click="
+                          router.push({ name: 'edit-template', params: { templateId: row.id } })
+                        "
+                      >
                         <Button
                           size="sm"
                           class="mr-2 w-full justify-start"
                           hierarchy="link-gray"
-                          icon="info-circle"
+                          icon="edit-01"
                           icon-size="md"
                         >
-                          {{ t('views.templates.table.actions.info') }}
+                          {{ t('views.templates.table.actions.edit') }}
                         </Button>
                       </DropdownMenuItem>
                       <DropdownMenuItem @click="openAllowedModal({ id: row.id, name: row.name })">
@@ -685,6 +692,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 hierarchy="secondary-gray"
                 icon="copy-07"
                 class="aspect-square p-[10px]"
+                :aria-label="t('views.templates.table.actions.duplicate')"
                 :disabled="templateCreationCheckIsPending || isFailed(row)"
                 @click="
                   handleWithTemplateQuotaCheck(() =>
