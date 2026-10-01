@@ -175,12 +175,17 @@ class CategoriesProcessed(RethinkSharedConnection):
         search: str,
         limit: int = 50,
         roles: list[str] | None = None,
+        groups: list[str] | None = None,
     ) -> dict:
-        matches = (
-            r.table("users")
-            .get_all(category_id, index="category")
-            .filter(lambda user: user["active"].default(False).eq(True))
-        )
+        if groups:
+            matches = (
+                r.table("users")
+                .get_all(*groups, index="group")
+                .filter({"category": category_id})
+            )
+        else:
+            matches = r.table("users").get_all(category_id, index="category")
+        matches = matches.filter(lambda user: user["active"].default(False).eq(True))
         if search:
             pattern = "(?i)" + re.escape(search)
             matches = matches.filter(

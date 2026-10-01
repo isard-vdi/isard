@@ -2831,6 +2831,7 @@
         },
         "user": {
           "placeholder": "Search all users",
+          "filtered-placeholder": "Search in the selected groups",
           "empty": "No user found",
           "truncated": "Showing {shown} of {total} results, refine your search"
         },

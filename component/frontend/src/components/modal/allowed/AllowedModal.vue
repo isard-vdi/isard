@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
+import AllowedModalGroupFilter from './AllowedModalGroupFilter.vue'
 import type { AllowedOption, AllowedSelection } from '.'
 import type { AvailableUser } from '@/gen/oas/apiv4'
 import {
@@ -150,6 +151,7 @@ const usersByGroup = ref<Record<string, AllowedOption[]>>({})
 const viewedGroup = ref<string | null>(null)
 const groupSearch = ref('')
 const userSearch = ref('')
+const userGroupFilter = ref<string[]>([])
 
 const hydrated = ref(false)
 const dirty = ref(false)
@@ -169,6 +171,7 @@ watch(
     viewedGroup.value = null
     groupSearch.value = ''
     userSearch.value = ''
+    userGroupFilter.value = []
   }
 )
 
@@ -279,15 +282,16 @@ const debouncedUserTerm = refDebounced(userTerm, 250)
 
 const USERS_LIMIT = 200
 
+const usersQuery = computed(() => ({
+  search: debouncedUserTerm.value,
+  limit: USERS_LIMIT,
+  ...roleQuery.value,
+  ...(userGroupFilter.value.length ? { groups: [...userGroupFilter.value] } : {})
+}))
+
 const categoryUsers = useQuery({
-  ...searchUsersInCategoryOptions({
-    query: { search: debouncedUserTerm.value, limit: USERS_LIMIT, ...roleQuery.value }
-  }),
-  queryKey: computed(() =>
-    searchUsersInCategoryQueryKey({
-      query: { search: debouncedUserTerm.value, limit: USERS_LIMIT, ...roleQuery.value }
-    })
-  ),
+  ...searchUsersInCategoryOptions({ query: usersQuery.value }),
+  queryKey: computed(() => searchUsersInCategoryQueryKey({ query: usersQuery.value })),
   enabled: computed(() => props.open && !viewedGroup.value),
   placeholderData: keepPreviousData
 })
@@ -296,10 +300,10 @@ const groupNames = computed(
   () => new Map(availableGroups.value.map((group) => [group.value, group.label]))
 )
 
-const toOption = (user: AvailableUser, groupName?: string): AllowedOption => ({
+const toOption = (user: AvailableUser, subLabel?: string): AllowedOption => ({
   value: user.id,
   label: user.name || user.username,
-  subLabel: groupName ? `${user.username} · ${groupName}` : user.username,
+  subLabel,
   avatar: user.photo ?? ''
 })
 
@@ -316,7 +320,7 @@ watch(
     if (!groupId || !Array.isArray(data?.users)) return
     usersByGroup.value = {
       ...usersByGroup.value,
-      [groupId]: data.users.map((user) => toOption(user))
+      [groupId]: data.users.map((user) => toOption(user, user.username))
     }
   },
   { immediate: true }
@@ -339,7 +343,9 @@ const checkedUsers = computed(() => {
 
 const usersColumnItems = computed<AllowedOption[]>(() => {
   if (viewedGroup.value) return viewedGroupUsers.value
-  if (!props.preselectedUsers || userTerm.value) return categoryUserOptions.value
+  if (!props.preselectedUsers || userTerm.value || userGroupFilter.value.length) {
+    return categoryUserOptions.value
+  }
 
   const fetched = new Map(categoryUserOptions.value.map((user) => [user.value, user]))
   const preselected = props.preselectedUsers.map((user) => fetched.get(user.value) ?? user)
@@ -378,7 +384,9 @@ const userSearchPlaceholder = computed(() =>
     ? t('components.allowed-modal.search.user-in-group.placeholder', {
         group_name: viewedGroupName.value
       })
-    : t('components.allowed-modal.search.user.placeholder')
+    : userGroupFilter.value.length
+      ? t('components.allowed-modal.search.user.filtered-placeholder')
+      : t('components.allowed-modal.search.user.placeholder')
 )
 
 const usersEmptyText = computed(() => {
@@ -387,7 +395,9 @@ const usersEmptyText = computed(() => {
     return t('components.allowed-modal.empty.users')
   }
   if (categoryUsers.error.value) return t('api.loading-error')
-  if (userTerm.value) return t('components.allowed-modal.search.user.empty')
+  if (userTerm.value || userGroupFilter.value.length) {
+    return t('components.allowed-modal.search.user.empty')
+  }
   return t('components.allowed-modal.empty.no-users')
 })
 
@@ -629,8 +639,17 @@ const handleClose = () => {
         :empty-text="usersEmptyText"
         :not-found-text="t('components.allowed-modal.search.user.empty')"
         :footer-text="usersFooterText"
+        :filter-locally="!!viewedGroup"
         @toggle="toggleUser"
-      />
+      >
+        <template v-if="!viewedGroup" #search-actions>
+          <AllowedModalGroupFilter
+            v-model="userGroupFilter"
+            :options="availableGroups"
+            :disabled="columnsDisabled"
+          />
+        </template>
+      </AllowedModalColumn>
     </div>
 
     <div v-if="props.error" class="mt-4 w-full flex justify-center">

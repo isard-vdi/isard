@@ -2831,6 +2831,7 @@
         },
         "user": {
           "placeholder": "Cerca tots els usuaris",
+          "filtered-placeholder": "Cerca als grups seleccionats",
           "empty": "No s'ha trobat cap usuari",
           "truncated": "Es mostren {shown} de {total} resultats, afina la cerca"
         },

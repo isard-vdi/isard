@@ -1,5 +1,6 @@
 export { default as AllowedModal } from './AllowedModal.vue'
 export { default as AllowedModalColumn } from './AllowedModalColumn.vue'
+export { default as AllowedModalGroupFilter } from './AllowedModalGroupFilter.vue'
 export { default as AllowedModalItem } from './AllowedModalItem.vue'
 
 export interface AllowedOption {

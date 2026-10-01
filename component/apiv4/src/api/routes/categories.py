@@ -64,6 +64,10 @@ async def search_users_in_category(
         None,
         description="Restrict results to these roles",
     ),
+    groups: Optional[List[str]] = Query(
+        None,
+        description="Restrict results to users whose primary group is one of these",
+    ),
 ):
     try:
         return JSONResponse(
@@ -74,6 +78,7 @@ async def search_users_in_category(
                     search,
                     limit,
                     roles,
+                    groups,
                 )
             ).model_dump(mode="json"),
             status_code=200,

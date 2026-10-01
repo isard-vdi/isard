@@ -23,6 +23,7 @@ interface Props {
   emptyText: string
   notFoundText: string
   footerText?: string
+  filterLocally?: boolean // When false the caller filters the items itself, e.g. with a server-side search.
   selectAll?: boolean
   selectAllLabel?: string
   selectAllCountLabel?: string
@@ -37,6 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
   selectable: true,
   activatable: false,
   footerText: '',
+  filterLocally: true,
   selectAll: false,
   selectAllLabel: '',
   selectAllCountLabel: '',
@@ -53,7 +55,7 @@ const search = defineModel<string>('search', { default: '' })
 const { contains } = useFilter({ sensitivity: 'base' })
 
 const filteredItems = computed(() => {
-  if (!search.value) return props.items
+  if (!search.value || !props.filterLocally) return props.items
   return props.items.filter(
     (item) =>
       contains(item.label, search.value) ||
@@ -93,14 +95,17 @@ const toggleAll = () => {
       </h3>
     </div>
 
-    <InputField
-      :model-value="search"
-      icon="search-sm"
-      :placeholder="props.searchPlaceholder"
-      :disabled="props.disabled"
-      class="shrink-0"
-      @update:model-value="(value) => (search = String(value))"
-    />
+    <div class="flex shrink-0 flex-row gap-2">
+      <InputField
+        :model-value="search"
+        icon="search-sm"
+        :placeholder="props.searchPlaceholder"
+        :disabled="props.disabled"
+        class="min-w-0 flex-1"
+        @update:model-value="(value) => (search = String(value))"
+      />
+      <slot name="search-actions" />
+    </div>
 
     <div
       class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-warm-200 bg-base-white"

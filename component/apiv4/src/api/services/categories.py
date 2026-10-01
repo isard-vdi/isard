@@ -62,12 +62,14 @@ class CategoryService:
         search: str,
         limit: int = 50,
         roles: list[str] | None = None,
+        groups: list[str] | None = None,
     ) -> dict:
         """
-        Get all users in a specific category, optionally restricted to `roles`.
+        Get all users in a specific category, optionally restricted to `roles`
+        and to users whose primary group is one of `groups`.
         """
         return CommonCategories.search_users_in_category(
-            category_id, search, limit, roles
+            category_id, search, limit, roles, groups
         )
 
     @staticmethod
