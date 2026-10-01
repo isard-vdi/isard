@@ -225,6 +225,32 @@ is_official_build(){
 	fi
 }
 
+generate_secrets(){
+	config_file="$1"
+
+	for secret_name in "API_ISARDVDI_SECRET" "API_HYPERVISORS_SECRET"
+	do
+		# Anchor to the assignment line: the example also names these in
+		# comments, and an unanchored grep would read those and never match.
+		default_secret="$(grep -E "^${secret_name}=" isardvdi.cfg.example | head -1 | cut -d= -f2-)"
+		current_secret="$(grep -E "^${secret_name}=" "$config_file" | head -1 | cut -d= -f2-)"
+
+		[ -z "$current_secret" ] && continue
+		[ "$current_secret" != "$default_secret" ] && continue
+
+		if ! command -v openssl >/dev/null 2>&1
+		then
+			echo "WARNING: $config_file still uses the default $secret_name. THIS IS INSECURE. Install openssl or set your own value." >&2
+			continue
+		fi
+
+		new_secret="$(openssl rand -base64 32)"
+		# '|' is not in the base64 alphabet, so it is a safe sed delimiter.
+		sed -i "s|^${secret_name}=.*|${secret_name}=${new_secret}|" "$config_file"
+		echo "WARNING: $config_file used the default $secret_name; generated a new one." >&2
+	done
+}
+
 create_env(){
 	cp "$1" .env
 	# Add an empty line to the end of the .env file
@@ -794,6 +820,7 @@ fi
 
 for config_file in $CONFIG_FILES
 do
+	generate_secrets "$config_file"
 	(create_docker_compose_file "$config_file")
 
 	if [ "$CODEGEN" != "false" ]; then
