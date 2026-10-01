@@ -456,14 +456,11 @@ const toggleUser = (userId: string) => {
   const groupId = viewedGroup.value
 
   if (!groupId) {
-    shareWithEveryone.value = false
     selectedUsers.value = selectedUsers.value.includes(userId)
       ? selectedUsers.value.filter((id) => id !== userId)
       : [...selectedUsers.value, userId]
     return
   }
-
-  shareWithEveryone.value = false
 
   const users = [...selectedUsers.value]
   if (selectedGroups.value.includes(groupId)) {
@@ -501,7 +498,7 @@ const requireSelectionText = computed(() =>
     : t('components.allowed-modal.require-selection')
 )
 
-const columnsDisabled = computed(() => shareWithEveryone.value || props.loading || props.readonly)
+const columnsDisabled = computed(() => props.loading || props.readonly)
 
 const saveDisabled = computed(
   () => props.loading || !dirty.value || (props.requireSelection && isEmptySelection.value)
@@ -605,7 +602,7 @@ const handleClose = () => {
       </span>
     </div>
 
-    <div class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
+    <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn
         v-model:search="groupSearch"
         :title="t('components.allowed-modal.columns.groups')"
