@@ -3,7 +3,7 @@ import { ref, computed, defineProps, defineEmits, withDefaults } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
-import type { CardSize } from '.'
+import type { CardSize, OverlayKind } from '.'
 
 import { copyToClipboard } from '@/lib/utils'
 import {
@@ -23,7 +23,8 @@ import {
   DesktopCardBastionOverlay,
   DesktopCardPreview,
   cardOverlayPaddingVariants,
-  cardOverlayLabelVariants
+  cardOverlayLabelVariants,
+  cardSizes
 } from '.'
 import { Icon } from '@/components/icon'
 import { Button } from '@/components/ui/button'
@@ -118,14 +119,23 @@ const notificationText = computed<string | null>(() => {
   return desktopNotificationText(props.desktop, t, d)
 })
 
-// One overlay at a time — clicking the same icon toggles off, clicking
-// another swaps. The expand button inside each overlay opens the matching
-// full-screen modal.
-type OverlayKind = 'info' | 'networks' | 'bastion'
-const activeOverlay = ref<OverlayKind | null>(null)
+// From `md` down there is no room: open the modal instead. A model so the
+// virtualized grid, which remounts cards, can keep it.
+const requestedOverlay = defineModel<OverlayKind | null>('overlay', { default: null })
+
+const opensModalDirectly = computed(() => cardSizes.indexOf(props.size) <= cardSizes.indexOf('md'))
+
+const activeOverlay = computed(() => (opensModalDirectly.value ? null : requestedOverlay.value))
 
 const toggleOverlay = (kind: OverlayKind) => {
-  activeOverlay.value = activeOverlay.value === kind ? null : kind
+  if (opensModalDirectly.value) {
+    requestedOverlay.value = null
+    if (kind === 'info') emit('showInfoModal')
+    else if (kind === 'networks') emit('showNetworksModal')
+    else emit('showBastionModal')
+    return
+  }
+  requestedOverlay.value = requestedOverlay.value === kind ? null : kind
 }
 
 const desktopKind = computed(() => {

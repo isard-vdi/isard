@@ -95,7 +95,8 @@ import {
   DesktopCard,
   DesktopCardSkeleton,
   DesktopCardNetworksOverlay,
-  type CardSize
+  type CardSize,
+  type OverlayKind
 } from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
 import {
@@ -910,6 +911,8 @@ const cardGridRowHeight = computed(() => (cardSize.value === 'md' ? 280 : 310))
 
 // Tailwind `gap-4`.
 const CARD_GRID_GAP = 16
+
+const cardOverlays = ref<Record<string, OverlayKind | null>>({})
 
 const cardGridRef = ref<HTMLElement | null>(null)
 const { width: cardGridWidth } = useElementSize(cardGridRef)
@@ -1769,6 +1772,7 @@ const missingCardRows = computed(() => {
               <DesktopCard
                 v-for="dktp in cardGridRows[virtualRow.index]"
                 :key="dktp.id"
+                v-model:overlay="cardOverlays[dktp.id]"
                 :size="cardSize"
                 fill
                 :desktop="dktp"
