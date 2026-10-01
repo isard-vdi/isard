@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, type ComponentPublicInstance } from 'vue'
 import { useFilter } from 'reka-ui'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { InputField } from '@/components/input-field'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -62,6 +63,31 @@ const filteredItems = computed(() => {
       (item.subLabel !== undefined && contains(item.subLabel, search.value))
   )
 })
+
+const ROW_ESTIMATE = 56
+
+const scrollArea = ref<InstanceType<typeof ScrollArea>>()
+
+const rowVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: filteredItems.value.length,
+    getScrollElement: () => scrollArea.value?.viewport ?? null,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: 8,
+    getItemKey: (index: number) => filteredItems.value[index]?.value ?? index
+  }))
+)
+
+const virtualRows = computed(() =>
+  rowVirtualizer.value.getVirtualItems().flatMap((row) => {
+    const item = filteredItems.value[row.index]
+    return item ? [{ row, item }] : []
+  })
+)
+
+const measureRow = (el: Element | ComponentPublicInstance | null) => {
+  if (el instanceof Element) rowVirtualizer.value.measureElement(el)
+}
 
 const checkedState = (value: string): boolean | 'indeterminate' => {
   if (props.selected.includes(value)) return true
@@ -146,7 +172,7 @@ const toggleAll = () => {
         </span>
       </div>
 
-      <ScrollArea class="min-h-0 flex-1">
+      <ScrollArea ref="scrollArea" class="min-h-0 flex-1">
         <div class="flex flex-col gap-1 p-1" role="listbox">
           <template v-if="props.loading">
             <Skeleton v-for="index in 3" :key="index" class="h-12 w-full" />
@@ -167,26 +193,37 @@ const toggleAll = () => {
           </p>
 
           <template v-else>
-            <AllowedModalItem
-              v-for="item in filteredItems"
-              :key="item.value"
-              :label="item.label"
-              :sub-label="item.subLabel"
-              :value="item.value"
-              :avatar="item.avatar"
-              :icon="item.icon"
-              :checked="checkedState(item.value)"
-              :active="item.value === props.activeId"
-              :disabled="props.disabled"
-              :selectable="props.selectable"
-              :activatable="props.activatable"
-              @update:checked="emit('toggle', item.value)"
-              @select="emit('select', item.value)"
-            >
-              <template v-if="$slots.actions" #actions>
-                <slot name="actions" :item="item" />
-              </template>
-            </AllowedModalItem>
+            <div class="relative w-full" :style="{ height: `${rowVirtualizer.getTotalSize()}px` }">
+              <div
+                v-for="{ row, item } in virtualRows"
+                :key="row.key"
+                :ref="measureRow"
+                :data-index="row.index"
+                class="absolute left-0 top-0 w-full pb-1"
+                :style="{ transform: `translateY(${row.start}px)` }"
+              >
+                <AllowedModalItem
+                  :label="item.label"
+                  :sub-label="item.subLabel"
+                  :value="item.value"
+                  :avatar="item.avatar"
+                  :icon="item.icon"
+                  :checked="checkedState(item.value)"
+                  :active="item.value === props.activeId"
+                  :disabled="props.disabled"
+                  :selectable="props.selectable"
+                  :activatable="props.activatable"
+                  :aria-setsize="filteredItems.length"
+                  :aria-posinset="row.index + 1"
+                  @update:checked="emit('toggle', item.value)"
+                  @select="emit('select', item.value)"
+                >
+                  <template v-if="$slots.actions" #actions>
+                    <slot name="actions" :item="item" />
+                  </template>
+                </AllowedModalItem>
+              </div>
+            </div>
 
             <p v-if="props.footerText" class="px-2 py-3 text-center text-sm text-gray-warm-500">
               {{ props.footerText }}

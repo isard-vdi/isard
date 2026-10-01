@@ -112,6 +112,19 @@ export const Scrolling: Story = {
   args: baseArgs
 }
 
+/** 2,000 rows: only the rows in view are mounted, the rest are virtualized. */
+export const ManyRows: Story = {
+  args: {
+    ...baseArgs,
+    items: Array.from({ length: 2000 }, (_, index) => ({
+      value: `group-${index}`,
+      label: `Group ${index + 1}`,
+      subLabel: index % 3 === 0 ? `Description for group ${index + 1}` : undefined,
+      icon: 'users-01'
+    }))
+  }
+}
+
 export const WithSelection: Story = {
   args: {
     ...baseArgs,
