@@ -541,6 +541,11 @@ const selectTemplateModalData = ref<SelectTemplateModalData | null>(null)
 
 const templateTab = ref<OwnershipTab>()
 
+const handleSelectTemplate = (templateId: string) => {
+  selectTemplateModalData.value?.action(templateId)
+  selectTemplateModalData.value = null
+}
+
 const deleteDesktopConfirmationModalData = ref<{
   index: number
   name: string
@@ -667,12 +672,7 @@ const updateHardware = (
         selectable
         :page-size="5"
         :pagination-page-sizes="[5, 10, 20, 30, 40, 50]"
-        @row-click="
-          (template) => {
-            selectTemplateModalData!.action(template.id)
-            selectTemplateModalData = null
-          }
-        "
+        @row-click="(template) => handleSelectTemplate(template.id)"
         @show-info-modal="openTemplateInfoModal"
       />
 
