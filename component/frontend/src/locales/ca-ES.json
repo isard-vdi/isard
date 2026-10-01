@@ -2804,11 +2804,8 @@
         "no-users": "No hi ha usuaris disponibles"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Comparteix amb tothom",
-          "description": "Dona accés a tots els usuaris d'aquesta categoria"
-        },
-        "checked": {
+        "label": "Comparteix amb tothom",
+        "alert": {
           "title": "Compartit amb tothom",
           "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
         }

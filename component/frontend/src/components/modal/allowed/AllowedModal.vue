@@ -24,7 +24,8 @@ import {
   getUsersInGroupQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
+import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
 
@@ -512,10 +513,10 @@ const removeUser = (userId: string) => {
   selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
 }
 
-const toggleShareWithEveryone = () => {
+const setShareWithEveryone = (value: boolean) => {
   if (props.loading || props.readonly) return
   dirty.value = true
-  shareWithEveryone.value = !shareWithEveryone.value
+  shareWithEveryone.value = value
 }
 
 const isEmptySelection = computed(() => {
@@ -593,51 +594,6 @@ const handleClose = () => {
         <AlertDescription>{{ props.warning }}</AlertDescription>
       </Alert>
     </div>
-    <div
-      v-if="everyoneEnabled"
-      :class="[
-        'mb-4 flex shrink-0 select-none flex-row items-center gap-2 rounded-lg border p-3',
-        shareWithEveryone ? 'border-brand-600 bg-brand-100' : 'border-gray-warm-200 bg-base-white',
-        props.loading || props.readonly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-        !props.loading && !props.readonly && !shareWithEveryone && 'hover:bg-gray-warm-50'
-      ]"
-      data-slot="share-everyone"
-      @click="toggleShareWithEveryone"
-    >
-      <FeaturedIconOutline kind="filled" color="brand" name="users-02" />
-      <div class="flex min-w-0 flex-col mr-auto">
-        <span class="text-sm font-semibold text-gray-warm-700">
-          {{
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.title`
-            )
-          }}
-        </span>
-        <span class="text-sm font-normal text-gray-warm-600">
-          {{
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.description`
-            )
-          }}
-        </span>
-      </div>
-      <span class="flex shrink-0 items-center justify-center p-3" @click.stop>
-        <Checkbox
-          :model-value="shareWithEveryone"
-          :aria-label="
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.title`
-            )
-          "
-          :disabled="props.loading || props.readonly"
-          data-slot="share-everyone-checkbox"
-          size="md"
-          class="bg-base-white"
-          @update:model-value="toggleShareWithEveryone"
-        />
-      </span>
-    </div>
-
     <AllowedModalSummary
       v-if="!shareWithEveryone"
       v-model:open="summaryOpen"
@@ -650,6 +606,34 @@ const handleClose = () => {
       @remove-user="removeUser"
       @remove-all-groups="toggleAllGroups(false)"
     />
+    <Alert v-else class="mb-4 shrink-0" data-slot="share-everyone-alert">
+      <div class="flex flex-row items-center gap-2">
+        <FeaturedIconOutline kind="filled" color="brand" name="users-02" />
+        <div class="flex min-w-0 flex-col">
+          <AlertTitle class="font-semibold text-gray-warm-700">
+            {{ t('components.allowed-modal.share-everyone.alert.title') }}
+          </AlertTitle>
+          <AlertDescription class="text-gray-warm-600">
+            {{ t('components.allowed-modal.share-everyone.alert.description') }}
+          </AlertDescription>
+        </div>
+      </div>
+    </Alert>
+
+    <Field v-if="everyoneEnabled" orientation="horizontal" class="mb-4">
+      <Switch
+        id="share-everyone"
+        :model-value="shareWithEveryone"
+        :disabled="props.loading || props.readonly"
+        data-slot="share-everyone-switch"
+        @update:model-value="setShareWithEveryone"
+      />
+      <FieldContent>
+        <FieldLabel for="share-everyone">
+          {{ t('components.allowed-modal.share-everyone.label') }}
+        </FieldLabel>
+      </FieldContent>
+    </Field>
 
     <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn

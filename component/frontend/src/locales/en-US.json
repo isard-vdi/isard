@@ -2804,11 +2804,8 @@
         "no-users": "No users available"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Share with everyone",
-          "description": "Give every user in this category access"
-        },
-        "checked": {
+        "label": "Share with everyone",
+        "alert": {
           "title": "Shared with everyone",
           "description": "Every user in this category will have access"
         }

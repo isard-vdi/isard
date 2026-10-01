@@ -2804,11 +2804,8 @@
         "no-users": "No hay usuarios disponibles"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Compartir con todos",
-          "description": "Dar acceso a todos los usuarios de esta categoría"
-        },
-        "checked": {
+        "label": "Compartir con todos",
+        "alert": {
           "title": "Compartido con todos",
           "description": "Todos los usuarios de esta categoría tendrán acceso"
         }
