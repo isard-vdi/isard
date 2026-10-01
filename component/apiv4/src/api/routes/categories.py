@@ -56,7 +56,10 @@ tag = "categories"
 )
 async def search_users_in_category(
     request: Request,
-    search: str = Query("", description="String to search for users"),
+    search: str = Query(
+        "",
+        description="String to search for in the users' name, username or group name",
+    ),
     limit: int = Query(
         50, ge=1, le=200, description="Maximum number of users to return."
     ),

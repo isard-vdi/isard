@@ -188,9 +188,17 @@ class CategoriesProcessed(RethinkSharedConnection):
         matches = matches.filter(lambda user: user["active"].default(False).eq(True))
         if search:
             pattern = "(?i)" + re.escape(search)
+            with cls._rdb_context():
+                matching_groups = list(
+                    r.table("groups")
+                    .get_all(category_id, index="parent_category")
+                    .filter(lambda group: group["name"].match(pattern))["id"]
+                    .run(cls._rdb_connection)
+                )
             matches = matches.filter(
                 lambda user: user["name"].match(pattern)
                 | user["username"].match(pattern)
+                | r.expr(matching_groups).contains(user["group"].default(""))
             )
         if roles:
             matches = matches.filter(lambda user: r.expr(roles).contains(user["role"]))
