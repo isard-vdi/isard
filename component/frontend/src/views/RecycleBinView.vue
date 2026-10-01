@@ -356,7 +356,7 @@ const RECYCLE_BIN_SEARCH_INPUT_ID = 'recycle-bin-search'
                 icon: 'trash-03',
                 text: t('views.recycle-bin.actions.delete-permanently'),
                 onClick: () => handleDelete(row),
-                class: 'text-error-700'
+                danger: true
               }
             ]"
           />
