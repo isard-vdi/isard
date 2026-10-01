@@ -5,20 +5,23 @@ const mocks = vi.hoisted(() => ({
   leaveGuard: undefined as (() => unknown) | undefined,
   listeners: {} as Record<string, (event: { persisted?: boolean }) => void>,
   cookieToken: undefined as { type: string } | undefined,
+  cookies: {},
   store: {
     tokenType: undefined as string | undefined,
     logout: vi.fn(),
-    $reset: vi.fn(),
-    restoreStashedToken: vi.fn()
+    $reset: vi.fn()
   },
   stashToken: vi.fn(),
-  removeToken: vi.fn()
+  discardStashedToken: vi.fn(),
+  removeToken: vi.fn(),
+  routerGo: vi.fn()
 }))
 
 vi.mock('vue-router', () => ({
   onBeforeRouteLeave: (guard: () => unknown) => {
     mocks.leaveGuard = guard
-  }
+  },
+  useRouter: () => ({ go: mocks.routerGo })
 }))
 
 vi.mock('@vueuse/core', () => ({
@@ -29,10 +32,11 @@ vi.mock('@vueuse/core', () => ({
 
 vi.mock('@/lib/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth')>()),
-  useCookies: () => ({}),
+  useCookies: () => mocks.cookies,
   getToken: () => mocks.cookieToken,
   getBearer: () => (mocks.cookieToken ? 'the.cookie.bearer' : undefined),
   stashToken: mocks.stashToken,
+  discardStashedToken: mocks.discardStashedToken,
   removeToken: mocks.removeToken
 }))
 
@@ -91,7 +95,7 @@ describe('useClearTokenOnLeave', () => {
     it('moves the view token out of the cookies into the tab-scoped stash', () => {
       hidePageWith(TokenType.PasswordResetRequired)
 
-      expect(mocks.stashToken).toHaveBeenCalledWith('the.cookie.bearer')
+      expect(mocks.stashToken).toHaveBeenCalledWith(mocks.cookies)
       expect(mocks.removeToken).toHaveBeenCalledOnce()
       expect(mocks.store.$reset).toHaveBeenCalledOnce()
     })
@@ -109,14 +113,16 @@ describe('useClearTokenOnLeave', () => {
       expect(mocks.stashToken).not.toHaveBeenCalled()
     })
 
-    it('restores the stash when the page comes back from the back/forward cache', () => {
+    it('ends the flow when the page comes back from the back/forward cache', () => {
       useClearTokenOnLeave(VIEW_TYPES)
 
       mocks.listeners.pageshow({ persisted: false })
-      expect(mocks.store.restoreStashedToken).not.toHaveBeenCalled()
+      expect(mocks.discardStashedToken).not.toHaveBeenCalled()
+      expect(mocks.routerGo).not.toHaveBeenCalled()
 
       mocks.listeners.pageshow({ persisted: true })
-      expect(mocks.store.restoreStashedToken).toHaveBeenCalledOnce()
+      expect(mocks.discardStashedToken).toHaveBeenCalledOnce()
+      expect(mocks.routerGo).toHaveBeenCalledWith(0)
     })
   })
 })

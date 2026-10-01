@@ -7,7 +7,8 @@ import {
   getBearer,
   setToken as setTokenCookie,
   takeStashedToken,
-  parseToken,
+  restoreStashedCookies,
+  isReloadOf,
   isLoginClaims,
   TokenType,
   type TypeClaims
@@ -120,23 +121,15 @@ export const useAuthStore = defineStore('auth', () => {
     initialize()
   }
 
-  const restoreStashedToken = () => {
-    const bearer = takeStashedToken()
-    if (!bearer || getBearer(cookies)) {
+  const restoreStashedTokenOnBoot = () => {
+    const stashed = takeStashedToken()
+    if (!stashed || !isReloadOf(stashed) || getBearer(cookies)) {
       return
     }
 
-    let exp: number | undefined
-    try {
-      exp = parseToken(bearer).exp
-    } catch {
-      return
+    if (restoreStashedCookies(cookies, stashed)) {
+      initialize()
     }
-    if (exp && exp * 1000 <= Date.now()) {
-      return
-    }
-
-    setToken(bearer)
   }
 
   let renewInFlight: Promise<void> | null = null
@@ -245,7 +238,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     initialize,
     setToken,
-    restoreStashedToken,
+    restoreStashedTokenOnBoot,
     renewSession,
     logout,
     cleanup,

@@ -1,3 +1,4 @@
+// @vitest-environment-options {"url": "https://localhost/"}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -21,40 +22,129 @@ const resetToken = (expiresInSeconds: number) =>
 
 const clearCookies = () => {
   for (const name of ['isardvdi_session', 'authorization']) {
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure`
   }
 }
 
-describe('auth store: restoreStashedToken', () => {
-  beforeEach(() => {
-    clearCookies()
-    sessionStorage.clear()
-    setActivePinia(createPinia())
-  })
+const HIDDEN_AT = 1_000_000
 
-  afterEach(() => {
-    clearCookies()
-    sessionStorage.clear()
+const leavePageWith = (cookies: { session?: string; authorization?: string }) => {
+  vi.stubGlobal('performance', {
+    timeOrigin: HIDDEN_AT,
+    now: () => 0,
+    getEntriesByType: () => []
   })
+  if (cookies.session) {
+    document.cookie = `isardvdi_session=${cookies.session}; path=/`
+  }
+  if (cookies.authorization) {
+    document.cookie = `authorization=${cookies.authorization}; path=/; secure`
+  }
+  stashToken(useCookies())
+  clearCookies()
+}
 
-  it('puts a still-valid stashed token back after a reload', () => {
+beforeEach(() => {
+  clearCookies()
+  sessionStorage.clear()
+  history.replaceState(null, '', '/reset-password')
+  setActivePinia(createPinia())
+})
+
+afterEach(() => {
+  clearCookies()
+  sessionStorage.clear()
+  vi.unstubAllGlobals()
+})
+
+const loadedBy = (type: string, startedAt = HIDDEN_AT - 3) =>
+  vi.stubGlobal('performance', { timeOrigin: startedAt, getEntriesByType: () => [{ type }] })
+
+describe('auth store: restoreStashedTokenOnBoot', () => {
+  it.each(['reload', 'navigate'])(
+    'gives a form login both its cookies back when the same page loads again by %s',
+    (type) => {
+      const token = resetToken(600)
+      leavePageWith({ session: token, authorization: token })
+      loadedBy(type)
+
+      const store = useAuthStore()
+      store.restoreStashedTokenOnBoot()
+
+      expect(useCookies().get('isardvdi_session')).toBe(token)
+      expect(useCookies().get('authorization')).toBe(token)
+      expect(store.tokenType).toBe('password-reset-required')
+      expect(takeStashedToken()).toBeUndefined()
+    }
+  )
+
+  it('gives an external login back only the authorization cookie it had', () => {
     const token = resetToken(600)
-    stashToken(token)
+    leavePageWith({ authorization: token })
+    loadedBy('reload')
 
     const store = useAuthStore()
-    store.restoreStashedToken()
+    store.restoreStashedTokenOnBoot()
+
+    expect(useCookies().get('authorization')).toBe(token)
+    expect(useCookies().get('isardvdi_session')).toBeUndefined()
+    expect(store.token).toBe(token)
+  })
+
+  it('resumes the flow when the same page is opened again within the grace', () => {
+    const token = resetToken(600)
+    leavePageWith({ session: token, authorization: token })
+    loadedBy('navigate', HIDDEN_AT + 3_000)
+
+    useAuthStore().restoreStashedTokenOnBoot()
 
     expect(getBearer(useCookies())).toBe(token)
-    expect(store.token).toBe(token)
-    expect(store.tokenType).toBe('password-reset-required')
+  })
+
+  it('abandons the flow when the same page is opened again after the grace, e.g. back from another site', () => {
+    const token = resetToken(600)
+    leavePageWith({ session: token, authorization: token })
+    loadedBy('navigate', HIDDEN_AT + 20_000)
+
+    useAuthStore().restoreStashedTokenOnBoot()
+
+    expect(getBearer(useCookies())).toBeUndefined()
     expect(takeStashedToken()).toBeUndefined()
   })
 
+  it('abandons the flow on back/forward', () => {
+    const token = resetToken(600)
+    leavePageWith({ session: token, authorization: token })
+    loadedBy('back_forward')
+
+    useAuthStore().restoreStashedTokenOnBoot()
+
+    expect(getBearer(useCookies())).toBeUndefined()
+    expect(takeStashedToken()).toBeUndefined()
+  })
+
+  it('abandons the flow when another page loads, even across a later reload', () => {
+    const token = resetToken(600)
+    leavePageWith({ session: token, authorization: token })
+    history.replaceState(null, '', '/login')
+    loadedBy('navigate')
+
+    useAuthStore().restoreStashedTokenOnBoot()
+    expect(getBearer(useCookies())).toBeUndefined()
+
+    setActivePinia(createPinia())
+    loadedBy('reload')
+    useAuthStore().restoreStashedTokenOnBoot()
+    expect(getBearer(useCookies())).toBeUndefined()
+  })
+
   it('drops an expired stashed token', () => {
-    stashToken(resetToken(-5))
+    const token = resetToken(-5)
+    leavePageWith({ session: token, authorization: token })
+    loadedBy('reload')
 
     const store = useAuthStore()
-    store.restoreStashedToken()
+    store.restoreStashedTokenOnBoot()
 
     expect(getBearer(useCookies())).toBeUndefined()
     expect(store.token).toBeNull()
@@ -62,14 +152,16 @@ describe('auth store: restoreStashedToken', () => {
   })
 
   it('never overwrites a session another tab has started meanwhile', () => {
+    const token = resetToken(600)
+    leavePageWith({ session: token, authorization: token })
     const other = buildJwt({ type: 'login', exp: Math.floor(Date.now() / 1000) + 600 })
     document.cookie = `isardvdi_session=${other}; path=/`
-    stashToken(resetToken(600))
+    loadedBy('reload')
 
-    const store = useAuthStore()
-    store.restoreStashedToken()
+    useAuthStore().restoreStashedTokenOnBoot()
 
     expect(getBearer(useCookies())).toBe(other)
+    expect(useCookies().get('authorization')).toBeUndefined()
     expect(takeStashedToken()).toBeUndefined()
   })
 })

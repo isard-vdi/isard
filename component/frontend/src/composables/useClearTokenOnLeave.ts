@@ -1,8 +1,8 @@
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useEventListener } from '@vueuse/core'
 import { useAuthStore } from '@/stores/auth'
 import {
-  getBearer,
+  discardStashedToken,
   getToken,
   removeToken,
   stashToken,
@@ -12,6 +12,7 @@ import {
 
 export function useClearTokenOnLeave(tokenTypes: readonly TokenType[]) {
   const authStore = useAuthStore()
+  const router = useRouter()
   const cookies = useCookies()
 
   onBeforeRouteLeave(() => {
@@ -23,20 +24,20 @@ export function useClearTokenOnLeave(tokenTypes: readonly TokenType[]) {
   // Read the cookie, not the store: a view that removes the cookie and then sets
   // window.location leaves the store stale, and stashing would undo that logout.
   useEventListener(window, 'pagehide', () => {
-    const bearer = getBearer(cookies)
     const token = getToken(cookies)
-    if (!bearer || !token || !tokenTypes.includes(token.type)) {
+    if (!token || !tokenTypes.includes(token.type)) {
       return
     }
 
-    stashToken(bearer)
+    stashToken(cookies)
     removeToken(cookies)
     authStore.$reset()
   })
 
   useEventListener(window, 'pageshow', (event: PageTransitionEvent) => {
     if (event.persisted) {
-      authStore.restoreStashedToken()
+      discardStashedToken()
+      router.go(0)
     }
   })
 }
