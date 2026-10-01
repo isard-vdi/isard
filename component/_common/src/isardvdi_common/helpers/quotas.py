@@ -1357,6 +1357,19 @@ class Quotas(RethinkCustomBase):
         return cls.user_hardware_allowed(payload, kind, None)
 
     @classmethod
+    def _limited_item(cls, table, item_id):
+        # The domain can point at a row that is gone (a vGPU profile no card
+        # offers, a deleted media): report it by id instead of failing.
+        with cls._rdb_context():
+            name = (
+                r.table(table)
+                .get(item_id)["name"]
+                .default(item_id)
+                .run(cls._rdb_connection)
+            )
+        return {"id": item_id, "name": name}
+
+    @classmethod
     def limit_user_hardware_allowed(cls, payload, create_dict):
         user_hardware = cls.user_hardware_allowed(payload)
         limited = {}
@@ -1387,16 +1400,9 @@ class Quotas(RethinkCustomBase):
                     else interface_requested
                 )
                 if interface_id not in interfaces_allowed:
-                    with cls._rdb_context():
-                        limited["interfaces"]["old_value"].append(
-                            {
-                                "id": interface_id,
-                                "name": r.table("interfaces")
-                                .get(interface_id)
-                                .pluck("name")
-                                .run(cls._rdb_connection)["name"],
-                            }
-                        )
+                    limited["interfaces"]["old_value"].append(
+                        cls._limited_item("interfaces", interface_id)
+                    )
                 create_dict["hardware"]["interfaces"] = [
                     x
                     for x in create_dict["hardware"]["interfaces"]
@@ -1410,24 +1416,12 @@ class Quotas(RethinkCustomBase):
 
         if len(create_dict["hardware"].get("videos", [])):
             videos = [uh["id"] for uh in user_hardware["videos"]]
-            for video in create_dict["hardware"]["videos"]:
+            for video in list(create_dict["hardware"]["videos"]):
                 if video not in videos:
-                    if "videos" not in limited:
-                        with cls._rdb_context():
-                            limited["videos"] = {
-                                "old_value": [
-                                    {
-                                        "id": video,
-                                        "name": r.table("videos")
-                                        .get(video)
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["videos"]["old_value"].append(video)
+                    limited.setdefault("videos", {"old_value": [], "new_value": []})
+                    limited["videos"]["old_value"].append(
+                        cls._limited_item("videos", video)
+                    )
                     create_dict["hardware"]["videos"].remove(video)
             if not len(create_dict["hardware"]["videos"]):
                 with cls._rdb_context():
@@ -1441,24 +1435,12 @@ class Quotas(RethinkCustomBase):
 
         if len(create_dict["hardware"].get("graphics", [])):
             graphics = [uh["id"] for uh in user_hardware["graphics"]]
-            for graphic in create_dict["hardware"]["graphics"]:
+            for graphic in list(create_dict["hardware"]["graphics"]):
                 if graphic not in graphics:
-                    if "graphics" not in limited:
-                        with cls._rdb_context():
-                            limited["graphics"] = {
-                                "old_value": [
-                                    {
-                                        "id": graphic,
-                                        "name": r.table("graphics")
-                                        .get(graphic)
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["graphics"]["old_value"].append(graphic)
+                    limited.setdefault("graphics", {"old_value": [], "new_value": []})
+                    limited["graphics"]["old_value"].append(
+                        cls._limited_item("graphics", graphic)
+                    )
                     create_dict["hardware"]["graphics"].remove(graphic)
             if not len(create_dict["hardware"]["graphics"]):
                 with cls._rdb_context():
@@ -1480,25 +1462,13 @@ class Quotas(RethinkCustomBase):
                 index_value="iso",
                 query_merge=False,
             )
-            for iso in create_dict["hardware"]["isos"]:
+            for iso in list(create_dict["hardware"]["isos"]):
                 iso_id = iso["id"] if isinstance(iso, dict) else iso
                 if iso_id not in [i["id"] for i in isos]:
-                    if "isos" not in limited:
-                        with cls._rdb_context():
-                            limited["isos"] = {
-                                "old_value": [
-                                    {
-                                        "id": iso_id,
-                                        "name": r.table("media")
-                                        .get(iso_id)
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["isos"]["old_value"].append(iso)
+                    limited.setdefault("isos", {"old_value": [], "new_value": []})
+                    limited["isos"]["old_value"].append(
+                        cls._limited_item("media", iso_id)
+                    )
                     create_dict["hardware"]["isos"].remove(iso)
 
         if len(create_dict["hardware"].get("floppies", [])):
@@ -1511,46 +1481,22 @@ class Quotas(RethinkCustomBase):
                 index_value="floppy",
                 query_merge=False,
             )
-            for floppy in create_dict["hardware"]["floppies"]:
+            for floppy in list(create_dict["hardware"]["floppies"]):
                 if floppy["id"] not in [f["id"] for f in floppies]:
-                    if "floppies" not in limited:
-                        with cls._rdb_context():
-                            limited["floppies"] = {
-                                "old_value": [
-                                    {
-                                        "id": floppy["id"],
-                                        "name": r.table("media")
-                                        .get(floppy["id"])
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["floppies"]["old_value"].append(floppy)
+                    limited.setdefault("floppies", {"old_value": [], "new_value": []})
+                    limited["floppies"]["old_value"].append(
+                        cls._limited_item("media", floppy["id"])
+                    )
                     create_dict["hardware"]["floppies"].remove(floppy)
 
         if len(create_dict["hardware"].get("boot_order", [])):
             boot_orders = [uh["id"] for uh in user_hardware["boot_order"]]
-            for boot_order in create_dict["hardware"]["boot_order"]:
+            for boot_order in list(create_dict["hardware"]["boot_order"]):
                 if boot_order not in boot_orders:
-                    if "boot_order" not in limited:
-                        with cls._rdb_context():
-                            limited["boot_order"] = {
-                                "old_value": [
-                                    {
-                                        "id": boot_order,
-                                        "name": r.table("boots")
-                                        .get(boot_order)
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["boot_order"]["old_value"].append(boot_order)
+                    limited.setdefault("boot_order", {"old_value": [], "new_value": []})
+                    limited["boot_order"]["old_value"].append(
+                        cls._limited_item("boots", boot_order)
+                    )
                     create_dict["hardware"]["boot_order"].remove(boot_order)
             if not len(create_dict["hardware"]["boot_order"]):
                 with cls._rdb_context():
@@ -1576,24 +1522,12 @@ class Quotas(RethinkCustomBase):
             reservables_vgpus = [
                 uh["id"] for uh in user_hardware["reservables"]["vgpus"]
             ]
-            for reservables_vgpu in create_dict["reservables"]["vgpus"]:
+            for reservables_vgpu in list(create_dict["reservables"]["vgpus"]):
                 if reservables_vgpu not in reservables_vgpus:
-                    if "vgpus" not in limited:
-                        with cls._rdb_context():
-                            limited["vgpus"] = {
-                                "old_value": [
-                                    {
-                                        "id": reservables_vgpu,
-                                        "name": r.table("reservables_vgpus")
-                                        .get(reservables_vgpu)
-                                        .pluck("name")
-                                        .run(cls._rdb_connection)["name"],
-                                    }
-                                ],
-                                "new_value": [],
-                            }
-                    else:
-                        limited["vgpus"]["old_value"].append(reservables_vgpu)
+                    limited.setdefault("vgpus", {"old_value": [], "new_value": []})
+                    limited["vgpus"]["old_value"].append(
+                        cls._limited_item("reservables_vgpus", reservables_vgpu)
+                    )
                     create_dict["reservables"]["vgpus"].remove(reservables_vgpu)
             if not len(create_dict["reservables"]["vgpus"]):
                 with cls._rdb_context():
