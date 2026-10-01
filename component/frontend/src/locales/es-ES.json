@@ -2810,8 +2810,6 @@
           "description": "Todos los usuarios de esta categoría tendrán acceso"
         }
       },
-      "view-group": "Mostrar los usuarios del grupo '{group_name}'",
-      "unview-group": "Dejar de mostrar los usuarios del grupo '{group_name}'",
       "add": "Añadir '{name}'",
       "remove": "Quitar '{name}'",
       "require-selection": "Selecciona como mínimo un grupo o un usuario",

@@ -62,7 +62,8 @@ const select = () => {
         'flex w-full min-h-10 select-none flex-row items-center gap-2 rounded-md px-2 py-1.5 font-medium text-gray-warm-700',
         props.disabled
           ? 'cursor-not-allowed opacity-60'
-          : props.activatable && 'cursor-pointer hover:bg-gray-warm-50',
+          : props.activatable &&
+              'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
         props.active && 'bg-brand-100 hover:bg-brand-200'
       )
     "
@@ -70,7 +71,10 @@ const select = () => {
     :aria-selected="props.checked === true"
     :data-value="props.value"
     :data-active="props.active || undefined"
+    :tabindex="props.activatable && !props.disabled ? 0 : undefined"
     @click="select"
+    @keydown.enter.self.prevent="select"
+    @keydown.space.self.prevent="select"
   >
     <Button
       v-if="props.selectable"

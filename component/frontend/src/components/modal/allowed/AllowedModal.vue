@@ -662,20 +662,7 @@ const handleClose = () => {
         @toggle="toggleGroup"
         @toggle-all="toggleAllGroups"
         @select="viewGroup"
-      >
-        <template #actions="{ item }">
-          <Button
-            :icon="item.value === viewedGroup ? 'x-circle' : 'arrow-circle-broken-right'"
-            hierarchy="link-color"
-            :aria-label="
-              item.value === viewedGroup
-                ? t('components.allowed-modal.unview-group', { group_name: item.label })
-                : t('components.allowed-modal.view-group', { group_name: item.label })
-            "
-            @click.stop="viewGroup(item.value)"
-          />
-        </template>
-      </AllowedModalColumn>
+      />
 
       <AllowedModalColumn
         v-model:search="userSearch"

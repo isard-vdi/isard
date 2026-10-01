@@ -2810,8 +2810,6 @@
           "description": "Every user in this category will have access"
         }
       },
-      "view-group": "Show the users in '{group_name}'",
-      "unview-group": "Stop showing the users in '{group_name}'",
       "add": "Add '{name}'",
       "remove": "Remove '{name}'",
       "require-selection": "Select at least one group or user",

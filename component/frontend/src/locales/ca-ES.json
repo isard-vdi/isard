@@ -2810,8 +2810,6 @@
           "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
         }
       },
-      "view-group": "Mostra els usuaris del grup '{group_name}'",
-      "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
       "add": "Afegeix '{name}'",
       "remove": "Treu '{name}'",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
