@@ -5,18 +5,17 @@ import { AvatarLabel } from '@/components/avatar-label'
 import { Button } from '@/components/ui/button'
 import Progress from '@/components/ui/progress/Progress.vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   getUserTemplatesOptions,
-  //   // getUserSharedTemplates
+  getUserSharedTemplatesOptions,
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getUserSharedTemplates } from '@/gen/oas/apiv4/'
-import type { UserSharedTemplate } from '@/gen/oas/apiv4'
+import { TemplateStatusEnum, type UserSharedTemplate, type UserTemplate } from '@/gen/oas/apiv4'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
-import { ref } from 'vue'
+import { useOwnershipTab, type OwnershipTab } from '@/composables/useOwnershipTab'
 import { TruncatedText } from '@/components/truncated-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DomainImage from '@/components/domain/DomainImage.vue'
@@ -24,7 +23,6 @@ import DomainImage from '@/components/domain/DomainImage.vue'
 const { t } = useI18n()
 
 interface Props {
-  activeTemplateTab: 'user' | 'shared'
   selectable?: boolean
   pageSize?: number
   paginationPageSizes?: number[]
@@ -36,11 +34,12 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   rowClick: [any] // TODO: type this
-  'update:activeTemplateTab': []
   showInfoModal: [string]
 }>()
 
-const localActiveTab = ref(props.activeTemplateTab)
+const tabModel = defineModel<OwnershipTab | undefined>('activeTemplateTab')
+
+const queryClient = useQueryClient()
 
 const {
   data: user,
@@ -48,6 +47,30 @@ const {
   isError: userIsError,
   error: userError
 } = useQuery({ ...getUserOptions(), staleTime: Infinity })
+
+// A failed template is listed but cannot be picked, so a tab holding nothing else
+// is an empty tab as far as this list is concerned.
+const isSelectable = (template: UserTemplate | UserSharedTemplate) =>
+  template.status !== TemplateStatusEnum.FAILED
+
+const { activeTab: localActiveTab, isResolving: tabIsResolving } = useOwnershipTab({
+  hasOwned: async () => {
+    const me = await queryClient.fetchQuery({ ...getUserOptions(), staleTime: Infinity })
+    if (me.role === 'user') return false
+    const { templates } = await queryClient.fetchQuery(getUserTemplatesOptions())
+    return templates.some(isSelectable)
+  },
+  hasShared: async () =>
+    (await queryClient.fetchQuery(getUserSharedTemplatesOptions())).templates.some(isSelectable),
+  fallback: () => (user.value?.role === 'user' ? 'shared' : 'user'),
+  pinned: tabModel.value,
+  // Not a page: the tab belongs to the flow, not to the URL.
+  param: false
+})
+
+watch(localActiveTab, (tab) => {
+  if (tab !== undefined) tabModel.value = tab
+})
 
 const {
   isPending: userTemplatesIsPending,
@@ -57,7 +80,7 @@ const {
   isEnabled: userTemplatesIsEnabled
 } = useQuery({
   ...getUserTemplatesOptions(),
-  enabled: computed(() => user?.value?.role !== 'user')
+  enabled: computed(() => user?.value?.role !== 'user' && localActiveTab.value === 'user')
 })
 
 const myTemplates = computed(() => {
@@ -127,46 +150,27 @@ const userSharedTemplatesHeader = computed(() => [
 ])
 
 const {
-  mutate: fetchSharedTemplates,
-  isPending: fetchSharedTemplatesIsPending,
-  isError: fetchSharedTemplatesIsError,
-  error: fetchSharedTemplatesError,
-  data: sharedTemplates
-} = useMutation({
-  mutationFn: async () => {
-    const { data } = await getUserSharedTemplates({
-      throwOnError: true
-    })
-    return data
-  }
+  isPending: sharedTemplatesIsPending,
+  isError: sharedTemplatesIsError,
+  error: sharedTemplatesError,
+  data: sharedTemplates,
+  isEnabled: sharedTemplatesIsEnabled
+} = useQuery({
+  ...getUserSharedTemplatesOptions(),
+  enabled: computed(() => localActiveTab.value === 'shared')
 })
-
-const clickSharedTemplates = async () => {
-  if (sharedTemplates?.value) return
-  fetchSharedTemplates()
-}
-
-watch(
-  () => user?.value,
-  (newUser) => {
-    if (newUser?.role === 'user') {
-      localActiveTab.value = 'shared'
-      fetchSharedTemplates()
-    }
-  },
-  { immediate: true }
-)
 
 const tableIsLoading = computed(() => {
   return (
+    tabIsResolving.value ||
     (userTemplatesIsEnabled.value && userTemplatesIsPending.value) ||
-    fetchSharedTemplatesIsPending.value ||
+    (sharedTemplatesIsEnabled.value && sharedTemplatesIsPending.value) ||
     userIsPending.value
   )
 })
 
 const tableIsError = computed(() => {
-  return userTemplatesIsError.value || fetchSharedTemplatesIsError.value || userIsError.value
+  return userTemplatesIsError.value || sharedTemplatesIsError.value || userIsError.value
 })
 
 const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
@@ -214,7 +218,6 @@ function templateProgressPercent(progress: unknown): number {
             <TabsTrigger
               value="shared"
               :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-              @click="clickSharedTemplates"
             >
               <Icon name="share-06" stroke-color="currentColor" />
               {{ t('components.templates.template-type.shared') }}
