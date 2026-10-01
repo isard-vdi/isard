@@ -2820,6 +2820,12 @@
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
       "require-selection-users": "Selecciona como mínimo un usuario",
       "no-changes": "Haz algún cambio para guardar",
+      "summary": {
+        "title": "Seleccionados",
+        "all-groups": "Todos los grupos",
+        "empty": "Aún no hay nada seleccionado",
+        "unknown-user": "Usuario desconocido"
+      },
       "select-all": {
         "groups": "Seleccionar todos los grupos",
         "count": "{selected} de {total} seleccionados"

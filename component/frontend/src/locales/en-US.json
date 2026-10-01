@@ -2820,6 +2820,12 @@
       "require-selection": "Select at least one group or user",
       "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",
+      "summary": {
+        "title": "Selected",
+        "all-groups": "All groups",
+        "empty": "Nothing selected yet",
+        "unknown-user": "Unknown user"
+      },
       "select-all": {
         "groups": "Select all groups",
         "count": "{selected} of {total} selected"

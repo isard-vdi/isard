@@ -2820,6 +2820,12 @@
       "require-selection": "Selecciona com a mínim un grup o un usuari",
       "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
+      "summary": {
+        "title": "Seleccionats",
+        "all-groups": "Tots els grups",
+        "empty": "Encara no hi ha res seleccionat",
+        "unknown-user": "Usuari desconegut"
+      },
       "select-all": {
         "groups": "Selecciona tots els grups",
         "count": "{selected} de {total} seleccionats"

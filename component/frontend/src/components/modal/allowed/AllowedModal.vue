@@ -7,6 +7,7 @@ import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
 import AllowedModalGroupFilter from './AllowedModalGroupFilter.vue'
+import AllowedModalSummary from './AllowedModalSummary.vue'
 import type { AllowedOption, AllowedSelection } from '.'
 import type { AvailableUser } from '@/gen/oas/apiv4'
 import {
@@ -155,6 +156,7 @@ const userGroupFilter = ref<string[]>([])
 
 const hydrated = ref(false)
 const dirty = ref(false)
+const summaryOpen = ref(false)
 
 watch(
   () => props.open,
@@ -172,6 +174,7 @@ watch(
     groupSearch.value = ''
     userSearch.value = ''
     userGroupFilter.value = []
+    summaryOpen.value = false
   }
 )
 
@@ -226,6 +229,8 @@ const hydrate = () => {
   apiIndeterminateGroups.value = Array.isArray(allowedData.value?.indeterminate_groups)
     ? allowedData.value.indeterminate_groups.map((group) => group.id)
     : []
+  summaryOpen.value =
+    selectedGroups.value.length > 0 || selectedUsers.value.length > 0 || apiAllGroups.value
   hydrated.value = true
 }
 
@@ -401,6 +406,48 @@ const usersEmptyText = computed(() => {
   return t('components.allowed-modal.empty.no-users')
 })
 
+// --- Selection summary ---------------------------------------------------
+
+const knownUsers = ref(new Map<string, AllowedOption>())
+
+const remember = (options: AllowedOption[] | undefined) => {
+  for (const option of options ?? []) knownUsers.value.set(option.value, option)
+}
+
+watch(
+  () => allowedData.value?.selected_users,
+  (users) => remember(users?.map((user) => toOption(user, user.username))),
+  { immediate: true }
+)
+watch(categoryUserOptions, (options) => remember(options), { immediate: true })
+watch(
+  usersByGroup,
+  (groups) => {
+    for (const members of Object.values(groups)) remember(members)
+  },
+  { immediate: true }
+)
+watch(
+  () => props.preselectedUsers,
+  (users) => remember(users),
+  { immediate: true }
+)
+
+const summaryGroups = computed(() => {
+  const selected = new Set(selectedGroups.value)
+  return availableGroups.value.filter((group) => selected.has(group.value))
+})
+
+const summaryUsers = computed<AllowedOption[]>(() =>
+  selectedUsers.value.map(
+    (id) =>
+      knownUsers.value.get(id) ?? {
+        value: id,
+        label: t('components.allowed-modal.summary.unknown-user')
+      }
+  )
+)
+
 // --- Handlers --------------------------------------------------------------
 
 const viewGroup = (groupId: string) => {
@@ -458,6 +505,11 @@ const toggleUser = (userId: string) => {
   selectedUsers.value = users.includes(userId)
     ? users.filter((id) => id !== userId)
     : [...users, userId]
+}
+
+const removeUser = (userId: string) => {
+  dirty.value = true
+  selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
 }
 
 const toggleShareWithEveryone = () => {
@@ -585,6 +637,19 @@ const handleClose = () => {
         />
       </span>
     </div>
+
+    <AllowedModalSummary
+      v-if="!shareWithEveryone"
+      v-model:open="summaryOpen"
+      :groups="summaryGroups"
+      :users="summaryUsers"
+      :all-groups="apiAllGroups"
+      :show-groups="!props.usersOnly"
+      :disabled="columnsDisabled"
+      @remove-group="toggleGroup"
+      @remove-user="removeUser"
+      @remove-all-groups="toggleAllGroups(false)"
+    />
 
     <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn

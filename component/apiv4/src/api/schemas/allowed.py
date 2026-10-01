@@ -77,6 +77,9 @@ class AllowedResponse(BaseModel):
     indeterminate_groups: bool | list[IndeterminateGroup] = Field(
         description="List of groups that have some, but not all, users allowed"
     )
+    selected_users: list[AvailableUser] = Field(
+        default_factory=list, description="Details of the users in selected.users"
+    )
 
 
 class AllowedBase(BaseModel):

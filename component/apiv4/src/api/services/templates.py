@@ -414,6 +414,7 @@ class TemplateService:
             "indeterminate_groups": Alloweds.get_indeterminate_groups(
                 allowed_users=selected["users"],
             ),
+            "selected_users": Alloweds.get_selected_users(selected["users"]),
         }
 
     @staticmethod

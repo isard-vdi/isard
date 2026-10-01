@@ -796,6 +796,19 @@ class Alloweds(RethinkCustomBase):
         )
 
     @classmethod
+    def get_selected_users(cls, allowed_users: Union[bool, list]) -> list:
+        if not isinstance(allowed_users, list) or not allowed_users:
+            return []
+
+        with cls._rdb_context():
+            return list(
+                r.table("users")
+                .get_all(*allowed_users)
+                .pluck("id", "name", "username", "photo", "group")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def get_indeterminate_groups(cls, allowed_users: Union[bool, list]) -> list:
         if not isinstance(allowed_users, list) or not allowed_users:
             return []
