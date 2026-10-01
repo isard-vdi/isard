@@ -195,7 +195,7 @@ class CategoriesProcessed(RethinkSharedConnection):
 
         with cls._rdb_context():
             users = list(
-                matches.pluck("id", "name", "username", "photo")
+                matches.pluck("id", "name", "username", "photo", "group")
                 .order_by(lambda user: user["name"].default("").downcase())
                 .limit(limit)
                 .run(cls._rdb_connection)

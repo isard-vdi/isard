@@ -292,15 +292,21 @@ const categoryUsers = useQuery({
   placeholderData: keepPreviousData
 })
 
-const toOption = (user: AvailableUser): AllowedOption => ({
+const groupNames = computed(
+  () => new Map(availableGroups.value.map((group) => [group.value, group.label]))
+)
+
+const toOption = (user: AvailableUser, groupName?: string): AllowedOption => ({
   value: user.id,
   label: user.name || user.username,
-  subLabel: user.username,
+  subLabel: groupName ? `${user.username} · ${groupName}` : user.username,
   avatar: user.photo ?? ''
 })
 
 const categoryUserOptions = computed<AllowedOption[]>(() =>
-  (categoryUsers.data.value?.users ?? []).map(toOption)
+  (categoryUsers.data.value?.users ?? []).map((user) =>
+    toOption(user, groupNames.value.get(user.group ?? ''))
+  )
 )
 
 watch(
@@ -310,7 +316,7 @@ watch(
     if (!groupId || !Array.isArray(data?.users)) return
     usersByGroup.value = {
       ...usersByGroup.value,
-      [groupId]: data.users.map(toOption)
+      [groupId]: data.users.map((user) => toOption(user))
     }
   },
   { immediate: true }

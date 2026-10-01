@@ -50,6 +50,7 @@ class AvailableUser(BaseModel):
     name: str = Field(description="User full name")
     username: str = Field(description="User username")
     photo: Optional[str] = Field(default="", description="User photo URL")
+    group: Optional[str] = Field(default=None, description="User primary group ID")
 
 
 class BaseGroup(BaseModel):

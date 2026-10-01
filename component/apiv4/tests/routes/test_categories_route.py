@@ -132,6 +132,28 @@ def test_search_users_in_category_without_search_lists_all(monkeypatch, test_cli
 
 
 @pytest.mark.clear_cache
+def test_search_users_in_category_forwards_group(monkeypatch, test_client):
+    """Each user carries its primary group id so pickers can label it."""
+    monkeypatch.setattr(
+        "api.services.categories.CategoryService.search_users_in_category",
+        staticmethod(
+            lambda category_id, search, limit, roles=None: {
+                "users": [
+                    {"id": "u-1", "name": "Alice", "username": "alice", "group": "g-1"},
+                    {"id": "u-2", "name": "Anna", "username": "anna"},
+                ],
+                "total": 2,
+            }
+        ),
+    )
+    jwt = MockJWT(role_id="advanced", category_id="default")
+    response = test_client(url="/item/category/users/search", jwt=jwt)
+    assert response.status_code == 200
+    groups = {u["id"]: u["group"] for u in response.json()["users"]}
+    assert groups == {"u-1": "g-1", "u-2": None}
+
+
+@pytest.mark.clear_cache
 def test_search_users_in_category_unexpected_error_is_500(monkeypatch, test_client):
     """Uncaught service exceptions must fall through to the route's
     except Exception arm and return 500, not leak a 200 with bad content."""
