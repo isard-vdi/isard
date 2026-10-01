@@ -16,6 +16,7 @@ interface Props {
   active?: boolean
   disabled?: boolean
   selectable?: boolean // When false the row has no add/remove button.
+  activatable?: boolean // When true clicking the row emits select.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -25,7 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
   checked: false,
   active: false,
   disabled: false,
-  selectable: true
+  selectable: true,
+  activatable: false
 })
 
 const emit = defineEmits<{
@@ -48,7 +50,7 @@ const toggle = () => {
 }
 
 const select = () => {
-  if (props.disabled) return
+  if (props.disabled || !props.activatable) return
   emit('select')
 }
 </script>
@@ -58,7 +60,9 @@ const select = () => {
     :class="
       cn(
         'flex w-full min-h-10 select-none flex-row items-center gap-2 rounded-md px-2 py-1.5 font-medium text-gray-warm-700',
-        props.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-warm-50',
+        props.disabled
+          ? 'cursor-not-allowed opacity-60'
+          : props.activatable && 'cursor-pointer hover:bg-gray-warm-50',
         props.active && 'bg-brand-100 hover:bg-brand-200'
       )
     "

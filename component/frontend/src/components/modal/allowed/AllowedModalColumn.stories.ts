@@ -29,6 +29,7 @@ const meta = {
       description: 'Partially selected values, whose add button is highlighted.'
     },
     activeId: { control: 'text', description: 'Value of the highlighted row, if any.' },
+    activatable: { control: 'boolean', description: 'Whether clicking a row emits select.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
     disabled: { control: 'boolean', description: 'Dims the column and blocks every control.' },
     searchPlaceholder: { control: 'text', description: 'Placeholder of the search input.' },
@@ -100,6 +101,7 @@ const baseArgs = {
   title: 'Groups',
   items: groups,
   selected: [],
+  activatable: true,
   searchPlaceholder: 'Search group',
   emptyText: 'No groups available',
   notFoundText: 'No group found'

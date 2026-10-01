@@ -616,6 +616,7 @@ const handleClose = () => {
         :empty-text="groupsEmptyText"
         :not-found-text="t('components.allowed-modal.search.group.empty')"
         :selectable="!props.usersOnly"
+        activatable
         :select-all="everyoneEnabled"
         :select-all-checked="apiAllGroups"
         :select-all-label="t('components.allowed-modal.select-all.groups')"
@@ -655,7 +656,6 @@ const handleClose = () => {
         :not-found-text="t('components.allowed-modal.search.user.empty')"
         :footer-text="usersFooterText"
         @toggle="toggleUser"
-        @select="toggleUser"
       />
     </div>
 

@@ -51,6 +51,10 @@ const meta = {
     disabled: {
       control: 'boolean',
       description: 'Whether the item can be toggled.'
+    },
+    activatable: {
+      control: 'boolean',
+      description: 'Whether clicking the row emits select.'
     }
   },
   render: (args) => ({
@@ -118,7 +122,8 @@ export const Active: Story = {
     subLabel: 'The group whose users are currently shown',
     value: 'group-d',
     icon: 'users-01',
-    active: true
+    active: true,
+    activatable: true
   }
 }
 
@@ -195,6 +200,7 @@ export const WithActionAndLongLabel: Story = {
     label: 'Second year computer science students, afternoon shift, building B',
     subLabel: 'Every student enrolled in the 2025/2026 afternoon shift of the second year',
     value: 'group-long',
-    icon: 'users-01'
+    icon: 'users-01',
+    activatable: true
   }
 }

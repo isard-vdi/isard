@@ -18,6 +18,7 @@ interface Props {
   loading?: boolean
   disabled?: boolean
   selectable?: boolean // When false the rows have no add/remove buttons and no select-all header.
+  activatable?: boolean // When true clicking a row emits select.
   searchPlaceholder: string
   emptyText: string
   notFoundText: string
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   disabled: false,
   selectable: true,
+  activatable: false,
   footerText: '',
   selectAll: false,
   selectAllLabel: '',
@@ -172,6 +174,7 @@ const toggleAll = () => {
               :active="item.value === props.activeId"
               :disabled="props.disabled"
               :selectable="props.selectable"
+              :activatable="props.activatable"
               @update:checked="emit('toggle', item.value)"
               @select="emit('select', item.value)"
             >
