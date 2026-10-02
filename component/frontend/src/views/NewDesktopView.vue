@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
   createDesktopMutation,
   checkQuotaNewDesktopOptions,
   checkQuotaNewVolatileDesktopOptions,
-  checkStoragePoolCreationAvailabilityOptions
+  checkStoragePoolCreationAvailabilityOptions,
+  getUserDesktopsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import {
@@ -34,6 +35,7 @@ import { cn } from '@/lib/utils'
 import { newDesktopErrorKey, isNameConflictError } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
+const queryClient = useQueryClient()
 
 // --------------------------------------------------
 // Quota and storage checks
@@ -158,7 +160,8 @@ const {
   error: submitDesktopCreateError
 } = useMutation({
   ...createDesktopMutation(),
-  onSuccess: (data) => {
+  onSuccess: async (data) => {
+    await queryClient.invalidateQueries({ queryKey: getUserDesktopsQueryKey() })
     formHeaderRef.value?.allowLeave()
     router.push({
       name: 'single-desktop',
