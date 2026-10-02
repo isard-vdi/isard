@@ -2811,7 +2811,7 @@
       "remove": "Remove '{name}'",
       "group-users-partial": "{selected} of {total} users",
       "filter": {
-        "placeholder": "Filter by group"
+        "all": "All groups"
       },
       "require-selection": "Select at least one group or user",
       "require-selection-users": "Select at least one user",

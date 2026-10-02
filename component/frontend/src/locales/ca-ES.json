@@ -2811,7 +2811,7 @@
       "remove": "Treu '{name}'",
       "group-users-partial": "{selected} de {total} usuaris",
       "filter": {
-        "placeholder": "Filtra per grup"
+        "all": "Tots els grups"
       },
       "require-selection": "Selecciona com a mínim un grup o un usuari",
       "require-selection-users": "Selecciona com a mínim un usuari",
