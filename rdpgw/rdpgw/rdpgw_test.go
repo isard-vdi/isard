@@ -17,10 +17,10 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 
-	"github.com/bolkedebruin/rdpgw/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/isard/isardvdi/rdpgw/protocol"
 )
 
 func TestInit(t *testing.T) {

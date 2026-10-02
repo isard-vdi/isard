@@ -11,8 +11,8 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 
-	"github.com/bolkedebruin/rdpgw/protocol"
 	"github.com/patrickmn/go-cache"
+	"gitlab.com/isard/isardvdi/rdpgw/protocol"
 )
 
 var c = cache.New(5*time.Minute, 10*time.Minute)

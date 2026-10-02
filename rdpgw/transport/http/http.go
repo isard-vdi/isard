@@ -10,8 +10,8 @@ import (
 	tlsReloader "gitlab.com/isard/isardvdi/pkg/tls"
 
 	"github.com/bolkedebruin/rdpgw/common"
-	"github.com/bolkedebruin/rdpgw/protocol"
 	"github.com/rs/zerolog"
+	"gitlab.com/isard/isardvdi/rdpgw/protocol"
 )
 
 const (
