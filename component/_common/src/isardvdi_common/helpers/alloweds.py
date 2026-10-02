@@ -736,6 +736,26 @@ class Alloweds(RethinkCustomBase):
         _get_allowed_groups_cache.clear()
 
     @classmethod
+    def get_users_count_by_group(cls, category_id: str) -> dict[str, int]:
+        with cls._rdb_context():
+            return dict(
+                r.table("users")
+                .get_all(category_id, index="category")
+                .group("group")
+                .count()
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def get_allowed_groups_with_users_count(cls, category_id: str) -> list:
+        # Copies, so the per-user counts never end up in the groups cache.
+        counts = cls.get_users_count_by_group(category_id)
+        return [
+            {**group, "users_count": counts.get(group["id"], 0)}
+            for group in cls.get_allowed_groups(category_id)
+        ]
+
+    @classmethod
     def update_item_allowed_dict(cls, table: str, item_id: str, allowed: dict) -> None:
         """Replace the ``allowed`` field of a row in ``table`` with the
         given dict.

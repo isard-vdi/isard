@@ -185,17 +185,16 @@ const expectsApiState = computed(
   () => !!templateId.value || !!mediaId.value || !!deploymentId.value
 )
 
-const availableGroups = computed<AllowedOption[]>(() => {
+const rawGroups = computed(() => {
   const groups = expectsApiState.value
     ? allowedData.value?.available_groups
     : categoryGroups.data.value?.available_groups
-  if (!Array.isArray(groups)) return []
-  return groups.map((group) => ({
-    value: group.id,
-    label: group.name,
-    subLabel: group.description ?? undefined
-  }))
+  return Array.isArray(groups) ? groups : []
 })
+
+const availableGroups = computed<AllowedOption[]>(() =>
+  rawGroups.value.map((group) => ({ value: group.id, label: group.name }))
+)
 
 const readBucket = (value: boolean | string[] | undefined, all: () => string[]): string[] => {
   if (!Array.isArray(value)) return []
@@ -410,17 +409,32 @@ const usersEmptyText = computed(() => {
 // --- Selection summary ---------------------------------------------------
 
 const knownUsers = ref(new Map<string, AllowedOption>())
+const knownUserGroups = ref(new Map<string, string>())
 
 const remember = (options: AllowedOption[] | undefined) => {
   for (const option of options ?? []) knownUsers.value.set(option.value, option)
 }
 
+const rememberGroups = (users: AvailableUser[] | undefined) => {
+  for (const user of users ?? []) {
+    if (user.group) knownUserGroups.value.set(user.id, user.group)
+  }
+}
+
 watch(
   () => allowedData.value?.selected_users,
-  (users) => remember(users?.map((user) => toOption(user, user.username))),
+  (users) => {
+    remember(users?.map((user) => toOption(user, user.username)))
+    rememberGroups(users)
+  },
   { immediate: true }
 )
 watch(categoryUserOptions, (options) => remember(options), { immediate: true })
+watch(
+  () => categoryUsers.data.value?.users,
+  (users) => rememberGroups(users),
+  { immediate: true }
+)
 watch(
   usersByGroup,
   (groups) => {
@@ -448,6 +462,33 @@ const summaryUsers = computed<AllowedOption[]>(() =>
       }
   )
 )
+
+// --- Groups column options ------------------------------------------------
+
+const selectedUsersByGroup = computed(() => {
+  const counts = new Map<string, number>()
+  for (const userId of selectedUsers.value) {
+    const groupId = knownUserGroups.value.get(userId)
+    if (groupId) counts.set(groupId, (counts.get(groupId) ?? 0) + 1)
+  }
+  return counts
+})
+
+const groupOptions = computed<AllowedOption[]>(() => {
+  const selected = new Set(selectedGroups.value)
+  return rawGroups.value.map((group) => {
+    const total = group.users_count ?? 0
+    const picked = selected.has(group.id) ? 0 : (selectedUsersByGroup.value.get(group.id) ?? 0)
+    return {
+      value: group.id,
+      label: group.name,
+      subLabel:
+        picked > 0
+          ? t('components.allowed-modal.group-users-partial', { selected: picked, total })
+          : t('users.count.users', total)
+    }
+  })
+})
 
 // --- Handlers --------------------------------------------------------------
 
@@ -639,7 +680,7 @@ const handleClose = () => {
       <AllowedModalColumn
         v-model:search="groupSearch"
         :title="t('components.allowed-modal.columns.groups')"
-        :items="availableGroups"
+        :items="groupOptions"
         :selected="selectedGroups"
         :indeterminate="indeterminateGroups"
         :active-id="viewedGroup"

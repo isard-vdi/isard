@@ -539,7 +539,9 @@ class DeploymentService:
 
         return {
             "selected": selected,
-            "available_groups": Alloweds.get_allowed_groups(category_id),
+            "available_groups": Alloweds.get_allowed_groups_with_users_count(
+                category_id
+            ),
             "indeterminate_groups": Alloweds.get_indeterminate_groups(
                 allowed_users=selected["users"],
             ),

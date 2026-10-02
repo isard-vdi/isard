@@ -60,7 +60,9 @@ class BaseGroup(BaseModel):
 
 
 class AvailableGroup(BaseGroup):
-    pass
+    users_count: int = Field(
+        default=0, description="Number of users whose primary group is this one"
+    )
 
 
 class IndeterminateGroup(BaseGroup):

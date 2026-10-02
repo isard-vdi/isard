@@ -29,6 +29,7 @@ from isardvdi_common.lib.storage.storage_pools.storage_pools import (
 )
 from rethinkdb import r
 
+from ....helpers.alloweds import Alloweds
 from ....helpers.desktop_events import DesktopEvents
 from ....helpers.helpers import Helpers
 from ....lib.users.groups.groups import GroupsProcessed
@@ -350,9 +351,13 @@ class CategoriesProcessed(RethinkSharedConnection):
     @classmethod
     def get_available_groups_in_category(cls, category_id: str):
         with cls._rdb_context():
-            return list(
+            groups = list(
                 r.table("groups")
                 .get_all(category_id, index="parent_category")
                 .pluck("id", "name", "description")
                 .run(cls._rdb_connection)
             )
+        counts = Alloweds.get_users_count_by_group(category_id)
+        return [
+            {**group, "users_count": counts.get(group["id"], 0)} for group in groups
+        ]

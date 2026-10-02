@@ -63,7 +63,7 @@ class TestGetMediaAllowed:
         return_value=[],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[{"id": "g1"}],
     )
     @patch(
@@ -93,7 +93,7 @@ class TestGetMediaAllowed:
         return_value=[{"id": "g1", "name": "Group 1"}],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[{"id": "g1"}],
     )
     @patch(
@@ -117,7 +117,7 @@ class TestGetMediaAllowed:
         return_value=[],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[],
     )
     @patch("api.services.media.RethinkMedia.get", return_value={})

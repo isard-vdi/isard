@@ -2812,6 +2812,7 @@
       },
       "add": "Afegeix '{name}'",
       "remove": "Treu '{name}'",
+      "group-users-partial": "{selected} de {total} usuaris",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
       "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
