@@ -167,6 +167,58 @@ class TestCreateDesktopQuotas:
         quotas.desktop_create.assert_called_once_with("u1")
         quotas.volatile_create.assert_not_called()
 
+    def _create_with_nested_virtualization(self, new_from_template):
+        data = self._data(persistent=True)
+        data.hardware = MagicMock()
+        data.hardware.model_dump.return_value = {
+            "virtualization_nested": True,
+            "vcpus": 2,
+        }
+
+        DesktopService.create_desktop("u1", data)
+
+        return new_from_template.call_args.kwargs["new_data"]["hardware"]
+
+    @patch(
+        "api.services.desktops.CommonDesktops.new_from_template",
+        return_value={"id": "p-1"},
+    )
+    @patch("api.services.desktops.Helpers.check_user_duplicated_domain_name")
+    @patch("api.services.desktops.Alloweds.is_allowed", return_value=True)
+    @patch(
+        "api.services.desktops.Helpers.gen_payload_from_user",
+        return_value={"role_id": "advanced"},
+    )
+    @patch("api.services.desktops.CommonTemplates.check_template_status")
+    @patch("api.services.desktops.CommonTemplates.get_template", return_value={})
+    @patch("api.services.desktops.Quotas")
+    @patch("api.services.desktops.RethinkUser.exists", return_value=True)
+    def test_nested_virtualization_dropped_for_a_non_admin(self, *mocks):
+        """Nested virtualization passes the host CPU through, so only admins
+        and managers may switch it on; the template's value is kept."""
+        hardware = self._create_with_nested_virtualization(mocks[-1])
+
+        assert hardware == {"vcpus": 2}
+
+    @patch(
+        "api.services.desktops.CommonDesktops.new_from_template",
+        return_value={"id": "p-1"},
+    )
+    @patch("api.services.desktops.Helpers.check_user_duplicated_domain_name")
+    @patch("api.services.desktops.Alloweds.is_allowed", return_value=True)
+    @patch(
+        "api.services.desktops.Helpers.gen_payload_from_user",
+        return_value={"role_id": "manager"},
+    )
+    @patch("api.services.desktops.CommonTemplates.check_template_status")
+    @patch("api.services.desktops.CommonTemplates.get_template", return_value={})
+    @patch("api.services.desktops.Quotas")
+    @patch("api.services.desktops.RethinkUser.exists", return_value=True)
+    def test_nested_virtualization_kept_for_a_manager(self, *mocks):
+        hardware = self._create_with_nested_virtualization(mocks[-1])
+
+        assert hardware == {"virtualization_nested": True, "vcpus": 2}
+
 
 class TestCreateNonpersistentDesktop:
     @patch("api.services.desktops.RethinkUser.exists", return_value=False)

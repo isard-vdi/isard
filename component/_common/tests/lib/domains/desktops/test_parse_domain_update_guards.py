@@ -74,6 +74,22 @@ class TestParseDomainUpdateGuards:
         )
         assert "forced_hyp" not in result
 
+    def test_virtualization_nested_applied_for_admin(self, monkeypatch):
+        _use_domain(monkeypatch, _domain())
+        result = DP.parse_domain_update(
+            "d-1", {"hardware": {"virtualization_nested": True}}, admin_or_manager=True
+        )
+        assert result["hardware"]["virtualization_nested"] is True
+
+    def test_virtualization_nested_ignored_for_non_admin(self, monkeypatch):
+        # Nested virtualization passes the host CPU through: a non-admin editor
+        # must not be able to turn it on.
+        _use_domain(monkeypatch, _domain())
+        result = DP.parse_domain_update(
+            "d-1", {"hardware": {"virtualization_nested": True}}, admin_or_manager=False
+        )
+        assert "virtualization_nested" not in result.get("hardware", {})
+
     def test_name_written_only_when_changed(self, monkeypatch):
         _use_domain(monkeypatch, _domain(name="old-name"))
         assert DP.parse_domain_update("d-1", {"name": "new-name"})["name"] == "new-name"

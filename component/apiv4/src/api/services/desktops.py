@@ -173,6 +173,9 @@ class DesktopService:
                 "User not allowed to use this template",
                 description_code="template_not_allowed",
             )
+        CommonDesktops.strip_nested_virtualization(
+            submitted_hardware, payload.get("role_id") in ("admin", "manager")
+        )
         if data.guest_properties and data.guest_properties.viewers:
             DesktopViewers.check_new_desktop_viewers(
                 new_data=data.model_dump(exclude_unset=True), template=template

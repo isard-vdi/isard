@@ -120,6 +120,10 @@ class DomainHardware(BaseModel):
         default=["default"],
         description="List of video devices to be used by the domain. Each device must be a valid video device ID.",
     )
+    virtualization_nested: Optional[bool] = Field(
+        default=None,
+        description="If true, the host CPU is passed through so the domain can run its own hypervisor. Only admins and managers can change it; it is ignored for other roles.",
+    )
 
 
 class DomainGuestProperties(BaseModel):

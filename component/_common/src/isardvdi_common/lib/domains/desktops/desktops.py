@@ -983,6 +983,14 @@ class DesktopsProcessed(RethinkSharedConnection):
                 },
             )
 
+    @staticmethod
+    def strip_nested_virtualization(hardware, admin_or_manager):
+        """Nested virtualization passes the host CPU through, so only admins
+        and managers may set it; for anyone else the submitted value is
+        dropped and the domain keeps its template's or its current one."""
+        if hardware and not admin_or_manager:
+            hardware.pop("virtualization_nested", None)
+
     @classmethod
     def parse_domain_update(
         cls,
@@ -1065,10 +1073,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         if new_data.get("hardware") and new_data.get("hardware") != domain.get(
             "hardware"
         ):
-            if new_data["hardware"].get("virtualization_nested"):
-                new_data["hardware"]["virtualization_nested"] = new_data["hardware"][
-                    "virtualization_nested"
-                ]
+            cls.strip_nested_virtualization(new_data["hardware"], admin_or_manager)
             if new_data["hardware"].get("memory"):
                 new_data["hardware"]["memory"] = Helpers.memory_gib_to_kib(
                     new_data["hardware"]["memory"]
