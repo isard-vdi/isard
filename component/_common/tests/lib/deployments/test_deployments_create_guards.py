@@ -137,3 +137,34 @@ class TestCreateGuards:
                 ]
             )
         assert exc.value.error["description_code"] == "deployment_reservables_not_equal"
+
+    @pytest.mark.parametrize(
+        "role, kept", [("advanced", False), ("manager", True), ("admin", True)]
+    )
+    def test_nested_virtualization_only_from_admin_or_manager(
+        self, env, monkeypatch, role, kept
+    ):
+        # Nested virtualization passes the host CPU through: only an admin or
+        # a manager may switch it on for the desktops they create.
+        seen = []
+
+        class _Merged(Exception):
+            pass
+
+        def merge(cls, tid, desktop):
+            seen.append(desktop.get("hardware"))
+            raise _Merged
+
+        monkeypatch.setattr(
+            mod.DesktopsProcessed, "merge_new_data_with_template", classmethod(merge)
+        )
+        with pytest.raises(_Merged):
+            DP.create(
+                {"user_id": "u-1", "role_id": role},
+                "dep-name",
+                "desc",
+                {},
+                [{"template_id": "t-1", "hardware": {"virtualization_nested": True}}],
+                create_owner_desktop=False,
+            )
+        assert ("virtualization_nested" in seen[0]) is kept

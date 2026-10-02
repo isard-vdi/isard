@@ -1048,6 +1048,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
             desktop["image"] = desktop.get("image") or template["image"]
 
             DesktopViewers.check_new_desktop_viewers(desktop, template)
+            DesktopsProcessed.strip_nested_virtualization(
+                desktop.get("hardware"), payload.get("role_id") in ("admin", "manager")
+            )
 
             create_dict, guest_properties = (
                 DesktopsProcessed.merge_new_data_with_template(
@@ -1743,6 +1746,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
             desktop["image"] = desktop.get("image") or template["image"]
 
             DesktopViewers.check_new_desktop_viewers(desktop, template)
+            DesktopsProcessed.strip_nested_virtualization(
+                desktop.get("hardware"), payload.get("role_id") in ("admin", "manager")
+            )
 
             create_dict, guest_properties = (
                 DesktopsProcessed.merge_new_data_with_template(
