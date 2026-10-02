@@ -6,7 +6,6 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
-import AllowedModalGroupFilter from './AllowedModalGroupFilter.vue'
 import AllowedModalSummary from './AllowedModalSummary.vue'
 import type { AllowedOption, AllowedSelection } from '.'
 import type { AvailableUser } from '@/gen/oas/apiv4'
@@ -24,6 +23,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { Switch } from '@/components/ui/switch'
+import { SearchableTags } from '@/components/searchable-tags'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
 
@@ -601,11 +601,15 @@ const handleClose = () => {
         @toggle="toggleUser"
       >
         <template #search-actions>
-          <AllowedModalGroupFilter
-            v-model="userGroupFilter"
-            :options="availableGroups"
-            :disabled="columnsDisabled"
-          />
+          <div class="w-48 shrink-0" data-slot="group-filter">
+            <SearchableTags
+              v-model="userGroupFilter"
+              :tags="availableGroups"
+              :multiple="false"
+              :placeholder="t('components.allowed-modal.filter.placeholder')"
+              :disabled="columnsDisabled"
+            />
+          </div>
         </template>
       </AllowedModalColumn>
     </div>

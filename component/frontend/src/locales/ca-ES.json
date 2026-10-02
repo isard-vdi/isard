@@ -2810,6 +2810,9 @@
       },
       "remove": "Treu '{name}'",
       "group-users-partial": "{selected} de {total} usuaris",
+      "filter": {
+        "placeholder": "Filtra per grup"
+      },
       "require-selection": "Selecciona com a mínim un grup o un usuari",
       "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
@@ -2826,7 +2829,7 @@
       "search": {
         "user": {
           "placeholder": "Cerca tots els usuaris",
-          "filtered-placeholder": "Cerca als grups seleccionats",
+          "filtered-placeholder": "Cerca al grup seleccionat",
           "empty": "No s'ha trobat cap usuari",
           "truncated": "Es mostren {shown} de {total} resultats, afina la cerca"
         },

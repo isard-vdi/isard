@@ -2810,6 +2810,9 @@
       },
       "remove": "Quitar '{name}'",
       "group-users-partial": "{selected} de {total} usuarios",
+      "filter": {
+        "placeholder": "Filtrar por grupo"
+      },
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
       "require-selection-users": "Selecciona como mínimo un usuario",
       "no-changes": "Haz algún cambio para guardar",
@@ -2826,7 +2829,7 @@
       "search": {
         "user": {
           "placeholder": "Buscar todos los usuarios",
-          "filtered-placeholder": "Buscar en los grupos seleccionados",
+          "filtered-placeholder": "Buscar en el grupo seleccionado",
           "empty": "No se ha encontrado ningún usuario",
           "truncated": "Mostrando {shown} de {total} resultados, afina tu búsqueda"
         },
