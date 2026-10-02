@@ -33,7 +33,12 @@ import { Icon } from '@/components/icon'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SearchableTags } from '@/components/searchable-tags'
 import NetworkSelector from '@/components/domain/NetworkSelector.vue'
-import { MAX_VGPU_PROFILES, NO_VGPU_ID, isVgpuSelectable } from '@/lib/vgpuSelection'
+import {
+  MAX_VGPU_PROFILES,
+  NO_VGPU_ID,
+  isVgpuSelectable,
+  numaSocketHint
+} from '@/lib/vgpuSelection'
 import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
 import HardwareLimitChip from '@/components/domain/HardwareLimitChip.vue'
 import type { LimitedHardware, LimitedHardwareValue } from '@/lib/hardwareLimits'
@@ -319,6 +324,9 @@ const vgpuGroupLabel = (v: VgpuOption): string | null => {
 const vgpuDisabled = (option: VgpuOption, ids: string[] | undefined): boolean => {
   return !isVgpuSelectable(option, ids ?? [], vgpusOptions.value as VgpuOption[])
 }
+
+const vgpuNumaHintFor = (selected: string[] | undefined) =>
+  numaSocketHint(selected ?? [], vgpusOptions.value as VgpuOption[])
 
 const vgpuTagsFor = (selected: string[] | undefined) =>
   (vgpusOptions.value as VgpuOption[]).map((v) => ({
@@ -780,6 +788,21 @@ defineExpose({
                   class="text-error-600"
                 >
                   {{ t('components.domain.hardware.vgpus.hint', { max: MAX_VGPU_PROFILES }) }}
+                </FieldDescription>
+                <FieldDescription
+                  v-if="vgpuNumaHintFor(field.state.value)"
+                  data-testid="vgpu-numa-hint"
+                  :class="
+                    vgpuNumaHintFor(field.state.value)?.ok ? 'text-success-800' : 'text-warning-800'
+                  "
+                >
+                  {{
+                    vgpuNumaHintFor(field.state.value)?.ok
+                      ? t('components.domain.hardware.vgpus.numaSameSocket', {
+                          node: (vgpuNumaHintFor(field.state.value) as { node: number }).node
+                        })
+                      : t('components.domain.hardware.vgpus.numaDiffSocket')
+                  }}
                 </FieldDescription>
               </Field>
             </form.Field>

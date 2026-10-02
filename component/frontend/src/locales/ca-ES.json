@@ -2289,7 +2289,9 @@
           "label": "vGPU",
           "placeholder": "Selecciona una vGPU",
           "unavailable": "No hi ha cap vGPU disponible per al teu usuari",
-          "hint": "Màxim {max} perfils de vGPU per escriptori."
+          "hint": "Màxim {max} perfils de vGPU per escriptori.",
+          "numaSameSocket": "Mateix sòcol NUMA possible (node {node}): les targetes poden compartir sòcol, millor ample de banda de memòria.",
+          "numaDiffSocket": "Sòcols NUMA diferents: l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent."
         },
         "hardwareGroups": {
           "hardware": "Maquinari",

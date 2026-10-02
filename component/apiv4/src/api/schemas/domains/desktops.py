@@ -643,6 +643,22 @@ class AllowedReservableItem(BaseModel):
     id: str
     name: str
     editable: bool
+    hypervisor_groups: list[int] = Field(
+        default_factory=list,
+        description="Anonymized indices of the hypervisor groups that can host this vGPU",
+    )
+    numa_by_group: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="NUMA nodes per hypervisor-group index (keyed by group index)",
+    )
+    hypervisors: list[str] = Field(
+        default_factory=list,
+        description="Hypervisor names hosting this vGPU (admins/managers only)",
+    )
+    numa_by_hypervisor: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="NUMA nodes per hypervisor name (admins/managers only)",
+    )
 
 
 class AllowedReservablesResponse(BaseModel):

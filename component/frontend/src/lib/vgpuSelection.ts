@@ -58,3 +58,34 @@ export function isVgpuSelectable(
   if (groups.length === 0) return true // option has no group info → don't restrict
   return groups.some((g) => common.has(g))
 }
+
+export interface VgpuNumaLike extends VgpuLike {
+  numa_by_group?: Record<string, number[]>
+}
+
+export type NumaSocketHint = { ok: true; node: number } | { ok: false } | null
+
+// Informational only: NUMA placement never blocks a start.
+export function numaSocketHint(selected: string[], allOptions: VgpuNumaLike[]): NumaSocketHint {
+  const chosen = allOptions.filter((o) => selected.includes(o.id))
+  if (chosen.length < 2) return null
+  const common = commonHypervisorGroups(selected, allOptions)
+  if (!common || common.size === 0) return null
+  const serverIsMulti = (g: number) => {
+    const nodes = new Set<number>()
+    allOptions.forEach((o) => (o.numa_by_group?.[String(g)] ?? []).forEach((n) => nodes.add(n)))
+    return nodes.size > 1
+  }
+  let sawMulti = false
+  for (const g of [...common].sort((a, b) => a - b)) {
+    if (!serverIsMulti(g)) continue
+    sawMulti = true
+    let nodes: Set<number> | null = null
+    for (const o of chosen) {
+      const s = new Set(o.numa_by_group?.[String(g)] ?? [])
+      nodes = nodes === null ? s : new Set([...nodes].filter((x) => s.has(x)))
+    }
+    if (nodes && nodes.size) return { ok: true, node: Math.min(...nodes) }
+  }
+  return sawMulti ? { ok: false } : null
+}

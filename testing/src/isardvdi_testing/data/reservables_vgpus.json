@@ -106,5 +106,27 @@
         "total_units": 1,
         "units": 1,
         "vram": 2048
+    },
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [
+                "admin"
+            ],
+            "users": false
+        },
+        "brand": "NVIDIA",
+        "description": "NVIDIA vGPU A10 with profile 2Q enabled on cards of three hypervisors",
+        "heads": 1,
+        "id": "NVIDIA-A10-2Q",
+        "model": "A10",
+        "name": "GPU NVIDIA A10 2048",
+        "priority_id": "default",
+        "profile": "2Q",
+        "ram": 2048,
+        "total_units": 36,
+        "units": 12,
+        "vram": 2048
     }
 ]

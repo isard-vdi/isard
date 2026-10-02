@@ -401,7 +401,7 @@ $(document).ready(function() {
             // Multi-select: read the full array from the select (serializeObject
             // collapses a repeated field to a single value).
             if ('reservables-vgpus' in data) {
-                data['reservables-vgpus'] = $('#modalBulkEditForm #reservables-vgpus').val() || []
+                data['reservables-vgpus'] = selectedVgpuIds($('#modalBulkEditForm #reservables-vgpus').val())
             }
             data = parse_desktop_bulk(data)
 
@@ -2136,7 +2136,7 @@ function renderStorageActionsButton(data) {
                 // The GPU control is a multi-select: serializeObject() keeps only
                 // ONE value for a repeated field, so read the full array straight
                 // from the select (select2 keeps the underlying <select> in sync).
-                data['reservables-vgpus'] = $('#modalEdit #reservables-vgpus').val() || []
+                data['reservables-vgpus'] = selectedVgpuIds($('#modalEdit #reservables-vgpus').val())
                 if (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null) {
                     data['hardware-interfaces'] = [];
                 }

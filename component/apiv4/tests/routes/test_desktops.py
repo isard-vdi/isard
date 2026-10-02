@@ -736,6 +736,45 @@ def test_get_allowed_reservables_uses_the_creation_hardware_source(
     }
 
 
+def test_get_allowed_reservables_keeps_hypervisor_and_numa_grouping(
+    monkeypatch, test_client
+):
+    """The Vue 2 selector groups and restricts profiles with these fields."""
+    jwt = MockJWT()
+    item = {
+        "id": "vgpu-1",
+        "name": "Tesla",
+        "description": "8GB",
+        "editable": True,
+        "allowed": {
+            "categories": False,
+            "groups": False,
+            "roles": False,
+            "users": False,
+        },
+        "hypervisor_groups": [1, 2],
+        "numa_by_group": {"1": [0, 1]},
+        "hypervisors": ["hyp-a", "hyp-b"],
+        "numa_by_hypervisor": {"hyp-a": [0, 1]},
+    }
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.quotas.Quotas.get_hardware_kind_allowed",
+        classmethod(lambda cls, payload, kind: {"reservables": {"vgpus": [item]}}),
+    )
+
+    response = test_client(
+        url="/items/domains/get-allowed-reservables",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    vgpu = response.json()["vgpus"][0]
+    assert vgpu["hypervisor_groups"] == [1, 2]
+    assert vgpu["numa_by_group"] == {"1": [0, 1]}
+    assert vgpu["hypervisors"] == ["hyp-a", "hyp-b"]
+    assert vgpu["numa_by_hypervisor"] == {"hyp-a": [0, 1]}
+
+
 def test_get_allowed_reservables_requires_auth(test_client):
     """Without a JWT the route must reject — proves it's no longer
     ``open_router``. Missing credentials are rejected with 401

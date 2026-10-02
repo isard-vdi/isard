@@ -65,5 +65,47 @@
         "profiles_enabled": [
             "NVIDIA-T4-2Q"
         ]
+    },
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A10 mock: the same profile enabled on cards of three hypervisors",
+        "id": "e2e-gpu-multihyp-a",
+        "memory": "24 GB GDDR",
+        "model": "A10",
+        "name": "GPU A10 multi-hypervisor A",
+        "physical_device": "e2e-hyp-multi-a-pci_0000_41_00_0",
+        "profiles_enabled": [
+            "NVIDIA-A10-2Q"
+        ],
+        "reservable_type": "gpus"
+    },
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A10 mock: the same profile enabled on cards of three hypervisors",
+        "id": "e2e-gpu-multihyp-b",
+        "memory": "24 GB GDDR",
+        "model": "A10",
+        "name": "GPU A10 multi-hypervisor B",
+        "physical_device": "e2e-hyp-multi-b-pci_0000_41_00_0",
+        "profiles_enabled": [
+            "NVIDIA-A10-2Q"
+        ],
+        "reservable_type": "gpus"
+    },
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A10 mock: the same profile enabled on cards of three hypervisors",
+        "id": "e2e-gpu-multihyp-c",
+        "memory": "24 GB GDDR",
+        "model": "A10",
+        "name": "GPU A10 multi-hypervisor C",
+        "physical_device": "e2e-hyp-multi-c-pci_0000_81_00_0",
+        "profiles_enabled": [
+            "NVIDIA-A10-2Q"
+        ],
+        "reservable_type": "gpus"
     }
 ]
