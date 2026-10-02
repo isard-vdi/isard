@@ -93,11 +93,15 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}
 
-	v, err := cli.APIVersion(ctx)
+	versionRes, err := cli.AdminVersionGet(ctx)
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", err)
 	}
-	version := v.IsardvdiVersion
+	versionOK, ok := versionRes.(*apiv4.AdminVersionResponse)
+	if !ok {
+		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", ogenclient.AsAPIError(versionRes))
+	}
+	version := versionOK.IsardvdiVersion
 
 	maintRes, err := cli.MaintenanceStatus(ctx)
 	if err != nil {
@@ -192,11 +196,15 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}
 
-	v, err := cli.APIVersion(ctx)
+	versionRes, err := cli.AdminVersionGet(ctx)
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", err)
 	}
-	version := v.IsardvdiVersion
+	versionOK, ok := versionRes.(*apiv4.AdminVersionResponse)
+	if !ok {
+		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", ogenclient.AsAPIError(versionRes))
+	}
+	version := versionOK.IsardvdiVersion
 
 	maintRes, err := cli.MaintenanceStatus(ctx)
 	if err != nil {

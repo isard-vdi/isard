@@ -1,5 +1,5 @@
 #
-#   Copyright © 2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#   Copyright © 2026 Miriam Melina Gamboa Valdez
 #
 #   This file is part of IsardVDI.
 #
@@ -18,12 +18,25 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Optional
+from api import admin_router
+from api.schemas.admin.version import AdminVersionResponse
 
-from pydantic import BaseModel
+tag = "admin-version"
+
+try:
+    with open("/version", "r") as file:
+        version = file.read()
+except OSError:
+    # /version is baked into the image at build time; absent when running tests
+    version = ""
 
 
-class ApiVersion(BaseModel):
-    name: str
-    api_version: str
-    usage: Optional[str]
+@admin_router.get(
+    "/admin/item/version",
+    tags=[tag],
+    response_model=AdminVersionResponse,
+    summary="Get IsardVDI version",
+    description="Returns the IsardVDI version stamped into the running image.",
+)
+async def admin_version_get() -> AdminVersionResponse:
+    return AdminVersionResponse(isardvdi_version=version)

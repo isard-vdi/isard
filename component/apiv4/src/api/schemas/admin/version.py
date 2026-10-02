@@ -1,5 +1,5 @@
 #
-#   Copyright © 2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#   Copyright © 2026 Miriam Melina Gamboa Valdez
 #
 #   This file is part of IsardVDI.
 #
@@ -18,12 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
-class ApiVersion(BaseModel):
-    name: str
-    api_version: str
-    usage: Optional[str]
+class AdminVersionResponse(BaseModel):
+    isardvdi_version: str
