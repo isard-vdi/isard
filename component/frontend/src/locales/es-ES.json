@@ -2301,7 +2301,9 @@
           "label": "vGPU",
           "placeholder": "Selecciona una vGPU",
           "unavailable": "No hay ninguna vGPU disponible para tu usuario",
-          "hint": "Máximo {max} perfiles de vGPU por escritorio."
+          "hint": "Máximo {max} perfiles de vGPU por escritorio.",
+          "numaSameSocket": "Mismo socket NUMA posible (nodo {node}): las tarjetas pueden compartir socket, mejor ancho de banda de memoria.",
+          "numaDiffSocket": "Sockets NUMA distintos: el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento."
         },
         "hardwareGroups": {
           "hardware": "Hardware",

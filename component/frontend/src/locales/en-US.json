@@ -1526,7 +1526,9 @@
           "label": "vGPU",
           "placeholder": "Select a vgpu",
           "unavailable": "No vGPU available for your user",
-          "hint": "Maximum of {max} vGPU profiles per desktop."
+          "hint": "Maximum of {max} vGPU profiles per desktop.",
+          "numaSameSocket": "Same NUMA socket possible (node {node}): the cards can share a socket, best memory bandwidth.",
+          "numaDiffSocket": "Different NUMA sockets: the desktop still starts, but cross-socket memory access is slower."
         },
         "hardwareGroups": {
           "hardware": "Hardware",

@@ -3,7 +3,9 @@ import {
   MAX_VGPU_PROFILES,
   commonHypervisorGroups,
   isVgpuSelectable,
-  type VgpuLike
+  numaSocketHint,
+  type VgpuLike,
+  type VgpuNumaLike
 } from './vgpuSelection'
 
 const opts: VgpuLike[] = [
@@ -71,5 +73,38 @@ describe('isVgpuSelectable', () => {
         { id: 'y', hypervisor_groups: [2] }
       ])
     ).toBe(false)
+  })
+})
+
+describe('numaSocketHint', () => {
+  // Group 1 is a two-socket server, group 2 a single-socket one.
+  const numa: VgpuNumaLike[] = [
+    { id: 'n0', hypervisor_groups: [1], numa_by_group: { '1': [0] } },
+    { id: 'n1', hypervisor_groups: [1], numa_by_group: { '1': [1] } },
+    { id: 'both', hypervisor_groups: [1, 2], numa_by_group: { '1': [0, 1], '2': [0] } },
+    { id: 'single', hypervisor_groups: [2], numa_by_group: { '2': [0] } },
+    { id: 'other', hypervisor_groups: [3] }
+  ]
+
+  it('says nothing for fewer than two profiles', () => {
+    expect(numaSocketHint([], numa)).toBeNull()
+    expect(numaSocketHint(['n0'], numa)).toBeNull()
+  })
+
+  it('names the shared socket when every profile has a card on it', () => {
+    expect(numaSocketHint(['n1', 'both'], numa)).toEqual({ ok: true, node: 1 })
+    expect(numaSocketHint(['n0', 'both'], numa)).toEqual({ ok: true, node: 0 })
+  })
+
+  it('warns when only different sockets are possible', () => {
+    expect(numaSocketHint(['n0', 'n1'], numa)).toEqual({ ok: false })
+  })
+
+  it('says nothing on a single-socket common server', () => {
+    expect(numaSocketHint(['both', 'single'], numa)).toBeNull()
+  })
+
+  it('says nothing when the profiles share no hypervisor', () => {
+    expect(numaSocketHint(['n0', 'other'], numa)).toBeNull()
   })
 })
