@@ -186,13 +186,23 @@ sudo nohup bash sysadm/migrate-prometheus-to-victoriametrics.sh \
 
 - **Idempotent:** guarded by a marker (`/opt/isard/stats/victoriametrics/.migrated-from-prometheus`);
   re-running after a successful migration is a no-op.
-- **Free-space check** before starting (override with `--force`). Check available disk first.
-- **Downtime:** `isard-victoriametrics` is stopped during the `vmctl` import and restarted at
-  the end; grafana-alloy / remote-write buffers new metrics meanwhile.
-- On success the old TSDB is archived to `/opt/isard/stats/prometheus.migrated-<timestamp>`;
-  delete it once you have verified VictoriaMetrics.
+- **Retention check:** VictoriaMetrics drops samples older than its retention, so the script
+  refuses to start when the Prometheus history is older than the retention the live
+  `isard-victoriametrics` runs with. Raise `VICTORIAMETRICS_RETENTION_TIME` in `isardvdi.cfg`
+  (then `build.sh` and recreate the container), or pass `--trim-to-retention` to import only
+  what the current retention keeps.
+- **The original TSDB is never opened:** a throwaway Prometheus (no scrape targets, no
+  retention) snapshots a working copy whose blocks are hard links and whose WAL is copied.
+- **No downtime:** `vmctl` imports into the running `isard-victoriametrics`, up to the first
+  sample it already holds, so the imported history does not overlap the metrics collected
+  since the upgrade.
+- **Verified before it is marked done:** VictoriaMetrics must report series for a day inside
+  the imported range; only then is the old TSDB archived to
+  `/opt/isard/stats/prometheus.migrated-<timestamp>` and the marker written. Delete the
+  archive once you have verified VictoriaMetrics.
+- **Free-space check** before starting (override with `--force`).
 - Overrides: `ISARD_DIR` (install dir, default autodetected then `/opt/isard`) and `STATS_DIR`
-  (default `$ISARD_DIR/stats`).
+  (default derived from `monitor.yml`, then `/opt/isard/stats`).
 
 ### Published port
 
