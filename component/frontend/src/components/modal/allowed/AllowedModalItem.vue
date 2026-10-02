@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
@@ -13,10 +12,8 @@ interface Props {
   avatar?: string | undefined
   icon?: string | undefined
   checked?: boolean
-  active?: boolean
   disabled?: boolean
-  selectable?: boolean // When false the row has no add/remove button.
-  activatable?: boolean // When true clicking the row emits select.
+  selectable?: boolean // When false the row cannot be toggled and shows no +/- indicator.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,18 +21,11 @@ const props = withDefaults(defineProps<Props>(), {
   avatar: undefined,
   icon: undefined,
   checked: false,
-  active: false,
   disabled: false,
-  selectable: true,
-  activatable: false
+  selectable: true
 })
 
-const emit = defineEmits<{
-  (e: 'update:checked', value: boolean): void
-  (e: 'select'): void
-}>()
-
-const { t } = useI18n()
+const emit = defineEmits<{ 'update:checked': [value: boolean] }>()
 
 const initials = computed(() =>
   props.label
@@ -44,14 +34,11 @@ const initials = computed(() =>
     .join('')
 )
 
-const toggle = () => {
-  if (props.disabled) return
-  emit('update:checked', !props.checked)
-}
+const interactive = computed(() => props.selectable && !props.disabled)
 
-const select = () => {
-  if (props.disabled || !props.activatable) return
-  emit('select')
+const toggle = () => {
+  if (!interactive.value) return
+  emit('update:checked', !props.checked)
 }
 </script>
 
@@ -60,37 +47,31 @@ const select = () => {
     :class="
       cn(
         'flex w-full min-h-10 select-none flex-row items-center gap-2 rounded-md px-2 py-1.5 font-medium text-gray-warm-700',
-        props.disabled
-          ? 'cursor-not-allowed opacity-60'
-          : props.activatable &&
-              'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
-        props.active && 'bg-brand-100 hover:bg-brand-200'
+        props.disabled && 'cursor-not-allowed opacity-60',
+        interactive &&
+          'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
+        props.checked && 'bg-brand-100 hover:bg-brand-200'
       )
     "
     role="option"
     :aria-selected="props.checked"
+    :aria-disabled="props.disabled || undefined"
     :data-value="props.value"
-    :data-active="props.active || undefined"
-    :tabindex="props.activatable && !props.disabled ? 0 : undefined"
-    @click="select"
-    @keydown.enter.self.prevent="select"
-    @keydown.space.self.prevent="select"
+    :tabindex="interactive ? 0 : undefined"
+    @click="toggle"
+    @keydown.enter.self.prevent="toggle"
+    @keydown.space.self.prevent="toggle"
   >
     <Button
       v-if="props.selectable"
+      as="span"
+      aria-hidden="true"
       :icon="props.checked ? 'minus' : 'plus'"
       :hierarchy="props.checked ? 'link-destructive' : 'link-color'"
       size="sm"
       icon-size="sm"
       class="shrink-0 p-1.5"
-      :disabled="props.disabled"
-      :aria-label="
-        t(`components.allowed-modal.${props.checked ? 'remove' : 'add'}`, {
-          name: props.label
-        })
-      "
       data-slot="toggle-button"
-      @click.stop="toggle"
     />
 
     <Icon v-if="props.icon !== undefined" :name="props.icon" size="md" class="shrink-0" />

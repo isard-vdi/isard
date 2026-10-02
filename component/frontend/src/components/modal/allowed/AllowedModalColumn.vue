@@ -14,11 +14,9 @@ interface Props {
   title: string
   items: AllowedOption[]
   selected: string[]
-  activeId?: string | null
   loading?: boolean
   disabled?: boolean
-  selectable?: boolean // When false the rows have no add/remove buttons and no select-all header.
-  activatable?: boolean // When true clicking a row emits select.
+  selectable?: boolean // When false the rows cannot be toggled and there is no select-all header.
   searchPlaceholder: string
   emptyText: string
   notFoundText: string
@@ -31,11 +29,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  activeId: null,
   loading: false,
   disabled: false,
   selectable: true,
-  activatable: false,
   footerText: '',
   filterLocally: true,
   selectAll: false,
@@ -45,7 +41,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'toggle' | 'select', value: string): void
+  (e: 'toggle', value: string): void
   (e: 'toggle-all', selectAll: boolean): void
 }>()
 
@@ -203,14 +199,11 @@ const toggleAll = () => {
                   :avatar="item.avatar"
                   :icon="item.icon"
                   :checked="selectedSet.has(item.value)"
-                  :active="item.value === props.activeId"
                   :disabled="props.disabled"
                   :selectable="props.selectable"
-                  :activatable="props.activatable"
                   :aria-setsize="filteredItems.length"
                   :aria-posinset="row.index + 1"
                   @update:checked="emit('toggle', item.value)"
-                  @select="emit('select', item.value)"
                 >
                   <template v-if="$slots.actions" #actions>
                     <slot name="actions" :item="item" />

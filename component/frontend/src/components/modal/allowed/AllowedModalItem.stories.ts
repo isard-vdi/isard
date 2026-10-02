@@ -20,7 +20,7 @@ const meta = {
   argTypes: {
     checked: {
       control: 'boolean',
-      description: 'Selected rows show the - control, the others the + one.'
+      description: 'Selected rows get the brand background and the - indicator.'
     },
     label: {
       control: 'text',
@@ -42,17 +42,9 @@ const meta = {
       control: 'text',
       description: 'Value of the item.'
     },
-    active: {
-      control: 'boolean',
-      description: 'Highlights the row, e.g. the group whose users are currently shown.'
-    },
     disabled: {
       control: 'boolean',
-      description: 'Whether the item can be toggled.'
-    },
-    activatable: {
-      control: 'boolean',
-      description: 'Whether clicking the row emits select.'
+      description: 'Blocks toggling the row.'
     }
   },
   render: (args) => ({
@@ -64,19 +56,11 @@ const meta = {
         () => args.checked,
         (value) => (checked.value = value ?? false)
       )
-      // The row click is a separate event from the add/remove button: it does not select.
-      const selects = ref(0)
-      return { args, checked, selects }
+      return { args, checked }
     },
     template: `
       <div class="w-96">
-        <AllowedModalItem
-          v-bind="args"
-          :checked="checked"
-          @update:checked="checked = $event"
-          @select="selects++"
-        />
-        <p class="mt-2 px-2 text-sm text-gray-warm-600">row clicked {{ selects }} time(s)</p>
+        <AllowedModalItem v-bind="args" :checked="checked" @update:checked="checked = $event" />
       </div>
     `
   })
@@ -101,17 +85,6 @@ export const Checked: Story = {
     value: 'group-b',
     icon: 'users-01',
     checked: true
-  }
-}
-
-export const Active: Story = {
-  args: {
-    label: 'Group D',
-    subLabel: 'The group whose users are currently shown',
-    value: 'group-d',
-    icon: 'users-01',
-    active: true,
-    activatable: true
   }
 }
 
@@ -155,32 +128,26 @@ export const WithAvatarFallback: Story = {
   }
 }
 
-/** A long label must truncate instead of pushing the action out of the row. */
+/**
+ * A long label must truncate instead of pushing the action out of the row. The action stops
+ * its click so pressing it does not toggle the row.
+ */
 export const WithActionAndLongLabel: Story = {
   render: (args) => ({
     components: { AllowedModalItem, Button },
     setup() {
       const checked = ref(args.checked ?? false)
-      const selects = ref(0)
-      return { args, checked, selects }
+      const actions = ref(0)
+      return { args, checked, actions }
     },
     template: `
       <div class="w-96">
-        <AllowedModalItem
-          v-bind="args"
-          :checked="checked"
-          @update:checked="checked = $event"
-          @select="selects++"
-        >
+        <AllowedModalItem v-bind="args" :checked="checked" @update:checked="checked = $event">
           <template #actions>
-            <Button
-              icon="arrow-circle-broken-right"
-              hierarchy="link-color"
-              @click.stop="selects++"
-            />
+            <Button icon="info-circle" hierarchy="link-color" @click.stop="actions++" />
           </template>
         </AllowedModalItem>
-        <p class="mt-2 px-2 text-sm text-gray-warm-600">row clicked {{ selects }} time(s)</p>
+        <p class="mt-2 px-2 text-sm text-gray-warm-600">action clicked {{ actions }} time(s)</p>
       </div>
     `
   }),
@@ -188,7 +155,6 @@ export const WithActionAndLongLabel: Story = {
     label: 'Second year computer science students, afternoon shift, building B',
     subLabel: 'Every student enrolled in the 2025/2026 afternoon shift of the second year',
     value: 'group-long',
-    icon: 'users-01',
-    activatable: true
+    icon: 'users-01'
   }
 }

@@ -2795,12 +2795,10 @@
       },
       "columns": {
         "groups": "Grupos",
-        "users": "Usuarios",
-        "users-in-group": "Usuarios del grupo '{group_name}'"
+        "users": "Usuarios"
       },
       "empty": {
         "groups": "No hay grupos disponibles",
-        "users": "Este grupo no tiene usuarios",
         "no-users": "No hay usuarios disponibles"
       },
       "share-everyone": {
@@ -2810,7 +2808,6 @@
           "description": "Todos los usuarios de esta categoría tendrán acceso"
         }
       },
-      "add": "Añadir '{name}'",
       "remove": "Quitar '{name}'",
       "group-users-partial": "{selected} de {total} usuarios",
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
@@ -2827,10 +2824,6 @@
         "count": "{selected} de {total} seleccionados"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Buscar un usuario en el grupo '{group_name}'",
-          "empty": "No se ha encontrado ningún usuario"
-        },
         "user": {
           "placeholder": "Buscar todos los usuarios",
           "filtered-placeholder": "Buscar en los grupos seleccionados",

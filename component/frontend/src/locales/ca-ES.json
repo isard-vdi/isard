@@ -2795,12 +2795,10 @@
       },
       "columns": {
         "groups": "Grups",
-        "users": "Usuaris",
-        "users-in-group": "Usuaris del grup '{group_name}'"
+        "users": "Usuaris"
       },
       "empty": {
         "groups": "No hi ha grups disponibles",
-        "users": "Aquest grup no té usuaris",
         "no-users": "No hi ha usuaris disponibles"
       },
       "share-everyone": {
@@ -2810,7 +2808,6 @@
           "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
         }
       },
-      "add": "Afegeix '{name}'",
       "remove": "Treu '{name}'",
       "group-users-partial": "{selected} de {total} usuaris",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
@@ -2827,10 +2824,6 @@
         "count": "{selected} de {total} seleccionats"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Cercar un usuari al grup '{group_name}'",
-          "empty": "No s'ha trobat cap usuari"
-        },
         "user": {
           "placeholder": "Cerca tots els usuaris",
           "filtered-placeholder": "Cerca als grups seleccionats",

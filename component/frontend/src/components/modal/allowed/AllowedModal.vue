@@ -19,9 +19,7 @@ import {
   getMediaAllowedTableOptions,
   getMediaAllowedTableQueryKey,
   getTemplateAllowedOptions,
-  getTemplateAllowedQueryKey,
-  getUsersInGroupOptions,
-  getUsersInGroupQueryKey
+  getTemplateAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
@@ -147,9 +145,7 @@ const selectedUsers = ref<string[]>([])
 const apiAllGroups = ref(false)
 
 const shareWithEveryone = ref(false)
-const usersByGroup = ref<Record<string, AllowedOption[]>>({})
 
-const viewedGroup = ref<string | null>(null)
 const groupSearch = ref('')
 const userSearch = ref('')
 const userGroupFilter = ref<string[]>([])
@@ -169,7 +165,6 @@ watch(
     selectedUsers.value = []
     apiAllGroups.value = false
     shareWithEveryone.value = false
-    viewedGroup.value = null
     groupSearch.value = ''
     userSearch.value = ''
     userGroupFilter.value = []
@@ -249,20 +244,6 @@ const selectedGroupCount = computed(() => {
 
 // --- Users column ----------------------------------------------------------
 
-const usersInGroup = useQuery({
-  ...getUsersInGroupOptions({
-    path: { group_id: viewedGroup.value ?? '' },
-    query: roleQuery.value
-  }),
-  queryKey: computed(() =>
-    getUsersInGroupQueryKey({
-      path: { group_id: viewedGroup.value ?? '' },
-      query: roleQuery.value
-    })
-  ),
-  enabled: computed(() => props.open && !!viewedGroup.value)
-})
-
 const userTerm = computed(() => userSearch.value.trim())
 const debouncedUserTerm = refDebounced(userTerm, 250)
 
@@ -278,7 +259,7 @@ const usersQuery = computed(() => ({
 const categoryUsers = useQuery({
   ...searchUsersInCategoryOptions({ query: usersQuery.value }),
   queryKey: computed(() => searchUsersInCategoryQueryKey({ query: usersQuery.value })),
-  enabled: computed(() => props.open && !viewedGroup.value),
+  enabled: computed(() => props.open),
   placeholderData: keepPreviousData
 })
 
@@ -299,36 +280,7 @@ const categoryUserOptions = computed<AllowedOption[]>(() =>
   )
 )
 
-watch(
-  () => usersInGroup.data.value,
-  (data) => {
-    const groupId = viewedGroup.value
-    if (!groupId || !Array.isArray(data?.users)) return
-    usersByGroup.value = {
-      ...usersByGroup.value,
-      [groupId]: data.users.map((user) => toOption(user, user.username))
-    }
-  },
-  { immediate: true }
-)
-
-const viewedGroupUsers = computed<AllowedOption[]>(() =>
-  viewedGroup.value ? (usersByGroup.value[viewedGroup.value] ?? []) : []
-)
-
-const viewedGroupName = computed(
-  () => availableGroups.value.find((group) => group.value === viewedGroup.value)?.label ?? ''
-)
-
-const checkedUsers = computed(() => {
-  if (viewedGroup.value && selectedGroups.value.includes(viewedGroup.value)) {
-    return viewedGroupUsers.value.map((user) => user.value)
-  }
-  return selectedUsers.value
-})
-
 const usersColumnItems = computed<AllowedOption[]>(() => {
-  if (viewedGroup.value) return viewedGroupUsers.value
   if (!props.preselectedUsers || userTerm.value || userGroupFilter.value.length) {
     return categoryUserOptions.value
   }
@@ -342,44 +294,25 @@ const usersColumnItems = computed<AllowedOption[]>(() => {
   ]
 })
 
-const usersLoading = computed(() => {
-  if (viewedGroup.value) {
-    return usersInGroup.isPending.value && viewedGroupUsers.value.length === 0
-  }
-  return categoryUsers.isPending.value
-})
+const usersLoading = computed(() => categoryUsers.isPending.value)
 
 const searchSettled = computed(() => debouncedUserTerm.value === userTerm.value)
 
 const usersFooterText = computed(() => {
-  if (viewedGroup.value || categoryUsers.isFetching.value || !searchSettled.value) return ''
+  if (categoryUsers.isFetching.value || !searchSettled.value) return ''
   const shown = categoryUserOptions.value.length
   const total = categoryUsers.data.value?.total ?? 0
   if (shown === 0 || total <= shown) return ''
   return t('components.allowed-modal.search.user.truncated', { shown, total })
 })
 
-const usersColumnTitle = computed(() =>
-  viewedGroup.value
-    ? t('components.allowed-modal.columns.users-in-group', { group_name: viewedGroupName.value })
-    : t('components.allowed-modal.columns.users')
-)
-
 const userSearchPlaceholder = computed(() =>
-  viewedGroup.value
-    ? t('components.allowed-modal.search.user-in-group.placeholder', {
-        group_name: viewedGroupName.value
-      })
-    : userGroupFilter.value.length
-      ? t('components.allowed-modal.search.user.filtered-placeholder')
-      : t('components.allowed-modal.search.user.placeholder')
+  userGroupFilter.value.length
+    ? t('components.allowed-modal.search.user.filtered-placeholder')
+    : t('components.allowed-modal.search.user.placeholder')
 )
 
 const usersEmptyText = computed(() => {
-  if (viewedGroup.value) {
-    if (usersInGroup.error.value) return t('api.loading-error')
-    return t('components.allowed-modal.empty.users')
-  }
   if (categoryUsers.error.value) return t('api.loading-error')
   if (userTerm.value || userGroupFilter.value.length) {
     return t('components.allowed-modal.search.user.empty')
@@ -414,13 +347,6 @@ watch(categoryUserOptions, (options) => remember(options), { immediate: true })
 watch(
   () => categoryUsers.data.value?.users,
   (users) => rememberGroups(users),
-  { immediate: true }
-)
-watch(
-  usersByGroup,
-  (groups) => {
-    for (const members of Object.values(groups)) remember(members)
-  },
   { immediate: true }
 )
 watch(
@@ -473,17 +399,12 @@ const groupOptions = computed<AllowedOption[]>(() => {
 
 // --- Handlers --------------------------------------------------------------
 
-const viewGroup = (groupId: string) => {
-  viewedGroup.value = viewedGroup.value === groupId ? null : groupId
-  userSearch.value = ''
-}
-
-const dropKnownMembers = (groupIds: string[]) => {
-  const memberIds = new Set(
-    groupIds.flatMap((id) => (usersByGroup.value[id] ?? []).map((member) => member.value))
-  )
-  if (memberIds.size === 0) return
-  selectedUsers.value = selectedUsers.value.filter((id) => !memberIds.has(id))
+const dropMembersOf = (groupIds: string[]) => {
+  const groups = new Set(groupIds)
+  selectedUsers.value = selectedUsers.value.filter((userId) => {
+    const groupId = knownUserGroups.value.get(userId)
+    return !groupId || !groups.has(groupId)
+  })
 }
 
 const toggleAllGroups = (selectAll: boolean) => {
@@ -492,42 +413,25 @@ const toggleAllGroups = (selectAll: boolean) => {
   const groupIds = availableGroups.value.map((group) => group.value)
   apiAllGroups.value = everyoneEnabled.value && selectAll
   selectedGroups.value = selectAll ? groupIds : []
-  dropKnownMembers(groupIds)
+  if (selectAll) dropMembersOf(groupIds)
 }
 
 const toggleGroup = (groupId: string) => {
   if (props.usersOnly) return
   dirty.value = true
   apiAllGroups.value = false
-  selectedGroups.value = selectedGroups.value.includes(groupId)
-    ? selectedGroups.value.filter((id) => id !== groupId)
-    : [...selectedGroups.value, groupId]
-  dropKnownMembers([groupId])
+  const adding = !selectedGroups.value.includes(groupId)
+  selectedGroups.value = adding
+    ? [...selectedGroups.value, groupId]
+    : selectedGroups.value.filter((id) => id !== groupId)
+  if (adding) dropMembersOf([groupId])
 }
 
 const toggleUser = (userId: string) => {
   dirty.value = true
-  const groupId = viewedGroup.value
-
-  if (!groupId) {
-    selectedUsers.value = selectedUsers.value.includes(userId)
-      ? selectedUsers.value.filter((id) => id !== userId)
-      : [...selectedUsers.value, userId]
-    return
-  }
-
-  const users = [...selectedUsers.value]
-  if (selectedGroups.value.includes(groupId)) {
-    apiAllGroups.value = false
-    selectedGroups.value = selectedGroups.value.filter((id) => id !== groupId)
-    for (const member of viewedGroupUsers.value) {
-      if (!users.includes(member.value)) users.push(member.value)
-    }
-  }
-
-  selectedUsers.value = users.includes(userId)
-    ? users.filter((id) => id !== userId)
-    : [...users, userId]
+  selectedUsers.value = selectedUsers.value.includes(userId)
+    ? selectedUsers.value.filter((id) => id !== userId)
+    : [...selectedUsers.value, userId]
 }
 
 const removeUser = (userId: string) => {
@@ -659,18 +563,16 @@ const handleClose = () => {
 
     <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn
+        v-if="!props.usersOnly"
         v-model:search="groupSearch"
         :title="t('components.allowed-modal.columns.groups')"
         :items="groupOptions"
         :selected="selectedGroups"
-        :active-id="viewedGroup"
         :loading="allowedIsPending"
         :disabled="columnsDisabled"
         :search-placeholder="t('components.allowed-modal.search.group.placeholder')"
         :empty-text="groupsEmptyText"
         :not-found-text="t('components.allowed-modal.search.group.empty')"
-        :selectable="!props.usersOnly"
-        activatable
         :select-all="everyoneEnabled"
         :select-all-checked="apiAllGroups"
         :select-all-label="t('components.allowed-modal.select-all.groups')"
@@ -682,24 +584,23 @@ const handleClose = () => {
         "
         @toggle="toggleGroup"
         @toggle-all="toggleAllGroups"
-        @select="viewGroup"
       />
 
       <AllowedModalColumn
         v-model:search="userSearch"
-        :title="usersColumnTitle"
+        :title="t('components.allowed-modal.columns.users')"
         :items="usersColumnItems"
-        :selected="checkedUsers"
+        :selected="selectedUsers"
         :loading="usersLoading"
         :disabled="columnsDisabled"
         :search-placeholder="userSearchPlaceholder"
         :empty-text="usersEmptyText"
         :not-found-text="t('components.allowed-modal.search.user.empty')"
         :footer-text="usersFooterText"
-        :filter-locally="!!viewedGroup"
+        :filter-locally="false"
         @toggle="toggleUser"
       >
-        <template v-if="!viewedGroup" #search-actions>
+        <template #search-actions>
           <AllowedModalGroupFilter
             v-model="userGroupFilter"
             :options="availableGroups"

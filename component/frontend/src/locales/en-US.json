@@ -2795,12 +2795,10 @@
       },
       "columns": {
         "groups": "Groups",
-        "users": "Users",
-        "users-in-group": "Users in '{group_name}'"
+        "users": "Users"
       },
       "empty": {
         "groups": "No groups available",
-        "users": "This group has no users",
         "no-users": "No users available"
       },
       "share-everyone": {
@@ -2810,7 +2808,6 @@
           "description": "Every user in this category will have access"
         }
       },
-      "add": "Add '{name}'",
       "remove": "Remove '{name}'",
       "group-users-partial": "{selected} of {total} users",
       "require-selection": "Select at least one group or user",
@@ -2827,10 +2824,6 @@
         "count": "{selected} of {total} selected"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Search user in group '{group_name}'",
-          "empty": "No user found"
-        },
         "user": {
           "placeholder": "Search all users",
           "filtered-placeholder": "Search in the selected groups",

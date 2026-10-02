@@ -23,9 +23,7 @@ const meta = {
   argTypes: {
     title: { control: 'text', description: 'Heading above the search input.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
-    selected: { control: 'object', description: 'Values rendered with the remove button.' },
-    activeId: { control: 'text', description: 'Value of the highlighted row, if any.' },
-    activatable: { control: 'boolean', description: 'Whether clicking a row emits select.' },
+    selected: { control: 'object', description: 'Values rendered as selected rows.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
     disabled: { control: 'boolean', description: 'Dims the column and blocks every control.' },
     searchPlaceholder: { control: 'text', description: 'Placeholder of the search input.' },
@@ -58,7 +56,6 @@ const meta = {
     setup() {
       const search = ref('')
       const selected = ref<string[]>([...(args.selected ?? [])])
-      const activeId = ref<string | null>(args.activeId ?? null)
       const toggle = (value: string) => {
         selected.value = selected.value.includes(value)
           ? selected.value.filter((id) => id !== value)
@@ -69,21 +66,18 @@ const meta = {
         selectAllChecked.value = selectAll
         selected.value = selectAll ? args.items.map((item) => item.value) : []
       }
-      return { args, search, selected, activeId, selectAllChecked, toggle, toggleAll }
+      return { args, search, selected, selectAllChecked, toggle, toggleAll }
     },
     // The column only sizes itself correctly inside a parent with a definite height.
-    // Only the add/remove buttons select; clicking a row is a separate event.
     template: `
       <div class="flex h-[420px] w-96 gap-6">
         <AllowedModalColumn
           v-bind="args"
           v-model:search="search"
           :selected="selected"
-          :active-id="activeId"
           :select-all-checked="selectAllChecked"
           @toggle="toggle"
           @toggle-all="toggleAll"
-          @select="activeId = $event"
         />
       </div>
     `
@@ -97,7 +91,6 @@ const baseArgs = {
   title: 'Groups',
   items: groups,
   selected: [],
-  activatable: true,
   searchPlaceholder: 'Search group',
   emptyText: 'No groups available',
   notFoundText: 'No group found'
@@ -124,8 +117,7 @@ export const ManyRows: Story = {
 export const WithSelection: Story = {
   args: {
     ...baseArgs,
-    selected: ['group-1', 'group-4'],
-    activeId: 'group-2'
+    selected: ['group-1', 'group-4']
   }
 }
 
@@ -210,33 +202,33 @@ export const WithActions: Story = {
     setup() {
       const search = ref('')
       const selected = ref<string[]>([])
-      const activeId = ref<string | null>(null)
+      const lastAction = ref('')
       const toggle = (value: string) => {
         selected.value = selected.value.includes(value)
           ? selected.value.filter((id) => id !== value)
           : [...selected.value, value]
       }
-      return { args, search, selected, activeId, toggle }
+      return { args, search, selected, lastAction, toggle }
     },
+    // The action stops its click so pressing it does not toggle the row.
     template: `
       <div class="flex h-[420px] w-96 gap-6">
         <AllowedModalColumn
           v-bind="args"
           v-model:search="search"
           :selected="selected"
-          :active-id="activeId"
           @toggle="toggle"
-          @select="activeId = $event"
         >
           <template #actions="{ item }">
             <Button
-              icon="arrow-circle-broken-right"
+              icon="info-circle"
               hierarchy="link-color"
-              @click.stop="activeId = item.value"
+              @click.stop="lastAction = item.label"
             />
           </template>
         </AllowedModalColumn>
       </div>
+      <p class="mt-2 text-sm text-gray-warm-600">last action: {{ lastAction || 'none' }}</p>
     `
   }),
   args: baseArgs
