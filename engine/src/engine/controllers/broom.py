@@ -27,7 +27,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_info_if_stopped,
 )
-from engine.services.lib.functions import get_tid
+from engine.services.lib.functions import exec_remote_cmd, get_tid
 from engine.services.log import logs
 
 # =============================================================================
@@ -42,6 +42,28 @@ BROOM_MAX_WORKERS = 20
 
 # Timeout in seconds before force-stopping a Shutting-down domain
 BROOM_SHUTDOWN_TIMEOUT = 90
+
+# Probe the hypervisor's /isard mounts every this many broom cycles
+BROOM_STORAGE_PROBE_EVERY = 6
+
+STORAGE_PROBE_CMD = (
+    "for m in $(awk '$2 ~ \"^/isard\" {print $2}' /proc/mounts); do "
+    'timeout -s KILL 5 stat -f "$m" >/dev/null 2>&1 || echo "$m"; done'
+)
+
+_storage_hung = {}
+
+
+def _hung_mounts(hyp_id, disk_interval, hostname, user, port):
+    if disk_interval % BROOM_STORAGE_PROBE_EVERY == 1:
+        try:
+            out = exec_remote_cmd(
+                STORAGE_PROBE_CMD, hostname, username=user, port=port, timeout=20
+            )["out"]
+            _storage_hung[hyp_id] = out.decode().split()
+        except Exception as e:
+            _storage_hung[hyp_id] = [f"probe failed: {e}"]
+    return _storage_hung.get(hyp_id, [])
 
 
 def format_broom_data(data):
@@ -106,14 +128,24 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
             return result
 
         try:
+            hung = _hung_mounts(hyp_id, disk_interval, hostname, user, port)
+            if hung:
+                result["error"] = (
+                    f"hypervisor {hyp_id} storage not responding: {' '.join(hung)}"
+                )
+                logs.broom.error(result["error"])
+                return result
+
             # Update storage usage if needed
             if disk_interval == 1:
-                update_table_dict(
-                    "hypervisors",
-                    hyp_id,
-                    {"mountpoints": h.get_storage_used()},
-                    soft=True,
-                )
+                mountpoints = h.get_storage_used()
+                if isinstance(mountpoints, list):
+                    update_table_dict(
+                        "hypervisors",
+                        hyp_id,
+                        {"mountpoints": mountpoints},
+                        soft=True,
+                    )
 
             # Get domains from hypervisor
             d_domains_status_from_hyp = h.get_domains()

@@ -18,6 +18,29 @@ HUNG = ["hung-1", "hung-2", "hung-3"]
 HEALTHY = ["healthy-1", "healthy-2"]
 
 
+@pytest.fixture(autouse=True)
+def storage_probe(monkeypatch):
+    probe = MagicMock(return_value={"out": b"", "err": b""})
+    monkeypatch.setattr(broom, "exec_remote_cmd", probe, raising=False)
+    monkeypatch.setattr(broom, "_storage_hung", {}, raising=False)
+    return probe
+
+
+def _connected(monkeypatch, domains=None, disk_usage=None):
+    h = MagicMock()
+    h.connected = True
+    h.get_domains.return_value = domains or {}
+    h.get_storage_used.return_value = disk_usage or []
+    monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
+    monkeypatch.setattr(
+        broom,
+        "get_hyp_hostname_from_id",
+        lambda hyp_id: ("host", 22, "root", False, None),
+    )
+    monkeypatch.setattr(broom, "update_table_dict", MagicMock())
+    return h
+
+
 @pytest.fixture
 def fast_broom(monkeypatch):
     monkeypatch.setattr(broom, "BROOM_HYP_TIMEOUT", 0.3)
@@ -128,3 +151,62 @@ def test_first_loop_publishes_the_state_libvirt_reports(
     assert updated.call_count == 1
     assert updated.call_args.args[0] == "dom-1"
     assert updated.call_args.args[-1] == expected
+
+
+@pytest.mark.parametrize(
+    "disk_usage,stored",
+    [(False, []), ([{"mount": "/", "usage": 10}], [[{"mount": "/", "usage": 10}]])],
+)
+def test_unreadable_disk_usage_is_not_stored(monkeypatch, disk_usage, stored):
+    h = MagicMock()
+    h.connected = True
+    h.get_domains.return_value = {}
+    h.get_storage_used.return_value = disk_usage
+    monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
+    monkeypatch.setattr(
+        broom,
+        "get_hyp_hostname_from_id",
+        lambda hyp_id: ("host", 22, "root", False, None),
+    )
+    written = MagicMock()
+    monkeypatch.setattr(broom, "update_table_dict", written)
+
+    result = broom._check_single_hypervisor("hyp-1", 1, set())
+
+    assert result["success"] is True
+    assert [c.args[2]["mountpoints"] for c in written.call_args_list] == stored
+
+
+def test_a_hung_storage_mount_fails_the_check(monkeypatch, storage_probe):
+    h = _connected(monkeypatch)
+    storage_probe.return_value = {"out": b"/isard/groups\n", "err": b""}
+
+    result = broom._check_single_hypervisor("hyp-1", 1, set())
+
+    assert result["success"] is False
+    assert "/isard/groups" in result["error"]
+    h.get_domains.assert_not_called()
+    h.get_storage_used.assert_not_called()
+
+
+def test_the_verdict_holds_between_probes(monkeypatch, storage_probe):
+    _connected(monkeypatch)
+    storage_probe.return_value = {"out": b"/isard/groups\n", "err": b""}
+    assert broom._check_single_hypervisor("hyp-1", 1, set())["success"] is False
+
+    storage_probe.return_value = {"out": b"", "err": b""}
+    assert broom._check_single_hypervisor("hyp-1", 2, set())["success"] is False
+    assert storage_probe.call_count == 1
+
+    assert broom._check_single_hypervisor("hyp-1", 7, set())["success"] is True
+    assert storage_probe.call_count == 2
+
+
+def test_a_probe_that_cannot_run_fails_the_check(monkeypatch, storage_probe):
+    _connected(monkeypatch)
+    storage_probe.side_effect = TimeoutError("ssh timed out")
+
+    result = broom._check_single_hypervisor("hyp-1", 1, set())
+
+    assert result["success"] is False
+    assert "storage not responding" in result["error"]
