@@ -432,7 +432,9 @@
           "info": "Informació"
         },
         "failed-badge": "Plantilla amb errors",
-        "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments"
+        "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments",
+        "hidden-badge": "Plantilla amagada",
+        "hidden-message": "Aquesta plantilla està amagada: altres usuaris no poden crear escriptoris a partir d'ella"
       }
     },
     "new-template": {

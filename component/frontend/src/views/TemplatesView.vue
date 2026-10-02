@@ -47,6 +47,14 @@ import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { TemplateDeleteModal } from '@/components/templates/template-delete-modal'
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
+import {
+  TemplateStatusBadge,
+  TemplateStatusImage,
+  isTemplateFailed,
+  isTemplateVisible,
+  templateRowCellClass,
+  templateStatus
+} from '@/components/template-status'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -54,7 +62,6 @@ import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
 import type { UserSharedTemplate } from '@/gen/oas/apiv4'
-import DomainImage from '@/components/domain/DomainImage.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -80,9 +87,6 @@ const activeTemplateFilterCount = computed(() => countFilterTags(templateFilterT
 const clearTemplateFilters = () => {
   templateFilterTags.value = emptyFilterTags(TEMPLATE_FILTER_CATEGORIES)
 }
-
-// Legacy rows come back without the field and are visible.
-const isTemplateVisible = (template: { enabled?: boolean }) => template.enabled !== false
 
 const templateFilterCategories = computed<FilterCategory[]>(() => {
   const templates = userTemplates.value?.templates ?? []
@@ -326,7 +330,9 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
   updateTemplateAllowed({ path: { template_id: templateId }, body: selection })
 }
 
-const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
+const isFailed = isTemplateFailed
+const rowStatus = (row: Record<string, unknown>) => templateStatus(row, activeTab.value === 'user')
+const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowStatus(row))
 </script>
 
 <template>
@@ -461,6 +467,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       :total-rows="totalTemplates"
       :loading="templatesArePending"
       :is-clickable="false"
+      :row-cell-class="rowCellClass"
       hide-toolbar
     >
       <template #empty="{ variant }">
@@ -488,60 +495,23 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       </template>
 
       <template #cell-image="{ row }">
-        <div class="relative">
-          <DomainImage
-            :image-url="row.image.url"
-            variant="compact"
-            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'grayscale opacity-40': isFailed(row) }]"
-          >
-            <ContextMenu>
-              <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
-              </ContextMenuTrigger>
-              <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
-                <ContextMenuItem @click="copyToClipboard(row.id)">{{
-                  t('components.templates.datatable.debug-options.copy-id')
-                }}</ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          </DomainImage>
-
-          <Tooltip v-if="isFailed(row)">
-            <TooltipTrigger as-child>
-              <div
-                aria-hidden="true"
-                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
-              >
-                <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent :title="t('views.templates.table.failed-message')" />
-          </Tooltip>
-        </div>
+        <TemplateStatusImage :image-url="row.image.url" :status="rowStatus(row)">
+          <ContextMenu>
+            <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
+            </ContextMenuTrigger>
+            <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
+              <ContextMenuItem @click="copyToClipboard(row.id)">{{
+                t('components.templates.datatable.debug-options.copy-id')
+              }}</ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </TemplateStatusImage>
       </template>
 
       <template #cell-name="{ row }">
         <div class="flex flex-col">
           <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
-          <template v-if="isFailed(row)">
-            <Tooltip :delay-duration="200">
-              <TooltipTrigger as-child>
-                <div
-                  class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
-                >
-                  <span aria-hidden="true" class="contents">
-                    <Icon
-                      name="info-circle"
-                      class="size-3.5 shrink-0"
-                      stroke-color="currentColor"
-                    />
-                  </span>
-                  <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent :title="t('views.templates.table.failed-message')" />
-            </Tooltip>
-            <span class="sr-only">{{ t('views.templates.table.failed-message') }}</span>
-          </template>
+          <TemplateStatusBadge v-if="rowStatus(row)" :status="rowStatus(row)!" />
         </div>
       </template>
 
@@ -582,20 +552,24 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <Button
                 hierarchy="secondary-gray"
-                :icon="row.enabled ? 'eye' : 'eye-off'"
+                :icon="isTemplateVisible(row) ? 'eye' : 'eye-off'"
                 class="aspect-square p-[10px]"
-                :aria-label="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+                :aria-label="
+                  t(`views.templates.table.actions.${isTemplateVisible(row) ? 'hide' : 'show'}`)
+                "
                 @click="
                   visibilityModalData = {
                     id: row.id,
                     name: row.name,
-                    action: row.enabled ? 'hide' : 'show'
+                    action: isTemplateVisible(row) ? 'hide' : 'show'
                   }
                 "
               />
             </TooltipTrigger>
             <TooltipContent
-              :title="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+              :title="
+                t(`views.templates.table.actions.${isTemplateVisible(row) ? 'hide' : 'show'}`)
+              "
             />
           </Tooltip>
 

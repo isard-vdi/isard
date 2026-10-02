@@ -13,7 +13,7 @@ import {
   getFilteredRowModel
 } from '@tanstack/vue-table'
 
-import { valueUpdater } from '@/lib/utils'
+import { cn, valueUpdater } from '@/lib/utils'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
@@ -40,6 +40,8 @@ interface Props {
   loading?: boolean
   isClickable: boolean
   isRowDisabled?: (row: Record<string, unknown>) => boolean
+  // Merged into every cell of the row, so it can override its background and border.
+  rowCellClass?: (row: Record<string, unknown>) => string | undefined
   disabledTooltip?: string
   selectedId?: string
   defaultSort?: { key: string; desc?: boolean }
@@ -56,6 +58,7 @@ const props = withDefaults(defineProps<Props>(), {
   paginationPageSizes: undefined,
   loading: false,
   isClickable: false,
+  rowCellClass: undefined,
   defaultSort: undefined,
   hideToolbar: false,
   inlineTabs: false,
@@ -235,17 +238,19 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
             <div
               v-for="(header, cellIndex) in headers"
               :key="'cell-grid-' + rowIndex + '-' + cellIndex"
-              class="h-16 flex items-center border-gray-warm-200 min-w-0"
-              :class="[
-                {
-                  'px-4 border-y': cellIndex !== 0,
-                  'rounded-l-2xl': cellIndex === 0,
-                  'rounded-r-2xl border-r': cellIndex === headers.length - 1
-                },
-                row.original.id === props.selectedId
-                  ? 'bg-brand-100 group-hover/row:bg-brand-200'
-                  : 'bg-base-white'
-              ]"
+              :class="
+                cn(
+                  'h-16 flex items-center border-gray-warm-200 min-w-0 bg-base-white',
+                  {
+                    'px-4 border-y': cellIndex !== 0,
+                    'rounded-l-2xl': cellIndex === 0,
+                    'rounded-r-2xl border-r': cellIndex === headers.length - 1
+                  },
+                  rowCellClass?.(row.original),
+                  row.original.id === props.selectedId &&
+                    'bg-brand-100 group-hover/row:bg-brand-200'
+                )
+              "
               role="cell"
             >
               <slot
