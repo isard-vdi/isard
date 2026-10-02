@@ -96,3 +96,35 @@ def test_a_hypervisor_recovers_once_its_check_unblocks(fast_broom):
         if c.kwargs.get("is_degraded") is False
     }
     assert recovered == set(HUNG)
+
+
+@pytest.mark.parametrize(
+    "libvirt_state,expected",
+    [
+        ({"status": "Paused", "detail": "paused due to disk I/O error"}, "Paused"),
+        ({"status": "Started", "detail": "booted"}, "Started"),
+    ],
+)
+def test_first_loop_publishes_the_state_libvirt_reports(
+    monkeypatch, libvirt_state, expected
+):
+    h = MagicMock()
+    h.connected = True
+    h.get_domains.return_value = {"dom-1": libvirt_state}
+    monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
+    monkeypatch.setattr(
+        broom,
+        "get_hyp_hostname_from_id",
+        lambda hyp_id: ("host", 22, "root", False, None),
+    )
+    monkeypatch.setattr(broom, "get_domain_status", lambda domain_id: "Stopped")
+    updated = MagicMock()
+    monkeypatch.setattr(broom, "update_domain_hyp_started", updated)
+    monkeypatch.setattr(broom, "update_table_dict", MagicMock())
+
+    result = broom._check_single_hypervisor("hyp-1", 2, set())
+
+    assert result["success"] is True
+    assert updated.call_count == 1
+    assert updated.call_args.args[0] == "dom-1"
+    assert updated.call_args.args[-1] == expected

@@ -150,15 +150,33 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                         "CreatingDiskFromScratch",
                         "StartingDomainDisposable",
                     ]:
-                        logs.broom.warning(
-                            f"broom find domain {domain_id} with status {domain_status} started in hypervisor {hyp_id} and updated status and hyp_started in database"
+                        hyp_status = (
+                            status_and_detail.get("status")
+                            if isinstance(status_and_detail, dict)
+                            else None
                         )
-                        update_domain_hyp_started(
-                            domain_id,
-                            hyp_id,
-                            "hyp_started updated by broom",
-                            "Started",
-                        )
+                        if hyp_status == "Paused":
+                            # e.g. paused on a disk I/O error: not running
+                            hyp_detail = status_and_detail.get("detail", "")
+                            logs.broom.warning(
+                                f"broom find domain {domain_id} with status {domain_status} paused in hypervisor {hyp_id} ({hyp_detail}) and updated status and hyp_started in database"
+                            )
+                            update_domain_hyp_started(
+                                domain_id,
+                                hyp_id,
+                                f"hyp_started updated by broom, paused in hypervisor: {hyp_detail}",
+                                "Paused",
+                            )
+                        else:
+                            logs.broom.warning(
+                                f"broom find domain {domain_id} with status {domain_status} started in hypervisor {hyp_id} and updated status and hyp_started in database"
+                            )
+                            update_domain_hyp_started(
+                                domain_id,
+                                hyp_id,
+                                "hyp_started updated by broom",
+                                "Started",
+                            )
                     result["domains_handled"].append(domain_id)
 
             # Remove destroyed and handled domains from result
