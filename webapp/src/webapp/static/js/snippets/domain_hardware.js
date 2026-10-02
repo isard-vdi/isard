@@ -77,6 +77,75 @@ function selectNearestOption(selector, target) {
     }
 }
 
+// The backend refuses more vGPU profiles per desktop than this.
+var MAX_VGPU_PROFILES = 4;
+
+// One option per reservable: a value repeated per hypervisor is preselected and
+// sent once per copy, and the API refuses duplicate profiles.
+function groupVgpuOptions(vgpus) {
+    var byHyp = {};
+    var ungrouped = [];
+    (vgpus || []).forEach(function(value){
+        var hyps = value.hypervisors || [];
+        if(!hyps.length){ ungrouped.push(value); return; }
+        hyps.forEach(function(h){ (byHyp[h] = byHyp[h] || []).push(value); });
+    });
+    function sortedNums(list){
+        return list.slice().sort(function(a,b){return a-b;});
+    }
+    function hypNodes(h){
+        var s = {};
+        byHyp[h].forEach(function(v){
+            ((v.numa_by_hypervisor||{})[h]||[]).forEach(function(n){ s[n]=true; });
+        });
+        return Object.keys(s).length;
+    }
+    var groups = [];
+    Object.keys(byHyp).sort().forEach(function(h){
+        var primaries = byHyp[h].filter(function(v){
+            return v.hypervisors.slice().sort()[0] === h;
+        });
+        if(!primaries.length){ return; }
+        function option(v, sockets){
+            var label = v.name + ' - ' + v.description;
+            var others = v.hypervisors.filter(function(o){ return o !== h; }).sort();
+            if(others.length){ label += ' (also on ' + others.join(', ') + ')'; }
+            if(sockets && sockets.length > 1){ label += ' (NUMA ' + sockets.join('/') + ')'; }
+            return {value: v, label: label};
+        }
+        if(hypNodes(h) > 1){
+            var bySock = {};
+            primaries.forEach(function(v){
+                var vn = sortedNums((v.numa_by_hypervisor||{})[h]||[]);
+                var primary = vn.length ? vn[0] : -1;
+                (bySock[primary] = bySock[primary] || []).push(option(v, vn));
+            });
+            sortedNums(Object.keys(bySock).map(Number)).forEach(function(s){
+                groups.push({
+                    label: s >= 0 ? (h + ' · NUMA ' + s) : (h + ' · NUMA (unknown)'),
+                    options: bySock[s]
+                });
+            });
+        } else {
+            groups.push({label: h, options: primaries.map(function(v){ return option(v); })});
+        }
+    });
+    return {groups: groups, ungrouped: ungrouped};
+}
+
+function selectedVgpuIds(values) {
+    var seen = {};
+    var ids = (values || []).filter(function(v){
+        if(!v || seen[v]){ return false; }
+        seen[v] = true;
+        return true;
+    });
+    if(ids.length > 1){
+        ids = ids.filter(function(v){ return v !== 'None'; });
+    }
+    return ids;
+}
+
 function setHardwareOptions(id,default_boot,domain_id,callback){
     default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
         // id is the main div id containing hardware.html
@@ -174,68 +243,20 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
             }
             $(id+" #reservables-vgpus").find('option,optgroup').remove();
             if("reservables" in hardware && "vgpus" in hardware.reservables){
-                // A desktop may carry several vGPU profiles but they must all run
-                // on ONE hypervisor. Group the options by hypervisor name so the
-                // admin sees which profiles are co-locatable; a profile enabled on
-                // several hypervisors appears under each. Each option carries its
-                // full hypervisor list so selection can be hard-restricted to one.
-                var byHyp = {};
-                var ungrouped = [];
-                $.each(hardware.reservables.vgpus, function(key, value){
-                    var hyps = value.hypervisors || [];
-                    if(!hyps.length){ ungrouped.push(value); return; }
-                    $.each(hyps, function(i, h){ (byHyp[h] = byHyp[h] || []).push(value); });
-                });
-                // NUMA nodes a card of any reservable occupies on hypervisor h; a
-                // server is "multi-socket" when this spans >1 node (single-socket /
-                // all-in-one stay a plain per-hypervisor group, as before).
-                function hypNodes(h){
-                    var s = {};
-                    (byHyp[h]||[]).forEach(function(v){
-                        ((v.numa_by_hypervisor||{})[h]||[]).forEach(function(n){ s[n]=true; });
-                    });
-                    return Object.keys(s).map(Number).sort(function(a,b){return a-b;});
+                // All profiles of a desktop must run on ONE hypervisor.
+                function optHtml(value, label){
+                    return $('<option>', {value: value.id, text: label})
+                        .attr('data-hyps', JSON.stringify(value.hypervisors || []))
+                        .attr('data-numa', JSON.stringify(value.numa_by_hypervisor || {}));
                 }
-                // Each option carries its hypervisor list (cross-server restrict) and
-                // its per-hypervisor NUMA nodes (same-socket hint), both informational.
-                function optHtml(value){
-                    return '<option value="' + value.id + '" data-hyps=\'' +
-                        JSON.stringify(value.hypervisors || []) + '\' data-numa=\'' +
-                        JSON.stringify(value.numa_by_hypervisor || {}) + '\'>' +
-                        value.name + ' - ' + value.description + '</option>';
-                }
-                Object.keys(byHyp).sort().forEach(function(h){
-                    var nodes = hypNodes(h);
-                    if(nodes.length > 1){
-                        // Multi-socket server: one optgroup per NUMA socket so the
-                        // admin can pick same-socket cards. Each reservable is listed
-                        // once, under its LOWEST socket on this host (annotated with
-                        // any other sockets it can also reach) -- no duplication, so
-                        // no accidental double-select.
-                        var bySock = {};
-                        byHyp[h].forEach(function(value){
-                            var vn = ((value.numa_by_hypervisor||{})[h]||[]).slice().sort(function(a,b){return a-b;});
-                            var primary = vn.length ? vn[0] : -1;
-                            (bySock[primary] = bySock[primary] || []).push({v:value, vn:vn});
-                        });
-                        Object.keys(bySock).map(Number).sort(function(a,b){return a-b;}).forEach(function(s){
-                            var label = s >= 0 ? (h + ' · NUMA ' + s) : (h + ' · NUMA (unknown)');
-                            var $g = $('<optgroup label="' + label + '">');
-                            bySock[s].forEach(function(item){
-                                var $o = $(optHtml(item.v));
-                                if(item.vn.length > 1){ $o.text($o.text() + ' (NUMA ' + item.vn.join('/') + ')'); }
-                                $g.append($o);
-                            });
-                            $(id+" #reservables-vgpus").append($g);
-                        });
-                    } else {
-                        var $g = $('<optgroup label="' + h + '">');
-                        byHyp[h].forEach(function(value){ $g.append(optHtml(value)); });
-                        $(id+" #reservables-vgpus").append($g);
-                    }
+                var layout = groupVgpuOptions(hardware.reservables.vgpus);
+                layout.groups.forEach(function(group){
+                    var $g = $('<optgroup>', {label: group.label});
+                    group.options.forEach(function(o){ $g.append(optHtml(o.value, o.label)); });
+                    $(id+" #reservables-vgpus").append($g);
                 });
-                ungrouped.forEach(function(value){
-                    $(id+" #reservables-vgpus").append(optHtml(value));
+                layout.ungrouped.forEach(function(value){
+                    $(id+" #reservables-vgpus").append(optHtml(value, value.name + ' - ' + value.description));
                 });
                 $(id+" #reservables-vgpus").off('change.nogpu').on('change.nogpu', function(){
                     var $sel = $(this);
@@ -261,8 +282,12 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                         else { var n={}; Object.keys(common).forEach(function(h){ if(s[h]) n[h]=true; }); common = n; }
                     }.bind(this));
                     var hasCommon = common && Object.keys(common).length;
+                    var full = selectedVgpuIds(selected).filter(function(v){ return v !== 'None'; }).length >= MAX_VGPU_PROFILES;
                     $(this).find('option').each(function(){
-                        if($(this).val() === 'None'){ return; }
+                        // a profile the API no longer offers stays disabled
+                        if($(this).val() === 'None' || !this.hasAttribute('data-hyps')){ return; }
+                        if($(this).prop('selected')){ $(this).prop('disabled', false); return; }
+                        if(full){ $(this).prop('disabled', true); return; }
                         if(!selected.length || !hasCommon){ $(this).prop('disabled', false); return; }
                         var hyps = $(this).data('hyps') || [];
                         var ok = hyps.some(function(h){ return common[h]; });

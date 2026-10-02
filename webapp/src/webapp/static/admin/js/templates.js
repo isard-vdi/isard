@@ -1222,7 +1222,7 @@ function renderDisplay(data){
                 // The GPU control is a multi-select: serializeObject() keeps only
                 // ONE value for a repeated field, so read the full array straight
                 // from the select (select2 keeps the underlying <select> in sync).
-                data['reservables-vgpus'] = $('#modalEdit #reservables-vgpus').val() || []
+                data['reservables-vgpus'] = selectedVgpuIds($('#modalEdit #reservables-vgpus').val())
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
 
                 if (data.hardware) {

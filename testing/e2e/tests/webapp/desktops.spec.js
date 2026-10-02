@@ -2304,4 +2304,58 @@ test.describe('Admin Desktops — webapp', () => {
       page.locator('#filter-status #status option'),
     ).not.toHaveCount(0, { timeout: 5000 })
   })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // S28 — a profile enabled on several hypervisors is listed and sent once
+  // ──────────────────────────────────────────────────────────────────────────
+  test('S28: editing a desktop whose vGPU profile is enabled on several hypervisors saves it once', async ({
+    authenticatedPage: page,
+    apiv4Admin,
+  }, testInfo) => {
+    test.setTimeout(240000)
+    // Seeded on three hypervisors: e2e-gpu-multihyp-{a,b,c} (gpus.json).
+    const PROFILE = 'NVIDIA-A10-2Q'
+    if (!sharedTemplateId) test.skip(true, 'no template to derive a desktop from')
+
+    const { id: desktopId } = await createDisposableDesktop(apiv4Admin, testInfo, 's28vgpu')
+    if (!desktopId) test.skip(true, 'bulk-create did not return an id')
+    expect(await waitForDesktopStopped(apiv4Admin, desktopId)).toBe('Stopped')
+    await unwrap(
+      editDesktop({
+        client: apiv4Admin,
+        path: { desktop_id: desktopId },
+        body: { reservables: { vgpus: [PROFILE] } },
+      }),
+    )
+
+    await findDesktopRow(page, desktopId)
+    const detailPanel = await expandRowDetail(page, desktopId)
+    await detailPanel.locator('.btn-edit').click()
+    const modal = page.locator('#modalEditDesktop')
+    await modal.waitFor({ state: 'visible', timeout: 10000 })
+    await expect(modal.locator('#description')).not.toBeEmpty({ timeout: 8000 })
+
+    const select = modal.locator('#reservables-vgpus')
+    await expect(select.locator(`option[value="${PROFILE}"]`)).toHaveCount(1, { timeout: 8000 })
+    await expect(select.locator(`option[value="${PROFILE}"]`)).toContainText('also on e2e-hyp-multi-b, e2e-hyp-multi-c')
+    const values = await select.evaluate((el) => Array.from(el.options).map((o) => o.value))
+    expect(new Set(values).size, 'no profile is listed twice').toBe(values.length)
+    expect(await select.evaluate((el) => window.jQuery(el).val())).toEqual([PROFILE])
+
+    const editResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/desktop/${desktopId}/edit`) &&
+        r.request().method() === 'PUT',
+      { timeout: 15000 },
+    )
+    await modal.locator('#send').click()
+    const res = await editResponse
+    const body = JSON.parse((await res.request().postData()) || '{}')
+    expect(body.reservables?.vgpus).toEqual([PROFILE])
+    expect(res.status(), await res.text()).toBeLessThan(400)
+    await modal.waitFor({ state: 'hidden', timeout: 10000 })
+
+    const details = await unwrap(getDesktopDetails({ client: apiv4Admin, path: { desktop_id: desktopId } }))
+    expect(details?.reservables?.vgpus ?? details?.create_dict?.reservables?.vgpus).toEqual([PROFILE])
+  })
 })
