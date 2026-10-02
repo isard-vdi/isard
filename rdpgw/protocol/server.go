@@ -31,6 +31,7 @@ type Server struct {
 	TokenAuth            bool
 	ClientName           string
 	Remote               net.Conn
+	RemoteHost           string
 	State                int
 }
 
@@ -131,24 +132,29 @@ func (s *Server) Process(ctx context.Context) error {
 					return errors.New("denied by security policy")
 				}
 			}
-			log.Printf("Establishing connection to RDP server: %s", host)
-			s.Remote, err = net.DialTimeout("tcp", host, time.Second*15)
-			if err != nil {
-				log.Printf("Error connecting to %s, %s", host, err)
-				return err
-			}
-			log.Printf("Connection established")
+			// gnome-remote-desktop drops a backend connection left idle before the client's first PDU
+			s.RemoteHost = host
+			log.Printf("Channel created for RDP server %s, backend connect deferred to first client data", host)
 			msg := s.channelResponse()
 			s.Session.TransportOut.WritePacket(msg)
-
-			// Make sure to start the flow from the RDP server first otherwise connections
-			// might hang eventually
-			go forward(s.Remote, s.Session.TransportOut)
 			s.State = SERVER_STATE_CHANNEL_CREATE
 		case PKT_TYPE_DATA:
 			if s.State < SERVER_STATE_CHANNEL_CREATE {
 				log.Printf("Data received while in wrong state %d != %d", s.State, SERVER_STATE_CHANNEL_CREATE)
 				return errors.New("wrong state")
+			}
+			if s.Remote == nil {
+				log.Printf("Establishing connection to RDP server: %s", s.RemoteHost)
+				s.Remote, err = net.DialTimeout("tcp", s.RemoteHost, time.Second*15)
+				if err != nil {
+					log.Printf("Error connecting to %s, %s", s.RemoteHost, err)
+					return err
+				}
+				log.Printf("Connection established")
+
+				// Make sure to start the flow from the RDP server first otherwise connections
+				// might hang eventually
+				go forward(s.Remote, s.Session.TransportOut)
 			}
 			s.State = SERVER_STATE_OPENED
 			receive(pkt, s.Remote)
