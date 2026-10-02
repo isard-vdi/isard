@@ -10,7 +10,7 @@
       multiple
       :close-on-select="false"
       :options="groupedOptions"
-      :selectable="option => !option.header"
+      :selectable="isSelectable"
       label="name"
       :reduce="element => element.id"
       :get-option-label="getOptionLabel"
@@ -60,6 +60,9 @@ import { required } from '@vuelidate/validators'
 import { ErrorUtils } from '@/utils/errorUtils'
 import i18n from '@/i18n'
 
+// The backend refuses more vGPU profiles per desktop than this.
+const MAX_VGPU_PROFILES = 4
+
 export default {
   setup (props, context) {
     const $store = context.root.$store
@@ -77,6 +80,12 @@ export default {
         $store.commit('setDomain', domain.value)
       }
     })
+
+    const isSelectable = (option) => {
+      if (option.header) return false
+      const selected = (vgpus.value || []).filter(id => id && id !== 'None')
+      return selected.includes(option.id) || selected.length < MAX_VGPU_PROFILES
+    }
 
     const noGpuLabel = computed(() => {
       const n = ((availableBookables.value && availableBookables.value.vgpus) || []).find(o => o.id === 'None')
@@ -210,6 +219,7 @@ export default {
       availableBookables,
       groupedOptions,
       getOptionLabel,
+      isSelectable,
       numaHint,
       vgpus,
       v$: useVuelidate({
