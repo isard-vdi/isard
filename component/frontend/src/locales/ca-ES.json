@@ -910,15 +910,26 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "status": {
+          "label": "Estat",
+          "started": "Iniciats",
+          "stopped": "Aturats"
+        }
+      },
       "gpu-warning": "El videowall no funciona amb visors RDP",
-      "desktop-not-available": "Escriptori no disponible",
-      "filter-placeholder": "Filtra per usuari",
-      "only-started": "Només iniciats",
+      "filter-placeholder": "Filtra per usuari o escriptori",
       "back-to-deployment": "Torna al desplegament",
       "view": {
-        "grid": "Vista en graella",
-        "single": "Vista completa"
-      }
+        "cards": "Vista de targetes",
+        "table": "Vista de taula"
+      },
+      "group-by": {
+        "label": "Agrupa per",
+        "user": "Agrupa per usuari",
+        "desktop": "Agrupa per escriptori"
+      },
+      "group-count": "{n} escriptori | {n} escriptoris"
     },
     "shared-deployments": {
       "error": {
@@ -1723,6 +1734,7 @@
       },
       "data-table": {
         "headers": {
+          "user": "Usuari",
           "name": "Nom",
           "description": "Descripció",
           "status": "Estat",

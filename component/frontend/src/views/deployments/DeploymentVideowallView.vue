@@ -1,81 +1,177 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useQuery } from '@tanstack/vue-query'
-import { ArrowLeft, Info, LayoutGrid, Maximize } from 'lucide-vue-next'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useElementSize, useLocalStorage, useWindowSize } from '@vueuse/core'
+import { ArrowLeft, Info } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
-
-import { getDeploymentVideowallOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-
-import NoVNC from '@/components/noVNC/NoVNC.vue'
-import DeploymentVideowallCard from '@/components/deployment-videowall/DeploymentVideowallCard.vue'
 import {
-  VIDEOWALL_ALIVE_STATES,
-  type VideowallDeployment,
-  type VideowallDesktop
-} from '@/components/deployment-videowall/types'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+import {
+  getDesktopDetailsOptions,
+  getDeploymentVideowallOptions,
+  startDesktopMutation,
+  stopDesktopMutation
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+
+import { AvatarLabel } from '@/components/avatar-label'
+import {
+  FilterTags,
+  countFilterTags,
+  emptyFilterTags,
+  type FilterCategory
+} from '@/components/filter-tags'
+import { DesktopCard, type CardSize, type OverlayKind } from '@/components/desktop-card'
+import { DesktopsDataTable } from '@/components/desktops-data-table'
+import {
+  DesktopBastionInfoModal,
+  DesktopNetworksModal,
+  DomainInfoModal
+} from '@/components/desktops'
+import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { TruncatedText } from '@/components/truncated-text'
-import { PageContainer, PageToolbar, SearchInput } from '@/components/page'
+import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import {
+  groupVideowallDesktops,
+  isRunning,
+  toVideowallDesktop,
+  type VideowallDesktop,
+  type VideowallGroupBy
+} from '@/lib/videowall'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const queryClient = useQueryClient()
 
 const deploymentId = computed(() => route.params.deploymentId as string)
 
-const { data, isPending } = useQuery(
+const { data: deployment, isPending } = useQuery(
   getDeploymentVideowallOptions({
     path: { deployment_id: deploymentId.value }
   })
 )
 
-// The apiv4 endpoint has no Pydantic response model so codegen typed the
-// payload as `unknown`. The contract is whatever
-// CommonDeployments.get_deployment(id, desktops=True) returns, which is the
-// same shape the vue 2 videowall consumes today.
-const deployment = computed<VideowallDeployment | undefined>(
-  () => data.value as VideowallDeployment | undefined
+const viewMode = useLocalStorage<'cards' | 'table'>('videowall-view-mode', 'cards')
+const groupBy = useLocalStorage<VideowallGroupBy>('videowall-group-by', 'user')
+const groupByOptions = computed<{ value: VideowallGroupBy; label: string }[]>(() => [
+  { value: 'user', label: t('views.deployment-videowall.group-by.user') },
+  { value: 'desktop', label: t('views.deployment-videowall.group-by.desktop') }
+])
+const groupByLabel = computed(
+  () => groupByOptions.value.find((option) => option.value === groupBy.value)?.label ?? ''
 )
-
-const viewMode = ref<'grid' | 'single'>('grid')
-const selectedDesktopId = ref<string | null>(null)
 const VIDEOWALL_SEARCH_INPUT_ID = 'deployment-videowall-search'
 const filterText = ref('')
-const showStartedOnly = ref(false)
 
-const desktops = computed<VideowallDesktop[]>(() => {
-  const all = deployment.value?.desktops ?? []
-  // Sort tiles with a live viewer to the front so the grid leads with usable
-  // previews. Stable comparator: viewer-bearing items rank first.
-  const sorted = [...all].sort((a, b) => Number(!!b.viewer) - Number(!!a.viewer))
-  const started = showStartedOnly.value
-    ? sorted.filter((d) => VIDEOWALL_ALIVE_STATES.has((d.state ?? '').toLowerCase()))
-    : sorted
-  const needle = filterText.value.toLowerCase()
-  return needle ? started.filter((d) => d.userName.toLowerCase().includes(needle)) : started
+const FILTER_CATEGORIES = ['status']
+const filterTags = ref(emptyFilterTags(FILTER_CATEGORIES))
+
+const allDesktops = computed(() => (deployment.value?.desktops ?? []).map(toVideowallDesktop))
+
+const filterCategories = computed<FilterCategory[]>(() => {
+  const started = allDesktops.value.filter(isRunning).length
+  return [
+    {
+      key: 'status',
+      label: t('views.deployment-videowall.filters.status.label'),
+      options: [
+        {
+          value: 'started',
+          label: t('views.deployment-videowall.filters.status.started'),
+          count: started,
+          icon: 'play'
+        },
+        {
+          value: 'stopped',
+          label: t('views.deployment-videowall.filters.status.stopped'),
+          count: allDesktops.value.length - started,
+          icon: 'stop'
+        }
+      ]
+    }
+  ]
 })
 
-const selectedDesktop = computed<VideowallDesktop | null>(
-  () => deployment.value?.desktops.find((d) => d.id === selectedDesktopId.value) ?? null
+const desktops = computed<VideowallDesktop[]>(() => {
+  const statuses = filterTags.value.status ?? []
+  const needle = filterText.value.trim().toLowerCase()
+  return allDesktops.value.filter(
+    (d) =>
+      (statuses.length === 0 || statuses.includes(isRunning(d) ? 'started' : 'stopped')) &&
+      (!needle ||
+        d.user_name.toLowerCase().includes(needle) ||
+        d.name.toLowerCase().includes(needle))
+  )
+})
+
+const activeFilterCount = computed(() => countFilterTags(filterTags.value))
+
+const groups = computed(() =>
+  groupVideowallDesktops(desktops.value, groupBy.value, deployment.value?.deployment_desktops ?? [])
 )
 
-// First load: pre-select the first desktop, mirroring vue 2 parity.
-watch(
-  () => deployment.value?.desktops?.[0]?.id,
-  (firstId) => {
-    if (firstId && !selectedDesktopId.value) selectedDesktopId.value = firstId
-  },
-  { immediate: true }
+// Same card sizes as the desktops view.
+const { width: windowWidth } = useWindowSize()
+const cardSize = computed<CardSize>(() => (windowWidth.value < 1280 ? 'md' : 'lg'))
+const cardMinWidth = computed(() => (cardSize.value === 'md' ? 250 : 412))
+// Tailwind `gap-4`.
+const CARD_GAP = 16
+const cardOverlays = ref<Record<string, OverlayKind | null>>({})
+
+const cardGridRef = ref<HTMLElement | null>(null)
+const { width: cardGridWidth } = useElementSize(cardGridRef)
+// Past four columns the previews get too small to read.
+const MAX_CARD_COLUMNS = 4
+const cardColumns = computed(() =>
+  Math.min(
+    MAX_CARD_COLUMNS,
+    Math.max(1, Math.floor((cardGridWidth.value + CARD_GAP) / (cardMinWidth.value + CARD_GAP)))
+  )
 )
 
-function selectDesktop(id: string) {
-  selectedDesktopId.value = id
-  viewMode.value = 'single'
+// A table per user would hold one or two rows each: one table, ordered by user.
+const tableGroups = computed(() =>
+  groupBy.value === 'user'
+    ? [{ key: 'all', label: '', desktops: groups.value.flatMap((g) => g.desktops) }]
+    : groups.value
+)
+
+const { mutate: startDesktop } = useMutation(startDesktopMutation())
+const { mutate: stopDesktop } = useMutation(stopDesktopMutation())
+const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
+
+const showDesktopInfoModal = ref(false)
+const {
+  mutate: fetchDesktopDetails,
+  isPending: fetchDesktopDetailsIsPending,
+  data: desktopDetails,
+  variables: desktopDetailsDesktopId,
+  reset: resetDesktopDetails
+} = useMutation({
+  mutationFn: (desktopId: string) =>
+    queryClient.fetchQuery(
+      getDesktopDetailsOptions({ path: { desktop_id: desktopId }, throwOnError: true })
+    )
+})
+
+const openDesktopInfoModal = (desktopId: string) => {
+  fetchDesktopDetails(desktopId)
+  showDesktopInfoModal.value = true
 }
+
+const networksModalDesktop = ref<VideowallDesktop | null>(null)
+const bastionModalDesktop = ref<VideowallDesktop | null>(null)
 
 function backToDeployment() {
   router.push({ name: 'deployment', params: { deploymentId: deploymentId.value } })
@@ -83,108 +179,224 @@ function backToDeployment() {
 </script>
 
 <template>
-  <PageContainer>
-    <div class="flex items-center justify-between gap-4">
-      <TruncatedText as="h1" :title="deployment?.name ?? ''" class="text-xl font-semibold" />
-      <Button variant="outline" @click="backToDeployment">
-        <ArrowLeft class="h-4 w-4 mr-2" />
-        {{ t('views.deployment-videowall.back-to-deployment') }}
-      </Button>
-    </div>
-
-    <PageToolbar>
-      <template #search>
-        <SearchInput
-          :id="VIDEOWALL_SEARCH_INPUT_ID"
-          v-model="filterText"
-          :placeholder="t('views.deployment-videowall.filter-placeholder')"
-        />
-      </template>
-      <template #filters>
-        <label class="flex h-10 items-center gap-2 text-sm">
-          <Checkbox v-model:checked="showStartedOnly" />
-          {{ t('views.deployment-videowall.only-started') }}
-        </label>
-      </template>
-      <template #actions>
-        <Button
-          variant="ghost"
-          size="icon"
-          :aria-label="t('views.deployment-videowall.view.grid')"
-          :disabled="viewMode === 'grid'"
-          @click="viewMode = 'grid'"
-        >
-          <LayoutGrid class="h-4 w-4" />
+  <PageContainer class="max-w-none gap-4">
+    <div class="flex flex-col gap-3">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex min-w-0 items-baseline gap-4">
+          <TruncatedText as="h1" :title="deployment?.name ?? ''" class="text-xl font-semibold" />
+          <span class="flex shrink-0 items-center gap-1 text-xs text-gray-warm-500">
+            <Info class="h-3.5 w-3.5" />
+            {{ t('views.deployment-videowall.gpu-warning') }}
+          </span>
+        </div>
+        <Button variant="outline" @click="backToDeployment">
+          <ArrowLeft class="h-4 w-4 mr-2" />
+          {{ t('views.deployment-videowall.back-to-deployment') }}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          :aria-label="t('views.deployment-videowall.view.single')"
-          :disabled="viewMode === 'single' || !selectedDesktopId"
-          @click="viewMode = 'single'"
-        >
-          <Maximize class="h-4 w-4" />
-        </Button>
-      </template>
-    </PageToolbar>
+      </div>
 
-    <div
-      class="flex items-start gap-2 rounded border border-blue-200 bg-blue-50 text-blue-900 p-3 text-sm"
-    >
-      <Info class="h-4 w-4 mt-0.5 shrink-0" />
-      <span>{{ t('views.deployment-videowall.gpu-warning') }}</span>
+      <PageToolbar>
+        <template #view>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                :icon="viewMode === 'cards' ? 'rows-01' : 'grid-01'"
+                class="p-[10px] shrink-0"
+                :aria-label="
+                  viewMode === 'cards'
+                    ? t('views.deployment-videowall.view.table')
+                    : t('views.deployment-videowall.view.cards')
+                "
+                @click="viewMode = viewMode === 'cards' ? 'table' : 'cards'"
+              />
+            </TooltipTrigger>
+            <TooltipContent
+              :title="
+                viewMode === 'cards'
+                  ? t('views.deployment-videowall.view.table')
+                  : t('views.deployment-videowall.view.cards')
+              "
+              side="top"
+            />
+          </Tooltip>
+          <Select v-model="groupBy">
+            <SelectTrigger
+              class="w-52 shrink-0 bg-base-white"
+              :aria-label="t('views.deployment-videowall.group-by.label')"
+            >
+              <SelectValue>{{ groupByLabel }}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in groupByOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </template>
+        <template #search>
+          <SearchInput
+            :id="VIDEOWALL_SEARCH_INPUT_ID"
+            v-model="filterText"
+            :placeholder="t('views.deployment-videowall.filter-placeholder')"
+          />
+        </template>
+        <template #filters>
+          <FilterTags v-model="filterTags" :categories="filterCategories" />
+        </template>
+      </PageToolbar>
     </div>
 
     <div
       v-if="isPending"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      class="grid gap-4"
+      :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardMinWidth}px, 1fr))` }"
     >
-      <Skeleton v-for="i in 8" :key="i" class="h-[244px] w-full rounded-lg" />
+      <Skeleton
+        v-for="i in 8"
+        :key="i"
+        :class="[cardSize === 'md' ? 'h-[280px]' : 'h-[310px]', 'w-full rounded-lg']"
+      />
     </div>
+
+    <EmptyState
+      v-else-if="groups.length === 0"
+      kind="desktops"
+      variant="no-results"
+      :searching="filterText.trim().length > 0"
+      :active-filters="activeFilterCount"
+      @clear-search="filterText = ''"
+      @clear-filters="filterTags = emptyFilterTags(FILTER_CATEGORIES)"
+    />
 
     <div
-      v-else-if="viewMode === 'grid'"
-      class="overflow-y-auto pb-3"
-      style="height: calc(100vh - 200px)"
+      v-else-if="viewMode === 'cards'"
+      ref="cardGridRef"
+      class="grid gap-4 pb-3"
+      :style="{ gridTemplateColumns: `repeat(${cardColumns}, minmax(0, 1fr))` }"
     >
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <DeploymentVideowallCard
-          v-for="d in desktops"
-          :key="d.id"
-          :desktop="d"
-          @select="selectDesktop(d.id)"
-        />
-      </div>
+      <!-- A group spans one column per desktop, so small groups share a row. -->
+      <section
+        v-for="group in groups"
+        :key="group.key"
+        class="grid grid-cols-subgrid content-start gap-y-2"
+        :style="{ gridColumn: `span ${Math.min(group.desktops.length, cardColumns)}` }"
+      >
+        <header class="col-span-full flex h-6 min-w-0 items-center gap-2">
+          <AvatarLabel
+            v-if="groupBy === 'user'"
+            :src="group.photo ?? ''"
+            :name="group.label"
+            size="xs"
+            name-class="text-sm font-semibold"
+          />
+          <h2 v-else class="truncate text-sm font-semibold text-gray-warm-900">
+            {{ group.label }}
+          </h2>
+          <span class="shrink-0 text-xs text-gray-warm-500">
+            {{ t('views.deployment-videowall.group-count', group.desktops.length) }}
+          </span>
+        </header>
+
+        <div v-for="dktp in group.desktops" :key="dktp.id" class="flex min-w-0 flex-col gap-1.5">
+          <!-- Every card of a desktop group shares one name: say whose it is. -->
+          <AvatarLabel
+            v-if="groupBy === 'desktop'"
+            :src="dktp.user_photo"
+            :name="dktp.user_name"
+            size="xs"
+          />
+          <DesktopCard
+            v-model:overlay="cardOverlays[dktp.id]"
+            :size="cardSize"
+            fill
+            :desktop="dktp"
+            :preferred-viewer="preferedViewers[dktp.id]"
+            @desktop-start="startDesktop({ path: { desktop_id: dktp.id } })"
+            @desktop-stop="stopDesktop({ path: { desktop_id: dktp.id } })"
+            @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
+            @show-info-modal="openDesktopInfoModal(dktp.id)"
+            @show-networks-modal="networksModalDesktop = dktp"
+            @show-bastion-modal="bastionModalDesktop = dktp"
+          />
+        </div>
+      </section>
     </div>
 
-    <div v-else>
-      <h2 class="text-lg font-semibold mb-2">
-        {{ selectedDesktop?.userName }} - {{ deployment?.desktopName }}
-      </h2>
-      <NoVNC
-        v-if="selectedDesktop?.viewer"
-        :viewer="selectedDesktop.viewer.values"
-        height="750px"
-        :quality-level="6"
-      />
-      <div
-        v-else
-        class="flex flex-col items-center justify-center bg-base-black"
-        style="height: 750px"
-      >
-        <div
-          class="rounded-full"
-          style="
-            width: 70px;
-            height: 70px;
-            opacity: 0.5;
-            background: #d5d5cd url(/api/v4/logo) center / 70px 70px no-repeat;
+    <div v-else class="flex flex-col gap-4 pb-3">
+      <section v-for="group in tableGroups" :key="group.key" class="flex flex-col gap-2">
+        <header v-if="groupBy === 'desktop'" class="flex h-6 items-center gap-2">
+          <h2 class="text-sm font-semibold text-gray-warm-900">{{ group.label }}</h2>
+          <span class="text-xs text-gray-warm-500">
+            {{ t('views.deployment-videowall.group-count', group.desktops.length) }}
+          </span>
+        </header>
+        <DesktopsDataTable
+          :desktops="group.desktops"
+          :prefered-viewers="preferedViewers"
+          show-user
+          @desktop-start="(dktp) => startDesktop({ path: { desktop_id: dktp.id } })"
+          @desktop-stop="(dktp) => stopDesktop({ path: { desktop_id: dktp.id } })"
+          @open-viewer="
+            (data) => fetchAndOpenViewer({ desktopId: data.dktp.id, viewer: data.viewer })
           "
+          @show-info-modal="(dktp) => openDesktopInfoModal(dktp.id)"
+          @show-networks-modal="(dktp) => (networksModalDesktop = dktp as VideowallDesktop)"
+          @show-bastion-modal="(dktp) => (bastionModalDesktop = dktp as VideowallDesktop)"
         />
-        <p class="text-base-white text-center mt-2">
-          {{ t('views.deployment-videowall.desktop-not-available') }}
-        </p>
-      </div>
+      </section>
     </div>
   </PageContainer>
+
+  <DomainInfoModal
+    :open="showDesktopInfoModal"
+    :is-loading="fetchDesktopDetailsIsPending"
+    :domain-id="desktopDetailsDesktopId"
+    :name="desktopDetails?.name || ''"
+    :description="desktopDetails?.description"
+    :status="desktopDetails?.status"
+    :ip="desktopDetails?.ip"
+    :vcpu="desktopDetails?.vcpu"
+    :ram="desktopDetails?.memory"
+    :boot-order="desktopDetails?.boot_order.map((bo) => bo.name)"
+    :disk-bus="desktopDetails?.disk_bus?.name"
+    :vga="desktopDetails?.videos.map((vga) => vga.name)"
+    :interfaces="desktopDetails?.interfaces"
+    :viewers="desktopDetails?.viewers"
+    :isos="desktopDetails?.isos?.map((iso) => iso.name)"
+    :floppies="desktopDetails?.floppies?.map((floppy) => floppy.name)"
+    :reservables="desktopDetails?.reservables?.vgpus"
+    :kind="'desktop'"
+    :template="desktopDetails?.template"
+    desktop-kind="deployment"
+    @close="
+      () => {
+        showDesktopInfoModal = false
+        resetDesktopDetails()
+      }
+    "
+  />
+
+  <DesktopNetworksModal
+    v-if="networksModalDesktop !== null"
+    :open="networksModalDesktop !== null"
+    :desktop-id="networksModalDesktop.id"
+    :desktop-name="networksModalDesktop.name"
+    :desktop-ip="networksModalDesktop.ip"
+    :desktop-status="networksModalDesktop.status"
+    desktop-kind="deployment"
+    @close="networksModalDesktop = null"
+  />
+
+  <DesktopBastionInfoModal
+    v-if="bastionModalDesktop !== null"
+    :open="bastionModalDesktop !== null"
+    :desktop-id="bastionModalDesktop.id"
+    :desktop-name="bastionModalDesktop.name"
+    @close="bastionModalDesktop = null"
+  />
 </template>

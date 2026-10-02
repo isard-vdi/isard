@@ -862,15 +862,6 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                   hierarchy="secondary-gray"
                   icon="tv-03"
                   class="aspect-square p-[10px]"
-                  :disabled="
-                    !row.desktops_statuses.some((s) =>
-                      [
-                        DesktopStatusEnum.STARTED,
-                        DesktopStatusEnum.STOPPING,
-                        DesktopStatusEnum.SHUTTING_DOWN
-                      ].includes(s.status)
-                    )
-                  "
                   @click="enterVideowall"
                 ></Button>
               </TooltipTrigger>

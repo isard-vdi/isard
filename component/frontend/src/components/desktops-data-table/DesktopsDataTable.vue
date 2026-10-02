@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
@@ -17,6 +18,7 @@ import {
   DesktopCellStatus,
   DesktopCellMainActionsButton
 } from '.'
+import { AvatarLabel } from '@/components/avatar-label'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table'
 import { Progress } from '@/components/ui/progress'
@@ -33,11 +35,13 @@ import { ViewerSelect } from '@/components/viewer-select'
 interface Props {
   desktops: ApiSchemasDomainsDesktopsUserDesktop[]
   preferedViewers: Record<string, string>
+  /** Add a column with the desktop's owner, for lists that mix users. */
+  showUser?: boolean
 }
 
 const { t, d, locale } = useI18n()
 
-const props = withDefaults(defineProps<Props>(), {})
+const props = withDefaults(defineProps<Props>(), { showUser: false })
 
 const emit = defineEmits<{
   // --- Main actions ---
@@ -75,12 +79,20 @@ const DEFAULT_PAGE_SIZE = window.innerHeight <= SHORT_VIEWPORT_HEIGHT ? 10 : 20
 
 const asDesktop = (row: unknown) => row as ApiSchemasDomainsDesktopsUserDesktop
 
-const headers = [
+const USER_HEADER = {
+  name: t('components.desktops.data-table.headers.user'),
+  key: 'user_name',
+  sortable: true,
+  width: 'minmax(160px, 1fr)'
+}
+
+const headers = computed(() => [
   {
     name: '',
     key: 'image',
     width: 'min-content'
   },
+  ...(props.showUser ? [USER_HEADER] : []),
   {
     name: t('components.desktops.data-table.headers.name'),
     key: 'name',
@@ -120,7 +132,7 @@ const headers = [
     key: 'actions',
     width: 'min-content'
   }
-]
+])
 
 const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
@@ -144,6 +156,9 @@ const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
         :desktop="desktop"
         @copy-to-clipboard="copyToClipboard"
       />
+    </template>
+    <template #cell-user_name="{ row }">
+      <AvatarLabel :src="row.user_photo ?? ''" :name="row.user_name ?? ''" />
     </template>
     <template #cell-name="{ row }">
       <DesktopCellName

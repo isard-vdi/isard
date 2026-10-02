@@ -190,6 +190,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         "tag",
                         "booking_id",
                         "tag_visible",
+                        "tag_desktop_id",
+                    )
+                    .merge(
+                        lambda domain: {
+                            "bastion_targets": r.table("targets")
+                            .get_all(domain["id"], index="desktop_id")
+                            .pluck(["id", "http", "ssh", "domains"])
+                            .coerce_to("array")
+                        }
                     )
                     .run(cls._rdb_connection)
                 )

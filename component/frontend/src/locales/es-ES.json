@@ -910,15 +910,26 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "status": {
+          "label": "Estado",
+          "started": "Iniciados",
+          "stopped": "Parados"
+        }
+      },
       "gpu-warning": "El videowall no funciona con visores RDP",
-      "desktop-not-available": "Escritorio no disponible",
-      "filter-placeholder": "Filtrar por usuario",
-      "only-started": "Solo iniciados",
+      "filter-placeholder": "Filtrar por usuario o escritorio",
       "back-to-deployment": "Volver al despliegue",
       "view": {
-        "grid": "Vista en cuadrícula",
-        "single": "Vista completa"
-      }
+        "cards": "Vista de tarjetas",
+        "table": "Vista de tabla"
+      },
+      "group-by": {
+        "label": "Agrupar por",
+        "user": "Agrupar por usuario",
+        "desktop": "Agrupar por escritorio"
+      },
+      "group-count": "{n} escritorio | {n} escritorios"
     },
     "shared-deployments": {
       "error": {
@@ -1723,6 +1734,7 @@
       },
       "data-table": {
         "headers": {
+          "user": "Usuario",
           "name": "Nombre",
           "description": "Descripción",
           "status": "Estado",

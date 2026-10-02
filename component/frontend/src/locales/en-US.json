@@ -918,15 +918,26 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "status": {
+          "label": "Status",
+          "started": "Started",
+          "stopped": "Stopped"
+        }
+      },
       "gpu-warning": "Videowall does not work with RDP viewers",
-      "desktop-not-available": "Desktop not available",
-      "filter-placeholder": "Filter by user",
-      "only-started": "Only started",
+      "filter-placeholder": "Filter by user or desktop",
       "back-to-deployment": "Back to deployment",
       "view": {
-        "grid": "Grid view",
-        "single": "Full view"
-      }
+        "cards": "Card view",
+        "table": "Table view"
+      },
+      "group-by": {
+        "label": "Group by",
+        "user": "Group by user",
+        "desktop": "Group by desktop"
+      },
+      "group-count": "{n} desktop | {n} desktops"
     },
     "shared-deployments": {
       "error": {
@@ -2485,6 +2496,7 @@
       },
       "data-table": {
         "headers": {
+          "user": "User",
           "name": "Name",
           "description": "Description",
           "status": "Status",

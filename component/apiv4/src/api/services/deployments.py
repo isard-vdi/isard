@@ -467,6 +467,21 @@ class DeploymentService:
         deployment["total_desktops"] = (
             deployment["total_users"] * deployment["desktops_each_user"]
         )
+        create_dict = (
+            Caches.get_document("deployments", deployment_id, ["create_dict"]) or []
+        )
+        deployment["deployment_desktops"] = [
+            {
+                "tag_desktop_id": entry.get("tag_desktop_id") or None,
+                "name": entry.get("name") or "",
+            }
+            for entry in create_dict
+        ]
+        # Desktops older than ``tag_desktop_id`` were all created from the first entry.
+        first_id = create_dict[0].get("tag_desktop_id") if create_dict else None
+        for desktop in deployment.get("desktops", []):
+            if not desktop.get("tag_desktop_id"):
+                desktop["tag_desktop_id"] = first_id or None
         return deployment
 
     @staticmethod
