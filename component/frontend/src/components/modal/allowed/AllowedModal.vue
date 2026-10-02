@@ -144,7 +144,6 @@ const allowedError = computed(() => {
 
 const selectedGroups = ref<string[]>([])
 const selectedUsers = ref<string[]>([])
-const apiIndeterminateGroups = ref<string[]>([])
 const apiAllGroups = ref(false)
 
 const shareWithEveryone = ref(false)
@@ -168,7 +167,6 @@ watch(
     dirty.value = false
     selectedGroups.value = []
     selectedUsers.value = []
-    apiIndeterminateGroups.value = []
     apiAllGroups.value = false
     shareWithEveryone.value = false
     viewedGroup.value = null
@@ -226,9 +224,6 @@ const hydrate = () => {
     everyoneEnabled.value && Array.isArray(source.users) && source.users.length === 0
   selectedUsers.value =
     !shareWithEveryone.value && Array.isArray(source.users) ? [...source.users] : []
-  apiIndeterminateGroups.value = Array.isArray(allowedData.value?.indeterminate_groups)
-    ? allowedData.value.indeterminate_groups.map((group) => group.id)
-    : []
   summaryOpen.value =
     selectedGroups.value.length > 0 || selectedUsers.value.length > 0 || apiAllGroups.value
   hydrated.value = true
@@ -241,20 +236,6 @@ watch(
   },
   { immediate: true }
 )
-
-const indeterminateGroups = computed(() => {
-  const ids = new Set(apiIndeterminateGroups.value)
-
-  for (const [groupId, members] of Object.entries(usersByGroup.value)) {
-    if (members.some((member) => selectedUsers.value.includes(member.value))) {
-      ids.add(groupId)
-    } else {
-      ids.delete(groupId)
-    }
-  }
-  for (const groupId of selectedGroups.value) ids.delete(groupId)
-  return [...ids]
-})
 
 const groupsEmptyText = computed(() =>
   allowedError.value ? t('api.loading-error') : t('components.allowed-modal.empty.groups')
@@ -682,7 +663,6 @@ const handleClose = () => {
         :title="t('components.allowed-modal.columns.groups')"
         :items="groupOptions"
         :selected="selectedGroups"
-        :indeterminate="indeterminateGroups"
         :active-id="viewedGroup"
         :loading="allowedIsPending"
         :disabled="columnsDisabled"

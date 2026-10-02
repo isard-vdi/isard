@@ -14,7 +14,6 @@ interface Props {
   title: string
   items: AllowedOption[]
   selected: string[]
-  indeterminate?: string[]
   activeId?: string | null
   loading?: boolean
   disabled?: boolean
@@ -32,7 +31,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  indeterminate: () => [],
   activeId: null,
   loading: false,
   disabled: false,
@@ -89,11 +87,7 @@ const measureRow = (el: Element | ComponentPublicInstance | null) => {
   if (el instanceof Element) rowVirtualizer.value.measureElement(el)
 }
 
-const checkedState = (value: string): boolean | 'indeterminate' => {
-  if (props.selected.includes(value)) return true
-  if (props.indeterminate.includes(value)) return 'indeterminate'
-  return false
-}
+const selectedSet = computed(() => new Set(props.selected))
 
 const masterState = computed<boolean | 'indeterminate'>(() => {
   if (props.selectAllChecked) return true
@@ -208,7 +202,7 @@ const toggleAll = () => {
                   :value="item.value"
                   :avatar="item.avatar"
                   :icon="item.icon"
-                  :checked="checkedState(item.value)"
+                  :checked="selectedSet.has(item.value)"
                   :active="item.value === props.activeId"
                   :disabled="props.disabled"
                   :selectable="props.selectable"

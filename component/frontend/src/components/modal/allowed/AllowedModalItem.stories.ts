@@ -19,10 +19,8 @@ const meta = {
   },
   argTypes: {
     checked: {
-      control: 'select',
-      options: [true, false, 'indeterminate'],
-      description:
-        'Selection state: true shows the remove button, false and indeterminate the add button.'
+      control: 'boolean',
+      description: 'Selected rows show the - control, the others the + one.'
     },
     label: {
       control: 'text',
@@ -103,16 +101,6 @@ export const Checked: Story = {
     value: 'group-b',
     icon: 'users-01',
     checked: true
-  }
-}
-
-export const Indeterminate: Story = {
-  args: {
-    label: 'Group C',
-    subLabel: 'This is group C',
-    value: 'group-c',
-    icon: 'users-01',
-    checked: 'indeterminate'
   }
 }
 

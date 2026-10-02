@@ -24,10 +24,6 @@ const meta = {
     title: { control: 'text', description: 'Heading above the search input.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
     selected: { control: 'object', description: 'Values rendered with the remove button.' },
-    indeterminate: {
-      control: 'object',
-      description: 'Partially selected values, whose add button is highlighted.'
-    },
     activeId: { control: 'text', description: 'Value of the highlighted row, if any.' },
     activatable: { control: 'boolean', description: 'Whether clicking a row emits select.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
@@ -129,7 +125,6 @@ export const WithSelection: Story = {
   args: {
     ...baseArgs,
     selected: ['group-1', 'group-4'],
-    indeterminate: ['group-2', 'group-7'],
     activeId: 'group-2'
   }
 }
@@ -190,8 +185,7 @@ export const SelectAllChecked: Story = {
 
 /**
  * Every row added one by one, with no sentinel: a different payload, so the row reads
- * indeterminate rather than checked — the same way a group reads indeterminate when its users
- * are picked individually.
+ * indeterminate rather than checked.
  */
 export const SelectAllIndividually: Story = {
   args: {

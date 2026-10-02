@@ -12,7 +12,7 @@ interface Props {
   subLabel?: string | undefined
   avatar?: string | undefined
   icon?: string | undefined
-  checked?: boolean | 'indeterminate'
+  checked?: boolean
   active?: boolean
   disabled?: boolean
   selectable?: boolean // When false the row has no add/remove button.
@@ -46,7 +46,7 @@ const initials = computed(() =>
 
 const toggle = () => {
   if (props.disabled) return
-  emit('update:checked', props.checked !== true)
+  emit('update:checked', !props.checked)
 }
 
 const select = () => {
@@ -68,7 +68,7 @@ const select = () => {
       )
     "
     role="option"
-    :aria-selected="props.checked === true"
+    :aria-selected="props.checked"
     :data-value="props.value"
     :data-active="props.active || undefined"
     :tabindex="props.activatable && !props.disabled ? 0 : undefined"
@@ -78,14 +78,14 @@ const select = () => {
   >
     <Button
       v-if="props.selectable"
-      :icon="props.checked === true ? 'minus' : 'plus'"
-      :hierarchy="props.checked === false ? 'secondary-gray' : 'secondary-color'"
+      :icon="props.checked ? 'minus' : 'plus'"
+      :hierarchy="props.checked ? 'link-destructive' : 'link-color'"
       size="sm"
       icon-size="sm"
       class="shrink-0 p-1.5"
       :disabled="props.disabled"
       :aria-label="
-        t(`components.allowed-modal.${props.checked === true ? 'remove' : 'add'}`, {
+        t(`components.allowed-modal.${props.checked ? 'remove' : 'add'}`, {
           name: props.label
         })
       "
