@@ -98,7 +98,7 @@ apiv4Client.interceptors.request.use(async (config) => {
 
 const SELF_HANDLED_ERROR_ROUTES = ['/item/user-migration/import-user']
 
-apiv4Client.interceptors.response.use(async (response) => {
+apiv4Client.interceptors.response.use(async (response, request) => {
   if (SELF_HANDLED_ERROR_ROUTES.some((route) => response.url.includes(route))) {
     return response
   }
@@ -108,7 +108,10 @@ apiv4Client.interceptors.response.use(async (response) => {
     authStore.logout()
   }
   if ([403, 500].includes(response.status)) {
-    router.push({ name: 'error', params: { code: String(response.status) } })
+    // A failed read means the page itself cannot load, so going back to it
+    // would only fail again: the error page takes its place in the history.
+    const navigate = request.method === 'GET' ? router.replace : router.push
+    navigate({ name: 'error', params: { code: String(response.status) } })
   } else if (response.status === 503) {
     router.push({ name: 'maintenance' })
   }
