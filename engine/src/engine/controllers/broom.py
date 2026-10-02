@@ -5,7 +5,7 @@
 
 import threading
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 from time import sleep, time
 
@@ -182,6 +182,14 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
     return result
 
 
+def _timed_check(state, hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP):
+    """Run a hypervisor check, recording when it actually started running."""
+    state["started_at"] = time()
+    return _check_single_hypervisor(
+        hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP
+    )
+
+
 class ThreadBroom(threading.Thread):
     def __init__(self, name, polling_interval, manager):
         threading.Thread.__init__(self)
@@ -194,6 +202,9 @@ class ThreadBroom(threading.Thread):
         )
         # Track which hypervisors the broom has marked as degraded
         self._broom_degraded_hyps = set()
+        # hyp_id -> (future, state); a check blocked in libvirt cannot be
+        # cancelled, so it is never resubmitted while still running
+        self._inflight = {}
 
     def stop_thread(self):
         """Stop the broom thread and cleanup resources."""
@@ -218,51 +229,76 @@ class ThreadBroom(threading.Thread):
         """
         hyps_domain_started = {}
 
+        # Forget finished checks of hypervisors that are no longer online
+        for hyp_id in list(self._inflight):
+            if hyp_id not in hyp_ids and self._inflight[hyp_id][0].done():
+                del self._inflight[hyp_id]
+
         if not hyp_ids:
             return hyps_domain_started
 
-        # Submit all hypervisor checks concurrently
-        futures = {
-            self._executor.submit(
-                _check_single_hypervisor,
+        now = time()
+        failed_hyps = set()
+        succeeded_hyps = set()
+        futures = {}
+        for hyp_id in hyp_ids:
+            previous = self._inflight.get(hyp_id)
+            if previous is not None and not previous[0].done():
+                started_at = previous[1]["started_at"]
+                if started_at is not None and now - started_at > BROOM_HYP_TIMEOUT:
+                    failed_hyps.add(hyp_id)
+                    if now - previous[1].get("warned_at", 0) >= 60:
+                        previous[1]["warned_at"] = now
+                        logs.broom.warning(
+                            f"Hypervisor {hyp_id} check still blocked after {int(now - started_at)}s, not submitting another one"
+                        )
+                continue
+            state = {"started_at": None}
+            future = self._executor.submit(
+                _timed_check,
+                state,
                 hyp_id,
                 disk_interval,
                 DB_DOMAINS_ID_STARTED_WITH_HYP,
-            ): hyp_id
-            for hyp_id in hyp_ids
-        }
+            )
+            self._inflight[hyp_id] = (future, state)
+            futures[future] = (hyp_id, state)
 
-        # Collect results with overall timeout
-        failed_hyps = set()
-        succeeded_hyps = set()
-        try:
-            for future in as_completed(futures, timeout=BROOM_HYP_TIMEOUT + 5):
-                hyp_id = futures[future]
+        if futures:
+            wait(futures, timeout=BROOM_HYP_TIMEOUT + 5)
+
+        for future, (hyp_id, state) in futures.items():
+            if future.done():
                 try:
-                    result = future.result(timeout=1)
-                    if result["success"]:
-                        hyps_domain_started[hyp_id] = {
-                            "active_domains": result["active_domains"]
-                        }
-                        succeeded_hyps.add(hyp_id)
-                    else:
-                        failed_hyps.add(hyp_id)
-                        logs.broom.warning(
-                            f"Hypervisor {hyp_id} check failed: {result.get('error', 'unknown')}"
-                        )
+                    result = future.result()
                 except Exception as e:
                     failed_hyps.add(hyp_id)
                     logs.broom.error(
                         f"Exception getting result for hypervisor {hyp_id}: {e}"
                     )
-        except TimeoutError:
-            # Some hypervisors timed out, log which ones
-            for future, hyp_id in futures.items():
-                if not future.done():
+                    continue
+                if result["success"]:
+                    hyps_domain_started[hyp_id] = {
+                        "active_domains": result["active_domains"]
+                    }
+                    succeeded_hyps.add(hyp_id)
+                else:
                     failed_hyps.add(hyp_id)
                     logs.broom.warning(
-                        f"Hypervisor {hyp_id} check timed out after {BROOM_HYP_TIMEOUT + 5}s"
+                        f"Hypervisor {hyp_id} check failed: {result.get('error', 'unknown')}"
                     )
+                continue
+            started_at = state["started_at"]
+            if started_at is None:
+                # queued behind blocked checks: no verdict this cycle
+                logs.broom.warning(
+                    f"Hypervisor {hyp_id} check did not start within {BROOM_HYP_TIMEOUT + 5}s (pool busy), no verdict this cycle"
+                )
+            elif time() - started_at >= BROOM_HYP_TIMEOUT:
+                failed_hyps.add(hyp_id)
+                logs.broom.warning(
+                    f"Hypervisor {hyp_id} check timed out after {int(time() - started_at)}s"
+                )
 
         # Mark failed hypervisors as degraded
         for hyp_id in failed_hyps:
