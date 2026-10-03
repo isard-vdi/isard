@@ -40,6 +40,12 @@ from . import storage as task_results_storage
 task_results_storage.register_item_class("media", Media)
 
 
+def _update_media(media_dict):
+    # update, never upsert: a media deleted while downloading must stay deleted
+    data = {key: value for key, value in media_dict.items() if key != "id"}
+    Media.update_document(media_dict["id"], data, validate=False)
+
+
 def handle_media_update(task, **media_dict):
     """Port of core_worker.task.media_update.
 
@@ -50,7 +56,7 @@ def handle_media_update(task, **media_dict):
     if task.depending_status != "finished":
         return
     if media_dict:
-        Media.insert_document(media_dict, conflict="update")
+        _update_media(media_dict)
         return
     for dependency in task.dependencies:
         if dependency.task in ("check_media_existence", "download_url"):
@@ -62,7 +68,7 @@ def handle_media_update(task, **media_dict):
             # Skip empty (failed/aborted) results — they carry no payload.
             result = dependency.result
             if result:
-                Media.insert_document(result, conflict="update")
+                _update_media(result)
 
 
 def handle_media_download_update_status(task, media_id):

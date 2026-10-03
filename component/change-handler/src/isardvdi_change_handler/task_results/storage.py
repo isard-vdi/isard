@@ -352,20 +352,14 @@ async def handle_update_status(redis_manager, task, statuses=None):
                     )
                     continue
                 for item_id in item_ids:
-                    if not model.exists(item_id):
-                        # The row was deleted while its chain was still
-                        # settling. insert_document inserts, so writing the
-                        # status here would re-create it as a zombie with
-                        # nothing but an id and a status.
-                        continue
                     if item_class.lower() == "storage":
                         status = Storage.write_status(item_id, item_status)
                         if status is not None:
                             await send_status_socket(redis_manager, item_id, status)
                         continue
-                    model.insert_document(
-                        {"id": item_id, "status": item_status},
-                        conflict="update",
+                    # update, never upsert: a row deleted meanwhile must stay deleted
+                    model.update_document(
+                        item_id, {"status": item_status}, validate=False
                     )
 
 
