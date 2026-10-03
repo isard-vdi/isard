@@ -97,6 +97,22 @@ STATUSES_SKIPPED_WITHOUT_HYPERVISOR = (
 )
 
 
+#: A start is only ever this short-lived before a hypervisor takes it. Past it,
+#: nothing is coming: the domain is not mid-start, it is abandoned.
+UNPICKED_START_GRACE_S = 300
+
+
+def reap_domain_without_hypervisor(db_domain, now):
+    """Past the grace a transitional domain with no hypervisor is abandoned, not starting."""
+    status = db_domain.get("status")
+    if status not in STATUSES_SKIPPED_WITHOUT_HYPERVISOR:
+        return True
+    accessed = db_domain.get("accessed")
+    if not isinstance(accessed, (int, float)):
+        return False
+    return (now - accessed) >= UNPICKED_START_GRACE_S
+
+
 def format_broom_data(data):
     if data[-1]["time"] > 5:
         print(tabulate(data, headers="keys", tablefmt="grid"))
@@ -478,8 +494,9 @@ class ThreadBroom(threading.Thread):
                 )
 
                 t_broom_inner = time()
+                now = time()
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
-                    if db_domain["status"] in STATUSES_SKIPPED_WITHOUT_HYPERVISOR:
+                    if not reap_domain_without_hypervisor(db_domain, now):
                         continue
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
