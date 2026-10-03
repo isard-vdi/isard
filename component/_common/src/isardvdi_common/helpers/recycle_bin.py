@@ -189,6 +189,10 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
         log.debug(f"Performing operation with user_id {user_id}")
         try:
             rb = RecycleBin(id=recycle_bin_id)
+            if rb.status == RecycleBinStatusEnum.deleted.value:
+                # the cascade of another entry in the same pass already deleted it
+                log.debug("Recycle bin %s is already deleted", recycle_bin_id)
+                return
             rb.delete_storage(user_id)
             if rb.item_type in ["user", "group", "category"]:
                 dependants_rb_ids = []
@@ -236,15 +240,14 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                 for d_rb_id in dependants_rb_ids:
                     await self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
         except Exception as e:
+            reason = e.error.get("description") if isinstance(e, Error) else str(e)
             log.error(
-                f"Error processing recycle bin {recycle_bin_id}: {str(e)}",
+                f"Error processing recycle bin {recycle_bin_id}: {reason}",
                 exc_info=True,
             )
-            # Update status back to recycled so it can be retried or manually handled
+            # Put it back so it can be retried or manually handled
             try:
-                Helpers.update_status(
-                    recycle_bin_id, user_id, RecycleBinStatusEnum.recycled.value
-                )
+                Helpers.revert_to_recycled(recycle_bin_id)
             except Exception as status_error:
                 log.error(
                     f"Failed to update status for recycle bin {recycle_bin_id}: {str(status_error)}"
@@ -740,6 +743,25 @@ class Helpers(RethinkSharedConnection):
         cls.clear_get_user_amount_cache()
         cls.clear_get_user_recycle_bin_ids_cache()
         return True
+
+    @classmethod
+    def revert_to_recycled(cls, rb_id):
+        terminal = [
+            RecycleBinStatusEnum.deleted.value,
+            RecycleBinStatusEnum.restored.value,
+        ]
+        with cls._rdb_context():
+            r.table("recycle_bin").get(rb_id).update(
+                lambda row: r.branch(
+                    r.expr(terminal).contains(row["status"]),
+                    {},
+                    {"status": RecycleBinStatusEnum.recycled.value},
+                )
+            ).run(cls._rdb_connection)
+        cls.clear_get_item_count_cache()
+        cls.clear_get_count_cache()
+        cls.clear_get_user_amount_cache()
+        cls.clear_get_user_recycle_bin_ids_cache()
 
     @classmethod
     def update_status(cls, rb_id, owner_id, status):
