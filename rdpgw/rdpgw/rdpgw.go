@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/patrickmn/go-cache"
 	"gitlab.com/isard/isardvdi/rdpgw/protocol"
 )
@@ -46,9 +48,30 @@ func Init(cfg cfg.Cfg) (*protocol.Gateway, error) {
 
 func verifyToken(ctx context.Context, tkn string) (bool, error) {
 	s := ctx.Value("SessionInfo").(*protocol.SessionInfo)
+	if err := expired(tkn, time.Now()); err != nil {
+		log.Printf("refusing tunnel %s: %v", s.ConnId, err)
+		return false, err
+	}
 	c.Set(s.ConnId, tkn, cache.DefaultExpiration)
 
 	return true, nil
+}
+
+// expired refuses only what the API would refuse anyway: the signature is still checked there, on every channel.
+func expired(tkn string, now time.Time) error {
+	claims := jwt.MapClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(tkn, claims); err != nil {
+		return nil
+	}
+	exp, err := claims.GetExpirationTime()
+	if err != nil || exp == nil || now.Before(exp.Time) {
+		return nil
+	}
+	desktop := ""
+	if data, ok := claims["data"].(map[string]any); ok {
+		desktop, _ = data["desktop_id"].(string)
+	}
+	return fmt.Errorf("viewer token for desktop %q expired at %s", desktop, exp.UTC().Format(time.RFC3339))
 }
 
 func verifyServer(cli apiv4.Invoker) func(context.Context, string) (bool, error) {

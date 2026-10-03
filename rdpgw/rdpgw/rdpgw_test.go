@@ -17,6 +17,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -271,4 +272,48 @@ func TestVerifyServer(t *testing.T) {
 			assert.True(ok)
 		})
 	}
+}
+
+func viewerToken(t *testing.T, exp time.Time) string {
+	t.Helper()
+
+	tkn, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"exp":  exp.Unix(),
+		"kid":  "isardvdi-viewer",
+		"data": map[string]any{"category_id": "c1", "desktop_id": "d1"},
+	}).SignedString([]byte("secret"))
+	require.NoError(t, err)
+
+	return tkn
+}
+
+func TestVerifyTokenRefusesAnExpiredViewerToken(t *testing.T) {
+	t.Parallel()
+
+	connID := "conn-expired"
+	ctx := context.WithValue(t.Context(), "SessionInfo", &protocol.SessionInfo{ConnId: connID})
+
+	ok, err := verifyToken(ctx, viewerToken(t, time.Now().Add(-time.Hour)))
+
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `desktop "d1" expired`)
+	_, cached := c.Get(connID)
+	assert.False(t, cached)
+}
+
+func TestVerifyTokenAcceptsALiveViewerToken(t *testing.T) {
+	t.Parallel()
+
+	connID := "conn-live"
+	ctx := context.WithValue(t.Context(), "SessionInfo", &protocol.SessionInfo{ConnId: connID})
+	tkn := viewerToken(t, time.Now().Add(time.Hour))
+
+	ok, err := verifyToken(ctx, tkn)
+
+	assert.True(t, ok)
+	require.NoError(t, err)
+	cachedTkn, cached := c.Get(connID)
+	assert.True(t, cached)
+	assert.Equal(t, tkn, cachedTkn)
 }
