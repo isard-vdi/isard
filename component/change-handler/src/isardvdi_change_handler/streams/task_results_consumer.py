@@ -56,6 +56,7 @@ from isardvdi_common.connections.redis_blocking import (
     STREAM_BLOCK_MS,
     async_blocking_client,
 )
+from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.lib import queue_coverage
@@ -454,7 +455,7 @@ async def _release_storage_dependents(dep_task):
     if not has_storage_child:
         return
     try:
-        conn = redis.from_url(rq_url())
+        conn = shared_client(rq_url())
         # ``Queue(...)`` here is just the gateway to ``enqueue_dependents``
         # — the method routes each dependent to its OWN ``origin`` queue,
         # so the queue name we pass is irrelevant beyond construction.

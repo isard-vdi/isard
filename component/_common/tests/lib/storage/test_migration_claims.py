@@ -405,7 +405,7 @@ def _fake_lock(events, *, acquire=True, reacquire=None):
 def test_advance_busy_when_lock_held(monkeypatch):
     _fake_migration(monkeypatch, exists=True, status="running")
     monkeypatch.setattr(
-        mr.redis, "from_url", lambda *a, **k: _fake_lock([], acquire=False)
+        mr, "shared_client", lambda *a, **k: _fake_lock([], acquire=False)
     )
     assert mr.advance("m") == "busy"
 
@@ -413,7 +413,7 @@ def test_advance_busy_when_lock_held(monkeypatch):
 def test_advance_drains_and_releases(monkeypatch):
     _fake_migration(monkeypatch, exists=True, status="running")
     events = []
-    monkeypatch.setattr(mr.redis, "from_url", lambda *a, **k: _fake_lock(events))
+    monkeypatch.setattr(mr, "shared_client", lambda *a, **k: _fake_lock(events))
 
     class _Runner:
         def __init__(self, mid, *, job_status_fn):
@@ -443,7 +443,7 @@ def test_advance_aborts_and_releases_on_lost_lease(monkeypatch):
     _fake_migration(monkeypatch, exists=True, status="running")
     events = []
     monkeypatch.setattr(
-        mr.redis, "from_url", lambda *a, **k: _fake_lock(events, reacquire="raise")
+        mr, "shared_client", lambda *a, **k: _fake_lock(events, reacquire="raise")
     )
 
     class _Runner:

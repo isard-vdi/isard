@@ -23,6 +23,7 @@ from typing import Any
 
 import redis
 import redis.asyncio as aioredis
+from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 
 # The block a stream consumer asks the server to hold a read open for.
 STREAM_BLOCK_MS = 5000
@@ -63,6 +64,7 @@ def blocking_client(
     url: str, block_ms: int | float | None = STREAM_BLOCK_MS, **kwargs: Any
 ) -> redis.Redis:
     """A client whose socket outlasts the longest read it will issue."""
+    kwargs.setdefault("maint_notifications_config", NO_MAINT_NOTIFICATIONS)
     return redis.from_url(url, **_connection_kwargs(block_ms, kwargs))
 
 

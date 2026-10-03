@@ -55,8 +55,8 @@ import threading
 from contextlib import contextmanager
 from typing import Iterator
 
+from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
-from redis import Redis
 from redis.exceptions import RedisError
 
 # How long a lease outlives the holder. A crashed/killed worker must not wedge a
@@ -116,7 +116,7 @@ def resource_lock(
         yield
         return
 
-    conn = Redis.from_url(
+    conn = shared_client(
         rq_url(), socket_timeout=_SOCKET_TIMEOUT, socket_connect_timeout=_SOCKET_TIMEOUT
     )
     acquired = []
@@ -163,7 +163,3 @@ def resource_lock(
                 )
         for key in wanted:
             held.discard(key)
-        try:
-            conn.close()
-        except RedisError:
-            pass

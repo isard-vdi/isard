@@ -22,13 +22,13 @@ import logging as log
 import os
 from typing import Optional, Union
 
+from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.lib.storage.physical_usage import read_usage
 from isardvdi_common.schemas.hypervisor import HypervisorStatus
-from redis import Redis
 
 # GENEVE / WireGuard encapsulation overheads. Canonical arithmetic lives in
 # docker/vpn/ovs/ovs_setup.sh (it physically sizes vlan-wg/ovsbr0); this is a
@@ -354,7 +354,7 @@ def _redis():
     the pre-existing behaviour -- never a fabricated one.
     """
     try:
-        return Redis.from_url(rq_url())
+        return shared_client(rq_url())
     except Exception:
         log.warning("cannot reach redis to read published pool usage")
         return None

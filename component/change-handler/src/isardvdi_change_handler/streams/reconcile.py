@@ -241,12 +241,12 @@ async def _release_via_parents(task):
     worker runs it. Reuses the same mechanism the consumer's
     :func:`_release_storage_dependents` relies on, applied here to the parent.
     """
-    import redis
+    from isardvdi_common.connections.redis_client import shared_client
     from isardvdi_common.connections.redis_urls import rq_url
     from rq import Queue
 
     try:
-        conn = redis.from_url(rq_url())
+        conn = shared_client(rq_url())
         queue = Queue(connection=conn)
         for parent in task.dependencies:
             await asyncio.to_thread(queue.enqueue_dependents, parent.job)
@@ -417,10 +417,10 @@ async def _reconcile_orphan_deferred(redis_manager, now=None, grace_s=GRACE_S):
 
 def _drain_connection():
     """Plain redis connection for the tombstone sweep (raw list surgery)."""
-    import redis
+    from isardvdi_common.connections.redis_client import shared_client
     from isardvdi_common.connections.redis_urls import rq_url
 
-    return redis.from_url(rq_url())
+    return shared_client(rq_url())
 
 
 async def _drain_core_once(redis_manager):

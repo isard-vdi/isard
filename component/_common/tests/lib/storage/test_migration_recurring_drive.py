@@ -478,7 +478,7 @@ def test_advance_drives_only_self_resuming_pauses(monkeypatch, reason, outcome):
             return job
 
     monkeypatch.setattr(mr, "StorageMigration", _SM)
-    monkeypatch.setattr(mr.redis, "from_url", lambda *a, **k: _Conn())
+    monkeypatch.setattr(mr, "shared_client", lambda *a, **k: _Conn())
     assert mr.advance("m") == outcome
 
 

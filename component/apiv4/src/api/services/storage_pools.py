@@ -19,6 +19,7 @@
 
 import logging as log
 
+from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
@@ -31,7 +32,6 @@ from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
 from isardvdi_common.models.storage_pool import StoragePool
-from redis import Redis
 
 
 class StoragePoolService:
@@ -183,7 +183,7 @@ def _redis():
     is the same answer as a node that stopped -- never to a made-up figure.
     """
     try:
-        return Redis.from_url(rq_url())
+        return shared_client(rq_url())
     except Exception:
         log.warning("cannot reach redis to read published pool usage")
         return None
