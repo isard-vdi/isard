@@ -66,6 +66,37 @@ def _hung_mounts(hyp_id, disk_interval, hostname, user, port):
     return _storage_hung.get(hyp_id, [])
 
 
+# A domain libvirt reports whose database status is one of these is already
+# accounted for by whoever put it there; the broom must not stamp it Started.
+STATUSES_ALREADY_ACCOUNTED_FOR = [
+    "Started",
+    "Paused",
+    "Shutting-down",
+    "Stopping",
+    "Deleting",
+    "ForceDeleting",
+    "CreatingDomain",
+    "CreatingAndStarting",
+    "CreatingDiskFromScratch",
+    "StartingDomainDisposable",
+]
+
+# Creation is still running for these, so the broom leaves the domain alone.
+STATUSES_IN_CREATION = [
+    "CreatingDomain",
+    "CreatingAndStarting",
+    "CreatingDiskFromScratch",
+    "StartingDomainDisposable",
+]
+
+# A domain with no hypervisor in one of these is not converged to Unknown.
+STATUSES_SKIPPED_WITHOUT_HYPERVISOR = (
+    "Stopping",
+    "Starting",
+    "StartingPaused",
+)
+
+
 def format_broom_data(data):
     if data[-1]["time"] > 5:
         print(tabulate(data, headers="keys", tablefmt="grid"))
@@ -170,18 +201,7 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                             )
                         continue
 
-                    if domain_status not in [
-                        "Started",
-                        "Paused",
-                        "Shutting-down",
-                        "Stopping",
-                        "Deleting",
-                        "ForceDeleting",
-                        "CreatingDomain",
-                        "CreatingAndStarting",
-                        "CreatingDiskFromScratch",
-                        "StartingDomainDisposable",
-                    ]:
+                    if domain_status not in STATUSES_ALREADY_ACCOUNTED_FOR:
                         hyp_status = (
                             status_and_detail.get("status")
                             if isinstance(status_and_detail, dict)
@@ -459,11 +479,7 @@ class ThreadBroom(threading.Thread):
 
                 t_broom_inner = time()
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
-                    if db_domain["status"] in (
-                        "Stopping",
-                        "Starting",
-                        "StartingPaused",
-                    ):
+                    if db_domain["status"] in STATUSES_SKIPPED_WITHOUT_HYPERVISOR:
                         continue
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
@@ -518,12 +534,7 @@ class ThreadBroom(threading.Thread):
                                         "CRITICAL, if domain is not in database, must have been destroyed previously by broom, will do it next loop"
                                     )
                                     continue
-                                if db_domain_status in [
-                                    "CreatingDomain",
-                                    "CreatingAndStarting",
-                                    "CreatingDiskFromScratch",
-                                    "StartingDomainDisposable",
-                                ]:
+                                if db_domain_status in STATUSES_IN_CREATION:
                                     logs.broom.debug(
                                         f"broom skipping domain {domain_id} in creation status {db_domain_status} on hypervisor {hyp_id}"
                                     )
