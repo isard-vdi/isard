@@ -113,6 +113,60 @@ def reap_domain_without_hypervisor(db_domain, now):
     return (now - accessed) >= UNPICKED_START_GRACE_S
 
 
+# Every corrective write the broom makes carries this token, and every pass
+# reports its own duration under BROOM_PASS.
+BROOM_ACTED = "BROOM_ACTED"
+BROOM_PASS = "BROOM_PASS"
+
+# Whether the correction means something upstream failed. Seven of the eight
+# do: the paths that should have converged the row are the engine's own libvirt
+# event collector (which writes Stopped on the lifecycle event) and the actions
+# the workers run. Only a guest ignoring ACPI is ordinary.
+UPSTREAM_FAILURE = "upstream_failure"
+EXPECTED = "expected"
+
+
+def log_broom_action(
+    action, domain_id, to_status, kind, from_status=None, hyp_id=None, reason=""
+):
+    """Record one corrective write, at a level that survives a production log.
+
+    ``kind`` decides the level, so ``WARNING`` from this thread means a defect
+    to chase and ``INFO`` means the broom did its ordinary job.
+    """
+    emit = logs.broom.warning if kind == UPSTREAM_FAILURE else logs.broom.info
+    emit(
+        "%s action=%s class=%s domain=%s from=%s to=%s hyp=%s reason=%s",
+        BROOM_ACTED,
+        action,
+        kind,
+        domain_id,
+        from_status or "-",
+        to_status,
+        hyp_id or "-",
+        reason or "-",
+    )
+
+
+def log_broom_pass(seconds, polling_interval, domains, hypervisors):
+    """Report one pass, loudly when it outlasts the interval that schedules it.
+
+    A pass that takes longer than its own interval cannot keep up with the
+    fleet, and the next scheduled pass starts late for every domain.
+    """
+    overrun = polling_interval > 0 and seconds > polling_interval
+    emit = logs.broom.warning if overrun else logs.broom.info
+    emit(
+        "%s seconds=%.2f interval=%s domains=%s hypervisors=%s overrun=%s",
+        BROOM_PASS,
+        seconds,
+        polling_interval,
+        domains,
+        hypervisors,
+        "yes" if overrun else "no",
+    )
+
+
 def format_broom_data(data):
     if data[-1]["time"] > 5:
         print(tabulate(data, headers="keys", tablefmt="grid"))
@@ -208,8 +262,13 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                             domain_handler = h.conn.lookupByName(domain_id)
                             domain_handler.destroy()
                             result["domains_destroyed"].append(domain_id)
-                            logs.broom.error(
-                                f"broom destroyed domain not in database {domain_id} in hypervisor {hyp_id}"
+                            log_broom_action(
+                                "destroy_domain_absent_from_database",
+                                domain_id,
+                                "destroyed",
+                                UPSTREAM_FAILURE,
+                                hyp_id=hyp_id,
+                                reason="running in libvirt with no row",
                             )
                         except Exception as e:
                             logs.broom.error(
@@ -226,8 +285,14 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                         if hyp_status == "Paused":
                             # e.g. paused on a disk I/O error: not running
                             hyp_detail = status_and_detail.get("detail", "")
-                            logs.broom.warning(
-                                f"broom find domain {domain_id} with status {domain_status} paused in hypervisor {hyp_id} ({hyp_detail}) and updated status and hyp_started in database"
+                            log_broom_action(
+                                "adopt_paused_domain",
+                                domain_id,
+                                "Paused",
+                                UPSTREAM_FAILURE,
+                                from_status=domain_status,
+                                hyp_id=hyp_id,
+                                reason=f"paused in libvirt ({hyp_detail}), database disagreed",
                             )
                             update_domain_hyp_started(
                                 domain_id,
@@ -236,8 +301,14 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                                 "Paused",
                             )
                         else:
-                            logs.broom.warning(
-                                f"broom find domain {domain_id} with status {domain_status} started in hypervisor {hyp_id} and updated status and hyp_started in database"
+                            log_broom_action(
+                                "adopt_running_domain",
+                                domain_id,
+                                "Started",
+                                UPSTREAM_FAILURE,
+                                from_status=domain_status,
+                                hyp_id=hyp_id,
+                                reason="running in libvirt, database disagreed",
                             )
                             update_domain_hyp_started(
                                 domain_id,
@@ -498,10 +569,13 @@ class ThreadBroom(threading.Thread):
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
                     if not reap_domain_without_hypervisor(db_domain, now):
                         continue
-                    logs.broom.error(
-                        "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
-                            db_domain["id"], db_domain["status"]
-                        )
+                    log_broom_action(
+                        "orphan_without_hypervisor",
+                        db_domain["id"],
+                        "Unknown",
+                        UPSTREAM_FAILURE,
+                        from_status=db_domain["status"],
+                        reason="transitional status and no hypervisor holds it",
                     )
                     update_domain_status(
                         "Unknown",
@@ -606,10 +680,13 @@ class ThreadBroom(threading.Thread):
                     domain_id = d["id"]
                     status = d["status"]
                     if status == "Stopping":
-                        logs.broom.debug(
-                            "DOMAIN: {} STATUS STOPPING WITHOUTH HYPERVISOR, UNKNOWN REASON".format(
-                                domain_id
-                            )
+                        log_broom_action(
+                            "stop_without_hypervisor",
+                            domain_id,
+                            "Stopped",
+                            UPSTREAM_FAILURE,
+                            from_status=status,
+                            reason="no hypervisor holds it",
                         )
                         update_domain_status(
                             "Stopped",
@@ -683,6 +760,15 @@ class ThreadBroom(threading.Thread):
                                     "active_domains"
                                 ]
                             ):
+                                log_broom_action(
+                                    "stop_vanished_from_libvirt",
+                                    domain_id,
+                                    "Stopped",
+                                    UPSTREAM_FAILURE,
+                                    from_status=status,
+                                    hyp_id=hyp_started,
+                                    reason="no longer active on its hypervisor",
+                                )
                                 update_domain_status(
                                     "Stopped",
                                     domain_id,
@@ -691,10 +777,14 @@ class ThreadBroom(threading.Thread):
                                 update_vgpu_info_if_stopped(domain_id)
                         elif status == "Resetting":
                             if int(time()) - int(d["accessed"]) > 60:
-                                logs.broom.debug(
-                                    "DOMAIN: {} STATUS RESETTING IN HYPERVISOR: {}".format(
-                                        domain_id, hyp_started
-                                    )
+                                log_broom_action(
+                                    "fail_stuck_reset",
+                                    domain_id,
+                                    "Failed",
+                                    UPSTREAM_FAILURE,
+                                    from_status=status,
+                                    hyp_id=hyp_started,
+                                    reason="reset never finished within 60s",
                                 )
                                 update_domain_status(
                                     "Failed",
@@ -719,8 +809,14 @@ class ThreadBroom(threading.Thread):
                                     detail="Stopped by broom thread, domain no longer active in libvirt",
                                 )
                                 update_vgpu_info_if_stopped(domain_id)
-                                logs.broom.info(
-                                    f"domain {domain_id} set to Stopped (was Shutting-down but gone from {hyp_started})"
+                                log_broom_action(
+                                    "stop_finished_shutdown",
+                                    domain_id,
+                                    "Stopped",
+                                    UPSTREAM_FAILURE,
+                                    from_status=status,
+                                    hyp_id=hyp_started,
+                                    reason="gone from libvirt after shutdown",
                                 )
                             elif (
                                 int(time()) - int(d["accessed"])
@@ -732,8 +828,14 @@ class ThreadBroom(threading.Thread):
                                     keep_hyp_id=True,
                                     detail=f"Stopping by broom thread after {BROOM_SHUTDOWN_TIMEOUT}s in Shutting-down",
                                 )
-                                logs.broom.info(
-                                    f"domain {domain_id} updated to Stopping after {BROOM_SHUTDOWN_TIMEOUT}s in Shutting-down"
+                                log_broom_action(
+                                    "force_stop_after_shutdown_timeout",
+                                    domain_id,
+                                    "Stopping",
+                                    EXPECTED,
+                                    from_status=status,
+                                    hyp_id=hyp_started,
+                                    reason=f"still shutting down after {BROOM_SHUTDOWN_TIMEOUT}s",
                                 )
                         else:
                             logs.broom.info(
@@ -755,12 +857,19 @@ class ThreadBroom(threading.Thread):
                         "time": round(time() - t_broom_inner, 2),
                     }
                 )
+                pass_seconds = time() - t_broom
                 t_broom_data.append(
                     {
                         "step": "total",
                         "count": "-",
-                        "time": round(time() - t_broom, 2),
+                        "time": round(pass_seconds, 2),
                     }
+                )
+                log_broom_pass(
+                    pass_seconds,
+                    self.polling_interval,
+                    len(l),
+                    len(HYPERS_ONLINE),
                 )
                 format_broom_data(t_broom_data)
             except Exception as e:
