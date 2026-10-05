@@ -5,6 +5,9 @@ $BACKUP_DISKS_TEMPLATES_ENABLED
 $BACKUP_DISKS_GROUPS_ENABLED
 $BACKUP_DISKS_MEDIA_ENABLED
 
+## extra `borg create` options, empty by default (BACKUP_DISKS_CREATE_OPTIONS)
+create_options = $BACKUP_DISKS_CREATE_OPTIONS
+
 ## for more info see : borg prune -h
 keep = 0
 prune = yes

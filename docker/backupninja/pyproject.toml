@@ -33,4 +33,4 @@ packages = ["src/isardvdi_backupninja"]
 
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]
-apk-runtime = ["bash", "borgbackup", "coreutils", "curl", "envsubst", "flock", "jq", "libffi", "libjpeg-turbo", "nfs-utils", "openssl", "redis", "zlib"]
+apk-runtime = ["bash", "borgbackup~1.4", "coreutils", "curl", "envsubst", "flock", "jq", "libffi", "libjpeg-turbo", "nfs-utils", "openssl", "redis", "zlib"]
