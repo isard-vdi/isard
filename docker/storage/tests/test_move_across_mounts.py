@@ -84,6 +84,8 @@ class TestExdevDegradesToAGuardedCopy:
         (argv, _kwargs) = calls["rsync"][0]
         assert argv[0] == "rsync"
         assert "--remove-source-files" in argv
+        # Without it every hole of the qcow2 is written as zeros at the destination.
+        assert "--sparse" in argv
         assert argv[-2:] == [str(src), str(dst)]
 
     def test_the_copy_reports_progress(self, worker, monkeypatch, tmp_path):

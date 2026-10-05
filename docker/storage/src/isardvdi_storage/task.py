@@ -328,7 +328,7 @@ def _require_free_space(
             )
     else:
         try:
-            # Apparent size, not st_blocks: the rsync argv carries no --sparse.
+            # apparent size: an upper bound for the sparse copy
             needed = os_stat(source_path).st_size
         except OSError as exc:
             raise RuntimeError(
@@ -1472,7 +1472,7 @@ def move(
                 return 0
 
     # Everything past here copies, so the floor applies -- keyed on copying, not on
-    # the method name. Basis is the apparent size: no copier here passes --sparse.
+    # the method name. Basis is the apparent size, an upper bound for a sparse copy.
     _require_free_space(
         dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
     )
@@ -1481,6 +1481,8 @@ def move(
         [
             "rsync",
             "-a",
+            # without it every hole of the qcow2 is written as zeros at the destination
+            "--sparse",
             "--info=progress,flist0",
             *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
             *(["--remove-source-files"] if remove_source_file else []),
