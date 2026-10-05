@@ -28,7 +28,12 @@ export const buttonVariants = cva(
           hover:bg-gray-warm-50 :hover:text-brand-700
           focus:ring-3 focus:ring-brand
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
-
+        `,
+        'secondary-destructive': `
+          bg-base-white text-error-700 border-error-700 border
+          hover:bg-error-25 :hover:text-error-700
+          focus:ring-3 focus:ring-error
+          disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
         `,
         'tertiary-color': `
           bg-base-white text-gray-warm-600 border-warning-300 border

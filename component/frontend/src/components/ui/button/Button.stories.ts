@@ -20,6 +20,7 @@ const meta = {
         'primary',
         'secondary-gray',
         'secondary-color',
+        'secondary-destructive',
         'tertiary-color',
         'link-gray',
         'link-color',
@@ -58,6 +59,7 @@ export const Primary = createStory({ hierarchy: 'primary' })
 export const PrimaryWithIcon = createStory({ hierarchy: 'primary', icon: 'google' })
 export const SecondaryGray = createStory({ hierarchy: 'secondary-gray' })
 export const SecondaryColor = createStory({ hierarchy: 'secondary-color' })
+export const SecondaryDestructive = createStory({ hierarchy: 'secondary-destructive' })
 export const TertiaryColor = createStory({ hierarchy: 'tertiary-color' })
 export const LinkGray = createStory({ hierarchy: 'link-gray' })
 export const LinkColor = createStory({ hierarchy: 'link-color' })

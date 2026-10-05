@@ -67,7 +67,7 @@ const toggle = () => {
       as="span"
       aria-hidden="true"
       :icon="props.checked ? 'minus' : 'plus'"
-      :hierarchy="props.checked ? 'link-destructive' : 'link-color'"
+      :hierarchy="props.checked ? 'secondary-destructive' : 'secondary-color'"
       size="sm"
       icon-size="sm"
       class="shrink-0 p-1.5"
