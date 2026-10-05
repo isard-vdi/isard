@@ -22,6 +22,7 @@ const meta = {
   },
   argTypes: {
     title: { control: 'text', description: 'Heading above the search input.' },
+    icon: { control: 'text', description: 'Icon shown before the title.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
     selected: { control: 'object', description: 'Values rendered as selected rows.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
@@ -89,6 +90,7 @@ type Story = StoryObj<ComponentPropsAndSlots<typeof AllowedModalColumn>>
 
 const baseArgs = {
   title: 'Groups',
+  icon: 'users-01',
   items: groups,
   selected: [],
   searchPlaceholder: 'Search group',

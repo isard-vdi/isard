@@ -567,6 +567,7 @@ const handleClose = () => {
         v-if="!props.usersOnly"
         v-model:search="groupSearch"
         :title="t('components.allowed-modal.columns.groups')"
+        icon="users-01"
         :items="groupOptions"
         :selected="selectedGroups"
         :loading="allowedIsPending"
@@ -590,6 +591,7 @@ const handleClose = () => {
       <AllowedModalColumn
         v-model:search="userSearch"
         :title="t('components.allowed-modal.columns.users')"
+        icon="user-01"
         :items="usersColumnItems"
         :selected="selectedUsers"
         :loading="usersLoading"

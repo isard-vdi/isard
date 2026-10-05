@@ -2,6 +2,7 @@
 import { computed, ref, type ComponentPublicInstance } from 'vue'
 import { useFilter } from 'reka-ui'
 import { useVirtualizer } from '@tanstack/vue-virtual'
+import { Icon } from '@/components/icon'
 import { InputField } from '@/components/input-field'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -12,6 +13,7 @@ import type { AllowedOption } from '.'
 
 interface Props {
   title: string
+  icon?: string | undefined
   items: AllowedOption[]
   selected: string[]
   loading?: boolean
@@ -29,6 +31,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  icon: undefined,
   loading: false,
   disabled: false,
   selectable: true,
@@ -100,13 +103,23 @@ const toggleAll = () => {
 
 <template>
   <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-    <div class="flex h-6 shrink-0 flex-row items-center gap-2 px-2">
-      <h3
-        :class="[
-          'min-w-0 truncate text-sm font-semibold text-gray-warm-900',
+    <div
+      :class="
+        cn(
+          'flex h-6 shrink-0 flex-row text-gray-warm-900 items-center gap-2 px-2',
           props.disabled && 'opacity-60'
-        ]"
-      >
+        )
+      "
+    >
+      <Icon
+        v-if="props.icon"
+        :name="props.icon"
+        size="sm"
+        stroke-color="currentColor"
+        class="shrink-0"
+        aria-hidden="true"
+      />
+      <h3 class="min-w-0 truncate text-sm font-semibold">
         {{ props.title }}
       </h3>
     </div>
