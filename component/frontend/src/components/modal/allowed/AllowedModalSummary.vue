@@ -37,7 +37,15 @@ const groupsCountLabel = computed(() =>
     : t('users.count.groups', props.groups.length)
 )
 
-const usersCountLabel = computed(() => t('users.count.users', props.users.length))
+const usersOnlyThroughGroups = computed(
+  () => props.users.length === 0 && props.showGroups && !groupsEmpty.value
+)
+
+const usersCountLabel = computed(() =>
+  usersOnlyThroughGroups.value
+    ? t('components.allowed-modal.summary.users-through-groups')
+    : t('users.count.users', props.users.length)
+)
 
 const chipClass =
   'flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-md bg-brand-100 pl-2 pr-1 text-sm text-gray-warm-900'
@@ -154,7 +162,11 @@ const chipButtonClass =
             <span class="truncate">{{ t('components.allowed-modal.columns.users') }}</span>
           </span>
           <p v-if="props.users.length === 0" class="text-sm text-gray-warm-500">
-            {{ t('components.allowed-modal.summary.empty') }}
+            {{
+              usersOnlyThroughGroups
+                ? t('components.allowed-modal.summary.users-through-groups')
+                : t('components.allowed-modal.summary.empty')
+            }}
           </p>
           <div v-else class="flex min-w-0 flex-row flex-wrap gap-1.5">
             <span

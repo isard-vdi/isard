@@ -2823,6 +2823,7 @@
         "title": "Seleccionados",
         "all-groups": "Todos los grupos",
         "empty": "Aún no hay nada seleccionado",
+        "users-through-groups": "Ningún usuario seleccionado individualmente.",
         "unknown-user": "Usuario desconocido"
       },
       "select-all": {

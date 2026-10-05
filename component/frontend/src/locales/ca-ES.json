@@ -2823,6 +2823,7 @@
         "title": "Seleccionats",
         "all-groups": "Tots els grups",
         "empty": "Encara no hi ha res seleccionat",
+        "users-through-groups": "Cap usuari seleccionat individualment.",
         "unknown-user": "Usuari desconegut"
       },
       "select-all": {
