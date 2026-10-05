@@ -507,7 +507,7 @@ const handleClose = () => {
         t('components.allowed-modal.description.generic')
       )
     "
-    size="4xl"
+    size="5xl"
     :close-on-backdrop-click="false"
     @close="handleClose"
   >
@@ -601,7 +601,7 @@ const handleClose = () => {
         @toggle="toggleUser"
       >
         <template #search-actions>
-          <div class="min-w-0 basis-1/3" data-slot="group-filter">
+          <div class="min-w-0 basis-2/5" data-slot="group-filter">
             <AllowedModalGroupSelect
               v-model="userGroupFilter"
               :options="availableGroups"

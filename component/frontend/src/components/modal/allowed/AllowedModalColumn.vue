@@ -117,7 +117,7 @@ const toggleAll = () => {
         icon="search-sm"
         :placeholder="props.searchPlaceholder"
         :disabled="props.disabled"
-        class="shrink-0 grow basis-2/3"
+        class="shrink-0 grow basis-3/5"
         @update:model-value="(value) => (search = String(value))"
       />
       <slot name="search-actions" />
