@@ -59,7 +59,7 @@ const toggle = () => {
             interactive &&
               'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
             props.checked && 'bg-brand-100 hover:bg-brand-200',
-            inherited && 'bg-gray-warm-100 hover:bg-gray-warm-200'
+            inherited && 'bg-brand-100 hover:bg-brand-200'
           )
         "
         role="option"
