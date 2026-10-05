@@ -517,6 +517,166 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 		},
+		// Credentials must outrank a token the client happened to send along.
+		"should ignore a password-reset-required token if credentials are submitted": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "pau",
+						"username":                "pau",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Pau Abril",
+						"email":                   "pau@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "pau",
+						"username":                "pau",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Pau Abril",
+						"email":                   "pau@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"id":                       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"uid":                      "pau",
+					"username":                 "pau",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"password_reset_token":     "",
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Pau Abril",
+					"email":                    "pau@example.org",
+					"email_verified":           r.MockAnything(),
+					"email_verification_token": "",
+					"photo":                    "",
+					"accessed":                 r.MockAnything(),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
+							},
+							"ldap": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
+							},
+							"local": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.org"},
+								},
+							},
+							"saml": map[string]interface{}{
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "pau"
+				password := "f0kt3Rf$"
+
+				// A leftover interstitial token for a different user, as the Vue 3
+				// login replayed from its auth store. Nothing here mocks that user,
+				// so finishing its flow instead of the form login fails the case.
+				ss, err := token.SignPasswordResetRequiredToken("", "3f5b3f4e-4c1f-4c4d-9a3a-6a0f1c2d3e4f")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					Token:        &ss,
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				assert.NoError(err)
+
+				assert.Equal("isard-authentication", claims.Issuer)
+				assert.Equal("isardvdi", claims.KeyID)
+				// TODO: Test time
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RoleID:     "user",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Pau Abril",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
 		"should finish the login flow if the uer provides a category-select token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)

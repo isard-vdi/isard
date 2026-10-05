@@ -5,13 +5,14 @@ import { type CategorySelectToken } from '.'
 import {
   getToken as getAuthToken,
   isCategorySelectClaims,
-  removeToken as removeAuthToken,
   useCookies as useAuthCookies
 } from '@/lib/auth'
+import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/button'
 
 const { t } = useI18n()
 const cookies = useAuthCookies()
+const authStore = useAuthStore()
 
 interface Props {
   categories: CategorySelectToken
@@ -31,7 +32,7 @@ const name = computed(() => {
 })
 
 const logout = () => {
-  removeAuthToken(cookies)
+  authStore.logout()
 }
 
 const onClick = (categoryId: string) => {

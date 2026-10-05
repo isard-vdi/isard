@@ -205,12 +205,131 @@ export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string)
   cookies.set(sessionTokenName, bearer, cookieOpts)
 }
 
+// The `authorization` cookie is set server-side with these attributes
+// (authentication/transport/http/http.go). Removing or re-creating it must use
+// the same set, or the browser treats it as a different cookie.
+const authorizationCookieOpts: CookieSetOptions = { ...cookieOpts, secure: true }
+
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  // The `authorization` cookie is set server-side with Secure=true
-  // (authentication/transport/http/http.go). Removal must match that attribute
-  // set or the browser won't delete it.
-  cookies.remove(authorizationTokenName, { path: '/', sameSite: 'strict', secure: true })
+  cookies.remove(authorizationTokenName, authorizationCookieOpts)
   cookies.remove(sessionTokenName, cookieOpts)
+}
+
+const stashedTokenKey = 'isardvdi_intermediate_token'
+
+export interface StashedToken {
+  url: string
+  hiddenAt: number
+  session?: string
+  authorization?: string
+}
+
+const currentUrl = () => location.pathname + location.search
+
+export const stashToken = (cookies: ReturnType<typeof useCookies>) => {
+  const session = cookies.get<string | undefined>(sessionTokenName)
+  const authorization = cookies.get<string | undefined>(authorizationTokenName)
+  if (!session && !authorization) {
+    return
+  }
+
+  try {
+    sessionStorage.setItem(
+      stashedTokenKey,
+      JSON.stringify({
+        url: currentUrl(),
+        hiddenAt: performance.timeOrigin + performance.now(),
+        session,
+        authorization
+      })
+    )
+  } catch {
+    // Storage is unavailable in private mode or with blocked site data
+  }
+}
+
+const isOptionalString = (value: unknown) => value === undefined || typeof value === 'string'
+
+export const takeStashedToken = (): StashedToken | undefined => {
+  try {
+    const raw = sessionStorage.getItem(stashedTokenKey)
+    sessionStorage.removeItem(stashedTokenKey)
+    const stashed = raw ? JSON.parse(raw) : undefined
+    if (
+      typeof stashed?.url !== 'string' ||
+      typeof stashed.hiddenAt !== 'number' ||
+      !isOptionalString(stashed.session) ||
+      !isOptionalString(stashed.authorization) ||
+      !(stashed.session || stashed.authorization)
+    ) {
+      return undefined
+    }
+    return {
+      url: stashed.url,
+      hiddenAt: stashed.hiddenAt,
+      session: stashed.session,
+      authorization: stashed.authorization
+    }
+  } catch {
+    return undefined
+  }
+}
+
+const unexpiredUntil = (bearer: string): Date | undefined | null => {
+  try {
+    const { exp } = parseToken(bearer)
+    if (!exp) {
+      return undefined
+    }
+    return exp * 1000 > Date.now() ? new Date(exp * 1000) : null
+  } catch {
+    return null
+  }
+}
+
+export const restoreStashedCookies = (
+  cookies: ReturnType<typeof useCookies>,
+  { session, authorization }: StashedToken
+): boolean => {
+  let restored = false
+
+  const authorizationExpiry = authorization ? unexpiredUntil(authorization) : null
+  if (authorization && authorizationExpiry !== null) {
+    cookies.set(authorizationTokenName, authorization, {
+      ...authorizationCookieOpts,
+      expires: authorizationExpiry
+    })
+    restored = true
+  }
+
+  if (session && unexpiredUntil(session) !== null) {
+    setToken(cookies, session)
+    restored = true
+  }
+
+  return restored
+}
+
+export const discardStashedToken = () => {
+  try {
+    sessionStorage.removeItem(stashedTokenKey)
+  } catch {
+    // Storage is unavailable in private mode or with blocked site data
+  }
+}
+
+// A reload starts before the old page is hidden; the grace absorbs coarse timers.
+const reloadGraceMs = 10_000
+
+export const isReloadOf = ({ url, hiddenAt }: Pick<StashedToken, 'url' | 'hiddenAt'>): boolean => {
+  const entry = performance.getEntriesByType?.('navigation')[0] as
+    | PerformanceNavigationTiming
+    | undefined
+  return (
+    (entry?.type === 'reload' || entry?.type === 'navigate') &&
+    currentUrl() === url &&
+    performance.timeOrigin <= hiddenAt + reloadGraceMs
+  )
 }
 
 // TODO: Type this!

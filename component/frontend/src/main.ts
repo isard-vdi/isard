@@ -62,6 +62,7 @@ const pinia = createPinia()
 
 app.use(pinia)
 const authStore = useAuthStore()
+authStore.restoreStashedTokenOnBoot()
 authStore.initialize()
 
 // Register interceptors once (outside the watch to avoid stacking)

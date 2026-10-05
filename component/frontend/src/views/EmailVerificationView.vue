@@ -14,6 +14,7 @@ import {
   useCookies as useAuthCookies,
   type TypeClaims
 } from '@/lib/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,8 @@ type Mode = 'verifying' | 'verified' | 'link-error' | 'form'
 const { t, te } = useI18n()
 const route = useRoute()
 const cookies = useAuthCookies()
+
+useClearTokenOnLeave([TokenType.EmailVerificationRequired, TokenType.EmailVerification])
 
 const apiError = ref<string>('')
 const successMessage = ref<string>('')

@@ -27,10 +27,12 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mocks.push, replace: vi.fn() })
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
+  onBeforeRouteLeave: vi.fn()
 }))
 
-vi.mock('@/lib/auth', () => ({
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  TokenType: (await importOriginal<typeof import('@/lib/auth')>()).TokenType,
   parseToken: mocks.parseToken,
   isLoginClaims: mocks.isLoginClaims,
   useCookies: () => ({}),

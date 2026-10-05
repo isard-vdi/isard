@@ -37,7 +37,8 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
-  useRouter: () => ({ push: vi.fn() })
+  useRouter: () => ({ push: vi.fn() }),
+  onBeforeRouteLeave: vi.fn()
 }))
 
 vi.mock('@/layouts/login', () => ({

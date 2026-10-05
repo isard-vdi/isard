@@ -33,6 +33,7 @@ import {
   TokenType
 } from '@/lib/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useClearTokenOnLeave } from '@/composables/useClearTokenOnLeave'
 import { dateIsToday } from '@/lib/utils'
 import { getPreferredFrontend } from '@/lib/frontendModeMap'
 import { Locale, setLocale } from '@/lib/i18n'
@@ -56,6 +57,8 @@ const router = useRouter()
 const cookies = useAuthCookies()
 const authStore = useAuthStore()
 const queryClient = useQueryClient()
+
+useClearTokenOnLeave([TokenType.CategorySelect])
 
 /*
  * Route arguments
@@ -475,10 +478,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
   const jwt = parseAuthToken(bearer)
   if (isCategorySelectClaims(jwt)) {
+    authStore.setToken(bearer)
     return
   }
 
   if (isRegisterClaims(jwt) || isReRegisterClaims(jwt)) {
+    authStore.setToken(bearer)
     router.push({ name: 'register' })
     return
   }
