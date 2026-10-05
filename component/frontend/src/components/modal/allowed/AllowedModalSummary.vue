@@ -30,18 +30,13 @@ const { t } = useI18n()
 
 const hasGroups = computed(() => props.showGroups && (props.allGroups || props.groups.length > 0))
 
-const countsLabel = computed(() => {
-  const parts: string[] = []
-  if (props.showGroups) {
-    parts.push(
-      props.allGroups
-        ? t('components.allowed-modal.summary.all-groups')
-        : t('users.count.groups', props.groups.length)
-    )
-  }
-  parts.push(t('users.count.users', props.users.length))
-  return parts.join(' · ')
-})
+const groupsCountLabel = computed(() =>
+  props.allGroups
+    ? t('components.allowed-modal.summary.all-groups')
+    : t('users.count.groups', props.groups.length)
+)
+
+const usersCountLabel = computed(() => t('users.count.users', props.users.length))
 
 const chipClass =
   'flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-md bg-brand-100 pl-2 pr-1 text-sm text-gray-warm-900'
@@ -68,7 +63,27 @@ const chipButtonClass =
       <span class="font-semibold text-gray-warm-700">
         {{ t('components.allowed-modal.summary.title') }}
       </span>
-      <span class="min-w-0 truncate text-gray-warm-600">{{ countsLabel }}</span>
+      <span
+        v-if="props.showGroups"
+        class="flex shrink-0 items-center gap-1 text-gray-warm-600"
+        :title="groupsCountLabel"
+        data-slot="selection-summary-groups-count"
+      >
+        <Icon name="users-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
+        <span aria-hidden="true">{{
+          props.allGroups ? groupsCountLabel : props.groups.length
+        }}</span>
+        <span class="sr-only">{{ groupsCountLabel }}</span>
+      </span>
+      <span
+        class="flex shrink-0 items-center gap-1 text-gray-warm-600"
+        :title="usersCountLabel"
+        data-slot="selection-summary-users-count"
+      >
+        <Icon name="user-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
+        <span aria-hidden="true">{{ props.users.length }}</span>
+        <span class="sr-only">{{ usersCountLabel }}</span>
+      </span>
     </CollapsibleTrigger>
 
     <CollapsibleContent>
@@ -80,8 +95,11 @@ const chipButtonClass =
         </p>
 
         <div v-if="hasGroups" class="flex flex-row gap-2" data-slot="selection-summary-groups">
-          <span class="w-14 shrink-0 pt-0.5 text-xs font-semibold text-gray-warm-500">
-            {{ t('components.allowed-modal.columns.groups') }}
+          <span
+            class="flex h-6 w-20 shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500"
+          >
+            <Icon name="users-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
+            <span class="truncate">{{ t('components.allowed-modal.columns.groups') }}</span>
           </span>
           <div class="flex min-w-0 flex-row flex-wrap gap-1.5">
             <span v-if="props.allGroups" :class="chipClass" data-slot="summary-chip">
@@ -128,8 +146,11 @@ const chipButtonClass =
           class="flex flex-row gap-2"
           data-slot="selection-summary-users"
         >
-          <span class="w-14 shrink-0 pt-0.5 text-xs font-semibold text-gray-warm-500">
-            {{ t('components.allowed-modal.columns.users') }}
+          <span
+            class="flex h-6 w-20 shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500"
+          >
+            <Icon name="user-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
+            <span class="truncate">{{ t('components.allowed-modal.columns.users') }}</span>
           </span>
           <div class="flex min-w-0 flex-row flex-wrap gap-1.5">
             <span
