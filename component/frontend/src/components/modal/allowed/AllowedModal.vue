@@ -509,6 +509,7 @@ const handleClose = () => {
     "
     size="5xl"
     :close-on-backdrop-click="false"
+    :show-close-button="false"
     @close="handleClose"
   >
     <div v-if="props.warning" class="mb-4 w-full flex justify-center">
