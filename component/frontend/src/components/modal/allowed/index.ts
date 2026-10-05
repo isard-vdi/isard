@@ -1,6 +1,5 @@
 export { default as AllowedModal } from './AllowedModal.vue'
 export { default as AllowedModalColumn } from './AllowedModalColumn.vue'
-export { default as AllowedModalGroupSelect } from './AllowedModalGroupSelect.vue'
 export { default as AllowedModalItem } from './AllowedModalItem.vue'
 export { default as AllowedModalSummary } from './AllowedModalSummary.vue'
 

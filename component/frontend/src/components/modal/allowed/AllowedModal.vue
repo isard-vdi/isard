@@ -6,8 +6,8 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
-import AllowedModalGroupSelect from './AllowedModalGroupSelect.vue'
 import AllowedModalSummary from './AllowedModalSummary.vue'
+import { FilterTags, type FilterCategory, type FilterTagsSelection } from '@/components/filter-tags'
 import type { AllowedOption, AllowedSelection } from '.'
 import type { AvailableUser } from '@/gen/oas/apiv4'
 import {
@@ -28,6 +28,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
 import { Icon } from '@/components/icon'
+import { cn } from '@/lib/utils'
 
 interface Props {
   open: boolean
@@ -307,6 +308,28 @@ const usersFooterText = computed(() => {
   const total = categoryUsers.data.value?.total ?? 0
   if (shown === 0 || total <= shown) return ''
   return t('components.allowed-modal.search.user.truncated', { shown, total })
+})
+
+const groupFilterCategories = computed<FilterCategory[]>(() => [
+  {
+    key: 'groups',
+    label: t('components.allowed-modal.columns.groups'),
+    options: rawGroups.value.map((group) => ({
+      value: group.id,
+      label: group.name,
+      count: group.users_count ?? 0,
+      tone: 'brand'
+    }))
+  }
+])
+
+const groupFilterTags = computed<FilterTagsSelection>({
+  get: () => ({ groups: userGroupFilter.value ? [userGroupFilter.value] : [] }),
+  set: (selection) => {
+    const groups = selection.groups ?? []
+    userGroupFilter.value =
+      groups.find((groupId) => groupId !== userGroupFilter.value) ?? groups[0] ?? null
+  }
 })
 
 const userSearchPlaceholder = computed(() =>
@@ -696,11 +719,15 @@ const handleClose = () => {
         @toggle="toggleUser"
       >
         <template #search-actions>
-          <div class="min-w-0 basis-2/5" data-slot="group-filter">
-            <AllowedModalGroupSelect
-              v-model="userGroupFilter"
-              :options="availableGroups"
-              :disabled="columnsDisabled"
+          <div
+            :class="cn('min-w-0 max-w-2/5', columnsDisabled && 'pointer-events-none opacity-60')"
+            :inert="columnsDisabled"
+            data-slot="group-filter"
+          >
+            <FilterTags
+              v-model="groupFilterTags"
+              :categories="groupFilterCategories"
+              class="h-10 flex-nowrap py-[5px] [&>[data-filter-actions]]:hidden [&>[data-filter-tag]]:min-w-0 [&>[data-filter-tag]]:shrink [&_[data-filter-tag-count]]:hidden"
             />
           </div>
         </template>

@@ -2813,9 +2813,6 @@
       "remove": "Quitar '{name}'",
       "group-users-partial": "{selected} de {total} usuarios",
       "shared-through-group": "Compartido a través del grupo '{group}'.",
-      "filter": {
-        "all": "Todos los grupos"
-      },
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
       "require-selection-users": "Selecciona como mínimo un usuario",
       "no-changes": "Haz algún cambio para guardar",
