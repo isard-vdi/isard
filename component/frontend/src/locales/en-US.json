@@ -2802,7 +2802,9 @@
         "no-users": "No users available"
       },
       "share-everyone": {
-        "label": "Share with everyone",
+        "audience": "Who can access",
+        "specific": "Specific groups and users",
+        "everyone": "Everyone",
         "alert": {
           "title": "Shared with everyone",
           "description": "Every user in this category will have access"

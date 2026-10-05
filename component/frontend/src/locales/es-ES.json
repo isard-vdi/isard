@@ -2802,7 +2802,9 @@
         "no-users": "No hay usuarios disponibles"
       },
       "share-everyone": {
-        "label": "Compartir con todos",
+        "audience": "Quién tiene acceso",
+        "specific": "Grupos y usuarios concretos",
+        "everyone": "Todos",
         "alert": {
           "title": "Compartido con todos",
           "description": "Todos los usuarios de esta categoría tendrán acceso"

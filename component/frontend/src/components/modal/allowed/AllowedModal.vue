@@ -24,10 +24,10 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { toast } from '@/components/ui/toast'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
-import { Switch } from '@/components/ui/switch'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
+import { Icon } from '@/components/icon'
 
 interface Props {
   open: boolean
@@ -500,6 +500,19 @@ const setShareWithEveryone = (value: boolean) => {
   shareWithEveryone.value = value
 }
 
+const audienceOptions = computed(() => [
+  {
+    value: 'specific',
+    icon: 'users-01',
+    label: t('components.allowed-modal.share-everyone.specific')
+  },
+  {
+    value: 'everyone',
+    icon: 'globe-02',
+    label: t('components.allowed-modal.share-everyone.everyone')
+  }
+])
+
 const isEmptySelection = computed(() => {
   if (props.usersOnly) return selectedUsers.value.length === 0
   return (
@@ -576,6 +589,28 @@ const handleClose = () => {
         <AlertDescription>{{ props.warning }}</AlertDescription>
       </Alert>
     </div>
+    <ToggleGroup
+      v-if="everyoneEnabled"
+      type="single"
+      :spacing="1"
+      :model-value="shareWithEveryone ? 'everyone' : 'specific'"
+      :disabled="props.loading || props.readonly"
+      :aria-label="t('components.allowed-modal.share-everyone.audience')"
+      class="mb-4 grid w-full shrink-0 grid-cols-2 rounded-lg bg-base-white p-1 border border-gray-warm-200 text-sm font-semibold text-gray-warm-600"
+      data-slot="share-everyone-audience"
+      @update:model-value="(value) => setShareWithEveryone(value === 'everyone')"
+    >
+      <ToggleGroupItem
+        v-for="option in audienceOptions"
+        :key="option.value"
+        :value="option.value"
+        :data-value="option.value"
+        class="h-10 w-full gap-2 font-semibold text-gray-warm-600 hover:bg-gray-warm-100 hover:text-gray-warm-600 focus-visible:ring-3 focus-visible:ring-brand data-[state=on]:bg-brand-700 data-[state=on]:text-base-white data-[state=on]:shadow-xs data-[state=on]:hover:bg-brand-800 data-[state=on]:hover:text-base-white disabled:opacity-100 disabled:text-gray-warm-400 disabled:data-[state=on]:bg-base-white disabled:data-[state=on]:text-gray-warm-500"
+      >
+        <Icon :name="option.icon" size="sm" stroke-color="currentColor" />
+        {{ option.label }}
+      </ToggleGroupItem>
+    </ToggleGroup>
     <AllowedModalSummary
       v-if="!shareWithEveryone"
       v-model:open="summaryOpen"
@@ -601,21 +636,6 @@ const handleClose = () => {
         </div>
       </div>
     </Alert>
-
-    <Field v-if="everyoneEnabled" orientation="horizontal" class="mb-4">
-      <Switch
-        id="share-everyone"
-        :model-value="shareWithEveryone"
-        :disabled="props.loading || props.readonly"
-        data-slot="share-everyone-switch"
-        @update:model-value="setShareWithEveryone"
-      />
-      <FieldContent>
-        <FieldLabel for="share-everyone">
-          {{ t('components.allowed-modal.share-everyone.label') }}
-        </FieldLabel>
-      </FieldContent>
-    </Field>
 
     <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn

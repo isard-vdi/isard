@@ -2802,7 +2802,9 @@
         "no-users": "No hi ha usuaris disponibles"
       },
       "share-everyone": {
-        "label": "Comparteix amb tothom",
+        "audience": "Qui hi té accés",
+        "specific": "Grups i usuaris concrets",
+        "everyone": "Tothom",
         "alert": {
           "title": "Compartit amb tothom",
           "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
