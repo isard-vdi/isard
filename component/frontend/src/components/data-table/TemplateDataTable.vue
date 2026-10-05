@@ -145,7 +145,8 @@ const emptyVariant = computed(() =>
   (props.totalRows ?? props.rows.length) === 0 ? 'first-run' : 'no-results'
 )
 
-const handleRowClick = (rowData: Record<string, unknown>) => {
+const selectRow = (rowData: Record<string, unknown>) => {
+  if (!props.isClickable || props.isRowDisabled?.(rowData)) return
   emit('rowClick', rowData)
 }
 
@@ -227,15 +228,9 @@ const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
             :tabindex="0"
             :role="'row'"
             :aria-disabled="isRowDisabled?.(row.original) || undefined"
-            @click="
-              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
-            "
-            @keydown.enter="
-              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
-            "
-            @keydown.space.prevent="
-              props.isClickable && !isRowDisabled?.(row.original) && handleRowClick(row.original)
-            "
+            @click="selectRow(row.original)"
+            @keydown.enter.self.prevent="selectRow(row.original)"
+            @keydown.space.self.prevent="selectRow(row.original)"
           >
             <div
               v-for="(header, cellIndex) in headers"
