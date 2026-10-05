@@ -246,9 +246,10 @@ async def test_update_status_reports_the_status_a_binned_row_kept():
         await storage.handle_update_status(AsyncMock(), _task(), statuses=statuses)
     mock_send.assert_awaited_once()
     assert mock_send.await_args.args[1:] == ("s1", "recycled")
-    fake_domain_model.insert_document.assert_called_once_with(
-        {"id": "d1", "status": "Stopped"}, conflict="update"
+    fake_domain_model.update_document.assert_called_once_with(
+        "d1", {"status": "Stopped"}, validate=False
     )
+    fake_domain_model.insert_document.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -278,7 +279,7 @@ def test_media_update_skips_when_depending_status_not_finished():
     task = _task(depending_status="failed")
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, id="m1", status="ready")
-    mock_media_cls.insert_document.assert_not_called()
+    mock_media_cls.update_document.assert_not_called()
 
 
 def test_media_update_direct_writes_payload():
@@ -287,9 +288,10 @@ def test_media_update_direct_writes_payload():
     task = _task()
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, id="m1", status="ready")
-    mock_media_cls.insert_document.assert_called_once_with(
-        {"id": "m1", "status": "ready"}, conflict="update"
+    mock_media_cls.update_document.assert_called_once_with(
+        "m1", {"status": "ready"}, validate=False
     )
+    mock_media_cls.insert_document.assert_not_called()
 
 
 def test_media_update_indirect_walks_check_media_existence():
@@ -302,9 +304,10 @@ def test_media_update_indirect_walks_check_media_existence():
     task = _task(dependencies=[dep])
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, **{})
-    mock_media_cls.insert_document.assert_called_once_with(
-        {"id": "m1", "status": "ready"}, conflict="update"
+    mock_media_cls.update_document.assert_called_once_with(
+        "m1", {"status": "ready"}, validate=False
     )
+    mock_media_cls.insert_document.assert_not_called()
 
 
 def test_media_update_indirect_skips_empty_dependency_result_without_recursing():
@@ -325,9 +328,10 @@ def test_media_update_indirect_skips_empty_dependency_result_without_recursing()
     with patch.object(media, "Media") as mock_media_cls:
         media.handle_media_update(task, **{})
     # only the populated dependency is applied; the empty one is skipped
-    mock_media_cls.insert_document.assert_called_once_with(
-        {"id": "m2", "status": "ready"}, conflict="update"
+    mock_media_cls.update_document.assert_called_once_with(
+        "m2", {"status": "ready"}, validate=False
     )
+    mock_media_cls.insert_document.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -743,3 +747,20 @@ def test_orphan_propagation_fails_domains_behind_a_deleted_row():
     assert ("storages", True) in storage_obj.asked_with
     assert live.status == "orphan"
     assert dom_live.status == "Failed"
+
+
+@pytest.mark.asyncio
+async def test_update_status_never_upserts_a_row_deleted_meanwhile():
+    """The write itself must not be able to create the row, whatever was read before."""
+    from isardvdi_change_handler.task_results import storage
+
+    fake_domain_model = MagicMock()
+    fake_domain_model.exists.return_value = True
+    with patch.object(storage, "_ITEM_CLASS_MAP", {"domain": fake_domain_model}):
+        await storage.handle_update_status(
+            AsyncMock(), _task(), statuses={"_all": {"Failed": {"domain": ["d1"]}}}
+        )
+    fake_domain_model.insert_document.assert_not_called()
+    fake_domain_model.update_document.assert_called_once_with(
+        "d1", {"status": "Failed"}, validate=False
+    )
