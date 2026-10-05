@@ -132,6 +132,76 @@ def test_find_chain_ends_with_storage_update_parent():
     assert parents["storage_update_parent"] == "storage_update_pool"
 
 
+def _pool_update_kwargs(dependents):
+    return [
+        dep["job_kwargs"]["kwargs"]
+        for _parent, dep in _walk_with_parents(dependents)
+        if dep.get("task") == "storage_update_pool"
+    ]
+
+
+def test_the_chains_that_park_the_row_finalize_as_its_owner():
+    s = _bare_storage(id="s1")
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage,
+            "path",
+            new_callable=PropertyMock,
+            return_value="/isard/groups/s1.qcow2",
+        ),
+        patch.object(Storage, "_rdb_context"),
+        patch("rethinkdb.r"),
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.delete_path(user_id="u1", path="/isard/templates/s1.qcow2")
+        s.set_path(user_id="u1", new_path="/isard/templates/s1.qcow2")
+    assert mock_create.call_count == 2
+    for call in mock_create.call_args_list:
+        kwargs = _pool_update_kwargs(call.kwargs["dependents"])
+        assert [k.get("owner") for k in kwargs] == [True]
+
+
+def test_set_path_finds_the_file_at_the_new_path():
+    s = _bare_storage(id="s1")
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage,
+            "path",
+            new_callable=PropertyMock,
+            return_value="/isard/groups/s1.qcow2",
+        ),
+        patch.object(Storage, "_rdb_context"),
+        patch("rethinkdb.r"),
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.set_path(user_id="u1", new_path="/isard/templates/s1.qcow2")
+    dependents = mock_create.call_args.kwargs["dependents"]
+    paths = [
+        dep["job_kwargs"]["kwargs"]["storage_path"]
+        for _parent, dep in _walk_with_parents(dependents)
+        if dep.get("task") == "find"
+    ]
+    assert paths == ["/isard/templates/s1.qcow2"]
+
+
+def test_a_find_reads_the_row_as_an_observer():
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.find(user_id="u1")
+    kwargs = _pool_update_kwargs(mock_create.call_args.kwargs["dependents"])
+    assert kwargs and all("owner" not in k for k in kwargs)
+
+
 # ---------------------------------------------------------------------------
 # disconnect_chain: pin existing behaviour (already correct, matches main)
 # ---------------------------------------------------------------------------
