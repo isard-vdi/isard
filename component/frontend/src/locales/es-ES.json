@@ -2810,6 +2810,7 @@
       },
       "remove": "Quitar '{name}'",
       "group-users-partial": "{selected} de {total} usuarios",
+      "shared-through-group": "Compartido a través del grupo '{group}'.",
       "filter": {
         "all": "Todos los grupos"
       },

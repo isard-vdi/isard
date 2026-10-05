@@ -25,6 +25,10 @@ const meta = {
     icon: { control: 'text', description: 'Icon shown before the title.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
     selected: { control: 'object', description: 'Values rendered as selected rows.' },
+    inheritedHints: {
+      control: 'object',
+      description: 'Values selected through something else, with the tooltip text explaining it.'
+    },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
     disabled: { control: 'boolean', description: 'Dims the column and blocks every control.' },
     searchPlaceholder: { control: 'text', description: 'Placeholder of the search input.' },
@@ -119,7 +123,8 @@ export const ManyRows: Story = {
 export const WithSelection: Story = {
   args: {
     ...baseArgs,
-    selected: ['group-1', 'group-4']
+    selected: ['group-1', 'group-4'],
+    inheritedHints: { 'group-2': 'Selected through another group' }
   }
 }
 

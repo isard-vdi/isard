@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { refDebounced } from '@vueuse/core'
-import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
@@ -19,8 +19,10 @@ import {
   getMediaAllowedTableOptions,
   getMediaAllowedTableQueryKey,
   getTemplateAllowedOptions,
-  getTemplateAllowedQueryKey
+  getTemplateAllowedQueryKey,
+  getUsersInGroupOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { toast } from '@/components/ui/toast'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { Switch } from '@/components/ui/switch'
@@ -69,6 +71,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const queryClient = useQueryClient()
 
 const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
 
@@ -370,6 +373,22 @@ const summaryUsers = computed<AllowedOption[]>(() =>
   )
 )
 
+const usersInheritedHints = computed(() => {
+  const hints: Record<string, string> = {}
+  if (props.usersOnly) return hints
+  const groups = new Set(selectedGroups.value)
+  const users = new Set(selectedUsers.value)
+  for (const user of usersColumnItems.value) {
+    if (users.has(user.value)) continue
+    const groupId = knownUserGroups.value.get(user.value)
+    if (!groupId || !groups.has(groupId)) continue
+    hints[user.value] = t('components.allowed-modal.shared-through-group', {
+      group: groupNames.value.get(groupId) ?? ''
+    })
+  }
+  return hints
+})
+
 // --- Groups column options ------------------------------------------------
 
 const selectedUsersByGroup = computed(() => {
@@ -427,11 +446,47 @@ const toggleGroup = (groupId: string) => {
   if (adding) dropMembersOf([groupId])
 }
 
+const splittingGroup = ref(false)
+
+const splitGroup = async (groupId: string, userId: string) => {
+  if (splittingGroup.value) return
+  splittingGroup.value = true
+  try {
+    const { users: members } = await queryClient.fetchQuery(
+      getUsersInGroupOptions({ path: { group_id: groupId } })
+    )
+    const groupName = groupNames.value.get(groupId)
+    remember(members.map((member) => toOption(member, groupName)))
+    for (const member of members) knownUserGroups.value.set(member.id, groupId)
+
+    dirty.value = true
+    apiAllGroups.value = false
+    selectedGroups.value = selectedGroups.value.filter((id) => id !== groupId)
+    const users = new Set(selectedUsers.value)
+    for (const member of members) {
+      if (member.id !== userId) users.add(member.id)
+    }
+    selectedUsers.value = [...users]
+  } catch {
+    toast.error(t('api.loading-error'))
+  } finally {
+    splittingGroup.value = false
+  }
+}
+
 const toggleUser = (userId: string) => {
+  if (selectedUsers.value.includes(userId)) {
+    dirty.value = true
+    selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
+    return
+  }
+  const groupId = knownUserGroups.value.get(userId)
+  if (groupId && selectedGroups.value.includes(groupId)) {
+    void splitGroup(groupId, userId)
+    return
+  }
   dirty.value = true
-  selectedUsers.value = selectedUsers.value.includes(userId)
-    ? selectedUsers.value.filter((id) => id !== userId)
-    : [...selectedUsers.value, userId]
+  selectedUsers.value = [...selectedUsers.value, userId]
 }
 
 const removeUser = (userId: string) => {
@@ -601,6 +656,7 @@ const handleClose = () => {
         :not-found-text="t('components.allowed-modal.search.user.empty')"
         :footer-text="usersFooterText"
         :filter-locally="false"
+        :inherited-hints="usersInheritedHints"
         @toggle="toggleUser"
       >
         <template #search-actions>

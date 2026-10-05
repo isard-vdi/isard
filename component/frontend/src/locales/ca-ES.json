@@ -2810,6 +2810,7 @@
       },
       "remove": "Treu '{name}'",
       "group-users-partial": "{selected} de {total} usuaris",
+      "shared-through-group": "Compartit a través del grup '{group}'.",
       "filter": {
         "all": "Tots els grups"
       },

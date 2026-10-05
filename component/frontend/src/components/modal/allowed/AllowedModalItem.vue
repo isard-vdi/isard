@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Icon } from '@/components/icon'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +15,7 @@ interface Props {
   checked?: boolean
   disabled?: boolean
   selectable?: boolean // When false the row cannot be toggled and shows no +/- indicator.
+  inheritedHint?: string // Set when the row is selected through something else, e.g. its group.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,7 +24,8 @@ const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
   checked: false,
   disabled: false,
-  selectable: true
+  selectable: true,
+  inheritedHint: undefined
 })
 
 const emit = defineEmits<{ 'update:checked': [value: boolean] }>()
@@ -36,59 +39,68 @@ const initials = computed(() =>
 
 const interactive = computed(() => props.selectable && !props.disabled)
 
+const inherited = computed(() => !props.checked && !!props.inheritedHint)
+const shownSelected = computed(() => props.checked || inherited.value)
+
 const toggle = () => {
   if (!interactive.value) return
-  emit('update:checked', !props.checked)
+  emit('update:checked', !shownSelected.value)
 }
 </script>
 
 <template>
-  <div
-    :class="
-      cn(
-        'flex w-full min-h-10 select-none flex-row items-center gap-2 rounded-md px-2 py-1.5 font-medium text-gray-warm-700',
-        props.disabled && 'cursor-not-allowed opacity-60',
-        interactive &&
-          'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
-        props.checked && 'bg-brand-100 hover:bg-brand-200'
-      )
-    "
-    role="option"
-    :aria-selected="props.checked"
-    :aria-disabled="props.disabled || undefined"
-    :data-value="props.value"
-    :tabindex="interactive ? 0 : undefined"
-    @click="toggle"
-    @keydown.enter.self.prevent="toggle"
-    @keydown.space.self.prevent="toggle"
-  >
-    <Button
-      v-if="props.selectable"
-      as="span"
-      aria-hidden="true"
-      :icon="props.checked ? 'minus' : 'plus'"
-      :hierarchy="props.checked ? 'secondary-destructive' : 'secondary-color'"
-      size="sm"
-      icon-size="sm"
-      class="shrink-0 p-1.5"
-      data-slot="toggle-button"
-    />
+  <Tooltip :disabled="!inherited">
+    <TooltipTrigger as-child>
+      <div
+        :class="
+          cn(
+            'flex w-full min-h-10 select-none flex-row items-center gap-2 rounded-md px-2 py-1.5 font-medium text-gray-warm-700',
+            props.disabled && 'cursor-not-allowed opacity-60',
+            interactive &&
+              'cursor-pointer hover:bg-gray-warm-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand',
+            props.checked && 'bg-brand-100 hover:bg-brand-200',
+            inherited && 'bg-gray-warm-100 hover:bg-gray-warm-200'
+          )
+        "
+        role="option"
+        :aria-selected="shownSelected"
+        :aria-disabled="props.disabled || undefined"
+        :data-value="props.value"
+        :tabindex="interactive ? 0 : undefined"
+        @click="toggle"
+        @keydown.enter.self.prevent="toggle"
+        @keydown.space.self.prevent="toggle"
+      >
+        <Button
+          v-if="props.selectable"
+          as="span"
+          aria-hidden="true"
+          :icon="shownSelected ? 'minus' : 'plus'"
+          :hierarchy="shownSelected ? 'secondary-destructive' : 'secondary-color'"
+          size="sm"
+          icon-size="sm"
+          class="shrink-0 p-1.5"
+          data-slot="toggle-button"
+        />
 
-    <Icon v-if="props.icon !== undefined" :name="props.icon" size="md" class="shrink-0" />
-    <Avatar v-if="props.avatar !== undefined" size="xs" class="shrink-0">
-      <AvatarImage :src="props.avatar" :alt="props.label" />
-      <AvatarFallback>{{ initials }}</AvatarFallback>
-    </Avatar>
+        <Icon v-if="props.icon !== undefined" :name="props.icon" size="md" class="shrink-0" />
+        <Avatar v-if="props.avatar !== undefined" size="xs" class="shrink-0">
+          <AvatarImage :src="props.avatar" :alt="props.label" />
+          <AvatarFallback>{{ initials }}</AvatarFallback>
+        </Avatar>
 
-    <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate font-semibold">{{ props.label }}</span>
-      <span v-if="props.subLabel" class="truncate text-sm font-normal text-gray-warm-600">
-        {{ props.subLabel }}
-      </span>
-    </div>
+        <div class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate font-semibold">{{ props.label }}</span>
+          <span v-if="props.subLabel" class="truncate text-sm font-normal text-gray-warm-600">
+            {{ props.subLabel }}
+          </span>
+        </div>
 
-    <div v-if="$slots.actions" class="ml-auto flex shrink-0 items-center">
-      <slot name="actions" />
-    </div>
-  </div>
+        <div v-if="$slots.actions" class="ml-auto flex shrink-0 items-center">
+          <slot name="actions" />
+        </div>
+      </div>
+    </TooltipTrigger>
+    <TooltipContent v-if="inherited" :title="props.inheritedHint ?? ''" side="top" align="start" />
+  </Tooltip>
 </template>

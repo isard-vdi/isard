@@ -45,6 +45,11 @@ const meta = {
     disabled: {
       control: 'boolean',
       description: 'Blocks toggling the row.'
+    },
+    inheritedHint: {
+      control: 'text',
+      description:
+        'Marks the row as selected through something else, e.g. its group: gray background and a tooltip with this text.'
     }
   },
   render: (args) => ({
@@ -85,6 +90,18 @@ export const Checked: Story = {
     value: 'group-b',
     icon: 'users-01',
     checked: true
+  }
+}
+
+/** Selected through its group: gray instead of brand, with the reason in a tooltip. */
+export const InheritedFromGroup: Story = {
+  args: {
+    label: 'Anna Bosch',
+    subLabel: 'Students',
+    avatar: '',
+    value: 'user-anna',
+    inheritedHint:
+      "Shared through the group 'Students'. Removing this user keeps the group's other members."
   }
 }
 

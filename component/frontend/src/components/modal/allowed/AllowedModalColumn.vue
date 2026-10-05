@@ -16,6 +16,7 @@ interface Props {
   icon?: string | undefined
   items: AllowedOption[]
   selected: string[]
+  inheritedHints?: Record<string, string> // Item value -> why it counts as selected without being picked.
   loading?: boolean
   disabled?: boolean
   selectable?: boolean // When false the rows cannot be toggled and there is no select-all header.
@@ -31,6 +32,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  inheritedHints: () => ({}),
   icon: undefined,
   loading: false,
   disabled: false,
@@ -212,6 +214,7 @@ const toggleAll = () => {
                   :avatar="item.avatar"
                   :icon="item.icon"
                   :checked="selectedSet.has(item.value)"
+                  :inherited-hint="props.inheritedHints[item.value]"
                   :disabled="props.disabled"
                   :selectable="props.selectable"
                   :aria-setsize="filteredItems.length"
