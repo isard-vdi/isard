@@ -69,7 +69,7 @@ async def search_users_in_category(
     ),
     groups: Optional[List[str]] = Query(
         None,
-        description="Restrict results to users whose primary group is one of these",
+        description="Restrict results to users whose primary or secondary group is one of these",
     ),
 ):
     try:
