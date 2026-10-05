@@ -540,3 +540,53 @@ def update_storage_path(storage_id, new_path):
         )
         raise_for_status(resp)
         return _as_dict(resp.parsed)
+
+
+def fetch_storages_for_holes():
+    """The storage columns ``dig-holes`` decides on, read with an explicit pluck."""
+    return _fetch_table(
+        "storage",
+        pluck=["id", "type", "status", "status_time", "directory_path", "parent"],
+    )
+
+
+def fetch_domains_for_holes():
+    """Which domain uses which disk, and whether it can be writing it."""
+    return _fetch_table(
+        "domains",
+        pluck=["id", "kind", "status", {"create_dict": {"hardware": {"disks": True}}}],
+    )
+
+
+class StorageLockRefused(RuntimeError):
+    """apiv4 would not park the disk: it is busy, not ready, or has descendants."""
+
+
+def lock_storage(storage_id, action):
+    """Park a disk and its domains in maintenance, the way every product operation does."""
+    with _client(timeout=60.0) as client:
+        resp = client.get_httpx_client().put(
+            f"/api/v4/item/storage/{storage_id}/status/maintenance",
+            json={"action": action},
+        )
+    if resp.status_code in (404, 409, 428):
+        raise StorageLockRefused(f"{resp.status_code} {resp.text[:300]}")
+    resp.raise_for_status()
+
+
+def release_storage(storage_id):
+    """Return a parked disk to ready and its domains to Stopped."""
+    with _client(timeout=60.0) as client:
+        resp = client.get_httpx_client().put(
+            f"/api/v4/item/storage/{storage_id}/status/ready"
+        )
+    resp.raise_for_status()
+
+
+def remeasure_storage(storage_id):
+    """Queue the product's own qemu-img measurement of one disk."""
+    with _client(timeout=60.0) as client:
+        resp = client.get_httpx_client().put(
+            f"/api/v4/item/storage/{storage_id}/check-backing-chain"
+        )
+    resp.raise_for_status()

@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+#
+#   Copyright © 2026 IsardVDI
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Give back the zeros of disk files that nobody writes, without changing a byte.
+
+Dry run by default: lists the eligible disks and what each would give back.
+
+    dig-holes                                  # template disks, report only
+    dig-holes --apply --limit 1 --min-reclaim 1G --report /isard/dig-holes.jsonl
+    dig-holes --apply --ids <storage-id> ...   # just these
+    dig-holes --include-stopped-desktops       # desktop disks too, only while stopped
+
+Run it from isard-storage at low I/O priority:
+
+    docker exec -it isard-storage ionice -c3 nice -n19 dig-holes ...
+
+Each disk is parked in maintenance through apiv4 while it is dug, and released
+and measured again afterwards. Each file is hashed (sha256) before and after; a
+difference stops the run (``--no-verify`` skips the hashes).
+See storage_lib/holes.py for why a disk is or is not eligible.
+"""
+
+import argparse
+import json
+import sys
+import time
+
+from storage_lib import api
+from storage_lib.holes import (
+    DEFAULT_SETTLE_SECONDS,
+    DigHolesMismatch,
+    as_report_row,
+    classify,
+    dig,
+    measure,
+)
+
+
+def size(text):
+    units = {"k": 1 << 10, "m": 1 << 20, "g": 1 << 30, "t": 1 << 40}
+    text = str(text).strip().lower()
+    return (
+        int(float(text[:-1]) * units[text[-1]])
+        if text and text[-1] in units
+        else int(text)
+    )
+
+
+def gib(n):
+    return f"{n / (1 << 30):.1f} GiB"
+
+
+class ReleaseFailed(RuntimeError):
+    """The disk stays in maintenance: release it by hand before anything else."""
+
+
+def dig_locked(c, verify=True, action="dig_holes"):
+    """Lock the disk through apiv4, dig it, release it and measure it again."""
+    api.lock_storage(c.storage_id, action)
+    try:
+        record = dig(c.path, verify=verify)
+    except DigHolesMismatch:
+        # left in maintenance on purpose: nobody may start a disk that reads differently
+        raise
+    except BaseException:
+        _release(c.storage_id)
+        raise
+    _release(c.storage_id)
+    try:
+        api.remeasure_storage(c.storage_id)
+    except Exception as exc:
+        record["remeasure_error"] = str(exc)
+    return record
+
+
+def _release(storage_id):
+    try:
+        api.release_storage(storage_id)
+    except Exception as exc:
+        raise ReleaseFailed(
+            f"{storage_id} is still in maintenance: PUT "
+            f"/api/v4/item/storage/{storage_id}/status/ready ({exc})"
+        ) from exc
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--apply", action="store_true", help="dig the holes (default: report only)"
+    )
+    p.add_argument("--ids", nargs="+", help="only these storage ids")
+    p.add_argument("--include-stopped-desktops", action="store_true")
+    p.add_argument("--min-reclaim", type=size, default=size("1g"))
+    p.add_argument(
+        "--limit", type=int, default=0, help="stop after N files (0: no limit)"
+    )
+    p.add_argument("--settle", type=int, default=DEFAULT_SETTLE_SECONDS)
+    p.add_argument("--no-verify", action="store_true")
+    p.add_argument("--report", help="append one JSON line per file here")
+    args = p.parse_args(argv)
+
+    storages = api.fetch_storages_for_holes()
+    domains = api.fetch_domains_for_holes()
+    if args.ids:
+        wanted = set(args.ids)
+        storages_scope = [s for s in storages if s.get("id") in wanted]
+    else:
+        storages_scope = storages
+    # Children are computed over every storage, not only the requested ones.
+    candidates = classify(
+        storages, domains, time.time(), args.include_stopped_desktops, args.settle
+    )
+    scope = {s["id"] for s in storages_scope}
+    candidates = [c for c in candidates if c.storage_id in scope]
+
+    eligible = []
+    for c in candidates:
+        if c.reason:
+            continue
+        try:
+            measure(c)
+        except FileNotFoundError:
+            c.reason = "no file at its path"
+            continue
+        if c.reclaimable < args.min_reclaim:
+            c.reason = f"reclaimable {gib(c.reclaimable)} below --min-reclaim"
+            continue
+        eligible.append(c)
+    eligible.sort(key=lambda c: -c.reclaimable)
+
+    skipped = {}
+    for c in candidates:
+        if c.reason:
+            skipped[c.reason.split(" (")[0]] = (
+                skipped.get(c.reason.split(" (")[0], 0) + 1
+            )
+    print(
+        f"disks considered: {len(candidates)}; eligible: {len(eligible)}; "
+        f"reclaimable: {gib(sum(c.reclaimable for c in eligible))}"
+    )
+    for reason, n in sorted(skipped.items(), key=lambda kv: -kv[1]):
+        print(f"  skipped {n:5d}: {reason}")
+    report = open(args.report, "a") if args.report else None
+    done = 0
+    for c in eligible:
+        if args.limit and done >= args.limit:
+            break
+        line = f"{c.role:8s} {c.storage_id} allocated {gib(c.allocated)} data {gib(c.data or 0)} -> gives back ~{gib(c.reclaimable)}"
+        if not args.apply:
+            print("  would dig", line)
+            if report:
+                report.write(json.dumps({"dry_run": True, **as_report_row(c)}) + "\n")
+            continue
+        print("  digging", line, flush=True)
+        try:
+            record = dig_locked(c, verify=not args.no_verify)
+        except api.StorageLockRefused as exc:
+            print(f"  skip {c.storage_id}: apiv4 would not lock it ({exc})")
+            continue
+        except DigHolesMismatch as exc:
+            print(
+                f"STOP: {c.path} reads differently after the dig and stays in "
+                f"maintenance: {exc}",
+                file=sys.stderr,
+            )
+            if report:
+                report.write(
+                    json.dumps({"error": "mismatch", "detail": str(exc)}) + "\n"
+                )
+            return 2
+        except ReleaseFailed as exc:
+            print(f"STOP: {exc}", file=sys.stderr)
+            return 3
+        record.update(storage_id=c.storage_id, role=c.role, ts=time.time())
+        if report:
+            report.write(json.dumps(record) + "\n")
+            report.flush()
+        print(
+            f"    gave back {gib(record['reclaimed'])}, sha256 identical: {record['verified']}"
+        )
+        done += 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
