@@ -591,7 +591,7 @@ const handleClose = () => {
         t('components.allowed-modal.description.generic')
       )
     "
-    size="5xl"
+    :size="props.usersOnly ? '2xl' : '5xl'"
     :close-on-backdrop-click="false"
     :show-close-button="false"
     @close="handleClose"
