@@ -51,6 +51,9 @@ class AvailableUser(BaseModel):
     username: str = Field(description="User username")
     photo: Optional[str] = Field(default="", description="User photo URL")
     group: Optional[str] = Field(default=None, description="User primary group ID")
+    secondary_groups: Optional[list[str]] = Field(
+        default=None, description="User secondary group IDs"
+    )
 
 
 class BaseGroup(BaseModel):

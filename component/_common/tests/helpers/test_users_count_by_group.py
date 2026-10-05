@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Per-group user counts for the alloweds modal's group subtitles.
+"""Per-group user counts (primary and secondary members) for the alloweds modal's group subtitles.
 
 The counts change with every user edit while the group list is cached, so
 they must be merged into copies and never written into the cached rows."""
@@ -53,12 +53,12 @@ def query_returns(monkeypatch):
     return _install
 
 
-def test_counts_users_by_primary_group(query_returns):
+def test_counts_users_by_primary_and_secondary_group(query_returns):
     calls = query_returns({"g-1": 3, "g-2": 1})
 
     assert Alloweds.get_users_count_by_group("cat-1") == {"g-1": 3, "g-2": 1}
     assert ("table", ("users",)) in calls
-    assert ("group", ("group",)) in calls
+    assert any(name == "concat_map" for name, _ in calls)
 
 
 def test_merges_counts_into_copies_of_the_cached_groups(monkeypatch):

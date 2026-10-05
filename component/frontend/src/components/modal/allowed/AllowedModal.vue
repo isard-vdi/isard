@@ -326,7 +326,7 @@ const usersEmptyText = computed(() => {
 // --- Selection summary ---------------------------------------------------
 
 const knownUsers = ref(new Map<string, AllowedOption>())
-const knownUserGroups = ref(new Map<string, string>())
+const knownUserGroups = ref(new Map<string, string[]>())
 
 const remember = (options: AllowedOption[] | undefined) => {
   for (const option of options ?? []) knownUsers.value.set(option.value, option)
@@ -334,9 +334,15 @@ const remember = (options: AllowedOption[] | undefined) => {
 
 const rememberGroups = (users: AvailableUser[] | undefined) => {
   for (const user of users ?? []) {
-    if (user.group) knownUserGroups.value.set(user.id, user.group)
+    const groups = [user.group, ...(user.secondary_groups ?? [])].filter(
+      (groupId): groupId is string => !!groupId
+    )
+    knownUserGroups.value.set(user.id, [...new Set(groups)])
   }
 }
+
+const coveringGroups = (userId: string, groups: Set<string>) =>
+  (knownUserGroups.value.get(userId) ?? []).filter((groupId) => groups.has(groupId))
 
 watch(
   () => allowedData.value?.selected_users,
@@ -380,8 +386,8 @@ const usersInheritedHints = computed(() => {
   const users = new Set(selectedUsers.value)
   for (const user of usersColumnItems.value) {
     if (users.has(user.value)) continue
-    const groupId = knownUserGroups.value.get(user.value)
-    if (!groupId || !groups.has(groupId)) continue
+    const [groupId] = coveringGroups(user.value, groups)
+    if (!groupId) continue
     hints[user.value] = t('components.allowed-modal.shared-through-group', {
       group: groupNames.value.get(groupId) ?? ''
     })
@@ -394,8 +400,9 @@ const usersInheritedHints = computed(() => {
 const selectedUsersByGroup = computed(() => {
   const counts = new Map<string, number>()
   for (const userId of selectedUsers.value) {
-    const groupId = knownUserGroups.value.get(userId)
-    if (groupId) counts.set(groupId, (counts.get(groupId) ?? 0) + 1)
+    for (const groupId of knownUserGroups.value.get(userId) ?? []) {
+      counts.set(groupId, (counts.get(groupId) ?? 0) + 1)
+    }
   }
   return counts
 })
@@ -420,10 +427,9 @@ const groupOptions = computed<AllowedOption[]>(() => {
 
 const dropMembersOf = (groupIds: string[]) => {
   const groups = new Set(groupIds)
-  selectedUsers.value = selectedUsers.value.filter((userId) => {
-    const groupId = knownUserGroups.value.get(userId)
-    return !groupId || !groups.has(groupId)
-  })
+  selectedUsers.value = selectedUsers.value.filter(
+    (userId) => coveringGroups(userId, groups).length === 0
+  )
 }
 
 const toggleAllGroups = (selectAll: boolean) => {
@@ -448,23 +454,33 @@ const toggleGroup = (groupId: string) => {
 
 const splittingGroup = ref(false)
 
-const splitGroup = async (groupId: string, userId: string) => {
+const splitGroups = async (groupIds: string[], userId: string) => {
   if (splittingGroup.value) return
   splittingGroup.value = true
   try {
-    const { users: members } = await queryClient.fetchQuery(
-      getUsersInGroupOptions({ path: { group_id: groupId } })
+    const results = await Promise.all(
+      groupIds.map((groupId) =>
+        queryClient.fetchQuery(
+          getUsersInGroupOptions({
+            path: { group_id: groupId },
+            query: { include_secondary: true }
+          })
+        )
+      )
     )
-    const groupName = groupNames.value.get(groupId)
-    remember(members.map((member) => toOption(member, groupName)))
-    for (const member of members) knownUserGroups.value.set(member.id, groupId)
+    const members = results.flatMap((result) => result.users)
+    remember(members.map((member) => toOption(member, groupNames.value.get(member.group ?? ''))))
+    rememberGroups(members)
 
     dirty.value = true
     apiAllGroups.value = false
-    selectedGroups.value = selectedGroups.value.filter((id) => id !== groupId)
+    const removed = new Set(groupIds)
+    selectedGroups.value = selectedGroups.value.filter((id) => !removed.has(id))
+    const remaining = new Set(selectedGroups.value)
     const users = new Set(selectedUsers.value)
     for (const member of members) {
-      if (member.id !== userId) users.add(member.id)
+      if (member.id === userId || coveringGroups(member.id, remaining).length > 0) continue
+      users.add(member.id)
     }
     selectedUsers.value = [...users]
   } catch {
@@ -480,9 +496,9 @@ const toggleUser = (userId: string) => {
     selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
     return
   }
-  const groupId = knownUserGroups.value.get(userId)
-  if (groupId && selectedGroups.value.includes(groupId)) {
-    void splitGroup(groupId, userId)
+  const covering = coveringGroups(userId, new Set(selectedGroups.value))
+  if (covering.length > 0) {
+    void splitGroups(covering, userId)
     return
   }
   dirty.value = true

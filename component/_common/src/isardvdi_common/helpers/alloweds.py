@@ -741,7 +741,12 @@ class Alloweds(RethinkCustomBase):
             return dict(
                 r.table("users")
                 .get_all(category_id, index="category")
-                .group("group")
+                .concat_map(
+                    lambda user: r.expr([user["group"].default("")]).set_union(
+                        user["secondary_groups"].default([])
+                    )
+                )
+                .group(lambda group_id: group_id)
                 .count()
                 .run(cls._rdb_connection)
             )
