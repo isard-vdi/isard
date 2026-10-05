@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Icon } from '@/components/icon'
+import { cn } from '@/lib/utils'
 import type { AllowedOption } from '.'
 
 interface Props {
@@ -28,7 +29,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { t } = useI18n()
 
-const hasGroups = computed(() => props.showGroups && (props.allGroups || props.groups.length > 0))
+const groupsEmpty = computed(() => !props.allGroups && props.groups.length === 0)
 
 const groupsCountLabel = computed(() =>
   props.allGroups
@@ -88,20 +89,26 @@ const chipButtonClass =
 
     <CollapsibleContent>
       <div
-        class="flex max-h-32 flex-col gap-2 overflow-y-auto border-t border-gray-warm-200 px-3 py-2"
+        :class="
+          cn(
+            'grid max-h-32 gap-6 overflow-y-auto border-t border-gray-warm-200 px-3 py-2',
+            props.showGroups ? 'grid-cols-2' : 'grid-cols-1'
+          )
+        "
       >
-        <p v-if="!hasGroups && props.users.length === 0" class="text-sm text-gray-warm-500">
-          {{ t('components.allowed-modal.summary.empty') }}
-        </p>
-
-        <div v-if="hasGroups" class="flex flex-row gap-2" data-slot="selection-summary-groups">
-          <span
-            class="flex h-6 w-20 shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500"
-          >
+        <div
+          v-if="props.showGroups"
+          class="flex min-w-0 flex-col gap-1.5"
+          data-slot="selection-summary-groups"
+        >
+          <span class="flex items-center gap-1 text-xs font-semibold text-gray-warm-500">
             <Icon name="users-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
             <span class="truncate">{{ t('components.allowed-modal.columns.groups') }}</span>
           </span>
-          <div class="flex min-w-0 flex-row flex-wrap gap-1.5">
+          <p v-if="groupsEmpty" class="text-sm text-gray-warm-500">
+            {{ t('components.allowed-modal.summary.empty') }}
+          </p>
+          <div v-else class="flex min-w-0 flex-row flex-wrap gap-1.5">
             <span v-if="props.allGroups" :class="chipClass" data-slot="summary-chip">
               <span class="truncate">{{ t('components.allowed-modal.summary.all-groups') }}</span>
               <button
@@ -141,18 +148,15 @@ const chipButtonClass =
           </div>
         </div>
 
-        <div
-          v-if="props.users.length > 0"
-          class="flex flex-row gap-2"
-          data-slot="selection-summary-users"
-        >
-          <span
-            class="flex h-6 w-20 shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500"
-          >
+        <div class="flex min-w-0 flex-col gap-1.5" data-slot="selection-summary-users">
+          <span class="flex items-center gap-1 text-xs font-semibold text-gray-warm-500">
             <Icon name="user-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
             <span class="truncate">{{ t('components.allowed-modal.columns.users') }}</span>
           </span>
-          <div class="flex min-w-0 flex-row flex-wrap gap-1.5">
+          <p v-if="props.users.length === 0" class="text-sm text-gray-warm-500">
+            {{ t('components.allowed-modal.summary.empty') }}
+          </p>
+          <div v-else class="flex min-w-0 flex-row flex-wrap gap-1.5">
             <span
               v-for="user in props.users"
               :key="user.value"
