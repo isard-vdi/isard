@@ -12,10 +12,8 @@ import {
 } from '@/lib/desktops'
 import { cn, startCase } from '@/lib/utils'
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-
 import Badge from '@/components/badge/Badge.vue'
-import { CopyIcon } from '@/components/icon'
+import { CopyValue } from '@/components/copy-value'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -64,15 +62,8 @@ const isTransitional = computed(() => desktopStatusIsTransitional(props.desktop.
       v-if="props.desktop.ip"
       class="flex shrink-0 flex-row items-center gap-1 text-muted-foreground text-xs"
     >
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <p>{{ props.desktop.ip }}</p>
-        </TooltipTrigger>
-        <TooltipContent :title="startCase(t(`components.desktops.fields.ip.title-full`))">
-        </TooltipContent>
-      </Tooltip>
-
-      <CopyIcon :value="props.desktop.ip" size="xs" stroke-color="currentColor" />
+      <span class="sr-only">{{ startCase(t('components.desktops.fields.ip.title-full')) }}</span>
+      <CopyValue :value="props.desktop.ip" class="hover:bg-gray-warm-100" />
     </div>
   </div>
 </template>
