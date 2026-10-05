@@ -42,7 +42,7 @@ import shutil
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from time import time
+from time import sleep, time
 
 from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from storage_lib.api import (
@@ -84,6 +84,13 @@ from storage_lib.scanning import (
     get_volatile_storages,
     scan_files,
     scan_isard_dirs,
+)
+from storage_lib.space import (
+    DEFAULT_DRIFT_BYTES,
+    allocated,
+    filesystem_usage,
+    size_drift,
+    space_report,
 )
 
 # ─── sizes subcommand ────────────────────────────────────────────────────────
@@ -618,24 +625,14 @@ def cmd_integrity(args):
         if s["path"] in fs_lookup:
             deleted_ghost.append(s)
 
-    # Check: ready in DB, file exists, but DB actual-size mismatches disk
-    size_mismatches = []
+    # Check: ready in DB, file exists, but DB actual-size mismatches disk.
+    # actual-size is what the file ALLOCATES; its apparent length (st_size) says
+    # nothing about it on a sparse qcow2 (see storage_lib/space.py).
     SIZE_THRESHOLD = 1024 * 1024  # 1MB
-    for s in ready_storages:
-        if s["path"] not in fs_lookup:
-            continue
-        db_size = (s.get("qemu-img-info") or {}).get("actual-size", 0) or 0
-        real_size = fs_lookup[s["path"]].st_size
-        if db_size and abs(real_size - db_size) > SIZE_THRESHOLD:
-            size_mismatches.append(
-                {
-                    "id": s["id"],
-                    "path": s["path"],
-                    "db_size": db_size,
-                    "real_size": real_size,
-                    "diff_mb": abs(real_size - db_size) / (1024 * 1024),
-                }
-            )
+    size_mismatches = [
+        dict(m, diff_mb=abs(m["drift"]) / (1024 * 1024))
+        for m in size_drift(ready_storages, fs_lookup, SIZE_THRESHOLD)
+    ]
 
     # Check: ready in DB, file exists, but DB parent doesn't match disk backing
     parent_mismatches = []
@@ -709,7 +706,7 @@ def cmd_integrity(args):
         all_ok = False
         print(f"\nDELETED in DB but FILE EXISTS: {len(deleted_ghost)}")
         for s in deleted_ghost:
-            real_size = fs_lookup[s["path"]].st_size
+            real_size = allocated(fs_lookup[s["path"]])
             print(f"  {s['id']}  {format_size(real_size)}  {s['path']}")
 
     # Size mismatches
@@ -3308,6 +3305,70 @@ def cmd_verify(args):
     log(f"Total execution time: {time()-t:.2f} seconds")
 
 
+# ─── space subcommand ─────────────────────────────────────────────────────────
+
+
+def cmd_space(args):
+    """Report DB-recorded disk space against allocated space; ``--refresh`` re-measures drifted disks."""
+    from storage_lib.api import fetch_storages, refresh_storage_measurements
+
+    rows = fetch_storages()
+    if rows is None:
+        log("ERROR: could not read the storage table from the API")
+        return 1
+    fs_lookup = {}
+    for f in scan_isard_dirs():
+        if f.endswith(".qcow2"):
+            try:
+                fs_lookup[f] = Path(f).stat()
+            except OSError:
+                pass
+    report = space_report(rows, fs_lookup, args.threshold)
+    gib = lambda n: f"{n / (1 << 30):,.1f} GiB"  # noqa: E731
+    for dev, acc in report["filesystems"].items():
+        usage = filesystem_usage(acc["sample_path"])
+        print(f"\nfilesystem of {os.path.dirname(acc['sample_path'])} (dev {dev}):")
+        print(
+            f"  filesystem says        used {gib(usage['used'])}, free {gib(usage['free'])} of {gib(usage['size'])} (logical: on VDO see storage-pool-physical)"
+        )
+        print(
+            f"  IsardVDI believes      {gib(acc['db_ready'])} in {acc['ready_files']} ready disks"
+        )
+        print(
+            f"  those files allocate   {gib(acc['ready_allocated'])} (apparent {gib(acc['ready_apparent'])})"
+        )
+        print(
+            f"  parked in deleted/     {gib(acc['deleted_dir'])} in {acc['deleted_dir_files']} files (invisible to the DB)"
+        )
+        print(
+            f"  files with no row      {gib(acc['no_row'])} in {acc['no_row_files']} files"
+        )
+        print(
+            f"  rows not ready         {gib(acc['other_status'])} in {acc['other_status_files']} files"
+        )
+    drift = report["drift"]
+    print(
+        f"\nready disks whose recorded size drifts more than {gib(args.threshold)}: {len(drift)}"
+    )
+    for m in drift[: args.top]:
+        print(
+            f"  {m['id']}  DB {gib(m['db_size'])}  allocated {gib(m['real_size'])}  {m['path']}"
+        )
+    if args.json:
+        with open(args.json, "w") as fh:
+            json.dump(report, fh, indent=1, default=str)
+        print(f"\nfull report: {args.json}")
+    if args.refresh and drift:
+        ids = [m["id"] for m in drift]
+        for i in range(0, len(ids), args.batch):
+            refresh_storage_measurements(ids[i : i + args.batch])
+            log(
+                f"asked the product to measure {min(i + args.batch, len(ids))}/{len(ids)} disks again"
+            )
+            sleep(args.pause)
+    return 0
+
+
 # ─── consistency subcommand ───────────────────────────────────────────────────
 
 
@@ -5008,6 +5069,30 @@ def build_parser():
         help="Also run qemu-img check per file for casuistic 6 (leaks/errors) — expensive",
     )
     p_consistency.set_defaults(func=cmd_consistency)
+
+    # space
+    p_space = subparsers.add_parser(
+        "space",
+        help="What IsardVDI believes its disks occupy against what they allocate, per filesystem",
+    )
+    p_space.add_argument(
+        "--threshold",
+        type=int,
+        default=DEFAULT_DRIFT_BYTES,
+        help="drift in bytes above which a ready disk is listed (default 64 MiB)",
+    )
+    p_space.add_argument("--top", type=int, default=20)
+    p_space.add_argument("--json", help="write the full report here")
+    p_space.add_argument(
+        "--refresh",
+        action="store_true",
+        help="ask the product to measure the drifted ready disks again",
+    )
+    p_space.add_argument("--batch", type=int, default=50)
+    p_space.add_argument(
+        "--pause", type=float, default=5.0, help="seconds between batches"
+    )
+    p_space.set_defaults(func=cmd_space)
 
     # recover
     p_recover = subparsers.add_parser(

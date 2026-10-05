@@ -590,3 +590,12 @@ def remeasure_storage(storage_id):
             f"/api/v4/item/storage/{storage_id}/check-backing-chain"
         )
     resp.raise_for_status()
+
+
+def refresh_storage_measurements(storage_ids):
+    """Ask apiv4 to measure these disks again with its own ``check_backing_chain``."""
+    with _client(timeout=120.0) as client:
+        resp = client.get_httpx_client().put(
+            "/api/v4/items/storage/status", json={"ids": list(storage_ids)}
+        )
+        resp.raise_for_status()
