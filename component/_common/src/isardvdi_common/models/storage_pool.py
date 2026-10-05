@@ -233,8 +233,8 @@ class StoragePool(RethinkCustomBase):
                 and category_id in sp.get("categories", [])
                 and sp.get("paths", {}).get(kind)
             ):
-                return cls.init_document(**sp)
-        return cls.init_document(**default)
+                return cls.build_from(sp)
+        return cls.build_from(default)
 
     @classmethod
     def get_best_for_action(cls, action, path=None):
