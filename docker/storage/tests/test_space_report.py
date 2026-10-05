@@ -80,3 +80,48 @@ class TestReport:
             "/s/b.qcow2": _st(GIB, GIB, 2, dev=2),
         }
         assert set(space.space_report(rows, fs)["filesystems"]) == {1, 2}
+
+
+class TestConsistencyReadsGoThroughTheApi:
+    def _tables(self, monkeypatch, tables):
+        from storage_lib import api
+
+        calls = []
+
+        def fake(table, *, pluck=None, timeout=120.0):
+            calls.append(table)
+            return tables[table]
+
+        monkeypatch.setattr(api, "_fetch_table", fake)
+        return api, calls
+
+    def test_rows_carry_the_path_their_fields_point_at(self, monkeypatch):
+        api, _ = self._tables(
+            monkeypatch,
+            {
+                "storage": [
+                    {"id": "a", "directory_path": "/isard/t", "status": "ready"},
+                    {"id": "b", "directory_path": None, "status": "deleted"},
+                ]
+            },
+        )
+        rows = api.fetch_consistency_rows()
+        assert [r["path"] for r in rows] == ["/isard/t/a.qcow2", None]
+
+    def test_a_disk_of_a_binned_domain_is_not_live(self, monkeypatch):
+        disks = lambda *ids: {
+            "create_dict": {"hardware": {"disks": [{"storage_id": i} for i in ids]}}
+        }
+        api, calls = self._tables(
+            monkeypatch,
+            {
+                "recycle_bin": [{"storages": [{"id": "binned"}]}],
+                "domains": [
+                    {"id": "d1", **disks("live", "binned")},
+                    {"id": "d2", "create_dict": {"hardware": {}}},
+                    {"id": "d3", **disks(None)},
+                ],
+            },
+        )
+        assert api.fetch_live_storage_ids() == {"live"}
+        assert sorted(calls) == ["domains", "recycle_bin"]

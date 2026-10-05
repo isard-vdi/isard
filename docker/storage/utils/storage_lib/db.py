@@ -273,58 +273,6 @@ def update_storage_directory_path(conn, storage_id, new_dir):
     )
 
 
-# --------------------------------------------------------------------------- #
-# table-vs-pool consistency helpers (read-only)
-# --------------------------------------------------------------------------- #
-def fetch_consistency_rows(conn):
-    """Every storage row with the fields the consistency report contrasts.
-
-    Deleted / non_existing rows are kept on purpose -- the report exists to
-    contrast the whole table against disk, not just the live half.
-    """
-    rows = list(
-        r.table("storage")
-        .pluck("id", "status", "directory_path", "type", "parent")
-        .run(conn)
-    )
-    for s in rows:
-        dp, sid, typ = s.get("directory_path"), s.get("id"), s.get("type") or "qcow2"
-        s["path"] = f"{dp}/{sid}.{typ}" if dp and sid else None
-    return rows
-
-
-def fetch_binned_storage_ids(conn):
-    """Storage ids held by any recycle_bin entry (its domain is in the bin)."""
-    binned = set()
-    for e in r.table("recycle_bin").pluck("storages").run(conn):
-        for s in e.get("storages") or []:
-            sid = s.get("id")
-            if sid:
-                binned.add(sid)
-    return binned
-
-
-def fetch_live_storage_ids(conn):
-    """Storage ids used by a domain that exists and is not in the recycle bin.
-
-    This is the 'domain exists and is not binned' half of liveness; the caller
-    applies the 'status in ready/maintenance' half from the storage row.
-    """
-    used = set()
-    domains = list(
-        r.table("domains")
-        .pluck("id", {"create_dict": {"hardware": {"disks": True}}})
-        .run(conn)
-    )
-    for d in domains:
-        disks = (d.get("create_dict") or {}).get("hardware", {}).get("disks") or []
-        for disk in disks:
-            sid = disk.get("storage_id")
-            if sid:
-                used.add(sid)
-    return used - fetch_binned_storage_ids(conn)
-
-
 def fetch_media_for_migration(conn):
     """All media rows with an id and path_downloaded."""
     return list(

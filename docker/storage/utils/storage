@@ -3375,13 +3375,13 @@ def cmd_space(args):
 def cmd_consistency(args):
     """Read-only report contrasting the storage table with the pools.
 
-    One DB pluck, one pool scan and one header pass build the backing relation
+    Two API reads, one pool scan and one header pass build the backing relation
     (no qemu-img), and a pure classifier splits the result into the eight
     casuistics -- reporting, for every file, whether it sustains a live disk,
     which is the thing no existing tool looks at.
     """
+    from storage_lib.api import fetch_consistency_rows, fetch_live_storage_ids
     from storage_lib.consistency import CASUISTIC_TITLES, classify_storage_consistency
-    from storage_lib.db import fetch_consistency_rows, fetch_live_storage_ids, get_conn
     from storage_lib.qcow import build_backing_index
 
     order = [
@@ -3401,10 +3401,9 @@ def cmd_consistency(args):
     t = time()
     log("Starting table-vs-pool consistency report (read-only)...")
 
-    with get_conn() as conn:
-        rows = fetch_consistency_rows(conn)
-        live_ids = fetch_live_storage_ids(conn)
-    log(f"  {len(rows)} storage rows from DB")
+    rows = fetch_consistency_rows()
+    live_ids = fetch_live_storage_ids()
+    log(f"  {len(rows)} storage rows from the API")
 
     for s in rows:
         s["live"] = (

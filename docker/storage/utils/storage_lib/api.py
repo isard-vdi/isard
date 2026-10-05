@@ -592,6 +592,36 @@ def remeasure_storage(storage_id):
     resp.raise_for_status()
 
 
+def fetch_consistency_rows():
+    """Every storage row, deleted ones included, with the path its fields point at."""
+    rows = _fetch_table(
+        "storage", pluck=["id", "status", "directory_path", "type", "parent"]
+    )
+    for s in rows:
+        dp, sid, typ = s.get("directory_path"), s.get("id"), s.get("type") or "qcow2"
+        s["path"] = f"{dp}/{sid}.{typ}" if dp and sid else None
+    return rows
+
+
+def fetch_live_storage_ids():
+    """Storage ids used by a domain that is not in the recycle bin."""
+    binned = {
+        s.get("id")
+        for e in _fetch_table("recycle_bin", pluck=["storages"])
+        for s in e.get("storages") or []
+    }
+    domains = _fetch_table(
+        "domains", pluck=["id", {"create_dict": {"hardware": {"disks": True}}}]
+    )
+    used = {
+        disk.get("storage_id")
+        for d in domains
+        for disk in ((d.get("create_dict") or {}).get("hardware") or {}).get("disks")
+        or []
+    }
+    return (used - binned) - {None}
+
+
 def refresh_storage_measurements(storage_ids):
     """Ask apiv4 to measure these disks again with its own ``check_backing_chain``."""
     with _client(timeout=120.0) as client:
