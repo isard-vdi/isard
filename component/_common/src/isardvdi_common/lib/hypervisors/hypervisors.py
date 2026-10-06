@@ -2478,7 +2478,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         if furthest_shutdown:
-            d = datetime.datetime.strptime(furthest_shutdown, "%Y-%m-%dT%H:%M%z")
+            # the scheduler forces its desktops down up to 2 minutes after the shutdown
+            d = datetime.datetime.strptime(
+                furthest_shutdown, "%Y-%m-%dT%H:%M%z"
+            ) + datetime.timedelta(minutes=2)
         else:
             # If no runnng desktops in the hypervisor, we use as default desktops max timeout
             desktops_max_timeout = cls.get_desktops_max_timeout()

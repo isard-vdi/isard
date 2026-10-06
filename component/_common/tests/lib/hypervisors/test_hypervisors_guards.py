@@ -177,6 +177,22 @@ class TestSetHyperDeadrowTimeGuards:
         assert "not in dead row" in exc.value.error["description"]
         get.update.assert_not_called()
 
+    def test_destroy_time_waits_for_desktops_forced_shutdown(self, stub_rdb):
+        get = self._hyp_get(stub_rdb)
+        get.run.return_value = {"id": "h1", "orchestrator_managed": True}
+        shutdowns = stub_rdb["router"](
+            "domains"
+        ).get_all.return_value.filter.return_value
+        furthest = shutdowns.pluck.return_value["scheduled"][
+            "shutdown"
+        ].max.return_value
+        furthest.default.return_value.run.return_value = "2026-09-30T23:54+0000"
+        result = stub_rdb["Cls"].set_hyper_deadrow_time("h1")
+        assert result == {"destroy_time": "2026-09-30T23:56:00+00:00"}
+        get.update.assert_called_once_with(
+            {"only_forced": True, "destroy_time": "2026-09-30T23:56:00+00:00"}
+        )
+
 
 # --------------------------------------------------------------------------- #
 # hyper -- registration ssh-keyscan / add guards
