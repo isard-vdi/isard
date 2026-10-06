@@ -17,3 +17,5 @@ const createStory = (args: any, parameters?: any): Story => ({
 })
 
 export const Default = createStory({})
+
+export const Loading = createStory({ loading: true })

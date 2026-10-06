@@ -1271,7 +1271,8 @@
         "username": "Nom d'usuari",
         "password": "Contrasenya",
         "forgot-password": "Has oblidat la contrasenya?",
-        "login": "Iniciar sessió"
+        "login": "Iniciar sessió",
+        "logging-in": "Iniciant sessió…"
       },
       "login-provider-external": {
         "default-text": {

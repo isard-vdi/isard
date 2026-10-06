@@ -962,7 +962,8 @@
         "username": "Erabiltzailearen izena",
         "password": "Pasahitza",
         "forgot-password": "Pasahitza ahaztu duzu?",
-        "login": "Saioa hasi"
+        "login": "Saioa hasi",
+        "logging-in": "Saioa hasten…"
       },
       "login-provider-external": {
         "default-text": {
