@@ -935,7 +935,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             if create_dict.get("guest_properties"):
                 desktop["guest_properties"] = create_dict["guest_properties"]
             if create_dict.get("reservables"):
-                desktop["hardware"]["reservables"] = create_dict["reservables"]
+                desktop["reservables"] = create_dict["reservables"]
             if create_dict.get("image"):
                 desktop["image"] = create_dict["image"]
 
