@@ -2960,6 +2960,10 @@
         "desktop_start_disk_quota_exceeded": {
           "title": "Quota d'emmagatzematge superada",
           "description": "Iniciar aquest escriptori superaria la teva quota d'emmagatzematge. Allibera espai de disc i torna-ho a provar."
+        },
+        "template_storage_not_ready": {
+          "title": "El disc de la plantilla no està a punt",
+          "description": "El disc d'aquesta plantilla no està a punt i, per tant, no se'n pot crear cap escriptori. Si us plau, contacta amb l'administrador."
         }
       }
     },
@@ -2969,7 +2973,8 @@
         "new_template_server_autostart": "No es pot crear una plantilla d'un servidor amb arrencada automàtica. Si us plau, contacta amb un administrador per desactivar l'arrencada automàtica abans.",
         "generic": "Hi ha hagut un error en crear la plantilla. Si us plau, torna-ho a provar.",
         "storage_pending_task": "El disc d'aquest escriptori està ocupat amb una altra operació. Espera un moment i torna-ho a provar.",
-        "template_failed": "Aquesta plantilla ha fallat i no es pot duplicar."
+        "template_failed": "Aquesta plantilla ha fallat i no es pot duplicar.",
+        "template_storage_not_ready": "El disc d'aquesta plantilla no està a punt i, per tant, no es pot duplicar. Si us plau, contacta amb l'administrador."
       }
     },
     "edit-template": {

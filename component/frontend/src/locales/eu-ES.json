@@ -1707,6 +1707,10 @@
         "desktop_start_disk_quota_exceeded": {
           "title": "Biltegiratze kuota gaindituta",
           "description": "Mahaigain hau abiarazteak zure biltegiratze kuota gaindituko luke. Egin lekua diskoan eta saiatu berriro."
+        },
+        "template_storage_not_ready": {
+          "title": "Txantiloiaren biltegia ez dago prest",
+          "description": "Txantiloi honen biltegia ez dago prest, eta ezin da mahaigainik sortu. Mesedez, jarri harremanetan administratzailearekin."
         }
       }
     },
@@ -1715,7 +1719,8 @@
         "new_template_name_exists": "Izen honekin txantiloi bat lehendik existitzen da. Mesedez, aukeratu beste izen bat.",
         "new_template_server_autostart": "Ezin da txantiloirik sortu abiarazte automatikoa duen zerbitzari batetik. Mesedez, jarri harremanetan administratzaile batekin abiarazte automatikoa lehenik desaktibatzeko.",
         "generic": "Errore bat gertatu da txantiloia sortzean, mesedez, saiatu berriro.",
-        "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro."
+        "storage_pending_task": "Mahaigain honen diskoa beste eragiketa batekin lanpetuta dago. Itxaron une bat eta saiatu berriro.",
+        "template_storage_not_ready": "Txantiloi honen biltegia ez dago prest, eta ezin da bikoiztu. Mesedez, jarri harremanetan administratzailearekin."
       }
     },
     "edit-desktop": {
