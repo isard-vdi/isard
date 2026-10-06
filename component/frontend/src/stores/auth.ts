@@ -19,6 +19,8 @@ import { setFaroUser } from '@/lib/faro-hook'
 import { useMutation } from '@tanstack/vue-query'
 import { logoutMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 
+const WEBAPP_LOGOUT_TIMEOUT_MS = 3000
+
 export const useAuthStore = defineStore('auth', () => {
   const claims = ref<TypeClaims | null>(null)
   const token = ref<string | null>(null)
@@ -198,11 +200,13 @@ export const useAuthStore = defineStore('auth', () => {
       // email-verification-required, etc.) have no backend session to revoke
       // and /authentication/logout only accepts login tokens.
       if (currentToken && currentTokenType === TokenType.Login) {
-        if (['manager', 'admin'].includes(currentUser?.role_id || '')) {
-          logoutWebapp(currentToken)
-        }
+        const webappLogout = ['manager', 'admin'].includes(currentUser?.role_id || '')
+          ? logoutWebapp(currentToken)
+          : undefined
         if (currentExp && currentExp * 1000 > Date.now()) {
-          redirecting = followLogoutRedirect(await logoutAuthentication(currentToken))
+          const redirect = await logoutAuthentication(currentToken)
+          await webappLogout
+          redirecting = followLogoutRedirect(redirect)
         }
       }
 
@@ -215,11 +219,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // TODO: This should be done by authentication
-  const logoutWebapp = (authToken: string) => {
+  const logoutWebapp = async (authToken: string): Promise<void> => {
     console.debug('🚪 Webapp logout initiated')
-    fetch('/isard-admin/logout/remote', {
+    await fetch('/isard-admin/logout/remote', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(WEBAPP_LOGOUT_TIMEOUT_MS)
     })
       .then(() => console.debug('✅ Webapp logout successful'))
       .catch((error) => console.error('❌ Webapp logout failed:', error))
