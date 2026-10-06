@@ -2807,7 +2807,7 @@
         "everyone": "Todos",
         "alert": {
           "title": "Compartido con todos",
-          "description": "Todos los usuarios de esta categoría tendrán acceso"
+          "description": "Todos los usuarios de tu categoría tendrán acceso"
         }
       },
       "remove": "Quitar '{name}'",

@@ -2807,7 +2807,7 @@
         "everyone": "Tothom",
         "alert": {
           "title": "Compartit amb tothom",
-          "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
+          "description": "Tots els usuaris de la teva categoria hi tindran accés"
         }
       },
       "remove": "Treu '{name}'",
