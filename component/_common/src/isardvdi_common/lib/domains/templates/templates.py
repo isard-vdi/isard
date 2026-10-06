@@ -482,6 +482,7 @@ class TemplatesProcessed(RethinkSharedConnection):
                 description_code="not_found",
             )
 
+        cls._check_duplicable(template_id, template)
         template = {**template, **Helpers.get_user_data(payload["user_id"])}
         template["name"] = name
         template["description"] = description
@@ -513,6 +514,32 @@ class TemplatesProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
             )
         return new_template_id
+
+    @classmethod
+    def _check_duplicable(cls, template_id, template):
+        """A duplicate shares the source's disk, so it may only be made from a
+        source that can itself derive: not Failed, and every disk ready."""
+        if template.get("status") == "Failed":
+            raise Error(
+                "precondition_required",
+                f"Template {template_id} is Failed and cannot be duplicated",
+                description_code="template_failed",
+            )
+        disks = ((template.get("create_dict") or {}).get("hardware") or {}).get(
+            "disks"
+        ) or []
+        for disk in disks:
+            sid = disk.get("storage_id")
+            if not sid:
+                continue
+            status = Storage(sid).status if Storage.exists(sid) else None
+            if status != "ready":
+                raise Error(
+                    "precondition_required",
+                    f"Template {template_id} disk {sid} is {status}, not ready; "
+                    "a duplicate would derive desktops nothing can start",
+                    description_code="template_storage_not_ready",
+                )
 
     @classmethod
     def get_template(cls, template_id):

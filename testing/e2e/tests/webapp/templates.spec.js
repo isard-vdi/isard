@@ -1348,4 +1348,59 @@ test.describe('Admin Templates — webapp', () => {
       page.locator('.ui-pnotify-title', { hasText: /alloweds updated successfully/i }),
     ).toBeVisible({ timeout: 8000 })
   })
+
+  // ---------------------------------------------------------------------------
+  // Scenario 20 — duplicating a template whose disk is not ready is refused (428)
+  // Regression: duplicate_template must reject a source whose disk
+  // storage is not `ready` before writing any row. Isolated: a throwaway
+  // duplicate's disk is re-pointed to a non-existent storage, so the source is
+  // unusable while the shared seed disk is never touched. Without the fix the
+  // duplicate succeeds and a row is written, so this case fails on main.
+  // ---------------------------------------------------------------------------
+  test('S20: duplicating a template whose disk is not ready is refused with 428', async ({
+    authenticatedPage: page,
+    apiv4Admin,
+  }, testInfo) => {
+    const srcName = uniqueTplName(testInfo, 's20-src')
+    trackTplName(testInfo, srcName)
+    const src = await createDuplicateViaApi(apiv4Admin, { name: srcName, enabled: true })
+
+    const missing = `e2e-missing-disk-${testInfo.workerIndex}-${Date.now()}`
+    await unwrap(
+      adminTableUpdate({
+        client: apiv4Admin,
+        path: { table: 'domains' },
+        body: { id: src.id, create_dict: { hardware: { disks: [{ storage_id: missing }] } } },
+      }),
+    )
+
+    const dupName = uniqueTplName(testInfo, 's20-dup')
+    trackTplName(testInfo, dupName)
+
+    await gotoTemplates(page)
+    const panel = await expandDetail(page, src.id)
+    await panel.locator('.btn-duplicate-template').click()
+    const modal = page.locator('#modalDuplicateTemplate')
+    await modal.waitFor({ state: 'visible', timeout: 10000 })
+    await modal.locator('.template-name').fill(dupName)
+
+    const dupResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/template/${src.id}/duplicate`) &&
+        r.request().method() === 'POST',
+      { timeout: 15000 },
+    )
+    await modal.locator('#send').click()
+    expect((await dupResponse).status(), 'duplicate must be refused with 428').toBe(428)
+
+    await expect(
+      page.locator('.ui-pnotify-title', { hasText: /error duplicating template/i }),
+    ).toBeVisible({ timeout: 8000 })
+
+    expect(
+      await findTemplateByName(apiv4Admin, dupName),
+      'no template row must be written when the disk is not ready',
+    ).toBeNull()
+  })
+
 })
