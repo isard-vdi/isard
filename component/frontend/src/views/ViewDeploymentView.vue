@@ -37,6 +37,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import { desktopActionsData } from '@/lib/desktops'
+import { withOptimisticItemStatus } from '@/lib/optimistic'
 import DomainImage from '@/components/domain/DomainImage.vue'
 
 const route = useRoute()
@@ -58,14 +59,13 @@ const userId = computed(() => {
   return authStore.user?.user_id as string
 })
 
-const { data: desktops, refetch: refetchDesktops } = useQuery(
-  getDeploymentUserDesktopsOptions({
-    path: {
-      deployment_id: deploymentId.value,
-      user_id: userId.value
-    }
-  })
-)
+const desktopsQueryOptions = getDeploymentUserDesktopsOptions({
+  path: {
+    deployment_id: deploymentId.value,
+    user_id: userId.value
+  }
+})
+const { data: desktops, refetch: refetchDesktops } = useQuery(desktopsQueryOptions)
 
 const {
   mutate: fetchViewer,
@@ -103,15 +103,39 @@ const { data: desktopDetails, isPending: desktopDetailsIsPending } = useQuery(
   })
 )
 
-const { mutate: startDesktop } = useMutation(startDesktopMutation())
-const { mutate: stopDesktop } = useMutation({
-  ...stopDesktopMutation(),
-  onSuccess(data, variables, onMutateResult, context) {
-    if (viewerVariables.value === variables.path.desktop_id) {
-      resetViewer()
+const { mutate: startDesktop } = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDeploymentDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsQueryOptions.queryKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STARTING,
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
+    baseMutation: startDesktopMutation()
+  })
+)
+const { mutate: stopDesktop } = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDeploymentDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsQueryOptions.queryKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STOPPING,
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STARTED ||
+      current === DesktopStatusEnum.WAITING_IP ||
+      current === DesktopStatusEnum.SHUTTING_DOWN ||
+      current === DesktopStatusEnum.PAUSED ||
+      current === DesktopStatusEnum.SUSPENDED,
+    baseMutation: stopDesktopMutation(),
+    onSuccess: (_data: unknown, variables: { path: { desktop_id: string } }) => {
+      if (viewerVariables.value === variables.path.desktop_id) {
+        resetViewer()
+      }
     }
-  }
-})
+  })
+)
 
 const showStopAllDesktopsModal = ref(false)
 const stopAllDesktopsError = ref('')
