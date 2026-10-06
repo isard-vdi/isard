@@ -207,12 +207,11 @@ class AdminAuthenticationService:
                         description_code=f"provider_config_{url_field}_invalid",
                     )
         # Strip empty secret fields so existing DB values are preserved
-        for key in ("password", "client_secret"):
-            if key in data and not data[key]:
-                del data[key]
-            if isinstance(data.get(provider), dict):
-                if key in data[provider] and not data[provider][key]:
-                    del data[provider][key]
+        config = data.get(f"{provider}_config")
+        if isinstance(config, dict):
+            for key in ("password", "client_secret"):
+                if key in config and not config[key]:
+                    del config[key]
         # Normalise the legacy "none"/"" action sentinel to null so the stored
         # config matches the API contract (only "disable"/"delete" act on the
         # account).
