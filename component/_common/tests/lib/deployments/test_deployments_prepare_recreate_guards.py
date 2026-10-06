@@ -11,7 +11,9 @@ bad recipe fails fast instead of leaving an empty deployment. Pinned:
 * unknown deployment (L858) not_found;
 * a recipe whose template is missing (L880) not_found;
 * a recipe missing ``hardware.memory`` (L888) bad_request;
-* a recipe missing ``hardware.interfaces`` (L893) bad_request.
+* a recipe missing ``hardware.interfaces`` (L893) bad_request;
+* a recipe's reservables survive the merge with the template, so a
+  deployment that dropped the template's vGPU recreates without it.
 
 ``_prepare_recreate`` runs unmocked; the document lookups, the rethink read,
 the booking parse and the user resolution are stubbed.
@@ -97,3 +99,36 @@ class TestPrepareRecreateGuards:
         with pytest.raises(Error) as exc:
             DP._prepare_recreate({"user_id": "u-1"}, "dep-1")
         assert exc.value.error["error"] == "bad_request"
+
+
+class TestPrepareRecreateReservables:
+    def test_recipe_reservables_override_template(self, env):
+        """The planned desktop goes through ``merge_new_data_with_template``
+        as ``new_data``; the recipe's ``{"vgpus": None}`` must win over the
+        template's vGPU, as it does on deployment create."""
+        env["template"] = {
+            "id": "t-1",
+            "create_dict": {
+                "hardware": {"memory": 2097152, "interfaces": ["default"]},
+                "reservables": {"vgpus": ["NVIDIA-A16-2Q"]},
+            },
+            "guest_properties": {},
+        }
+        env["deployment"]["name"] = "dep"
+        env["deployment"]["create_dict"] = [
+            {
+                "template": "t-1",
+                "name": "r",
+                "tag_desktop_id": "tdi-1",
+                "hardware": {"memory": 2097152, "interfaces": ["default"]},
+                "reservables": {"vgpus": None},
+            }
+        ]
+        _, plan = DP._prepare_recreate({"user_id": "u-1"}, "dep-1")
+        _, desktop, _ = plan[0]
+
+        create_dict, _ = mod.DesktopsProcessed.merge_new_data_with_template(
+            "t-1", desktop
+        )
+
+        assert create_dict["reservables"] == {"vgpus": None}
