@@ -682,6 +682,7 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 		MinRAMLimitMargin   int
 		MaxRAMLimitPercent  int
 		MaxRAMLimitMargin   int
+		DeadRowRAMMargin    int
 		Expected            *apiv4.OrchestratorHypervisor
 	}{
 		"should work correctly": {
@@ -803,6 +804,105 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				},
 			},
 		},
+		"should work correctly with a dead row RAM margin": {
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "too big for the margin",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "too big for the margin",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			MinRAM:           10,
+			MaxRAM:           12,
+			RAMAvail:         13,
+			DeadRowRAMMargin: 1,
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID: "smol :3",
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1,
+					Free:  1,
+				},
+			},
+		},
+		"should ignore the dead row RAM margin with only forced hypervisors": {
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+			},
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID:         "GIGANTIC",
+					OnlyForced: true,
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			MinRAM:           1,
+			MaxRAM:           2,
+			RAMAvail:         3,
+			DeadRowRAMMargin: 100,
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:         "GIGANTIC",
+				OnlyForced: true,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 10,
+					Free:  10,
+				},
+			},
+		},
 		"should not return any hypervisor if by removing it we don't meet the minRAM requirement": {
 			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
 				{
@@ -839,6 +939,58 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			MinRAM:   3,
 			MaxRAM:   2,
 			RAMAvail: 3,
+		},
+		"should not return any hypervisor if by removing it we don't meet the minRAM requirement plus the dead row RAM margin": {
+			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "can't sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			HypersToManage: []*apiv4.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "can't sentence",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: apiv4.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			MinRAM:           10,
+			MaxRAM:           12,
+			RAMAvail:         13,
+			DeadRowRAMMargin: 2,
 		},
 		"should ignore hypervisors already in the dead row": {
 			HypersToAcknowledge: []*apiv4.OrchestratorHypervisor{
@@ -950,6 +1102,7 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				MinRAMLimitMargin:  tc.MinRAMLimitMargin,
 				MaxRAMLimitPercent: tc.MaxRAMLimitPercent,
 				MaxRAMLimitMargin:  tc.MaxRAMLimitMargin,
+				DeadRowRAMMargin:   tc.DeadRowRAMMargin,
 			}, false, &log, nil)
 
 			assert.Equal(tc.Expected, rata.bestHyperToMoveInDeadRow(tc.HypersToAcknowledge, tc.HypersToManage, tc.RAMAvail))

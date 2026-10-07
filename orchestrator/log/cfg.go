@@ -28,6 +28,7 @@ func (m ModelCfg) MarshalZerologObject(e *zerolog.Event) {
 		Int("max_ram_limit_percent", m.cfg.MaxRAMLimitPercent).
 		Int("max_ram_limit_margin", m.cfg.MaxRAMLimitMargin).
 		Any("max_ram_limit_margin_hourly", m.cfg.MaxRAMLimitMarginHourly).
+		Int("dead_row_ram_margin", m.cfg.DeadRowRAMMargin).
 		Int("hyper_min_cpu", m.cfg.HyperMinCPU).
 		Int("hyper_min_ram", m.cfg.HyperMinRAM).
 		Int("hyper_max_cpu", m.cfg.HyperMaxCPU).

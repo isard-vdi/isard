@@ -322,8 +322,8 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*a
 			// If the hypervisor is only forced, the maxRAM límit is set and we've reached the maxRAM limit
 			// (we don't need to check if we can remove it, since it's already not being counted for the ramAvail limit)
 			(h.OnlyForced && maxRAM > 0 && ramAvail > maxRAM) ||
-				// If the maxRAM limit is set and if we remove it, we'll have enough RAM to meet the minRAM limit
-				(maxRAM > 0 && ramAvail > maxRAM && ramAvail-h.RAM.Free > minRAM))
+				// If the maxRAM limit is set and if we remove it, we'll have enough RAM to meet the minRAM limit plus the dead row margin
+				(maxRAM > 0 && ramAvail > maxRAM && ramAvail-h.RAM.Free > minRAM+r.cfg.DeadRowRAMMargin))
 
 		if canBeSentenced {
 			if deadRow != nil {
