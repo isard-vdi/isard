@@ -1,7 +1,22 @@
 # syntax=docker/dockerfile:1.20
 
 FROM debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716 AS ovmf
-RUN apt-get update && apt-get install -y ovmf && rm -rf /var/lib/apt/lists/*
+# ovmf from a frozen Debian snapshot + hash-pinned virt-firmware: the enrolled
+# varstore stays byte-reproducible even when the live Debian mirror moves on.
+RUN rm -f /etc/apt/sources.list.d/debian.sources && \
+    printf '%s\n' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20250401T000000Z/ bookworm main' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20250401T000000Z/ bookworm-security main' \
+      > /etc/apt/sources.list && \
+    apt-get -o Acquire::Check-Valid-Until=false update && \
+    apt-get -o Acquire::Check-Valid-Until=false install -y --no-install-recommends \
+      ovmf=2022.11-6+deb12u2 python3 python3-pip && \
+    rm -rf /var/lib/apt/lists/*
+COPY docker/hypervisor/firmware/ /firmware-src/
+RUN pip3 install --break-system-packages --no-cache-dir --require-hashes \
+      -r /firmware-src/requirements-firmware.txt
+# generate-isard-vars.sh enrolls the keys and fails the build on a bad varstore.
+RUN bash /firmware-src/generate-isard-vars.sh
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS mdevctl-build
 RUN apk add --no-cache cargo git make py3-docutils uuidgen

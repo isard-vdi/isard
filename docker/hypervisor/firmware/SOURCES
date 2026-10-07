@@ -1,0 +1,30 @@
+Firmware trust material vendored into the isard-hypervisor image.
+
+The docker build enrolls these into the isard OVMF variable store at build time
+and fetches NO trust material from the network: only the vendored DBX below plus
+the certificates bundled inside the pinned virt-firmware package are used.
+
+DBXUpdate.bin
+  what    : UEFI forbidden-signature-database (dbx) update, x86_64 (amd64).
+  source  : https://github.com/microsoft/secureboot_objects
+  commit  : f75f97f6da5ca70ac23c7daf12cac069131601aa   (2026-09-09T06:16:31Z)
+  path    : PostSignedObjects/DBX/amd64/DBXUpdate.bin
+  sha256  : 2089e3125e611376cb44326b5765674255443b2484f88de97251939d18055f68
+  size    : 24629 bytes
+  verify  : sha256 confirmed identical to the upstream file at that commit.
+
+Certificates (not vendored as files; enrolled from the pinned tool):
+  Red Hat PK/KEK                 via --enroll-redhat
+  Microsoft KEK CA 2011 + 2023   via --microsoft-kek all
+  Microsoft db (PCA 2011,        via --microsoft-db all
+    UEFI CA 2011, Windows UEFI
+    CA 2023, UEFI CA 2023,
+    Option ROM UEFI CA 2023)
+  These ship inside virt-firmware; pinning virt-firmware pins the certificates.
+
+Reference build (verified byte-reproducible on 2026-09-16):
+  base image    : debian:12-slim@sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716
+  ovmf          : 2022.11-6+deb12u2
+  source vars   : /usr/share/OVMF/OVMF_VARS_4M.fd  sha256 5d2ac383371b408398accee7ec27c8c09ea5b74a0de0ceea6513388b15be5d1e
+  virt-firmware : 26.9
+  result        : OVMF_VARS_4M.isard-ms.fd  sha256 1f7f9d813af6bfa54645b7fdf7c1332f4bc4a49ddb2cb5b90a591bcc49eb9a52
