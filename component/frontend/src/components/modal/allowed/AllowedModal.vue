@@ -533,6 +533,11 @@ const removeUser = (userId: string) => {
   selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
 }
 
+const clearUsers = () => {
+  dirty.value = true
+  selectedUsers.value = []
+}
+
 const setShareWithEveryone = (value: boolean) => {
   if (props.loading || props.readonly) return
   dirty.value = true
@@ -661,6 +666,7 @@ const handleClose = () => {
       @remove-group="toggleGroup"
       @remove-user="removeUser"
       @remove-all-groups="toggleAllGroups(false)"
+      @remove-all-users="clearUsers"
     />
     <Alert v-else class="mb-4 shrink-0" data-slot="share-everyone-alert">
       <div class="flex flex-row items-center gap-2">

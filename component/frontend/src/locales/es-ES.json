@@ -2821,7 +2821,10 @@
         "all-groups": "Todos los grupos",
         "empty": "Aún no hay nada seleccionado",
         "users-through-groups": "Ningún usuario seleccionado individualmente.",
-        "unknown-user": "Usuario desconocido"
+        "unknown-user": "Usuario desconocido",
+        "clear": "Limpiar",
+        "clear-groups": "Limpiar los grupos seleccionados",
+        "clear-users": "Limpiar los usuarios seleccionados"
       },
       "select-all": {
         "groups": "Seleccionar todos los grupos",

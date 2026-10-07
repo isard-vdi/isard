@@ -2821,7 +2821,10 @@
         "all-groups": "Tots els grups",
         "empty": "Encara no hi ha res seleccionat",
         "users-through-groups": "Cap usuari seleccionat individualment.",
-        "unknown-user": "Usuari desconegut"
+        "unknown-user": "Usuari desconegut",
+        "clear": "Neteja",
+        "clear-groups": "Neteja els grups seleccionats",
+        "clear-users": "Neteja els usuaris seleccionats"
       },
       "select-all": {
         "groups": "Selecciona tots els grups",
