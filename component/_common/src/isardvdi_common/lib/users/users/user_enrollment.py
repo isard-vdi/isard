@@ -19,7 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-import random
+import secrets
 import string
 import traceback
 
@@ -48,7 +48,7 @@ class UserEnrollment(RethinkSharedConnection):
             chars = string.digits + string.ascii_lowercase
         code = False
         while code == False:
-            code = "".join([random.choice(chars) for i in range(6)])
+            code = "".join([secrets.choice(chars) for i in range(6)])
             if cls.enrollment_code_check(code) == False:
                 with cls._rdb_context():
                     r.table("groups").get(data["id"]).update(
