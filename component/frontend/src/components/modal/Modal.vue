@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
-import type { HTMLAttributes } from 'vue'
+import { computed, type HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -25,6 +25,7 @@ interface Props {
   open?: boolean
   class?: HTMLAttributes['class']
   closeOnBackdropClick?: boolean
+  closeOnEscape?: boolean // Defaults to the same behavior as closeOnBackdropClick
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | 'full'
 }
 
@@ -37,10 +38,13 @@ const props = withDefaults(defineProps<Props>(), {
   open: false,
   class: '',
   closeOnBackdropClick: true,
+  closeOnEscape: undefined,
   size: 'md'
 })
 
 const emit = defineEmits(['close'])
+
+const escapeCloses = computed(() => props.closeOnEscape ?? props.closeOnBackdropClick)
 
 const sizeClasses = {
   sm: 'max-w-sm',
@@ -76,7 +80,15 @@ const sizeClasses = {
           }
         }
       "
-      @escape-key-down="emit('close')"
+      @escape-key-down="
+        (event: KeyboardEvent) => {
+          if (escapeCloses) {
+            emit('close')
+          } else {
+            event.preventDefault()
+          }
+        }
+      "
     >
       <slot name="image" />
       <DialogHeader

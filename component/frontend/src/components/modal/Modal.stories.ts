@@ -12,6 +12,7 @@ interface ModalProps {
   class?: string
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full'
   closeOnBackdropClick?: boolean
+  closeOnEscape?: boolean
 }
 
 const meta: Meta<ModalProps> = {
@@ -50,6 +51,10 @@ const meta: Meta<ModalProps> = {
     closeOnBackdropClick: {
       control: 'boolean',
       description: 'Whether clicking outside the modal closes it'
+    },
+    closeOnEscape: {
+      control: 'boolean',
+      description: 'Whether Escape closes the modal. Follows closeOnBackdropClick when unset'
     }
   },
   args: {
@@ -84,6 +89,7 @@ export const Default: Story = {
           :open="isOpen"
           :size="args.size"
           :closeOnBackdropClick="args.closeOnBackdropClick"
+          :closeOnEscape="args.closeOnEscape"
           @close="isOpen = false"
         >
           <p>This is modal content. You can add any content here.</p>
