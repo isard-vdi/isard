@@ -99,7 +99,7 @@ const chipButtonClass =
       <div
         :class="
           cn(
-            'grid max-h-32 gap-6 overflow-y-auto border-t border-gray-warm-200 px-3 py-2',
+            'grid h-32 content-start gap-6 overflow-y-auto border-t border-gray-warm-200 px-3 py-2',
             props.showGroups ? 'grid-cols-2' : 'grid-cols-1'
           )
         "
