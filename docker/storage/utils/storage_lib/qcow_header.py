@@ -10,10 +10,17 @@ EXT_END = 0x00000000
 EXT_BACKING_FORMAT = 0xE2792ACA
 # dirty, corrupt, external data file, compression type, extended L2
 KNOWN_INCOMPATIBLE = 0x1F
+# qcow2 v3 incompatible_features bits (offset 72): refcounts may be stale, and
+# the image was marked corrupt.
+INCOMPAT_DIRTY = 0x1
+INCOMPAT_CORRUPT = 0x2
 V2_HEADER_LENGTH = 72
 MAX_BACKING_NAME = 1023
 
-Qcow2Header = namedtuple("Qcow2Header", "version backing_file backing_format")
+Qcow2Header = namedtuple(
+    "Qcow2Header",
+    "version backing_file backing_format virtual_size dirty corrupt",
+)
 
 
 class Qcow2HeaderError(Exception):
@@ -72,15 +79,21 @@ def read_header(path):
         if head[:4] != QCOW2_MAGIC:
             raise Qcow2HeaderError("not a qcow2 image")
 
-        version, backing_offset, backing_size, cluster_bits = struct.unpack_from(
-            ">IQII", head, 4
-        )
+        (
+            version,
+            backing_offset,
+            backing_size,
+            cluster_bits,
+            virtual_size,
+        ) = struct.unpack_from(">IQIIQ", head, 4)
         if version not in (2, 3):
             raise Qcow2HeaderError(f"unsupported qcow2 version {version}")
         if not 9 <= cluster_bits <= 21:
             raise Qcow2HeaderError(f"invalid cluster_bits {cluster_bits}")
         cluster_size = 1 << cluster_bits
 
+        # v2 has no incompatible_features word, so it can carry no dirty/corrupt bit.
+        dirty = corrupt = False
         if version == 2:
             header_length = V2_HEADER_LENGTH
         else:
@@ -90,6 +103,8 @@ def read_header(path):
             (incompatible,) = struct.unpack_from(">Q", head, 72)
             if incompatible & ~KNOWN_INCOMPATIBLE:
                 raise Qcow2HeaderError("unknown incompatible features")
+            dirty = bool(incompatible & INCOMPAT_DIRTY)
+            corrupt = bool(incompatible & INCOMPAT_CORRUPT)
             (header_length,) = struct.unpack_from(">I", head, 100)
             if header_length < 104 or header_length > cluster_size:
                 raise Qcow2HeaderError(f"invalid header_length {header_length}")
@@ -118,7 +133,9 @@ def read_header(path):
     if ext_end > header_length:
         backing_format = _read_extensions(data, header_length, ext_end)
 
-    return Qcow2Header(version, backing_file, backing_format)
+    return Qcow2Header(
+        version, backing_file, backing_format, virtual_size, dirty, corrupt
+    )
 
 
 def backing_file(path):
