@@ -20,6 +20,7 @@ interface propsObjects {
   disabled?: boolean
   title?: string
   text: string
+  danger?: boolean
   onClick?: () => void
 }
 
@@ -37,13 +38,21 @@ const rawMenuContent = computed(() => toRaw(props.menuContent || []))
     </DropdownMenuTrigger>
     <DropdownMenuContent class="bg-white border border-[#D7D3D0] rounded-lg">
       <DropdownMenuGroup>
-        <DropdownMenuItem v-for="item in rawMenuContent" :key="item.text">
+        <DropdownMenuItem
+          v-for="item in rawMenuContent"
+          :key="item.text"
+          :disabled="item.disabled"
+          :class="{ 'hover:bg-error-50 focus:bg-error-50': item.danger }"
+          @click="item.onClick?.()"
+        >
           <Button
-            v-bind="item"
-            class="mr-2"
+            :icon="item.icon"
+            :title="item.title"
+            :disabled="item.disabled"
+            class="mr-2 w-full justify-start"
+            :class="{ 'text-error-700': item.danger }"
             hierarchy="link-gray"
             icon-size="md"
-            @click="item.onClick"
           >
             {{ item.text }}
           </Button>

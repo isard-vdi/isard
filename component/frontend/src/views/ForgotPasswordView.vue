@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { InputField } from '@/components/input-field'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { forgotPasswordMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -135,6 +136,7 @@ const layoutDescription = computed(() =>
                 </FieldLabel>
                 <InputField
                   :id="field.name"
+                  v-autofocus
                   :name="field.name"
                   icon="mail-01"
                   :model-value="field.state.value"

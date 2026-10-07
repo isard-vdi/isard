@@ -61,6 +61,7 @@ const handleClose = () => {
 
 const {
   data: userApiKey,
+  isPending: isUserApiKeyPending,
   refetch: refetchUserApiKey,
   error: userApiKeyError
 } = useQuery({
@@ -258,6 +259,7 @@ const maskedKey = '\u2022'.repeat(160)
               :placeholder="$t('components.profile.api-key-modal.new-key.buttons.expiration-label')"
               :max-hint="$t('components.profile.api-key-modal.new-key.max-expiration-hint')"
               :locale="locale"
+              :autofocus="!isUserApiKeyPending"
             />
           </div>
 

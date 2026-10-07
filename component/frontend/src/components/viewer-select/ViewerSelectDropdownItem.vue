@@ -33,7 +33,10 @@ const handleDismiss = () => {
 </script>
 
 <template>
-  <DropdownMenuItem>
+  <DropdownMenuItem
+    :class="{ 'cursor-default data-[highlighted]:[&_button]:no-underline': props.viewer.loading }"
+    @click="!props.viewer.loading && emit('select')"
+  >
     <Tooltip
       :disabled="props.tooltipDismissed"
       :open="tooltipOpen"
@@ -47,7 +50,6 @@ const handleDismiss = () => {
           icon-size="md"
           icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
           :disabled="props.viewer.loading"
-          @click="emit('select')"
         >
           {{ t(`viewers.${props.viewer.id}`) }}
         </Button>

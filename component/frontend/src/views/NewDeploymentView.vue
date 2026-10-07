@@ -34,6 +34,7 @@ import { DomainInfoModal } from '@/components/desktops'
 import { NewDeploymentDesktopFormCard } from '@/components/deployments/new-deployment-desktop-from-card'
 import { Modal, QuotaExceededModal } from '@/components/modal'
 import TemplatesList from '@/components/templates/TemplatesList.vue'
+import type { OwnershipTab } from '@/composables/useOwnershipTab'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FieldError } from '@/components/ui/field'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -538,6 +539,13 @@ interface SelectTemplateModalData {
 }
 const selectTemplateModalData = ref<SelectTemplateModalData | null>(null)
 
+const templateTab = ref<OwnershipTab>()
+
+const handleSelectTemplate = (templateId: string) => {
+  selectTemplateModalData.value?.action(templateId)
+  selectTemplateModalData.value = null
+}
+
 const deleteDesktopConfirmationModalData = ref<{
   index: number
   name: string
@@ -660,16 +668,11 @@ const updateHardware = (
       />
 
       <TemplatesList
-        active-template-tab="user"
+        v-model:active-template-tab="templateTab"
         selectable
         :page-size="5"
         :pagination-page-sizes="[5, 10, 20, 30, 40, 50]"
-        @row-click="
-          (template) => {
-            selectTemplateModalData!.action(template.id)
-            selectTemplateModalData = null
-          }
-        "
+        @row-click="(template) => handleSelectTemplate(template.id)"
         @show-info-modal="openTemplateInfoModal"
       />
 

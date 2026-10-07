@@ -24,6 +24,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { setUserEmailMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { verifyEmailMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { describeErrorCode } from '@/lib/api-errors'
+import { vAutofocus } from '@/directives/autofocus'
 
 type Mode = 'verifying' | 'verified' | 'link-error' | 'form'
 
@@ -213,6 +214,7 @@ const isInvalid = (field: AnyFieldApi) => field.state.meta.isTouched && !field.s
                   </FieldLabel>
                   <InputField
                     :id="field.name"
+                    v-autofocus
                     :name="field.name"
                     icon="mail-01"
                     :model-value="field.state.value"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useForm } from '@tanstack/vue-form'
 import { provideFormSchema } from '@/composables/useFormSchema'
@@ -7,6 +8,10 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
+import { Icon } from '@/components/icon'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { vAutofocus } from '@/directives/autofocus'
 
 const { t } = useI18n()
 
@@ -24,6 +29,18 @@ const emit = defineEmits<{
   submit: [data: z.output<typeof formSchema>]
   cancel: []
 }>()
+
+const showCode = ref(false)
+
+const toggleCodeLabel = computed(() =>
+  showCode.value
+    ? t('components.register.register-form.hide-code')
+    : t('components.register.register-form.show-code')
+)
+
+const toggleShowCode = () => {
+  showCode.value = !showCode.value
+}
 
 const onCancel = () => {
   emit('cancel')
@@ -58,15 +75,40 @@ function isInvalid(field) {
         <FieldLabel :for="field.name">{{ t('components.register.register-form.code') }}</FieldLabel>
         <InputField
           :id="field.name"
+          v-autofocus
           :name="field.name"
           :model-value="field.state.value"
           :aria-invalid="isInvalid(field)"
           :destructive="isInvalid(field)"
           autocomplete="off"
-          type="text"
+          :type="showCode ? 'text' : 'password'"
           @blur="field.handleBlur"
           @input="field.handleChange($event.target.value)"
-        />
+        >
+          <template #inline-end>
+            <div class="flex items-center gap-2 pr-1">
+              <Separator orientation="vertical" class="h-5" />
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded-md focus:ring-3 focus:ring-gray"
+                    :aria-label="toggleCodeLabel"
+                    :aria-pressed="showCode"
+                    @click="toggleShowCode"
+                  >
+                    <Icon
+                      :name="showCode ? 'eye-off' : 'eye'"
+                      size="md"
+                      stroke-color="gray-warm-500"
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent :title="toggleCodeLabel" />
+              </Tooltip>
+            </div>
+          </template>
+        </InputField>
         <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
       </Field>
     </form.Field>

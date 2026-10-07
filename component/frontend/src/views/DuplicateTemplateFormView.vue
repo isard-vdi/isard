@@ -248,6 +248,7 @@ const handleSubmit = () => {
           :image-url="imageUrl"
           entity="templates"
           preview="template-row"
+          autofocus-name
           @change-image="showChangeImageModal = true"
         />
 

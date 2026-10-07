@@ -95,7 +95,8 @@ import {
   DesktopCard,
   DesktopCardSkeleton,
   DesktopCardNetworksOverlay,
-  type CardSize
+  type CardSize,
+  type OverlayKind
 } from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
 import {
@@ -156,6 +157,7 @@ const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
 const {
   isPending: desktopsIsPending,
+  isFetching: desktopsIsFetching,
   isError: desktopsIsError,
   error: desktopsError,
   data: desktops
@@ -172,6 +174,21 @@ const routeDesktop = computed(() => {
 
   return desktops.value.desktops.find((d) => d.id === route.params.desktopId) || null
 })
+
+watch(
+  [() => route.params.desktopId, desktops, desktopsIsFetching],
+  () => {
+    if (
+      route.params.desktopId &&
+      !desktopsIsFetching.value &&
+      !routeDesktop.value &&
+      (desktops.value || desktopsIsError.value)
+    ) {
+      router.replace({ name: 'desktops' })
+    }
+  },
+  { immediate: true }
+)
 
 const {
   isPending: userConfigIsPending,
@@ -911,6 +928,8 @@ const cardGridRowHeight = computed(() => (cardSize.value === 'md' ? 280 : 310))
 // Tailwind `gap-4`.
 const CARD_GRID_GAP = 16
 
+const cardOverlays = ref<Record<string, OverlayKind | null>>({})
+
 const cardGridRef = ref<HTMLElement | null>(null)
 const { width: cardGridWidth } = useElementSize(cardGridRef)
 
@@ -1429,6 +1448,7 @@ const missingCardRows = computed(() => {
 
   <main v-if="route.params.desktopId" class="flex w-full flex-1 items-center justify-center">
     <EmptyState
+      v-if="routeDesktop"
       :title="t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })"
       :description="
         t(`views.desktops.${route.params.action}.description`, { kind: t('domains.desktops', 0) })
@@ -1501,6 +1521,7 @@ const missingCardRows = computed(() => {
         </Button>
       </template>
     </EmptyState>
+    <DesktopCardSkeleton v-else class="h-[310px] w-full max-w-md" />
   </main>
 
   <main v-else class="-mt-4 flex w-full flex-1 flex-col">
@@ -1769,6 +1790,7 @@ const missingCardRows = computed(() => {
               <DesktopCard
                 v-for="dktp in cardGridRows[virtualRow.index]"
                 :key="dktp.id"
+                v-model:overlay="cardOverlays[dktp.id]"
                 :size="cardSize"
                 fill
                 :desktop="dktp"

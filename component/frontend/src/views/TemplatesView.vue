@@ -15,6 +15,7 @@ import {
 import { copyToClipboard } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { canCreateAnyDesktop } from '@/lib/quotas'
+import { useOwnershipTab } from '@/composables/useOwnershipTab'
 import { useUserStore } from '@/stores/user'
 
 import { AvatarLabel } from '@/components/avatar-label'
@@ -60,7 +61,12 @@ const queryClient = useQueryClient()
 const userStore = useUserStore()
 const { t } = useI18n()
 
-const activeTab = ref<'user' | 'shared'>('user')
+const { activeTab, isResolving: tabIsResolving } = useOwnershipTab({
+  hasOwned: async () =>
+    (await queryClient.fetchQuery(getUserTemplatesOptions())).templates.length > 0,
+  hasShared: async () =>
+    (await queryClient.fetchQuery(getUserSharedTemplatesOptions())).templates.length > 0
+})
 
 const TEMPLATES_SEARCH_INPUT_ID = 'templates-search'
 const inputSearch = ref('')
@@ -115,11 +121,10 @@ const {
   isFetching: sharedTemplatesIsFetching,
   isError: sharedTemplatesIsError,
   error: sharedTemplatesError,
-  data: sharedTemplates,
-  refetch: fetchSharedTemplates
+  data: sharedTemplates
 } = useQuery({
   ...getUserSharedTemplatesOptions(),
-  enabled: false // Lazy load when tab is clicked
+  enabled: computed(() => activeTab.value === 'shared')
 })
 
 // Table configuration
@@ -194,22 +199,17 @@ const totalTemplates = computed(() =>
     : (userTemplates.value?.templates?.length ?? 0)
 )
 
-// The shared tab loads lazily, so an unfetched cache still counts as pending.
 const templatesArePending = computed(() =>
-  activeTab.value === 'shared'
-    ? sharedTemplatesIsFetching.value || !sharedTemplates.value
-    : userTemplatesIsPending.value
+  tabIsResolving.value
+    ? true
+    : activeTab.value === 'shared'
+      ? sharedTemplatesIsFetching.value || !sharedTemplates.value
+      : userTemplatesIsPending.value
 )
 
 const isFirstRun = computed(() => !templatesArePending.value && totalTemplates.value === 0)
 
 const emptyKind = computed(() => (activeTab.value === 'shared' ? 'shared-templates' : 'templates'))
-
-const handleSharedTabClick = () => {
-  if (!sharedTemplates.value) {
-    fetchSharedTemplates()
-  }
-}
 
 // Modal state - unified structure
 interface ModalData {
@@ -420,7 +420,6 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TabsTrigger
               value="shared"
               :class="toggleVariants({ variant: 'desktops-all', size: 'default' })"
-              @click="handleSharedTabClick"
             >
               <Icon name="share-06" stroke-color="currentColor" />
               {{ t('components.templates.template-type.shared') }}
@@ -569,12 +568,13 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <Button
                 hierarchy="secondary-gray"
-                icon="edit-01"
+                icon="info-circle"
                 class="aspect-square p-[10px]"
-                @click="router.push({ name: 'edit-template', params: { templateId: row.id } })"
+                :aria-label="t('views.templates.table.actions.info')"
+                @click="openTemplateInfoModal(row.id)"
               />
             </TooltipTrigger>
-            <TooltipContent :title="t('views.templates.table.actions.edit')" />
+            <TooltipContent :title="t('views.templates.table.actions.info')" />
           </Tooltip>
 
           <Tooltip>
@@ -583,6 +583,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 hierarchy="secondary-gray"
                 :icon="row.enabled ? 'eye' : 'eye-off'"
                 class="aspect-square p-[10px]"
+                :aria-label="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
                 @click="
                   visibilityModalData = {
                     id: row.id,
@@ -601,11 +602,12 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <span class="inline-flex">
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
+                  <DropdownMenuTrigger as-child>
                     <Button
                       hierarchy="secondary-gray"
                       icon="dots-vertical"
                       class="aspect-square p-[10px]"
+                      :aria-label="t('common.actions.more')"
                     />
                   </DropdownMenuTrigger>
 
@@ -614,15 +616,19 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                     align="end"
                   >
                     <DropdownMenuGroup>
-                      <DropdownMenuItem @click="openTemplateInfoModal(row.id)">
+                      <DropdownMenuItem
+                        @click="
+                          router.push({ name: 'edit-template', params: { templateId: row.id } })
+                        "
+                      >
                         <Button
                           size="sm"
                           class="mr-2 w-full justify-start"
                           hierarchy="link-gray"
-                          icon="info-circle"
+                          icon="edit-01"
                           icon-size="md"
                         >
-                          {{ t('views.templates.table.actions.info') }}
+                          {{ t('views.templates.table.actions.edit') }}
                         </Button>
                       </DropdownMenuItem>
                       <DropdownMenuItem @click="openAllowedModal({ id: row.id, name: row.name })">
@@ -686,6 +692,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
                 hierarchy="secondary-gray"
                 icon="copy-07"
                 class="aspect-square p-[10px]"
+                :aria-label="t('views.templates.table.actions.duplicate')"
                 :disabled="templateCreationCheckIsPending || isFailed(row)"
                 @click="
                   handleWithTemplateQuotaCheck(() =>

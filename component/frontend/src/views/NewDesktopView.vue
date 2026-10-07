@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
   createDesktopMutation,
   checkQuotaNewDesktopOptions,
   checkQuotaNewVolatileDesktopOptions,
-  checkStoragePoolCreationAvailabilityOptions
+  checkStoragePoolCreationAvailabilityOptions,
+  getUserDesktopsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 import {
@@ -24,6 +25,7 @@ import { useUserStore } from '@/stores/user'
 import router from '@/router'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import Step1SelectTemplate from '@/components/new-desktop/Step1SelectTemplate.vue'
+import type { OwnershipTab } from '@/composables/useOwnershipTab'
 import Step2ConfigureDesktop from '@/components/new-desktop/Step2ConfigureDesktop.vue'
 import type { DomainConfigurationPanelData } from '@/components/domain/DomainConfigurationPanel.vue'
 import Step3Creating from '@/components/new-desktop/Step3Creating.vue'
@@ -33,6 +35,7 @@ import { cn } from '@/lib/utils'
 import { newDesktopErrorKey, isNameConflictError } from '@/lib/api-errors'
 
 const { t, te } = useI18n()
+const queryClient = useQueryClient()
 
 // --------------------------------------------------
 // Quota and storage checks
@@ -73,6 +76,8 @@ const storageQuery = useQuery({
 const quotaCheckPassed = computed(() => storageQuery.isSuccess.value)
 
 // --------------------------------------------------
+
+const templateTab = ref<OwnershipTab>()
 
 const currentStep = ref(1)
 const showStepsControls = computed(() => {
@@ -155,7 +160,8 @@ const {
   error: submitDesktopCreateError
 } = useMutation({
   ...createDesktopMutation(),
-  onSuccess: (data) => {
+  onSuccess: async (data) => {
+    await queryClient.invalidateQueries({ queryKey: getUserDesktopsQueryKey() })
     formHeaderRef.value?.allowLeave()
     router.push({
       name: 'single-desktop',
@@ -259,6 +265,7 @@ const steps = computed<StepperFormStep[]>(() => {
         <!-- Step 1 -->
         <div v-if="currentStep === 1">
           <Step1SelectTemplate
+            v-model:active-template-tab="templateTab"
             :selected-id="selectedTemplate?.id ?? ''"
             @select-template="selectTemplate"
           />
