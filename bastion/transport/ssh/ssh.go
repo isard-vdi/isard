@@ -240,7 +240,9 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 	}
 	defer srvConn.Close()
 
-	*log = log.With().Str("remote_addr", srvConn.RemoteAddr().String()).Logger()
+	// Never assign through the pointer: it is the logger shared by every connection.
+	connLog := log.With().Str("remote_addr", srvConn.RemoteAddr().String()).Logger()
+	log = &connLog
 	log.Debug().Msg("accepted SSH connection")
 
 	targetAddr := fmt.Sprintf("%s:%s",
@@ -248,7 +250,8 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 		srvConn.Permissions.Extensions[ExtensionRemoteTargetPort],
 	)
 
-	*log = log.With().Str("target_addr", targetAddr).Logger()
+	targetLog := log.With().Str("target_addr", targetAddr).Logger()
+	log = &targetLog
 
 	// Create the target SSH connection
 	targetConn, err := ssh.Dial("tcp", targetAddr, &ssh.ClientConfig{
