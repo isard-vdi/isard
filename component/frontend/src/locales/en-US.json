@@ -2017,7 +2017,9 @@
       "toggle-active": "Filters ({count} active)",
       "remove": "Remove filter {name}",
       "clear": "Clear filters",
-      "show-all": "Show all {count} active filters"
+      "show-all": "Show all {count} active filters",
+      "search": "Search",
+      "no-results": "No results found"
     },
     "empty-search": {
       "title": "No results found",

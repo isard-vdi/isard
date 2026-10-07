@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
-import { useResizeObserver } from '@vueuse/core'
+import { useEventListener, useResizeObserver } from '@vueuse/core'
+import { useFilter } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ export interface FilterCategory {
 
 interface Props {
   categories: FilterCategory[]
+  searchable?: boolean
   class?: string
 }
 
@@ -86,6 +88,59 @@ const label = computed(() =>
 const control = ref<HTMLElement | null>(null)
 const hiddenCount = ref(0)
 const panelOpen = ref(false)
+
+const query = ref('')
+const searchInput = ref<HTMLInputElement | null>(null)
+
+const { contains } = useFilter({ sensitivity: 'base' })
+
+const visibleCategories = computed(() => {
+  const term = query.value.trim()
+  if (!term) return props.categories
+
+  return props.categories
+    .map((category) => ({
+      ...category,
+      options: category.options.filter((option) => contains(option.label, term))
+    }))
+    .filter((category) => category.options.length > 0)
+})
+
+watch(panelOpen, (open) => {
+  if (!open) query.value = ''
+  // The menu focuses itself once it has mounted; the box takes the focus after it.
+  else if (props.searchable) setTimeout(() => searchInput.value?.focus(), 1)
+})
+
+// The keys the menu keeps while the box has the focus: Escape closes it, Tab
+// stays in it and the arrows walk into the options.
+const MENU_KEYS = ['Escape', 'Tab', 'ArrowDown', 'ArrowUp']
+
+const onMenuKeydown = (event: KeyboardEvent) => {
+  const input = searchInput.value
+  if (!input) return
+
+  if (event.target === input) {
+    if (!MENU_KEYS.includes(event.key)) event.stopPropagation()
+    return
+  }
+
+  const isCharacter =
+    event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.altKey && !event.metaKey
+  const leavesFirstOption =
+    event.key === 'ArrowUp' &&
+    event.target === input.closest('[role="menu"]')?.querySelector('[role="menuitemcheckbox"]')
+  if (!isCharacter && !leavesFirstOption) return
+
+  event.stopImmediatePropagation()
+  // A character is left to land in the box, now focused.
+  if (leavesFirstOption) event.preventDefault()
+  input.focus()
+}
+
+useEventListener(() => searchInput.value?.closest('[role="menu"]'), 'keydown', onMenuKeydown, {
+  capture: true
+})
 
 const queryTags = () =>
   Array.from(control.value?.querySelectorAll<HTMLElement>('[data-filter-tag]') ?? [])
@@ -169,7 +224,7 @@ watch(
       )
     "
   >
-    <DropdownMenu>
+    <DropdownMenu v-model:open="panelOpen">
       <DropdownMenuTrigger
         data-filter-trigger
         :aria-label="label"
@@ -180,12 +235,48 @@ watch(
         <Icon name="chevron-down" size="sm" stroke-color="gray-warm-500" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" :align-offset="-7" :side-offset="11" class="min-w-56">
+      <DropdownMenuContent
+        align="start"
+        :align-offset="-7"
+        :side-offset="11"
+        :class="props.searchable ? 'w-72' : 'min-w-56'"
+      >
+        <div
+          v-if="props.searchable"
+          role="presentation"
+          class="flex items-center gap-2 border-b border-muted px-2 py-1.5"
+        >
+          <Icon
+            name="search-md"
+            size="sm"
+            stroke-color="gray-warm-500"
+            aria-hidden="true"
+            class="shrink-0"
+          />
+          <input
+            ref="searchInput"
+            v-model="query"
+            type="text"
+            autocomplete="off"
+            data-filter-search
+            :placeholder="t('components.filters.search')"
+            :aria-label="t('components.filters.search')"
+            class="w-full bg-transparent text-md text-gray-warm-900 outline-none placeholder:font-regular placeholder:text-gray-warm-500"
+          />
+        </div>
+
         <div
           role="presentation"
           class="max-h-[min(60vh,22rem)] overflow-y-auto overscroll-contain p-1"
         >
-          <template v-for="(category, index) in props.categories" :key="category.key">
+          <p
+            v-if="query.trim() && visibleCategories.length === 0"
+            class="px-2 py-1.5 text-sm text-gray-warm-500"
+          >
+            {{ t('components.filters.no-results') }}
+          </p>
+
+          <template v-for="(category, index) in visibleCategories" :key="category.key">
             <DropdownMenuSeparator v-if="index > 0" />
 
             <DropdownMenuGroup :aria-label="category.label">
@@ -227,7 +318,7 @@ watch(
                     stroke-color="base-white"
                   />
                 </span>
-                <span class="flex w-full items-center gap-1.5">
+                <span class="flex w-full min-w-0 items-center gap-1.5">
                   <Icon
                     v-if="option.icon"
                     :name="option.icon"

@@ -1725,7 +1725,9 @@
       "toggle-active": "Filtres ({count} actius)",
       "remove": "Treu el filtre {name}",
       "clear": "Neteja els filtres",
-      "show-all": "Mostra els {count} filtres actius"
+      "show-all": "Mostra els {count} filtres actius",
+      "search": "Cerca",
+      "no-results": "No s'ha trobat cap resultat"
     },
     "empty-search": {
       "clear": "Neteja la cerca",

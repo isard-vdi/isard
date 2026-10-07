@@ -1725,7 +1725,9 @@
       "toggle-active": "Filtros ({count} activos)",
       "remove": "Quitar el filtro {name}",
       "clear": "Limpiar los filtros",
-      "show-all": "Ver los {count} filtros activos"
+      "show-all": "Ver los {count} filtros activos",
+      "search": "Buscar",
+      "no-results": "No se ha encontrado ningún resultado"
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",

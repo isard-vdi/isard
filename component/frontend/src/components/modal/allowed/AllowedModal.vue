@@ -733,6 +733,7 @@ const handleClose = () => {
             <FilterTags
               v-model="groupFilterTags"
               :categories="groupFilterCategories"
+              searchable
               class="h-10 flex-nowrap py-[5px] [&>[data-filter-actions]]:hidden [&>[data-filter-tag]]:min-w-0 [&>[data-filter-tag]]:shrink [&_[data-filter-tag-count]]:hidden"
             />
           </div>
