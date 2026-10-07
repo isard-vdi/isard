@@ -157,6 +157,7 @@ const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
 const {
   isPending: desktopsIsPending,
+  isFetching: desktopsIsFetching,
   isError: desktopsIsError,
   error: desktopsError,
   data: desktops
@@ -173,6 +174,21 @@ const routeDesktop = computed(() => {
 
   return desktops.value.desktops.find((d) => d.id === route.params.desktopId) || null
 })
+
+watch(
+  [() => route.params.desktopId, desktops, desktopsIsFetching],
+  () => {
+    if (
+      route.params.desktopId &&
+      !desktopsIsFetching.value &&
+      !routeDesktop.value &&
+      (desktops.value || desktopsIsError.value)
+    ) {
+      router.replace({ name: 'desktops' })
+    }
+  },
+  { immediate: true }
+)
 
 const {
   isPending: userConfigIsPending,
@@ -1432,6 +1448,7 @@ const missingCardRows = computed(() => {
 
   <main v-if="route.params.desktopId" class="flex w-full flex-1 items-center justify-center">
     <EmptyState
+      v-if="routeDesktop"
       :title="t(`views.desktops.${route.params.action}.title`, { kind: t('domains.desktops', 0) })"
       :description="
         t(`views.desktops.${route.params.action}.description`, { kind: t('domains.desktops', 0) })
@@ -1504,6 +1521,7 @@ const missingCardRows = computed(() => {
         </Button>
       </template>
     </EmptyState>
+    <DesktopCardSkeleton v-else class="h-[310px] w-full max-w-md" />
   </main>
 
   <main v-else class="-mt-4 flex w-full flex-1 flex-col">
