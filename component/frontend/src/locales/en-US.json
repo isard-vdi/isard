@@ -1693,7 +1693,9 @@
       "register-form": {
         "code": "Sign up code",
         "register": "Sign up",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "show-code": "Show code",
+        "hide-code": "Hide code"
       }
     },
     "sidebar": {
