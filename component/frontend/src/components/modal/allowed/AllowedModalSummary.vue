@@ -99,24 +99,27 @@ const chipButtonClass =
       <div
         :class="
           cn(
-            'grid h-32 content-start gap-6 overflow-y-auto border-t border-gray-warm-200 px-3 py-2',
+            'grid h-32 grid-rows-1 gap-6 border-t border-gray-warm-200 px-3 py-2',
             props.showGroups ? 'grid-cols-2' : 'grid-cols-1'
           )
         "
       >
         <div
           v-if="props.showGroups"
-          class="flex min-w-0 flex-col gap-1.5"
+          class="flex min-h-0 min-w-0 flex-col gap-1.5"
           data-slot="selection-summary-groups"
         >
-          <span class="flex items-center gap-1 text-xs font-semibold text-gray-warm-500">
+          <span class="flex shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500">
             <Icon name="users-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
             <span class="truncate">{{ t('components.allowed-modal.columns.groups') }}</span>
           </span>
           <p v-if="groupsEmpty" class="text-sm text-gray-warm-500">
             {{ t('components.allowed-modal.summary.empty') }}
           </p>
-          <div v-else class="flex min-w-0 flex-row flex-wrap gap-1.5">
+          <div
+            v-else
+            class="flex min-h-0 min-w-0 flex-1 flex-row flex-wrap content-start gap-1.5 overflow-y-auto"
+          >
             <span v-if="props.allGroups" :class="chipClass" data-slot="summary-chip">
               <span class="truncate">{{ t('components.allowed-modal.summary.all-groups') }}</span>
               <button
@@ -156,8 +159,8 @@ const chipButtonClass =
           </div>
         </div>
 
-        <div class="flex min-w-0 flex-col gap-1.5" data-slot="selection-summary-users">
-          <span class="flex items-center gap-1 text-xs font-semibold text-gray-warm-500">
+        <div class="flex min-h-0 min-w-0 flex-col gap-1.5" data-slot="selection-summary-users">
+          <span class="flex shrink-0 items-center gap-1 text-xs font-semibold text-gray-warm-500">
             <Icon name="user-01" size="sm" stroke-color="gray-warm-500" aria-hidden="true" />
             <span class="truncate">{{ t('components.allowed-modal.columns.users') }}</span>
           </span>
@@ -168,7 +171,10 @@ const chipButtonClass =
                 : t('components.allowed-modal.summary.empty')
             }}
           </p>
-          <div v-else class="flex min-w-0 flex-row flex-wrap gap-1.5">
+          <div
+            v-else
+            class="flex min-h-0 min-w-0 flex-1 flex-row flex-wrap content-start gap-1.5 overflow-y-auto"
+          >
             <span
               v-for="user in props.users"
               :key="user.value"
