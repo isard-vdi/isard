@@ -1300,7 +1300,9 @@
       "register-form": {
         "code": "Codi de registre",
         "register": "Registrar-se",
-        "cancel": "Cancel·lar"
+        "cancel": "Cancel·lar",
+        "show-code": "Mostra el codi",
+        "hide-code": "Amaga el codi"
       }
     },
     "sidebar": {

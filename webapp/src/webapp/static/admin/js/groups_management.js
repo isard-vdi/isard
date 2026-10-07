@@ -472,6 +472,7 @@ function actionsGroupDetail(){
     $('.btn-enrollment').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEnrollmentForm")[0].reset();
+        setEnrollmentKeysVisible(false);
         $('#modalEnrollmentForm #id').val(pk);
         $('#modalEnrollment').modal({
             backdrop: 'static',
@@ -485,7 +486,7 @@ function actionsGroupDetail(){
             var enrollment = data.enrollment || { manager: false, advanced: false, user: false };
             if(enrollment.manager != false){
                 $('#manager-key').show();
-                $('.btn-copy-manager').show();
+                $('.btn-copy-manager, .btn-toggle-manager').show();
                 $('#manager-key').val('test');
                 $('#manager-check').iCheck('check');
                 $('#manager-key').val(enrollment.manager);
@@ -493,11 +494,11 @@ function actionsGroupDetail(){
                 // https://github.com/dargullin/icheck/issues/159
                 $('#manager-check').iCheck('uncheck').iCheck('update');
                 $('#manager-key').hide();
-                $('.btn-copy-manager').hide();
+                $('.btn-copy-manager, .btn-toggle-manager').hide();
             }
             if(enrollment.advanced != false){
                 $('#advanced-key').show();
-                $('.btn-copy-advanced').show();
+                $('.btn-copy-advanced, .btn-toggle-advanced').show();
                 $('#advanced-key').val('test');
                 $('#advanced-check').iCheck('check');
                 $('#advanced-key').val(enrollment.advanced);
@@ -505,11 +506,11 @@ function actionsGroupDetail(){
                 // https://github.com/dargullin/icheck/issues/159
                 $('#advanced-check').iCheck('uncheck').iCheck('update');
                 $('#advanced-key').hide();
-                $('.btn-copy-advanced').hide();
+                $('.btn-copy-advanced, .btn-toggle-advanced').hide();
             }
             if(enrollment.user != false){
                 $('#user-key').show();
-                $('.btn-copy-user').show();
+                $('.btn-copy-user, .btn-toggle-user').show();
                 $('#user-key').val('test');
                 $('#user-check').iCheck('check');
                 $('#user-key').val(enrollment.user);
@@ -517,7 +518,7 @@ function actionsGroupDetail(){
                 // https://github.com/dargullin/icheck/issues/159
                 $('#user-check').iCheck('uncheck').iCheck('update');
                 $('#user-key').hide();
-                $('.btn-copy-user').hide();
+                $('.btn-copy-user, .btn-toggle-user').hide();
             }
         });
     });
@@ -777,7 +778,7 @@ function actionsGroupDetail(){
                 }
             });
             $('#manager-key').show();
-            $('.btn-copy-manager').show();
+            $('.btn-copy-manager, .btn-toggle-manager').show();
         }
     });
 
@@ -814,11 +815,11 @@ function actionsGroupDetail(){
                 }
             })
             $('#manager-key').hide();
-            $('.btn-copy-manager').hide();
+            $('.btn-copy-manager, .btn-toggle-manager').hide();
         }).on('pnotify.cancel', function() {
             $('#manager-check').iCheck('check');
             $('#manager-key').show();
-            $('.btn-copy-manager').show();
+            $('.btn-copy-manager, .btn-toggle-manager').show();
         });
     });
 
@@ -838,7 +839,7 @@ function actionsGroupDetail(){
                 }
             });
             $('#advanced-key').show();
-            $('.btn-copy-advanced').show();
+            $('.btn-copy-advanced, .btn-toggle-advanced').show();
         }
     });
         
@@ -875,11 +876,11 @@ function actionsGroupDetail(){
                 }
             })
             $('#advanced-key').hide();
-            $('.btn-copy-advanced').hide();
+            $('.btn-copy-advanced, .btn-toggle-advanced').hide();
         }).on('pnotify.cancel', function() {
             $('#advanced-check').iCheck('check');
             $('#advanced-key').show();
-            $('.btn-copy-advanced').show();
+            $('.btn-copy-advanced, .btn-toggle-advanced').show();
         });
     });
 
@@ -899,7 +900,7 @@ function actionsGroupDetail(){
                 }
             });
             $('#user-key').show();
-            $('.btn-copy-user').show();
+            $('.btn-copy-user, .btn-toggle-user').show();
         }
     });
             
@@ -936,24 +937,38 @@ function actionsGroupDetail(){
                 }
             })
             $('#user-key').hide();
-            $('.btn-copy-user').hide();
+            $('.btn-copy-user, .btn-toggle-user').hide();
         }).on('pnotify.cancel', function() {
             $('#user-check').iCheck('check');
             $('#user-key').show();
-            $('.btn-copy-user').show();
+            $('.btn-copy-user, .btn-toggle-user').show();
         });
     });
 
-    $('.btn-copy-manager').on('click', function () {
-        $('#manager-key').prop('disabled',false).select().prop('disabled',true);
-        document.execCommand("copy");
+    $('.btn-toggle-key').off('click').on('click', function () {
+        var $key = $($(this).data('key'));
+        setKeyVisible($key, $(this), $key.attr('type') === 'password');
     });
-    $('.btn-copy-advanced').on('click', function () {
-        $('#advanced-key').prop('disabled',false).select().prop('disabled',true);
-        document.execCommand("copy");
+    $('.btn-copy-manager').off('click').on('click', function () {
+        navigator.clipboard.writeText($('#manager-key').val());
     });
-    $('.btn-copy-user').on('click', function () {
-        $('#user-key').prop('disabled',false).select().prop('disabled',true);
-        document.execCommand("copy");
+    $('.btn-copy-advanced').off('click').on('click', function () {
+        navigator.clipboard.writeText($('#advanced-key').val());
+    });
+    $('.btn-copy-user').off('click').on('click', function () {
+        navigator.clipboard.writeText($('#user-key').val());
+    });
+}
+
+function setKeyVisible($key, $btn, visible) {
+    var label = visible ? 'Hide key' : 'Show key';
+    $key.attr('type', visible ? 'text' : 'password');
+    $btn.attr({ title: label, 'aria-label': label });
+    $btn.find('i').toggleClass('fa-eye', !visible).toggleClass('fa-eye-slash', visible);
+}
+
+function setEnrollmentKeysVisible(visible) {
+    $('#modalEnrollment .btn-toggle-key').each(function () {
+        setKeyVisible($($(this).data('key')), $(this), visible);
     });
 }

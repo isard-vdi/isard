@@ -991,7 +991,9 @@
       "register-form": {
         "code": "Erregistro-kodea",
         "register": "Izena eman",
-        "cancel": "Itxi"
+        "cancel": "Itxi",
+        "show-code": "Erakutsi kodea",
+        "hide-code": "Ezkutatu kodea"
       }
     },
     "sidebar": {
