@@ -210,6 +210,7 @@ const toggleAll = () => {
                 <AllowedModalItem
                   :label="item.label"
                   :sub-label="item.subLabel"
+                  :partial="item.partial"
                   :value="item.value"
                   :avatar="item.avatar"
                   :icon="item.icon"

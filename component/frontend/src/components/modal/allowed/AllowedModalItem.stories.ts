@@ -50,6 +50,10 @@ const meta = {
       control: 'text',
       description:
         'Marks the row as selected through something else, e.g. its group: gray background and a tooltip with this text.'
+    },
+    partial: {
+      control: 'boolean',
+      description: "Some of the group's users are picked one by one: the subtitle becomes a badge."
     }
   },
   render: (args) => ({
@@ -90,6 +94,17 @@ export const Checked: Story = {
     value: 'group-b',
     icon: 'users-01',
     checked: true
+  }
+}
+
+/** Some of its users picked one by one, the group itself not: the count shows as a badge. */
+export const PartiallySelected: Story = {
+  args: {
+    label: 'Group C',
+    subLabel: '3 of 12 users',
+    value: 'group-c',
+    icon: 'users-01',
+    partial: true
   }
 }
 

@@ -441,7 +441,8 @@ const groupOptions = computed<AllowedOption[]>(() => {
       subLabel:
         picked > 0
           ? t('components.allowed-modal.group-users-partial', { selected: picked, total })
-          : t('users.count.users', total)
+          : t('users.count.users', total),
+      partial: picked > 0
     }
   })
 })

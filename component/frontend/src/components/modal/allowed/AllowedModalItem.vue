@@ -16,6 +16,7 @@ interface Props {
   disabled?: boolean
   selectable?: boolean // When false the row cannot be toggled and shows no +/- indicator.
   inheritedHint?: string // Set when the row is selected through something else, e.g. its group.
+  partial?: boolean // A group with only some of its users picked: its subtitle becomes a badge.
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -25,7 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
   checked: false,
   disabled: false,
   selectable: true,
-  inheritedHint: undefined
+  inheritedHint: undefined,
+  partial: false
 })
 
 const emit = defineEmits<{ 'update:checked': [value: boolean] }>()
@@ -91,7 +93,21 @@ const toggle = () => {
 
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate font-semibold">{{ props.label }}</span>
-          <span v-if="props.subLabel" class="truncate text-sm font-normal text-gray-warm-600">
+          <span
+            v-if="props.subLabel && props.partial"
+            class="inline-flex w-fit max-w-full items-center gap-1 rounded-[6px] bg-brand-100 px-1.5 text-sm font-medium text-gray-warm-900"
+            data-slot="partial-sub-label"
+          >
+            <Icon
+              name="user-check-01"
+              size="sm"
+              stroke-color="brand-700"
+              aria-hidden="true"
+              class="shrink-0"
+            />
+            <span class="truncate">{{ props.subLabel }}</span>
+          </span>
+          <span v-else-if="props.subLabel" class="truncate text-sm font-normal text-gray-warm-600">
             {{ props.subLabel }}
           </span>
         </div>

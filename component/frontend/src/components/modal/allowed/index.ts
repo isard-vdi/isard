@@ -9,6 +9,7 @@ export interface AllowedOption {
   subLabel?: string | undefined
   avatar?: string | undefined
   icon?: string | undefined
+  partial?: boolean | undefined
 }
 
 export interface AllowedSelection {
