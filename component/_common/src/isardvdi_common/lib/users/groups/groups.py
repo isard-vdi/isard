@@ -79,7 +79,7 @@ class GroupsProcessed(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
-    def code_search(cls, code: str):
+    def code_search(cls, code: str, category_id: str) -> dict:
         """
         Search for a group by a user's code across roles: manager, advanced, user.
         Returns role, category, and group ID if found.
@@ -91,6 +91,7 @@ class GroupsProcessed(RethinkSharedConnection):
             with cls._rdb_context():
                 cursor = (
                     r.table(cls._rdb_table)
+                    .get_all(category_id, index="parent_category")
                     .filter({f"enrollment": {role: code}})
                     .pluck("id", "parent_category", "code")
                     .limit(1)

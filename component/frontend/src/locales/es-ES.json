@@ -3286,7 +3286,8 @@
   },
   "forms": {
     "validation": {
-      "required": "Este campo es obligatorio"
+      "required": "Este campo es obligatorio",
+      "register-code": "El código debe tener 6 letras minúsculas o dígitos"
     },
     "common": {
       "cancel": "Cancelar"

@@ -643,7 +643,7 @@ def test_re_register_user(monkeypatch, test_client):
     monkeypatch.setattr(
         "api.services.groups.GroupsService.code_search",
         staticmethod(
-            lambda code: {
+            lambda code, category_id: {
                 "role_id": "manager",
                 "category_id": "default",
                 "group_id": "default-default",
@@ -690,38 +690,40 @@ def test_re_register_user(monkeypatch, test_client):
     }
 
 
-def test_re_register_code_from_another_category(monkeypatch, test_client):
-    monkeypatch.setattr(
-        "api.services.groups.GroupsService.code_search",
-        staticmethod(
-            lambda code: {
-                "role_id": "manager",
-                "category_id": "other-category",
-                "group_id": "other-group",
-            }
-        ),
-    )
+@pytest.mark.parametrize(
+    "method,token_type", [("POST", "register"), ("PUT", "re-register")]
+)
+def test_register_code_is_searched_in_the_token_category(
+    monkeypatch, test_client, method, token_type
+):
+    from api.services.error import Error
 
-    jwt = MockJWT(
-        provider="saml",
-        user_id="nefix-uid",
-        role_id="user",
-        token_type="re-register",
-    )
+    lookups = []
+
+    def code_search(code, category_id):
+        lookups.append((code, category_id))
+        raise Error("not_found", f"Group with code {code} not found.")
+
+    monkeypatch.setattr("api.services.groups.GroupsProcessed.code_search", code_search)
+
+    jwt = MockJWT(category_id="other-category", role_id="user", token_type=token_type)
     response = test_client(
         url="/item/user/register",
-        method="PUT",
-        body={"code": "a-register-code"},
+        method=method,
+        body={"code": "abc123"},
         jwt=jwt,
+        db_tables_data={"categories": [{"id": "default"}, {"id": "other-category"}]},
     )
 
     assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert lookups == [("abc123", "other-category")]
 
 
 def test_re_register_code_not_found(monkeypatch, test_client):
     from api.services.error import Error
 
-    def raise_not_found(code):
+    def raise_not_found(code, category_id):
         raise Error("not_found", f"Group with code {code} not found.")
 
     monkeypatch.setattr(
@@ -767,6 +769,32 @@ def test_register_rejects_re_register_token(test_client):
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "method,token_type", [("POST", "register"), ("PUT", "re-register")]
+)
+@pytest.mark.parametrize("code", ["ABC123", "abc12", "abc1234", "abc-12", "abc123\n"])
+def test_register_malformed_code_is_not_found(
+    monkeypatch, test_client, method, token_type, code
+):
+    lookups = []
+    monkeypatch.setattr(
+        "api.services.groups.GroupsProcessed.code_search",
+        lambda code, category_id: lookups.append(code),
+    )
+
+    jwt = MockJWT(role_id="user", token_type=token_type)
+    response = test_client(
+        url="/item/user/register",
+        method=method,
+        body={"code": code},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert lookups == []
 
 
 def test_re_register_blocked_during_maintenance(monkeypatch, test_client):

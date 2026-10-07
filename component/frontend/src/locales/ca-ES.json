@@ -3286,7 +3286,8 @@
   },
   "forms": {
     "validation": {
-      "required": "Aquest camp és obligatori"
+      "required": "Aquest camp és obligatori",
+      "register-code": "El codi ha de tenir 6 lletres minúscules o dígits"
     },
     "common": {
       "cancel": "Cancel·lar"

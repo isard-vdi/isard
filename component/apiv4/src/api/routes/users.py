@@ -96,13 +96,20 @@ tag = "users"
 async def register_user(register_post_data: RegisterPostData, request: Request):
     try:
         new_user_data = await asyncio.to_thread(
-            GroupsService.code_search, register_post_data.code
+            GroupsService.code_search,
+            register_post_data.code,
+            request.token_payload["category_id"],
         )
-        if request.token_payload["category_id"] != new_user_data["category_id"]:
-            raise Error(
-                "not_found",
-                f"Register code not found in the category {request.token_payload['category_id']}.",
-            )
+    except Exception as e:
+        # Return the same error no matter what the exception is
+        raise await Error.create(
+            request,
+            "not_found",
+            f"Group with code {register_post_data.code} not found.",
+            description_code="not_found",
+        )
+
+    try:
         user_exists = await asyncio.to_thread(
             UsersService.check_user_exists,
             uid=request.token_payload["user_id"],
@@ -156,13 +163,20 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
 async def re_register_user(register_post_data: RegisterPostData, request: Request):
     try:
         new_user_data = await asyncio.to_thread(
-            GroupsService.code_search, register_post_data.code
+            GroupsService.code_search,
+            register_post_data.code,
+            request.token_payload["category_id"],
         )
-        if request.token_payload["category_id"] != new_user_data["category_id"]:
-            raise Error(
-                "not_found",
-                f"Register code not found in the category {request.token_payload['category_id']}.",
-            )
+    except Exception as e:
+        # Return the same error no matter what the exception is
+        raise await Error.create(
+            request,
+            "not_found",
+            f"Group with code {register_post_data.code} not found.",
+            description_code="not_found",
+        )
+
+    try:
         user_id = await asyncio.to_thread(
             UsersService.re_register,
             provider=request.token_payload["provider"],
