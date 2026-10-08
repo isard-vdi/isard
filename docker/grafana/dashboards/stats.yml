@@ -8,3 +8,12 @@ providers:
   type: file
   options:
     path: /etc/grafana/provisioning/dashboards
+    foldersFromFilesStructure: true
+
+- name: 'custom'
+  orgId: 1
+  folder: 'Custom'
+  folderUid: 'customfolder'
+  type: file
+  options:
+    path: /etc/grafana/provisioning/custom_dashboards
