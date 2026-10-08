@@ -97,12 +97,20 @@ const sizeClasses = {
           props.hideTitle ? 'pt-4' : 'pt-6'
         ]"
       >
-        <div>
+        <div class="max-w-full">
           <DialogTitle
             v-if="props.title"
-            :class="props.hideTitle ? 'sr-only' : 'text-gray-warm-900 text-lg'"
+            :class="
+              props.hideTitle
+                ? 'sr-only'
+                : cn(
+                    'text-gray-warm-900 text-lg',
+                    $slots['title-suffix'] && 'flex flex-wrap items-center gap-x-2 gap-y-1'
+                  )
+            "
           >
             {{ props.title }}
+            <slot name="title-suffix" />
           </DialogTitle>
           <DialogDescription
             v-if="props.description"

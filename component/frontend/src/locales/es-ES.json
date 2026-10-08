@@ -2576,7 +2576,7 @@
         "cancel": "Volver a despliegues"
       },
       "co-owners-modal": {
-        "title": "Gestionar copropietarios de '{name}'",
+        "title": "Gestionar copropietarios",
         "description": "Elige qué usuarios son copropietarios de este despliegue. Propietario: {owner}",
         "warning": "Los copropietarios tienen los mismos permisos que el propietario, excepto eliminar el despliegue y gestionar los copropietarios.",
         "co-owner-warning": "Como copropietario no puedes cambiar los copropietarios. Contacta con el propietario del despliegue.",

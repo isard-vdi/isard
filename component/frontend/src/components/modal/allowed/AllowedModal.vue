@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
 import { Icon } from '@/components/icon'
 import { cn } from '@/lib/utils'
+import { domainKindStyle } from '@/lib/domainKind'
 
 interface Props {
   open: boolean
@@ -38,6 +39,7 @@ interface Props {
   warning?: string // Shown as an alert above the columns.
   itemId?: string // ID of the item being edited. Used to fetch current allowed settings.
   itemType?: 'template' | 'deployment' | 'media' // Type of the item being edited. Used to determine API endpoint and description.
+  itemName?: string // Name of the item being edited, shown as a badge next to the title.
   selection?: AllowedSelection // Selection to open with when the item does not exist yet
   requireSelection?: boolean // Block saving if the selection is empty
   supportsEveryone?: boolean // Whether an empty array means "everyone"
@@ -56,6 +58,7 @@ const props = withDefaults(defineProps<Props>(), {
   warning: '',
   itemId: undefined,
   itemType: undefined,
+  itemName: undefined,
   selection: undefined,
   requireSelection: false,
   supportsEveryone: true,
@@ -75,6 +78,19 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 
 const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
+
+const itemBadge = computed(() => {
+  if (!props.itemType) return undefined
+  if (props.itemType === 'media') {
+    return {
+      icon: 'disc-02',
+      badge: 'bg-gray-warm-200 text-gray-warm-800',
+      iconColor: 'gray-warm-700'
+    }
+  }
+  const { icon, badge, iconColor } = domainKindStyle(props.itemType)
+  return { icon, badge, iconColor }
+})
 
 const roleQuery = computed(() => (props.roles?.length ? { roles: [...props.roles] } : undefined))
 
@@ -625,6 +641,26 @@ const handleClose = () => {
     :show-close-button="false"
     @close="handleClose"
   >
+    <template v-if="props.itemName && itemBadge" #title-suffix>
+      <span
+        :class="
+          cn(
+            'inline-flex min-w-0 max-w-full items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-sm font-medium',
+            itemBadge.badge
+          )
+        "
+        data-slot="allowed-item"
+      >
+        <Icon
+          :name="itemBadge.icon"
+          size="sm"
+          :stroke-color="itemBadge.iconColor"
+          aria-hidden="true"
+          class="shrink-0"
+        />
+        <span class="truncate">{{ props.itemName }}</span>
+      </span>
+    </template>
     <div v-if="props.warning" class="mb-4 w-full flex justify-center">
       <Alert variant="warning" class="w-[min(100%,var(--spacing-256))]">
         <FeaturedIconOutline kind="outline" color="warning" />
