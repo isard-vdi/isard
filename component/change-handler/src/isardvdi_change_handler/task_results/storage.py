@@ -541,6 +541,27 @@ async def handle_storage_update_pool(redis_manager, task, storage_id, owner=Fals
                 )
             return
 
+        if matching_storage:
+            # a file exactly at the row's declared path is the row's disk, even outside any pool
+            found_status = matching_storage["storage_data"]["status"]
+            if found_status == "ready" and storage.status == "recycled":
+                found_status = "recycled"
+            status = _apply_storage_update(
+                {
+                    "id": storage_id,
+                    "status": found_status,
+                    "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
+                    "storages_with_uuid": _uuid_list_from([]),
+                },
+                observer=not owner,
+                read_at=read_at,
+            )
+            if status is not None:
+                await send_status_socket(
+                    redis_manager, storage_id, status, task.user_id
+                )
+            return
+
         status = _apply_storage_update(
             {
                 "id": storage_id,
