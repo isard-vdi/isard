@@ -6082,7 +6082,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_virtual_memory_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6095,7 +6095,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_resident_memory_max_bytes{domain=\"$domain\"}",
+              "expr": "process_resident_memory_max_bytes",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6108,7 +6108,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_virtual_memory_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6121,7 +6121,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_virtual_memory_max_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_max_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6759,7 +6759,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_cpu_seconds_total{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_cpu_seconds_total[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -6858,7 +6858,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_max_fds{domain=\"$domain\"}",
+              "expr": "process_max_fds",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Maximum open file descriptors",
@@ -6870,7 +6870,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_open_fds{domain=\"$domain\"}",
+              "expr": "process_open_fds",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Open file descriptors",
