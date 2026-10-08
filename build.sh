@@ -235,6 +235,7 @@ create_env(){
 	# See also BUILD_ROOT_PATH sed section at the end of file
 	echo "BUILD_ROOT_PATH=$(pwd)" >> .env
 	. ./.env
+	echo SRC_COMMIT_SHA="${CI_COMMIT_SHORT_SHA:-$(git rev-parse --short HEAD 2>/dev/null)}" >> .env
 	# Only display numbered version in official builds via gitlab-ci
 	if is_official_build && test -e .VERSION
 	then

@@ -23,3 +23,4 @@ from pydantic import BaseModel
 
 class AdminVersionResponse(BaseModel):
     isardvdi_version: str
+    commit: str

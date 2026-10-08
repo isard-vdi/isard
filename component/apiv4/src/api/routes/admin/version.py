@@ -23,12 +23,18 @@ from api.schemas.admin.version import AdminVersionResponse
 
 tag = "admin-version"
 
-try:
-    with open("/version", "r") as file:
-        version = file.read()
-except OSError:
-    # /version is baked into the image at build time; absent when running tests
-    version = ""
+
+def _read_stamp(path: str) -> str:
+    try:
+        with open(path, "r") as file:
+            return file.read()
+    except OSError:
+        # baked into the image at build time; absent when running tests
+        return ""
+
+
+version = _read_stamp("/version")
+commit = _read_stamp("/commit")
 
 
 @admin_router.get(
@@ -36,7 +42,7 @@ except OSError:
     tags=[tag],
     response_model=AdminVersionResponse,
     summary="Get IsardVDI version",
-    description="Returns the IsardVDI version stamped into the running image.",
+    description="Returns the IsardVDI version and commit stamped into the running image.",
 )
 async def admin_version_get() -> AdminVersionResponse:
-    return AdminVersionResponse(isardvdi_version=version)
+    return AdminVersionResponse(isardvdi_version=version, commit=commit)

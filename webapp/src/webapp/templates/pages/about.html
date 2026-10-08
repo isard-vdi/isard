@@ -10,7 +10,7 @@
             <h1>IsardVDI</h1>
             <h1><small>Virtual Desktops Infrastructure</small></h1>
             {% if current_user.role == 'admin' %}
-            <h2><small>Version: <a id="version" target="_blank"></a></small></h2>
+            <h2><small>Version: <a id="version" target="_blank"></a><span id="commit-wrapper" style="display: none;"> (<a id="commit" target="_blank"></a>)</span></small></h2>
             {% endif %}
             <div class="row" style="margin-top: 40px;">
                <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12"></div>

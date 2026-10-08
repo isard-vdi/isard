@@ -143,7 +143,7 @@ func handleInstance(log *zerolog.Logger, i *MonitorInstance) (string, bool) {
 
 	if i.RspErr != nil {
 		if errors.Is(i.RspErr, ErrHypersNum) {
-			log.Warn().Str("host", i.Host).Int("expected_hypers", i.HypersNum).Int32("actual_hypers", i.Rsp.HypervisorNum).Str("isardvdi_version", i.Rsp.IsardvdiVersion).Msg("check finished")
+			log.Warn().Str("host", i.Host).Int("expected_hypers", i.HypersNum).Int32("actual_hypers", i.Rsp.HypervisorNum).Str("isardvdi_version", i.Rsp.IsardvdiVersion).Str("isardvdi_commit", i.Rsp.IsardvdiCommit).Msg("check finished")
 			state = StateWarn
 
 		} else {
@@ -181,10 +181,15 @@ func handleInstance(log *zerolog.Logger, i *MonitorInstance) (string, bool) {
 		}
 
 	} else {
-		log.Info().Str("host", i.Host).Str("isardvdi_version", i.Rsp.IsardvdiVersion).Msg("check finished")
+		log.Info().Str("host", i.Host).Str("isardvdi_version", i.Rsp.IsardvdiVersion).Str("isardvdi_commit", i.Rsp.IsardvdiCommit).Msg("check finished")
 	}
 
-	return fmt.Sprintf("%s (%d/%d) %s - %s%s", state, i.Rsp.GetHypervisorNum(), i.HypersNum, i.Host, i.Rsp.GetIsardvdiVersion(), extra), state != StateOk
+	version := i.Rsp.GetIsardvdiVersion()
+	if commit := i.Rsp.GetIsardvdiCommit(); commit != "" {
+		version += " (" + commit + ")"
+	}
+
+	return fmt.Sprintf("%s (%d/%d) %s - %s%s", state, i.Rsp.GetHypervisorNum(), i.HypersNum, i.Host, version, extra), state != StateOk
 }
 
 func sendTelegramMsg(cfg MonitorConfig, msg string) error {

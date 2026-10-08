@@ -77,6 +77,7 @@ func (c *CheckServer) CheckIsardVDI(ctx context.Context, req *checkv1.CheckIsard
 
 	return &checkv1.CheckIsardVDIResponse{
 		IsardvdiVersion: result.IsardVDIVersion,
+		IsardvdiCommit:  result.IsardVDICommit,
 		MaintenanceMode: result.MaintenanceMode,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,
@@ -101,6 +102,7 @@ func (c *CheckServer) CheckHypervisor(ctx context.Context, req *checkv1.CheckHyp
 
 	return &checkv1.CheckHypervisorResponse{
 		IsardvdiVersion: result.IsardVDIVersion,
+		IsardvdiCommit:  result.IsardVDICommit,
 		MaintenanceMode: result.MaintenanceMode,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,

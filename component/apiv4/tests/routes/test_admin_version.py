@@ -25,9 +25,13 @@ URL = "/admin/item/version"
 
 def test_admin_gets_version(monkeypatch, test_client):
     monkeypatch.setattr("api.routes.admin.version.version", "17.0.1 2026-09-30")
+    monkeypatch.setattr("api.routes.admin.version.commit", "ab2ca84017")
     response = test_client(url=URL, jwt=MockJWT(role_id="admin"))
     assert response.status_code == 200
-    assert response.json() == {"isardvdi_version": "17.0.1 2026-09-30"}
+    assert response.json() == {
+        "isardvdi_version": "17.0.1 2026-09-30",
+        "commit": "ab2ca84017",
+    }
 
 
 def test_non_admin_forbidden(test_client):

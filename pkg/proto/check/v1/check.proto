@@ -73,6 +73,8 @@ message CheckIsardVDIResponse {
     DependenciesVersions dependencies_versions = 4;
     // hypervisor_num
     int32 hypervisor_num = 5;
+    // isardvdi_commit is the commit the IsardVDI installation was built from
+    string isardvdi_commit = 6;
 }
 
 
@@ -104,4 +106,6 @@ message CheckHypervisorResponse {
     string isardvdi_sdk_version = 4;
     // dependencies_versions are the versions of the external programs used for the check
     DependenciesVersions dependencies_versions = 5;
+    // isardvdi_commit is the commit the IsardVDI installation was built from
+    string isardvdi_commit = 6;
 }
