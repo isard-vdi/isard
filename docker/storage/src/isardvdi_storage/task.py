@@ -939,6 +939,68 @@ def _reclaimable_zeros(storage_path, actual_size):
     return max(0, int(actual_size) - data)
 
 
+def reconcile_pool(
+    path,
+    threshold=None,
+    max_files=None,
+    time_budget=None,
+    apply=False,
+    metrics_file=None,
+    _fetch_storages=None,
+    _fetch_medias=None,
+    _refresh=None,
+):
+    """Reconcile one pool directory against the storage/media rows read via apiv4."""
+    from time import monotonic as _monotonic
+
+    from isardvdi_common.lib.storage import reconcile
+
+    if _fetch_storages is None or _fetch_medias is None or (apply and _refresh is None):
+        import sys as _sys
+
+        if "/utils" not in _sys.path:
+            _sys.path.insert(0, "/utils")
+        from storage_lib import api as _api
+
+        _fetch_storages = _fetch_storages or _api.fetch_storages
+        _fetch_medias = _fetch_medias or _api.fetch_medias
+        _refresh = _refresh or _api.refresh_storage_measurements
+
+    if threshold is None:
+        threshold = reconcile.DEFAULT_DRIFT_BYTES
+    pool_prefixes = (path.rstrip("/") + "/",)
+
+    storages = _fetch_storages() or []
+    medias = _fetch_medias() or []
+    rows = reconcile.rows_from_api(storages, medias)
+
+    deadline = (_monotonic() + time_budget) if time_budget else None
+    scanned = reconcile.scan_pool([path], max_files=max_files, deadline=deadline)
+    budget_hit = scanned.pop("_budget_hit", False)
+
+    classified = reconcile.classify(rows, scanned, pool_prefixes, threshold)
+    metrics = reconcile.drift_metrics(path, classified)
+    if metrics_file:
+        reconcile.write_metrics_textfile(metrics_file, metrics)
+
+    corrected = []
+    correctable = reconcile.correctable_ids(classified)
+    if apply and correctable:
+        for i in range(0, len(correctable), 50):
+            batch = correctable[i : i + 50]
+            _refresh(batch)
+            corrected.extend(batch)
+
+    return {
+        "pool": path,
+        "budget_hit": budget_hit,
+        "applied": bool(apply),
+        "corrected": corrected,
+        "metrics": metrics,
+        "classified": classified,
+    }
+
+
 def qemu_img_info_backing_chain(
     storage_id, storage_path, storage_type="qcow2", qcow2_geometry=None
 ):
