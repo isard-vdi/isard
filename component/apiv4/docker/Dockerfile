@@ -24,6 +24,8 @@ RUN apk add --no-cache libffi libjpeg-turbo openssh-client openssl ttf-liberatio
 
 ARG SRC_VERSION_ID
 RUN echo -n "$SRC_VERSION_ID" > /version
+ARG SRC_COMMIT_SHA
+RUN echo -n "$SRC_COMMIT_SHA" > /commit
 
 WORKDIR /app
 COPY --from=builder /.venv /.venv

@@ -580,6 +580,7 @@ from .routes.admin import tables as admin_tables
 from .routes.admin import usage as admin_usage
 from .routes.admin import user_storage as admin_user_storage
 from .routes.admin import users as admin_users
+from .routes.admin import version as admin_version
 from .routes.admin import viewers_config as admin_viewers_config
 from .routes.bookings import bookings, planning, reservables
 from .routes.domains import desktop_direct_viewer, desktops, templates

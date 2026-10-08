@@ -37,19 +37,12 @@ from cachetools import cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
 
-try:
-    with open("/version", "r") as file:
-        version = file.read()
-except OSError:
-    # /version is baked into the image at build time; absent when running tests
-    version = ""
-
 
 @open_router.get(
     "/",
     response_model=ApiVersion,
     summary="Get API Version",
-    description="Returns the current version of the API and IsardVDI.",
+    description="Returns the current version of the API.",
 )
 async def api_version():
     try:
@@ -57,7 +50,6 @@ async def api_version():
             content=ApiVersion(
                 name="IsardVDI",
                 api_version="4.0-alpha1",
-                isardvdi_version=version,
                 usage=os.environ["USAGE"],  # Raises KeyError if missing
             ).model_dump(mode="json"),
             status_code=200,

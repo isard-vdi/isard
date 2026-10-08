@@ -198,7 +198,11 @@ codegen:
 
 docker-compose-build:
   stage: generate
-  needs: []
+  # `optional:` is required, not cosmetic: `version` exists only on the default
+  # branch, so a hard `needs:` fails pipeline creation on every MR.
+  needs:
+    - job: version
+      optional: true
   image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
@@ -445,6 +449,58 @@ docker-image:
         docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
         docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
       fi
+
+# `rules:` is limited to the default branch on purpose: on any other branch
+# build.sh legitimately stamps $CI_COMMIT_REF_SLUG, so an unconditional check
+# would fail every non-official pipeline.
+check-version-stamp:
+  stage: test
+  # Hard on purpose: same `rules:` as `version`, so a drift is a pipeline-creation
+  # error rather than a guard that silently skips itself.
+  needs: ["docker-image", "version"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+  services:
+    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
+      alias: docker
+  before_script:
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - |
+      if [ ! -e .VERSION ]; then
+        echo "No .VERSION artifact: semantic-release found nothing to release, so"
+        echo "build.sh stamped '$CI_COMMIT_REF_SLUG' by design and docker-tag will"
+        echo "publish no version tag either. Nothing to check."
+        exit 0
+      fi
+    - expected="$(cat .VERSION)"
+    - stamp="$(docker run --rm --entrypoint sh "$CI_REGISTRY_IMAGE/apiv4:git-$CI_COMMIT_SHORT_SHA" -c 'cat /version')"
+    - echo "released version .. $expected"
+    - echo "image /version .... $stamp"
+    - |
+      if [ "$stamp" = "$CI_COMMIT_REF_SLUG" ]; then
+        echo "FAIL: the image carries the branch name instead of the release version."
+        echo "build.sh could not read the .VERSION artifact and fell back to"
+        echo "\$CI_COMMIT_REF_SLUG. Check that docker-compose-build still declares"
+        echo "'needs: [{job: version, optional: true}]' — a bare 'needs: []'"
+        echo "downloads no artifacts at all and brings this bug straight back."
+        exit 1
+      fi
+    - |
+      # build.sh composes "<version> <date>"; the space anchors the match so a
+      # longer version that shares the prefix cannot pass.
+      case "$stamp" in
+        "$expected "*)
+          echo "OK: image stamped with released version $expected"
+          ;;
+        *)
+          echo "FAIL: /version is '$stamp', which is not the released version"
+          echo "'$expected' taken from the .VERSION artifact followed by a date."
+          exit 1
+          ;;
+      esac
 
 .real-deployment:
   stage: test

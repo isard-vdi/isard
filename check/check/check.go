@@ -38,6 +38,7 @@ type Interface interface {
 
 type CheckResult struct {
 	IsardVDIVersion      string
+	IsardVDICommit       string
 	MaintenanceMode      bool
 	DependenciesVersions DependenciesVersions
 	HypervisorNum        int
@@ -93,36 +94,42 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}
 
-	v, err := cli.APIVersion(ctx)
+	versionRes, err := cli.AdminVersionGet(ctx)
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", err)
 	}
-	version := v.IsardvdiVersion
+	versionOK, ok := versionRes.(*apiv4.AdminVersionResponse)
+	if !ok {
+		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", ogenclient.AsAPIError(versionRes))
+	}
+	version := versionOK.IsardvdiVersion
+	commit := versionOK.Commit
 
 	maintRes, err := cli.MaintenanceStatus(ctx)
 	if err != nil {
-		return CheckResult{IsardVDIVersion: version}, fmt.Errorf("get maintenance mode: %w", err)
+		return CheckResult{IsardVDIVersion: version, IsardVDICommit: commit}, fmt.Errorf("get maintenance mode: %w", err)
 	}
 	maintOK, ok := maintRes.(*apiv4.MaintenanceStatusResponse)
 	if !ok {
-		return CheckResult{IsardVDIVersion: version}, fmt.Errorf("get maintenance mode: %w", ogenclient.AsAPIError(maintRes))
+		return CheckResult{IsardVDIVersion: version, IsardVDICommit: commit}, fmt.Errorf("get maintenance mode: %w", ogenclient.AsAPIError(maintRes))
 	}
 	maintenance := maintOK.Enabled.Or(false)
 
 	if failMaintenance && maintenance {
 		return CheckResult{
 			IsardVDIVersion: version,
+			IsardVDICommit:  commit,
 			MaintenanceMode: maintenance,
 		}, ErrMaintenanceMode
 	}
 
 	hypRes, err := cli.AdminHypervisorsList(ctx, apiv4.AdminHypervisorsListParams{})
 	if err != nil {
-		return CheckResult{IsardVDIVersion: version, MaintenanceMode: maintenance}, fmt.Errorf("list hypervisors: %w", err)
+		return CheckResult{IsardVDIVersion: version, IsardVDICommit: commit, MaintenanceMode: maintenance}, fmt.Errorf("list hypervisors: %w", err)
 	}
 	hypOK, ok := hypRes.(*apiv4.AdminHypervisorsListOKApplicationJSON)
 	if !ok {
-		return CheckResult{IsardVDIVersion: version, MaintenanceMode: maintenance}, fmt.Errorf("list hypervisors: %w", ogenclient.AsAPIError(hypRes))
+		return CheckResult{IsardVDIVersion: version, IsardVDICommit: commit, MaintenanceMode: maintenance}, fmt.Errorf("list hypervisors: %w", ogenclient.AsAPIError(hypRes))
 	}
 	h := []apiv4.AdminHypervisor(*hypOK)
 
@@ -161,6 +168,7 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 		if err != nil {
 			return CheckResult{
 				IsardVDIVersion:      version,
+				IsardVDICommit:       commit,
 				MaintenanceMode:      maintenance,
 				DependenciesVersions: deps,
 				HypervisorNum:        len(h),
@@ -170,6 +178,7 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 
 	return CheckResult{
 		IsardVDIVersion:      version,
+		IsardVDICommit:       commit,
 		MaintenanceMode:      maintenance,
 		DependenciesVersions: deps,
 		HypervisorNum:        len(h),
@@ -192,11 +201,16 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 		return CheckResult{}, fmt.Errorf("create API client: %w", err)
 	}
 
-	v, err := cli.APIVersion(ctx)
+	versionRes, err := cli.AdminVersionGet(ctx)
 	if err != nil {
 		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", err)
 	}
-	version := v.IsardvdiVersion
+	versionOK, ok := versionRes.(*apiv4.AdminVersionResponse)
+	if !ok {
+		return CheckResult{}, fmt.Errorf("get IsardVDI version: %w", ogenclient.AsAPIError(versionRes))
+	}
+	version := versionOK.IsardvdiVersion
+	commit := versionOK.Commit
 
 	maintRes, err := cli.MaintenanceStatus(ctx)
 	if err != nil {
@@ -221,6 +235,7 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 
 	return CheckResult{
 		IsardVDIVersion:      version,
+		IsardVDICommit:       commit,
 		MaintenanceMode:      maintenance,
 		DependenciesVersions: deps,
 	}, nil
