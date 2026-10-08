@@ -17,8 +17,10 @@ import pytest
 from isardvdi_common.lib.domains.status_ownership import (
     CONTESTED,
     ENGINE,
+    PROMOTABLE_TERMINAL,
     STATUS_EXECUTOR,
     STORAGE_CHAIN,
+    TERMINAL,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -131,3 +133,17 @@ def test_every_contested_status_says_why():
     for status, reason in CONTESTED.items():
         assert status in STATUS_EXECUTOR, f"{status} is contested but undeclared"
         assert reason.strip(), f"{status} must say why its owner is contested"
+
+
+def test_the_promote_set_does_not_undo_a_terminal_verdict():
+    """A terminal status is another component's decision: the promotion must not undo it."""
+    undone = {
+        status
+        for status in _collection("_DOMAIN_PRE_READY_STATUSES")
+        if STATUS_EXECUTOR.get(status) == TERMINAL
+    } - PROMOTABLE_TERMINAL
+
+    assert not undone, (
+        f"the promote set turns {sorted(undone)} into Stopped, erasing a terminal "
+        "verdict and leaving the row carrying the reason it is not ready."
+    )

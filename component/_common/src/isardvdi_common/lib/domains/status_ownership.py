@@ -31,6 +31,9 @@ STATUS_EXECUTOR = {
     "Unknown": TERMINAL,
 }
 
+#: Terminal statuses the promotion may still move to ``Stopped``; ``Failed`` is a verdict, not a stage.
+PROMOTABLE_TERMINAL = {"Unknown"}
+
 #: Statuses two components both claim to finish, with why; the test allows no others.
 CONTESTED = {
     "CreatingDomain": "engine fails it and the change-handler promotes it; owner undecided",

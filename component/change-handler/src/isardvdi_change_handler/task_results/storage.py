@@ -79,7 +79,15 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         "Downloading",
         "Downloaded",
         "DiskNew",
-        "Failed",
+        # ``Failed`` is deliberately absent. This promotion fires on the disk's
+        # news and cannot tell whether the disk was the reason for the failure,
+        # so it can only be right by accident. The case that settles it: when
+        # the engine restarts mid-creation, ``fail_incomplete_creating_domains``
+        # writes ``Failed``; the chain then finishes and the promotion used to
+        # write ``Stopped`` — on a domain that never got an ``xml`` and cannot
+        # start. It did not recover the desktop, it hid that it was broken.
+        # A failed desktop stays failed, and every start path already accepts
+        # one (``STATUS_FROM_CAN_START``, the toggle, retry, admin, deployment).
         "Unknown",
         "CreatingDomain",
         "CreatingDomainFromDisk",
@@ -89,6 +97,30 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
 )
 
 
+#: Kept short and stable: it is what a log or a database query greps for.
+PROMOTED_DETAIL = "Promoted to Stopped: storage became ready"
+
+_PREVIOUS_DETAIL_LIMIT = 160
+
+
+def _promotion_detail(previous_status, previous_detail):
+    """What the row should say after being promoted out of ``previous_status``.
+
+    Writing only ``status`` left the row carrying whoever wrote it last — a
+    domain promoted out of ``Failed`` read as ready while its ``detail`` still
+    held the reason it was not. Naming the promotion, and keeping the previous
+    text after it, means the row stops contradicting itself without losing why
+    it was where it was.
+    """
+    detail = f"{PROMOTED_DETAIL} (was {previous_status})"
+    previous = str(previous_detail).strip() if previous_detail else ""
+    if previous and previous not in ("None", "null"):
+        if len(previous) > _PREVIOUS_DETAIL_LIMIT:
+            previous = previous[:_PREVIOUS_DETAIL_LIMIT] + "…"
+        detail = f"{detail} — previous detail: {previous}"
+    return detail
+
+
 def _promote_domains_to_stopped(storage_object):
     """Promote only domains waiting on storage to ``Stopped``.
 
@@ -96,7 +128,9 @@ def _promote_domains_to_stopped(storage_object):
     never yank a live VM from under the engine's state machine.
     """
     for domain in storage_object.domains:
-        if domain.status in _DOMAIN_PRE_READY_STATUSES:
+        previous_status = domain.status
+        if previous_status in _DOMAIN_PRE_READY_STATUSES:
+            domain.detail = _promotion_detail(previous_status, domain.detail)
             domain.status = "Stopped"
             domain.current_action = None
 
