@@ -233,7 +233,12 @@ class StorageService:
         """Check backing chain for a batch of storages by IDs."""
         for storage_id in storage_ids:
             storage = get_storage(payload, storage_id)
-            if storage.status == "recycled":
+            # never re-measure a disk mid-operation: skip recycled/maintenance and a pending task/action
+            if storage.status in ("recycled", "maintenance"):
+                continue
+            task_id = current_task_id(Task._redis, storage.id)
+            tasks = tasks_from_ids([task_id]) if task_id else []
+            if (tasks and tasks[0].pending) or storage.pending_actions:
                 continue
             storage.check_backing_chain(user_id=payload.get("user_id"))
 

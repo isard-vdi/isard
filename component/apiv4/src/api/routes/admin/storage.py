@@ -19,7 +19,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
-import os
 import traceback
 from typing import Optional
 
@@ -29,6 +28,7 @@ from api.schemas.admin.storage import (
     AdminStorageFilterRequest,
     AdminStorageInfo,
     AdminStorageItem,
+    AdminStorageReconcileRequest,
     AdminStorageReconcileResponse,
     AdminStorageRefreshResponse,
     AdminStorageStatusCount,
@@ -548,15 +548,17 @@ async def admin_storage_refresh_running_sizes(request: Request):
         "background lane (at most one per pool: a pool that already has one "
         "queued or running is skipped). Each task scans its pool with stat + "
         "qcow2 header (no qemu-img), reads the rows through apiv4, classifies "
-        "the drift and publishes per-pool metrics. It only re-measures ready "
-        "size drift when STORAGE_RECONCILE_APPLY is true. Intended to be driven "
-        "by the scheduler (nightly). Admin only."
+        "the drift and publishes per-pool metrics. With apply=true it also "
+        "re-measures ready size drift through apiv4; otherwise it reports only. "
+        "Intended to be driven by the scheduler (nightly). Admin only."
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_storage_reconcile(request: Request):
+async def admin_storage_reconcile(
+    request: Request, data: AdminStorageReconcileRequest | None = None
+):
     try:
-        apply = os.environ.get("STORAGE_RECONCILE_APPLY", "false").lower() == "true"
+        apply = bool(data.apply) if data else False
         result = await asyncio.to_thread(AdminStorageService.reconcile_pools, apply)
         return AdminStorageReconcileResponse(
             enqueued=result["enqueued"], apply=result["apply"]

@@ -69,6 +69,7 @@ from isardvdi_apiv4_client.api.role_advanced import (
 )
 from isardvdi_apiv4_client.api.role_user import delete_desktop, stop_desktop
 from isardvdi_apiv4_client.models import (
+    AdminStorageReconcileRequest,
     NotifyDesktopRequest,
     NotifyDesktopRequestParamsType0,
     NotifyUserDesktopRequest,
@@ -259,14 +260,16 @@ class Actions:
             raise_for_status(resp)
 
     def storage_reconcile_kwargs():
-        return []
+        return [{"name": "apply", "type": "boolean"}]
 
-    def storage_reconcile():
-        # Enqueue one reconcile_pool task per enabled storage pool: scan the
-        # files against the storage/media table and publish drift metrics,
-        # correcting ready size drift only when STORAGE_RECONCILE_APPLY is set.
+    def storage_reconcile(**kwargs):
+        # apply comes from the job kwargs so an admin flips report->correct from
+        # the scheduler view (apply: true); absent means report + metrics only.
+        apply = bool(kwargs.get("apply", False))
         with build_client("isard-scheduler") as client:
-            resp = admin_storage_reconcile.sync_detailed(client=client)
+            resp = admin_storage_reconcile.sync_detailed(
+                client=client, body=AdminStorageReconcileRequest(apply=apply)
+            )
             raise_for_status(resp)
 
     def desktop_notify(**kwargs):

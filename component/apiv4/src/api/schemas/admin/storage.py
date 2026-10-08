@@ -44,6 +44,16 @@ class AdminStorageRefreshResponse(BaseModel):
     enqueued: int = Field(description="Number of qemu-img-info refresh tasks enqueued.")
 
 
+class AdminStorageReconcileRequest(BaseModel):
+    """Request body for the reconcile endpoint."""
+
+    apply: bool = Field(
+        default=False,
+        description="When true, correct ready size drift through apiv4; "
+        "otherwise report and publish metrics only.",
+    )
+
+
 class AdminStorageReconcileResponse(BaseModel):
     """Result of enqueuing the per-pool storage reconciliation."""
 
@@ -52,8 +62,8 @@ class AdminStorageReconcileResponse(BaseModel):
         "not already have one queued or running)."
     )
     apply: bool = Field(
-        description="Whether the tasks will auto-correct ready size drift "
-        "(from STORAGE_RECONCILE_APPLY); false means report + metrics only."
+        description="Whether the tasks will auto-correct ready size drift; "
+        "false means report + metrics only."
     )
 
 

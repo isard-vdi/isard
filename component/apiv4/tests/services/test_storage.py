@@ -120,9 +120,10 @@ class TestSetReady:
 
 
 class TestBatchCheckBackingChain:
+    @patch("api.services.storage.current_task_id", return_value=None)
     @patch("api.services.storage.get_storage")
-    def test_iterates_each_id(self, mock_get):
-        storage = MagicMock()
+    def test_iterates_each_id(self, mock_get, _cti):
+        storage = MagicMock(status="ready", pending_actions=None)
         mock_get.return_value = storage
         StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1", "s2", "s3"])
         assert mock_get.call_count == 3
@@ -133,10 +134,11 @@ class TestBatchCheckBackingChain:
 
 
 class TestBatchesSkipRecycledDisks:
+    @patch("api.services.storage.current_task_id", return_value=None)
     @patch("api.services.storage.get_storage")
-    def test_a_recycled_disk_is_skipped(self, mock_get):
+    def test_a_recycled_disk_is_skipped(self, mock_get, _cti):
         binned = MagicMock(status="recycled")
-        live = MagicMock(status="ready")
+        live = MagicMock(status="ready", pending_actions=None)
         mock_get.side_effect = [binned, live, binned, live]
         StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1", "s2"])
         StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["s1", "s2"])
@@ -144,6 +146,47 @@ class TestBatchesSkipRecycledDisks:
         binned.find.assert_not_called()
         live.check_backing_chain.assert_called_once()
         live.find.assert_called_once()
+
+
+class TestBatchSkipsMaintenanceAndPending:
+    """Reconcile re-measures through this path, and it must never touch a disk
+    in maintenance or with an operation in flight (a re-measure would race it)."""
+
+    @patch("api.services.storage.current_task_id", return_value=None)
+    @patch("api.services.storage.get_storage")
+    def test_a_maintenance_disk_is_skipped(self, mock_get, _cti):
+        disk = MagicMock(status="maintenance", pending_actions=None)
+        mock_get.return_value = disk
+        StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1"])
+        disk.check_backing_chain.assert_not_called()
+
+    @patch("api.services.storage.tasks_from_ids")
+    @patch("api.services.storage.current_task_id", return_value="t-live")
+    @patch("api.services.storage.get_storage")
+    def test_a_disk_with_a_pending_task_is_skipped(self, mock_get, _cti, mock_tasks):
+        mock_tasks.return_value = [MagicMock(pending=True)]
+        disk = MagicMock(status="ready", pending_actions=None)
+        mock_get.return_value = disk
+        StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1"])
+        disk.check_backing_chain.assert_not_called()
+
+    @patch("api.services.storage.current_task_id", return_value=None)
+    @patch("api.services.storage.get_storage")
+    def test_a_disk_with_pending_actions_is_skipped(self, mock_get, _cti):
+        disk = MagicMock(status="ready", pending_actions={"resize": {}})
+        mock_get.return_value = disk
+        StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1"])
+        disk.check_backing_chain.assert_not_called()
+
+    @patch("api.services.storage.tasks_from_ids", return_value=[])
+    @patch("api.services.storage.current_task_id", return_value="t-finished")
+    @patch("api.services.storage.get_storage")
+    def test_a_finished_cached_task_does_not_block(self, mock_get, _cti, _tasks):
+        # a finished job's hash lingers; it is not pending, so the disk is corrected
+        disk = MagicMock(status="ready", pending_actions=None)
+        mock_get.return_value = disk
+        StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1"])
+        disk.check_backing_chain.assert_called_once()
 
 
 class TestGetStorageDetail:
