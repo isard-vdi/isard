@@ -2333,7 +2333,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_http_requests_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_http_requests_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Total {{ proxy }}",
@@ -2346,7 +2346,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_requests_denied_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_requests_denied_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 2,
                             "legendFormat": "Denied {{ proxy }}",
@@ -2977,7 +2977,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "haproxy_frontend_http_requests_rate_max{proxy=~\"$backend\", instance=\"$host\"}",
+                            "expr": "haproxy_frontend_http_requests_rate_max{proxy=~\"$frontend\", instance=\"$host\"}",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Max {{ proxy }}",
@@ -5078,7 +5078,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_failed_header_rewriting_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_failed_header_rewriting_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "{{ proxy }}",
@@ -5311,7 +5311,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_last_session_seconds{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_last_session_seconds{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "{{ proxy }}",
@@ -5534,7 +5534,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_client_aborts_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_client_aborts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "By client {{ proxy }}",
@@ -5547,7 +5547,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_backend_server_aborts_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_backend_server_aborts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "By server {{ proxy }}",
@@ -5664,7 +5664,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "haproxy_server_client_aborts_total{proxy=~\"$frontend\",server=~\"$server\",instance=\"$host\"}",
+                            "expr": "haproxy_server_client_aborts_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "By client {{ proxy }} / {{ server }}",
@@ -5677,7 +5677,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "haproxy_server_server_aborts_total{proxy=~\"$frontend\",server=~\"$server\",instance=\"$host\"}",
+                            "expr": "haproxy_server_server_aborts_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "By server {{ proxy }} / {{ server }}",
@@ -6164,7 +6164,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_http_cache_lookups_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_http_cache_lookups_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Lookups {{ proxy }} ",
@@ -6177,7 +6177,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_http_cache_hits_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_http_cache_hits_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Hits {{ proxy }} ",
@@ -6438,7 +6438,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_http_comp_bytes_in_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_http_comp_bytes_in_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Bytes fed {{ proxy }} ",
@@ -6451,7 +6451,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_http_comp_bytes_out_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_http_comp_bytes_out_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "Bytes emitted {{ proxy }} ",
@@ -6725,7 +6725,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_http_comp_responses_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_http_comp_responses_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "{{ proxy }} ",
@@ -7169,7 +7169,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_frontend_internal_errors_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_frontend_internal_errors_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "{{ proxy }}",
@@ -9850,7 +9850,7 @@
                                 "type": "prometheus",
                                 "uid": "PBFA97CFB590B2093"
                             },
-                            "expr": "rate(haproxy_server_failed_header_rewriting_total{proxy=~\"$frontend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
+                            "expr": "rate(haproxy_server_failed_header_rewriting_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
                             "interval": "$interval",
                             "intervalFactor": 1,
                             "legendFormat": "{{ proxy }} /  {{ server }}",
