@@ -629,3 +629,13 @@ def refresh_storage_measurements(storage_ids):
             "/api/v4/items/storage/status", json={"ids": list(storage_ids)}
         )
         resp.raise_for_status()
+
+
+def post_reconcile_report(pool, metrics, size_drift):
+    """Persist one pool's reconcile report through apiv4 (never writes the DB here)."""
+    with _client(timeout=60.0) as client:
+        resp = client.get_httpx_client().post(
+            "/api/v4/admin/storage/reconcile/report",
+            json={"pool": pool, "metrics": metrics, "size_drift": size_drift},
+        )
+        resp.raise_for_status()

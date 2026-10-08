@@ -101,3 +101,49 @@ def test_budget_stops_the_scan_early(tmp_path):
         _fetch_medias=lambda: [],
     )
     assert report["budget_hit"] is True
+
+
+def test_posts_the_report_through_the_injected_reporter(tmp_path):
+    drifted = _write(tmp_path / "a.qcow2", 8192)
+    storages = [
+        {
+            "id": "a",
+            "status": "ready",
+            "path": drifted,
+            "qemu-img-info": {"actual-size": 0, "virtual-size": 1 << 30},
+        },
+    ]
+    posted = []
+    report = reconcile_pool(
+        str(tmp_path),
+        threshold=1024,
+        apply=False,
+        _fetch_storages=lambda: storages,
+        _fetch_medias=lambda: [],
+        _report=lambda pool, metrics, size_drift: posted.append(
+            (pool, metrics, size_drift)
+        ),
+    )
+    assert report["report_error"] is None
+    assert len(posted) == 1
+    pool, metrics, size_drift = posted[0]
+    assert pool == str(tmp_path)
+    assert metrics["size_drift_files"] == 1
+    # the drifted disk's id rides along so apiv4 can break drift down per category
+    assert [d["id"] for d in size_drift] == ["a"]
+
+
+def test_a_failing_reporter_does_not_fail_the_reconcile(tmp_path):
+    _write(tmp_path / "a.qcow2", 8192)
+
+    def _boom(pool, metrics, size_drift):
+        raise RuntimeError("apiv4 down")
+
+    report = reconcile_pool(
+        str(tmp_path),
+        apply=False,
+        _fetch_storages=lambda: [],
+        _fetch_medias=lambda: [],
+        _report=_boom,
+    )
+    assert "apiv4 down" in report["report_error"]

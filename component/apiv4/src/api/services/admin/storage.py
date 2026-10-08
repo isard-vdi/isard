@@ -57,6 +57,16 @@ class AdminStorageService:
         return {"enqueued": len(enqueued), "apply": bool(apply), "tasks": enqueued}
 
     @staticmethod
+    def store_reconcile_report(pool: str, metrics: dict, size_drift: list) -> None:
+        """Persist one pool's last reconcile report (posted by the worker)."""
+        StoragePoolsProcessed.store_reconcile_report(pool, metrics, size_drift)
+
+    @staticmethod
+    def reconcile_report() -> dict:
+        """The last reconcile report per pool plus drift bytes per category."""
+        return StoragePoolsProcessed.reconcile_report()
+
+    @staticmethod
     def get_storages(
         payload: dict, status: str = None, categories: list = None
     ) -> list:

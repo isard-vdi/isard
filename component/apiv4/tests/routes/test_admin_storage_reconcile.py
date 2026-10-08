@@ -80,3 +80,28 @@ def test_apply_false_in_the_body_is_report_only(monkeypatch, test_client):
     assert resp.status_code == 200
     assert captured["apply"] is False
     assert resp.json()["apply"] is False
+
+
+def test_report_get_returns_the_last_report(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.admin.storage.StoragePoolsProcessed.reconcile_report",
+        classmethod(
+            lambda cls: {"pools": {"p1": {}}, "bytes_per_category": {"default": 42}}
+        ),
+    )
+    resp = test_client(url="/admin/storage/reconcile/report", method="GET", jwt=ADMIN)
+    assert resp.status_code == 200
+    assert resp.json()["bytes_per_category"] == {"default": 42}
+
+
+def test_report_get_is_admin_only(monkeypatch, test_client):
+    monkeypatch.setattr(
+        "api.services.admin.storage.StoragePoolsProcessed.reconcile_report",
+        classmethod(lambda cls: {"pools": {}, "bytes_per_category": {}}),
+    )
+    resp = test_client(
+        url="/admin/storage/reconcile/report",
+        method="GET",
+        jwt=MockJWT(role_id="user"),
+    )
+    assert resp.status_code == 403

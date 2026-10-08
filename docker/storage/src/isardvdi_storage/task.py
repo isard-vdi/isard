@@ -949,6 +949,7 @@ def reconcile_pool(
     _fetch_storages=None,
     _fetch_medias=None,
     _refresh=None,
+    _report=None,
 ):
     """Reconcile one pool directory against the storage/media rows read via apiv4."""
     from time import monotonic as _monotonic
@@ -965,6 +966,7 @@ def reconcile_pool(
         _fetch_storages = _fetch_storages or _api.fetch_storages
         _fetch_medias = _fetch_medias or _api.fetch_medias
         _refresh = _refresh or _api.refresh_storage_measurements
+        _report = _report or _api.post_reconcile_report
 
     if threshold is None:
         threshold = reconcile.DEFAULT_DRIFT_BYTES
@@ -991,6 +993,13 @@ def reconcile_pool(
             _refresh(batch)
             corrected.extend(batch)
 
+    report_error = None
+    if _report:
+        try:
+            _report(path, metrics, classified.get("size_drift", []))
+        except Exception as exc:
+            report_error = str(exc)
+
     return {
         "pool": path,
         "budget_hit": budget_hit,
@@ -998,6 +1007,7 @@ def reconcile_pool(
         "corrected": corrected,
         "metrics": metrics,
         "classified": classified,
+        "report_error": report_error,
     }
 
 
