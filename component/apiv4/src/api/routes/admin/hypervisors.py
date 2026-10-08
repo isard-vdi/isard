@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import logging as log
 import traceback
 from typing import Optional
 
@@ -62,8 +63,19 @@ from api.services.admin.hypervisors import AdminHypervisorsService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse, Response
+from pydantic import ValidationError
 
 tag = "admin_hypervisors"
+
+
+def _hypervisor_rows(rows):
+    out = []
+    for h in rows or []:
+        try:
+            out.append(AdminHypervisor(**h).model_dump(mode="json"))
+        except ValidationError as e:
+            log.error(f"hypervisor {h.get('id')} left out of the list: {e}")
+    return out
 
 
 # ── List Hypervisors ─────────────────────────────────────────────────────
@@ -89,7 +101,7 @@ async def admin_hypervisors_list(
             AdminHypervisorsService.get_hypervisors, status
         )
         return JSONResponse(
-            content=[AdminHypervisor(**h).model_dump(mode="json") for h in result],
+            content=_hypervisor_rows(result),
             status_code=200,
         )
     except Error:
@@ -123,9 +135,7 @@ async def admin_hypervisors_list_by_status(
             AdminHypervisorsService.get_hypervisors, status
         )
         return JSONResponse(
-            content=[
-                AdminHypervisor(**h).model_dump(mode="json") for h in (result or [])
-            ],
+            content=_hypervisor_rows(result),
             status_code=200,
         )
     except Error:

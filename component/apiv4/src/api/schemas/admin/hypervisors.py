@@ -301,6 +301,12 @@ class AdminHypervisor(BaseModel):
     isard_video_url: Optional[str] = None
     isard_proxy_hyper_url: Optional[str] = None
 
+    @field_validator("mountpoints", mode="before")
+    @classmethod
+    def _unreadable_mountpoints_to_empty(cls, v):
+        # the engine stored False when it could not read the disk usage
+        return v if isinstance(v, list) else []
+
 
 # ── Admin-internal bodies ────────────────────────────────────────────────
 
