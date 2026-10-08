@@ -42,7 +42,7 @@ import shutil
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from time import time
+from time import sleep, time
 
 from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from storage_lib.api import (
@@ -59,12 +59,14 @@ from storage_lib.api import (
     update_storage_path,
 )
 from storage_lib.cache import load_qcow_cache, save_qcow_cache
+from storage_lib.consistency import LIVE_STATUSES, deletable_after_live_guard
 from storage_lib.deps import split_backing_files
 from storage_lib.formatting import format_size, format_time_remaining, log, size_gb
 from storage_lib.qcow import (
     analyze_dependencies,
     analyze_integrity,
     analyze_integrity_and_dependencies,
+    build_backing_index,
     compress_file,
     create_incremental,
     diagnose_broken_chains,
@@ -82,6 +84,13 @@ from storage_lib.scanning import (
     get_volatile_storages,
     scan_files,
     scan_isard_dirs,
+)
+from storage_lib.space import (
+    DEFAULT_DRIFT_BYTES,
+    allocated,
+    filesystem_usage,
+    size_drift,
+    space_report,
 )
 
 # ─── sizes subcommand ────────────────────────────────────────────────────────
@@ -616,24 +625,14 @@ def cmd_integrity(args):
         if s["path"] in fs_lookup:
             deleted_ghost.append(s)
 
-    # Check: ready in DB, file exists, but DB actual-size mismatches disk
-    size_mismatches = []
+    # Check: ready in DB, file exists, but DB actual-size mismatches disk.
+    # actual-size is what the file ALLOCATES; its apparent length (st_size) says
+    # nothing about it on a sparse qcow2 (see storage_lib/space.py).
     SIZE_THRESHOLD = 1024 * 1024  # 1MB
-    for s in ready_storages:
-        if s["path"] not in fs_lookup:
-            continue
-        db_size = (s.get("qemu-img-info") or {}).get("actual-size", 0) or 0
-        real_size = fs_lookup[s["path"]].st_size
-        if db_size and abs(real_size - db_size) > SIZE_THRESHOLD:
-            size_mismatches.append(
-                {
-                    "id": s["id"],
-                    "path": s["path"],
-                    "db_size": db_size,
-                    "real_size": real_size,
-                    "diff_mb": abs(real_size - db_size) / (1024 * 1024),
-                }
-            )
+    size_mismatches = [
+        dict(m, diff_mb=abs(m["drift"]) / (1024 * 1024))
+        for m in size_drift(ready_storages, fs_lookup, SIZE_THRESHOLD)
+    ]
 
     # Check: ready in DB, file exists, but DB parent doesn't match disk backing
     parent_mismatches = []
@@ -707,7 +706,7 @@ def cmd_integrity(args):
         all_ok = False
         print(f"\nDELETED in DB but FILE EXISTS: {len(deleted_ghost)}")
         for s in deleted_ghost:
-            real_size = fs_lookup[s["path"]].st_size
+            real_size = allocated(fs_lookup[s["path"]])
             print(f"  {s['id']}  {format_size(real_size)}  {s['path']}")
 
     # Size mismatches
@@ -1064,6 +1063,26 @@ def cmd_cleanup(args):
     deletable = _with_stranded_bin_copies(
         set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db, qcow_deps
     )
+    # Never propose deleting a file a live disk needs. The path-keyed dependency
+    # map above misses a parent whose live child records a stale backing path --
+    # the residue move_disks left across the estate -- so resolve support by uuid
+    # from the headers and drop anything a live disk reads through, or is.
+    live_uuids = {
+        s["id"]
+        for s in db_storage_lookup.values()
+        if s.get("status") in LIVE_STATUSES and s.get("has_domains")
+    }
+    header_files = [
+        {"path": p, **info} for p, info in build_backing_index(qcow_storages).items()
+    ]
+    deletable, protected_live = deletable_after_live_guard(
+        deletable, header_files, live_uuids
+    )
+    if protected_live:
+        log(
+            f"  guard: kept {len(protected_live)} file(s) out of the delete lists"
+            f" because a live disk reads through them (see ok_sustains_live_disk.txt)"
+        )
     volatile = get_volatile_storages()
     dead_non_qcow, unknown_non_qcow = _classify_non_qcow2_files(
         non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
@@ -1089,6 +1108,7 @@ def cmd_cleanup(args):
         ("ok_system_not_in_db.txt", storages_in_system_not_in_db),
         ("ok_no_backing_file.txt", qcow_deps["wo_backing"]),
         ("ok_no_derivatives.txt", qcow_deps["wo_derivatives"]),
+        ("ok_sustains_live_disk.txt", sorted(protected_live)),
         ("ok_non_qcow2_unknown.txt", unknown_non_qcow),
         ("ok_registered_medias.txt", media_classes["registered"]),
         ("ok_medias_db_not_in_system.txt", media_classes["db_not_in_system"]),
@@ -1168,6 +1188,7 @@ Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 | ok_system_not_in_db.txt | {len(storages_in_system_not_in_db)} | {templates_in_system_not_db} | {size_gb(storages_in_system_not_in_db)} | Files on disk not in API |
 | ok_no_backing_file.txt | {len(qcow_deps["wo_backing"])} | {count_templates(qcow_deps["wo_backing"])} | {size_gb(qcow_deps["wo_backing"])} | Root images (no backing file) |
 | ok_no_derivatives.txt | {len(qcow_deps["wo_derivatives"])} | {count_templates(qcow_deps["wo_derivatives"])} | {size_gb(qcow_deps["wo_derivatives"])} | Leaf images (no derivatives) |
+| ok_sustains_live_disk.txt | {len(protected_live)} | {count_templates(protected_live)} | {size_gb(protected_live)} | EXCLUDED from every delete list: a live disk reads through them (or is one). Never delete — see `storage consistency` casuistic 4A |
 | ok_non_qcow2_unknown.txt | {len(unknown_non_qcow)} | {templates_in_unknown_non_qcow} | {size_gb(unknown_non_qcow)} | Files still referenced as backing — review, do not auto-delete |
 | ok_registered_medias.txt | {len(media_classes["registered"])} | {count_templates(media_classes["registered"])} | {size_gb(media_classes["registered"])} | ISO/FD media on disk + matched in API as Downloaded |
 | ok_medias_db_not_in_system.txt | {len(media_classes["db_not_in_system"])} | - | - | Media rows with status=Downloaded but file missing on disk |
@@ -1181,6 +1202,13 @@ Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 | bad_db_media_entries.jsonl | {len(bad_media_records)} | Media rows in API missing path_downloaded — needs DB review |
 
 ## Candidates to Delete (bad_)
+
+{len(protected_live)} file(s) that a live disk reads through (or is) were removed
+from the lists below and listed in `ok_sustains_live_disk.txt` instead: a deleted
+or missing row does not make a file dead when a running desktop still backs onto
+it. Support is resolved by uuid from the qcow2 headers, so a parent is protected
+even when a child records a stale backing path. Still review before running any
+`rm`, and cross-check with `storage consistency` (casuistic 4A).
 
 | File | Count | Templates | Size (GB) | Description |
 |------|-------|-----------|-----------|-------------|
@@ -3277,6 +3305,196 @@ def cmd_verify(args):
     log(f"Total execution time: {time()-t:.2f} seconds")
 
 
+# ─── space subcommand ─────────────────────────────────────────────────────────
+
+
+def cmd_space(args):
+    """Report DB-recorded disk space against allocated space; ``--refresh`` re-measures drifted disks."""
+    from storage_lib.api import fetch_storages, refresh_storage_measurements
+
+    rows = fetch_storages()
+    if rows is None:
+        log("ERROR: could not read the storage table from the API")
+        return 1
+    fs_lookup = {}
+    for f in scan_isard_dirs():
+        if f.endswith(".qcow2"):
+            try:
+                fs_lookup[f] = Path(f).stat()
+            except OSError:
+                pass
+    report = space_report(rows, fs_lookup, args.threshold)
+    gib = lambda n: f"{n / (1 << 30):,.1f} GiB"  # noqa: E731
+    for dev, acc in report["filesystems"].items():
+        usage = filesystem_usage(acc["sample_path"])
+        print(f"\nfilesystem of {os.path.dirname(acc['sample_path'])} (dev {dev}):")
+        print(
+            f"  filesystem says        used {gib(usage['used'])}, free {gib(usage['free'])} of {gib(usage['size'])} (logical: on VDO see storage-pool-physical)"
+        )
+        print(
+            f"  IsardVDI believes      {gib(acc['db_ready'])} in {acc['ready_files']} ready disks"
+        )
+        print(
+            f"  those files allocate   {gib(acc['ready_allocated'])} (apparent {gib(acc['ready_apparent'])})"
+        )
+        print(
+            f"  parked in deleted/     {gib(acc['deleted_dir'])} in {acc['deleted_dir_files']} files (invisible to the DB)"
+        )
+        print(
+            f"  files with no row      {gib(acc['no_row'])} in {acc['no_row_files']} files"
+        )
+        print(
+            f"  rows not ready         {gib(acc['other_status'])} in {acc['other_status_files']} files"
+        )
+    drift = report["drift"]
+    print(
+        f"\nready disks whose recorded size drifts more than {gib(args.threshold)}: {len(drift)}"
+    )
+    for m in drift[: args.top]:
+        print(
+            f"  {m['id']}  DB {gib(m['db_size'])}  allocated {gib(m['real_size'])}  {m['path']}"
+        )
+    if args.json:
+        with open(args.json, "w") as fh:
+            json.dump(report, fh, indent=1, default=str)
+        print(f"\nfull report: {args.json}")
+    if args.refresh and drift:
+        ids = [m["id"] for m in drift]
+        for i in range(0, len(ids), args.batch):
+            refresh_storage_measurements(ids[i : i + args.batch])
+            log(
+                f"asked the product to measure {min(i + args.batch, len(ids))}/{len(ids)} disks again"
+            )
+            sleep(args.pause)
+    return 0
+
+
+# ─── consistency subcommand ───────────────────────────────────────────────────
+
+
+def cmd_consistency(args):
+    """Read-only report contrasting the storage table with the pools.
+
+    Two API reads, one pool scan and one header pass build the backing relation
+    (no qemu-img), and a pure classifier splits the result into the eight
+    casuistics -- reporting, for every file, whether it sustains a live disk,
+    which is the thing no existing tool looks at.
+    """
+    from storage_lib.api import fetch_consistency_rows, fetch_live_storage_ids
+    from storage_lib.consistency import CASUISTIC_TITLES, classify_storage_consistency
+    from storage_lib.qcow import build_backing_index
+
+    order = [
+        "c1_file_no_row",
+        "c2_ready_no_file",
+        "c3_ready_wrong_pool",
+        "c4a_deleted_sustains_live",
+        "c4bc_deleted_dead",
+        "c5_parent_missing",
+        "c5b_parent_displaced",
+        "c5c_parent_mislinked",
+        "c6_qcow2_errors",
+        "c7_non_existing",
+        "c8_deferred_no_expiry",
+    ]
+
+    t = time()
+    log("Starting table-vs-pool consistency report (read-only)...")
+
+    rows = fetch_consistency_rows()
+    live_ids = fetch_live_storage_ids()
+    log(f"  {len(rows)} storage rows from the API")
+
+    for s in rows:
+        s["live"] = (
+            s.get("status") in ("ready", "maintenance") and s.get("id") in live_ids
+        )
+
+    log("Scanning pools...")
+    qcow_files = [f for f in scan_isard_dirs() if f.endswith(".qcow2")]
+    log(f"  {len(qcow_files)} qcow2 files on disk")
+
+    log("Mapping backing files by header (no qemu-img)...")
+    index = build_backing_index(qcow_files)
+    disk_files = [{"path": p, **info} for p, info in index.items()]
+
+    check_errors = None
+    if getattr(args, "check", False):
+        log(f"  --check: running qemu-img check on {len(qcow_files)} files (slow)...")
+        check_errors = {
+            p: {"error": "qemu-img check reported errors or leaks"}
+            for p in qcow_files
+            if not qemu_img_check(p)
+        }
+
+    result = classify_storage_consistency(rows, disk_files, check_errors=check_errors)
+
+    print()
+    print("=" * 78)
+    print("TABLE vs POOL CONSISTENCY")
+    print("=" * 78)
+    for key in order:
+        items = result.get(key, [])
+        total = sum(i.get("size", 0) for i in items)
+        print(
+            f"\n[{CASUISTIC_TITLES[key]}]  count={len(items)}  size={format_size(total)}"
+        )
+        if key == "c4a_deleted_sustains_live":
+            for i in items:
+                print(
+                    f"  {i['id']}  {format_size(i['size'])}"
+                    f"  sustains {i['sustains_count']} live disk(s)"
+                )
+                print(f"    file: {i['path']}")
+                for sid in i["sustains"]:
+                    print(f"      -> live: {sid}")
+        elif key == "c5c_parent_mislinked":
+            for i in items[:20]:
+                print(f"  {i['id']}  {format_size(i['size'])}  {i['path']}")
+                print(
+                    f"    registered parent: {i['registered_parent']}"
+                    f"  ->  real backing: {i['real_backing_uuid']}"
+                    f" ({i['backing_row_status']}) at {i['real_backing_path']}"
+                )
+        else:
+            for i in items[:20]:
+                label = i.get("id") or i.get("uuid") or ""
+                path = i.get("path") or i.get("actual_path") or i.get("db_path") or ""
+                print(f"  {label}  {format_size(i.get('size', 0))}  {path}")
+            if len(items) > 20:
+                print(f"  ... and {len(items) - 20} more (see consistency.json)")
+    print("\n" + "=" * 78)
+    if not getattr(args, "check", False):
+        print("NOTE: casuistic 6 (qcow2 leaks/errors) needs --check (expensive).")
+    print(
+        "NOTE: casuistic 8 (deferred jobs) lives in the rq registry (redis),"
+        " outside the DB/pool surface this read-only report covers."
+    )
+
+    output_dir = get_output_dir()
+    payload = {
+        "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+        "rows": len(rows),
+        "files": len(qcow_files),
+        "seconds": round(time() - t, 2),
+        "checked": bool(getattr(args, "check", False)),
+        "casuistics": {
+            key: {
+                "title": CASUISTIC_TITLES[key],
+                "count": len(result.get(key, [])),
+                "size_bytes": sum(i.get("size", 0) for i in result.get(key, [])),
+                "items": result.get(key, []),
+            }
+            for key in order
+        },
+    }
+    out = output_dir / "consistency.json"
+    with open(out, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True, default=str)
+    log(f"Wrote {out}")
+    log(f"Report: {len(rows)} rows, {len(qcow_files)} files, {time() - t:.2f}s")
+
+
 # ─── recover subcommand ──────────────────────────────────────────────────────
 
 
@@ -4838,6 +5056,42 @@ def build_parser():
         help="Fix issues: update DB paths for mismatched files, trigger find for missing/ghost",
     )
     p_verify.set_defaults(func=cmd_verify)
+
+    # consistency
+    p_consistency = subparsers.add_parser(
+        "consistency",
+        help="Read-only table-vs-pool report of the eight casuistics, incl. which files sustain live disks",
+    )
+    p_consistency.add_argument(
+        "--check",
+        action="store_true",
+        help="Also run qemu-img check per file for casuistic 6 (leaks/errors) — expensive",
+    )
+    p_consistency.set_defaults(func=cmd_consistency)
+
+    # space
+    p_space = subparsers.add_parser(
+        "space",
+        help="What IsardVDI believes its disks occupy against what they allocate, per filesystem",
+    )
+    p_space.add_argument(
+        "--threshold",
+        type=int,
+        default=DEFAULT_DRIFT_BYTES,
+        help="drift in bytes above which a ready disk is listed (default 64 MiB)",
+    )
+    p_space.add_argument("--top", type=int, default=20)
+    p_space.add_argument("--json", help="write the full report here")
+    p_space.add_argument(
+        "--refresh",
+        action="store_true",
+        help="ask the product to measure the drifted ready disks again",
+    )
+    p_space.add_argument("--batch", type=int, default=50)
+    p_space.add_argument(
+        "--pause", type=float, default=5.0, help="seconds between batches"
+    )
+    p_space.set_defaults(func=cmd_space)
 
     # recover
     p_recover = subparsers.add_parser(

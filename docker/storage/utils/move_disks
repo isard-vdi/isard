@@ -1276,9 +1276,14 @@ Examples:
         help="List available storage pools and exit"
     )
     parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually move files. Without it move_disks runs in dry-run (the default): it prints the plan and moves nothing."
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show migration plan without executing (preview mode)"
+        help="Preview the migration plan and move nothing. This is the DEFAULT; moving requires --apply."
     )
     parser.add_argument(
         "--no-cleanup",
@@ -1323,6 +1328,19 @@ def main():
         print("=== AVAILABLE STORAGE POOLS ===")
         show_storage_pools_info()
         return
+
+    # move_disks is a MANUAL tool and the origin of the pool-mismatch incoherences
+    # on long-lived installs. The supported way to rebalance pools is the storage
+    # migration engine (apiv4 admin storage migrations), which is transactional and
+    # audited. It moves nothing unless --apply is given.
+    print("=" * 80)
+    print("move_disks is a MANUAL recovery tool. The supported way to rebalance pools")
+    print("is the storage migration engine (apiv4 admin storage migrations).")
+    if not args.apply:
+        print("Running in DRY-RUN (default): the plan is printed and NOTHING is moved.")
+        print("Re-run with --apply to actually move files.")
+    print("=" * 80)
+    args.dry_run = args.dry_run or not args.apply
 
     # Handle date filtering options
     if args.past_days is not None:
@@ -1720,7 +1738,7 @@ def main():
     # Handle dry-run mode
     if args.dry_run:
         print("\n=== DRY RUN MODE - NO FILES WILL BE MOVED ===")
-        print("Migration plan completed. Use without --dry-run to execute.")
+        print("Migration plan completed. Re-run with --apply to execute.")
         return
 
     # Setup signal handler for graceful shutdown

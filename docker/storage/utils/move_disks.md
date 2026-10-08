@@ -4,6 +4,13 @@
 
 The `move_disks` script is a bilateral storage migration tool for IsardVDI that automatically moves VM disk files between fast and slow storage pools based on file modification dates. This implements intelligent storage tiering to optimize performance and cost.
 
+> **⚠️ Manual recovery tool — moves nothing by default.** This script predates the
+> storage migration engine and is the origin of the "row ready, file in another pool"
+> incoherence seen on long-lived installs. The **supported** way to rebalance pools is
+> the transactional, audited storage migration engine (apiv4 admin storage migrations).
+> `move_disks` runs in **dry-run by default**: it prints the plan and moves nothing.
+> Pass `--apply` to actually move files.
+
 ## What We Implemented
 
 Converted the hardcoded storage migration script to use flexible CLI parameters, making it configurable for different environments and use cases. The script now supports both absolute and relative date filtering, customizable threading, bandwidth limiting, and dry-run capabilities.
@@ -92,7 +99,8 @@ The cumulative approach is ideal for capacity management when you want to migrat
 | Parameter | Description |
 |-----------|-------------|
 | `--list-pools` | Show available storage pools and exit |
-| `--dry-run` | Preview migration plan without executing |
+| `--apply` | Actually move files. Without it the tool runs in dry-run (the default) and moves nothing |
+| `--dry-run` | Preview the migration plan and move nothing. This is the **default**; moving requires `--apply` |
 | `--no-cleanup` | Skip cleanup of bad files logs at startup |
 | `--force-recycled` | Move all recycled storage files to slow pool in addition to regular date-based migration |
 | `--only-recycled` | Move ONLY recycled files (disables regular date-based migration). Implies `--force-recycled` |
@@ -103,8 +111,11 @@ The cumulative approach is ideal for capacity management when you want to migrat
 ### Basic Usage
 
 ```bash
-# Use defaults (30 days ago threshold)
+# Preview with defaults (30 days ago threshold) — dry-run, moves nothing
 ./move_disks
+
+# Actually move (only after reviewing the dry-run plan)
+./move_disks --apply
 
 # Show help
 ./move_disks --help
