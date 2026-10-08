@@ -2023,7 +2023,9 @@
       "toggle-active": "Filters ({count} active)",
       "remove": "Remove filter {name}",
       "clear": "Clear filters",
-      "show-all": "Show all {count} active filters"
+      "show-all": "Show all {count} active filters",
+      "search": "Search",
+      "no-results": "No results found"
     },
     "empty-search": {
       "title": "No results found",
@@ -2659,7 +2661,7 @@
         "cancel": "Go back to deployments"
       },
       "co-owners-modal": {
-        "title": "Manage co-owners for '{name}'",
+        "title": "Manage co-owners",
         "description": "Choose which users co-own this deployment. Owner: {owner}",
         "warning": "Co-owners have the same permissions as the owner, except they cannot delete the deployment or manage co-owners.",
         "co-owner-warning": "As a co-owner you cannot change the co-owners. Contact the deployment owner.",
@@ -2801,42 +2803,45 @@
       },
       "columns": {
         "groups": "Groups",
-        "users": "Users",
-        "users-in-group": "Users in '{group_name}'"
+        "users": "Users"
       },
       "empty": {
         "groups": "No groups available",
-        "users": "This group has no users",
-        "no-group": "Select a group or search for users",
-        "no-group-short-term": "Type at least 2 characters to search users",
-        "no-users-selected": "No users selected yet — search to add some"
+        "no-users": "No users available"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Share with everyone",
-          "description": "Give every user in this category access"
-        },
-        "checked": {
+        "audience": "Who can access",
+        "specific": "Specific groups and users",
+        "everyone": "Everyone",
+        "alert": {
           "title": "Shared with everyone",
-          "description": "Every user in this category will have access"
+          "description": "Every user in your category will have access"
         }
       },
-      "view-group": "Show the users in '{group_name}'",
-      "unview-group": "Stop showing the users in '{group_name}'",
+      "remove": "Remove '{name}'",
+      "group-users-partial": "{selected} of {total} users",
+      "shared-through-group": "Shared through the group '{group}'.",
       "require-selection": "Select at least one group or user",
       "require-selection-users": "Select at least one user",
       "no-changes": "Make a change to save",
+      "summary": {
+        "title": "Selected",
+        "all-groups": "All groups",
+        "empty": "Nothing selected yet",
+        "users-through-groups": "No users selected individually.",
+        "unknown-user": "Unknown user",
+        "clear": "Clear",
+        "clear-groups": "Clear selected groups",
+        "clear-users": "Clear selected users"
+      },
       "select-all": {
         "groups": "Select all groups",
         "count": "{selected} of {total} selected"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Search user in group '{group_name}'",
-          "empty": "No user found"
-        },
         "user": {
           "placeholder": "Search all users",
+          "filtered-placeholder": "Search in the selected group",
           "empty": "No user found",
           "truncated": "Showing {shown} of {total} results, refine your search"
         },

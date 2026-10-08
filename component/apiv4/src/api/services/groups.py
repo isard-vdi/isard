@@ -33,6 +33,8 @@ class GroupsService:
 
     @staticmethod
     def get_users_in_group(
-        group_id: str, roles: list[str] | None = None
+        group_id: str,
+        roles: list[str] | None = None,
+        include_secondary: bool = False,
     ) -> list[AvailableUser]:
-        return GroupsProcessed.get_users_in_group(group_id, roles)
+        return GroupsProcessed.get_users_in_group(group_id, roles, include_secondary)

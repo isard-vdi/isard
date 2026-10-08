@@ -38,13 +38,13 @@ tag = "groups"
     response_model=GroupUsersResponse,
     tags=[tag],
     summary="Get users in a group",
-    description="Returns a list of users in a specific group.",
+    description="Returns the users whose primary group is this one, optionally also those "
+    "that have it as a secondary group.",
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
-    deprecated=True,
 )
 async def get_users_in_group(
     request: Request,
@@ -53,11 +53,14 @@ async def get_users_in_group(
         None,
         description="Restrict results to these roles",
     ),
+    include_secondary: bool = Query(
+        False,
+        description="Also return users that have this group as a secondary group",
+    ),
 ):
-    # TODO@: probably not in use
     try:
         users = await asyncio.to_thread(
-            GroupsService.get_users_in_group, group_id, roles
+            GroupsService.get_users_in_group, group_id, roles, include_secondary
         )
         return JSONResponse(
             content=GroupUsersResponse(users=users).model_dump(mode="json"),

@@ -50,6 +50,10 @@ class AvailableUser(BaseModel):
     name: str = Field(description="User full name")
     username: str = Field(description="User username")
     photo: Optional[str] = Field(default="", description="User photo URL")
+    group: Optional[str] = Field(default=None, description="User primary group ID")
+    secondary_groups: Optional[list[str]] = Field(
+        default=None, description="User secondary group IDs"
+    )
 
 
 class BaseGroup(BaseModel):
@@ -59,7 +63,9 @@ class BaseGroup(BaseModel):
 
 
 class AvailableGroup(BaseGroup):
-    pass
+    users_count: int = Field(
+        default=0, description="Number of users whose primary group is this one"
+    )
 
 
 class IndeterminateGroup(BaseGroup):
@@ -75,6 +81,9 @@ class AllowedResponse(BaseModel):
     )
     indeterminate_groups: bool | list[IndeterminateGroup] = Field(
         description="List of groups that have some, but not all, users allowed"
+    )
+    selected_users: list[AvailableUser] = Field(
+        default_factory=list, description="Details of the users in selected.users"
     )
 
 

@@ -332,12 +332,17 @@ class GroupsProcessed(RethinkSharedConnection):
         cls,
         group_id: str,
         roles: list[str] | None = None,
+        include_secondary: bool = False,
     ) -> list[dict]:
         query = r.table("users").get_all(group_id, index="group")
+        fields = ["id", "name", "username", "photo"]
+        if include_secondary:
+            query = query.union(
+                r.table("users").get_all(group_id, index="secondary_groups")
+            )
+            fields += ["group", "secondary_groups"]
         if roles:
             query = query.filter(lambda user: r.expr(roles).contains(user["role"]))
         with cls._rdb_context():
-            users = list(
-                query.pluck("id", "name", "username", "photo").run(cls._rdb_connection)
-            )
-        return users
+            users = list(query.pluck(*fields).run(cls._rdb_connection))
+        return list({user["id"]: user for user in users}.values())

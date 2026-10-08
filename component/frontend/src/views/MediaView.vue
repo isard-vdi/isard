@@ -392,7 +392,10 @@ const closeDeleteModal = () => {
   deleteModalMediaData.value = null
 }
 
-const allowedModalMediaId = ref<string | null>(null)
+const allowedModalMediaData = ref<{
+  id: string
+  name: string
+} | null>(null)
 const allowedError = ref('')
 
 const { mutate: updateMediaAllowed, isPending: updateAllowedIsPending } = useMutation({
@@ -409,18 +412,21 @@ const { mutate: updateMediaAllowed, isPending: updateAllowedIsPending } = useMut
   }
 })
 
-const openAllowedModal = (mediaId: string) => {
+const openAllowedModal = (mediaId: string, mediaName: string) => {
   allowedError.value = ''
-  allowedModalMediaId.value = mediaId
+  allowedModalMediaData.value = {
+    id: mediaId,
+    name: mediaName
+  }
 }
 
 const closeAllowedModal = () => {
-  allowedModalMediaId.value = null
+  allowedModalMediaData.value = null
   allowedError.value = ''
 }
 
 const handleSaveAllowed = (selection: AllowedSelection) => {
-  const mediaId = allowedModalMediaId.value
+  const mediaId = allowedModalMediaData.value?.id
   if (!mediaId) return
   allowedError.value = ''
   updateMediaAllowed({ path: { media_id: mediaId }, body: selection })
@@ -627,7 +633,7 @@ const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
                   hierarchy="secondary-gray"
                   icon="users-01"
                   class="aspect-square p-2.5"
-                  @click="openAllowedModal(row.id)"
+                  @click="openAllowedModal(row.id, row.name)"
                 ></Button>
               </TooltipTrigger>
               <TooltipContent
@@ -719,10 +725,11 @@ const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
 
   <!-- Allowed Modal -->
   <AllowedModal
-    v-if="allowedModalMediaId"
+    v-if="allowedModalMediaData"
     open
     item-type="media"
-    :item-id="allowedModalMediaId"
+    :item-id="allowedModalMediaData.id"
+    :item-name="allowedModalMediaData.name"
     :loading="updateAllowedIsPending"
     :error="allowedError"
     @save="handleSaveAllowed"

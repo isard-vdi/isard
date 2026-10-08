@@ -46,6 +46,7 @@ const { t } = useI18n()
          number keeps the contrast the label has. -->
     <span
       v-if="props.count !== undefined"
+      data-filter-tag-count
       :class="
         cn(
           'shrink-0 rounded-[4px] px-1 text-xs font-semibold tabular-nums',

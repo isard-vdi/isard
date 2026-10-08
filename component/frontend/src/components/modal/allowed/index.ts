@@ -1,6 +1,7 @@
 export { default as AllowedModal } from './AllowedModal.vue'
 export { default as AllowedModalColumn } from './AllowedModalColumn.vue'
 export { default as AllowedModalItem } from './AllowedModalItem.vue'
+export { default as AllowedModalSummary } from './AllowedModalSummary.vue'
 
 export interface AllowedOption {
   value: string
@@ -8,6 +9,7 @@ export interface AllowedOption {
   subLabel?: string | undefined
   avatar?: string | undefined
   icon?: string | undefined
+  partial?: boolean | undefined
 }
 
 export interface AllowedSelection {

@@ -33,8 +33,29 @@ const categories: FilterCategory[] = [
 const mountTags = (modelValue: Record<string, string[]>) =>
   mount(FilterTags, { props: { categories, modelValue }, attachTo: document.body })
 
+const mountSearchable = (modelValue: Record<string, string[]>) =>
+  mount(FilterTags, {
+    props: { categories, modelValue, searchable: true },
+    attachTo: document.body
+  })
+
 const tagsOf = (wrapper: ReturnType<typeof mountTags>) =>
   wrapper.findAll('button[aria-label^="components.filters.remove"]')
+
+const searchBox = () => document.body.querySelector<HTMLInputElement>('[data-filter-search]')
+
+const search = async (term: string) => {
+  const input = searchBox()
+  if (!input) throw new Error('No search box')
+  input.value = term
+  input.dispatchEvent(new Event('input'))
+  await nextTick()
+}
+
+const optionLabels = () =>
+  Array.from(document.body.querySelectorAll('[role="menuitemcheckbox"]')).map((item) =>
+    item.textContent?.trim()
+  )
 
 describe('FilterTags', () => {
   it('renders a tag per selected value, across categories', () => {
@@ -133,6 +154,58 @@ describe('FilterTags', () => {
     await nextTick()
 
     expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({ kind: [], status: [] })
+
+    wrapper.unmount()
+  })
+
+  it('offers no search box unless asked for one', async () => {
+    const wrapper = mountTags({ kind: [], status: [] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull()
+    expect(searchBox()).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('narrows the menu to the options the search matches, whatever their case', async () => {
+    const wrapper = mountSearchable({ kind: [], status: [] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+    await search('TEMP')
+
+    expect(optionLabels()).toEqual(['Temporaries3'])
+    // The category left with no match goes, and the separator before it too.
+    const groups = document.body.querySelectorAll('[role="menu"] [role="group"]')
+    expect(Array.from(groups).map((group) => group.getAttribute('aria-label'))).toEqual(['Type'])
+    expect(document.body.querySelector('[role="menu"] [role="separator"]')).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('says so when the search matches nothing', async () => {
+    const wrapper = mountSearchable({ kind: [], status: [] })
+    await wrapper.find('[data-filter-trigger]').trigger('click')
+    await search('nothing like it')
+
+    expect(optionLabels()).toEqual([])
+    expect(document.body.querySelector('[role="menu"]')?.textContent).toContain(
+      'components.filters.no-results'
+    )
+
+    wrapper.unmount()
+  })
+
+  it('starts the search over each time the menu opens', async () => {
+    const wrapper = mountSearchable({ kind: [], status: [] })
+    const trigger = wrapper.find('[data-filter-trigger]')
+    await trigger.trigger('click')
+    await search('temp')
+
+    await trigger.trigger('click')
+    await trigger.trigger('click')
+
+    expect(searchBox()?.value).toBe('')
+    expect(optionLabels()).toHaveLength(3)
 
     wrapper.unmount()
   })

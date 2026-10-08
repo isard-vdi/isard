@@ -22,13 +22,13 @@ const meta = {
   },
   argTypes: {
     title: { control: 'text', description: 'Heading above the search input.' },
+    icon: { control: 'text', description: 'Icon shown before the title.' },
     items: { control: 'object', description: 'Rows to list, before filtering.' },
-    selected: { control: 'object', description: 'Values rendered as fully checked.' },
-    indeterminate: {
+    selected: { control: 'object', description: 'Values rendered as selected rows.' },
+    inheritedHints: {
       control: 'object',
-      description: 'Values rendered with the indeterminate dash.'
+      description: 'Values selected through something else, with the tooltip text explaining it.'
     },
-    activeId: { control: 'text', description: 'Value of the highlighted row, if any.' },
     loading: { control: 'boolean', description: 'Replaces the list with skeletons.' },
     disabled: { control: 'boolean', description: 'Dims the column and blocks every control.' },
     searchPlaceholder: { control: 'text', description: 'Placeholder of the search input.' },
@@ -61,7 +61,6 @@ const meta = {
     setup() {
       const search = ref('')
       const selected = ref<string[]>([...(args.selected ?? [])])
-      const activeId = ref<string | null>(args.activeId ?? null)
       const toggle = (value: string) => {
         selected.value = selected.value.includes(value)
           ? selected.value.filter((id) => id !== value)
@@ -72,21 +71,18 @@ const meta = {
         selectAllChecked.value = selectAll
         selected.value = selectAll ? args.items.map((item) => item.value) : []
       }
-      return { args, search, selected, activeId, selectAllChecked, toggle, toggleAll }
+      return { args, search, selected, selectAllChecked, toggle, toggleAll }
     },
     // The column only sizes itself correctly inside a parent with a definite height.
-    // Only the checkboxes select; clicking a row is a separate event.
     template: `
       <div class="flex h-[420px] w-96 gap-6">
         <AllowedModalColumn
           v-bind="args"
           v-model:search="search"
           :selected="selected"
-          :active-id="activeId"
           :select-all-checked="selectAllChecked"
           @toggle="toggle"
           @toggle-all="toggleAll"
-          @select="activeId = $event"
         />
       </div>
     `
@@ -98,6 +94,7 @@ type Story = StoryObj<ComponentPropsAndSlots<typeof AllowedModalColumn>>
 
 const baseArgs = {
   title: 'Groups',
+  icon: 'users-01',
   items: groups,
   selected: [],
   searchPlaceholder: 'Search group',
@@ -110,12 +107,24 @@ export const Scrolling: Story = {
   args: baseArgs
 }
 
+/** 2,000 rows: only the rows in view are mounted, the rest are virtualized. */
+export const ManyRows: Story = {
+  args: {
+    ...baseArgs,
+    items: Array.from({ length: 2000 }, (_, index) => ({
+      value: `group-${index}`,
+      label: `Group ${index + 1}`,
+      subLabel: index % 3 === 0 ? `Description for group ${index + 1}` : undefined,
+      icon: 'users-01'
+    }))
+  }
+}
+
 export const WithSelection: Story = {
   args: {
     ...baseArgs,
     selected: ['group-1', 'group-4'],
-    indeterminate: ['group-2', 'group-7'],
-    activeId: 'group-2'
+    inheritedHints: { 'group-2': 'Selected through another group' }
   }
 }
 
@@ -160,7 +169,7 @@ export const SelectAll: Story = {
 
 /**
  * The row is only *checked* when the caller's "everyone" sentinel is on, which is what clicking
- * the row sets. Note the rows below are ticked too, but that is a consequence, not the cause.
+ * the row sets. Note the rows below are selected too, but that is a consequence, not the cause.
  */
 export const SelectAllChecked: Story = {
   args: {
@@ -174,9 +183,8 @@ export const SelectAllChecked: Story = {
 }
 
 /**
- * Every row ticked one by one, with no sentinel: a different payload, so the row reads
- * indeterminate rather than checked — the same way a group reads indeterminate when its users
- * are picked individually.
+ * Every row added one by one, with no sentinel: a different payload, so the row reads
+ * indeterminate rather than checked.
  */
 export const SelectAllIndividually: Story = {
   args: {
@@ -201,33 +209,33 @@ export const WithActions: Story = {
     setup() {
       const search = ref('')
       const selected = ref<string[]>([])
-      const activeId = ref<string | null>(null)
+      const lastAction = ref('')
       const toggle = (value: string) => {
         selected.value = selected.value.includes(value)
           ? selected.value.filter((id) => id !== value)
           : [...selected.value, value]
       }
-      return { args, search, selected, activeId, toggle }
+      return { args, search, selected, lastAction, toggle }
     },
+    // The action stops its click so pressing it does not toggle the row.
     template: `
       <div class="flex h-[420px] w-96 gap-6">
         <AllowedModalColumn
           v-bind="args"
           v-model:search="search"
           :selected="selected"
-          :active-id="activeId"
           @toggle="toggle"
-          @select="activeId = $event"
         >
           <template #actions="{ item }">
             <Button
-              icon="arrow-circle-broken-right"
+              icon="info-circle"
               hierarchy="link-color"
-              @click.stop="activeId = item.value"
+              @click.stop="lastAction = item.label"
             />
           </template>
         </AllowedModalColumn>
       </div>
+      <p class="mt-2 text-sm text-gray-warm-600">last action: {{ lastAction || 'none' }}</p>
     `
   }),
   args: baseArgs

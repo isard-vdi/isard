@@ -2,10 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { refDebounced } from '@vueuse/core'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import AllowedModalColumn from './AllowedModalColumn.vue'
+import AllowedModalSummary from './AllowedModalSummary.vue'
+import { FilterTags, type FilterCategory, type FilterTagsSelection } from '@/components/filter-tags'
 import type { AllowedOption, AllowedSelection } from '.'
 import type { AvailableUser } from '@/gen/oas/apiv4'
 import {
@@ -18,13 +20,16 @@ import {
   getMediaAllowedTableQueryKey,
   getTemplateAllowedOptions,
   getTemplateAllowedQueryKey,
-  getUsersInGroupOptions,
-  getUsersInGroupQueryKey
+  getUsersInGroupOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { toast } from '@/components/ui/toast'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Checkbox } from '@/components/ui/checkbox'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline/index.js'
+import { Icon } from '@/components/icon'
+import { cn } from '@/lib/utils'
+import { domainKindStyle } from '@/lib/domainKind'
 
 interface Props {
   open: boolean
@@ -34,6 +39,7 @@ interface Props {
   warning?: string // Shown as an alert above the columns.
   itemId?: string // ID of the item being edited. Used to fetch current allowed settings.
   itemType?: 'template' | 'deployment' | 'media' // Type of the item being edited. Used to determine API endpoint and description.
+  itemName?: string // Name of the item being edited, shown as a badge next to the title.
   selection?: AllowedSelection // Selection to open with when the item does not exist yet
   requireSelection?: boolean // Block saving if the selection is empty
   supportsEveryone?: boolean // Whether an empty array means "everyone"
@@ -52,6 +58,7 @@ const props = withDefaults(defineProps<Props>(), {
   warning: '',
   itemId: undefined,
   itemType: undefined,
+  itemName: undefined,
   selection: undefined,
   requireSelection: false,
   supportsEveryone: true,
@@ -68,8 +75,22 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const queryClient = useQueryClient()
 
 const everyoneEnabled = computed(() => props.supportsEveryone && !props.usersOnly)
+
+const itemBadge = computed(() => {
+  if (!props.itemType) return undefined
+  if (props.itemType === 'media') {
+    return {
+      icon: 'disc-02',
+      badge: 'bg-gray-warm-200 text-gray-warm-800',
+      iconColor: 'gray-warm-700'
+    }
+  }
+  const { icon, badge, iconColor } = domainKindStyle(props.itemType)
+  return { icon, badge, iconColor }
+})
 
 const roleQuery = computed(() => (props.roles?.length ? { roles: [...props.roles] } : undefined))
 
@@ -141,18 +162,17 @@ const allowedError = computed(() => {
 
 const selectedGroups = ref<string[]>([])
 const selectedUsers = ref<string[]>([])
-const apiIndeterminateGroups = ref<string[]>([])
 const apiAllGroups = ref(false)
 
 const shareWithEveryone = ref(false)
-const usersByGroup = ref<Record<string, AllowedOption[]>>({})
 
-const viewedGroup = ref<string | null>(null)
 const groupSearch = ref('')
 const userSearch = ref('')
+const userGroupFilter = ref<string | null>(null)
 
 const hydrated = ref(false)
 const dirty = ref(false)
+const summaryOpen = ref(false)
 
 watch(
   () => props.open,
@@ -163,12 +183,12 @@ watch(
     dirty.value = false
     selectedGroups.value = []
     selectedUsers.value = []
-    apiIndeterminateGroups.value = []
     apiAllGroups.value = false
     shareWithEveryone.value = false
-    viewedGroup.value = null
     groupSearch.value = ''
     userSearch.value = ''
+    userGroupFilter.value = null
+    summaryOpen.value = false
   }
 )
 
@@ -178,17 +198,16 @@ const expectsApiState = computed(
   () => !!templateId.value || !!mediaId.value || !!deploymentId.value
 )
 
-const availableGroups = computed<AllowedOption[]>(() => {
+const rawGroups = computed(() => {
   const groups = expectsApiState.value
     ? allowedData.value?.available_groups
     : categoryGroups.data.value?.available_groups
-  if (!Array.isArray(groups)) return []
-  return groups.map((group) => ({
-    value: group.id,
-    label: group.name,
-    subLabel: group.description ?? undefined
-  }))
+  return Array.isArray(groups) ? groups : []
 })
+
+const availableGroups = computed<AllowedOption[]>(() =>
+  rawGroups.value.map((group) => ({ value: group.id, label: group.name }))
+)
 
 const readBucket = (value: boolean | string[] | undefined, all: () => string[]): string[] => {
   if (!Array.isArray(value)) return []
@@ -220,9 +239,8 @@ const hydrate = () => {
     everyoneEnabled.value && Array.isArray(source.users) && source.users.length === 0
   selectedUsers.value =
     !shareWithEveryone.value && Array.isArray(source.users) ? [...source.users] : []
-  apiIndeterminateGroups.value = Array.isArray(allowedData.value?.indeterminate_groups)
-    ? allowedData.value.indeterminate_groups.map((group) => group.id)
-    : []
+  summaryOpen.value =
+    selectedGroups.value.length > 0 || selectedUsers.value.length > 0 || apiAllGroups.value
   hydrated.value = true
 }
 
@@ -233,20 +251,6 @@ watch(
   },
   { immediate: true }
 )
-
-const indeterminateGroups = computed(() => {
-  const ids = new Set(apiIndeterminateGroups.value)
-
-  for (const [groupId, members] of Object.entries(usersByGroup.value)) {
-    if (members.some((member) => selectedUsers.value.includes(member.value))) {
-      ids.add(groupId)
-    } else {
-      ids.delete(groupId)
-    }
-  }
-  for (const groupId of selectedGroups.value) ids.delete(groupId)
-  return [...ids]
-})
 
 const groupsEmptyText = computed(() =>
   allowedError.value ? t('api.loading-error') : t('components.allowed-modal.empty.groups')
@@ -260,176 +264,212 @@ const selectedGroupCount = computed(() => {
 
 // --- Users column ----------------------------------------------------------
 
-const usersInGroup = useQuery({
-  ...getUsersInGroupOptions({
-    path: { group_id: viewedGroup.value ?? '' },
-    query: roleQuery.value
-  }),
-  queryKey: computed(() =>
-    getUsersInGroupQueryKey({
-      path: { group_id: viewedGroup.value ?? '' },
-      query: roleQuery.value
-    })
-  ),
-  enabled: computed(() => props.open && !!viewedGroup.value)
-})
-
-const MIN_TERM_LENGTH = 2
-
 const userTerm = computed(() => userSearch.value.trim())
 const debouncedUserTerm = refDebounced(userTerm, 250)
 
-const termSearchActive = computed(
-  () => !viewedGroup.value && debouncedUserTerm.value.length >= MIN_TERM_LENGTH
-)
+const USERS_LIMIT = 200
 
-const USER_SEARCH_LIMIT = 50
+const usersQuery = computed(() => ({
+  search: debouncedUserTerm.value,
+  limit: USERS_LIMIT,
+  ...roleQuery.value,
+  ...(userGroupFilter.value ? { groups: [userGroupFilter.value] } : {})
+}))
 
-const searchedUsers = useQuery({
-  ...searchUsersInCategoryOptions({
-    query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
-  }),
-  queryKey: computed(() =>
-    searchUsersInCategoryQueryKey({
-      query: { search: debouncedUserTerm.value, limit: USER_SEARCH_LIMIT, ...roleQuery.value }
-    })
-  ),
-  enabled: computed(() => props.open && termSearchActive.value)
+const categoryUsers = useQuery({
+  ...searchUsersInCategoryOptions({ query: usersQuery.value }),
+  queryKey: computed(() => searchUsersInCategoryQueryKey({ query: usersQuery.value })),
+  enabled: computed(() => props.open),
+  placeholderData: keepPreviousData
 })
 
-const toOption = (user: AvailableUser): AllowedOption => ({
+const groupNames = computed(
+  () => new Map(availableGroups.value.map((group) => [group.value, group.label]))
+)
+
+const toOption = (user: AvailableUser, subLabel?: string): AllowedOption => ({
   value: user.id,
   label: user.name || user.username,
-  subLabel: user.username,
+  subLabel,
   avatar: user.photo ?? ''
 })
 
-const searchedUserOptions = computed<AllowedOption[]>(() =>
-  (searchedUsers.data.value?.users ?? []).map(toOption)
+const categoryUserOptions = computed<AllowedOption[]>(() =>
+  (categoryUsers.data.value?.users ?? []).map((user) =>
+    toOption(user, groupNames.value.get(user.group ?? ''))
+  )
 )
-
-watch(
-  () => usersInGroup.data.value,
-  (data) => {
-    const groupId = viewedGroup.value
-    if (!groupId || !Array.isArray(data?.users)) return
-    usersByGroup.value = {
-      ...usersByGroup.value,
-      [groupId]: data.users.map(toOption)
-    }
-  },
-  { immediate: true }
-)
-
-const viewedGroupUsers = computed<AllowedOption[]>(() =>
-  viewedGroup.value ? (usersByGroup.value[viewedGroup.value] ?? []) : []
-)
-
-const viewedGroupName = computed(
-  () => availableGroups.value.find((group) => group.value === viewedGroup.value)?.label ?? ''
-)
-
-const checkedUsers = computed(() => {
-  if (viewedGroup.value && selectedGroups.value.includes(viewedGroup.value)) {
-    return viewedGroupUsers.value.map((user) => user.value)
-  }
-  return selectedUsers.value
-})
-
-const knownUsers = computed<Record<string, AllowedOption>>(() => {
-  const known: Record<string, AllowedOption> = {}
-  for (const user of props.preselectedUsers ?? []) known[user.value] = user
-  for (const members of Object.values(usersByGroup.value)) {
-    for (const member of members) known[member.value] = member
-  }
-  for (const user of searchedUserOptions.value) known[user.value] = user
-  return known
-})
-
-const showsSelectionWhenIdle = computed(() => props.preselectedUsers !== undefined)
-
-const idleUserOptions = computed<AllowedOption[]>(() => {
-  const options = [...(props.preselectedUsers ?? [])]
-  const seen = new Set(options.map((option) => option.value))
-  for (const id of selectedUsers.value) {
-    if (seen.has(id)) continue
-    const option = knownUsers.value[id]
-    if (!option) continue
-    options.push(option)
-    seen.add(id)
-  }
-  return options
-})
 
 const usersColumnItems = computed<AllowedOption[]>(() => {
-  if (viewedGroup.value) return viewedGroupUsers.value
-  if (termSearchActive.value) return searchedUserOptions.value
-  return showsSelectionWhenIdle.value ? idleUserOptions.value : []
+  if (!props.preselectedUsers || userTerm.value || userGroupFilter.value) {
+    return categoryUserOptions.value
+  }
+
+  const fetched = new Map(categoryUserOptions.value.map((user) => [user.value, user]))
+  const preselected = props.preselectedUsers.map((user) => fetched.get(user.value) ?? user)
+  const preselectedIds = new Set(preselected.map((user) => user.value))
+  return [
+    ...preselected,
+    ...categoryUserOptions.value.filter((user) => !preselectedIds.has(user.value))
+  ]
 })
 
-const usersLoading = computed(() => {
-  if (viewedGroup.value) {
-    return usersInGroup.isPending.value && viewedGroupUsers.value.length === 0
-  }
-  return termSearchActive.value && searchedUsers.isFetching.value
-})
+const usersLoading = computed(() => categoryUsers.isPending.value)
 
 const searchSettled = computed(() => debouncedUserTerm.value === userTerm.value)
 
 const usersFooterText = computed(() => {
-  if (viewedGroup.value || !termSearchActive.value) return ''
-  if (usersLoading.value || !searchSettled.value) return ''
-  const shown = searchedUserOptions.value.length
-  const total = searchedUsers.data.value?.total ?? 0
+  if (categoryUsers.isFetching.value || !searchSettled.value) return ''
+  const shown = categoryUserOptions.value.length
+  const total = categoryUsers.data.value?.total ?? 0
   if (shown === 0 || total <= shown) return ''
   return t('components.allowed-modal.search.user.truncated', { shown, total })
 })
 
-const usersColumnTitle = computed(() =>
-  viewedGroup.value
-    ? t('components.allowed-modal.columns.users-in-group', { group_name: viewedGroupName.value })
-    : t('components.allowed-modal.columns.users')
-)
+const groupFilterCategories = computed<FilterCategory[]>(() => [
+  {
+    key: 'groups',
+    label: t('components.allowed-modal.columns.groups'),
+    options: rawGroups.value.map((group) => ({
+      value: group.id,
+      label: group.name,
+      count: group.users_count ?? 0,
+      tone: 'brand'
+    }))
+  }
+])
+
+const groupFilterTags = computed<FilterTagsSelection>({
+  get: () => ({ groups: userGroupFilter.value ? [userGroupFilter.value] : [] }),
+  set: (selection) => {
+    const groups = selection.groups ?? []
+    userGroupFilter.value =
+      groups.find((groupId) => groupId !== userGroupFilter.value) ?? groups[0] ?? null
+  }
+})
 
 const userSearchPlaceholder = computed(() =>
-  viewedGroup.value
-    ? t('components.allowed-modal.search.user-in-group.placeholder', {
-        group_name: viewedGroupName.value
-      })
+  userGroupFilter.value
+    ? t('components.allowed-modal.search.user.filtered-placeholder')
     : t('components.allowed-modal.search.user.placeholder')
 )
 
 const usersEmptyText = computed(() => {
-  if (viewedGroup.value) {
-    if (usersInGroup.error.value) return t('api.loading-error')
-    return t('components.allowed-modal.empty.users')
-  }
-  if (userTerm.value.length > 0 && userTerm.value.length < MIN_TERM_LENGTH) {
-    return t('components.allowed-modal.empty.no-group-short-term')
-  }
-  if (searchedUsers.error.value) return t('api.loading-error')
-  if (termSearchActive.value && !searchedUsers.isFetching.value) {
+  if (categoryUsers.error.value) return t('api.loading-error')
+  if (userTerm.value || userGroupFilter.value) {
     return t('components.allowed-modal.search.user.empty')
   }
-  if (showsSelectionWhenIdle.value) {
-    return t('components.allowed-modal.empty.no-users-selected')
+  return t('components.allowed-modal.empty.no-users')
+})
+
+// --- Selection summary ---------------------------------------------------
+
+const knownUsers = ref(new Map<string, AllowedOption>())
+const knownUserGroups = ref(new Map<string, string[]>())
+
+const remember = (options: AllowedOption[] | undefined) => {
+  for (const option of options ?? []) knownUsers.value.set(option.value, option)
+}
+
+const rememberGroups = (users: AvailableUser[] | undefined) => {
+  for (const user of users ?? []) {
+    const groups = [user.group, ...(user.secondary_groups ?? [])].filter(
+      (groupId): groupId is string => !!groupId
+    )
+    knownUserGroups.value.set(user.id, [...new Set(groups)])
   }
-  return t('components.allowed-modal.empty.no-group')
+}
+
+const coveringGroups = (userId: string, groups: Set<string>) =>
+  (knownUserGroups.value.get(userId) ?? []).filter((groupId) => groups.has(groupId))
+
+watch(
+  () => allowedData.value?.selected_users,
+  (users) => {
+    remember(users?.map((user) => toOption(user, user.username)))
+    rememberGroups(users)
+  },
+  { immediate: true }
+)
+watch(categoryUserOptions, (options) => remember(options), { immediate: true })
+watch(
+  () => categoryUsers.data.value?.users,
+  (users) => rememberGroups(users),
+  { immediate: true }
+)
+watch(
+  () => props.preselectedUsers,
+  (users) => remember(users),
+  { immediate: true }
+)
+
+const summaryGroups = computed(() => {
+  const selected = new Set(selectedGroups.value)
+  return availableGroups.value.filter((group) => selected.has(group.value))
+})
+
+const summaryUsers = computed<AllowedOption[]>(() =>
+  selectedUsers.value.map(
+    (id) =>
+      knownUsers.value.get(id) ?? {
+        value: id,
+        label: t('components.allowed-modal.summary.unknown-user')
+      }
+  )
+)
+
+const usersInheritedHints = computed(() => {
+  const hints: Record<string, string> = {}
+  if (props.usersOnly) return hints
+  const groups = new Set(selectedGroups.value)
+  const users = new Set(selectedUsers.value)
+  for (const user of usersColumnItems.value) {
+    if (users.has(user.value)) continue
+    const [groupId] = coveringGroups(user.value, groups)
+    if (!groupId) continue
+    hints[user.value] = t('components.allowed-modal.shared-through-group', {
+      group: groupNames.value.get(groupId) ?? ''
+    })
+  }
+  return hints
+})
+
+// --- Groups column options ------------------------------------------------
+
+const selectedUsersByGroup = computed(() => {
+  const counts = new Map<string, number>()
+  for (const userId of selectedUsers.value) {
+    for (const groupId of knownUserGroups.value.get(userId) ?? []) {
+      counts.set(groupId, (counts.get(groupId) ?? 0) + 1)
+    }
+  }
+  return counts
+})
+
+const groupOptions = computed<AllowedOption[]>(() => {
+  const selected = new Set(selectedGroups.value)
+  return rawGroups.value.map((group) => {
+    const total = group.users_count ?? 0
+    const picked = selected.has(group.id) ? 0 : (selectedUsersByGroup.value.get(group.id) ?? 0)
+    return {
+      value: group.id,
+      label: group.name,
+      subLabel:
+        picked > 0
+          ? t('components.allowed-modal.group-users-partial', { selected: picked, total })
+          : t('users.count.users', total),
+      partial: picked > 0
+    }
+  })
 })
 
 // --- Handlers --------------------------------------------------------------
 
-const viewGroup = (groupId: string) => {
-  viewedGroup.value = viewedGroup.value === groupId ? null : groupId
-  userSearch.value = ''
-}
-
-const dropKnownMembers = (groupIds: string[]) => {
-  const memberIds = new Set(
-    groupIds.flatMap((id) => (usersByGroup.value[id] ?? []).map((member) => member.value))
+const dropMembersOf = (groupIds: string[]) => {
+  const groups = new Set(groupIds)
+  selectedUsers.value = selectedUsers.value.filter(
+    (userId) => coveringGroups(userId, groups).length === 0
   )
-  if (memberIds.size === 0) return
-  selectedUsers.value = selectedUsers.value.filter((id) => !memberIds.has(id))
 }
 
 const toggleAllGroups = (selectAll: boolean) => {
@@ -438,52 +478,101 @@ const toggleAllGroups = (selectAll: boolean) => {
   const groupIds = availableGroups.value.map((group) => group.value)
   apiAllGroups.value = everyoneEnabled.value && selectAll
   selectedGroups.value = selectAll ? groupIds : []
-  dropKnownMembers(groupIds)
+  if (selectAll) dropMembersOf(groupIds)
 }
 
 const toggleGroup = (groupId: string) => {
   if (props.usersOnly) return
   dirty.value = true
   apiAllGroups.value = false
-  selectedGroups.value = selectedGroups.value.includes(groupId)
-    ? selectedGroups.value.filter((id) => id !== groupId)
-    : [...selectedGroups.value, groupId]
-  dropKnownMembers([groupId])
+  const adding = !selectedGroups.value.includes(groupId)
+  selectedGroups.value = adding
+    ? [...selectedGroups.value, groupId]
+    : selectedGroups.value.filter((id) => id !== groupId)
+  if (adding) dropMembersOf([groupId])
+}
+
+const splittingGroup = ref(false)
+
+const splitGroups = async (groupIds: string[], userId: string) => {
+  if (splittingGroup.value) return
+  splittingGroup.value = true
+  try {
+    const results = await Promise.all(
+      groupIds.map((groupId) =>
+        queryClient.fetchQuery(
+          getUsersInGroupOptions({
+            path: { group_id: groupId },
+            query: { include_secondary: true }
+          })
+        )
+      )
+    )
+    const members = results.flatMap((result) => result.users)
+    remember(members.map((member) => toOption(member, groupNames.value.get(member.group ?? ''))))
+    rememberGroups(members)
+
+    dirty.value = true
+    apiAllGroups.value = false
+    const removed = new Set(groupIds)
+    selectedGroups.value = selectedGroups.value.filter((id) => !removed.has(id))
+    const remaining = new Set(selectedGroups.value)
+    const users = new Set(selectedUsers.value)
+    for (const member of members) {
+      if (member.id === userId || coveringGroups(member.id, remaining).length > 0) continue
+      users.add(member.id)
+    }
+    selectedUsers.value = [...users]
+  } catch {
+    toast.error(t('api.loading-error'))
+  } finally {
+    splittingGroup.value = false
+  }
 }
 
 const toggleUser = (userId: string) => {
-  dirty.value = true
-  const groupId = viewedGroup.value
-
-  if (!groupId) {
-    shareWithEveryone.value = false
-    selectedUsers.value = selectedUsers.value.includes(userId)
-      ? selectedUsers.value.filter((id) => id !== userId)
-      : [...selectedUsers.value, userId]
+  if (selectedUsers.value.includes(userId)) {
+    dirty.value = true
+    selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
     return
   }
-
-  shareWithEveryone.value = false
-
-  const users = [...selectedUsers.value]
-  if (selectedGroups.value.includes(groupId)) {
-    apiAllGroups.value = false
-    selectedGroups.value = selectedGroups.value.filter((id) => id !== groupId)
-    for (const member of viewedGroupUsers.value) {
-      if (!users.includes(member.value)) users.push(member.value)
-    }
+  const covering = coveringGroups(userId, new Set(selectedGroups.value))
+  if (covering.length > 0) {
+    void splitGroups(covering, userId)
+    return
   }
-
-  selectedUsers.value = users.includes(userId)
-    ? users.filter((id) => id !== userId)
-    : [...users, userId]
+  dirty.value = true
+  selectedUsers.value = [...selectedUsers.value, userId]
 }
 
-const toggleShareWithEveryone = () => {
+const removeUser = (userId: string) => {
+  dirty.value = true
+  selectedUsers.value = selectedUsers.value.filter((id) => id !== userId)
+}
+
+const clearUsers = () => {
+  dirty.value = true
+  selectedUsers.value = []
+}
+
+const setShareWithEveryone = (value: boolean) => {
   if (props.loading || props.readonly) return
   dirty.value = true
-  shareWithEveryone.value = !shareWithEveryone.value
+  shareWithEveryone.value = value
 }
+
+const audienceOptions = computed(() => [
+  {
+    value: 'specific',
+    icon: 'users-01',
+    label: t('components.allowed-modal.share-everyone.specific')
+  },
+  {
+    value: 'everyone',
+    icon: 'globe-02',
+    label: t('components.allowed-modal.share-everyone.everyone')
+  }
+])
 
 const isEmptySelection = computed(() => {
   if (props.usersOnly) return selectedUsers.value.length === 0
@@ -501,7 +590,7 @@ const requireSelectionText = computed(() =>
     : t('components.allowed-modal.require-selection')
 )
 
-const columnsDisabled = computed(() => shareWithEveryone.value || props.loading || props.readonly)
+const columnsDisabled = computed(() => props.loading || props.readonly)
 
 const saveDisabled = computed(
   () => props.loading || !dirty.value || (props.requireSelection && isEmptySelection.value)
@@ -547,10 +636,31 @@ const handleClose = () => {
         t('components.allowed-modal.description.generic')
       )
     "
-    size="4xl"
+    :size="props.usersOnly ? '2xl' : '5xl'"
     :close-on-backdrop-click="false"
+    :show-close-button="false"
     @close="handleClose"
   >
+    <template v-if="props.itemName && itemBadge" #title-suffix>
+      <span
+        :class="
+          cn(
+            'inline-flex min-w-0 max-w-full items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-sm font-medium',
+            itemBadge.badge
+          )
+        "
+        data-slot="allowed-item"
+      >
+        <Icon
+          :name="itemBadge.icon"
+          size="sm"
+          :stroke-color="itemBadge.iconColor"
+          aria-hidden="true"
+          class="shrink-0"
+        />
+        <span class="truncate">{{ props.itemName }}</span>
+      </span>
+    </template>
     <div v-if="props.warning" class="mb-4 w-full flex justify-center">
       <Alert variant="warning" class="w-[min(100%,var(--spacing-256))]">
         <FeaturedIconOutline kind="outline" color="warning" />
@@ -560,65 +670,68 @@ const handleClose = () => {
         <AlertDescription>{{ props.warning }}</AlertDescription>
       </Alert>
     </div>
-    <div
+    <ToggleGroup
       v-if="everyoneEnabled"
-      :class="[
-        'mb-4 flex shrink-0 select-none flex-row items-center gap-2 rounded-lg border p-3',
-        shareWithEveryone ? 'border-brand-600 bg-brand-100' : 'border-gray-warm-200 bg-base-white',
-        props.loading || props.readonly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-        !props.loading && !props.readonly && !shareWithEveryone && 'hover:bg-gray-warm-50'
-      ]"
-      data-slot="share-everyone"
-      @click="toggleShareWithEveryone"
+      type="single"
+      :spacing="1"
+      :model-value="shareWithEveryone ? 'everyone' : 'specific'"
+      :disabled="props.loading || props.readonly"
+      :aria-label="t('components.allowed-modal.share-everyone.audience')"
+      class="mb-4 grid w-full shrink-0 grid-cols-2 rounded-lg bg-base-white p-1 border border-gray-warm-200 text-sm font-semibold text-gray-warm-600"
+      data-slot="share-everyone-audience"
+      @update:model-value="(value) => setShareWithEveryone(value === 'everyone')"
     >
-      <FeaturedIconOutline kind="filled" color="brand" name="users-02" />
-      <div class="flex min-w-0 flex-col mr-auto">
-        <span class="text-sm font-semibold text-gray-warm-700">
-          {{
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.title`
-            )
-          }}
-        </span>
-        <span class="text-sm font-normal text-gray-warm-600">
-          {{
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.description`
-            )
-          }}
-        </span>
+      <ToggleGroupItem
+        v-for="option in audienceOptions"
+        :key="option.value"
+        :value="option.value"
+        :data-value="option.value"
+        class="h-10 w-full gap-2 font-semibold text-gray-warm-600 hover:bg-gray-warm-100 hover:text-gray-warm-600 focus-visible:ring-3 focus-visible:ring-brand data-[state=on]:bg-brand-700 data-[state=on]:text-base-white data-[state=on]:shadow-xs data-[state=on]:hover:bg-brand-800 data-[state=on]:hover:text-base-white disabled:opacity-100 disabled:text-gray-warm-400 disabled:data-[state=on]:bg-base-white disabled:data-[state=on]:text-gray-warm-500"
+      >
+        <Icon :name="option.icon" size="sm" stroke-color="currentColor" />
+        {{ option.label }}
+      </ToggleGroupItem>
+    </ToggleGroup>
+    <AllowedModalSummary
+      v-if="!shareWithEveryone"
+      v-model:open="summaryOpen"
+      :groups="summaryGroups"
+      :users="summaryUsers"
+      :all-groups="apiAllGroups"
+      :show-groups="!props.usersOnly"
+      :disabled="columnsDisabled"
+      @remove-group="toggleGroup"
+      @remove-user="removeUser"
+      @remove-all-groups="toggleAllGroups(false)"
+      @remove-all-users="clearUsers"
+    />
+    <Alert v-else class="mb-4 shrink-0" data-slot="share-everyone-alert">
+      <div class="flex flex-row items-center gap-2">
+        <FeaturedIconOutline kind="filled" color="brand" name="users-02" />
+        <div class="flex min-w-0 flex-col">
+          <AlertTitle class="font-semibold text-gray-warm-700">
+            {{ t('components.allowed-modal.share-everyone.alert.title') }}
+          </AlertTitle>
+          <AlertDescription class="text-gray-warm-600">
+            {{ t('components.allowed-modal.share-everyone.alert.description') }}
+          </AlertDescription>
+        </div>
       </div>
-      <span class="flex shrink-0 items-center justify-center p-3" @click.stop>
-        <Checkbox
-          :model-value="shareWithEveryone"
-          :aria-label="
-            t(
-              `components.allowed-modal.share-everyone.${shareWithEveryone ? 'checked' : 'unchecked'}.title`
-            )
-          "
-          :disabled="props.loading || props.readonly"
-          data-slot="share-everyone-checkbox"
-          size="md"
-          class="bg-base-white"
-          @update:model-value="toggleShareWithEveryone"
-        />
-      </span>
-    </div>
+    </Alert>
 
-    <div class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
+    <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
       <AllowedModalColumn
+        v-if="!props.usersOnly"
         v-model:search="groupSearch"
         :title="t('components.allowed-modal.columns.groups')"
-        :items="availableGroups"
+        icon="users-01"
+        :items="groupOptions"
         :selected="selectedGroups"
-        :indeterminate="indeterminateGroups"
-        :active-id="viewedGroup"
         :loading="allowedIsPending"
         :disabled="columnsDisabled"
         :search-placeholder="t('components.allowed-modal.search.group.placeholder')"
         :empty-text="groupsEmptyText"
         :not-found-text="t('components.allowed-modal.search.group.empty')"
-        :selectable="!props.usersOnly"
         :select-all="everyoneEnabled"
         :select-all-checked="apiAllGroups"
         :select-all-label="t('components.allowed-modal.select-all.groups')"
@@ -630,36 +743,39 @@ const handleClose = () => {
         "
         @toggle="toggleGroup"
         @toggle-all="toggleAllGroups"
-        @select="viewGroup"
-      >
-        <template #actions="{ item }">
-          <Button
-            :icon="item.value === viewedGroup ? 'minus-circle' : 'arrow-circle-broken-right'"
-            hierarchy="link-color"
-            :aria-label="
-              item.value === viewedGroup
-                ? t('components.allowed-modal.unview-group', { group_name: item.label })
-                : t('components.allowed-modal.view-group', { group_name: item.label })
-            "
-            @click.stop="viewGroup(item.value)"
-          />
-        </template>
-      </AllowedModalColumn>
+      />
 
       <AllowedModalColumn
         v-model:search="userSearch"
-        :title="usersColumnTitle"
+        :title="t('components.allowed-modal.columns.users')"
+        icon="user-01"
         :items="usersColumnItems"
-        :selected="checkedUsers"
+        :selected="selectedUsers"
         :loading="usersLoading"
         :disabled="columnsDisabled"
         :search-placeholder="userSearchPlaceholder"
         :empty-text="usersEmptyText"
         :not-found-text="t('components.allowed-modal.search.user.empty')"
         :footer-text="usersFooterText"
+        :filter-locally="false"
+        :inherited-hints="usersInheritedHints"
         @toggle="toggleUser"
-        @select="toggleUser"
-      />
+      >
+        <template #search-actions>
+          <div
+            :class="cn('min-w-0 max-w-2/5', columnsDisabled && 'pointer-events-none opacity-60')"
+            :inert="columnsDisabled"
+            data-slot="group-filter"
+          >
+            <FilterTags
+              v-model="groupFilterTags"
+              :categories="groupFilterCategories"
+              searchable
+              class="h-10 flex-nowrap py-[5px] [&>[data-filter-actions]]:hidden [&>[data-filter-tag]]:min-w-0 [&>[data-filter-tag]]:shrink [&_[data-filter-tag-count]]:hidden"
+            />
+          </div>
+        </template>
+      </AllowedModalColumn>
     </div>
 
     <div v-if="props.error" class="mt-4 w-full flex justify-center">

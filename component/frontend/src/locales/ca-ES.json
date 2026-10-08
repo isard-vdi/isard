@@ -1727,7 +1727,9 @@
       "toggle-active": "Filtres ({count} actius)",
       "remove": "Treu el filtre {name}",
       "clear": "Neteja els filtres",
-      "show-all": "Mostra els {count} filtres actius"
+      "show-all": "Mostra els {count} filtres actius",
+      "search": "Cerca",
+      "no-results": "No s'ha trobat cap resultat"
     },
     "empty-search": {
       "clear": "Neteja la cerca",
@@ -2568,7 +2570,7 @@
         "cancel": "Torna als desplegaments"
       },
       "co-owners-modal": {
-        "title": "Gestionar copropietaris de '{name}'",
+        "title": "Gestionar copropietaris",
         "description": "Tria quins usuaris són copropietaris d'aquest desplegament. Propietari: {owner}",
         "warning": "Els copropietaris tenen els mateixos permisos que el propietari, excepte eliminar el desplegament i gestionar els copropietaris.",
         "co-owner-warning": "Com a copropietari no pots canviar els copropietaris. Contacta amb el propietari del desplegament.",
@@ -2801,42 +2803,45 @@
       },
       "columns": {
         "groups": "Grups",
-        "users": "Usuaris",
-        "users-in-group": "Usuaris del grup '{group_name}'"
+        "users": "Usuaris"
       },
       "empty": {
         "groups": "No hi ha grups disponibles",
-        "users": "Aquest grup no té usuaris",
-        "no-group": "Selecciona un grup o cerca usuaris",
-        "no-group-short-term": "Escriu com a mínim 2 caràcters per cercar usuaris",
-        "no-users-selected": "Encara no hi ha usuaris seleccionats: cerca'ls per afegir-los"
+        "no-users": "No hi ha usuaris disponibles"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Comparteix amb tothom",
-          "description": "Dona accés a tots els usuaris d'aquesta categoria"
-        },
-        "checked": {
+        "audience": "Qui hi té accés",
+        "specific": "Grups i usuaris concrets",
+        "everyone": "Tothom",
+        "alert": {
           "title": "Compartit amb tothom",
-          "description": "Tots els usuaris d'aquesta categoria hi tindran accés"
+          "description": "Tots els usuaris de la teva categoria hi tindran accés"
         }
       },
-      "view-group": "Mostra els usuaris del grup '{group_name}'",
-      "unview-group": "Deixa de mostrar els usuaris del grup '{group_name}'",
+      "remove": "Treu '{name}'",
+      "group-users-partial": "{selected} de {total} usuaris",
+      "shared-through-group": "Compartit a través del grup '{group}'.",
       "require-selection": "Selecciona com a mínim un grup o un usuari",
       "require-selection-users": "Selecciona com a mínim un usuari",
       "no-changes": "Fes algun canvi per desar",
+      "summary": {
+        "title": "Seleccionats",
+        "all-groups": "Tots els grups",
+        "empty": "Encara no hi ha res seleccionat",
+        "users-through-groups": "Cap usuari seleccionat individualment.",
+        "unknown-user": "Usuari desconegut",
+        "clear": "Neteja",
+        "clear-groups": "Neteja els grups seleccionats",
+        "clear-users": "Neteja els usuaris seleccionats"
+      },
       "select-all": {
         "groups": "Selecciona tots els grups",
         "count": "{selected} de {total} seleccionats"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Cercar un usuari al grup '{group_name}'",
-          "empty": "No s'ha trobat cap usuari"
-        },
         "user": {
           "placeholder": "Cerca tots els usuaris",
+          "filtered-placeholder": "Cerca al grup seleccionat",
           "empty": "No s'ha trobat cap usuari",
           "truncated": "Es mostren {shown} de {total} resultats, afina la cerca"
         },

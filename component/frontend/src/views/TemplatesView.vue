@@ -345,6 +345,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     open
     item-type="template"
     :item-id="allowedModalData.id"
+    :item-name="allowedModalData.name"
     :loading="updateAllowedIsPending"
     :error="allowedError"
     @save="handleSaveAllowed"

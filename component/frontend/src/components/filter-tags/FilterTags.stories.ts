@@ -33,7 +33,8 @@ const meta = {
   title: 'FilterTags',
   tags: ['autodocs'],
   argTypes: {
-    categories: { control: 'object', description: 'Filter categories and their options.' }
+    categories: { control: 'object', description: 'Filter categories and their options.' },
+    searchable: { control: 'boolean', description: 'Puts a search box at the top of the menu.' }
   },
   render: (args) => ({
     components: { FilterTags },
@@ -43,7 +44,7 @@ const meta = {
     },
     template: `
       <div class="w-[420px] p-8">
-        <FilterTags v-model="selected" :categories="args.categories" />
+        <FilterTags v-model="selected" :categories="args.categories" :searchable="args.searchable" />
       </div>
     `
   })
@@ -78,7 +79,7 @@ export const Narrow: Story = {
     },
     template: `
       <div class="w-[320px] p-8">
-        <FilterTags v-model="selected" :categories="args.categories" />
+        <FilterTags v-model="selected" :categories="args.categories" :searchable="args.searchable" />
       </div>
     `
   })
@@ -101,8 +102,13 @@ export const EveryTone: Story = {
     },
     template: `
       <div class="w-[900px] p-8">
-        <FilterTags v-model="selected" :categories="args.categories" />
+        <FilterTags v-model="selected" :categories="args.categories" :searchable="args.searchable" />
       </div>
     `
   })
+}
+
+/** A search box at the top of the menu narrows its options as the operator types. */
+export const Searchable: Story = {
+  args: { categories, searchable: true, modelValue: { kind: [], status: [] } }
 }

@@ -484,7 +484,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :supports-everyone="false"
     :selection="coOwnersSelection"
     :preselected-users="preselectedCoOwners"
-    :title="t('components.deployments.co-owners-modal.title', { name: deploymentEntry?.info.name })"
+    item-type="deployment"
+    :item-name="deploymentEntry?.info.name"
+    :title="t('components.deployments.co-owners-modal.title')"
     :description="
       t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
     "
@@ -513,6 +515,7 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     open
     item-type="deployment"
     :item-id="deploymentId"
+    :item-name="deploymentEntry?.info.name"
     :warning="t('views.deployments.alloweds.warning')"
     require-selection
     :supports-everyone="false"

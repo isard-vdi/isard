@@ -1727,7 +1727,9 @@
       "toggle-active": "Filtros ({count} activos)",
       "remove": "Quitar el filtro {name}",
       "clear": "Limpiar los filtros",
-      "show-all": "Ver los {count} filtros activos"
+      "show-all": "Ver los {count} filtros activos",
+      "search": "Buscar",
+      "no-results": "No se ha encontrado ningún resultado"
     },
     "empty-search": {
       "clear": "Limpiar búsqueda",
@@ -2580,7 +2582,7 @@
         "cancel": "Volver a despliegues"
       },
       "co-owners-modal": {
-        "title": "Gestionar copropietarios de '{name}'",
+        "title": "Gestionar copropietarios",
         "description": "Elige qué usuarios son copropietarios de este despliegue. Propietario: {owner}",
         "warning": "Los copropietarios tienen los mismos permisos que el propietario, excepto eliminar el despliegue y gestionar los copropietarios.",
         "co-owner-warning": "Como copropietario no puedes cambiar los copropietarios. Contacta con el propietario del despliegue.",
@@ -2801,42 +2803,45 @@
       },
       "columns": {
         "groups": "Grupos",
-        "users": "Usuarios",
-        "users-in-group": "Usuarios del grupo '{group_name}'"
+        "users": "Usuarios"
       },
       "empty": {
         "groups": "No hay grupos disponibles",
-        "users": "Este grupo no tiene usuarios",
-        "no-group": "Selecciona un grupo o busca usuarios",
-        "no-group-short-term": "Escribe al menos 2 caracteres para buscar usuarios",
-        "no-users-selected": "Todavía no hay usuarios seleccionados: búscalos para añadirlos"
+        "no-users": "No hay usuarios disponibles"
       },
       "share-everyone": {
-        "unchecked": {
-          "title": "Compartir con todos",
-          "description": "Dar acceso a todos los usuarios de esta categoría"
-        },
-        "checked": {
+        "audience": "Quién tiene acceso",
+        "specific": "Grupos y usuarios concretos",
+        "everyone": "Todos",
+        "alert": {
           "title": "Compartido con todos",
-          "description": "Todos los usuarios de esta categoría tendrán acceso"
+          "description": "Todos los usuarios de tu categoría tendrán acceso"
         }
       },
-      "view-group": "Mostrar los usuarios del grupo '{group_name}'",
-      "unview-group": "Dejar de mostrar los usuarios del grupo '{group_name}'",
+      "remove": "Quitar '{name}'",
+      "group-users-partial": "{selected} de {total} usuarios",
+      "shared-through-group": "Compartido a través del grupo '{group}'.",
       "require-selection": "Selecciona como mínimo un grupo o un usuario",
       "require-selection-users": "Selecciona como mínimo un usuario",
       "no-changes": "Haz algún cambio para guardar",
+      "summary": {
+        "title": "Seleccionados",
+        "all-groups": "Todos los grupos",
+        "empty": "Aún no hay nada seleccionado",
+        "users-through-groups": "Ningún usuario seleccionado individualmente.",
+        "unknown-user": "Usuario desconocido",
+        "clear": "Limpiar",
+        "clear-groups": "Limpiar los grupos seleccionados",
+        "clear-users": "Limpiar los usuarios seleccionados"
+      },
       "select-all": {
         "groups": "Seleccionar todos los grupos",
         "count": "{selected} de {total} seleccionados"
       },
       "search": {
-        "user-in-group": {
-          "placeholder": "Buscar un usuario en el grupo '{group_name}'",
-          "empty": "No se ha encontrado ningún usuario"
-        },
         "user": {
           "placeholder": "Buscar todos los usuarios",
+          "filtered-placeholder": "Buscar en el grupo seleccionado",
           "empty": "No se ha encontrado ningún usuario",
           "truncated": "Mostrando {shown} de {total} resultados, afina tu búsqueda"
         },

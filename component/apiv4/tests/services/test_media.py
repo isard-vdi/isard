@@ -55,11 +55,15 @@ class TestGetUserSharedMedia:
 
 class TestGetMediaAllowed:
     @patch(
+        "api.services.media.Alloweds.get_selected_users",
+        return_value=[],
+    )
+    @patch(
         "api.services.media.Alloweds.get_indeterminate_groups",
         return_value=[],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[{"id": "g1"}],
     )
     @patch(
@@ -68,7 +72,7 @@ class TestGetMediaAllowed:
     )
     @patch("api.services.media.RethinkMedia.exists", return_value=True)
     def test_returns_selected_and_available_groups(
-        self, _exists, _get, _alloweds, _indeterminate
+        self, _exists, _get, _alloweds, _indeterminate, _selected_users
     ):
         result = MediaService.get_media_allowed("m1", "default")
         # A bucket the row never declared defaults to False (grants nobody):
@@ -77,14 +81,19 @@ class TestGetMediaAllowed:
             "selected": {"groups": ["g1"], "users": False},
             "available_groups": [{"id": "g1"}],
             "indeterminate_groups": [],
+            "selected_users": [],
         }
 
+    @patch(
+        "api.services.media.Alloweds.get_selected_users",
+        return_value=[],
+    )
     @patch(
         "api.services.media.Alloweds.get_indeterminate_groups",
         return_value=[{"id": "g1", "name": "Group 1"}],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[{"id": "g1"}],
     )
     @patch(
@@ -93,24 +102,28 @@ class TestGetMediaAllowed:
     )
     @patch("api.services.media.RethinkMedia.exists", return_value=True)
     def test_derives_indeterminate_groups_from_allowed_users(
-        self, _exists, _get, _alloweds, mock_indeterminate
+        self, _exists, _get, _alloweds, mock_indeterminate, _selected_users
     ):
         result = MediaService.get_media_allowed("m1", "default")
         mock_indeterminate.assert_called_once_with(allowed_users=["u1"])
         assert result["indeterminate_groups"] == [{"id": "g1", "name": "Group 1"}]
 
     @patch(
+        "api.services.media.Alloweds.get_selected_users",
+        return_value=[],
+    )
+    @patch(
         "api.services.media.Alloweds.get_indeterminate_groups",
         return_value=[],
     )
     @patch(
-        "api.services.media.Alloweds.get_allowed_groups",
+        "api.services.media.Alloweds.get_allowed_groups_with_users_count",
         return_value=[],
     )
     @patch("api.services.media.RethinkMedia.get", return_value={})
     @patch("api.services.media.RethinkMedia.exists", return_value=True)
     def test_defaults_both_buckets_when_allowed_is_missing(
-        self, _exists, _get, _alloweds, _indeterminate
+        self, _exists, _get, _alloweds, _indeterminate, _selected_users
     ):
         result = MediaService.get_media_allowed("m1", "default")
         assert result["selected"] == {"groups": False, "users": False}

@@ -35,6 +35,9 @@ class AvailableGroup(BaseModel):
         default="",
         description="Group description",
     )
+    users_count: int = Field(
+        default=0, description="Number of users whose primary group is this one"
+    )
 
 
 class GroupsInCategoryResponse(BaseModel):

@@ -11,7 +11,7 @@ export const emptyFilterTags = (categoryKeys: string[]): FilterTagsSelection =>
 export const countFilterTags = (selection: FilterTagsSelection): number =>
   Object.values(selection).reduce((total, values) => total + values.length, 0)
 
-export type FilterTone = DomainKind | 'neutral'
+export type FilterTone = DomainKind | 'neutral' | 'brand'
 
 export interface FilterToneStyle {
   /** The tag's fill and the text that stays readable on it. */
@@ -57,6 +57,11 @@ const FILTER_TONE_STYLES: Record<FilterTone, FilterToneStyle> = {
     fill: 'bg-gray-warm-100 text-gray-warm-800',
     count: 'bg-gray-warm-200',
     iconColor: 'gray-warm-700'
+  },
+  brand: {
+    fill: 'bg-brand-100 text-gray-warm-900',
+    count: 'bg-brand-200',
+    iconColor: 'brand-700'
   }
 }
 

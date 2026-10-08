@@ -29,6 +29,7 @@ from isardvdi_common.lib.storage.storage_pools.storage_pools import (
 )
 from rethinkdb import r
 
+from ....helpers.alloweds import Alloweds
 from ....helpers.desktop_events import DesktopEvents
 from ....helpers.helpers import Helpers
 from ....lib.users.groups.groups import GroupsProcessed
@@ -175,17 +176,34 @@ class CategoriesProcessed(RethinkSharedConnection):
         search: str,
         limit: int = 50,
         roles: list[str] | None = None,
+        groups: list[str] | None = None,
     ) -> dict:
-        pattern = "(?i)" + re.escape(search)
         matches = (
             r.table("users")
             .get_all(category_id, index="category")
             .filter(lambda user: user["active"].default(False).eq(True))
-            .filter(
+        )
+        if groups:
+            matches = matches.filter(
+                lambda user: r.expr(groups).contains(user["group"].default(""))
+                | user["secondary_groups"]
+                .default([])
+                .contains(lambda group_id: r.expr(groups).contains(group_id))
+            )
+        if search:
+            pattern = "(?i)" + re.escape(search)
+            with cls._rdb_context():
+                matching_groups = list(
+                    r.table("groups")
+                    .get_all(category_id, index="parent_category")
+                    .filter(lambda group: group["name"].match(pattern))["id"]
+                    .run(cls._rdb_connection)
+                )
+            matches = matches.filter(
                 lambda user: user["name"].match(pattern)
                 | user["username"].match(pattern)
+                | r.expr(matching_groups).contains(user["group"].default(""))
             )
-        )
         if roles:
             matches = matches.filter(lambda user: r.expr(roles).contains(user["role"]))
 
@@ -194,7 +212,10 @@ class CategoriesProcessed(RethinkSharedConnection):
 
         with cls._rdb_context():
             users = list(
-                matches.pluck("id", "name", "username", "photo")
+                matches.pluck(
+                    "id", "name", "username", "photo", "group", "secondary_groups"
+                )
+                .order_by(lambda user: user["name"].default("").downcase())
                 .limit(limit)
                 .run(cls._rdb_connection)
             )
@@ -335,9 +356,13 @@ class CategoriesProcessed(RethinkSharedConnection):
     @classmethod
     def get_available_groups_in_category(cls, category_id: str):
         with cls._rdb_context():
-            return list(
+            groups = list(
                 r.table("groups")
                 .get_all(category_id, index="parent_category")
                 .pluck("id", "name", "description")
                 .run(cls._rdb_connection)
             )
+        counts = Alloweds.get_users_count_by_group(category_id)
+        return [
+            {**group, "users_count": counts.get(group["id"], 0)} for group in groups
+        ]

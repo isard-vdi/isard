@@ -216,7 +216,7 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
     label: t('views.deployments.dropdown.buttons.alloweds'),
     fn: (deployment: OwnedDeployment) => {
       allowedError.value = ''
-      allowedModalDeploymentId.value = deployment.id
+      allowedModalDeploymentData.value = { id: deployment.id, name: deployment.name }
     }
   },
   {
@@ -356,7 +356,7 @@ const handleSaveCoOwners = (selection: AllowedSelection) => {
   })
 }
 
-const allowedModalDeploymentId = ref<string | null>(null)
+const allowedModalDeploymentData = ref<{ id: string; name: string } | null>(null)
 const allowedError = ref('')
 
 const { mutate: editDeploymentUsers, isPending: updateAllowedIsPending } = useMutation({
@@ -379,12 +379,12 @@ const { mutate: editDeploymentUsers, isPending: updateAllowedIsPending } = useMu
 })
 
 const closeAllowedModal = () => {
-  allowedModalDeploymentId.value = null
+  allowedModalDeploymentData.value = null
   allowedError.value = ''
 }
 
 const handleSaveAllowed = (selection: AllowedSelection) => {
-  const deploymentId = allowedModalDeploymentId.value
+  const deploymentId = allowedModalDeploymentData.value?.id
   if (!deploymentId) return
   allowedError.value = ''
   editDeploymentUsers({ path: { deployment_id: deploymentId }, body: { allowed: selection } })
@@ -408,10 +408,11 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     @close="showQuotaExceededModal = false"
   />
   <AllowedModal
-    v-if="allowedModalDeploymentId"
+    v-if="allowedModalDeploymentData"
     open
     item-type="deployment"
-    :item-id="allowedModalDeploymentId"
+    :item-id="allowedModalDeploymentData.id"
+    :item-name="allowedModalDeploymentData.name"
     :warning="t('views.deployments.alloweds.warning')"
     require-selection
     :supports-everyone="false"
@@ -428,11 +429,9 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     :supports-everyone="false"
     :selection="coOwnersSelection"
     :preselected-users="preselectedCoOwners"
-    :title="
-      t('components.deployments.co-owners-modal.title', {
-        name: coOwnersModalDeploymentData.name
-      })
-    "
+    item-type="deployment"
+    :item-name="coOwnersModalDeploymentData.name"
+    :title="t('components.deployments.co-owners-modal.title')"
     :description="
       t('components.deployments.co-owners-modal.description', { owner: coOwnersOwnerName })
     "

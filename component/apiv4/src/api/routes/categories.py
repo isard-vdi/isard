@@ -44,7 +44,10 @@ tag = "categories"
     response_model=CategoriesUsersSearchResponse,
     tags=[tag],
     summary="Get users in the user category",
-    description="Returns a list of users in a specific category.",
+    description=(
+        "Returns the active users of the caller's category, sorted by name. "
+        "An empty search lists every user, capped by limit."
+    ),
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
@@ -53,13 +56,20 @@ tag = "categories"
 )
 async def search_users_in_category(
     request: Request,
-    search: str = Query(..., description="String to search for users"),
+    search: str = Query(
+        "",
+        description="String to search for in the users' name, username or group name",
+    ),
     limit: int = Query(
         50, ge=1, le=200, description="Maximum number of users to return."
     ),
     roles: Optional[List[str]] = Query(
         None,
         description="Restrict results to these roles",
+    ),
+    groups: Optional[List[str]] = Query(
+        None,
+        description="Restrict results to users whose primary or secondary group is one of these",
     ),
 ):
     try:
@@ -71,6 +81,7 @@ async def search_users_in_category(
                     search,
                     limit,
                     roles,
+                    groups,
                 )
             ).model_dump(mode="json"),
             status_code=200,

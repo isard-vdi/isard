@@ -19,9 +19,8 @@ const meta = {
   },
   argTypes: {
     checked: {
-      control: 'select',
-      options: [true, false, 'indeterminate'],
-      description: 'Checked state of the item.'
+      control: 'boolean',
+      description: 'Selected rows get the brand background and the - indicator.'
     },
     label: {
       control: 'text',
@@ -43,13 +42,18 @@ const meta = {
       control: 'text',
       description: 'Value of the item.'
     },
-    active: {
-      control: 'boolean',
-      description: 'Highlights the row, e.g. the group whose users are currently shown.'
-    },
     disabled: {
       control: 'boolean',
-      description: 'Whether the item can be toggled.'
+      description: 'Blocks toggling the row.'
+    },
+    inheritedHint: {
+      control: 'text',
+      description:
+        'Marks the row as selected through something else, e.g. its group: gray background and a tooltip with this text.'
+    },
+    partial: {
+      control: 'boolean',
+      description: "Some of the group's users are picked one by one: the subtitle becomes a badge."
     }
   },
   render: (args) => ({
@@ -61,19 +65,11 @@ const meta = {
         () => args.checked,
         (value) => (checked.value = value ?? false)
       )
-      // The row click is a separate event from the checkbox: it does not select.
-      const selects = ref(0)
-      return { args, checked, selects }
+      return { args, checked }
     },
     template: `
       <div class="w-96">
-        <AllowedModalItem
-          v-bind="args"
-          :checked="checked"
-          @update:checked="checked = $event"
-          @select="selects++"
-        />
-        <p class="mt-2 px-2 text-sm text-gray-warm-600">row clicked {{ selects }} time(s)</p>
+        <AllowedModalItem v-bind="args" :checked="checked" @update:checked="checked = $event" />
       </div>
     `
   })
@@ -101,23 +97,26 @@ export const Checked: Story = {
   }
 }
 
-export const Indeterminate: Story = {
+/** Some of its users picked one by one, the group itself not: the count shows as a badge. */
+export const PartiallySelected: Story = {
   args: {
     label: 'Group C',
-    subLabel: 'This is group C',
+    subLabel: '3 of 12 users',
     value: 'group-c',
     icon: 'users-01',
-    checked: 'indeterminate'
+    partial: true
   }
 }
 
-export const Active: Story = {
+/** Selected through its group: gray instead of brand, with the reason in a tooltip. */
+export const InheritedFromGroup: Story = {
   args: {
-    label: 'Group D',
-    subLabel: 'The group whose users are currently shown',
-    value: 'group-d',
-    icon: 'users-01',
-    active: true
+    label: 'Anna Bosch',
+    subLabel: 'Students',
+    avatar: '',
+    value: 'user-anna',
+    inheritedHint:
+      "Shared through the group 'Students'. Removing this user keeps the group's other members."
   }
 }
 
@@ -161,32 +160,26 @@ export const WithAvatarFallback: Story = {
   }
 }
 
-/** A long label must truncate instead of pushing the action out of the row. */
+/**
+ * A long label must truncate instead of pushing the action out of the row. The action stops
+ * its click so pressing it does not toggle the row.
+ */
 export const WithActionAndLongLabel: Story = {
   render: (args) => ({
     components: { AllowedModalItem, Button },
     setup() {
       const checked = ref(args.checked ?? false)
-      const selects = ref(0)
-      return { args, checked, selects }
+      const actions = ref(0)
+      return { args, checked, actions }
     },
     template: `
       <div class="w-96">
-        <AllowedModalItem
-          v-bind="args"
-          :checked="checked"
-          @update:checked="checked = $event"
-          @select="selects++"
-        >
+        <AllowedModalItem v-bind="args" :checked="checked" @update:checked="checked = $event">
           <template #actions>
-            <Button
-              icon="arrow-circle-broken-right"
-              hierarchy="link-color"
-              @click.stop="selects++"
-            />
+            <Button icon="info-circle" hierarchy="link-color" @click.stop="actions++" />
           </template>
         </AllowedModalItem>
-        <p class="mt-2 px-2 text-sm text-gray-warm-600">row clicked {{ selects }} time(s)</p>
+        <p class="mt-2 px-2 text-sm text-gray-warm-600">action clicked {{ actions }} time(s)</p>
       </div>
     `
   }),
