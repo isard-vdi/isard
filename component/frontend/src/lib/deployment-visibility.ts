@@ -6,6 +6,7 @@ import type { VisibilityState } from '@/components/deployments/visibility'
 export interface MatrixDesktop {
   desktop_id: string
   tag_desktop_id?: string | null
+  name?: string
   visible: boolean
   status?: string | null
 }

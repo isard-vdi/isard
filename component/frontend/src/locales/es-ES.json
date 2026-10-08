@@ -728,7 +728,8 @@
         "videowall": "Videowall",
         "resources": "Recursos",
         "bastion": "Acceso por bastión del usuario",
-        "delete": "Eliminar los escritorios"
+        "delete": "Eliminar los escritorios",
+        "visibility": "Visibilidad de los escritorios"
       },
       "recreate-modal": {
         "title": "Recrear despliegue '{name}'",
@@ -817,7 +818,6 @@
         "cell-label": "Visibilidad de «{desktop}» para {user}",
         "cell-show": "Mostrar «{desktop}» a {user}",
         "cell-hide": "Ocultar «{desktop}» a {user}",
-        "count-label": "{visible} de {total} escritorios visibles",
         "all-users-warning": "se aplica a todos los usuarios, no solo a los de esta página",
         "no-desktop": "«{desktop}» no se ha creado para {user}. Recrea el despliegue para crearlo.",
         "confirm": {
@@ -2681,6 +2681,18 @@
         "cancel": "Cancelar",
         "confirm": "Eliminar los escritorios | Eliminar el escritorio | Eliminar {n} escritorios",
         "success": "Escritorios eliminados"
+      },
+      "user-visibility-modal": {
+        "title": "Visibilidad de los escritorios de {name}",
+        "description": "Elige qué escritorios de este usuario ve en su lista. No se borra nada: los escritorios ocultos se pueden volver a mostrar en cualquier momento.",
+        "select-all": "Seleccionar todo",
+        "headers": {
+          "desktop": "Escritorio",
+          "status": "Estado"
+        },
+        "empty": "Este usuario no tiene escritorios en este despliegue",
+        "save": "Guardar",
+        "success": "Se ha actualizado la visibilidad"
       },
       "download-csv-modal": {
         "title": "Descargar CSV de visores directos de '{name}'",

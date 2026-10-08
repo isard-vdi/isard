@@ -736,7 +736,8 @@
         "videowall": "Videowall",
         "resources": "Resources",
         "bastion": "User bastion access",
-        "delete": "Delete desktops"
+        "delete": "Delete desktops",
+        "visibility": "Desktop visibility"
       },
       "recreate-modal": {
         "title": "Recreate deployment '{name}'",
@@ -825,7 +826,6 @@
         "cell-label": "Visibility of “{desktop}” for {user}",
         "cell-show": "Show “{desktop}” to {user}",
         "cell-hide": "Hide “{desktop}” from {user}",
-        "count-label": "{visible} of {total} desktops visible",
         "all-users-warning": "applies to every user, not only this page",
         "no-desktop": "“{desktop}” was not created for {user}. Recreate the deployment to create it.",
         "confirm": {
@@ -2760,6 +2760,18 @@
         "cancel": "Cancel",
         "confirm": "Delete desktops | Delete desktop | Delete {n} desktops",
         "success": "Desktops deleted"
+      },
+      "user-visibility-modal": {
+        "title": "Desktop visibility of {name}",
+        "description": "Choose which of this user's desktops they see in their list. Nothing is deleted: hidden desktops can be shown again at any time.",
+        "select-all": "Select all",
+        "headers": {
+          "desktop": "Desktop",
+          "status": "Status"
+        },
+        "empty": "This user has no desktops in this deployment",
+        "save": "Save",
+        "success": "Visibility updated"
       },
       "download-csv-modal": {
         "title": "Download direct viewer CSV for '{name}'",

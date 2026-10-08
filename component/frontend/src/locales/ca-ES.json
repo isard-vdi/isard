@@ -728,7 +728,8 @@
         "videowall": "Videowall",
         "resources": "Recursos",
         "bastion": "Accés per bastió de l'usuari",
-        "delete": "Suprimeix els escriptoris"
+        "delete": "Suprimeix els escriptoris",
+        "visibility": "Visibilitat dels escriptoris"
       },
       "recreate-modal": {
         "title": "Recrear desplegament '{name}'",
@@ -817,7 +818,6 @@
         "cell-label": "Visibilitat d'«{desktop}» per a {user}",
         "cell-show": "Mostra «{desktop}» a {user}",
         "cell-hide": "Amaga «{desktop}» a {user}",
-        "count-label": "{visible} de {total} escriptoris visibles",
         "all-users-warning": "s'aplica a tots els usuaris, no només als d'aquesta pàgina",
         "no-desktop": "«{desktop}» no s'ha creat per a {user}. Recrea el desplegament per crear-lo.",
         "confirm": {
@@ -2669,6 +2669,18 @@
         "cancel": "Cancel·la",
         "confirm": "Suprimeix els escriptoris | Suprimeix l'escriptori | Suprimeix {n} escriptoris",
         "success": "Escriptoris suprimits"
+      },
+      "user-visibility-modal": {
+        "title": "Visibilitat dels escriptoris de {name}",
+        "description": "Tria quins escriptoris d'aquest usuari veu a la seva llista. No s'esborra res: els escriptoris amagats es poden tornar a mostrar en qualsevol moment.",
+        "select-all": "Selecciona-ho tot",
+        "headers": {
+          "desktop": "Escriptori",
+          "status": "Estat"
+        },
+        "empty": "Aquest usuari no té escriptoris en aquest desplegament",
+        "save": "Desa",
+        "success": "S'ha actualitzat la visibilitat"
       },
       "download-csv-modal": {
         "title": "Descarregar CSV de visors directes de '{name}'",
