@@ -44,6 +44,19 @@ class AdminStorageRefreshResponse(BaseModel):
     enqueued: int = Field(description="Number of qemu-img-info refresh tasks enqueued.")
 
 
+class AdminStorageReconcileResponse(BaseModel):
+    """Result of enqueuing the per-pool storage reconciliation."""
+
+    enqueued: int = Field(
+        description="reconcile_pool tasks enqueued (one per enabled pool that did "
+        "not already have one queued or running)."
+    )
+    apply: bool = Field(
+        description="Whether the tasks will auto-correct ready size drift "
+        "(from STORAGE_RECONCILE_APPLY); false means report + metrics only."
+    )
+
+
 class AdminStorageItem(BaseModel):
     """One row of ``GET /admin/items/storage`` and the by-status / by-role
     variants. Permissive (``ConfigDict(extra="allow")``) because the

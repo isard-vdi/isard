@@ -47,6 +47,7 @@ from isardvdi_apiv4_client.api.role_admin import (
     admin_logs_users_delete,
     admin_notify_desktop,
     admin_notify_user_desktop,
+    admin_storage_reconcile,
     admin_storage_refresh_running_sizes,
     admin_usage_consolidate,
     convert_storage,
@@ -255,6 +256,17 @@ class Actions:
         # not stay frozen at its last stop. Best-effort, lowest priority.
         with build_client("isard-scheduler") as client:
             resp = admin_storage_refresh_running_sizes.sync_detailed(client=client)
+            raise_for_status(resp)
+
+    def storage_reconcile_kwargs():
+        return []
+
+    def storage_reconcile():
+        # Enqueue one reconcile_pool task per enabled storage pool: scan the
+        # files against the storage/media table and publish drift metrics,
+        # correcting ready size drift only when STORAGE_RECONCILE_APPLY is set.
+        with build_client("isard-scheduler") as client:
+            resp = admin_storage_reconcile.sync_detailed(client=client)
             raise_for_status(resp)
 
     def desktop_notify(**kwargs):

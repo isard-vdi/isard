@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import os
 import traceback
 from typing import Optional
 
@@ -28,6 +29,7 @@ from api.schemas.admin.storage import (
     AdminStorageFilterRequest,
     AdminStorageInfo,
     AdminStorageItem,
+    AdminStorageReconcileResponse,
     AdminStorageRefreshResponse,
     AdminStorageStatusCount,
 )
@@ -532,5 +534,39 @@ async def admin_storage_refresh_running_sizes(request: Request):
             request,
             "internal_server",
             "Failed to refresh running storage sizes",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/reconcile",
+    tags=[tag],
+    response_model=AdminStorageReconcileResponse,
+    summary="Reconcile every storage pool against the storage/media table",
+    description=(
+        "Enqueue one reconcile_pool task per enabled storage pool on its "
+        "background lane (at most one per pool: a pool that already has one "
+        "queued or running is skipped). Each task scans its pool with stat + "
+        "qcow2 header (no qemu-img), reads the rows through apiv4, classifies "
+        "the drift and publishes per-pool metrics. It only re-measures ready "
+        "size drift when STORAGE_RECONCILE_APPLY is true. Intended to be driven "
+        "by the scheduler (nightly). Admin only."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_storage_reconcile(request: Request):
+    try:
+        apply = os.environ.get("STORAGE_RECONCILE_APPLY", "false").lower() == "true"
+        result = await asyncio.to_thread(AdminStorageService.reconcile_pools, apply)
+        return AdminStorageReconcileResponse(
+            enqueued=result["enqueued"], apply=result["apply"]
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to enqueue storage reconciliation",
             traceback.format_exc(),
         )

@@ -176,6 +176,9 @@ class Scheduler:
         # drives each migration a task result woke, off the result-stream consumer
         gevent.spawn(serve_drive_requests)
 
+        ## Nightly storage reconciliation (seeded once, by ACTION).
+        self._seed_default_reconcile_job()
+
         ## DEFAULT LOG RETENTION JOBS
         ## If admin has configured log retention, ensure the scheduler jobs exist
         for log_table, hour, minute, job_name in [
@@ -236,6 +239,25 @@ class Scheduler:
                 )
         except Exception:
             pass
+
+    def _seed_default_reconcile_job(self):
+        """Seed the nightly storage_reconcile job once, keyed by action not id."""
+        with app.app_context():
+            storage_reconcile_jobs = (
+                r.table("scheduler_jobs")
+                .filter({"action": "storage_reconcile"})
+                .count()
+                .run(db.conn)
+            )
+        if not storage_reconcile_jobs:
+            self.add_job(
+                "system",
+                "cron",
+                "storage_reconcile",
+                "3",
+                "0",
+                id="system.storage_reconcile",
+            )
 
     def clean_bad_jobs(self):
         with app.app_context():
