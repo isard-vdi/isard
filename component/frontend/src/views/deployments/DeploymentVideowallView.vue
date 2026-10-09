@@ -322,7 +322,7 @@ const bastionModalDesktop = ref<VideowallDesktop | null>(null)
           </Tooltip>
           <Select v-model="groupBy">
             <SelectTrigger
-              class="w-52 shrink-0 bg-base-white"
+              class="w-fit shrink-0 gap-2 bg-base-white"
               :aria-label="t('views.deployment-videowall.group-by.label')"
             >
               <SelectValue>{{ groupByLabel }}</SelectValue>
