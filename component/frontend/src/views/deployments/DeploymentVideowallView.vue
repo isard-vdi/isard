@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useElementSize, useLocalStorage, useWindowSize } from '@vueuse/core'
-import { ArrowLeft, Info } from 'lucide-vue-next'
+import { Info } from 'lucide-vue-next'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,6 @@ import {
 import { cn } from '@/lib/utils'
 
 const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const queryClient = useQueryClient()
 
@@ -266,27 +265,34 @@ const showAll = () => {
   viewerLayout.value = 'mosaic'
 }
 const bastionModalDesktop = ref<VideowallDesktop | null>(null)
-
-function backToDeployment() {
-  router.push({ name: 'deployment', params: { deploymentId: deploymentId.value } })
-}
 </script>
 
 <template>
   <PageContainer class="max-w-none gap-4">
     <div class="flex flex-col gap-3">
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex min-w-0 items-baseline gap-4">
-          <TruncatedText as="h1" :title="deployment?.name ?? ''" class="text-xl font-semibold" />
-          <span class="flex shrink-0 items-center gap-1 text-xs text-gray-warm-500">
-            <Info class="h-3.5 w-3.5" />
+      <Button
+        icon="arrow-left"
+        hierarchy="link-color"
+        class="w-min whitespace-nowrap"
+        :as="RouterLink"
+        :to="{ name: 'deployment', params: { deploymentId } }"
+      >
+        {{ t('views.deployment-videowall.back-to-deployment') }}
+      </Button>
+      <!-- The layout's h1 names the page. -->
+      <div class="flex min-w-0 items-center gap-3">
+        <span
+          class="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-secondary-2-100"
+        >
+          <Icon name="layout-alt-04" stroke-color="secondary-2-600" />
+        </span>
+        <div class="flex min-w-0 flex-col">
+          <TruncatedText as="h2" :title="deployment?.name ?? ''" class="text-lg font-bold" />
+          <span class="flex items-center gap-1 text-xs text-gray-warm-500">
+            <Info class="size-3.5 shrink-0" />
             {{ t('views.deployment-videowall.gpu-warning') }}
           </span>
         </div>
-        <Button variant="outline" @click="backToDeployment">
-          <ArrowLeft class="h-4 w-4 mr-2" />
-          {{ t('views.deployment-videowall.back-to-deployment') }}
-        </Button>
       </div>
 
       <PageToolbar>
