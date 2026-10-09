@@ -2,6 +2,9 @@
 
 @config '../../tailwind.config.ts';
 
+/* Not a screen: a raw screen also feeds .container and emits an invalid media query. */
+@custom-variant tall (@media (min-height: 1000px));
+
 /* Shadcn Default Variables */
 
 @theme inline {

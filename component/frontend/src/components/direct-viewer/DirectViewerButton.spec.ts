@@ -74,6 +74,8 @@ describe('DirectViewerButton', () => {
   })
 
   afterEach(() => {
+    // Vitest 4 reuses a live spy on re-spy, so a leftover createElement spy recurses.
+    vi.restoreAllMocks()
     document.body.replaceChildren()
   })
 

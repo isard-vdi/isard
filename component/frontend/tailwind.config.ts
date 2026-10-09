@@ -325,7 +325,6 @@ export default {
       },
       screens: {
         'img-xl': '2000px',
-        'tall': { 'raw': '(min-height: 1000px)' },
       },
       keyframes: {
         float: {
