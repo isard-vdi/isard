@@ -921,6 +921,12 @@
         }
       },
       "gpu-warning": "El videowall no funciona con visores RDP",
+      "review": {
+        "all": "Ver pantallas en directo",
+        "filtered": "Ver {n} pantalla filtrada | Ver {n} pantallas filtradas",
+        "filtered-hint": "Abre las pantallas de los escritorios filtrados a la vez para vigilarlas; solo vista",
+        "all-hint": "Abre todas las pantallas a la vez para vigilarlas; solo vista"
+      },
       "viewer": {
         "previous": "Escritorio anterior",
         "next": "Escritorio siguiente",

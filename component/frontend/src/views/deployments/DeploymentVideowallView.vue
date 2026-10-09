@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -33,17 +33,25 @@ import {
   emptyFilterTags,
   type FilterCategory
 } from '@/components/filter-tags'
-import { DesktopCard, type CardSize, type OverlayKind } from '@/components/desktop-card'
+import {
+  DesktopCard,
+  PREVIEWS_PAUSED_INJECTION_KEY,
+  overlayIconButtonClass,
+  type CardSize,
+  type OverlayKind
+} from '@/components/desktop-card'
 import { DesktopsDataTable } from '@/components/desktops-data-table'
 import {
   DesktopBastionInfoModal,
   DesktopNetworksModal,
   DomainInfoModal
 } from '@/components/desktops'
+import { VideowallViewerModal, type ViewerLayout } from '@/components/deployments/videowall-viewer'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { TruncatedText } from '@/components/truncated-text'
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import {
+  canViewInBrowser,
   countVideowallStatuses,
   groupVideowallDesktops,
   isRunning,
@@ -139,6 +147,20 @@ const desktops = computed<VideowallDesktop[]>(() => {
 })
 
 const activeFilterCount = computed(() => countFilterTags(filterTags.value))
+// The search and tags in words, or null when unfiltered.
+const filterSummary = computed(() => {
+  const needle = filterText.value.trim()
+  const parts = needle ? [`"${needle}"`] : []
+  for (const category of filterCategories.value) {
+    const selected = filterTags.value[category.key] ?? []
+    parts.push(...category.options.filter((o) => selected.includes(o.value)).map((o) => o.label))
+  }
+  return parts.length > 0 ? parts.join(' · ') : null
+})
+const clearFilters = () => {
+  filterText.value = ''
+  filterTags.value = emptyFilterTags(FILTER_CATEGORIES)
+}
 
 const groups = computed(() =>
   groupVideowallDesktops(desktops.value, groupBy.value, deployment.value?.deployment_desktops ?? [])
@@ -209,6 +231,17 @@ const openDesktopInfoModal = (desktopId: string) => {
 }
 
 const networksModalDesktop = ref<VideowallDesktop | null>(null)
+const viewerDesktopId = ref<string | null>(null)
+const viewerLayout = ref<ViewerLayout>('single')
+// The wall stays mounted under the viewer: pause its previews.
+provide(
+  PREVIEWS_PAUSED_INJECTION_KEY,
+  computed(() => viewerDesktopId.value !== null || viewerLayout.value === 'mosaic')
+)
+const shownDesktops = computed(() => groups.value.flatMap((g) => g.desktops))
+const showAll = () => {
+  viewerLayout.value = 'mosaic'
+}
 const bastionModalDesktop = ref<VideowallDesktop | null>(null)
 
 function backToDeployment() {
@@ -285,6 +318,34 @@ function backToDeployment() {
         </template>
         <template #filters>
           <FilterTags v-model="filterTags" :categories="filterCategories" />
+        </template>
+        <template #actions>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
+              <span class="inline-flex">
+                <Button
+                  hierarchy="primary"
+                  icon="eye"
+                  :disabled="shownDesktops.length === 0"
+                  @click="showAll"
+                >
+                  {{
+                    filterSummary
+                      ? t('views.deployment-videowall.review.filtered', shownDesktops.length)
+                      : t('views.deployment-videowall.review.all')
+                  }}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              :title="
+                filterSummary
+                  ? t('views.deployment-videowall.review.filtered-hint')
+                  : t('views.deployment-videowall.review.all-hint')
+              "
+            />
+          </Tooltip>
         </template>
       </PageToolbar>
     </div>
@@ -389,7 +450,34 @@ function backToDeployment() {
               @show-info-modal="openDesktopInfoModal(dktp.id)"
               @show-networks-modal="networksModalDesktop = dktp"
               @show-bastion-modal="bastionModalDesktop = dktp"
-            />
+            >
+              <template #header-actions>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
+                    <span class="inline-flex">
+                      <Button
+                        hierarchy="link-gray"
+                        size="sm"
+                        :class="cn(overlayIconButtonClass(false, cardSize), 'disabled:opacity-40')"
+                        icon="maximize-02"
+                        icon-stroke-color="base-white"
+                        :disabled="!canViewInBrowser(dktp)"
+                        :aria-label="t('components.desktops.desktop-card.actions.expand')"
+                        @click="viewerDesktopId = dktp.id"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    :title="
+                      canViewInBrowser(dktp)
+                        ? t('components.desktops.desktop-card.actions.expand')
+                        : t('views.view-deployment.sections.viewer.empty.not-available')
+                    "
+                  />
+                </Tooltip>
+              </template>
+            </DesktopCard>
           </div>
         </div>
       </section>
@@ -407,6 +495,8 @@ function backToDeployment() {
           :desktops="group.desktops"
           :prefered-viewers="preferedViewers"
           show-user
+          :can-expand="canViewInBrowser"
+          @expand="(dktp) => (viewerDesktopId = dktp.id)"
           @desktop-start="(dktp) => startDesktop({ path: { desktop_id: dktp.id } })"
           @desktop-stop="(dktp) => stopDesktop({ path: { desktop_id: dktp.id } })"
           @open-viewer="
@@ -466,5 +556,15 @@ function backToDeployment() {
     :desktop-id="bastionModalDesktop.id"
     :desktop-name="bastionModalDesktop.name"
     @close="bastionModalDesktop = null"
+  />
+
+  <VideowallViewerModal
+    v-model="viewerDesktopId"
+    v-model:layout="viewerLayout"
+    :desktops="shownDesktops"
+    :deployment-name="deployment?.name ?? ''"
+    :total="allDesktops.length"
+    :filter-summary="filterSummary"
+    @clear-filters="clearFilters"
   />
 </template>

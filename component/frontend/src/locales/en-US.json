@@ -929,6 +929,12 @@
         }
       },
       "gpu-warning": "Videowall does not work with RDP viewers",
+      "review": {
+        "all": "View live screens",
+        "filtered": "View {n} filtered screen | View {n} filtered screens",
+        "filtered-hint": "Open the screens of the filtered desktops at once to keep an eye on them; view only",
+        "all-hint": "Open every screen at once to keep an eye on them; view only"
+      },
       "viewer": {
         "previous": "Previous desktop",
         "next": "Next desktop",

@@ -921,6 +921,12 @@
         }
       },
       "gpu-warning": "El videowall no funciona amb visors RDP",
+      "review": {
+        "all": "Mostra les pantalles en directe",
+        "filtered": "Mostra {n} pantalla filtrada | Mostra {n} pantalles filtrades",
+        "filtered-hint": "Obre alhora les pantalles dels escriptoris filtrats per vigilar-les; només visualització",
+        "all-hint": "Obre totes les pantalles alhora per vigilar-les; només visualització"
+      },
       "viewer": {
         "previous": "Escriptori anterior",
         "next": "Escriptori següent",
