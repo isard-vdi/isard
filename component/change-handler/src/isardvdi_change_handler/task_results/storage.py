@@ -35,10 +35,12 @@ import json
 import logging as log
 from contextlib import contextmanager
 from datetime import timezone
+from time import time
 
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, StoragePool
 from isardvdi_common.models.user import category_of
+from rethinkdb import r
 
 # Per-stream-entry de-duplication of the fire-and-forget ``storage`` status
 # sockets. A single chain often touches the same storage row twice in one
@@ -133,6 +135,53 @@ def _promote_domains_to_stopped(storage_object):
             domain.detail = _promotion_detail(previous_status, domain.detail)
             domain.status = "Stopped"
             domain.current_action = None
+
+
+def _restore_orphan_to_ready(storage_object, found_by):
+    """DB-only recovery of an orphan disk whose backing chain is ready again.
+
+    Writes ``status`` + a ``status_logs`` entry and promotes its domains like any
+    disk that becomes ready; a ``Failed`` one stays failed. Touches only this
+    disk's row and its domains, never the file and never the parent.
+    """
+    now = time()
+    entry = {"time": int(now), "status": "ready", "found_by": found_by}
+    with Storage._rdb_context():
+        result = (
+            r.table("storage")
+            .get(storage_object.id)
+            .update(
+                lambda row: r.branch(
+                    row["status"].default(None).eq("orphan"),
+                    {
+                        "status": "ready",
+                        "status_time": now,
+                        "status_logs": row["status_logs"].default([]).append(entry),
+                    },
+                    {},
+                )
+            )
+            .run(Storage._rdb_connection)
+        )
+    if result.get("replaced"):
+        _promote_domains_to_stopped(storage_object)
+
+
+def _flag_review_damage(storage_object, found_by, detail):
+    """DB-only: leave the orphan disk as it is and flag it for an admin decision.
+
+    ``pending_actions`` is a free-form ``{action: {...}}`` map merged in place,
+    so this is forward-compatible with the pending-actions manager.
+    """
+    pending = dict(getattr(storage_object, "pending_actions", None) or {})
+    pending["review_damage"] = {
+        "since": int(time()),
+        "found_by": found_by,
+        "detail": detail,
+    }
+    Storage.update_document(
+        storage_object.id, {"pending_actions": pending}, validate=False
+    )
 
 
 def _read_started_at(task):
@@ -250,7 +299,17 @@ async def send_status_socket(redis_manager, storage_id, status, user_id=None):
 
 
 def handle_storage_update_parent(task, storage_id):
-    """Port of core_worker.task.storage_update_parent."""
+    """Port of core_worker.task.storage_update_parent.
+
+    Repairs this disk's ``parent`` pointer from its backing file and never
+    writes the PARENT's status (the old port set an orphan child's parent to
+    ``deleted``, poisoning recovered templates). An orphan child reaching here
+    was just measured with a chain that did not open, so it is left orphan and
+    flagged ``pending_actions.review_damage``, never trusted back to ready on
+    the parent's row alone -- a ready row can still be one whose file is gone.
+    The ready cascade recovers it once the parent's own file refreshes. Every
+    write is DB-only and lands on this disk, never the parent.
+    """
     if task.depending_status != "finished":
         return
     if not Storage.exists(storage_id):
@@ -260,21 +319,26 @@ def handle_storage_update_parent(task, storage_id):
     if qemu_img_info is None:
         return
     backing_file = qemu_img_info.get("full-backing-filename")
-    if backing_file:
-        backing_storage = Storage.get_by_path(backing_file)
-        if backing_storage:
-            storage.parent = backing_storage.id
-            if storage.status == "orphan":
-                backing_storage.status = "deleted"
-                return
-        elif storage.status == "orphan":
-            return
-        else:
-            storage.parent = Storage.create_from_path(
-                backing_file, user_id=task.user_id
-            ).id
-    else:
+    if not backing_file:
         storage.parent = None
+        return
+    backing_storage = Storage.get_by_path(backing_file)
+    if backing_storage:
+        storage.parent = backing_storage.id
+        if storage.status == "orphan":
+            # The child was just measured with a chain that did not open, so a
+            # ready parent row is not enough to trust it back: leave it orphan
+            # and flag it. The cascade recovers it when the parent's own file
+            # refreshes to ready.
+            if backing_storage.status == "ready":
+                detail = "backing row ready but the child chain did not open"
+            else:
+                detail = f"backing {backing_storage.id} is {backing_storage.status}"
+            _flag_review_damage(
+                storage, found_by="storage_update_parent", detail=detail
+            )
+    elif storage.status != "orphan":
+        storage.parent = Storage.create_from_path(backing_file, user_id=task.user_id).id
 
 
 async def handle_storage_update(redis_manager, task, observer=False, **storage_dict):
