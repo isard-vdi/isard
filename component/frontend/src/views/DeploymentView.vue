@@ -14,8 +14,6 @@ import {
   getDeploymentAllowedQueryKey,
   getDeploymentCoOwnersOptions,
   getDeploymentCoOwnersQueryKey,
-  getDeploymentQueryKey,
-  stopAllDesktopsInDeploymentMutation,
   updateDeploymentCoOwnersMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
@@ -48,6 +46,7 @@ import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/component
 import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
 import { StopAllDesktopsModal } from '@/components/modal'
 import { toast } from '@/components/ui/toast'
+import { useStopAllDesktops } from '@/composables/useStopAllDesktops'
 
 const { t, d, locale } = useI18n()
 
@@ -195,12 +194,6 @@ const shuttingDownDesktopsCount = computed(() =>
   countDesktopsInStatus(DesktopStatusEnum.SHUTTING_DOWN)
 )
 const stoppingDesktopsCount = computed(() => countDesktopsInStatus(DesktopStatusEnum.STOPPING))
-// Desktops already shutting down still count as stoppable: a graceful stop
-// skips them, but a forced one kills them, and that is the only way out of a
-// guest that ignored the shutdown request.
-const anyDesktopStoppable = computed(
-  () => startedDesktopsCount.value > 0 || shuttingDownDesktopsCount.value > 0
-)
 
 const showProvisioningModal = ref(false)
 let provisioningCloseTimer: ReturnType<typeof setTimeout> | null = null
@@ -350,46 +343,20 @@ const handleNotImplemented = () => alert('not implemented yet')
 
 const queryClient = useQueryClient()
 
-const showStopAllModal = ref(false)
-const stopAllError = ref('')
-const { mutate: stopAllDesktops, isPending: stopAllIsPending } = useMutation({
-  ...stopAllDesktopsInDeploymentMutation(),
-  onSuccess: () => {
-    showStopAllModal.value = false
-    queryClient.invalidateQueries({
-      queryKey: getDeploymentQueryKey({ path: { deployment_id: deploymentId.value } })
-    })
-  },
-  onError: () => {
-    if (showStopAllModal.value) {
-      stopAllError.value = t('views.deployment.stop-all.error')
-    } else {
-      toast.error(t('views.deployment.stop-all.error'))
-    }
-  }
-})
-
-// Stopping is the only stop state the button cannot act on, so it is the one
-// that reads as work in progress rather than as something to click.
-const isStoppingAll = computed(() => stopAllIsPending.value || stoppingDesktopsCount.value > 0)
-
-const openStopAllModal = () => {
-  stopAllError.value = ''
-  showStopAllModal.value = true
-}
-
-const closeStopAllModal = () => {
-  showStopAllModal.value = false
-  stopAllError.value = ''
-}
-
-const confirmStopAll = (force: boolean) => {
-  stopAllError.value = ''
-  stopAllDesktops({
-    path: { deployment_id: deploymentId.value },
-    body: { force }
-  })
-}
+const {
+  showStopAllModal,
+  stopAllError,
+  stopAllIsPending,
+  anyDesktopStoppable,
+  isStoppingAll,
+  openStopAllModal,
+  closeStopAllModal,
+  confirmStopAll
+} = useStopAllDesktops(deploymentId, () => ({
+  started: startedDesktopsCount.value,
+  shuttingDown: shuttingDownDesktopsCount.value,
+  stopping: stoppingDesktopsCount.value
+}))
 
 const showCoOwnersModal = ref(false)
 const coOwnersError = ref('')
