@@ -637,6 +637,7 @@ const handleClose = () => {
       )
     "
     :size="props.usersOnly ? '2xl' : '5xl'"
+    body-class="flex min-h-0 flex-col"
     :close-on-backdrop-click="false"
     :show-close-button="false"
     @close="handleClose"
@@ -661,7 +662,7 @@ const handleClose = () => {
         <span class="truncate">{{ props.itemName }}</span>
       </span>
     </template>
-    <div v-if="props.warning" class="mb-4 w-full flex justify-center">
+    <div v-if="props.warning" class="mb-4 w-full flex shrink-0 justify-center">
       <Alert variant="warning" class="w-[min(100%,var(--spacing-256))]">
         <FeaturedIconOutline kind="outline" color="warning" />
         <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
@@ -719,7 +720,8 @@ const handleClose = () => {
       </div>
     </Alert>
 
-    <div v-if="!shareWithEveryone" class="flex h-[60vh] max-h-[480px] min-h-[320px] gap-6">
+    <!-- The far larger shrink weight makes the columns give up height before the summary does. -->
+    <div v-if="!shareWithEveryone" class="flex min-h-[192px] flex-[0_10000_480px] gap-6">
       <AllowedModalColumn
         v-if="!props.usersOnly"
         v-model:search="groupSearch"
@@ -778,7 +780,7 @@ const handleClose = () => {
       </AllowedModalColumn>
     </div>
 
-    <div v-if="props.error" class="mt-4 w-full flex justify-center">
+    <div v-if="props.error" class="mt-4 w-full flex shrink-0 justify-center">
       <Alert variant="destructive" class="w-[min(100%,var(--spacing-256))]">
         <AlertDescription>{{ props.error }}</AlertDescription>
       </Alert>

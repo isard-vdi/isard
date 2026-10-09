@@ -24,6 +24,7 @@ interface Props {
   closeButtonColor?: string
   open?: boolean
   class?: HTMLAttributes['class']
+  bodyClass?: HTMLAttributes['class']
   closeOnBackdropClick?: boolean
   closeOnEscape?: boolean // Defaults to the same behavior as closeOnBackdropClick
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | 'full'
@@ -37,6 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
   closeButtonColor: 'secondary-2-500',
   open: false,
   class: '',
+  bodyClass: '',
   closeOnBackdropClick: true,
   closeOnEscape: undefined,
   size: 'md'
@@ -129,7 +131,7 @@ const sizeClasses = {
         </Button>
       </DialogHeader>
 
-      <div class="px-6 overflow-y-auto">
+      <div :class="cn('px-6 overflow-y-auto', props.bodyClass)">
         <slot></slot>
       </div>
 
