@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { UserDeploymentDesktop } from '@/gen/oas/apiv4'
-import { groupVideowallDesktops, isRunning, toVideowallDesktop } from './videowall'
+import {
+  groupVideowallDesktops,
+  isRunning,
+  toVideowallDesktop,
+  videowallDesktopKey
+} from './videowall'
 
 const desktop = (id: string, user: string, tagDesktopId: string | null, name = id) =>
   toVideowallDesktop({
@@ -59,5 +64,12 @@ describe('isRunning', () => {
     expect(isRunning({ status: 'Starting' })).toBe(true)
     expect(isRunning({ status: 'Shutting-down' })).toBe(true)
     expect(isRunning({ status: 'Stopped' })).toBe(false)
+  })
+})
+
+describe('videowallDesktopKey', () => {
+  it('goes by the deployment desktop, or by name when the desktop has no tag', () => {
+    expect(videowallDesktopKey(desktop('a', 'alice', 'r1'))).toBe('r1')
+    expect(videowallDesktopKey(desktop('a', 'alice', null, 'Legacy'))).toBe('Legacy')
   })
 })

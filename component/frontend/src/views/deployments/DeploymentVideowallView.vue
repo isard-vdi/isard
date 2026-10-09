@@ -45,6 +45,7 @@ import {
   groupVideowallDesktops,
   isRunning,
   toVideowallDesktop,
+  videowallDesktopKey,
   type VideowallDesktop,
   type VideowallGroupBy
 } from '@/lib/videowall'
@@ -74,13 +75,19 @@ const groupByLabel = computed(
 const VIDEOWALL_SEARCH_INPUT_ID = 'deployment-videowall-search'
 const filterText = ref('')
 
-const FILTER_CATEGORIES = ['status']
+const FILTER_CATEGORIES = ['status', 'desktop']
 const filterTags = ref(emptyFilterTags(FILTER_CATEGORIES))
 
 const allDesktops = computed(() => (deployment.value?.desktops ?? []).map(toVideowallDesktop))
 
 const filterCategories = computed<FilterCategory[]>(() => {
   const started = allDesktops.value.filter(isRunning).length
+  // The same entries, order and labels as grouping by desktop.
+  const deploymentDesktops = groupVideowallDesktops(
+    allDesktops.value,
+    'desktop',
+    deployment.value?.deployment_desktops ?? []
+  )
   return [
     {
       key: 'status',
@@ -99,16 +106,28 @@ const filterCategories = computed<FilterCategory[]>(() => {
           icon: 'stop'
         }
       ]
+    },
+    {
+      key: 'desktop',
+      label: t('views.deployment-videowall.filters.desktop.label'),
+      options: deploymentDesktops.map((group) => ({
+        value: group.key,
+        label: group.label,
+        count: group.desktops.length,
+        icon: 'monitor-02'
+      }))
     }
   ]
 })
 
 const desktops = computed<VideowallDesktop[]>(() => {
   const statuses = filterTags.value.status ?? []
+  const deploymentDesktops = filterTags.value.desktop ?? []
   const needle = filterText.value.trim().toLowerCase()
   return allDesktops.value.filter(
     (d) =>
       (statuses.length === 0 || statuses.includes(isRunning(d) ? 'started' : 'stopped')) &&
+      (deploymentDesktops.length === 0 || deploymentDesktops.includes(videowallDesktopKey(d))) &&
       (!needle ||
         d.user_name.toLowerCase().includes(needle) ||
         d.name.toLowerCase().includes(needle))

@@ -911,6 +911,9 @@
     },
     "deployment-videowall": {
       "filters": {
+        "desktop": {
+          "label": "Escriptoris"
+        },
         "status": {
           "label": "Estat",
           "started": "Iniciats",

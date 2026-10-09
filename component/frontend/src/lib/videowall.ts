@@ -53,6 +53,10 @@ export function toVideowallDesktop(desktop: UserDeploymentDesktop): VideowallDes
   }
 }
 
+/** Which deployment desktop a desktop is; legacy ones without a tag go by name. */
+export const videowallDesktopKey = (desktop: { tag_desktop_id: string | null; name: string }) =>
+  desktop.tag_desktop_id ?? desktop.name
+
 const byLabel = (a: { label: string }, b: { label: string }) =>
   a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
 
@@ -71,7 +75,7 @@ export function groupVideowallDesktops(
 
   const groups = new Map<string, VideowallGroup>()
   for (const desktop of desktops) {
-    const key = groupBy === 'user' ? desktop.user : (desktop.tag_desktop_id ?? desktop.name)
+    const key = groupBy === 'user' ? desktop.user : videowallDesktopKey(desktop)
     let group = groups.get(key)
     if (!group) {
       const entry = deploymentDesktops.find((e) => e.tag_desktop_id === desktop.tag_desktop_id)

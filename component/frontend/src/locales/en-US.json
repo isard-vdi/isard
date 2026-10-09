@@ -919,6 +919,9 @@
     },
     "deployment-videowall": {
       "filters": {
+        "desktop": {
+          "label": "Desktops"
+        },
         "status": {
           "label": "Status",
           "started": "Started",
