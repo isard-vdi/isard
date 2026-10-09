@@ -1496,6 +1496,7 @@
           "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
+          "expand": "Ampliar",
           "networks": "Redes"
         },
         "debug-options": {

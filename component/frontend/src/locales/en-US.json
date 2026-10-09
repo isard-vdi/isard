@@ -2229,6 +2229,7 @@
           "book": "Book",
           "bastion": "Bastion",
           "bastion-access": "Bastion access (HTTP / HTTPS / SSH)",
+          "expand": "Expand",
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",

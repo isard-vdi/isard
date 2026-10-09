@@ -37,11 +37,13 @@ interface Props {
   preferedViewers: Record<string, string>
   /** Add a column with the desktop's owner, for lists that mix users. */
   showUser?: boolean
+  /** Adds a button to open the desktop to work on it, enabled where this holds. */
+  canExpand?: (desktop: ApiSchemasDomainsDesktopsUserDesktop) => boolean
 }
 
 const { t, d, locale } = useI18n()
 
-const props = withDefaults(defineProps<Props>(), { showUser: false })
+const props = withDefaults(defineProps<Props>(), { showUser: false, canExpand: undefined })
 
 const emit = defineEmits<{
   // --- Main actions ---
@@ -53,6 +55,7 @@ const emit = defineEmits<{
   // desktop*: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Viewers ---
   openViewer: [{ dktp: ApiSchemasDomainsDesktopsUserDesktop; viewer: string }]
+  expand: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Modals ---
   fetchNetworks: [ApiSchemasDomainsDesktopsUserDesktop]
   showNetworksModal: [ApiSchemasDomainsDesktopsUserDesktop]
@@ -253,6 +256,30 @@ const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
         :key="desktop.id"
         class="flex flex-row items-center justify-end gap-1.5 w-full"
       >
+        <Tooltip v-if="props.canExpand">
+          <TooltipTrigger as-child>
+            <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
+            <span class="inline-flex">
+              <Button
+                hierarchy="secondary-gray"
+                icon="maximize-02"
+                icon-size="sm"
+                class="size-8 p-0"
+                :disabled="!props.canExpand(desktop)"
+                :aria-label="t('components.desktops.desktop-card.actions.expand')"
+                @click="emit('expand', desktop)"
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              props.canExpand(desktop)
+                ? t('components.desktops.desktop-card.actions.expand')
+                : t('views.view-deployment.sections.viewer.empty.not-available')
+            "
+          />
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger as-child>
             <Button
