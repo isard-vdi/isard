@@ -1301,7 +1301,12 @@ class HypervisorsProcessed(RethinkSharedConnection):
                     )
                 continue
 
-            # Look for an existing unassigned card with matching brand/model
+            # Adopt only a manually-created unassigned card of this brand/model.
+            # Auto-discovered cards (``auto-<hyper>-<pci>``) are keyed to the
+            # physical slot and handled by the ``existing_card`` path above;
+            # adopting one by model would let a GPU steal another slot's row once
+            # ``remove_hyper`` has nulled this hypervisor's cards, collapsing
+            # physically identical cards (one shared model token) onto fewer rows.
             with cls._rdb_context():
                 unassigned = list(
                     r.table("gpus")
@@ -1315,6 +1320,9 @@ class HypervisorsProcessed(RethinkSharedConnection):
                     .pluck("id", "profiles_enabled", "passthrough_variant")
                     .run(cls._rdb_connection)
                 )
+            unassigned = [
+                c for c in unassigned if not str(c.get("id", "")).startswith("auto-")
+            ]
 
             if unassigned:
                 # Assign physical_device to the existing manually-created card
