@@ -929,6 +929,59 @@
         }
       },
       "gpu-warning": "Videowall does not work with RDP viewers",
+      "viewer": {
+        "previous": "Previous desktop",
+        "next": "Next desktop",
+        "position": "{current} of {total}",
+        "pick": "Go to a desktop",
+        "not-found": "No desktops found",
+        "connecting": "Connecting to the desktop…",
+        "fullscreen": {
+          "enter": "Full screen",
+          "exit": "Exit full screen"
+        },
+        "layout": {
+          "mosaic": "Mosaic",
+          "single": "Single",
+          "to-mosaic": "Mosaic: every desktop at once, view only",
+          "to-single": "Single: one desktop, large, to view or control it"
+        },
+        "density": {
+          "label": "Tile size",
+          "lg": "Large tiles",
+          "md": "Medium tiles",
+          "sm": "Small tiles"
+        },
+        "mosaic": {
+          "title": "{n} desktop | {n} desktops",
+          "control-disabled": "The mosaic is view only: click a desktop to control it"
+        },
+        "filtered": {
+          "label": "Filtered:",
+          "showing": "showing {shown} of {total}",
+          "clear": "Show all"
+        },
+        "mode": {
+          "label": "Viewer mode",
+          "view": "View",
+          "control": "Control",
+          "view-hint": "Watch only: keyboard and mouse don't reach the desktop",
+          "control-hint": "Use the keyboard and mouse on the user's desktop",
+          "view-notice": "View mode: keyboard and mouse don't reach the desktop",
+          "control-notice": "Control mode: you are using the user's desktop"
+        },
+        "pinned": {
+          "pin": "Pin to the side to keep watching it",
+          "badge": "Pinned",
+          "notice": "Pinned to the side",
+          "unpin": "Unpin",
+          "limit": "You can pin up to {max} desktops",
+          "title": "Pinned ({count})",
+          "on-screen": "On screen",
+          "collapse": "Collapse pinned",
+          "expand": "Show pinned"
+        }
+      },
       "filter-placeholder": "Filter by user or desktop",
       "back-to-deployment": "Back to deployment",
       "view": {

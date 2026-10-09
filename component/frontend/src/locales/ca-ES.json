@@ -921,6 +921,59 @@
         }
       },
       "gpu-warning": "El videowall no funciona amb visors RDP",
+      "viewer": {
+        "previous": "Escriptori anterior",
+        "next": "Escriptori següent",
+        "position": "{current} de {total}",
+        "pick": "Ves a un escriptori",
+        "not-found": "No s'han trobat escriptoris",
+        "connecting": "Connectant amb l'escriptori…",
+        "fullscreen": {
+          "enter": "Pantalla completa",
+          "exit": "Surt de la pantalla completa"
+        },
+        "layout": {
+          "mosaic": "Mosaic",
+          "single": "Individual",
+          "to-mosaic": "Mostra en mosaic: tots els escriptoris alhora, només visualització",
+          "to-single": "Mostra individual: un escriptori en gran, per veure'l o controlar-lo"
+        },
+        "density": {
+          "label": "Mida de les caselles",
+          "lg": "Caselles grans",
+          "md": "Caselles mitjanes",
+          "sm": "Caselles petites"
+        },
+        "mosaic": {
+          "title": "{n} escriptori | {n} escriptoris",
+          "control-disabled": "En mosaic només es pot veure: fes clic en un escriptori per controlar-lo"
+        },
+        "filtered": {
+          "label": "Filtrat:",
+          "showing": "es mostren {shown} de {total}",
+          "clear": "Mostra-les totes"
+        },
+        "mode": {
+          "label": "Mode del visor",
+          "view": "Veure",
+          "control": "Controlar",
+          "view-hint": "Només mirar: el teclat i el ratolí no arriben a l'escriptori",
+          "control-hint": "Fer servir el teclat i el ratolí a l'escriptori de l'usuari",
+          "view-notice": "Mode veure: el teclat i el ratolí no arriben a l'escriptori",
+          "control-notice": "Mode control: estàs fent servir l'escriptori de l'usuari"
+        },
+        "pinned": {
+          "pin": "Fixa al lateral per continuar veient-lo",
+          "badge": "Fixat",
+          "notice": "Fixat al lateral",
+          "unpin": "Treu de fixats",
+          "limit": "Pots fixar fins a {max} escriptoris",
+          "title": "Fixats ({count})",
+          "on-screen": "En pantalla",
+          "collapse": "Plega els fixats",
+          "expand": "Mostra els fixats"
+        }
+      },
       "filter-placeholder": "Filtra per usuari o escriptori",
       "back-to-deployment": "Torna al desplegament",
       "view": {
