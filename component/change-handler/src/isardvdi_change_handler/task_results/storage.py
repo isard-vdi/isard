@@ -184,6 +184,31 @@ def _flag_review_damage(storage_object, found_by, detail):
     )
 
 
+def _recover_orphan_dependents(storage_object, _seen=None):
+    """Return path for the orphan cascade.
+
+    The forward cascade orphans every dependent when a disk goes
+    deleted/orphan/broken_chain; this brings back the ones whose chain is whole
+    again once the disk is ready. A direct child is recovered only when its own
+    ``full-backing-filename`` still resolves to this disk's path -- the ``parent``
+    field is a stale-prone cache, so the on-disk backing link is what decides.
+    Recovered children are recursed into (their own orphan children may now
+    resolve), children that do not resolve are left. DB-only and idempotent.
+    """
+    if _seen is None:
+        _seen = {storage_object.id}
+    parent_path = storage_object.path
+    for child in storage_object.children:
+        if child.id in _seen or child.status != "orphan":
+            continue
+        child_qemu_img_info = getattr(child, "qemu-img-info", None) or {}
+        if child_qemu_img_info.get("full-backing-filename") != parent_path:
+            continue
+        _seen.add(child.id)
+        _restore_orphan_to_ready(child, found_by="storage_update_cascade")
+        _recover_orphan_dependents(child, _seen)
+
+
 def _read_started_at(task):
     """When the earliest reading this step applies started, or None."""
     starts = []
@@ -234,6 +259,7 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
                 child.status = "orphan"
     if storage_dict.get("status") == "ready" and status == "ready":
         _promote_domains_to_stopped(storage_object)
+        _recover_orphan_dependents(storage_object)
     return status
 
 

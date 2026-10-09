@@ -849,3 +849,67 @@ def test_storage_update_parent_skips_when_depending_status_not_finished():
         storage.handle_storage_update_parent(_task(depending_status="failed"), "child")
     cls.assert_not_called()
     cls.update_document.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# storage._apply_storage_update — the orphan cascade return path
+# ---------------------------------------------------------------------------
+
+
+def _orphan_child(cid, backing, status="orphan", domains=()):
+    child = MagicMock(id=cid, status=status, status_logs=[], path=f"/pool/{cid}.qcow2")
+    child.domains = list(domains)
+    child.children = []
+    setattr(child, "qemu-img-info", {"full-backing-filename": backing})
+    return child
+
+
+def test_ready_cascade_recovers_orphan_children_whose_backing_resolves():
+    """Return path: when a disk goes ready, an orphan child whose backing
+    still resolves to it comes back to ready; a child whose backing resolves
+    elsewhere is left orphan. Its failed domain stays failed, like any domain a
+    disk becoming ready cannot know the failure of. On main the ready branch of
+    _apply_storage_update had no return path, so both stayed orphan."""
+    from isardvdi_change_handler.task_results import storage
+
+    dom = MagicMock(status="Failed")
+    resolving = _orphan_child("c1", "/pool/parent.qcow2", domains=[dom])
+    stale = _orphan_child("c2", "/pool/elsewhere.qcow2")
+    parent = MagicMock(id="parent", path="/pool/parent.qcow2")
+    parent.domains = []
+    parent.children = [resolving, stale]
+
+    with patch.object(storage, "Storage") as cls, patch.object(storage, "r") as rdb:
+        cls.exists.return_value = True
+        cls.return_value = parent
+        cls.write_reading.return_value = "ready"
+        rdb.table.return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        storage._apply_storage_update({"id": "parent", "status": "ready"})
+
+    assert [c.args[0] for c in rdb.table.return_value.get.call_args_list] == ["c1"]
+    assert dom.status == "Failed"
+
+
+def test_an_orphan_child_the_conditional_write_skips_is_not_lifted():
+    """A child that stopped being orphan meanwhile (e.g. sent to the recycle
+    bin) is not moved, and its failed desktop stays failed."""
+    from isardvdi_change_handler.task_results import storage
+
+    dom = MagicMock(status="Failed")
+    child = _orphan_child("c1", "/pool/parent.qcow2", domains=[dom])
+    parent = MagicMock(id="parent", path="/pool/parent.qcow2")
+    parent.domains = []
+    parent.children = [child]
+
+    with patch.object(storage, "Storage") as cls, patch.object(storage, "r") as rdb:
+        cls.exists.return_value = True
+        cls.return_value = parent
+        cls.write_reading.return_value = "ready"
+        rdb.table.return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        storage._apply_storage_update({"id": "parent", "status": "ready"})
+
+    assert dom.status == "Failed"
