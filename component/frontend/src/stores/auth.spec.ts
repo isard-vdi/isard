@@ -1,11 +1,13 @@
 // @vitest-environment-options {"url": "https://localhost/"}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('@/gen/oas/authentication', () => ({ renew: vi.fn() }))
 
-import { getBearer, stashToken, takeStashedToken, useCookies } from '@/lib/auth'
+import { getBearer, stashToken, takeStashedToken } from '@/lib/auth'
 import { useAuthStore } from './auth'
+import { freshPinia, scopedCookies, stopCookiePollingAfterEach } from '@/testing/cookieScope'
+
+stopCookiePollingAfterEach()
 
 const buildJwt = (payload: object): string => {
   const encode = (o: object) =>
@@ -40,7 +42,7 @@ const leavePageWith = (cookies: { session?: string; authorization?: string }) =>
   if (cookies.authorization) {
     document.cookie = `authorization=${cookies.authorization}; path=/; secure`
   }
-  stashToken(useCookies())
+  stashToken(scopedCookies())
   clearCookies()
 }
 
@@ -48,7 +50,7 @@ beforeEach(() => {
   clearCookies()
   sessionStorage.clear()
   history.replaceState(null, '', '/reset-password')
-  setActivePinia(createPinia())
+  freshPinia()
 })
 
 afterEach(() => {
@@ -71,8 +73,8 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
       const store = useAuthStore()
       store.restoreStashedTokenOnBoot()
 
-      expect(useCookies().get('isardvdi_session')).toBe(token)
-      expect(useCookies().get('authorization')).toBe(token)
+      expect(scopedCookies().get('isardvdi_session')).toBe(token)
+      expect(scopedCookies().get('authorization')).toBe(token)
       expect(store.tokenType).toBe('password-reset-required')
       expect(takeStashedToken()).toBeUndefined()
     }
@@ -86,8 +88,8 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
     const store = useAuthStore()
     store.restoreStashedTokenOnBoot()
 
-    expect(useCookies().get('authorization')).toBe(token)
-    expect(useCookies().get('isardvdi_session')).toBeUndefined()
+    expect(scopedCookies().get('authorization')).toBe(token)
+    expect(scopedCookies().get('isardvdi_session')).toBeUndefined()
     expect(store.token).toBe(token)
   })
 
@@ -98,7 +100,7 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
 
     useAuthStore().restoreStashedTokenOnBoot()
 
-    expect(getBearer(useCookies())).toBe(token)
+    expect(getBearer(scopedCookies())).toBe(token)
   })
 
   it('abandons the flow when the same page is opened again after the grace, e.g. back from another site', () => {
@@ -108,7 +110,7 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
 
     useAuthStore().restoreStashedTokenOnBoot()
 
-    expect(getBearer(useCookies())).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBeUndefined()
     expect(takeStashedToken()).toBeUndefined()
   })
 
@@ -119,7 +121,7 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
 
     useAuthStore().restoreStashedTokenOnBoot()
 
-    expect(getBearer(useCookies())).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBeUndefined()
     expect(takeStashedToken()).toBeUndefined()
   })
 
@@ -130,12 +132,12 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
     loadedBy('navigate')
 
     useAuthStore().restoreStashedTokenOnBoot()
-    expect(getBearer(useCookies())).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBeUndefined()
 
-    setActivePinia(createPinia())
+    freshPinia()
     loadedBy('reload')
     useAuthStore().restoreStashedTokenOnBoot()
-    expect(getBearer(useCookies())).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBeUndefined()
   })
 
   it('drops an expired stashed token', () => {
@@ -146,7 +148,7 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
     const store = useAuthStore()
     store.restoreStashedTokenOnBoot()
 
-    expect(getBearer(useCookies())).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBeUndefined()
     expect(store.token).toBeNull()
     expect(takeStashedToken()).toBeUndefined()
   })
@@ -160,8 +162,8 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
 
     useAuthStore().restoreStashedTokenOnBoot()
 
-    expect(getBearer(useCookies())).toBe(other)
-    expect(useCookies().get('authorization')).toBeUndefined()
+    expect(getBearer(scopedCookies())).toBe(other)
+    expect(scopedCookies().get('authorization')).toBeUndefined()
     expect(takeStashedToken()).toBeUndefined()
   })
 })
