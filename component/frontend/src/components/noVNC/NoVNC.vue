@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, type HTMLAttributes, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, type HTMLAttributes, onBeforeUnmount } from 'vue'
 import RFB from '@novnc/novnc'
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
   class?: HTMLAttributes['class']
 }
 
+const emit = defineEmits<{ connect: []; disconnect: [] }>()
+
 const props = withDefaults(defineProps<Props>(), {
   height: '750px',
   viewOnly: false,
@@ -30,6 +32,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const screen = ref<HTMLElement | null>(null)
 let rfb: InstanceType<typeof RFB> | null = null
+const onConnect = () => emit('connect')
+const onDisconnect = () => emit('disconnect')
 
 const getCookie = (name: string) => {
   const value = `; ${document.cookie}`
@@ -61,7 +65,17 @@ const newRFB = (target: HTMLElement) => {
   }
   rfb.scaleViewport = true
   rfb.background = props.background
+  rfb.addEventListener('connect', onConnect)
+  rfb.addEventListener('disconnect', onDisconnect)
 }
+
+// Live switch, no reconnect: noVNC also releases or takes back the keyboard.
+watch(
+  () => props.viewOnly,
+  (viewOnly) => {
+    if (rfb) rfb.viewOnly = viewOnly
+  }
+)
 
 onMounted(() => {
   if (screen.value) {
@@ -69,8 +83,11 @@ onMounted(() => {
   }
 })
 
+// Our own teardown is not the connection failing: stop listening before closing.
 onBeforeUnmount(() => {
   if (rfb) {
+    rfb.removeEventListener('connect', onConnect)
+    rfb.removeEventListener('disconnect', onDisconnect)
     rfb.disconnect()
     rfb = null
   }
