@@ -940,7 +940,11 @@
         "user": "Group by user",
         "desktop": "Group by desktop"
       },
-      "group-count": "{n} desktop | {n} desktops"
+      "group-count": "{n} desktop | {n} desktops",
+      "group-status": {
+        "started": "{n} started",
+        "failed": "{n} failed"
+      }
     },
     "shared-deployments": {
       "error": {

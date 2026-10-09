@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { UserDeploymentDesktop } from '@/gen/oas/apiv4'
 import {
+  countVideowallStatuses,
   groupVideowallDesktops,
   isRunning,
   toVideowallDesktop,
@@ -64,6 +65,17 @@ describe('isRunning', () => {
     expect(isRunning({ status: 'Starting' })).toBe(true)
     expect(isRunning({ status: 'Shutting-down' })).toBe(true)
     expect(isRunning({ status: 'Stopped' })).toBe(false)
+  })
+})
+
+describe('countVideowallStatuses', () => {
+  it('splits a group into started, failed and the rest as stopped', () => {
+    const statuses = ['Started', 'Starting', 'Failed', 'Stopped', 'Downloading']
+    expect(countVideowallStatuses(statuses.map((status) => ({ status })))).toEqual({
+      started: 2,
+      stopped: 2,
+      failed: 1
+    })
   })
 })
 

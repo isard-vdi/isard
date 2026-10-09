@@ -932,7 +932,11 @@
         "user": "Agrupa per usuari",
         "desktop": "Agrupa per escriptori"
       },
-      "group-count": "{n} escriptori | {n} escriptoris"
+      "group-count": "{n} escriptori | {n} escriptoris",
+      "group-status": {
+        "started": "{n} iniciat | {n} iniciats",
+        "failed": "{n} fallit | {n} fallits"
+      }
     },
     "shared-deployments": {
       "error": {

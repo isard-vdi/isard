@@ -932,7 +932,11 @@
         "user": "Agrupar por usuario",
         "desktop": "Agrupar por escritorio"
       },
-      "group-count": "{n} escritorio | {n} escritorios"
+      "group-count": "{n} escritorio | {n} escritorios",
+      "group-status": {
+        "started": "{n} iniciado | {n} iniciados",
+        "failed": "{n} fallido | {n} fallidos"
+      }
     },
     "shared-deployments": {
       "error": {

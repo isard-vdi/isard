@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useElementSize, useLocalStorage, useWindowSize } from '@vueuse/core'
 import { ArrowLeft, Info } from 'lucide-vue-next'
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -25,6 +26,7 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { AvatarLabel } from '@/components/avatar-label'
+import { Icon } from '@/components/icon'
 import {
   FilterTags,
   countFilterTags,
@@ -42,6 +44,7 @@ import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/component
 import { TruncatedText } from '@/components/truncated-text'
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import {
+  countVideowallStatuses,
   groupVideowallDesktops,
   isRunning,
   toVideowallDesktop,
@@ -49,6 +52,7 @@ import {
   type VideowallDesktop,
   type VideowallGroupBy
 } from '@/lib/videowall'
+import { cn } from '@/lib/utils'
 
 const route = useRoute()
 const router = useRouter()
@@ -139,6 +143,21 @@ const activeFilterCount = computed(() => countFilterTags(filterTags.value))
 const groups = computed(() =>
   groupVideowallDesktops(desktops.value, groupBy.value, deployment.value?.deployment_desktops ?? [])
 )
+const groupStatuses = computed(
+  () => new Map(groups.value.map((g) => [g.key, countVideowallStatuses(g.desktops)]))
+)
+// Only what needs an eye: stopped is whatever is neither.
+const GROUP_STATUSES = [
+  { key: 'started', dot: 'bg-success-500' },
+  { key: 'failed', dot: 'bg-error-500' }
+] as const
+// Same fallback as AvatarLabel.
+const initials = (name: string) =>
+  name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
 
 // Same card sizes as the desktops view.
 const { width: windowWidth } = useWindowSize()
@@ -295,53 +314,83 @@ function backToDeployment() {
     <div
       v-else-if="viewMode === 'cards'"
       ref="cardGridRef"
-      class="grid gap-4 pb-3"
+      class="grid items-start gap-6 pb-3"
       :style="{ gridTemplateColumns: `repeat(${cardColumns}, minmax(0, 1fr))` }"
     >
       <!-- A group spans one column per desktop, so small groups share a row. -->
       <section
         v-for="group in groups"
         :key="group.key"
-        class="grid grid-cols-subgrid content-start gap-y-2"
+        class="flex min-w-0 flex-col gap-3"
         :style="{ gridColumn: `span ${Math.min(group.desktops.length, cardColumns)}` }"
       >
-        <header class="col-span-full flex h-6 min-w-0 items-center gap-2">
-          <AvatarLabel
-            v-if="groupBy === 'user'"
-            :src="group.photo ?? ''"
-            :name="group.label"
-            size="xs"
-            name-class="text-sm font-semibold"
+        <header class="flex min-w-0 items-center gap-2.5 border-b border-gray-warm-200 pb-2">
+          <Avatar v-if="groupBy === 'user'" size="sm">
+            <AvatarImage :src="group.photo ?? ''" :alt="group.label" />
+            <AvatarFallback>{{ initials(group.label) }}</AvatarFallback>
+          </Avatar>
+          <span
+            v-else
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary-2-100"
+          >
+            <Icon name="layout-alt-04" size="sm" stroke-color="secondary-2-600" />
+          </span>
+          <TruncatedText
+            as="h2"
+            :title="group.label"
+            class="min-w-0 text-md font-semibold text-gray-warm-900"
           />
-          <h2 v-else class="truncate text-sm font-semibold text-gray-warm-900">
-            {{ group.label }}
-          </h2>
-          <span class="shrink-0 text-xs text-gray-warm-500">
+          <span class="flex shrink-0 items-center gap-1.5 text-sm text-gray-warm-500">
             {{ t('views.deployment-videowall.group-count', group.desktops.length) }}
+            <template v-for="status in GROUP_STATUSES" :key="status.key">
+              <template v-if="groupStatuses.get(group.key)![status.key] > 0">
+                <span aria-hidden="true">·</span>
+                <span :class="cn('size-2 rounded-full', status.dot)" />
+                {{
+                  t(
+                    `views.deployment-videowall.group-status.${status.key}`,
+                    groupStatuses.get(group.key)![status.key]
+                  )
+                }}
+              </template>
+            </template>
           </span>
         </header>
 
-        <div v-for="dktp in group.desktops" :key="dktp.id" class="flex min-w-0 flex-col gap-1.5">
-          <!-- Every card of a desktop group shares one name: say whose it is. -->
-          <AvatarLabel
-            v-if="groupBy === 'desktop'"
-            :src="dktp.user_photo"
-            :name="dktp.user_name"
-            size="xs"
-          />
-          <DesktopCard
-            v-model:overlay="cardOverlays[dktp.id]"
-            :size="cardSize"
-            fill
-            :desktop="dktp"
-            :preferred-viewer="preferedViewers[dktp.id]"
-            @desktop-start="startDesktop({ path: { desktop_id: dktp.id } })"
-            @desktop-stop="stopDesktop({ path: { desktop_id: dktp.id } })"
-            @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
-            @show-info-modal="openDesktopInfoModal(dktp.id)"
-            @show-networks-modal="networksModalDesktop = dktp"
-            @show-bastion-modal="bastionModalDesktop = dktp"
-          />
+        <div
+          class="grid gap-4"
+          :style="{
+            gridTemplateColumns: `repeat(${Math.min(group.desktops.length, cardColumns)}, minmax(0, 1fr))`
+          }"
+        >
+          <div v-for="dktp in group.desktops" :key="dktp.id" class="flex min-w-0 flex-col gap-1.5">
+            <!-- Every card of a desktop group shares one name: say whose it is. -->
+            <AvatarLabel
+              v-if="groupBy === 'desktop'"
+              :src="dktp.user_photo"
+              :name="dktp.user_name"
+              size="xs"
+              class="min-w-0 [&>div]:min-w-0"
+              name-class="truncate text-sm font-medium text-gray-warm-600"
+            >
+              <template #name>
+                <TruncatedText as="span" :title="dktp.user_name" class="block" />
+              </template>
+            </AvatarLabel>
+            <DesktopCard
+              v-model:overlay="cardOverlays[dktp.id]"
+              :size="cardSize"
+              fill
+              :desktop="dktp"
+              :preferred-viewer="preferedViewers[dktp.id]"
+              @desktop-start="startDesktop({ path: { desktop_id: dktp.id } })"
+              @desktop-stop="stopDesktop({ path: { desktop_id: dktp.id } })"
+              @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
+              @show-info-modal="openDesktopInfoModal(dktp.id)"
+              @show-networks-modal="networksModalDesktop = dktp"
+              @show-bastion-modal="bastionModalDesktop = dktp"
+            />
+          </div>
         </div>
       </section>
     </div>

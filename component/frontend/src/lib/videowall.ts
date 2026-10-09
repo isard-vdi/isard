@@ -100,3 +100,10 @@ export function groupVideowallDesktops(
     ? result.sort(byLabel)
     : result.sort((a, b) => desktopRank(a.desktops[0]) - desktopRank(b.desktops[0]))
 }
+
+/** What a group header sums up: anything neither running nor failed counts as stopped. */
+export function countVideowallStatuses(desktops: { status: string }[]) {
+  const started = desktops.filter(isRunning).length
+  const failed = desktops.filter((d) => d.status === DesktopStatusEnum.FAILED).length
+  return { started, stopped: desktops.length - started - failed, failed }
+}
