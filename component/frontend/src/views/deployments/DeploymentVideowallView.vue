@@ -50,6 +50,9 @@ import { VideowallViewerModal, type ViewerLayout } from '@/components/deployment
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { TruncatedText } from '@/components/truncated-text'
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+import { useStopAllDesktops } from '@/composables/useStopAllDesktops'
+import { StopAllDesktopsModal } from '@/components/modal'
+import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import {
   canViewInBrowser,
   countVideowallStatuses,
@@ -91,6 +94,26 @@ const FILTER_CATEGORIES = ['status', 'desktop']
 const filterTags = ref(emptyFilterTags(FILTER_CATEGORIES))
 
 const allDesktops = computed(() => (deployment.value?.desktops ?? []).map(toVideowallDesktop))
+
+// The whole deployment, filters aside: "stop all" acts on every desktop.
+const stopCounts = computed(() => {
+  const count = (status: string) => allDesktops.value.filter((d) => d.status === status).length
+  return {
+    started: count(DesktopStatusEnum.STARTED),
+    shuttingDown: count(DesktopStatusEnum.SHUTTING_DOWN),
+    stopping: count(DesktopStatusEnum.STOPPING)
+  }
+})
+const {
+  showStopAllModal,
+  stopAllError,
+  stopAllIsPending,
+  anyDesktopStoppable,
+  isStoppingAll,
+  openStopAllModal,
+  closeStopAllModal,
+  confirmStopAll
+} = useStopAllDesktops(deploymentId, stopCounts)
 
 const filterCategories = computed<FilterCategory[]>(() => {
   const started = allDesktops.value.filter(isRunning).length
@@ -320,6 +343,33 @@ function backToDeployment() {
           <FilterTags v-model="filterTags" :categories="filterCategories" />
         </template>
         <template #actions>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
+              <span class="inline-flex">
+                <Button
+                  :icon="isStoppingAll ? 'loading-02' : 'stop'"
+                  :icon-class="
+                    isStoppingAll ? 'motion-safe:animate-[spin_2s_linear_infinite]' : undefined
+                  "
+                  hierarchy="destructive"
+                  :disabled="!anyDesktopStoppable"
+                  @click="openStopAllModal"
+                >
+                  {{ t('views.deployment.buttons.stop-all') }}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              v-if="!anyDesktopStoppable"
+              side="top"
+              :title="
+                stopCounts.stopping > 0
+                  ? t('views.deployment.stop-all.stopping-tooltip')
+                  : t('views.deployment.stop-all.no-started-tooltip')
+              "
+            />
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger as-child>
               <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
@@ -566,5 +616,15 @@ function backToDeployment() {
     :total="allDesktops.length"
     :filter-summary="filterSummary"
     @clear-filters="clearFilters"
+  />
+
+  <StopAllDesktopsModal
+    :open="showStopAllModal"
+    :started-count="stopCounts.started"
+    :shutting-down-count="stopCounts.shuttingDown"
+    :pending="stopAllIsPending"
+    :error="stopAllError"
+    @close="closeStopAllModal"
+    @confirm="confirmStopAll"
   />
 </template>
