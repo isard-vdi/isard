@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { UserDeploymentDesktop } from '@/gen/oas/apiv4'
 import {
+  canViewInBrowser,
   countVideowallStatuses,
   groupVideowallDesktops,
   isRunning,
@@ -83,5 +84,14 @@ describe('videowallDesktopKey', () => {
   it('goes by the deployment desktop, or by name when the desktop has no tag', () => {
     expect(videowallDesktopKey(desktop('a', 'alice', 'r1'))).toBe('r1')
     expect(videowallDesktopKey(desktop('a', 'alice', null, 'Legacy'))).toBe('Legacy')
+  })
+})
+
+describe('canViewInBrowser', () => {
+  it('needs a running desktop, whatever viewers it offers', () => {
+    expect(canViewInBrowser({ status: 'Started' })).toBe(true)
+    expect(canViewInBrowser({ status: 'WaitingIP' })).toBe(true)
+    expect(canViewInBrowser({ status: 'Stopped' })).toBe(false)
+    expect(canViewInBrowser({ status: 'Failed' })).toBe(false)
   })
 })

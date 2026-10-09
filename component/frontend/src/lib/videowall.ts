@@ -6,6 +6,8 @@ import {
   type VideowallDeploymentDesktop
 } from '@/gen/oas/apiv4'
 
+import { desktopActionsData } from '@/lib/desktops'
+
 export type VideowallDesktop = ApiSchemasDomainsDesktopsUserDesktop & {
   user_name: string
   user_photo: string
@@ -30,6 +32,10 @@ const RUNNING_STATUSES: string[] = [
 ]
 
 export const isRunning = (desktop: { status: string }) => RUNNING_STATUSES.includes(desktop.status)
+
+/** Running, so its VNC console can be watched whatever viewers it offers, as in the old frontend. */
+export const canViewInBrowser = (desktop: { status: string }) =>
+  !!desktopActionsData(desktop.status).viewers
 
 /** The deployment payload leaves optional what the desktop card requires. */
 export function toVideowallDesktop(desktop: UserDeploymentDesktop): VideowallDesktop {
