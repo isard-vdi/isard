@@ -38,19 +38,33 @@ class ConsolidateProcessed(RethinkSharedConnection):
     """Layer-2 helpers for the consolidator orchestrator."""
 
     @classmethod
-    def insert_consumption_batch(cls, data: list[dict]) -> dict:
+    def insert_consumption_batch(cls, data: list[dict], chunk_size: int = 1000) -> dict:
         """Bulk-insert ``usage_consumption`` rows with conflict=update.
 
         Soft durability — consolidations are reproducible from
         ``logs_*`` and the cost of a single durable fsync per row
         outweighs the value when consolidating a large day.
+
+        Sent ``chunk_size`` rows per query: one insert per day holds millions of objects.
         """
+        totals: dict = {}
         with cls._rdb_context():
-            return (
-                r.table("usage_consumption")
-                .insert(data, conflict="update", durability="soft")
-                .run(cls._rdb_connection)
-            )
+            for start in range(0, len(data), chunk_size):
+                result = (
+                    r.table("usage_consumption")
+                    .insert(
+                        data[start : start + chunk_size],
+                        conflict="update",
+                        durability="soft",
+                    )
+                    .run(cls._rdb_connection)
+                )
+                for key, value in result.items():
+                    if isinstance(value, int):
+                        totals[key] = totals.get(key, 0) + value
+                    else:
+                        totals.setdefault(key, value)
+        return totals
 
     @classmethod
     @cached(cache=_domains_cache, key=lambda cls: hashkey("domains"))

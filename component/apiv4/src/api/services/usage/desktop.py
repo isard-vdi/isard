@@ -27,6 +27,7 @@ log = logging.getLogger("apiv4")
 
 import re
 from datetime import datetime, timedelta
+from functools import cached_property
 from time import time
 
 import pytz
@@ -74,19 +75,16 @@ class DesktopsUsage:
         self.consumer_items = list(CONSUMERS.keys())
 
         self.day_data = self._get_data()
-        # We should add any previous data in any previous day for the items found in self.day_data
-        if self.day_data:
-            self.has_data = True
-            self.previous_abs_data = get_abs_consumptions(
-                "desktop", self.consolidation_day_before
-            )
-            self.calculations_are_incremental = True
-            self.custom_params = get_params_item_type_custom("desktop", True)
-        else:
-            self.has_data = False
+        self.has_data = True
+        self.calculations_are_incremental = True
+        self.custom_params = get_params_item_type_custom("desktop", True)
 
-    def _get_data(self) -> list[dict]:
-        return DesktopUsageProcessed.fetch_logs(
+    @cached_property
+    def previous_abs_data(self) -> dict:
+        return get_abs_consumptions("desktop", self.consolidation_day_before)
+
+    def _get_data(self):
+        return DesktopUsageProcessed.iter_logs(
             self.consolidation_day, self.consolidation_day_after
         )
 

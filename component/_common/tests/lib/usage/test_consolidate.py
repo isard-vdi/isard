@@ -53,6 +53,64 @@ class TestInsertConsumptionBatch:
             data, conflict="update", durability="soft"
         )
 
+    def test_large_batch_is_inserted_in_chunks(self, stub_rdb):
+        insert = stub_rdb["mock_table"].return_value.insert
+        insert.return_value.run.return_value = {"inserted": 1, "errors": 0}
+        data = [{"pk": str(i)} for i in range(2500)]
+
+        result = stub_rdb["Processed"].insert_consumption_batch(data)
+
+        sent = [call.args[0] for call in insert.call_args_list]
+        assert [len(chunk) for chunk in sent] == [1000, 1000, 500]
+        assert [row for chunk in sent for row in chunk] == data
+        assert result == {"inserted": 3, "errors": 0}
+
+    def test_peak_memory_does_not_grow_with_the_batch(self, monkeypatch):
+        """The driver builds one query object per value, so the peak of a
+        single insert grows with the batch; chunking keeps it flat."""
+        import tracemalloc
+
+        from isardvdi_common.lib.usage import consolidate as mod
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        class _Conn:
+            def _start(self, term, **opts):
+                term.build()
+                return {"inserted": 0}
+
+        monkeypatch.setattr(
+            mod.ConsolidateProcessed, "_rdb_context", classmethod(lambda cls: _Ctx())
+        )
+        monkeypatch.setattr(
+            type(mod.ConsolidateProcessed),
+            "_rdb_connection",
+            property(lambda self: _Conn()),
+        )
+
+        def peak(rows):
+            data = [
+                {
+                    "pk": str(i),
+                    "item_id": "item-%d" % i,
+                    "inc": {"dsk_hours": 1.5, "dsk_starts": 1},
+                    "abs": {"dsk_hours": 10.5, "dsk_starts": 7},
+                }
+                for i in range(rows)
+            ]
+            tracemalloc.start()
+            mod.ConsolidateProcessed.insert_consumption_batch(data)
+            _, top = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            return top
+
+        assert peak(20000) < 3 * peak(2000)
+
 
 class TestGetDomainsWithTags:
     def test_returns_grouped_domain_data(self, stub_rdb):

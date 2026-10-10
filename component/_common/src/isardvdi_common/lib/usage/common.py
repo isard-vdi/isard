@@ -32,6 +32,7 @@ import ast
 import logging
 import time
 from datetime import datetime
+from functools import lru_cache
 
 from cachetools import cached
 from isardvdi_common.connections.rethink_shared_connection import (
@@ -164,9 +165,7 @@ class UsageProcessed(RethinkSharedConnection):
     def get_abs_consumptions(cls, item_type: str, date: datetime) -> dict:
         """Return absolute consumptions for ``item_type`` up to ``date``.
 
-        Values are flattened to ``"<item_id>##<consumer>" -> reduction``
-        so consolidators can substract incremental data day-over-day
-        without re-grouping.
+        Values are ``"<item_id>##<consumer>" -> {"abs": ...}``, the latest ``abs`` only.
         """
         with cls._rdb_context():
             return (
@@ -179,7 +178,7 @@ class UsageProcessed(RethinkSharedConnection):
                 .map(
                     lambda item: [
                         item["group"][0] + "##" + item["group"][1],
-                        item["reduction"],
+                        item["reduction"].pluck("abs"),
                     ]
                 )
                 .coerce_to("object")
@@ -426,6 +425,17 @@ def securize_eval(formula: str, safe_dict: dict):
     import abuse. Builtins are disabled for the eval call. This is
     a 1:1 port of the apiv4 securize_eval; admin-only formulas only.
     """
+    # AST-validated formula with builtins disabled; admin-only formulas.
+    return eval(  # noqa: S307
+        _compile_formula(formula),
+        {"__builtins__": None},
+        safe_dict,
+    )
+
+
+@lru_cache(maxsize=256)
+def _compile_formula(formula: str):
+    """Validate and compile ``formula``; cached as it runs for every log row."""
     whitelist = (
         ast.Expression,
         ast.Call,
@@ -445,11 +455,5 @@ def securize_eval(formula: str, safe_dict: dict):
         raise ValueError(f"Formula contains forbidden constructs: {formula}")
     valid = all(isinstance(node, whitelist) for node in ast.walk(tree))
     if valid:
-        # AST-validated formula with builtins disabled; admin-only
-        # custom usage parameter computations.
-        return eval(  # noqa: S307
-            compile(tree, filename="", mode="eval"),
-            {"__builtins__": None},
-            safe_dict,
-        )
+        return compile(tree, filename="", mode="eval")
     raise ValueError(f"Formula contains non-whitelisted constructs: {formula}")
