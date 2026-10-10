@@ -17,6 +17,7 @@ Pins:
 * delete_batch chunks ids by ``batch_size`` to avoid array_limit.
 """
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -593,3 +594,63 @@ class TestDeleteOldStreamed:
         ].return_value.between.return_value.limit.return_value.delete
         _, dkw = delete.call_args
         assert dkw.get("return_changes") is True
+
+
+class TestColumnSearchBuildsOneArgumentFunctions:
+    """The server rejects a ReQL function whose arity is not the one it expects."""
+
+    FUNC = 69
+
+    @pytest.fixture
+    def build(self, monkeypatch):
+        from isardvdi_common.lib.logs import logs as mod
+        from rethinkdb import ast
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(
+            mod.LogsProcessed, "_rdb_context", classmethod(lambda cls: _Ctx())
+        )
+        monkeypatch.setattr(
+            type(mod.LogsProcessed),
+            "_rdb_connection",
+            property(lambda self: MagicMock(name="conn")),
+        )
+        monkeypatch.setattr(ast.RqlQuery, "run", lambda self, *a, **k: [])
+
+        def _build(parsed):
+            query, _ = mod.LogsProcessed._build_query("logs_users", parsed)
+            return json.loads(ast.ReQLEncoder().encode(query))
+
+        return _build
+
+    def _arities(self, term):
+        found = []
+        if isinstance(term, list):
+            if len(term) == 2 and term[0] == self.FUNC:
+                found.append(len(term[1][0][1]))
+            for item in term:
+                found.extend(self._arities(item))
+        return found
+
+    def test_one_column_search(self, build):
+        built = build(
+            {"columns": [{"data": "owner_user_id", "search": {"value": "admin"}}]}
+        )
+        assert self._arities(built) == [1]
+
+    def test_several_column_searches(self, build):
+        built = build(
+            {
+                "columns": [
+                    {"data": "owner_user_id", "search": {"value": "admin"}},
+                    {"data": "owner_category_id", "search": {"value": "default"}},
+                ]
+            }
+        )
+        assert self._arities(built) == [1, 1]
