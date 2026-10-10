@@ -20,6 +20,7 @@
 
 import asyncio
 import concurrent.futures
+import gc
 import logging as log
 import os
 import time
@@ -160,6 +161,13 @@ def _validate_storage_min_free_at_boot():
             "request until it is fixed: %s",
             exc,
         )
+
+
+def _freeze_gc_after_startup():
+    """Freeze the boot-time object graph so full GC collections stop walking it
+    and stalling every request under the GIL."""
+    gc.collect()  # collect first, so leftover startup garbage is not frozen for the process's life
+    gc.freeze()
 
 
 _WARM_ROUTE_PATH = "/__apiv4_route_warmup__"
@@ -306,6 +314,9 @@ async def lifespan(app: FastAPI):
     await recycle_bin_queue.start()
 
     await _warm_route_matching(app)
+
+    # Keep last in startup: only objects that already exist get frozen.
+    _freeze_gc_after_startup()
 
     yield
 
