@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from api.services.error import Error
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
+from isardvdi_common.helpers.error_base import ErrorBase
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.recycle_bin import RecycleBin as CommonRecycleBin
 from isardvdi_common.helpers.recycle_bin import RecycleBinDeleteQueue
@@ -258,7 +259,12 @@ class RecycleBinService:
 
         notification_data: list[dict] = []
         for i, desktop in enumerate(desktops):
-            DesktopEvents.desktop_delete(desktop["id"], "isard-scheduler")
+            try:
+                DesktopEvents.desktop_delete(desktop["id"], "isard-scheduler")
+            except ErrorBase as e:
+                # started since it was listed as unused; the next pass picks it up again
+                log.info("Unused desktop %s not recycled: %s", desktop["id"], e)
+                continue
             # Pace every 50 items so the .changes() handlers can drain.
             if (i + 1) % 50 == 0:
                 time.sleep(0.5)

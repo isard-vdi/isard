@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from api.services.error import Error
 from api.services.recycle_bin import RecycleBinService
+from isardvdi_common.helpers.error_base import ErrorBase
 
 
 class TestGetUserCutoffTime:
@@ -208,6 +209,57 @@ class TestRecycleUnusedItems:
         names_by_id = {"d-1": "alpha", "d-2": "beta", "d-3": "gamma"}
         for n in notification_data:
             assert n["vars"] == {"name": names_by_id[n["item_id"]]}
+
+    @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
+    @patch(
+        "api.services.recycle_bin.NotificationsActionProcessed.get_notification_action",
+        return_value={"kwargs": ["name"]},
+    )
+    @patch(
+        "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+        return_value=[{"id": "n1", "trigger": True, "action_id": "a1"}],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+        return_value=[
+            {"id": "d-1", "user": "u-1", "name": "alpha"},
+            {"id": "d-2", "user": "u-2", "name": "beta"},
+            {"id": "d-3", "user": "u-1", "name": "gamma"},
+        ],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+        return_value=24,
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopEvents.desktop_delete",
+        side_effect=[None, ErrorBase("precondition_required"), None],
+    )
+    @patch("api.services.recycle_bin.DesktopEvents.deployment_delete")
+    def test_a_desktop_started_since_listing_does_not_stop_the_pass(
+        self,
+        mock_deployment_delete,
+        mock_desktop_delete,
+        _cutoff,
+        _desktops,
+        _deployments,
+        _deployment_desktops,
+        _notif_lookup,
+        _action_lookup,
+        mock_add_notification_data,
+    ):
+        RecycleBinService.recycle_unused_items()
+        assert mock_desktop_delete.call_count == 3
+        notification_data = mock_add_notification_data.call_args.args[0]
+        assert [n["item_id"] for n in notification_data] == ["d-1", "d-3"]
 
     @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
     @patch(

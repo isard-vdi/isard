@@ -27,6 +27,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.api_notify import notify_admins
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.recycle_bin import ENGINE_TRANSIENT_STATUSES
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.recycle_bin import (
     RecycleBinBulk,
@@ -590,11 +591,19 @@ class DesktopEvents(RethinkCustomBase):
     @classmethod
     def desktop_delete(cls, desktop_id, agent_id, permanent=False):
         with cls._rdb_context():
-            tag = (
+            row = (
                 r.table("domains")
-                .get(desktop_id)["tag"]
-                .default(False)
+                .get(desktop_id)
+                .pluck("tag", "status")
+                .default({})
                 .run(cls._rdb_connection)
+            )
+        tag = row.get("tag", False)
+        if row.get("status") in ENGINE_TRANSIENT_STATUSES:
+            raise Error(
+                "precondition_required",
+                f"Desktop {desktop_id} is {row['status']}; it can be deleted once that finishes",
+                description_code="desktop_busy",
             )
         rcb = RecycleBinDesktop(user_id=agent_id)
         rcb.add(desktop_id)
