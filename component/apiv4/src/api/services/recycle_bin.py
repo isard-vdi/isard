@@ -131,6 +131,47 @@ class RecycleBinService:
                 {"recycle_bin_id": rb_id, "user_id": user_id}
             )
 
+    # refusals another entry of the same batch can lift once it is restored
+    RESTORE_RETRY_CODES = frozenset(
+        {"parent_template_not_found", "template_not_found", "unable_to_restore_user"}
+    )
+
+    @staticmethod
+    def restore_in_dependency_order(
+        recycle_bin_ids: list[str], user_id: str
+    ) -> dict[str, str]:
+        """Restore what it can, parents first; return the unrestored ids with their reason."""
+        pending = list(dict.fromkeys(recycle_bin_ids))
+        failed: dict[str, str] = {}
+        while pending:
+            retry = []
+            for rb_id in pending:
+                try:
+                    rb = CommonRecycleBin(id=rb_id)
+                    rb._update_agent(user_id)
+                    rb.restore()
+                    failed.pop(rb_id, None)
+                except Exception as e:
+                    error = getattr(e, "error", None)
+                    code = error.get("description_code") if error else None
+                    failed[rb_id] = (
+                        error.get("description") if error else None
+                    ) or str(e)
+                    if code in RecycleBinService.RESTORE_RETRY_CODES:
+                        retry.append(rb_id)
+            if len(retry) == len(pending):
+                break
+            pending = retry
+        for rb_id, reason in failed.items():
+            log.error("Bulk restore: entry %s not restored: %s", rb_id, reason)
+        if failed:
+            log.error(
+                "Bulk restore: %d of %d entries not restored",
+                len(failed),
+                len(set(recycle_bin_ids)),
+            )
+        return failed
+
     @staticmethod
     async def bulk_restore(recycle_bin_ids: list[str], user_id: str) -> list[str]:
         # ``CommonRecycleBin.restore()`` is sync RethinkDB I/O — running
@@ -140,10 +181,7 @@ class RecycleBinService:
         # so the loop stays responsive while the bulk operation runs.
         def _process_sync():
             try:
-                for rb_id in recycle_bin_ids:
-                    rb = CommonRecycleBin(id=rb_id)
-                    rb._update_agent(user_id)
-                    rb.restore()
+                RecycleBinService.restore_in_dependency_order(recycle_bin_ids, user_id)
             except Exception as e:
                 log.error("Bulk restore failed: %s", e)
 
