@@ -74,6 +74,50 @@ _PURGEABLE = [
 ]
 
 
+# the engine is acting on the domain; binning the row loses that action
+ENGINE_TRANSIENT_STATUSES = [
+    "Creating",
+    "CreatingDisk",
+    "CreatingAndStarting",
+    "CreatingTemplate",
+    "CreatingDomain",
+    "CreatingDomainFromDisk",
+    "CreatingDiskFromScratch",
+    "DiskNew",
+    "Starting",
+    "StartingPaused",
+    "StartingDomainDisposable",
+    "Updating",
+]
+
+
+def restored_domain(d):
+    """The domain row a restore inserts, at rest: nothing left for the engine to resume."""
+    return (
+        d.without(
+            "hardware",
+            "xml_to_start",
+            "hardware_from_xml",
+            "force_update",
+            "last_hyp_id",
+        )
+        .merge(
+            r.branch(
+                d.has_fields("parents") & r.type_of(d["parents"]).eq("ARRAY"),
+                {"parents": d["parents"].filter(lambda p: p.ne(None))},
+                {},
+            )
+        )
+        .merge(
+            r.branch(
+                r.expr(["Stopped", "Failed"]).contains(d["status"].default("")),
+                {},
+                {"status": "Stopped"},
+            )
+        )
+    )
+
+
 def _exists_now(table, item_id):
     """Whether the row exists, read past the process cache."""
     return Caches.get_document(table, item_id, invalidate=True) is not None
@@ -1920,27 +1964,11 @@ class RecycleBin(RethinkSharedConnection):
             self.agent_category_name,
             self.agent_role,
         )
-        # Remove None entries from parents to avoid corrupted domains on restore
         with self._rdb_context():
             docs = self.desktops + self.templates
-            r.table("domains").insert(
-                r.expr(docs).map(
-                    lambda d: d.without(
-                        "hardware",
-                        "xml_to_start",
-                        "hardware_from_xml",
-                        "force_update",
-                        "last_hyp_id",
-                    ).merge(
-                        r.branch(
-                            d.has_fields("parents")
-                            & r.type_of(d["parents"]).eq("ARRAY"),
-                            {"parents": d["parents"].filter(lambda p: p.ne(None))},
-                            {},
-                        )
-                    )
-                )
-            ).run(self._rdb_connection)
+            r.table("domains").insert(r.expr(docs).map(restored_domain)).run(
+                self._rdb_connection
+            )
         with self._rdb_context():
             r.table("targets").insert(self.targets).run(self._rdb_connection)
         with self._rdb_context():
