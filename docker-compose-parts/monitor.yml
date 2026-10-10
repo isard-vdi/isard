@@ -25,7 +25,6 @@ services:
       # This plugin is bundled with grafana, but needs to be activated separately
       GF_INSTALL_PLUGINS: "grafana-pyroscope-app"
       PYROSCOPE_ADDRESS: "${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}"
-      TEMPO_ADDRESS: "${TEMPO_ADDRESS:-http://isard-tempo:3200}"
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
       GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
 

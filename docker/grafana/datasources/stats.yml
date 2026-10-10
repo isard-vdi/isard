@@ -27,10 +27,3 @@ datasources:
     jsonData:
       minStep: '15s'
 
-  - name: Tempo
-    type: tempo
-    access: proxy
-    url: ${TEMPO_ADDRESS}
-    jsonData:
-      serviceMap:
-        datasourceUid: PBFA97CFB590B2093

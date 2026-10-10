@@ -123,7 +123,7 @@ discovery.relabel "containers_with_metrics" {
 	rule {
 		action        = "keep"
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/isard-(loki|pyroscope|tempo|stats-go|stats-rethinkdb|portal|video|monitor-proxy)"
+		regex         = "/isard-(loki|pyroscope|stats-go|stats-rethinkdb|portal|video|monitor-proxy)"
 	}
 
 	rule {
@@ -132,15 +132,6 @@ discovery.relabel "containers_with_metrics" {
 		regex         = "/(.*)"
 		target_label  = "container_name"
 		replacement   = "${1}"
-	}
-
-	// Tempo
-	rule {
-		action        = "replace"
-		source_labels = ["__meta_docker_container_name", "__address__"]
-		regex         = "/isard-tempo;([^:]+):.*"
-		target_label  = "__address__"
-		replacement   = "${1}:3200"
 	}
 
 	// Stats Go
