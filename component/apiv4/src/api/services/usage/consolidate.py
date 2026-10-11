@@ -51,6 +51,9 @@ from isardvdi_common.lib.usage.consolidate import ConsolidateProcessed
 
 class ConsolidateConsumption:
     consolidating = []
+    # Process-wide tallies reported by run_consolidation.
+    inserted_total = 0
+    failed_batches = 0
 
     def __del__(self):
         if "name" in self.__dict__:
@@ -199,6 +202,7 @@ class ConsolidateConsumption:
                 ]
             except Exception:
                 log.error("USAGE consolidate batch raised: %s", traceback.format_exc())
+                ConsolidateConsumption.failed_batches += 1
                 continue
             data.extend(c for c in consumptions if c)
             if len(data) >= INSERT_SIZE:
@@ -208,6 +212,7 @@ class ConsolidateConsumption:
         if data:
             ConsolidateProcessed.insert_consumption_batch(data)
             inserted += len(data)
+        ConsolidateConsumption.inserted_total += inserted
         self.times["get_" + self.name + "_batches"] = time()
         log.info(
             "--> Consolidated %s %s %s items in | GET_DATA %.2fs | GET_ITEMS_DATA %.2fs | PROCESS_DATA %.2fs | TOTAL %.2fs",
