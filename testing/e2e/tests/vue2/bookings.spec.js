@@ -21,6 +21,7 @@ import {
   deleteBookingEvent,
   getBookingDesktop,
 } from '../../src/gen/apiv4/sdk.gen'
+import { showWeekOf } from '../../fixtures/calendar.js'
 
 const BOOKING_PRIORITY_URL_RE = /\/api\/v4\/items\/bookings\/get-priority-desktop\//
 const ITEM_BOOKINGS_URL_RE = /\/api\/v4\/item\/booking\/get-desktop\//
@@ -235,6 +236,7 @@ test.describe('Vue 2 — Bookings (admin per-worker)', () => {
     expect(events.status()).toBeLessThan(400)
 
     const win = workerBookingWindow(testInfo.workerIndex)
+    await showWeekOf(page, new Date(win.start).getTime(), ITEM_BOOKINGS_URL_RE)
     await setCreateModal(page, new Date(win.start).getTime(), new Date(win.end).getTime())
     const title = `e2e-vue2-s1-${testInfo.workerIndex}-${Date.now()}`
 
@@ -394,6 +396,7 @@ test.describe('Vue 2 — Bookings (admin per-worker)', () => {
       // to book the gap is rejected by the backend and shown as an
       // error toast — no booking is painted.
       await gotoBooking(userPage, userDesktop.id)
+      await showWeekOf(userPage, new Date(win.start).getTime(), ITEM_BOOKINGS_URL_RE)
       await expect(
         userPage.locator('#vuecal .vuecal__event.available').first(),
       ).toBeVisible({ timeout: 10000 })
@@ -490,6 +493,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     })
 
     await gotoBooking(page, desktop.id)
+    await showWeekOf(page, Date.now() + 20 * 60 * 1000, ITEM_BOOKINGS_URL_RE)
 
     // Start 5 min out, under the user's 15-min forbid_time on T4-2Q.
     const inside = Date.now() + 5 * 60 * 1000
@@ -563,6 +567,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     // 3rd booking, driven through the modal — backend rejects it.
     await gotoBooking(page, desktop.id)
     const third = win(180)
+    await showWeekOf(page, third.startMs, ITEM_BOOKINGS_URL_RE)
     await setCreateModal(page, third.startMs, third.endMs)
     const title = `e2e-vue2-s6-3-${Date.now()}`
     const post = watchBookingPost(page)
@@ -584,6 +589,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     // Positive control: free one slot, retry the 3rd → succeeds.
     await unwrap(deleteBookingEvent({ client: apiv4, path: { booking_id: b.id } }))
     await gotoBooking(page, desktop.id)
+    await showWeekOf(page, third.startMs, ITEM_BOOKINGS_URL_RE)
     await setCreateModal(page, third.startMs, third.endMs)
     const retryTitle = `e2e-vue2-s6-3-retry-${Date.now()}`
     const okPromise = page.waitForResponse(
@@ -622,6 +628,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
 
     // 150 min > the user's max_time=120 on T4-2Q.
     const startMs = Date.now() + 30 * 60 * 1000
+    await showWeekOf(page, startMs, ITEM_BOOKINGS_URL_RE)
     await setCreateModal(page, startMs, startMs + 150 * 60 * 1000)
     const post = watchBookingPost(page)
     await pressCreate(page, `e2e-vue2-s7-over-${Date.now()}`)
@@ -723,6 +730,7 @@ test.describe('Vue 2 — Bookings priority override (serial)', () => {
       const advDesktop = await makeDesktop(advClient, testInfo, 's3a-adv')
 
       await gotoBooking(page, advDesktop.id)
+      await showWeekOf(page, new Date(win.start).getTime(), ITEM_BOOKINGS_URL_RE)
       await expect(
         page.locator('#vuecal .vuecal__event.overridable').first(),
         'the user-held unit must be overridable for the advanced caller',
@@ -788,6 +796,7 @@ test.describe('Vue 2 — Bookings priority override (serial)', () => {
       const userDesktop = await makeDesktop(userClient, testInfo, 's3b-user')
 
       await gotoBooking(page, userDesktop.id)
+      await showWeekOf(page, new Date(win.start).getTime(), ITEM_BOOKINGS_URL_RE)
       await expect(
         page.locator('#vuecal .vuecal__event.overridable'),
         'a user-priority caller must not see an advanced booking as overridable',
@@ -864,6 +873,7 @@ test.describe('Vue 2 — Bookings priority override (serial)', () => {
       const advDesktop = await makeDesktop(advClient, testInfo, 's3c-adv')
 
       await gotoBooking(page, advDesktop.id)
+      await showWeekOf(page, midStartMs, ITEM_BOOKINGS_URL_RE)
       await expect(
         page.locator('#vuecal .vuecal__event.overridable').first(),
         'the middle user booking must be overridable for the advanced caller',
