@@ -25,6 +25,8 @@ from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.helpers.socketio import SocketIO
 from socketio import ASGIApp, AsyncRedisManager, AsyncServer
 
+log = logging.getLogger(__name__)
+
 async_server_kwargs = {}
 if environ.get("LOG_LEVEL") == "DEBUG":
     kwargs = {"logger": True, "engineio_logger": True}
@@ -51,11 +53,9 @@ async def disconnect(namespace, sid, reason):
     return await SocketIO(socketio_server, sid).quit_users_rooms(None, namespace)
 
 
-@socketio_server.on("*", namespace="/userspace")
-async def event(sid, data):
-    print(sid, data)
+async def unhandled_event(event, sid, *args):
+    log.debug("unhandled socketio event %s from %s", event, sid)
 
 
-@socketio_server.on("*", namespace="/administrators")
-async def event(sid, data):
-    print(sid, data)
+for _namespace in ("/userspace", "/administrators"):
+    socketio_server.on("*", namespace=_namespace)(unhandled_event)
