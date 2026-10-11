@@ -135,7 +135,7 @@ groups:
             model:
               refId: A
               editorMode: code
-              expr: isardvdi_storage_governor_worker_up == bool 0
+              expr: (isardvdi_storage_governor_worker_up == bool 0) and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
