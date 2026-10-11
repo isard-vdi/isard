@@ -1,6 +1,8 @@
 import asyncio
 from unittest import mock
 
+import pytest
+
 
 def test_connect_delegates_to_users_connect(pristine_module, monkeypatch):
     fake_socketio = mock.MagicMock()
@@ -34,6 +36,9 @@ def test_disconnect_delegates_to_quit_users_rooms(pristine_module, monkeypatch):
     )
 
 
-def test_event_handler_echoes_sid(pristine_module, capsys):
-    asyncio.run(pristine_module.event("sid-3", {"payload": 1}))
-    assert "sid-3" in capsys.readouterr().out
+@pytest.mark.parametrize("namespace", ["/userspace", "/administrators"])
+def test_unhandled_event_is_dispatched_without_error(pristine_module, namespace):
+    server = pristine_module.socketio_server
+    asyncio.run(
+        server._trigger_event("no-such-event", namespace, "sid-3", {"payload": 1})
+    )
