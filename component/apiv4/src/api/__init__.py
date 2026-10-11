@@ -22,6 +22,7 @@ import asyncio
 import concurrent.futures
 import logging as log
 import os
+import time
 from contextlib import asynccontextmanager
 from html import escape as html_escape
 from json import dumps as json_dumps
@@ -161,6 +162,41 @@ def _validate_storage_min_free_at_boot():
         )
 
 
+_WARM_ROUTE_PATH = "/__apiv4_route_warmup__"
+
+
+async def _warm_route_matching(application) -> None:
+    """Build FastAPI's lazy per-router matching contexts before taking traffic."""
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": _WARM_ROUTE_PATH,
+        "raw_path": _WARM_ROUTE_PATH.encode(),
+        "root_path": "",
+        "query_string": b"",
+        "headers": [],
+        "client": ("127.0.0.1", 0),
+        "server": ("127.0.0.1", 0),
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(_message):
+        pass
+
+    start = time.monotonic()
+    try:
+        await application.router(scope, receive, send)
+    except Exception:
+        log.warning("Route warm-up at lifespan startup failed (continuing)")
+        return
+    log.info("apiv4 route matching warmed in %.2fs", time.monotonic() - start)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -268,6 +304,8 @@ async def lifespan(app: FastAPI):
     recycle_bin_queue = RecycleBinDeleteQueue()
     await recycle_bin_queue.initialize()
     await recycle_bin_queue.start()
+
+    await _warm_route_matching(app)
 
     yield
 
