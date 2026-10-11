@@ -1186,6 +1186,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
         return deployment["id"]
 
+    @staticmethod
+    def _creator_timeout_rule(creator_id, op):
+        """The unused-item rule for a deployment creator, or None if the user is gone."""
+        if Caches.get_document("users", creator_id) is None:
+            return None
+        return get_unused_item_timeout(Helpers.gen_payload_from_user(creator_id), op)
+
     @classmethod
     def get_unused_deployments(cls):
         """
@@ -1210,21 +1217,23 @@ class DeploymentsProcessed(RethinkSharedConnection):
             time.time() - start,
         )
 
+        deleted_creators = 0
         for user in users_with_deployments:
             start = time.time()
             try:
-                payload = Helpers.gen_payload_from_user(user)
-                user_timeout_rule = get_unused_item_timeout(
-                    payload, "send_unused_deployments_to_recycle_bin"
+                user_timeout_rule = cls._creator_timeout_rule(
+                    user, "send_unused_deployments_to_recycle_bin"
                 )
-            except TypeError as e:
-                # If the user does not exist then send to the recycle bin all of its deployments
-                log.error(
-                    "api_deployments get unused deployments: Could not generate payload for user %s",
+            except Exception:
+                log.exception(
+                    "api_deployments get unused deployments: no rule for creator %s",
                     user,
                 )
+                continue
+            if user_timeout_rule is None:
+                # A deleted creator's deployments are all unused.
+                deleted_creators += 1
                 user_timeout_rule = {"cutoff_time": 0}
-                pass
 
             log.debug(
                 "api_deployments get unused desktops: User %s applied rule %s",
@@ -1274,6 +1283,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
             "api_deployments get unused deployments: Retrieved users with deployments in %s seconds",
             time.time() - absolute_start,
         )
+        if deleted_creators:
+            log.warning(
+                "api_deployments get unused deployments: %d deployment creators no longer exist, all their deployments are unused",
+                deleted_creators,
+            )
 
         return deployments
 
@@ -1323,15 +1337,17 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
         for user in users_with_deployments:
             try:
-                payload = Helpers.gen_payload_from_user(user)
-                user_timeout_rule = get_unused_item_timeout(
-                    payload, "send_unused_deployment_desktops_to_recycle_bin"
+                user_timeout_rule = cls._creator_timeout_rule(
+                    user, "send_unused_deployment_desktops_to_recycle_bin"
                 )
-            except TypeError:
-                log.error(
-                    "api_deployments get unused deployment desktops: Could not generate payload for user %s",
+            except Exception:
+                log.exception(
+                    "api_deployments get unused deployment desktops: no rule for creator %s",
                     user,
                 )
+                continue
+            # A deleted creator's deployments go whole through get_unused_deployments.
+            if user_timeout_rule is None:
                 continue
 
             if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
