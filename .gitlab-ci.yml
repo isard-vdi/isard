@@ -345,6 +345,15 @@ unit-test-sparsify:
   script:
     - make test-sparsify
 
+unit-test-sysadm-config:
+  extends: .base-uv
+  stage: unit-test
+  needs: []
+  before_script:
+    - apk add --no-cache make
+  script:
+    - make ci-test-sysadm-config
+
 unit-test-frontend:
   extends:
     - ".bun-cache:component/frontend"

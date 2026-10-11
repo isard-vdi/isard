@@ -209,6 +209,12 @@ test-vmalert:
 test-sparsify:
 	bash docker/storage/tests/test_sparsify_recover_backup.sh
 
+# sysadm/isard-config is a standalone admin script with stdlib-only tests, not a
+# workspace member, so it has no PY_PKGS row.
+.PHONY: ci-test-sysadm-config
+ci-test-sysadm-config:
+	cd sysadm/isard-config && python3 -m unittest discover -p 'test_*.py'
+
 .PHONY: ci-test-frontend
 ci-test-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run test:unit --reporter=default --reporter=junit --outputFile=report.xml
