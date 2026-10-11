@@ -23,7 +23,10 @@ api = Blueprint("api", __name__)
 
 app = current_app
 
+from .exceptions import Error, handle_user_error
 from .tokens import is_admin
+
+api.register_error_handler(Error, handle_user_error)
 
 #### NOTE: The /engine paths are publicy open so they need @is_admin decorator!
 
