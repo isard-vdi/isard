@@ -26,12 +26,6 @@ services:
     volumes:
       - ${BACKUP_DIR-/opt/isard-local/backup}:/backup:rw
       - /opt/isard-local/logs/backupninja:/var/log/
-      # Persist borg's chunks/files indexes and security registry on the
-      # host so a container restart doesn't trigger a full cache rebuild.
-      # The rebuild scans every existing archive and on multi-TB repos
-      # can take 24h+, blocking the next nightly borg create.
-      - /opt/isard-local/backup/borg-cache:/root/.cache/borg
-      - /opt/isard-local/backup/borg-config:/root/.config/borg
       - /etc/localtime:/etc/localtime:ro
       # Stats
       - /opt/isard/stats:/opt/isard/stats
@@ -57,6 +51,9 @@ services:
     environment:
       # General backup settings
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
+      # on the backup target, so a container restart doesn't force a full borg cache rebuild
+      - BORG_CACHE_DIR=/backup/borg-cache
+      - BORG_CONFIG_DIR=/backup/borg-config
       - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
 
       # API settings for backup reporting
