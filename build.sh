@@ -284,15 +284,24 @@ merge(){
 		else
 			local delimiter="."
 		fi
-		$DOCKER_COMPOSE $version_args $args config > "docker-compose$delimiter$config_name.yml"
+		local target="docker-compose$delimiter$config_name.yml"
+		# dot prefix: must not match the later docker-compose*.yml globs
+		local rendered=".$target.tmp"
+		if ! $DOCKER_COMPOSE $version_args $args config > "$rendered"
+		then
+			rm -f "$rendered"
+			echo "ERROR: docker compose could not render $target; the previous one, if any, is left untouched." >&2
+			exit 1
+		fi
 		# Fix for Docker Compose v2.24+ which defaults create_host_path to false
 		sed -i -e 's/create_host_path: false/create_host_path: true/g' \
 		       -e 's/bind: {}/bind: {create_host_path: true}/g' \
 		       -e 's/bind: {propagation:/bind: {create_host_path: true, propagation:/g' \
-		       "docker-compose$delimiter$config_name.yml"
+		       "$rendered"
 		# Handle multi-line bind with propagation but no create_host_path (Docker Compose v5+)
 		sed -i '/bind:$/{N;N;/create_host_path/!s/\(bind:\n\)\([[:space:]]*\)\(propagation:[^\n]*\n\)/\1\2create_host_path: true\n\2\3/}' \
-		       "docker-compose$delimiter$config_name.yml"
+		       "$rendered"
+		mv -f "$rendered" "$target"
 	fi
 }
 parts_variant(){
