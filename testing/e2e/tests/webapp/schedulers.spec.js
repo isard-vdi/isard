@@ -159,10 +159,12 @@ async function createJobViaApi(page, apiv4Admin) {
   return after.find((j) => !beforeIds.has(j.id))
 }
 
-async function deleteJobViaUi(page, jobId) {
+async function deleteJobViaUi(page, job) {
+  const jobId = job.id
   const row = page.locator(`#table-scheduler tbody tr[id="${jobId}"]`)
   await expect(row).toBeVisible({ timeout: 10000 })
   await row.locator('button#btn-scheduler-delete').click()
+  await expect(page.locator('.ui-pnotify-text').last()).toContainText(job.name)
 
   const delResp = page.waitForResponse(
     (r) => r.url().includes(`/scheduler/${jobId}`) && r.request().method() === 'DELETE',
@@ -399,7 +401,7 @@ test.describe('Config — Schedulers (admin webapp)', () => {
     expect(createdJob?.id).toBeTruthy()
 
     // Cleanup to avoid global cross-test pollution.
-    await deleteJobViaUi(page, createdJob.id)
+    await deleteJobViaUi(page, createdJob)
   })
 
   test('A7: delete scheduler job', async ({ authenticatedPage: page, apiv4Admin }) => {
@@ -415,9 +417,48 @@ test.describe('Config — Schedulers (admin webapp)', () => {
     const createdJob = await createJobViaApi(page, apiv4Admin)
     expect(createdJob?.id).toBeTruthy()
 
-    await deleteJobViaUi(page, createdJob.id)
+    await deleteJobViaUi(page, createdJob)
 
     const jobsAfter = await listSystemJobs(apiv4Admin)
     expect(jobsAfter.find((j) => j.id === createdJob.id)).toBeUndefined()
+  })
+
+  test('A8: reopening the add-job modal does not duplicate its actions', async ({ authenticatedPage: page }) => {
+    await gotoSchedulers(page)
+
+    const actionsHealth = await page.request.get('/scheduler/actions').catch(() => null)
+    const actionsStatus = actionsHealth?.status?.() ?? 0
+    test.skip(
+      !actionsHealth || actionsStatus >= 500,
+      `Scheduler actions endpoint unavailable in this environment (${actionsStatus || 'no response'})`,
+    )
+
+    const modal = page.locator('#modalScheduler')
+    const options = modal.locator('#action option:not([value=""])')
+    const openModal = async () => {
+      const loaded = page.waitForResponse(
+        (r) => r.url().includes('/scheduler/actions') && r.request().method() === 'GET',
+        { timeout: 15000 },
+      )
+      await page.locator('.btn-scheduler').first().click()
+      await modal.waitFor({ state: 'visible', timeout: 10000 })
+      await loaded
+      await expect.poll(async () => await options.count(), { timeout: 15000 }).toBeGreaterThan(0)
+    }
+
+    const errors = []
+    page.on('pageerror', (err) => errors.push(err.message))
+
+    await openModal()
+    const first = await options.evaluateAll((els) => els.map((el) => el.value))
+    await modal.locator('button[data-dismiss="modal"]').first().click()
+    await modal.waitFor({ state: 'hidden', timeout: 10000 })
+    await openModal()
+    const second = await options.evaluateAll((els) => els.map((el) => el.value))
+
+    expect(second).toEqual(first)
+    expect(new Set(second).size).toBe(second.length)
+    expect(second).not.toContain('recycle_bin_old_entries_action_delete')
+    expect(errors).toEqual([])
   })
 })

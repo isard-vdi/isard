@@ -62,7 +62,7 @@ $(document).ready(function () {
         if ($(this).attr('id') == 'btn-scheduler-delete') {
             new PNotify({
                 title: 'Delete scheduled task',
-                text: "Do you really want to delete scheduled task " + moment.unix(data.next_run_time) + "?",
+                text: schedulerDeleteText(data),
                 hide: false,
                 opacity: 0.9,
                 confirm: { confirm: true },
@@ -90,6 +90,7 @@ $(document).ready(function () {
         }).modal('show');
         scheduler_init();
     });
+    scheduler_bind_modal();
 
 
     $("#modalScheduler #send").on('click', function (e) {
@@ -131,12 +132,16 @@ $(document).ready(function () {
 function socketio_on() {
     socket.on('scheduler_jobs_add', function (data) {
         var data = JSON.parse(data);
-        dtUpdateInsert(scheduler_table, data, false);
+        if (schedulerShowsJob(data)) {
+            dtUpdateInsert(scheduler_table, data, false);
+        }
     });
 
     socket.on('scheduler_jobs_update', function (data) {
         var data = JSON.parse(data);
-        dtUpdateInsert(scheduler_table, data, false);
+        if (schedulerShowsJob(data)) {
+            dtUpdateInsert(scheduler_table, data, false);
+        }
     });
 
     socket.on('scheduler_jobs_delete', function (data) {
@@ -151,23 +156,23 @@ function scheduler_init() {
     $("#modalScheduler #modalAddScheduler").each(function () {
         this.reset();
     });
+    $("#modalAddScheduler #div_action_form, #actionTitle").html("");
+    $("#modalScheduler #action option[value!='']").remove();
 
     $.ajax({
         type: 'GET',
         url: '/scheduler/actions',
         accept: "application/json",
     }).done(function (response) {
-        response.forEach(function (action) {
+        schedulerVisibleActions(response).forEach(function (action) {
             $("#modalScheduler #action").append(
-                "<option value=" + action.id + ">" + action.name + "</option>"
+                $("<option>").val(action.id).text(action.name)
             );
-        })
-        $("#modalScheduler #action option[value='recycle_bin_delete_admin']").remove();
-        $("#modalScheduler #action option[value='recycle_bin_delete']").remove();
-        $("#modalScheduler #action option[value='admin.recycle_bin_old_enties_action_archive]").remove();
-        $("#modalScheduler #action option[value='admin.recycle_bin_old_enties_action_delete]").remove();
+        });
     });
+}
 
+function scheduler_bind_modal() {
     $('#modalAddScheduler #kind').on('change', function (e) {
         var valueSelected = this.value;
         if (valueSelected == 'cron' || valueSelected == 'interval') {
@@ -189,86 +194,51 @@ function scheduler_init() {
             $('#modalAddScheduler #div_interval_cron').hide();
             $('#modalAddScheduler #div_date').hide();
         }
-    })
+    });
 
     $('#modalAddScheduler #action').on('change', function (e) {
         var selectedAction = this.value;
+        if (!selectedAction) {
+            $("#modalAddScheduler #div_action_form, #actionTitle").html("");
+            return;
+        }
         var selectedActionText = this.options[this.selectedIndex].text;
         $.ajax({
             type: "GET",
             url: "/scheduler/action/" + selectedAction,
             accept: "application/json",
             success: function (data) {
-                // If the action requires to introduce data
                 if (data.length > 0) {
-                    $('#actionTitle').html('<i class="fa fa-info-circle" aria-hidden="true"></i> ' + selectedActionText.charAt(0).toUpperCase() + selectedActionText.slice(1));function scheduler_init(){
-                        $("#modalScheduler #modalAddScheduler").each(function () {
-                            this.reset();
-                          });
-                    
-                        $.ajax({
-                            type: 'GET',
-                            url: '/scheduler/actions',
-                            accept: "application/json",
-                        }).done(function(response) {
-                            response.forEach(function(action) {
-                                $("#modalScheduler #action").append(
-                                  "<option value=" + action.id + ">" + action.name + "</option>"
-                                );
-                              })
-                              $("#modalScheduler #action option[value='recycle_bin_delete_admin']").remove();
-                              $("#modalScheduler #action option[value='recycle_bin_delete']").remove();
-                        });
-                    
-                        $('#modalAddScheduler #kind').on('change', function (e) {
-                            var valueSelected = this.value;
-                            if(valueSelected == 'cron' || valueSelected == 'interval'){
-                                $('#modalAddScheduler #div_interval_cron').show();
-                                $('#modalAddScheduler #div_date').hide();
-                            }else if(valueSelected == 'date'){
-                                $('#modalAddScheduler #div_date').show();
-                                $('#modalAddScheduler #div_date #datePicker').daterangepicker({
-                                    parentEl: "#modalAddScheduler #div_date",
-                                    singleDatePicker: true,
-                                    singleClasses: "picker_2",
-                                    timePicker: true,
-                                    locale: {
-                                        format: 'DD/MM/YYYY HH:mm'
-                                    }
-                                });
-                                $('#modalAddScheduler #div_interval_cron').hide();
-                            }else{
-                                $('#modalAddScheduler #div_interval_cron').hide();
-                                $('#modalAddScheduler #div_date').hide();
-                            }
-                        })
-                    
-                        $('#modalAddScheduler #action').on('change', function (e) {
-                            var selectedAction = this.value;
-                            var selectedActionText = this.options[this.selectedIndex].text;
-                            $.ajax({
-                                type: "GET",
-                                url: "/scheduler/action/"+selectedAction,
-                                accept: "application/json",
-                                success: function(data)
-                                {
-                                    // If the action requires to introduce data
-                                    if (data.length > 0) {
-                                        $('#actionTitle').html('<i class="fa fa-info-circle" aria-hidden="true"></i> ' + selectedActionText.charAt(0).toUpperCase() + selectedActionText.slice(1))
-                                        gen_form("#modalAddScheduler #div_action_form", data)
-                                    } else {
-                                        $("#modalAddScheduler #div_action_form, #actionTitle").html("")
-                                    }
-                                }
-                            });
-                        })
-                    }
-                    
+                    $('#actionTitle').html('<i class="fa fa-info-circle" aria-hidden="true"></i> ').append(
+                        document.createTextNode(selectedActionText.charAt(0).toUpperCase() + selectedActionText.slice(1))
+                    );
                     gen_form("#modalAddScheduler #div_action_form", data);
                 } else {
                     $("#modalAddScheduler #div_action_form, #actionTitle").html("");
                 }
             }
         });
-    })
+    });
+}
+
+// Their jobs are managed from the recycle bin configuration, not from here.
+var SCHEDULER_HIDDEN_ACTIONS = [
+    'recycle_bin_delete_admin',
+    'recycle_bin_delete',
+    'recycle_bin_old_entries_action_archive',
+    'recycle_bin_old_entries_action_delete',
+];
+
+function schedulerVisibleActions(actions) {
+    return (actions || []).filter(function (action) {
+        return SCHEDULER_HIDDEN_ACTIONS.indexOf(action.id) === -1;
+    });
+}
+
+function schedulerShowsJob(job) {
+    return !!job && job.type === 'system';
+}
+
+function schedulerDeleteText(job) {
+    return 'Do you really want to delete the scheduled task "' + job.name + '"?';
 }

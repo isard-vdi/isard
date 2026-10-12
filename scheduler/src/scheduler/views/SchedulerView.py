@@ -26,13 +26,7 @@ from scheduler import app
 
 from ..lib.exceptions import Error
 from ..lib.rethink_jobstore import UNHEALTHY_AFTER_S
-from .decorators import (
-    has_token,
-    is_admin,
-    is_admin_or_manager,
-    itemExists,
-    ownsCategoryId,
-)
+from .decorators import is_admin, is_admin_or_manager, itemExists, ownsCategoryId
 
 
 @app.route("/scheduler/healthcheck", methods=["GET"])
@@ -66,20 +60,6 @@ def _unhealthy(reason):
 def actions(payload):
     return (
         json.dumps(app.scheduler.list_actions()),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/scheduler/recycle_bin_delete/max_time", methods=["GET"])
-@has_token
-def max_time(payload):
-    max_time = app.scheduler.get_max_time(
-        None if payload["role_id"] == "admin" else payload["category_id"]
-    )
-    max_time_admin = app.scheduler.get_max_time_admin()
-    return (
-        json.dumps({"time": max_time, "max_time": max_time_admin}),
         200,
         {"Content-Type": "application/json"},
     )

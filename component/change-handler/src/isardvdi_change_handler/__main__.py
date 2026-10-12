@@ -41,6 +41,7 @@ from .handlers.media import MediaHandler
 from .handlers.recycle_bin import RecycleBinHandler
 from .handlers.resource_planner import ResourcePlannerHandler
 from .handlers.resources import ResourcesHandler
+from .handlers.scheduler_jobs import SchedulerJobsHandler
 from .handlers.storage import StorageHandler
 from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
@@ -113,7 +114,7 @@ handler_map = {
     "users": UsersHandler(redis_manager, "users"),
     "categories": CategoriesHandler(redis_manager, "categories"),
     "groups": GroupsHandler(redis_manager, "groups"),
-    "scheduler_jobs": BaseHandler(redis_manager, "scheduler_jobs"),
+    "scheduler_jobs": SchedulerJobsHandler(redis_manager, "scheduler_jobs"),
     "hypervisors": HypervisorsHandler(redis_manager, "hypervisors"),
     "vgpus": VgpusHandler(redis_manager, "vgpus"),
     "user_storage": BaseHandler(redis_manager, "user_storage"),
