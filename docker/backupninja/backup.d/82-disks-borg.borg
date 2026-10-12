@@ -1,6 +1,8 @@
 when = $BACKUP_DISKS_WHEN
 
 [source]
+## the borg handler unsets BORG_CACHE_DIR for a job without cache_directory
+cache_directory = $BORG_CACHE_DIR
 $BACKUP_DISKS_TEMPLATES_ENABLED
 $BACKUP_DISKS_GROUPS_ENABLED
 $BACKUP_DISKS_MEDIA_ENABLED

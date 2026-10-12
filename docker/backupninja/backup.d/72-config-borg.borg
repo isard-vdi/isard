@@ -1,6 +1,8 @@
 when = $BACKUP_CONFIG_WHEN
 
 [source]
+## the borg handler unsets BORG_CACHE_DIR for a job without cache_directory
+cache_directory = $BORG_CACHE_DIR
 include = /opt/isard/assets
 include = /opt/isard/authentication
 include = /opt/isard/bastion
