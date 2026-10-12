@@ -22,7 +22,7 @@ read."""
 import json
 import math
 
-from isardvdi_common.lib import queue_coverage, queue_tiers
+from isardvdi_common.lib import governor_schedule, queue_coverage, queue_tiers
 
 _EMPTY = {
     "effective_position": None,
@@ -107,7 +107,8 @@ def _max_heavy(conn):
             return _DEFAULT_MAX_HEAVY
         cfg = json.loads(_decode(raw))
         value = cfg.get("max_heavy")
-        return int(value) if value is not None else _DEFAULT_MAX_HEAVY
+        base = int(value) if value is not None else _DEFAULT_MAX_HEAVY
+        return governor_schedule.effective_max_heavy(cfg, base)[0]
     except Exception:
         return _DEFAULT_MAX_HEAVY
 
