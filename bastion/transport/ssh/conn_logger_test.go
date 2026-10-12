@@ -57,6 +57,59 @@ func newLoggerTestBastion(t *testing.T, targetID, desktopID string, key ssh.Publ
 	port := closed.Addr().(*net.TCPAddr).Port
 	require.NoError(t, closed.Close())
 
+	return newLoggerTestBastionOnPort(t, targetID, desktopID, key, out, port)
+}
+
+// newTargetSSHServer accepts the bastion's password login and then just holds the connection.
+func newTargetSSHServer(t *testing.T) int {
+	t.Helper()
+
+	_, hostPriv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	hostKey, err := ssh.NewSignerFromKey(hostPriv)
+	require.NoError(t, err)
+
+	cfg := &ssh.ServerConfig{
+		PasswordCallback: func(_ ssh.ConnMetadata, _ []byte) (*ssh.Permissions, error) {
+			return nil, nil
+		},
+	}
+	cfg.AddHostKey(hostKey)
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { lis.Close() })
+
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				return
+			}
+
+			go func() {
+				defer conn.Close()
+
+				srvConn, chans, reqs, err := ssh.NewServerConn(conn, cfg)
+				if err != nil {
+					return
+				}
+				defer srvConn.Close()
+
+				go ssh.DiscardRequests(reqs)
+				for newChan := range chans {
+					_ = newChan.Reject(ssh.Prohibited, "test target")
+				}
+			}()
+		}
+	}()
+
+	return lis.Addr().(*net.TCPAddr).Port
+}
+
+func newLoggerTestBastionOnPort(t *testing.T, targetID, desktopID string, key ssh.PublicKey, out *lockedBuffer, port int) (*bastion, *zerolog.Logger) {
+	t.Helper()
+
 	ip := "127.0.0.1"
 	mock := r.NewMock()
 	mock.On(r.Table("targets").Get(targetID)).Return([]any{
@@ -123,7 +176,8 @@ func dialThroughBastion(t *testing.T, b *bastion, log *zerolog.Logger, user stri
 		Timeout:         5 * time.Second,
 	})
 	require.NoError(t, err)
-	defer client.Close()
+	// on the established path the bastion proxies until the client leaves
+	require.NoError(t, client.Close())
 
 	select {
 	case <-done:
@@ -211,5 +265,36 @@ func TestHandleConnConcurrentConnectionsDoNotShareLogger(t *testing.T) {
 		if strings.Contains(l, "establish SSH proxy client connection") {
 			assert.Equal(t, 1, strings.Count(l, `"remote_addr"`))
 		}
+	}
+}
+
+func TestHandleConnEstablishedLineCarriesItsOwnAddresses(t *testing.T) {
+	assert := assert.New(t)
+
+	const (
+		targetID  = "5054aaaa-0000-4000-8000-000000000003"
+		desktopID = "desktop-5054-established"
+	)
+
+	signer := clientSigner(t, 56)
+	out := &lockedBuffer{}
+	b, shared := newLoggerTestBastionOnPort(t, targetID, desktopID, signer.PublicKey(), out, newTargetSSHServer(t))
+
+	const conns = 3
+	for range conns {
+		dialThroughBastion(t, b, shared, targetID, signer)
+	}
+
+	var established []string
+	for _, l := range out.lines() {
+		if strings.Contains(l, "connection stablished") {
+			established = append(established, l)
+		}
+	}
+	require.Len(t, established, conns)
+
+	for i, l := range established {
+		assert.Equal(1, strings.Count(l, `"remote_addr"`), "connection %d: the established line must say where it comes from, once", i+1)
+		assert.Equal(1, strings.Count(l, `"target_addr"`), "connection %d: the established line must say where it goes, once", i+1)
 	}
 }

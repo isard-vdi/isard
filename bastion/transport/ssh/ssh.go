@@ -285,7 +285,7 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 
 	targetID := srvConn.Permissions.Extensions[ExtensionTargetID]
 	desktopID := srvConn.Permissions.Extensions[ExtensionDesktopID]
-	b.log.Info().Str("target", targetID).Str("desktop", desktopID).Msg("connection stablished")
+	log.Info().Str("target", targetID).Str("desktop", desktopID).Msg("connection stablished")
 
 	// Start proxying
 	go b.handleRequests(ctx, log, targetConn, reqs)
