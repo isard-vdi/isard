@@ -367,6 +367,82 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			RataMinRAM:            700,
 			ExpectedRemoveDeadRow: []string{"1"},
 		},
+		"should remove the hypervisor with the most free RAM from the dead row if none closes the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  200000,
+					Free:  800000,
+				},
+			}, {
+				ID:                  "sentenced-big",
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(time.Hour)),
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     20,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2000000,
+					Used:  500000,
+					Free:  1500000,
+				},
+			}, {
+				ID:                  "sentenced-small",
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(2 * time.Hour)),
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     20,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  500000,
+					Free:  500000,
+				},
+			}},
+			// 800000 + 1500000 < 3000000.
+			RataMinRAM:            3000000,
+			ExpectedRemoveDeadRow: []string{"sentenced-big"},
+		},
+		"should create a new hypervisor if the hypervisor on the dead row is overloaded and doesn't close the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  200000,
+					Free:  800000,
+				},
+			}, {
+				ID:                  "sentenced",
+				Status:              apiv4.HypervisorStatusOnline,
+				DestroyTime:         apiv4.NewNilDateTime(time.Now().Add(time.Hour)),
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     120,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  485855,
+					Free:  30000,
+				},
+			}},
+			RataMinRAM:      3000000,
+			RataHyperMinRAM: 41200,
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"spare"},
+			},
+		},
 		"regression test #1": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
 			Hypers: []*apiv4.OrchestratorHypervisor{{
@@ -522,6 +598,176 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			}},
 			RataMinRAM:               300,
 			ExpectedRemoveOnlyForced: []string{"2"},
+		},
+		"should unlimit a newly created hypervisor instead of creating another one if it doesn't close the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "new",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}, {
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1031686,
+					Used:  201686,
+					Free:  830000,
+				},
+			}, {
+				ID:                  "new",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  11961,
+					Free:  2040000,
+				},
+			}},
+			// 830000 + 2040000 < 3287400.
+			RataMinRAM:               3287400,
+			ExpectedRemoveOnlyForced: []string{"new"},
+		},
+		"should unlimit the empty limited hypervisor with the most free RAM if none closes the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  429235,
+					Free:  570765,
+				},
+			}, {
+				ID:                  "small",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 300000,
+					Used:  100000,
+					Free:  200000,
+				},
+			}, {
+				ID:                  "medium",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  4855,
+					Free:  511000,
+				},
+			}},
+			// 570765 + 511000 < 1107600.
+			RataMinRAM:               1107600,
+			ExpectedRemoveOnlyForced: []string{"medium"},
+		},
+		"should unlimit a limited hypervisor with desktops started if it closes the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  500000,
+					Free:  500000,
+				},
+			}, {
+				ID:                  "limited",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     80,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  400000,
+					Free:  600000,
+				},
+			}},
+			// 500000 + 600000 > 1000000.
+			RataMinRAM:               1000000,
+			RataHyperMinRAM:          41200,
+			RataHyperMaxRAM:          1024000,
+			ExpectedRemoveOnlyForced: []string{"limited"},
+		},
+		"should create a new hypervisor if the limited hypervisor is still overloaded": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  500000,
+					Free:  500000,
+				},
+			}, {
+				ID:                  "overloaded",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     120,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  485855,
+					Free:  30000,
+				},
+			}},
+			RataMinRAM:      1000000,
+			RataHyperMinRAM: 41200,
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"spare"},
+			},
+		},
+		"should create a new hypervisor if the limited hypervisor has desktops started and doesn't close the gap on its own": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "spare",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   2051961,
+			}},
+			Hypers: []*apiv4.OrchestratorHypervisor{{
+				ID:     "permanent",
+				Status: apiv4.HypervisorStatusOnline,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 1000000,
+					Used:  500000,
+					Free:  500000,
+				},
+			}, {
+				ID:                  "limited",
+				Status:              apiv4.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				DesktopsStarted:     80,
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  465855,
+					Free:  50000,
+				},
+			}},
+			// 500000 + 50000 < 1000000.
+			RataMinRAM:      1000000,
+			RataHyperMinRAM: 41200,
+			RataHyperMaxRAM: 102400,
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"spare"},
+			},
 		},
 		"should scale up with the biggest hypervisor available if the required RAM is higher than any of the available hypervisors RAM": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{

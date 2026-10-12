@@ -234,8 +234,13 @@ func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResp
 // TODO: Capabilities
 func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*apiv4.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *apiv4.OrchestratorHypervisor {
 	var hyperToPardon *apiv4.OrchestratorHypervisor
+	var biggestHyper *apiv4.OrchestratorHypervisor
 
 	for _, h := range hypersOnDeadRow {
+		if !r.needToLimitHypervisor(h) && (biggestHyper == nil || h.RAM.Free > biggestHyper.RAM.Free) {
+			biggestHyper = h
+		}
+
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
 
 		if enoughRAM {
@@ -251,20 +256,26 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*apiv4.OrchestratorHypervisor
 		}
 	}
 
+	if hyperToPardon == nil {
+		return biggestHyper
+	}
+
 	return hyperToPardon
 }
 
+// bestHyperToUnlimit skips the gap check for empty hypervisors, the extra operations never unlimit them.
+//
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToUnlimit(hypersToAcknowledge []*apiv4.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *apiv4.OrchestratorHypervisor {
+func (r *Rata) bestHyperToUnlimit(hypersLimited []*apiv4.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *apiv4.OrchestratorHypervisor {
 	var hyperToUnlimit *apiv4.OrchestratorHypervisor
 
-	for _, h := range hypersToAcknowledge {
+	for _, h := range hypersLimited {
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
 
-		// Ensure the hypervisor is not overloaded and has enough RAM to
-		// satisfy the requirements
-		if !r.needToLimitHypervisor(h) && enoughRAM {
+		// Ensure the hypervisor is not overloaded, otherwise the extra
+		// operations would limit it again in the next cycle.
+		if !r.needToLimitHypervisor(h) && (h.DesktopsStarted == 0 || enoughRAM) {
 			if hyperToUnlimit != nil {
 				// Pick hypervisor that has more free RAM
 				if h.RAM.Free > hyperToUnlimit.RAM.Free {
