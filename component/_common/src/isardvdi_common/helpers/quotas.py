@@ -565,7 +565,8 @@ class Quotas(RethinkCustomBase):
 
     @classmethod
     def check_limits(cls, item, quota_key, quantity, limits_error):
-        if item["limits"] and quantity > item["limits"][quota_key]:
+        limit = item["limits"].get(quota_key) if item["limits"] else None
+        if limit is not None and quantity > limit:
             raise Error(
                 "precondition_required",
                 limits_error["error_description"],

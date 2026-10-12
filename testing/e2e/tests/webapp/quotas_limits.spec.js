@@ -67,13 +67,11 @@ const QUOTA_API_BASE = {
   started_deployment_desktops: 1,
 }
 const completeQuota = (quota) => (quota === false ? false : { ...QUOTA_API_BASE, ...quota })
-// NOTE: `volatile` is a Quota field, NOT a Limits field — the apiv4 `Limits`
-// schema (isardvdi_common/schemas/shared/quotas.py) has no `volatile`, so it is
-// never stored or returned; asserting it back yields NaN. Keep this dict to the
-// real Limits fields only.
+// the temporary desktop gate reads `volatile` from limits, so the form must store it
 const SAMPLE_LIMITS = {
   users: 9,
   desktops: 12,
+  volatile: 12,
   running: 10,
   templates: 12,
   isos: 12,
