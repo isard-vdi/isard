@@ -771,3 +771,78 @@ def test_sync_bpdu_groups_teardown_when_no_ports(monkeypatch):
         "teardown match must omit dl_dst so it catches the priority=200 flow too: "
         + str(del_calls)
     )
+
+
+class _OfportLookup:
+    """Stands in for subprocess.run on `ovs-vsctl get Interface <x> ofport`;
+    ``ofports`` maps an interface to its ofport, absent = no such port."""
+
+    def __init__(self, ofports):
+        self.ofports = ofports
+        self.calls = 0
+
+    def __call__(self, cmd, **kwargs):
+        import subprocess
+
+        self.calls += 1
+        name = cmd[3]
+        if name not in self.ofports:
+            raise subprocess.CalledProcessError(1, cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout=self.ofports[name] + "\n")
+
+
+def test_geneve_port_created_after_start_is_found(monkeypatch):
+    """geneve-only: a tunnel port that appears after the worker started is picked up."""
+    monkeypatch.setenv("DOMAIN", "hyper.example")
+    lookup = _OfportLookup({})
+    monkeypatch.setattr(ovs_worker.subprocess, "run", lookup)
+    clock = [100.0]
+    monkeypatch.setattr(ovs_worker.time, "monotonic", lambda: clock[0])
+
+    worker = _worker_without_init()
+    worker._discover_geneve_port()
+    assert worker.geneve_port is None
+
+    lookup.ofports["vpn-geneve"] = "7"
+    clock[0] += ovs_worker.OvsWorker.GENEVE_PORT_RETRY_S
+    assert worker.geneve_port == "7"
+
+    # once found it is not looked up again
+    calls = lookup.calls
+    assert worker.geneve_port == "7"
+    assert lookup.calls == calls
+
+
+def test_missing_geneve_port_lookup_is_throttled(monkeypatch):
+    monkeypatch.setenv("DOMAIN", "")
+    lookup = _OfportLookup({})
+    monkeypatch.setattr(ovs_worker.subprocess, "run", lookup)
+    clock = [100.0]
+    monkeypatch.setattr(ovs_worker.time, "monotonic", lambda: clock[0])
+
+    worker = _worker_without_init()
+    worker._discover_geneve_port()
+    calls = lookup.calls
+    for _ in range(5):
+        assert worker.geneve_port is None
+    assert lookup.calls == calls, "looked up again before the retry interval"
+
+
+def test_geneve_port_without_ofport_is_not_taken(monkeypatch):
+    monkeypatch.setenv("DOMAIN", "")
+    monkeypatch.setattr(
+        ovs_worker.subprocess, "run", _OfportLookup({"vpn-geneve": "[]"})
+    )
+    worker = _worker_without_init()
+    assert worker._discover_geneve_port() is None
+
+
+def test_wireguard_geneve_port_is_named_after_the_domain(monkeypatch):
+    monkeypatch.setenv("DOMAIN", "hyper.example")
+    monkeypatch.setattr(
+        ovs_worker.subprocess,
+        "run",
+        _OfportLookup({"hyper.example": "3", "vpn-geneve": "8"}),
+    )
+    worker = _worker_without_init()
+    assert worker._discover_geneve_port() == "3"

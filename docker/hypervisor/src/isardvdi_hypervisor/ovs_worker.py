@@ -175,11 +175,29 @@ class OvsWorker:
             ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
         )
 
-        # Discover geneve port number (set up by setup.sh before we start)
-        # In wg+geneve mode the interface is named $DOMAIN
-        # In geneve mode the interface is named vpn-geneve
+        # In geneve-only the port may appear after start; the property looks again.
+        self._geneve_port = None
+        self._geneve_port_next_lookup = 0.0
+        self._discover_geneve_port()
+
+    GENEVE_PORT_RETRY_S = 5
+
+    @property
+    def geneve_port(self):
+        if getattr(self, "_geneve_port", None) is None:
+            if time.monotonic() >= getattr(self, "_geneve_port_next_lookup", 0.0):
+                self._discover_geneve_port()
+        return getattr(self, "_geneve_port", None)
+
+    @geneve_port.setter
+    def geneve_port(self, value):
+        self._geneve_port = value
+
+    def _discover_geneve_port(self):
+        """Return the tunnel port's ofport ($DOMAIN or vpn-geneve), or None."""
+        first = getattr(self, "_geneve_port_next_lookup", 0.0) == 0.0
+        self._geneve_port_next_lookup = time.monotonic() + self.GENEVE_PORT_RETRY_S
         domain = os.environ.get("DOMAIN", "")
-        self.geneve_port = None
         for iface_name in [domain, "vpn-geneve"]:
             if not iface_name:
                 continue
@@ -191,26 +209,27 @@ class OvsWorker:
                     check=True,
                 )
                 port = result.stdout.strip()
-                if port and port != "-1":
-                    self.geneve_port = port
+                if port and port not in ("-1", "[]"):
+                    self._geneve_port = port
                     log(
                         {
                             "event": "geneve_port_discovered",
-                            "port": self.geneve_port,
+                            "port": port,
                             "interface": iface_name,
                         }
                     )
-                    break
+                    return port
             except Exception:
                 continue
 
-        if self.geneve_port is None:
+        if first:
             log(
                 {
                     "event": "geneve_port_error",
-                    "error": f"Could not find geneve port via DOMAIN='{domain}' or 'vpn-geneve'",
+                    "error": f"Could not find geneve port via DOMAIN='{domain}' or 'vpn-geneve'; will look again",
                 }
             )
+        return None
 
     def start(self):
         """Initialize and start the worker"""

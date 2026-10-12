@@ -143,7 +143,7 @@ fi
 report_step 2 "VPN setup" None
 
 echo "---> Setting up OpenVswitch over wg..."
-sh -c "/src/ovs/setup.sh"
+sh -c "/src/ovs/setup.sh" || echo "---> [WARNING] OVS setup exited with $?; continuing"
 
 # Read WG hypers gateway IP computed by setup.sh
 if [ -f /tmp/wg_hypers_gw ]; then
@@ -319,6 +319,8 @@ do
             /isard/bin/wg-quick down wg0  >/dev/null 2>&1
             /isard/bin/wg-quick up wg0  >/dev/null 2>&1
         fi
+    elif [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "geneve" ]; then
+        /src/ovs/geneve-tunnel.sh ensure >/dev/null
     fi
 
     sleep 60 &
