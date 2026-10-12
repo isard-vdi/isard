@@ -39,8 +39,18 @@ GUESTS_GW = str(
 )
 
 
+_port_locks_guard = threading.Lock()
+_port_locks: dict = {}
+
+
+def _port_lock(hyper_id):
+    """Per-hypervisor lock; the OVS calls under it must carry --timeout."""
+    with _port_locks_guard:
+        return _port_locks.setdefault(hyper_id, threading.Lock())
+
+
 def ensure_geneve_port(hyper_id, hostname):
-    """Create the hypervisor's geneve port if missing, then (re)apply its BFD
+    """Create or update the hypervisor's geneve port, then (re)apply its BFD
     session and flows.
 
     BFD and the flows are applied even when the port already exists: BFD is the
@@ -50,6 +60,38 @@ def ensure_geneve_port(hyper_id, hostname):
     """
     if not hyper_id or not hostname:
         return False
+    with _port_lock(hyper_id):
+        return _ensure_geneve_port_locked(hyper_id, hostname)
+
+
+def ensure_registered_geneve_port(hyper_id, _hostname=None):
+    """ensure_geneve_port re-reading the row under the lock; a deleted one gets none."""
+    with _port_lock(hyper_id):
+        hostname = _registered_hostname(hyper_id)
+        if not hostname:
+            return False
+        return _ensure_geneve_port_locked(hyper_id, hostname)
+
+
+def _registered_hostname(hyper_id):
+    with vpn_rethink_conn() as conn:
+        row = r.table("hypervisors").get(hyper_id).default(None).run(conn)
+    return (row or {}).get("hostname")
+
+
+def remove_geneve_port(hyper_id):
+    with _port_lock(hyper_id):
+        subprocess.run(
+            ["ovs-ofctl", "--timeout=5", "del-flows", "ovsbr0", f"in_port={hyper_id}"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["ovs-vsctl", "--timeout=5", "--if-exists", "del-port", hyper_id],
+            capture_output=True,
+        )
+
+
+def _ensure_geneve_port_locked(hyper_id, hostname):
     try:
         resolved_ip = socket.gethostbyname(hostname)
     except socket.gaierror:
@@ -57,35 +99,29 @@ def ensure_geneve_port(hyper_id, hostname):
         return False
 
     geneve_port = os.environ.get("WG_HYPERS_PORT", "4443")
-    if hyper_id not in check_output(("ovs-vsctl", "show"), text=True).strip():
-        subprocess.run(
-            [
-                "ovs-vsctl",
-                "add-port",
-                "ovsbr0",
-                hyper_id,
-                "--",
-                "set",
-                "interface",
-                hyper_id,
-                "type=geneve",
-                f"options:remote_ip={resolved_ip}",
-                f"options:dst_port={geneve_port}",
-            ]
-        )
+    # One transaction: creates the port or moves it to the current address.
     subprocess.run(
         [
             "ovs-vsctl",
-            "set",
-            "Interface",
+            "--timeout=5",
+            "--may-exist",
+            "add-port",
+            "ovsbr0",
             hyper_id,
+            "--",
+            "set",
+            "interface",
+            hyper_id,
+            "type=geneve",
+            f"options:remote_ip={resolved_ip}",
+            f"options:dst_port={geneve_port}",
             "bfd:enable=true",
             "bfd:min_tx=200",
             "bfd:min_rx=200",
         ]
     )
     port = check_output(
-        ("ovs-vsctl", "get", "interface", hyper_id, "ofport"), text=True
+        ("ovs-vsctl", "--timeout=5", "get", "interface", hyper_id, "ofport"), text=True
     ).strip()
     # OVS 4.0 drops the internal vlan-wg from NORMAL's flood under RSTP; deliver
     # guest DHCP and the gateway ARP to it explicitly, not via NORMAL.
@@ -96,8 +132,8 @@ def ensure_geneve_port(hyper_id, hostname):
         f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={VM_MAC_MATCH},actions=resubmit(,2)",
         f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
     ):
-        subprocess.run(["ovs-ofctl", "add-flow", "ovsbr0", flow])
-    log.info(f"Ensured geneve hypervisor {hyper_id} (port {port})")
+        subprocess.run(["ovs-ofctl", "--timeout=5", "add-flow", "ovsbr0", flow])
+    log.info(f"Ensured geneve hypervisor {hyper_id} (port {port}, {resolved_ip})")
     return True
 
 
@@ -130,15 +166,7 @@ def _process_vpn_change(change, wg_users, wg_hypers, rdp=None):
                 if wg_hypers is not None:
                     wg_hypers.down_peer(old_val)
                 else:
-                    hyper_id = old_val["id"]
-                    subprocess.run(
-                        ["ovs-ofctl", "del-flows", "ovsbr0", f"in_port={hyper_id}"],
-                        capture_output=True,
-                    )
-                    subprocess.run(
-                        ["ovs-vsctl", "--if-exists", "del-port", hyper_id],
-                        capture_output=True,
-                    )
+                    remove_geneve_port(old_val["id"])
             elif old_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
                 if rdp is not None:
@@ -264,7 +292,7 @@ geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "tru
 
 def main():
     start_monitoring_vpn_status()
-    tunnel_monitor.start()
+    tunnel_monitor.start(ensure_port=ensure_registered_geneve_port)
     dhcp_reports.start()
     rdp = rdp_checks.RdpChecks().start()
 
