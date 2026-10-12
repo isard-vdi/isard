@@ -351,6 +351,7 @@ def _require_free_space(
     verb,
     measure_options=None,
     source_format=None,
+    sparse_copy=False,
 ):
     """Refuse ``action`` unless ``target_dir`` keeps ``min_free_bytes`` free
     after landing a full copy of ``source_path``.
@@ -370,6 +371,7 @@ def _require_free_space(
     expensive measure is skipped entirely. ``source_format`` pins ``-f`` for the
     measure. Fails closed (logged) if the measure cannot be read.
 
+    ``sparse_copy``: the copy keeps holes, so reserve the allocated blocks only.
     ``min_free_bytes=0`` disables the check; ``None`` means "use the default".
 
     :raises RuntimeError: when the floor would be breached, or when either
@@ -403,8 +405,12 @@ def _require_free_space(
             )
     else:
         try:
-            # apparent size: an upper bound for the sparse copy
-            needed = os_stat(source_path).st_size
+            source_stat = os_stat(source_path)
+            # apparent size: an upper bound for any copy of the file
+            needed = source_stat.st_size
+            blocks = getattr(source_stat, "st_blocks", None)
+            if sparse_copy and blocks is not None:
+                needed = min(needed, blocks * 512)
         except OSError as exc:
             raise RuntimeError(
                 f"{action}: refusing to {verb} {source_path}: cannot size the "
@@ -1091,6 +1097,18 @@ def _state_progress(progress):
     job.save_meta()
 
 
+#: Job metadata key that says a failed ``move`` never touched its source.
+SOURCE_UNTOUCHED_META_KEY = "source_untouched"
+
+
+def _state_source_untouched():
+    job = get_current_job()
+    if job is None:
+        return
+    job.meta[SOURCE_UNTOUCHED_META_KEY] = True
+    job.save_meta()
+
+
 def _job_canceled():
     """True when this job has been cancelled.
 
@@ -1637,10 +1655,19 @@ def move(
                 return 0
 
     # Everything past here copies, so the floor applies -- keyed on copying, not on
-    # the method name. Basis is the apparent size, an upper bound for a sparse copy.
-    _require_free_space(
-        dirname(destination_path), origin_path, min_free_bytes, "move", "copy"
-    )
+    # the method name; rsync --sparse keeps holes, so the basis is the blocks held.
+    try:
+        _require_free_space(
+            dirname(destination_path),
+            origin_path,
+            min_free_bytes,
+            "move",
+            "copy",
+            sparse_copy=True,
+        )
+    except RuntimeError:
+        _state_source_untouched()
+        raise
 
     return run_with_progress(
         [

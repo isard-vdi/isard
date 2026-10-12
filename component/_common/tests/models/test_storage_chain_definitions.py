@@ -33,6 +33,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from isardvdi_common.models.storage import Storage
+from rq.job import JobStatus
 
 
 @pytest.fixture(autouse=True)
@@ -561,3 +562,81 @@ def test_a_plain_check_leaves_the_parent_alone():
         s.check_backing_chain(user_id="u1")
     names = list(_collect_task_names(mock_create.call_args.kwargs["dependents"]))
     assert names == ["storage_update"]
+
+
+# --- a copy the worker refuses hands the desktop back instead of failing it ---
+
+
+def _find(dep_list, task_name):
+    for dep in dep_list or []:
+        if dep.get("task") == task_name:
+            return dep
+        found = _find(dep.get("dependents"), task_name)
+        if found:
+            return found
+    return None
+
+
+def test_the_root_move_carries_the_refused_copy_step():
+    """It hangs off the root: the only member whose failure leaves the file untouched."""
+    s = _bare_storage(id="src-desktop-storage")
+    mock_create, _ = _run_template_chain(s, "new-template-storage-99")
+    assert mock_create.call_args.kwargs["task"] == "move"
+    direct = mock_create.call_args.kwargs["dependents"]
+    step = next(d for d in direct if d["task"] == "template_copy_refused")
+    assert step["queue"] == "core"
+    assert step["job_kwargs"]["kwargs"] == {
+        "desktop_id": "desktop-1",
+        "template_id": "template-1",
+        "template_storage_id": "new-template-storage-99",
+        "desktop_restore": {},
+    }
+    # and the copy itself still follows the move
+    assert any(d["task"] == "create" for d in direct)
+
+
+def test_the_refused_copy_step_carries_what_the_caller_parked():
+    s = _bare_storage(id="src-desktop-storage")
+    tpl = _ParkedRow("new-template-storage-99")
+    real_new = Storage.__new__
+
+    def fake_new(cls, *args, **kwargs):
+        if args and args[0] == tpl.id:
+            return tpl
+        return real_new(cls)
+
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "_preflight_lane"),
+        patch.object(Storage, "exists", return_value=True),
+        patch.object(
+            Storage,
+            "pool",
+            new_callable=PropertyMock,
+            return_value=MagicMock(id="src-pool"),
+        ),
+        patch("isardvdi_common.models.storage.Storage.__new__", side_effect=fake_new),
+    ):
+        s.enqueue_template_creation_chain_from_desktop(
+            desktop_id="desktop-1",
+            template_id="template-1",
+            template_storage_id=tpl.id,
+            desktop_restore={"parents": ["base-1"]},
+        )
+    step = _find(mock_create.call_args.kwargs["dependents"], "template_copy_refused")
+    assert step["job_kwargs"]["kwargs"]["desktop_restore"] == {"parents": ["base-1"]}
+
+
+def test_the_terminal_step_only_fails_a_desktop_still_parked():
+    """Once the desktop was handed back, the terminal mapping must not fail it."""
+    s = _bare_storage(id="src-desktop-storage")
+    terminal = _find(
+        _template_chain_dependents(s, "new-template-storage-99"), "update_status"
+    )
+    kwargs = terminal["job_kwargs"]["kwargs"]
+    assert kwargs["only_while"] == {
+        "domain": "desktop-1",
+        "statuses": ["CreatingTemplate"],
+    }
+    # the mapping itself is unchanged for every other failure
+    assert "desktop-1" in kwargs["statuses"][JobStatus.FAILED]["Failed"]["domain"]

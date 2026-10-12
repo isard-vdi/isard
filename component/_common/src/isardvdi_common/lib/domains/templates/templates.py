@@ -441,6 +441,7 @@ class TemplatesProcessed(RethinkSharedConnection):
                 desktop_id=desktop_id,
                 template_id=template_id,
                 template_storage_id=template_storage.id,
+                desktop_restore={"parents": desktop.get("parents") or []},
             )
         except Exception:
             with cls._rdb_context():

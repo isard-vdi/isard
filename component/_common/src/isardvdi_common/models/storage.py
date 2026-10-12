@@ -2910,6 +2910,7 @@ class Storage(RethinkCustomBase):
         priority="template",
         retry: int = 0,
         timeout=43200,
+        desktop_restore=None,
     ):
         """Enqueue the chain that turns this desktop's qcow2 into a template
         base disk plus a fresh overlay at the desktop's old path.
@@ -2979,6 +2980,7 @@ class Storage(RethinkCustomBase):
             whole chain rides the dedicated governed template lane — a heavy
             whole-disk copy that must never block (or be blocked by) quick bulk
             creates, and never touches the reserved/std foreground pools.
+        :param desktop_restore: Desktop fields to put back if the copy is refused.
         :param retry: Number of retries on the root ``move`` task.
         :param timeout: Per-task timeout in seconds (default 12 h, matches
             :meth:`rsync`).
@@ -3063,6 +3065,18 @@ class Storage(RethinkCustomBase):
                 "timeout": timeout,
             },
             dependents=[
+                {
+                    "queue": "core",
+                    "task": "template_copy_refused",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "desktop_id": desktop_id,
+                            "template_id": template_id,
+                            "template_storage_id": template_storage_id,
+                            "desktop_restore": desktop_restore or {},
+                        }
+                    },
+                },
                 {
                     "queue": f"storage.{dst_pool.id}.{priority}",
                     "task": "create",
@@ -3170,6 +3184,12 @@ class Storage(RethinkCustomBase):
                                                                             },
                                                                         },
                                                                     },
+                                                                    "only_while": {
+                                                                        "domain": desktop_id,
+                                                                        "statuses": [
+                                                                            "CreatingTemplate"
+                                                                        ],
+                                                                    },
                                                                 },
                                                             },
                                                         },
@@ -3182,7 +3202,7 @@ class Storage(RethinkCustomBase):
                             ],
                         }
                     ],
-                }
+                },
             ],
         )
 

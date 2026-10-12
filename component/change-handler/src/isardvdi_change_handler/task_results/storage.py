@@ -596,7 +596,19 @@ def handle_storage_delete(task, storage_id):
     Storage.delete_document_if(storage_id, field="status", values=("deleted",))
 
 
-async def handle_update_status(redis_manager, task, statuses=None):
+def _still_holds(only_while):
+    """Whether ``{"<class>": <id>, "statuses": [...]}`` still has one of its statuses."""
+    for item_class, item_id in only_while.items():
+        if item_class == "statuses":
+            continue
+        model = _ITEM_CLASS_MAP.get(item_class.lower())
+        row = model.build(item_id) if model is not None else None
+        if row is None or row.status not in (only_while.get("statuses") or ()):
+            return False
+    return True
+
+
+async def handle_update_status(redis_manager, task, statuses=None, only_while=None):
     """Port of core_worker.task.update_status.
 
     The same nested dict structure (``_all`` plus per-status overrides)
@@ -604,11 +616,22 @@ async def handle_update_status(redis_manager, task, statuses=None):
     :func:`send_status_socket` to keep the admin storage event flowing.
     Media and Domain rows update without a SocketIO emit — that's
     handled by change-handler's existing per-table changefeed listener.
+    ``only_while`` skips the per-status branch once that row left its statuses.
     """
     statuses = statuses or {}
+    per_status = statuses.get(task.depending_status, {})
+    if per_status and only_while and not _still_holds(only_while):
+        log.info(
+            "task_results.update_status: %s already settled (%s), skipping the "
+            "%s branch",
+            only_while,
+            task.id,
+            task.depending_status,
+        )
+        per_status = {}
     for item_statuses_item_ids in (
         statuses.get("_all", {}),
-        statuses.get(task.depending_status, {}),
+        per_status,
     ):
         for item_status, items in item_statuses_item_ids.items():
             for item_class, item_ids in items.items():

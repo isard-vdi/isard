@@ -141,3 +141,44 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     Domain.update_document_if(
         domain_id, update, field="status", values=(domain.status,)
     )
+
+
+#: must match the storage worker's own copy in ``isardvdi_storage.task``
+SOURCE_UNTOUCHED_META_KEY = "source_untouched"
+
+TEMPLATE_COPY_REFUSED_DETAIL = (
+    "The template could not be created: the disk copy was refused before it "
+    "started (not enough free space in the template pool). The source desktop "
+    "was left as it was."
+)
+
+
+def _source_untouched(task):
+    for dependency in getattr(task, "dependencies", None) or []:
+        meta = getattr(getattr(dependency, "job", None), "meta", None) or {}
+        if meta.get(SOURCE_UNTOUCHED_META_KEY):
+            return True
+    return False
+
+
+def handle_template_copy_refused(
+    task, desktop_id, template_id, template_storage_id, desktop_restore=None
+):
+    """Hand the source desktop back when the worker refused the copy untouched."""
+    if task.depending_status != "failed" or not _source_untouched(task):
+        return
+    Domain.update_document_if(
+        desktop_id,
+        {"status": "Stopped", **(desktop_restore or {})},
+        field="status",
+        values=("CreatingTemplate",),
+        validate=False,
+    )
+    Domain.update_document_if(
+        template_id,
+        {"status": "Failed", "detail": TEMPLATE_COPY_REFUSED_DETAIL},
+        field="status",
+        values=("CreatingTemplate",),
+        validate=False,
+    )
+    Storage.write_status(template_storage_id, "deleted")
