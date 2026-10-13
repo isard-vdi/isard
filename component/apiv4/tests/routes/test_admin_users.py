@@ -623,6 +623,32 @@ def test_admin_user_logout(monkeypatch, test_client):
     assert calls == ["user-1"]
 
 
+def test_admin_search_users_keeps_uid_and_category_name(monkeypatch, test_client):
+    # The change-owner pickers label each user ``Name [uid] (Category)``;
+    # the response model must not strip either field.
+    row = {
+        "id": "user-1",
+        "name": "Jane Doe",
+        "uid": "jdoe",
+        "category": "cat-a",
+        "category_name": "Engineering",
+    }
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.search_users",
+        staticmethod(lambda payload, term: [row]),
+    )
+
+    response = test_client(
+        url="/admin/items/users/search",
+        method="POST",
+        jwt=MockJWT(),
+        body={"term": "jdoe"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == [row]
+
+
 # ─── Admin groups CRUD ───────────────────────────────────────────────────
 
 

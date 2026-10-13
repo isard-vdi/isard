@@ -80,7 +80,7 @@ class AdminAllowedsService:
             if data.get("exclude_role"):
                 return Alloweds.get_table_term(
                     table,
-                    "name",
+                    ["name", "uid"],
                     data["term"],
                     pluck=[
                         "id",
@@ -96,7 +96,7 @@ class AdminAllowedsService:
             elif data.get("category"):
                 return Alloweds.get_table_term(
                     table,
-                    "name",
+                    ["name", "uid"],
                     data["term"],
                     pluck=[
                         "id",
@@ -113,7 +113,7 @@ class AdminAllowedsService:
             else:
                 return Alloweds.get_table_term(
                     table,
-                    "name",
+                    ["name", "uid"],
                     data["term"],
                     pluck=[
                         "id",
@@ -171,9 +171,17 @@ class AdminAllowedsService:
             if data.get("exclude_role"):
                 return Alloweds.get_table_term(
                     table,
-                    "name",
+                    ["name", "uid"],
                     data["term"],
-                    pluck=["id", "name", "category", "uid", "role", "photo"],
+                    pluck=[
+                        "id",
+                        "name",
+                        "category",
+                        "category_name",
+                        "uid",
+                        "role",
+                        "photo",
+                    ],
                     index_key="category",
                     index_value=payload["category_id"],
                     query_filter=lambda u: u["role"] != data["exclude_role"],
@@ -181,9 +189,9 @@ class AdminAllowedsService:
             else:
                 return Alloweds.get_table_term(
                     table,
-                    "name",
+                    ["name", "uid"],
                     data["term"],
-                    pluck=["id", "name", "category", "uid", "photo"],
+                    pluck=["id", "name", "category", "category_name", "uid", "photo"],
                     index_key="category",
                     index_value=payload["category_id"],
                 )

@@ -248,3 +248,26 @@ class TestGetUserTemplates:
         rows = AdminUsersService.get_user_templates(JWT_PAYLOAD, "u1")
         assert rows[0]["image"] is None
         AdminUserTemplateItem(**rows[0])
+
+
+class TestSearchUsers:
+    """The change-owner pickers label each user ``Name [uid] (Category)``
+    and let the admin type either the name or the uid."""
+
+    MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+
+    @patch("api.services.admin.users.Alloweds.get_table_term")
+    def test_admin_matches_name_or_uid_and_returns_category_name(self, mock_term):
+        AdminUsersService.search_users(JWT_PAYLOAD, "jdoe")
+        args, kwargs = mock_term.call_args
+        assert args == ("users", ["name", "uid"], "jdoe")
+        assert {"uid", "category_name"} <= set(kwargs["pluck"])
+
+    @patch("api.services.admin.users.Alloweds.get_table_term")
+    def test_manager_matches_name_or_uid_within_own_category(self, mock_term):
+        AdminUsersService.search_users(self.MANAGER, "jdoe")
+        args, kwargs = mock_term.call_args
+        assert args == ("users", ["name", "uid"], "jdoe")
+        assert {"uid", "category_name"} <= set(kwargs["pluck"])
+        assert kwargs["index_key"] == "category"
+        assert kwargs["index_value"] == "cat-a"
