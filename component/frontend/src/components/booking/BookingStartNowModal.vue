@@ -57,8 +57,6 @@ const endTimeIntervals = computed<Date[]>(() => {
   return getEndTimeIntervals(new Date(props.maxBookingDate))
 })
 
-const selectedEndTime = form.useStore((state) => state.values.end_time)
-
 function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolean } } }) {
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
@@ -121,12 +119,7 @@ function isInvalid(field: { state: { meta: { isTouched: boolean; isValid: boolea
         t('components.desktop-start-now-modal.cancel')
       }}</Button>
 
-      <Button
-        hierarchy="primary"
-        :disabled="props.submitting || !selectedEndTime"
-        type="submit"
-        form="start-now-form"
-      >
+      <Button hierarchy="primary" :disabled="props.submitting" type="submit" form="start-now-form">
         <Icon
           v-if="props.submitting"
           class="motion-safe:animate-[spin_2s_linear_infinite]"

@@ -3086,6 +3086,10 @@
         "temporal_reservable_needs_booking": {
           "title": "La GPU necessita una hora de fi",
           "description": "Un escriptori temporal amb GPU es reserva en crear-lo. Torna-ho a provar i selecciona fins quan es farà servir."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU és massa llarga",
+          "description": "L'hora de fi supera el temps màxim que pots reservar la GPU. Tria'n una d'anterior."
         }
       }
     },
@@ -3166,7 +3170,8 @@
         "booking_max_items_exceeded": "Has superat el màxim de reserves de l'usuari",
         "conflict": "La reserva no encaixa en la data sol·licitada",
         "generic": "S'ha produït un error",
-        "not_found": "Reserva no trobada"
+        "not_found": "Reserva no trobada",
+        "booking_exceeds_max_time": "No pots reservar la GPU durant tant de temps. Tria una hora de fi anterior."
       }
     },
     "loading": "S'està carregant...",

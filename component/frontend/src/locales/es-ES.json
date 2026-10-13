@@ -3086,6 +3086,10 @@
         "temporal_reservable_needs_booking": {
           "title": "La GPU necesita una hora de fin",
           "description": "Un escritorio temporal con GPU se reserva al crearlo. Inténtalo de nuevo y selecciona hasta cuándo se usará."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU es demasiado larga",
+          "description": "La hora de fin supera el tiempo máximo que puedes reservar la GPU. Elige una anterior."
         }
       }
     },
@@ -3233,7 +3237,8 @@
         "booking_max_items_exceeded": "Has superado el máximo de reservas del usuario",
         "conflict": "La reserva no encaja en la fecha solicitada",
         "generic": "Se ha producido un error",
-        "not_found": "Reserva no encontrada"
+        "not_found": "Reserva no encontrada",
+        "booking_exceeds_max_time": "No puedes reservar la GPU durante tanto tiempo. Elige una hora de fin anterior."
       }
     },
     "loading": "Cargando...",

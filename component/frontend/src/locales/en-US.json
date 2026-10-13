@@ -3088,6 +3088,10 @@
         "temporal_reservable_needs_booking": {
           "title": "The GPU needs an end time",
           "description": "A temporary desktop with a GPU is booked when it is created. Try again and select until when it will be used."
+        },
+        "booking_exceeds_max_time": {
+          "title": "The GPU booking is too long",
+          "description": "The end time exceeds the maximum time you may book the GPU for. Pick an earlier one."
         }
       }
     },
@@ -3235,7 +3239,8 @@
         "booking_max_items_exceeded": "You've exceeded the user maximum bookings",
         "booking_desktop_delete_stop": "The desktop must be stopped to delete this booking",
         "booking_deployment_delete_stop": "The deployment must be stopped to delete this booking",
-        "not_found": "Booking not found"
+        "not_found": "Booking not found",
+        "booking_exceeds_max_time": "You can't book the GPU for that long. Pick an earlier end time."
       }
     },
     "planning": {

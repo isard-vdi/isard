@@ -1740,6 +1740,10 @@
         "temporal_reservable_needs_booking": {
           "title": "GPUak amaiera ordu bat behar du",
           "description": "GPUdun aldi baterako mahaigain bat sortzean erreserbatzen da. Saiatu berriro eta hautatu noiz arte erabiliko den."
+        },
+        "booking_exceeds_max_time": {
+          "title": "GPU erreserba luzeegia da",
+          "description": "Amaiera-orduak GPUa erreserbatu dezakezun gehienezko denbora gainditzen du. Hautatu lehenagoko bat."
         }
       }
     },
@@ -1808,7 +1812,8 @@
         "booking_max_items_exceeded": "Erabiltzailearen erreserben maximoa gainditu duzu",
         "conflict": "Erreserba ez dator bat eskatutako datarekin",
         "generic": "Errore bat gertatu da",
-        "not_found": "Erreserba ez da aurkitu"
+        "not_found": "Erreserba ez da aurkitu",
+        "booking_exceeds_max_time": "Ezin duzu GPUa hainbeste denboraz erreserbatu. Hautatu lehenagoko amaiera-ordu bat."
       }
     },
     "planning": {
