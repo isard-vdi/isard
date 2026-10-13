@@ -1,4 +1,4 @@
-# Isard main config v3.0.17
+# Isard main config v3.0.18
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -662,7 +662,7 @@ HAPROXY_LOGGING=.
 ##                                  /scheduler, /openapi, guacamole
 ##                                                             [web parts]
 ##               TLS + websocket -> noVNC / spice-web-client   [video parts]
-##               TLS             -> /monitor, /loki, /prometheus
+##               TLS             -> /monitor (Grafana only)
 ##                                                             [monitor parts]
 ##   Anything else is dropped.
 ##
@@ -889,6 +889,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ VictoriaMetrics -----------------------------------------------------
 #VICTORIAMETRICS_ADDRESS=http://isard-victoriametrics:8428
 #VICTORIAMETRICS_RETENTION_TIME=40d
+## Key required by the VictoriaMetrics series deletion and forced merge
+## endpoints (/api/v1/admin/tsdb/delete_series, /internal/force_merge), passed
+## as ?authKey=<key>. Unset leaves them open to anything that reaches the
+## VictoriaMetrics port on the internal network. The public portal has no
+## route to VictoriaMetrics or Loki at all.
+#VICTORIAMETRICS_ADMIN_AUTH_KEY=
 
 
 # ------ Loki -----------------------------------------------------
@@ -953,6 +959,8 @@ WG_GUESTS_RESERVED_HOSTS=20
 # - Redis port 6379
 # - Loki port 3100 (if monitoring enabled)
 # - VictoriaMetrics port 9090 (if monitoring enabled)
+# Loki and VictoriaMetrics take no authentication: these two ports are the only way remote nodes
+# push logs and metrics, and they must never be reachable from outside the infrastructure network.
 #
 # Set it on a hypervisor node too: there it PUBLISHES the ports the rest of the deployment dials
 # instead of exposing central services -- ssh 2022 (engine ssh-keyscans it to register and command

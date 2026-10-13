@@ -210,9 +210,10 @@ On multi-node deployments the metrics backend is published on the infrastructure
 remote-write clients. That port is **kept at `9090`** (the legacy Prometheus port) mapped to
 VictoriaMetrics' internal `8428`, so existing remote-write clients, firewall rules and monitor
 gateways keep working across the upgrade with no infrastructure change. VictoriaMetrics still
-listens on its native `8428` inside the container (grafana datasource, alloy remote-write and
-haproxy backends all use `8428`); only the host publish is remapped. HTTPS path access is also
-backward-compatible: both `/prometheus` and `/victoriametrics` route to the backend.
+listens on its native `8428` inside the container (the grafana datasource and alloy remote-write
+use `8428`); only the host publish is remapped. Neither is reachable through
+the HTTPS portal: `/victoriametrics`, `/prometheus` and `/loki` answer 404, and people read the
+data through Grafana.
 
 > **Non-standard monitor layouts (e.g. a hand-built VictoriaMetrics using a `vmdata` volume
 > and publishing on a custom port as a remote-write gateway) do NOT match the standard
