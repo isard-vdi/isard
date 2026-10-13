@@ -225,3 +225,67 @@ class TestCreateMediaUrlProbe:
             )
         retry_headers = mock_get.call_args_list[1].kwargs.get("headers") or {}
         assert "Mozilla" in retry_headers.get("User-Agent", "")
+
+
+class TestStartMediaDownload:
+    """A restart must download from the URL the row actually stores.
+
+    Rows keep it in ``url-web`` (user media) or ``url-isard`` (registry
+    media); there is no ``url`` field, so reading one handed curl ``None``
+    and every restart landed back in ``DownloadFailed``.
+    """
+
+    @staticmethod
+    def _media(url_isard=False, url_web=False):
+        media = MagicMock()
+        media.status = "DownloadFailed"
+        media.user = "u1"
+        setattr(media, "url-isard", url_isard)
+        setattr(media, "url-web", url_web)
+        return media
+
+    @staticmethod
+    def _cfg(monkeypatch, cfg):
+        from api.services.admin import downloads as mod
+
+        monkeypatch.setattr(mod.AdminDownloadsService, "_get_cfg", staticmethod(cfg))
+
+    @patch("api.services.media.RethinkMedia")
+    def test_user_media_restarts_from_url_web(self, mock_media, monkeypatch):
+        def no_registry():
+            raise AssertionError("user media must not need the registry")
+
+        self._cfg(monkeypatch, no_registry)
+        media = mock_media.return_value = self._media(
+            url_web="https://example.org/x.iso"
+        )
+
+        MediaService.start_media_download("m1")
+
+        kwargs = media.enqueue_download_chain.call_args.kwargs
+        assert kwargs["url"] == "https://example.org/x.iso"
+        assert kwargs["headers"] == []
+        assert media.status == "DownloadStarting"
+
+    @patch("api.services.media.RethinkMedia")
+    def test_registry_media_restarts_from_the_registry(self, mock_media, monkeypatch):
+        self._cfg(monkeypatch, lambda: ("https://reg.example.com", "code", False))
+        media = mock_media.return_value = self._media(url_isard="x.iso")
+
+        MediaService.start_media_download("m1")
+
+        kwargs = media.enqueue_download_chain.call_args.kwargs
+        assert kwargs["url"] == "https://reg.example.com/storage/media/x.iso"
+        assert kwargs["headers"] == ["Authorization: code"]
+
+    @patch("api.services.media.RethinkMedia")
+    def test_media_without_a_url_is_refused_untouched(self, mock_media, monkeypatch):
+        self._cfg(monkeypatch, lambda: ("https://reg.example.com", "code", False))
+        media = mock_media.return_value = self._media()
+
+        with pytest.raises(Error) as exc_info:
+            MediaService.start_media_download("m1")
+
+        assert exc_info.value.error["description_code"] == "media_url_not_valid"
+        media.enqueue_download_chain.assert_not_called()
+        assert media.status == "DownloadFailed"

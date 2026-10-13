@@ -686,7 +686,7 @@ class AdminDownloadsService:
         return result
 
     @staticmethod
-    def _registry_download_source(kind: str, data: dict) -> tuple:
+    def registry_download_source(kind: str, data: dict) -> tuple:
         """The absolute URL and headers to fetch one registry entry from.
 
         ``url-isard`` is a path relative to the registry server, not a URL: it
@@ -763,9 +763,7 @@ class AdminDownloadsService:
                 media = RethinkMedia(media_id)
             except Exception:
                 return
-            url, headers = AdminDownloadsService._registry_download_source(
-                "media", data
-            )
+            url, headers = AdminDownloadsService.registry_download_source("media", data)
             if not url or url.endswith("/"):
                 return
             try:
@@ -786,7 +784,7 @@ class AdminDownloadsService:
                 # ISO-only desktop or already-downloaded re-trigger:
                 # nothing to download.
                 return
-            full_url, headers = AdminDownloadsService._registry_download_source(
+            full_url, headers = AdminDownloadsService.registry_download_source(
                 "domains", data
             )
             pending_storage.enqueue_registry_download_chain_for_domain(
