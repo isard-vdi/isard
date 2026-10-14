@@ -26,6 +26,7 @@ from requests.exceptions import ReadTimeout as requests_ReadTimeout
 from engine.models.domain_xml import DomainXML, remove_memory_backing
 from engine.models.hyp import hyp
 from engine.services.db import (
+    get_domain_status,
     get_hyp_hostname_from_id,
     get_hyp_status,
     get_hyp_viewer_info,
@@ -46,7 +47,7 @@ from engine.services.db.hypervisors import (
     update_hyp_libvirt_warning,
     update_hyp_thread_status,
 )
-from engine.services.lib import live_xml_cache
+from engine.services.lib import domain_guard, live_xml_cache
 from engine.services.lib.functions import (
     SSHTimeoutError,
     execute_commands,
@@ -83,6 +84,9 @@ ITEMS_STATUS_MAP = {
 }
 
 notify_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+# the last value repeats until the hypervisor answers
+STOP_RETRY_BACKOFF_S = (10, 20, 40, 80, 160, 300)
 
 
 def notify_desktop_in_thread(domain, message):
@@ -149,6 +153,10 @@ class HypWorkerThread(threading.Thread):
         self.degraded = False
         self.degraded_since = None
         self.libvirt_stats = LibvirtOperationStats(hyp_id=hyp_id)
+
+        self._stop_retries = {}
+        self._stop_timers = {}
+        self._inflight_calls = {}
 
     def run(self):
         """Main thread execution method"""
@@ -401,6 +409,7 @@ class HypWorkerThread(threading.Thread):
             "hyp_info": self._handle_hyp_info,
             "notify": self._handle_notify,
             "personal_unit": self._handle_personal_unit,
+            "reconcile_late_create": self._handle_reconcile_late_create,
             "stop_thread": lambda a, t, i: setattr(self, "stop", True),
         }
 
@@ -948,23 +957,225 @@ class HypWorkerThread(threading.Thread):
             return LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW
         return LIBVIRT_OPERATION_TIMEOUT
 
+    def _refuse_start_while_held(self, action, action_time, intervals):
+        held = domain_guard.holder(action["id_domain"])
+        if held is None:
+            return False
+        update_domain_status(
+            "Failed",
+            action["id_domain"],
+            hyp_id=self.hyp_id,
+            detail=(
+                f"Not started: its {held['operation']} on {held['hyp_id']} has not "
+                "answered yet, starting it again could run it twice"
+            ),
+        )
+        logs.workers.warning(
+            f"[{self.hyp_id}] refused to start {action['id_domain']}: held by "
+            f"{held['hyp_id']} ({held['operation']})"
+        )
+        log_action(
+            self.hyp_id,
+            action["id_domain"],
+            action["type"],
+            intervals,
+            time.time() - action_time,
+            "Failed",
+        )
+        return True
+
+    def _track_late_create(self, action, error):
+        """Leave the status as is and reconcile the createXML when it answers."""
+        future = getattr(error, "future", None)
+        domain_id = action["id_domain"]
+        if future is None:
+            return False
+        try:
+            status_at_timeout = get_domain_status(domain_id)
+        except Exception:
+            status_at_timeout = None
+        domain_guard.hold(domain_id, self.hyp_id, "createXML")
+        self._inflight_calls[domain_id] = ("create", future)
+        late = {
+            "type": "reconcile_late_create",
+            "id_domain": domain_id,
+            "action": action,
+            "status_at_timeout": status_at_timeout,
+            "future": future,
+        }
+        future.add_done_callback(lambda _f: self._requeue(late))
+        logs.workers.warning(
+            f"[{self.hyp_id}] createXML of {domain_id} has not answered after "
+            f"{error.timeout}s; it stays {status_at_timeout} until libvirt does"
+        )
+        return True
+
+    def _handle_reconcile_late_create(self, late, action_time, intervals):
+        domain_id = late["id_domain"]
+        action = late["action"]
+        future = late["future"]
+        entry = self._inflight_calls.get(domain_id)
+        if entry is not None and entry[1] is future:
+            self._inflight_calls.pop(domain_id, None)
+        domain_guard.release(domain_id, self.hyp_id)
+        try:
+            current = get_domain_status(domain_id)
+        except Exception:
+            current = None
+        error = future.exception()
+        if error is not None:
+            logs.workers.warning(
+                f"[{self.hyp_id}] late createXML of {domain_id} failed: {error}"
+            )
+            if current != late["status_at_timeout"]:
+                return
+            if action["type"] == "start_domain":
+                self._handle_libvirt_error_in_start_domain(
+                    error, action, action_time, intervals
+                )
+            elif isinstance(error, libvirtError):
+                self._handle_libvirt_error_in_start_paused(
+                    error, action, action_time, intervals
+                )
+            else:
+                self._handle_generic_error_in_start_paused(
+                    error, action, action_time, intervals
+                )
+            return
+        dom = future.result()
+        adopt = action["type"] == "start_domain" and (
+            current == late["status_at_timeout"] or current == "Started"
+        )
+        if adopt:
+            logs.workers.warning(
+                f"[{self.hyp_id}] late createXML of {domain_id} answered; adopting it"
+            )
+            try:
+                xml_started = self._execute_libvirt_with_timeout(
+                    dom.XMLDesc,
+                    args=(VIR_DOMAIN_XML_SECURE,),
+                    operation_name="libvirt XMLDesc",
+                    intervals=intervals,
+                )
+                live_xml_cache.set(domain_id, xml_started)
+                self._process_domain_startup(
+                    xml_started, action, action_time, intervals
+                )
+                return
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.hyp_id}] could not adopt late {domain_id}: {e}"
+                )
+        logs.workers.warning(
+            f"[{self.hyp_id}] late createXML of {domain_id} answered while it is "
+            f"{current}; destroying the domain it left"
+        )
+        try:
+            self._execute_libvirt_with_timeout(
+                dom.destroy,
+                operation_name="libvirt domain.destroy() of a late create",
+                intervals=intervals,
+            )
+        except Exception as e:
+            logs.workers.error(
+                f"[{self.hyp_id}] could not destroy late {domain_id}: {e}"
+            )
+            return
+        if (
+            action["type"] == "start_paused_domain"
+            and current == late["status_at_timeout"]
+        ):
+            update_domain_status(
+                "Stopped",
+                domain_id,
+                hyp_id="",
+                detail="Domain created and test OK: Started, paused and now stopped",
+                expected_status=current,
+            )
+        elif action["type"] == "start_domain" and current == late["status_at_timeout"]:
+            update_domain_status(
+                "Failed",
+                domain_id,
+                hyp_id=self.hyp_id,
+                detail="Started late and could not be adopted",
+                expected_status=current,
+            )
+
+    def _requeue(self, action):
+        if not self.stop:
+            self.queue_actions.put(action)
+
+    def _schedule_stop_retry(self, action, error=None):
+        domain_id = action["id_domain"]
+        attempt = action.get("stop_attempt", 0) + 1
+        delay = STOP_RETRY_BACKOFF_S[min(attempt, len(STOP_RETRY_BACKOFF_S)) - 1]
+        token = action.get("stop_token") or f"{domain_id}:{time.time()}"
+        self._stop_retries[domain_id] = token
+        retry = dict(action, stop_attempt=attempt, stop_token=token)
+        future = getattr(error, "future", None)
+        if future is not None:
+            self._inflight_calls[domain_id] = (
+                "destroy" if "destroy" in error.operation else "lookup",
+                future,
+            )
+            future.add_done_callback(lambda _f: self._requeue(retry))
+        domain_guard.hold(domain_id, self.hyp_id, "destroy")
+        if not action.get("not_change_status", False):
+            update_domain_status(
+                "Stopping",
+                domain_id,
+                hyp_id=self.hyp_id,
+                detail=(
+                    f"Destroy has not answered on {self.hyp_id}; "
+                    f"attempt {attempt + 1} in {delay}s"
+                ),
+                expected_status="Stopping",
+            )
+        logs.workers.warning(
+            f"[{self.hyp_id}] destroy of {domain_id} has not answered; "
+            f"attempt {attempt + 1} in {delay}s"
+        )
+        self._cancel_stop_timer(domain_id)
+        timer = threading.Timer(delay, self._requeue, args=(retry,))
+        timer.daemon = True
+        self._stop_timers[domain_id] = timer
+        timer.start()
+
+    def _cancel_stop_timer(self, domain_id):
+        timer = self._stop_timers.pop(domain_id, None)
+        if timer is not None:
+            timer.cancel()
+
+    def _stop_resolved(self, domain_id):
+        self._cancel_stop_timer(domain_id)
+        self._stop_retries.pop(domain_id, None)
+        self._inflight_calls.pop(domain_id, None)
+        domain_guard.release(domain_id, self.hyp_id)
+
     # Action handlers
     def _handle_start_paused_domain(self, action, action_time, intervals):
         """Handle start_paused_domain action"""
+        if self._refuse_start_while_held(action, action_time, intervals):
+            return
         logs.workers.debug(f"XML to start paused domain: {action['xml'][30:100]}")
 
         createxml_timeout = self._pick_createxml_timeout(action)
 
         try:
             # Create domain in paused state with timeout tracking
-            self._execute_libvirt_with_timeout(
-                self.h.conn.createXML,
-                args=(action["xml"],),
-                kwargs={"flags": VIR_DOMAIN_START_PAUSED},
-                operation_name="libvirt createXML paused",
-                intervals=intervals,
-                timeout=createxml_timeout,
-            )
+            try:
+                self._execute_libvirt_with_timeout(
+                    self.h.conn.createXML,
+                    args=(action["xml"],),
+                    kwargs={"flags": VIR_DOMAIN_START_PAUSED},
+                    operation_name="libvirt createXML paused",
+                    intervals=intervals,
+                    timeout=createxml_timeout,
+                )
+            except LibvirtTimeoutError as e:
+                if self._track_late_create(action, e):
+                    return
+                raise
 
             # Check for paused domains
             FLAG_LIST_DOMAINS_PAUSED = 32
@@ -1286,6 +1497,8 @@ class HypWorkerThread(threading.Thread):
 
     def _handle_start_domain(self, action, action_time, intervals):
         """Handle start_domain action"""
+        if self._refuse_start_while_held(action, action_time, intervals):
+            return
         xml = action["xml"]
 
         # Convert to old-style OVS XML for legacy hypervisors
@@ -1313,13 +1526,18 @@ class HypWorkerThread(threading.Thread):
 
         try:
             # Create the domain with timeout tracking
-            dom = self._execute_libvirt_with_timeout(
-                self.h.conn.createXML,
-                args=(xml,),
-                operation_name="libvirt createXML",
-                intervals=intervals,
-                timeout=createxml_timeout,
-            )
+            try:
+                dom = self._execute_libvirt_with_timeout(
+                    self.h.conn.createXML,
+                    args=(xml,),
+                    operation_name="libvirt createXML",
+                    intervals=intervals,
+                    timeout=createxml_timeout,
+                )
+            except LibvirtTimeoutError as e:
+                if self._track_late_create(action, e):
+                    return
+                raise
 
             # Get XML description with timeout tracking. VIR_DOMAIN_XML_SECURE
             # includes the spice/vnc password; it does not affect graphics-port
@@ -1638,6 +1856,21 @@ class HypWorkerThread(threading.Thread):
 
     def _handle_stop_domain(self, action, action_time, intervals):
         """Handle stop_domain action"""
+        domain_id = action["id_domain"]
+        token = action.get("stop_token")
+        if token is not None and self._stop_retries.get(domain_id) != token:
+            logs.workers.debug(f"[{self.hyp_id}] stop of {domain_id} already settled")
+            return
+        pending = self._inflight_calls.get(domain_id)
+        if pending is not None:
+            kind, future = pending
+            if not future.done():
+                self._schedule_stop_retry(action)
+                return
+            self._inflight_calls.pop(domain_id, None)
+            if kind == "destroy" and future.exception() is None:
+                self._finalize_domain_stop(action, action_time, intervals)
+                return
         logs.workers.debug(f"Action stop domain: {action['id_domain']}")
         live_xml_cache.pop(action["id_domain"])
 
@@ -1689,6 +1922,8 @@ class HypWorkerThread(threading.Thread):
     def _finalize_domain_stop(self, action, action_time, intervals):
         """Finalize domain stop operation"""
         logs.workers.info(f"DESTROY OK domain {action['id_domain']}")
+        retried = "stop_token" in action
+        self._stop_resolved(action["id_domain"])
 
         try:
             # Always clean up GPU allocation regardless of not_change_status
@@ -1696,7 +1931,12 @@ class HypWorkerThread(threading.Thread):
 
             # Handle post-stop actions
             if action.get("not_change_status", False) is False:
-                update_domain_status("Stopped", action["id_domain"], hyp_id="")
+                update_domain_status(
+                    "Stopped",
+                    action["id_domain"],
+                    hyp_id="",
+                    expected_status="Stopping" if retried else None,
+                )
                 log_action(
                     self.hyp_id,
                     action["id_domain"],
@@ -1771,6 +2011,31 @@ class HypWorkerThread(threading.Thread):
             operation, "0000"
         )
         logs.exception_id.debug(log_id)
+
+        if isinstance(error, LibvirtTimeoutError):
+            if operation == "stop":
+                self._schedule_stop_retry(action, error)
+            elif operation == "reset" and not action.get("not_change_status"):
+                update_domain_status(
+                    "Started",
+                    action["id_domain"],
+                    hyp_id=self.hyp_id,
+                    detail=f"Reset has not answered on {self.hyp_id}",
+                    expected_status="Resetting",
+                )
+            logs.workers.warning(
+                f"[{self.hyp_id}] {operation} of {action['id_domain']} has not "
+                f"answered: {error}"
+            )
+            log_action(
+                self.hyp_id,
+                action["id_domain"],
+                action["type"],
+                intervals,
+                time.time() - action_time,
+                "Timeout",
+            )
+            return
 
         if action.get("not_change_status", False) is False:
             update_domain_status(

@@ -77,10 +77,12 @@ class LibvirtTimeoutError(Exception):
         hyp_id: The hypervisor ID where the timeout occurred
     """
 
-    def __init__(self, operation: str, timeout: float, hyp_id: str):
+    def __init__(self, operation: str, timeout: float, hyp_id: str, future=None):
         self.operation = operation
         self.timeout = timeout
         self.hyp_id = hyp_id
+        # the call keeps running; this is how its late outcome is reconciled
+        self.future = future
         super().__init__(
             f"Libvirt operation '{operation}' timed out after {timeout}s on hypervisor {hyp_id}"
         )
@@ -400,4 +402,4 @@ def execute_with_timeout(
     except FuturesTimeoutError:
         # Don't cancel - let the operation complete in background
         # We just want to detect the timeout
-        raise LibvirtTimeoutError(operation_name, timeout, hyp_id)
+        raise LibvirtTimeoutError(operation_name, timeout, hyp_id, future=future)
