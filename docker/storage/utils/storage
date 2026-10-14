@@ -3393,6 +3393,7 @@ def cmd_consistency(args):
         "c5_parent_missing",
         "c5b_parent_displaced",
         "c5c_parent_mislinked",
+        "c5d_orphan_parent_ready",
         "c6_qcow2_errors",
         "c7_non_existing",
         "c8_deferred_no_expiry",
@@ -3456,6 +3457,14 @@ def cmd_consistency(args):
                     f"  ->  real backing: {i['real_backing_uuid']}"
                     f" ({i['backing_row_status']}) at {i['real_backing_path']}"
                 )
+        elif key == "c5d_orphan_parent_ready":
+            for i in items[:20]:
+                print(f"  {i['id']}  {format_size(i['size'])}  {i['path']}")
+                print(
+                    f"    backing {i['backing_uuid']} is ready at {i['backing_path']}"
+                )
+            if len(items) > 20:
+                print(f"  ... and {len(items) - 20} more (see consistency.json)")
         else:
             for i in items[:20]:
                 label = i.get("id") or i.get("uuid") or ""
@@ -3470,6 +3479,13 @@ def cmd_consistency(args):
         "NOTE: casuistic 8 (deferred jobs) lives in the rq registry (redis),"
         " outside the DB/pool surface this read-only report covers."
     )
+    if result.get("c5d_orphan_parent_ready"):
+        print(
+            "REMEDY 5d: set each listed child's row status back to ready"
+            " (database-only, never touch the qcow2); change-handler now does this"
+            " on the next find/repair of the parent, so a manual fix is only needed"
+            " for rows that predate that change."
+        )
 
     output_dir = get_output_dir()
     payload = {

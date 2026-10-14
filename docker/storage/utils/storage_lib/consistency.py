@@ -227,6 +227,30 @@ def classify_storage_consistency(
             }
         )
 
+    c5d = []  # orphan child whose backing resolves to a ready, present parent
+    for df in disk_files:
+        p, u = df["path"], df.get("uuid")
+        if _in_bin(p):
+            continue
+        r = rows_by_uuid.get(u)
+        if not r or r.get("status") != "orphan":
+            continue
+        hdr = df.get("backing_uuid")
+        if not hdr or hdr not in file_by_uuid:
+            continue
+        backing_row = rows_by_uuid.get(hdr)
+        if backing_row is None or backing_row.get("status") != "ready":
+            continue
+        c5d.append(
+            {
+                "id": u,
+                "path": p,
+                "size": df.get("size", 0),
+                "backing_uuid": hdr,
+                "backing_path": file_by_uuid[hdr]["path"],
+            }
+        )
+
     c6 = []
     for path, info in (check_errors or {}).items():
         entry = {"path": path, "uuid": uuid_from_path(path)}
@@ -248,6 +272,7 @@ def classify_storage_consistency(
         "c5_parent_missing": c5,
         "c5b_parent_displaced": c5b,
         "c5c_parent_mislinked": c5c,
+        "c5d_orphan_parent_ready": c5d,
         "c6_qcow2_errors": c6,
         "c7_non_existing": c7,
         "c8_deferred_no_expiry": c8,
@@ -263,6 +288,7 @@ CASUISTIC_TITLES = {
     "c5_parent_missing": "5 · parent missing (chain break)",
     "c5b_parent_displaced": "5b · parent displaced (rebase recoverable)",
     "c5c_parent_mislinked": "5c · parent link broken in row, file chain intact",
+    "c5d_orphan_parent_ready": "5d · orphan child, parent ready and present (DB-only recover)",
     "c6_qcow2_errors": "6 · qcow2 with leaks/errors",
     "c7_non_existing": "7 · non_existing rows",
     "c8_deferred_no_expiry": "8 · deferred jobs with no expiry",
