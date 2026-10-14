@@ -9,10 +9,34 @@ Metrics, logs and profiling collector. `run.sh` copies the always-on files into
 | `profiling.alloy` | `PYROSCOPE_EBPF=true` |
 | `faro.alloy` | `FARO_ENABLED=true` |
 | `debug.alloy` | `LOG_LEVEL=debug` |
+| `journal.alloy` | always, unless `HOST_JOURNAL_LOGS=false` |
 
 Alloy has no conditionals in its config language, so this copy-per-key pattern in
 `run.sh` is how a collector gets gated. A config change needs only a container
 restart: the directory is bind-mounted, not baked into an image.
+
+## Host journal
+
+`journal.alloy` ships the host's systemd journal as `{job="journal"}` with `unit`,
+`level` and `transport` labels. The faults that explain an outage of the host itself
+are only there, never in a container log: a hung NIC queue (`NETDEV WATCHDOG`),
+iSCSI sessions dropping (`detected conn error`), an NFS server not responding, hung
+tasks, OOM kills, a cluster resource moving.
+
+- **Paths:** the default journal locations are read, so it works with a persistent
+  journal (`/var/log/journal`, through the `/var/log` bind) and with a volatile one
+  (`/run/log/journal`, through `/var/run`, which is `/run` in the image). libsystemd
+  opens only the journal directory named after the machine id, so the compose binds
+  the host's `/etc/machine-id`: without it the source starts healthy and reads
+  nothing.
+- **Allow-list, not deny-list:** the kernel plus the units named in the relabel
+  rule. `sshd`, `sudo` and `systemd-logind` stay on the host on purpose: they name
+  people. Adding a unit means adding it to the regex.
+- **Dropped:** firewall per-packet kernel lines (`[UFW …]`, `IN=… OUT=… SRC=`),
+  which carry client IPs and can be thousands per minute on a public host.
+- **Rate limit:** 20 lines/s with a burst of 200, so a kernel stuck in a loop cannot
+  flood Loki; the first lines are the useful ones.
+- **Off switch:** `HOST_JOURNAL_LOGS=false` (the file is removed on the next start).
 
 ## Collector policy
 

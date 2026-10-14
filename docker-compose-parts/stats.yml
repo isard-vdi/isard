@@ -88,6 +88,8 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
       - /var/log:/var/log:ro
+      # Host journal: libsystemd opens only the journal of this machine id
+      - /etc/machine-id:/etc/machine-id:ro
       # General system
       - /etc/localtime:/etc/localtime:ro
     logging:
@@ -107,3 +109,4 @@ services:
       - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}
       - PYROSCOPE_ADDRESS=${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}
       - FARO_ENABLED=${FARO_ENABLED:-false}
+      - HOST_JOURNAL_LOGS=${HOST_JOURNAL_LOGS:-true}
