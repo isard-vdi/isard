@@ -9,6 +9,7 @@ import type { DesktopActionsData } from '@/lib/desktops'
 import { Button, type ButtonVariants } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
 import { ViewerSelect } from '@/components/viewer-select'
+import { rdpViewerEntry, type DesktopRdp } from '@/lib/rdpViewer'
 
 import { CARD_SIZE_INJECTION_KEY } from '..'
 
@@ -28,11 +29,7 @@ interface Props {
   desktopViewers: string[] // TODO: type this
   preferredViewer?: string // TODO: type this
   desktopIp?: string | null
-  desktopRdp?: {
-    state: string
-    reason?: string | null
-    last?: { connected?: boolean; result?: string | null } | null
-  } | null
+  desktopRdp?: DesktopRdp | null
   rdpBypass?: boolean
 }
 
@@ -43,26 +40,13 @@ const props = withDefaults(defineProps<Props>(), {
   rdpBypass: false
 })
 
-const rdpPending = computed(
-  () => !!props.desktopRdp && !['ready', 'unverified'].includes(props.desktopRdp.state)
+// The RDP step rides on the RDP viewer buttons (icon + tooltip, toast on tap)
+// instead of a line of text, so the card keeps the same height in every state.
+const viewers = computed(() =>
+  (props.desktopViewers || []).map((viewer) =>
+    rdpViewerEntry(viewer, props.desktopIp, props.desktopRdp, props.rdpBypass, t)
+  )
 )
-
-const rdpLastFailed = computed(
-  () => !!props.desktopRdp?.last && !props.desktopRdp.last.connected && !rdpPending.value
-)
-
-const rdpStep = computed(() => {
-  if (!props.desktopIp || !props.desktopRdp) return ''
-  if (rdpLastFailed.value) {
-    return props.desktopRdp.last?.result === 'auth_failed'
-      ? t('components.desktops.desktop-card.rdp.auth_failed')
-      : t('components.desktops.desktop-card.rdp.last_failed')
-  }
-  if (props.desktopRdp.state === 'ready') return ''
-  return t(`components.desktops.desktop-card.rdp.${props.desktopRdp.state}`, {
-    reason: props.desktopRdp.reason || ''
-  })
-})
 
 const emit = defineEmits<{
   mainButtonClick: []
@@ -107,27 +91,9 @@ const emit = defineEmits<{
     </template>
   </div>
 
-  <span
-    v-if="rdpStep && props.mainButtonData.viewers && size !== '2xs' && size !== 'xs'"
-    class="text-xs truncate min-w-0"
-    :class="
-      rdpLastFailed || ['refused', 'auth_failed'].includes(props.desktopRdp?.state || '')
-        ? 'text-error-600'
-        : 'text-gray-warm-600'
-    "
-    :title="rdpStep"
-  >
-    {{ rdpStep }}
-  </span>
-
   <ViewerSelect
     v-if="props.mainButtonData.viewers && size !== '2xs'"
-    :viewers="
-      props.desktopViewers?.map((viewer) => ({
-        id: viewer,
-        loading: viewer.includes('rdp') && (!props.desktopIp || (rdpPending && !props.rdpBypass))
-      }))
-    "
+    :viewers="viewers"
     :selected-viewer="props.preferredViewer"
     class="ml-auto min-w-0"
     @open-viewer="(viewer) => $emit('openViewer', viewer)"

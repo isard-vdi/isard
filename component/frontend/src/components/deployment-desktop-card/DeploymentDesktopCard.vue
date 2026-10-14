@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { desktopActionsData, DesktopActionsEnum } from '@/lib/desktops'
 import { ViewerSelectDropdownItem } from '../viewer-select'
+import { rdpViewerEntry, type DesktopRdp } from '@/lib/rdpViewer'
+import { useAuthStore } from '@/stores/auth'
 
 const { t, d } = useI18n()
 
@@ -33,6 +35,7 @@ interface Props {
     status: string
     viewers: string[] // TODO: type this properly
     ip: string | null
+    rdp?: DesktopRdp | null
     permissions?: string[]
   }
   selected: boolean
@@ -72,6 +75,9 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
       break
   }
 }
+
+const authStore = useAuthStore()
+const rdpBypass = computed(() => ['admin', 'manager'].includes(authStore.user?.role_id || ''))
 
 const desktopViewers = computed(() => {
   return props.desktop.viewers.map((viewer) => viewer.replace(/_/g, '-'))
@@ -235,10 +241,9 @@ import DomainImage from '@/components/domain/DomainImage.vue'
                           <ViewerSelectDropdownItem
                             v-for="viewer in desktopViewers"
                             :key="viewer"
-                            :viewer="{
-                              id: viewer,
-                              loading: viewer.includes('rdp') && !props.desktop.ip
-                            }"
+                            :viewer="
+                              rdpViewerEntry(viewer, props.desktop.ip, props.desktop.rdp, rdpBypass, t)
+                            "
                             :tooltip-dismissed="viewerTooltipDismissed"
                             @select="emit('openViewer', viewer.replace(/_/g, '-'))"
                             @dismiss-tooltip="viewerTooltipDismissed = true"

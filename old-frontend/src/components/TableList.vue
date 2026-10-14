@@ -127,12 +127,16 @@
                 <div class="">
                   <DesktopButton
                     v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
-                    :active="getItemState(data.item) === desktopStates.started"
+                    :active="getItemState(data.item) === desktopStates.started && !(viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).blocked)"
                     :button-class="buttViewerCssColor"
                     :butt-text="data.item.viewers[0]"
                     variant="primary"
                     :spinner-active="waitingIp"
+                    :blocked="viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).blocked && !!rdpView(data.item).text"
+                    :tooltip="viewerNeedsIp(data.item.viewers[0]) ? rdpView(data.item).text : ''"
+                    :icon-name="viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).error ? 'exclamation-triangle-fill' : undefined"
                     @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})"
+                    @blockedClicked="notifyRdpStep(data.item)"
                   />
                   <isard-dropdown
                     v-else
@@ -145,9 +149,11 @@
                     :viewer-text="getViewerText(data.item).substring(0, 40)"
                     full-viewer-text=""
                     :default-viewer="getDefaultViewer(data.item)"
-                    :waiting-ip="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
+                    :waiting-ip="(data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip) || rdpView(data.item).blocked"
+                    :status-text="rdpView(data.item).text"
+                    :status-error="rdpView(data.item).error"
                     @dropdownClicked="openDesktop"
-                    @notifyWaitingIp="notifyWaitingIp"
+                    @notifyWaitingIp="notifyRdpStep(data.item)"
                   />
                 </div>
               </template>
@@ -568,6 +574,20 @@ export default {
         maintenance: 'state-loading'
       }
       return stateColors[state]
+    },
+    rdpView (desktop) {
+      return DesktopUtils.rdpViewerState(desktop, this.getUser.role_id)
+    },
+    viewerNeedsIp (viewer) {
+      return DesktopUtils.viewerNeedsIp(viewer)
+    },
+    notifyRdpStep (desktop) {
+      const text = this.rdpView(desktop).text
+      if (text) {
+        this.$store.dispatch('showNotification', { message: text })
+      } else {
+        this.notifyWaitingIp()
+      }
     },
     getViewerText (desktop) {
       return this.getDefaultViewer(desktop) !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer(desktop)}`) : i18n.t('views.select-template.viewers')

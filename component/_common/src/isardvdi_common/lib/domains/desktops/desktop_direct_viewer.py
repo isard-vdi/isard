@@ -212,7 +212,10 @@ class DesktopDirectViewer(RethinkSharedConnection):
                         .default({})
                         .run(cls._rdb_connection)
                     )
-            cls.check_rdp_open(desktop)
+            # A desktop that is not running gets the viewer's own "not
+            # started" answer below, not "RDP not verified yet".
+            if desktop.get("status") in ("Started", "Shutting-down"):
+                cls.check_rdp_open(desktop)
         if protocol in ["url", "file"]:
             direct_protocol = protocol
             protocol = "browser-vnc"

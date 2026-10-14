@@ -91,3 +91,15 @@ def test_the_bypass_decided_by_the_server_lets_the_viewer_through(no_db):
 def test_other_viewers_are_not_gated(no_db):
     DDV.desktop_viewer("d1", "browser-vnc", desktop=_desktop("waiting"))
     no_db.assert_called_once()
+
+
+def test_a_stopped_desktop_is_answered_as_not_started_not_as_rdp_pending(no_db):
+    no_db.side_effect = ErrorBase(
+        "precondition_required",
+        "Desktop is not started",
+        description_code="unable_to_get_viewer",
+    )
+    stopped = {**_desktop(None), "status": "Stopped"}
+    with pytest.raises(ErrorBase) as err:
+        DDV.desktop_viewer("d1", "browser-rdp", desktop=stopped)
+    assert err.value.error["description_code"] == "unable_to_get_viewer"

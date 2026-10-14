@@ -8,13 +8,18 @@
   >
     <template #button-content>
       <div
-        v-b-tooltip="{ title: `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+        v-b-tooltip="{ title: (statusText && needsIp(defaultViewer)) ? statusText : `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
         class="dropdown-default-text"
       >
         {{ viewerText }}
       </div>
+      <b-icon
+        v-if="defaultViewer && statusError && needsIp(defaultViewer)"
+        icon="exclamation-triangle-fill"
+        class="item-spinner rdp-status-error"
+      />
       <b-spinner
-        v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))"
+        v-else-if="defaultViewer && (waitingIp && needsIp(defaultViewer))"
         small
         type="grow"
         class="item-spinner"
@@ -23,13 +28,19 @@
     <b-dropdown-item
       v-for="dkpviewer in viewers"
       :key="dkpviewer"
+      v-b-tooltip="{ title: (statusText && needsIp(dkpviewer)) ? statusText : '', placement: 'left', customClass: 'isard-tooltip', trigger: 'hover', disabled: !(statusText && needsIp(dkpviewer)) }"
       class="dropdown-text"
-      :disabled="waitingIp && needsIp(dkpviewer)"
-      @click="$emit('dropdownClicked', {desktopId: desktop.id, viewer: dkpviewer, template: template || null})"
+      :link-class="{ 'text-muted': waitingIp && needsIp(dkpviewer) }"
+      @click="(waitingIp && needsIp(dkpviewer)) ? $emit('notifyWaitingIp') : $emit('dropdownClicked', {desktopId: desktop.id, viewer: dkpviewer, template: template || null})"
     >
       <isard-butt-viewer-text :viewer-name="dkpviewer" />
+      <b-icon
+        v-if="statusError && needsIp(dkpviewer)"
+        icon="exclamation-triangle-fill"
+        class="item-spinner rdp-status-error"
+      />
       <b-spinner
-        v-if="waitingIp && needsIp(dkpviewer)"
+        v-else-if="waitingIp && needsIp(dkpviewer)"
         small
         type="grow"
         class="item-spinner"
@@ -57,7 +68,11 @@ export default {
     template: String,
     waitingIp: Boolean,
     labelSize: String,
-    ddDisabled: Boolean
+    ddDisabled: Boolean,
+    // RDP step of the desktop: tooltip on the RDP viewers, and a warning icon
+    // instead of the spinner when the guest refused
+    statusText: String,
+    statusError: Boolean
   },
   methods: {
     getViewerText (viewer) {
@@ -73,5 +88,8 @@ export default {
 <style scoped>
 .item-inactive{
   background-color: blue;
+}
+.rdp-status-error {
+  color: #dc3545;
 }
 </style>

@@ -266,13 +266,6 @@
           <p class="w-100 mb-0 card-text ml-2 mt-2 mb-1">
             {{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}
           </p>
-          <p
-            v-if="rdpStepText"
-            class="w-100 mb-0 card-text ml-2 mb-1 rdp-step"
-            :class="{ 'text-danger': rdpFailed }"
-          >
-            {{ rdpStepText }}
-          </p>
 
           <!-- Template -->
           <p
@@ -300,7 +293,11 @@
               :butt-text="getViewerText"
               variant="primary"
               :spinner-active="waitingIp || (singleViewerNeedsIp && rdpBlocked && !rdpFailed)"
+              :blocked="singleViewerNeedsIp && !!rdpStepText && (waitingIp || rdpBlocked)"
+              :tooltip="singleViewerNeedsIp ? rdpStepText : ''"
+              :icon-name="singleViewerNeedsIp && rdpFailed ? 'exclamation-triangle-fill' : undefined"
               @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
+              @blockedClicked="notifyRdpStep(rdpStepText)"
             />
             <isard-dropdown
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
@@ -314,6 +311,8 @@
               :full-viewer-text="getViewerText"
               :default-viewer="getDefaultViewer"
               :waiting-ip="waitingIp || rdpBlocked"
+              :status-text="rdpStepText"
+              :status-error="rdpFailed"
               @dropdownClicked="openDesktop"
               @notifyWaitingIp="waitingIp ? notifyWaitingIp() : notifyRdpStep(rdpStepText)"
             />
@@ -497,23 +496,17 @@ export default {
     waitingIp () {
       return this.desktopState === desktopStates.waitingip
     },
-    rdpPending () {
-      return this.desktopState === desktopStates.started && !DesktopUtils.rdpReady(this.desktop)
+    rdpView () {
+      return DesktopUtils.rdpViewerState(this.desktop, this.getUser.role_id)
     },
     rdpBlocked () {
-      return this.rdpPending && !['admin', 'manager'].includes(this.getUser.role_id)
+      return this.desktopState === desktopStates.started && this.rdpView.blocked
     },
     rdpFailed () {
-      const rdp = this.desktop.rdp
-      return !!rdp && (['refused', 'auth_failed'].includes(rdp.state) || (!!rdp.last && !rdp.last.connected))
+      return this.rdpView.error
     },
     rdpStepText () {
-      if (this.desktopState !== desktopStates.started || !this.desktop.rdp) return ''
-      const last = this.desktop.rdp.last
-      if (!this.rdpPending && last && !last.connected) {
-        return i18n.t(last.result === 'auth_failed' ? 'components.desktop-cards.rdp.auth_failed' : 'components.desktop-cards.rdp.last_failed')
-      }
-      return i18n.t(`components.desktop-cards.rdp.${this.desktop.rdp.state}`, { reason: this.desktop.rdp.reason || '' })
+      return this.rdpView.text
     },
     showDropDown () {
       return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)

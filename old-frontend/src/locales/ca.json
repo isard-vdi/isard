@@ -123,11 +123,25 @@
       "rdp": {
         "pending": "RDP: esperant el servei RDP de l'escriptori",
         "waiting": "RDP: esperant el servei RDP de l'escriptori",
-        "refused": "RDP: l'escriptori refusa la connexió ({reason})",
+        "refused": "RDP: l'escriptori refusa la connexió: {reason}",
         "auth_failed": "RDP: les credencials desades no són vàlides a l'escriptori. Actualitza-les a la configuració de l'escriptori",
         "unverified": "RDP: disponible (no s'han pogut verificar les credencials)",
         "ready": "RDP: llest",
-        "last_failed": "RDP: l'última connexió ha fallat"
+        "last_failed": "RDP: l'última connexió ha fallat",
+        "waiting_ip": "RDP: esperant que l'escriptori tingui IP",
+        "reason": {
+          "port_closed": "el servei RDP de l'escriptori encara no escolta",
+          "unreachable": "l'escriptori no respon a la xarxa",
+          "not_rdp": "el port RDP de l'escriptori no respon amb el protocol RDP",
+          "tls_required": "l'escriptori només accepta connexions xifrades amb TLS; revisa la configuració RDP del convidat",
+          "tls_not_allowed": "l'escriptori no accepta connexions xifrades amb TLS; revisa la configuració RDP del convidat",
+          "nla_required": "l'escriptori exigeix autenticació a nivell de xarxa (NLA); revisa la configuració RDP del convidat",
+          "certificate": "l'escriptori no té un certificat RDP vàlid; revisa la configuració RDP del convidat",
+          "security_refused": "l'escriptori ha refusat la seguretat de la connexió; revisa la configuració RDP del convidat",
+          "account_blocked": "el compte de l'escriptori està bloquejat o caducat",
+          "no_credentials": "l'escriptori no té credencials RDP desades",
+          "other": "la negociació RDP amb l'escriptori ha fallat; revisa la configuració RDP del convidat"
+        }
       },
       "table-header": {
         "name": "Nom",
