@@ -6,6 +6,7 @@ import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 import type { CardSize, OverlayKind } from '.'
 
 import { copyToClipboard } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth'
 import {
   desktopActionsData,
   DesktopActionsEnum,
@@ -34,6 +35,9 @@ import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-men
 const { t, d } = useI18n()
 
 const networksOverlayRef = ref<InstanceType<typeof DesktopCardNetworksOverlay> | null>(null)
+
+const authStore = useAuthStore()
+const rdpBypass = computed(() => ['admin', 'manager'].includes(authStore.user?.role_id || ''))
 
 interface Props {
   desktop: ApiSchemasDomainsDesktopsUserDesktop
@@ -256,6 +260,8 @@ const desktopKind = computed(() => {
         :desktop-viewers="desktop.viewers"
         :preferred-viewer="preferredViewer"
         :desktop-ip="desktop.ip"
+        :desktop-rdp="desktop.rdp"
+        :rdp-bypass="rdpBypass"
         @main-button-click="handleDesktopAction(mainButtonData.actionButton!.action)"
         @open-viewer="(viewer) => emit('openViewer', viewer)"
       />

@@ -57,6 +57,7 @@ from api.schemas.users import (
     UserOwnsDesktopRequest,
     UserPasswordPolicyResponse,
     UserQuotaResponse,
+    UserRdpOutcomeRequest,
     UserResponse,
     UserSetBastionSshKeyPutData,
     UserSetEmailPutData,
@@ -1308,5 +1309,82 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
             request,
             "internal_server",
             "Failed to verify desktop viewer ownership",
+            traceback.format_exc(),
+        )
+
+
+def rdp_outcome_result(body):
+    """Only a fixed word is stored: guacd's message is internal and its code is shared by several causes."""
+    if body.connected:
+        return "connected"
+    message = (body.message or "").lower()
+    if "authentication failure" in message:
+        return "auth_failed"
+    if "security" in message:
+        return "security_refused"
+    if body.code in (0x0202, 0x0308):
+        return "timeout"
+    if body.code in (0x0203, 0x0207, 0x0208):
+        return "refused"
+    return "failed"
+
+
+@direct_viewer_router.post(
+    "/item/user/rdp-outcome",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Report how an RDP viewer connection ended up",
+    description=(
+        "Store on the running desktop whether the last RDP viewer connection "
+        "reached the guest, or the error it got. Used by the RDP viewers' "
+        "proxies, with the caller's own token, after the same ownership "
+        "check as ``owns-desktop``."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def user_rdp_outcome(request: Request, body: UserRdpOutcomeRequest):
+    try:
+        payload = request.token_payload
+        if payload.get("desktop_id"):
+            await asyncio.to_thread(
+                DesktopService.owns_desktop_viewer_by_desktop_id,
+                desktop_id=payload.get("desktop_id"),
+                user_id=payload.get("user_id"),
+                category_id=payload.get("category_id"),
+                role_id=payload.get("role_id"),
+                connection_ip=body.ip,
+                require_rdp_ready=False,
+            )
+        else:
+            await asyncio.to_thread(
+                DesktopService.owns_desktop_viewer_by_ip,
+                user_id=payload.get("user_id"),
+                category_id=payload.get("category_id"),
+                role_id=payload.get("role_id"),
+                guess_ip=body.ip,
+                require_rdp_ready=False,
+            )
+        await asyncio.to_thread(
+            DesktopService.record_rdp_outcome,
+            body.ip,
+            {
+                "via": body.via,
+                "connected": body.connected,
+                "result": rdp_outcome_result(body),
+            },
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to record the RDP outcome",
             traceback.format_exc(),
         )

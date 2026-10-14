@@ -412,7 +412,7 @@ def test_get_desktop_viewer(monkeypatch, test_client):
     captured = {}
     logged = {}
 
-    def fake_get_viewer(user_id, desktop_id, viewer_type, host, is_admin=False):
+    def fake_get_viewer(user_id, desktop_id, viewer_type, host, is_admin=False, **_):
         captured["user_id"] = user_id
         captured["desktop_id"] = desktop_id
         captured["viewer_type"] = viewer_type

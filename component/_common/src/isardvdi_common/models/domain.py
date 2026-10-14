@@ -304,7 +304,7 @@ class Domain(RethinkCustomBase):
                 "guest_properties",
                 "tag",
                 "tag_visible",
-                {"viewer": {"guest_ip", "passwd"}},
+                {"viewer": {"guest_ip", "passwd", "rdp", "rdp_last"}},
                 {
                     "create_dict": {
                         "hardware": ["interfaces", "videos", "disks"],

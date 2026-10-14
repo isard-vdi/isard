@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
@@ -25,6 +26,37 @@ type WebsocketServer struct {
 	OnConnectWs func(string, *websocket.Conn, *http.Request)
 	// OnDisconnectWs is an optional callback called when the websocket disconnects.
 	OnDisconnectWs func(string, *websocket.Conn, *http.Request, Tunnel)
+	// OnOutcome is an optional callback called once per connection with how reaching the remote desktop went.
+	OnOutcome func(*http.Request, Outcome)
+}
+
+// Outcome is how a connection to the remote desktop ended up: connected, or the first error guacd reported.
+type Outcome struct {
+	Connected bool
+	Code      int
+	Message   string
+}
+
+var (
+	defaultLayerSizeIns = []byte("4.size,1.0,")
+	errorIns            = []byte("5.error,")
+)
+
+// outcomeOf tells whether an instruction from guacd settles the outcome: the default layer only gets a size
+// once the remote session exists, while the client's connected state arrives before guacd has negotiated anything.
+func outcomeOf(ins []byte) (Outcome, bool) {
+	if bytes.HasPrefix(ins, defaultLayerSizeIns) {
+		return Outcome{Connected: true}, true
+	}
+	if !bytes.HasPrefix(ins, errorIns) {
+		return Outcome{}, false
+	}
+	parsed, err := Parse(ins)
+	if err != nil || len(parsed.Args) < 2 {
+		return Outcome{}, true
+	}
+	code, _ := strconv.Atoi(parsed.Args[1])
+	return Outcome{Code: code, Message: parsed.Args[0]}, true
 }
 
 // NewWebsocketServer creates a new server with a simple connect method.
@@ -108,8 +140,13 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer tunnel.ReleaseWriter()
 	defer tunnel.ReleaseReader()
 
+	var outcome func(Outcome)
+	if s.OnOutcome != nil {
+		outcome = func(o Outcome) { s.OnOutcome(r, o) }
+	}
+
 	go wsToGuacd(ws, writer)
-	guacdToWs(ws, reader)
+	guacdToWs(ws, reader, outcome)
 }
 
 // MessageReader wraps a websocket connection and only permits Reading
@@ -144,7 +181,7 @@ type MessageWriter interface {
 	WriteMessage(int, []byte) error
 }
 
-func guacdToWs(ws MessageWriter, guacd InstructionReader) {
+func guacdToWs(ws MessageWriter, guacd InstructionReader, outcome func(Outcome)) {
 	buf := bytes.NewBuffer(make([]byte, 0, MaxGuacMessage*2))
 
 	for {
@@ -152,6 +189,13 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 		if err != nil {
 			logrus.Traceln("Error reading from guacd", err)
 			return
+		}
+
+		if outcome != nil {
+			if o, settled := outcomeOf(ins); settled {
+				outcome(o)
+				outcome = nil
+			}
 		}
 
 		if bytes.HasPrefix(ins, internalOpcodeIns) {

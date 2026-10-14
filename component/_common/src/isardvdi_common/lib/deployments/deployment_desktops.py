@@ -142,7 +142,7 @@ class DeploymentDesktopsProcessed(RethinkSharedConnection):
                     "accessed",
                     "total_desktops",
                     "tag_visible",
-                    {"viewer": {"guest_ip", "passwd"}},
+                    {"viewer": {"guest_ip", "passwd", "rdp", "rdp_last"}},
                     "guest_properties",
                     # Needed by ``parse_frontend_desktop_status`` to tell a
                     # wireguard desktop still waiting for its guest IP apart

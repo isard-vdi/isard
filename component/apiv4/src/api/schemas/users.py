@@ -401,6 +401,24 @@ class UserAppliedQuotaResponse(BaseModel):
     )
 
 
+class UserRdpOutcomeRequest(BaseModel):
+    """How a viewer's RDP connection to a running desktop ended up."""
+
+    ip: str = Field(description="The desktop's viewer ``guest_ip``.")
+    via: Literal["browser", "native"] = Field(
+        description="Which RDP viewer made the connection."
+    )
+    connected: bool = Field(
+        description="Whether the RDP session with the guest was established."
+    )
+    code: Optional[int] = Field(
+        default=None, description="Guacamole status code of the failure, if any."
+    )
+    message: Optional[str] = Field(
+        default=None, max_length=200, description="Failure message, if any."
+    )
+
+
 class UserOwnsDesktopRequest(BaseModel):
     """
     Request body for the three ``owns_desktop`` variants.

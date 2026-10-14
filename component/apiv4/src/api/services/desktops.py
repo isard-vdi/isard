@@ -97,6 +97,8 @@ def _get_desktop_viewer_cache_key(
     viewer_type: str,
     host: str,
     is_admin: bool = False,
+    role_id: str = "user",
+    category_id: str = None,
 ) -> tuple:
     # user_id is in the key so different users never share a cached viewer credential
     return hashkey(
@@ -105,6 +107,8 @@ def _get_desktop_viewer_cache_key(
         viewer_type,
         host,
         is_admin,
+        role_id,
+        category_id,
     )
 
 
@@ -808,6 +812,7 @@ class DesktopService:
         category_id: str,
         role_id: str,
         connection_ip: str = None,
+        require_rdp_ready: bool = True,
     ) -> None:
         """Delegate to the common helper. Raises on failure."""
         DesktopDirectViewer.owns_desktop_viewer_by_desktop_id(
@@ -816,11 +821,16 @@ class DesktopService:
             category_id=category_id,
             role_id=role_id,
             connection_ip=connection_ip,
+            require_rdp_ready=require_rdp_ready,
         )
 
     @staticmethod
     def owns_desktop_viewer_by_ip(
-        user_id: str, category_id: str, role_id: str, guess_ip: str
+        user_id: str,
+        category_id: str,
+        role_id: str,
+        guess_ip: str,
+        require_rdp_ready: bool = True,
     ) -> None:
         """Delegate to the common helper. Raises on failure."""
         DesktopDirectViewer.owns_desktop_viewer_by_ip(
@@ -828,7 +838,13 @@ class DesktopService:
             category_id=category_id,
             role_id=role_id,
             guess_ip=guess_ip,
+            require_rdp_ready=require_rdp_ready,
         )
+
+    @staticmethod
+    def record_rdp_outcome(guest_ip: str, outcome: dict) -> None:
+        """Delegate to the common helper."""
+        CommonDesktops.record_rdp_outcome(guest_ip, outcome)
 
     @staticmethod
     def owns_desktop_viewer_by_proxies(
@@ -1347,6 +1363,8 @@ class DesktopService:
         viewer_type: str,
         host: str,
         is_admin: bool = False,
+        role_id: str = "user",
+        category_id: str = None,
     ) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
@@ -1354,12 +1372,19 @@ class DesktopService:
                 f"Desktop with ID {desktop_id} not found",
                 description_code="not_found",
             )
+        bypass = False
+        if viewer_type in DesktopDirectViewer.RDP_PROTOCOLS:
+            desktop = RethinkDomain(desktop_id)
+            bypass = DesktopDirectViewer.rdp_bypass_allowed(
+                {"category": desktop.category}, role_id, category_id
+            )
         viewer = DesktopDirectViewer.desktop_viewer(
             desktop_id,
             protocol=viewer_type,
             get_cookie=True,
             admin_role=is_admin,
             host=host,
+            rdp_bypass=bypass,
         )
         return viewer
 

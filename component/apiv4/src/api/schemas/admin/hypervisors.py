@@ -18,7 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from isardvdi_common.schemas.hypervisor import HypervisorStatus
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
@@ -101,6 +101,16 @@ class AdminHypervisorWgAddrData(BaseModel):
 
     mac: str
     ip: str
+
+
+class AdminHypervisorRdpStateData(BaseModel):
+    """How far the RDP service of a running desktop has been verified."""
+
+    domain_id: str
+    ip: str
+    state: Literal["waiting", "refused", "unverified", "auth_failed", "ready"]
+    protocol: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class AdminHypervisorMediaFoundData(BaseModel):
