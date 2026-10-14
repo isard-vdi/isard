@@ -925,8 +925,21 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 "Gpu id not found in gpu definitions table",
                 description_code="not_found",
             )
-        enabled = item.get("profiles_enabled") or []
-        return [subitem for subitem in subitems if subitem["id"] in enabled]
+        # Match on the base id but return the enabled "~<variant>" id: plans and
+        # desktops reference the reservable, not the catalog entry.
+        enabled = [split_qualifier(p) for p in item.get("profiles_enabled") or []]
+        result = []
+        for subitem in subitems:
+            for base_id, variant in enabled:
+                if base_id != subitem["id"]:
+                    continue
+                entry = {**subitem}
+                if variant:
+                    entry["id"] = base_id + "~" + variant
+                    if entry.get("name"):
+                        entry["name"] += " [" + variant + "]"
+                result.append(entry)
+        return result
 
     @classmethod
     def get_subitem(cls, item_id, subitem_id):

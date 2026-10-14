@@ -115,3 +115,31 @@ class TestListSubitemsEnabled:
         _catalog(stub, [{"id": "1Q"}, {"id": "2Q"}, {"id": "4Q"}])
         result = stub["Cls"].list_subitems_enabled("g1")
         assert [s["id"] for s in result] == ["1Q", "4Q"]
+
+    def test_returns_variant_qualified_id(self, stub):
+        # Enabling passthrough auto-appends the card's variant; the planner
+        # must get that reservable id back, not the bare catalog id.
+        _card(
+            stub,
+            {
+                "brand": "NVIDIA",
+                "model": "RTXPro6000BlackwellDC",
+                "profiles_enabled": [
+                    "NVIDIA-RTXPro6000BlackwellDC-passthrough~hyp1n1bd4"
+                ],
+            },
+        )
+        _catalog(
+            stub,
+            [
+                {"id": "NVIDIA-RTXPro6000BlackwellDC-1g.24gb", "name": "24GB"},
+                {"id": "NVIDIA-RTXPro6000BlackwellDC-passthrough", "name": "96GB"},
+            ],
+        )
+        result = stub["Cls"].list_subitems_enabled("g1")
+        assert result == [
+            {
+                "id": "NVIDIA-RTXPro6000BlackwellDC-passthrough~hyp1n1bd4",
+                "name": "96GB [hyp1n1bd4]",
+            }
+        ]
