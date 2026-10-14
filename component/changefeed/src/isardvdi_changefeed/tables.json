@@ -197,7 +197,8 @@
     "pluck": [
       "id",
       "status",
-      "owner_id"
+      "owner_id",
+      "item_type"
     ]
   },
   {

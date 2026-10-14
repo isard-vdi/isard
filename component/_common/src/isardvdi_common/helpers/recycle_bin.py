@@ -350,6 +350,14 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
 
 
 class Helpers(RethinkSharedConnection):
+    ADMIN_ONLY_ITEM_TYPES = ("group", "category")
+
+    @classmethod
+    def admin_only_entry(cls, entry):
+        return r.expr(list(cls.ADMIN_ONLY_ITEM_TYPES)).contains(entry["item_type"]) | (
+            (entry["item_type"] == "user")
+            & entry["users"].default([]).is_empty().not_()
+        )
 
     @classmethod
     def owns_recycle_bin_id(cls, payload, recycle_bin_id):
@@ -706,9 +714,11 @@ class Helpers(RethinkSharedConnection):
                     r.table("recycle_bin")
                     .get_all(RecycleBinStatusEnum.recycled.value, index="status")
                     .filter(
-                        lambda rb: r.expr(categories_to_exclude_ids)
-                        .contains(rb["owner_category_id"])
-                        .not_()
+                        lambda rb: (
+                            r.expr(categories_to_exclude_ids)
+                            .contains(rb["owner_category_id"])
+                            .not_()
+                        )
                     )
                     .filter(
                         r.row["accessed"]
@@ -900,7 +910,7 @@ class Helpers(RethinkSharedConnection):
         # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
         start = time.time()
         finished_tasks = list(
-            filter(lambda t: (t["status"] == "finished"), updated_rb["tasks"])
+            filter(lambda t: t["status"] == "finished", updated_rb["tasks"])
         )
 
         log.debug(
@@ -966,22 +976,26 @@ class Helpers(RethinkSharedConnection):
 
     @classmethod
     @cached(cache=_get_user_recycle_bin_ids_cache)
-    def get_user_recycle_bin_ids(cls, user_id, status):
+    def get_user_recycle_bin_ids(cls, user_id, status, exclude_admin_only=False):
         """
         Get all the users recycle_bins ids
 
         :param user_id: User ID
         :type user_id: str
+        :param exclude_admin_only: Skip the entries only the webapp admin shows
+        :type exclude_admin_only: bool
         :return: IDs of the user recycle bins
         :rtype: array
         """
+        query = (
+            r.table("recycle_bin")
+            .get_all([user_id, status], index="owner_status")
+            .filter({"agent_id": user_id})
+        )
+        if exclude_admin_only:
+            query = query.filter(lambda entry: cls.admin_only_entry(entry).not_())
         with cls._rdb_context():
-            return list(
-                r.table("recycle_bin")
-                .get_all([user_id, status], index="owner_status")
-                .filter({"agent_id": user_id})["id"]
-                .run(cls._rdb_connection)
-            )
+            return list(query["id"].run(cls._rdb_connection))
 
     @classmethod
     def clear_get_user_recycle_bin_ids_cache(cls):
@@ -1044,7 +1058,7 @@ class Helpers(RethinkSharedConnection):
         if user_id:
             query = query.get_all(
                 [user_id, RecycleBinStatusEnum.recycled.value], index="owner_status"
-            )
+            ).filter(lambda entry: cls.admin_only_entry(entry).not_())
         elif category_id:
             if status:
                 query = query.get_all(
@@ -1098,6 +1112,7 @@ class Helpers(RethinkSharedConnection):
                 .get_all(
                     [user_id, RecycleBinStatusEnum.recycled.value], index="owner_status"
                 )
+                .filter(lambda entry: cls.admin_only_entry(entry).not_())
                 .count()
                 .run(cls._rdb_connection)
             )
@@ -1138,7 +1153,7 @@ class Helpers(RethinkSharedConnection):
             return None
         try:
             hours = int(max_time)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             log.warning("Recycle bin max_time %r is not a number; ignoring", max_time)
             return None
         if hours < 0:
@@ -2617,7 +2632,6 @@ class RecycleBinDomain(RecycleBin):
         if not (
             domain["kind"] == "template" and domain.get("duplicate_parent_template")
         ):
-
             for disk in domain["create_dict"]["hardware"]["disks"]:
                 if "storage_id" in disk:
                     with self._rdb_context():

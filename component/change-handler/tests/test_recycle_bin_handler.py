@@ -207,6 +207,57 @@ class TestRecycleBinHandler:
         assert handler.socketio_server.emit.await_args_list == []
 
 
+class TestRecycleBinHandlerAdminOnlyEntries:
+    """Group and category deletions are owned by the deleting admin but only
+    the webapp shows them, so they must not reach the owner's /userspace."""
+
+    @pytest.fixture
+    def handler(self):
+        from isardvdi_change_handler.handlers.recycle_bin import RecycleBinHandler
+
+        sio = AsyncMock()
+        return RecycleBinHandler(sio, "recycle_bin")
+
+    @staticmethod
+    def _row(item_type, status="recycled", owner_id="u1"):
+        return FakeRow(
+            id="rb1",
+            status=status,
+            item_type=item_type,
+            additional_properties={"owner_id": owner_id},
+        )
+
+    @staticmethod
+    def _namespaces(handler):
+        return [
+            c.kwargs["namespace"] for c in handler.socketio_server.emit.await_args_list
+        ]
+
+    async def _fire_every_event(self, handler, item_type):
+        with _patch_helpers():
+            await handler.on_insert(self._row(item_type))
+            await handler.on_update(
+                self._row(item_type, owner_id=None), self._row(item_type)
+            )
+            await handler.on_update(
+                self._row(item_type), self._row(item_type, status="deleting")
+            )
+            await handler.on_update(self._row(item_type), self._row(item_type))
+            await handler.on_delete(self._row(item_type))
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("item_type", ["group", "category"])
+    async def test_admin_only_entries_emit_only_to_admins(self, handler, item_type):
+        await self._fire_every_event(handler, item_type)
+        assert self._namespaces(handler) == ["/administrators"] * 5
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("item_type", ["desktop", "deployment", "user", None])
+    async def test_other_entries_emit_to_owner_and_admins(self, handler, item_type):
+        await self._fire_every_event(handler, item_type)
+        assert self._namespaces(handler) == ["/userspace", "/administrators"] * 5
+
+
 class TestRecycleBinHandlerNoneRoomRegression:
     @pytest.fixture
     def handler(self):

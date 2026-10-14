@@ -2040,6 +2040,11 @@ class UsersProcessed(RethinkSharedConnection):
                             [user_id, RecycleBinStatusEnum.recycled.value],
                             index="owner_status",
                         )
+                        .filter(
+                            lambda entry: RecycleBinHelpers.admin_only_entry(
+                                entry
+                            ).not_()
+                        )
                         .pluck("id")
                         .count()
                         .default(0),
@@ -2064,6 +2069,11 @@ class UsersProcessed(RethinkSharedConnection):
                         .get_all(
                             [user_id, RecycleBinStatusEnum.recycled.value],
                             index="owner_status",
+                        )
+                        .filter(
+                            lambda entry: RecycleBinHelpers.admin_only_entry(
+                                entry
+                            ).not_()
                         )
                         .pluck("id")
                         .count()

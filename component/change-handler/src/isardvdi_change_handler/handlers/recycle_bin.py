@@ -25,11 +25,11 @@ from .base import BaseHandler, json_dumps
 
 
 class RecycleBinHandler(BaseHandler):
-
-    async def _emit_user_admin(self, event, payload, owner_id):
-        await self.emit(
-            event, json_dumps(payload), namespace="/userspace", room=owner_id
-        )
+    async def _emit_user_admin(self, event, payload, owner_id, to_user=True):
+        if to_user:
+            await self.emit(
+                event, json_dumps(payload), namespace="/userspace", room=owner_id
+            )
         await self.emit(
             event, json_dumps(payload), namespace="/administrators", room="admins"
         )
@@ -55,20 +55,28 @@ class RecycleBinHandler(BaseHandler):
             return attr
         return (val.additional_properties or {}).get(key, default)
 
+    def _to_user(self, val):
+        return (
+            self._prop(val, "item_type") not in RecycleBinHelpers.ADMIN_ONLY_ITEM_TYPES
+        )
+
     async def on_insert(self, new_val):
         owner_id = self._prop(new_val, "owner_id")
         if not owner_id:
             return
         payload = self._build_add_payload(self._prop(new_val, "id"), owner_id)
-        await self._emit_user_admin("add_recycle_bin", payload, owner_id)
+        await self._emit_user_admin(
+            "add_recycle_bin", payload, owner_id, self._to_user(new_val)
+        )
 
     async def on_update(self, old_val, new_val):
         owner_id = self._prop(new_val, "owner_id")
         if not owner_id:
             return
+        to_user = self._to_user(new_val)
         if not self._prop(old_val, "owner_id"):
             payload = self._build_add_payload(self._prop(new_val, "id"), owner_id)
-            await self._emit_user_admin("add_recycle_bin", payload, owner_id)
+            await self._emit_user_admin("add_recycle_bin", payload, owner_id, to_user)
             return
         old_status = self._prop(old_val, "status")
         new_status = self._prop(new_val, "status")
@@ -82,10 +90,11 @@ class RecycleBinHandler(BaseHandler):
                 event,
                 {"id": self._prop(new_val, "id"), "status": new_status},
                 owner_id,
+                to_user,
             )
             return
         payload = self._build_count_payload(self._prop(new_val, "id"))
-        await self._emit_user_admin("update_recycle_bin", payload, owner_id)
+        await self._emit_user_admin("update_recycle_bin", payload, owner_id, to_user)
 
     async def on_delete(self, old_val):
         owner_id = self._prop(old_val, "owner_id")
@@ -98,4 +107,5 @@ class RecycleBinHandler(BaseHandler):
                 "status": self._prop(old_val, "status", "deleted"),
             },
             owner_id,
+            self._to_user(old_val),
         )

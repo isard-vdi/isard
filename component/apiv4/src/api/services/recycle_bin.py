@@ -122,7 +122,9 @@ class RecycleBinService:
                 f"User {user_id} does not exist",
             )
         rb_ids = RecycleBinHelpers.get_user_recycle_bin_ids(
-            user_id=user_id, status=RecycleBinStatusEnum.recycled.value
+            user_id=user_id,
+            status=RecycleBinStatusEnum.recycled.value,
+            exclude_admin_only=True,
         )
         for rb_id in rb_ids:
             await RecycleBinDeleteQueue().enqueue(
