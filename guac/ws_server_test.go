@@ -25,7 +25,7 @@ func TestWebsocketServer_guacdToWs(t *testing.T) {
 	}
 	guac := NewStream(conn, time.Minute)
 
-	guacdToWs(msgWriter, guac)
+	guacdToWs(msgWriter, guac, nil)
 
 	if len(msgWriter.Messages) != 1 {
 		t.Error("Expected 1 got", len(msgWriter.Messages))

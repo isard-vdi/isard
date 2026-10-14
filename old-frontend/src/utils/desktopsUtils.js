@@ -21,7 +21,7 @@ export class DesktopUtils {
     // that were actually present so the merge doesn't lose data.
     // Same pattern that hits templates also hits desktops on partial
     // updates like booking-state changes.
-    const { description, icon, id, name, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, server_autostart: serverAutostart, tag, reservables, interfaces, current_action: currentAction, storage, permissions, queue } = item
+    const { description, icon, id, name, type, viewers, ip, rdp, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, server_autostart: serverAutostart, tag, reservables, interfaces, current_action: currentAction, storage, permissions, queue } = item
     const out = {
       description,
       icon: icon === undefined ? undefined : (!icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon)),
@@ -30,6 +30,7 @@ export class DesktopUtils {
       state: ('state' in item || 'status' in item) ? this.parseState(item) : undefined,
       type,
       ip,
+      rdp,
       viewers: viewers === undefined ? undefined : (viewers === null ? [] : viewers),
       template,
       buttonIconName: ('state' in item || 'status' in item) ? this.buttonIconName(item) : undefined,
@@ -151,6 +152,10 @@ export class DesktopUtils {
 
   static viewerNeedsIp (viewer) {
     return ['file-rdpgw', 'file-rdpvpn', 'browser-rdp'].includes(viewer)
+  }
+
+  static rdpReady (desktop) {
+    return !desktop.rdp || ['ready', 'unverified'].includes(desktop.rdp.state)
   }
 
   static networkNeedsIp (interfaces) {

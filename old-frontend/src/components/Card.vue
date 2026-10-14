@@ -266,6 +266,13 @@
           <p class="w-100 mb-0 card-text ml-2 mt-2 mb-1">
             {{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}
           </p>
+          <p
+            v-if="rdpStepText"
+            class="w-100 mb-0 card-text ml-2 mb-1 rdp-step"
+            :class="{ 'text-danger': rdpFailed }"
+          >
+            {{ rdpStepText }}
+          </p>
 
           <!-- Template -->
           <p
@@ -288,27 +295,27 @@
           <div>
             <DesktopButton
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
-              :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
+              :active="(desktopState === desktopStates.started && !(singleViewerNeedsIp && rdpBlocked)) || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
               :button-class="!singleViewerNeedsIp ? 'btn-green' : buttViewerCssColor"
               :butt-text="getViewerText"
               variant="primary"
-              :spinner-active="waitingIp"
+              :spinner-active="waitingIp || (singleViewerNeedsIp && rdpBlocked && !rdpFailed)"
               @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
             />
             <isard-dropdown
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
               :dd-disabled="!showDropDown"
               css-class="viewers-dropdown m-0"
-              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp) }"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp || rdpBlocked), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp && !rdpBlocked) }"
               variant="light"
               :viewers="filterViewerFromList"
               :desktop="desktop"
               :viewer-text="getViewerText.substring(0, MAX_VIEWER_TEXT_SIZE)"
               :full-viewer-text="getViewerText"
               :default-viewer="getDefaultViewer"
-              :waiting-ip="waitingIp"
+              :waiting-ip="waitingIp || rdpBlocked"
               @dropdownClicked="openDesktop"
-              @notifyWaitingIp="notifyWaitingIp"
+              @notifyWaitingIp="waitingIp ? notifyWaitingIp() : notifyRdpStep(rdpStepText)"
             />
           </div>
         </div>
@@ -371,6 +378,9 @@ export default {
     const notifyWaitingIp = () => {
       $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
     }
+    const notifyRdpStep = (message) => {
+      $store.dispatch('showNotification', { message })
+    }
     const copyToClipboard = (text) => {
       navigator.clipboard.writeText(text)
       $store.dispatch('showNotification', { message: i18n.t('forms.domain.bastion.copied') })
@@ -380,6 +390,7 @@ export default {
       changeDesktopStatus,
       onClickBookingDesktop,
       notifyWaitingIp,
+      notifyRdpStep,
       copyToClipboard
     }
   },
@@ -485,6 +496,24 @@ export default {
     },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip
+    },
+    rdpPending () {
+      return this.desktopState === desktopStates.started && !DesktopUtils.rdpReady(this.desktop)
+    },
+    rdpBlocked () {
+      return this.rdpPending && !['admin', 'manager'].includes(this.getUser.role_id)
+    },
+    rdpFailed () {
+      const rdp = this.desktop.rdp
+      return !!rdp && (['refused', 'auth_failed'].includes(rdp.state) || (!!rdp.last && !rdp.last.connected))
+    },
+    rdpStepText () {
+      if (this.desktopState !== desktopStates.started || !this.desktop.rdp) return ''
+      const last = this.desktop.rdp.last
+      if (!this.rdpPending && last && !last.connected) {
+        return i18n.t(last.result === 'auth_failed' ? 'components.desktop-cards.rdp.auth_failed' : 'components.desktop-cards.rdp.last_failed')
+      }
+      return i18n.t(`components.desktop-cards.rdp.${this.desktop.rdp.state}`, { reason: this.desktop.rdp.reason || '' })
     },
     showDropDown () {
       return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)

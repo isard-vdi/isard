@@ -424,6 +424,15 @@
       }
     },
     "desktop-cards": {
+      "rdp": {
+        "pending": "RDP: esperando el servicio RDP del escritorio",
+        "waiting": "RDP: esperando el servicio RDP del escritorio",
+        "refused": "RDP: el escritorio rechaza la conexión ({reason})",
+        "auth_failed": "RDP: las credenciales guardadas no son válidas en el escritorio. Actualízalas en la configuración del escritorio",
+        "unverified": "RDP: disponible (no se han podido verificar las credenciales)",
+        "ready": "RDP: listo",
+        "last_failed": "RDP: la última conexión ha fallado"
+      },
       "actions": {
         "delete": "Borrar",
         "template": "Convertir en plantilla",

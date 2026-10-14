@@ -201,7 +201,18 @@ class DesktopDirectViewer(RethinkSharedConnection):
         admin_role=False,
         desktop=None,
         host=None,
+        rdp_bypass=False,
     ):
+        if protocol in cls.RDP_PROTOCOLS and not rdp_bypass:
+            if desktop is None:
+                with cls._rdb_context():
+                    desktop = (
+                        r.table("domains")
+                        .get(desktop_id)
+                        .default({})
+                        .run(cls._rdb_connection)
+                    )
+            cls.check_rdp_open(desktop)
         if protocol in ["url", "file"]:
             direct_protocol = protocol
             protocol = "browser-vnc"
@@ -331,6 +342,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
             ),
             "viewers": {},
             "ip": (domain.get("viewer") or {}).get("guest_ip"),
+            "rdp": (domain.get("viewer") or {}).get("rdp"),
             "image": domain.get("image"),
             "type": (
                 DesktopTypeEnum.persistent.value
@@ -349,7 +361,10 @@ class DesktopDirectViewer(RethinkSharedConnection):
             desktop["viewers"]["browser-vnc"] = cls.desktop_viewer(
                 domain["id"], protocol="browser-vnc", get_cookie=True, host=host
             )
-        if "browser_rdp" in desktop_viewers:
+        rdp_open = cls.rdp_ready(domain)
+        if "browser_rdp" in desktop_viewers and not rdp_open:
+            desktop["viewers"]["browser-rdp"] = {"kind": "browser", "protocol": "rdp"}
+        elif "browser_rdp" in desktop_viewers:
             if domain.get("viewer", True) == False:
                 desktop["viewers"]["browser-rdp"] = {
                     "kind": "browser",
@@ -369,7 +384,9 @@ class DesktopDirectViewer(RethinkSharedConnection):
                     get_cookie=True,
                     host=host,
                 )
-        if "file_rdpgw" in desktop_viewers:
+        if "file_rdpgw" in desktop_viewers and not rdp_open:
+            desktop["viewers"]["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
+        elif "file_rdpgw" in desktop_viewers:
             if domain.get("viewer", True) == False:
                 desktop["viewers"]["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
                 desktop["status"] = DesktopStatusEnum.waiting_ip.value
@@ -472,6 +489,33 @@ class DesktopDirectViewer(RethinkSharedConnection):
             "https://isard.gitlab.io/isardvdi-docs/direct_viewer/",
         )
 
+    RDP_PROTOCOLS = ("browser-rdp", "file-rdpgw", "file-rdpvpn")
+    RDP_OPEN_STATES = ("ready", "unverified")
+
+    @staticmethod
+    def rdp_bypass_allowed(domain, role_id, category_id):
+        """Only an admin, or a manager of the desktop's own category, may open RDP before it is verified."""
+        return role_id == "admin" or (
+            role_id == "manager" and domain.get("category") == category_id
+        )
+
+    @classmethod
+    def rdp_ready(cls, domain):
+        state = ((domain.get("viewer") or {}).get("rdp") or {}).get("state")
+        return state in cls.RDP_OPEN_STATES
+
+    @classmethod
+    def check_rdp_open(cls, domain, role_id=None, category_id=None):
+        if cls.rdp_ready(domain) or cls.rdp_bypass_allowed(
+            domain, role_id, category_id
+        ):
+            return
+        raise Error(
+            "conflict",
+            "The desktop RDP service has not been verified yet",
+            description_code="rdp_not_ready",
+        )
+
     @classmethod
     def _check_viewer_ownership(cls, domain, user_id, category_id, role_id):
         """
@@ -506,7 +550,13 @@ class DesktopDirectViewer(RethinkSharedConnection):
 
     @classmethod
     def owns_desktop_viewer_by_desktop_id(
-        cls, desktop_id, user_id, category_id, role_id, connection_ip=None
+        cls,
+        desktop_id,
+        user_id,
+        category_id,
+        role_id,
+        connection_ip=None,
+        require_rdp_ready=True,
     ):
         """
         Port of v3 ``Users.OwnsDesktopViewerDesktopId``.
@@ -555,9 +605,13 @@ class DesktopDirectViewer(RethinkSharedConnection):
         # request time). Desktop existence, status, and IP validation
         # above are sufficient.
         if user_id is None:
+            if connection_ip and require_rdp_ready:
+                cls.check_rdp_open(domain)
             return True
 
         if cls._check_viewer_ownership(domain, user_id, category_id, role_id):
+            if connection_ip and require_rdp_ready:
+                cls.check_rdp_open(domain, role_id, category_id)
             return True
 
         raise Error(
@@ -567,7 +621,9 @@ class DesktopDirectViewer(RethinkSharedConnection):
         )
 
     @classmethod
-    def owns_desktop_viewer_by_ip(cls, user_id, category_id, role_id, guess_ip):
+    def owns_desktop_viewer_by_ip(
+        cls, user_id, category_id, role_id, guess_ip, require_rdp_ready=True
+    ):
         """
         Port of v3 ``Users.OwnsDesktopViewerIP``.
 
@@ -589,7 +645,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
                             domain["status"]
                         )
                     )
-                    .pluck("user", "category", "tag")
+                    .pluck("user", "category", "tag", {"viewer": {"rdp": True}})
                     .run(cls._rdb_connection)
                 )
         except Exception:
@@ -602,6 +658,8 @@ class DesktopDirectViewer(RethinkSharedConnection):
         if domains and cls._check_viewer_ownership(
             domains[0], user_id, category_id, role_id
         ):
+            if require_rdp_ready:
+                cls.check_rdp_open(domains[0], role_id, category_id)
             return True
 
         raise cls._viewer_access_denied()

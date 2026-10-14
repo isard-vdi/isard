@@ -28,11 +28,40 @@ interface Props {
   desktopViewers: string[] // TODO: type this
   preferredViewer?: string // TODO: type this
   desktopIp?: string | null
+  desktopRdp?: {
+    state: string
+    reason?: string | null
+    last?: { connected?: boolean; result?: string | null } | null
+  } | null
+  rdpBypass?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   preferredViewer: undefined,
-  desktopIp: null
+  desktopIp: null,
+  desktopRdp: null,
+  rdpBypass: false
+})
+
+const rdpPending = computed(
+  () => !!props.desktopRdp && !['ready', 'unverified'].includes(props.desktopRdp.state)
+)
+
+const rdpLastFailed = computed(
+  () => !!props.desktopRdp?.last && !props.desktopRdp.last.connected && !rdpPending.value
+)
+
+const rdpStep = computed(() => {
+  if (!props.desktopIp || !props.desktopRdp) return ''
+  if (rdpLastFailed.value) {
+    return props.desktopRdp.last?.result === 'auth_failed'
+      ? t('components.desktops.desktop-card.rdp.auth_failed')
+      : t('components.desktops.desktop-card.rdp.last_failed')
+  }
+  if (props.desktopRdp.state === 'ready') return ''
+  return t(`components.desktops.desktop-card.rdp.${props.desktopRdp.state}`, {
+    reason: props.desktopRdp.reason || ''
+  })
 })
 
 const emit = defineEmits<{
@@ -78,12 +107,25 @@ const emit = defineEmits<{
     </template>
   </div>
 
+  <span
+    v-if="rdpStep && props.mainButtonData.viewers && size !== '2xs' && size !== 'xs'"
+    class="text-xs truncate min-w-0"
+    :class="
+      rdpLastFailed || ['refused', 'auth_failed'].includes(props.desktopRdp?.state || '')
+        ? 'text-error-600'
+        : 'text-gray-warm-600'
+    "
+    :title="rdpStep"
+  >
+    {{ rdpStep }}
+  </span>
+
   <ViewerSelect
     v-if="props.mainButtonData.viewers && size !== '2xs'"
     :viewers="
       props.desktopViewers?.map((viewer) => ({
         id: viewer,
-        loading: viewer.includes('rdp') && !props.desktopIp
+        loading: viewer.includes('rdp') && (!props.desktopIp || (rdpPending && !props.rdpBypass))
       }))
     "
     :selected-viewer="props.preferredViewer"

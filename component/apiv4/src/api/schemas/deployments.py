@@ -641,6 +641,10 @@ class UserDeploymentDesktop(BaseModel):
         default=None,
         description="IP of the desktop. Only set when the desktop is started and has an IP assigned.",
     )
+    rdp: Optional[dict] = Field(
+        default=None,
+        description="RDP verification state of the running desktop, if it has an RDP viewer.",
+    )
     viewer: Optional[Union[bool, dict]] = None
     icon: Optional[str] = None
     description: Optional[str] = None

@@ -1330,6 +1330,8 @@ async def get_desktop_viewer(
             viewer_type=viewer_type,
             host=request.headers.get("host"),
             is_admin=request.token_payload["role_id"] == "admin",
+            role_id=request.token_payload["role_id"],
+            category_id=request.token_payload.get("category_id"),
         )
         # Log here, not in the @cached service: cache hits skip the body and would drop the audit entry.
         from isardvdi_common.helpers.logging import Logging

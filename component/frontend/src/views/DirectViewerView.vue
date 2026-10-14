@@ -525,6 +525,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                         :desktop-status="desktopViewer.status"
                         :desktop-viewers="viewerIds"
                         :desktop-ip="desktopIp"
+                        :desktop-rdp="desktopViewer.rdp"
                         :preferred-viewer="selectedViewerId"
                         @main-button-click="
                           handleDesktopAction(mainButtonData.actionButton!.action)

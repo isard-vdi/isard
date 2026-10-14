@@ -346,6 +346,26 @@ class UserDesktopBastionTarget(BaseModel):
     domains: list[str] = Field(default_factory=list)
 
 
+class DesktopRdpState(BaseModel):
+    state: str = Field(
+        description=(
+            "How far the RDP service of the guest has been verified: waiting, "
+            "refused, unverified, auth_failed or ready."
+        ),
+    )
+    protocol: Optional[str] = Field(
+        default=None, description="Security protocol the guest offered."
+    )
+    reason: Optional[str] = Field(
+        default=None, description="Why the guest is not ready, when it is not."
+    )
+    at: Optional[int] = Field(default=None, description="Unix time of the last change.")
+    last: Optional[dict] = Field(
+        default=None,
+        description="How the last RDP viewer connection ended up: via, connected, code, message, at.",
+    )
+
+
 class Desktop(BaseModel):
     image: DomainImage | None = Field(
         default=None,
@@ -363,6 +383,10 @@ class Desktop(BaseModel):
     ip: Optional[str] = Field(
         default=None,
         description="IP address of the desktop. If None, the desktop is not running or does not have an IP assigned.",
+    )
+    rdp: Optional[DesktopRdpState] = Field(
+        default=None,
+        description="RDP verification state of the running desktop, if it has an RDP viewer.",
     )
     description: Optional[str] = Field(
         default=None,
@@ -445,6 +469,10 @@ class UserDesktop(BaseModel):
     ip: Optional[str] = Field(
         default=None,
         description="IP address of the desktop. If None, the desktop is not running or does not have an IP assigned.",
+    )
+    rdp: Optional[DesktopRdpState] = Field(
+        default=None,
+        description="RDP verification state of the running desktop, if it has an RDP viewer.",
     )
     progress: Optional[UserDesktopProgress] = Field(
         default=None,
