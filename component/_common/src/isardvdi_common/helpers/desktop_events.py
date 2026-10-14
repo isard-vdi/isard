@@ -22,6 +22,7 @@ import time
 import traceback
 
 from cachetools import cached
+from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.api_notify import notify_admins
 from isardvdi_common.helpers.caches import Caches
@@ -37,6 +38,7 @@ from isardvdi_common.helpers.recycle_bin import (
     RecycleBinTemplate,
     RecycleBinUser,
 )
+from isardvdi_common.helpers.shared_storage_stall import SharedStorageStall
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import verdict_for_blocked_disks
@@ -176,6 +178,7 @@ class DesktopEvents(RethinkCustomBase):
                 description_code="unable_to_start_desktop_from",
             )
 
+        SharedStorageStall.raise_if_active()
         if not Domain(desktop_id).storage_ready:
             raise Error(
                 error="precondition_required",
@@ -748,6 +751,34 @@ class DesktopEvents(RethinkCustomBase):
             task = rcb.delete_storage(agent_id)
             return task
 
+    RETRY_MIN_INTERVAL_S = 30
+
+    # written by the engine: domains a hypervisor may still be running
+    HELD_DOMAINS_KEY = "engine:held_domains"
+
+    @classmethod
+    def _held_by_hypervisor(cls, desktop_id):
+        try:
+            return RedisBase._redis.hget(cls.HELD_DOMAINS_KEY, desktop_id)
+        except Exception:
+            logging.exception("Could not read the engine's held domains")
+            return None
+
+    @classmethod
+    def _claim_retry_slot(cls, desktop_id):
+        try:
+            return bool(
+                RedisBase._redis.set(
+                    f"desktop_retry:{desktop_id}",
+                    int(time.time()),
+                    nx=True,
+                    ex=cls.RETRY_MIN_INTERVAL_S,
+                )
+            )
+        except Exception:
+            logging.exception("Could not rate-limit the retry of %s", desktop_id)
+            return True
+
     @classmethod
     def desktop_retry_failed(cls, desktop_id):
         """_From api/libv2/api_desktop_events.py desktop_updating()_
@@ -765,6 +796,14 @@ class DesktopEvents(RethinkCustomBase):
         without clobbering an in-flight transition started by another
         process.
         """
+        SharedStorageStall.raise_if_active()
+        if cls._held_by_hypervisor(desktop_id):
+            raise Error(
+                error="conflict",
+                description="Desktop may still be running on a hypervisor that "
+                "has not answered yet",
+                description_code="desktop_held_by_hypervisor",
+            )
         # Only a terminal disk is refused: a disk still on its way is what the
         # retry is for, and the engine answers ``Stopped`` for it truthfully.
         blocked = [s.status for s in Domain(desktop_id).storages if s.status != "ready"]
@@ -774,6 +813,13 @@ class DesktopEvents(RethinkCustomBase):
                 description="Desktop storage is %s and will not become ready"
                 % ", ".join(sorted(set(blocked))),
                 description_code="desktop_storage_not_ready",
+            )
+        if not cls._claim_retry_slot(desktop_id):
+            raise Error(
+                error="too_many_requests",
+                description="Desktop was retried less than %ss ago"
+                % cls.RETRY_MIN_INTERVAL_S,
+                description_code="desktop_retry_too_soon",
             )
         with cls._rdb_context():
             result = (

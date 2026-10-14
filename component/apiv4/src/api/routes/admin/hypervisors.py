@@ -38,6 +38,7 @@ from api.schemas.admin.hypervisors import (
     AdminHypervisorEnableData,
     AdminHypervisorEnableResponse,
     AdminHypervisorGpu,
+    AdminHypervisorHealthRequest,
     AdminHypervisorMediaDeleteData,
     AdminHypervisorMediaDeleteResponse,
     AdminHypervisorMediaFoundData,
@@ -57,6 +58,7 @@ from api.schemas.admin.hypervisors import (
     OrchestratorHypervisor,
     OrchestratorManagedHypervisor,
     OrchestratorOnlyForcedData,
+    SharedStorageStallResponse,
 )
 from api.schemas.common import ErrorResponse
 from api.services.admin.hypervisors import AdminHypervisorsService
@@ -1056,6 +1058,76 @@ async def admin_hypervisor_boot_progress(
             request,
             "internal_server",
             "Failed to update boot progress",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/hypervisor/{hyper_id}/health",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update hypervisor health report",
+    description=(
+        "A hypervisor reports its own storage, libvirt and load health every "
+        "few seconds. Stored with the server's receive time; the engine "
+        "degrades a hypervisor whose report names a hung mount or stops "
+        "arriving. Hypervisor-facing (hypervisor service JWT)."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_hypervisor_health(
+    request: Request,
+    hyper_id: str,
+    data: AdminHypervisorHealthRequest,
+):
+    try:
+        await asyncio.to_thread(
+            AdminHypervisorsService.update_hyper_health,
+            hyper_id,
+            data.health,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update hypervisor health",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/item/shared-storage-stall",
+    tags=[tag],
+    response_model=SharedStorageStallResponse,
+    summary="Get the shared storage stall condition",
+    description=(
+        "Whether the engine has declared that the storage every hypervisor "
+        "shares is not answering: since when, on which hypervisors and "
+        "mounts. While active, desktop starts and creations are refused with "
+        "503 and the orchestrator does not scale."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_shared_storage_stall(request: Request):
+    try:
+        state = await asyncio.to_thread(
+            AdminHypervisorsService.get_shared_storage_stall
+        )
+        return JSONResponse(
+            content=SharedStorageStallResponse(**state).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get the shared storage stall condition",
             traceback.format_exc(),
         )
 

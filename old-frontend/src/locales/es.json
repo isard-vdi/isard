@@ -1572,6 +1572,7 @@
   },
   "errors": {
     "storage_no_consumer_retry_later": "El almacenamiento no puede aceptar nuevas peticiones temporalmente. Vuelve a intentarlo en unos momentos.",
+    "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
     "desktop_new_user_quota_exceeded": "Has excedido tu cuota de creación de escritorios. Es necesario que elimines algún escritorio para crear otro.",
     "desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo",
     "desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoría",

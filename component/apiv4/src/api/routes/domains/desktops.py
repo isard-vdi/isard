@@ -37,6 +37,7 @@ from api.dependencies.bastion import (
 )
 from api.dependencies.domains import check_domain_kind
 from api.dependencies.jwt_token import is_admin, is_admin_or_manager
+from api.dependencies.shared_storage_stall import refuse_during_shared_storage_stall
 from api.dependencies.storage_pools import (
     check_create_storage_pool_availability,
     check_virt_storage_pool_availability,
@@ -107,8 +108,12 @@ tag = "desktops"
         409: {"model": ErrorResponse},
         428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
     },
-    dependencies=[Depends(check_create_storage_pool_availability)],
+    dependencies=[
+        Depends(refuse_during_shared_storage_stall),
+        Depends(check_create_storage_pool_availability),
+    ],
 )
 async def create_nonpersistent_desktop(
     request: Request, data: NewNonpersistentDesktopRequest
@@ -149,8 +154,12 @@ async def create_nonpersistent_desktop(
         409: {"model": ErrorResponse},
         428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
     },
-    dependencies=[Depends(check_create_storage_pool_availability)],
+    dependencies=[
+        Depends(refuse_during_shared_storage_stall),
+        Depends(check_create_storage_pool_availability),
+    ],
 )
 async def create_desktop(request: Request, data: CreateDesktopRequest):
     if data.bastion_target:
@@ -492,9 +501,11 @@ async def stop_desktops(desktops_stop_request: DesktopsStopRequest, request: Req
         404: {"model": ErrorResponse},
         429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
     },
     dependencies=[
         Depends(owns_domain_id("desktop_id")),
+        Depends(refuse_during_shared_storage_stall),
         Depends(check_virt_storage_pool_availability),
     ],
 )
@@ -608,11 +619,16 @@ async def change_desktop_owner(
     description=(
         "Transitions a ``Failed`` desktop back to ``StartingPaused`` so the "
         "engine can validate it can start on a hypervisor again. Ports v3 "
-        "``GET /desktop/updating/{desktop_id}``. Ownership is enforced."
+        "``GET /desktop/updating/{desktop_id}``. Ownership is enforced. "
+        "Refused while a hypervisor may still be running the desktop, during "
+        "a shared storage stall, and more than once per desktop every 30s."
     ),
     responses={
         404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
     },
     dependencies=[Depends(owns_domain_id("desktop_id"))],
 )

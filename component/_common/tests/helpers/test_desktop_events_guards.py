@@ -9,6 +9,9 @@
   status it can't stop from.
 * ``desktop_retry_failed`` -- refuses a terminal blocking disk and still retries a
   recoverable one; a row not in ``Failed`` is left alone.
+* during a shared storage stall a start or a retry is refused with 503; a retry
+  is refused while a hypervisor may still run the desktop, and more than once
+  per desktop in the retry window.
 
 Only rethink and the ``Domain`` model / ``Caches`` are stubbed; the state
 decision is the code's. Guards assert the ``Error`` type + ``description_code``
@@ -49,12 +52,24 @@ def stub(monkeypatch):
     dom.return_value.storage_ready = True
     dom.return_value.storages = []
     monkeypatch.setattr(mod, "Domain", dom)
+    stall = {"active": False}
+    monkeypatch.setattr(
+        mod.SharedStorageStall,
+        "current",
+        classmethod(lambda cls: {"active": stall["active"]}),
+    )
+    redis = MagicMock(name="redis")
+    redis.hget.return_value = None
+    redis.set.return_value = True
+    monkeypatch.setattr(mod.RedisBase, "_redis", redis)
     return {
         "mod": mod,
         "Cls": mod.DesktopEvents,
         "table": mock_table,
         "mp": monkeypatch,
         "Domain": dom,
+        "stall": stall,
+        "redis": redis,
     }
 
 
@@ -219,3 +234,83 @@ class TestDesktopRetryFailed:
     def test_row_not_in_failed_is_not_changed(self, stub):
         self._replaced(stub, 0)
         assert stub["Cls"].desktop_retry_failed("d1") == "not_changed"
+
+
+class TestSharedStorageStall:
+    """Fail at once instead of queueing behind a storage that does not answer."""
+
+    def _stalled(self, stub):
+        stub["stall"]["active"] = True
+
+    def _assert_503(self, exc):
+        assert exc.value.status_code == 503
+        assert exc.value.error["error"] == "service_unavailable"
+        assert exc.value.error["msg"] == "Service temporarily unavailable"
+        assert exc.value.error["description_code"] == "service_temporarily_unavailable"
+
+    def test_a_start_is_refused(self, stub):
+        self._stalled(stub)
+        _get_desktop_returns(
+            stub, {"status": "Stopped", "create_dict": {"hardware": {}}, "user": "u1"}
+        )
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].desktop_start("d1")
+        self._assert_503(exc)
+        _no_update(stub)
+
+    def test_an_already_started_desktop_is_still_answered(self, stub):
+        self._stalled(stub)
+        _get_desktop_returns(
+            stub, {"status": "Started", "create_dict": {"hardware": {}}, "user": "u1"}
+        )
+        assert stub["Cls"].desktop_start("d1") == "Started"
+
+    def test_a_retry_is_refused(self, stub):
+        self._stalled(stub)
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].desktop_retry_failed("d1")
+        self._assert_503(exc)
+        _no_update(stub)
+        stub["redis"].set.assert_not_called()
+
+
+class TestRetryRealState:
+    def test_refused_while_a_hypervisor_may_still_run_it(self, stub):
+        stub["redis"].hget.return_value = b'{"hyp_id": "hyp-1"}'
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].desktop_retry_failed("d1")
+        assert exc.value.status_code == 409
+        assert exc.value.error["description_code"] == "desktop_held_by_hypervisor"
+        stub["redis"].hget.assert_called_once_with("engine:held_domains", "d1")
+        _no_update(stub)
+
+    def test_a_second_retry_in_the_window_is_refused(self, stub):
+        stub[
+            "table"
+        ].return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        assert stub["Cls"].desktop_retry_failed("d1") == "StartingPaused"
+        key, _ = stub["redis"].set.call_args.args
+        assert key == "desktop_retry:d1"
+        assert stub["redis"].set.call_args.kwargs == {
+            "nx": True,
+            "ex": stub["Cls"].RETRY_MIN_INTERVAL_S,
+        }
+
+        stub["redis"].set.return_value = None
+        with pytest.raises(ErrorBase) as exc:
+            stub["Cls"].desktop_retry_failed("d1")
+        assert exc.value.status_code == 429
+        assert exc.value.error["description_code"] == "desktop_retry_too_soon"
+        stub["table"].return_value.get.return_value.update.assert_called_once()
+
+    def test_a_redis_outage_does_not_block_the_retry(self, stub):
+        stub["redis"].hget.side_effect = ConnectionError("down")
+        stub["redis"].set.side_effect = ConnectionError("down")
+        stub[
+            "table"
+        ].return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        assert stub["Cls"].desktop_retry_failed("d1") == "StartingPaused"

@@ -109,6 +109,13 @@ ex = {
         },
         "status_code": 503,
     },
+    "service_unavailable": {
+        "error": {
+            "error": "service_unavailable",
+            "msg": "Service temporarily unavailable",
+        },
+        "status_code": 503,
+    },
 }
 
 ex_codes = [ex[x]["status_code"] for x in ex]

@@ -2015,6 +2015,16 @@ class HypervisorsProcessed(RethinkSharedConnection):
             ).run(cls._rdb_connection)
 
     @classmethod
+    def update_hyper_health(cls, hyper_id: str, health: dict) -> None:
+        """Replace the report; the engine judges staleness by this server's clock."""
+        report = dict(health)
+        report["received_at"] = time.time()
+        with cls._rdb_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"health": r.literal(report)}
+            ).run(cls._rdb_connection)
+
+    @classmethod
     def register_vlans(cls, vlans: list[str]) -> None:
         """Insert/update ``interfaces`` bridge rows for VLANs discovered
         on a hypervisor.
