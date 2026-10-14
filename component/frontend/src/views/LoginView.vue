@@ -2,6 +2,7 @@
 import { computed, type ComputedRef, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useEventListener } from '@vueuse/core'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
@@ -448,7 +449,8 @@ const categorySelectToken = computed(() => {
 /*
  * Actions
  */
-const submitLogin = async (options: ClientOptions<LoginData>) => {
+// Returns true when the browser is leaving the page, so the loading state is kept
+const submitLogin = async (options: ClientOptions<LoginData>): Promise<boolean> => {
   // Cleanup old tokens
   removeAuthToken(cookies)
 
@@ -461,31 +463,31 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     if (check.errorParams) {
       loginErrorParams.value = check.errorParams
     }
-    return
+    return false
   }
 
   const authorization = response.headers.get('authorization')
   if (authorization === null) {
     loginError.value = 'unknown'
-    return
+    return false
   }
 
   const bearer = authorization.replace(/^Bearer /g, '')
   if (bearer.length === authorization.length) {
     loginError.value = 'unknown'
-    return
+    return false
   }
 
   const jwt = parseAuthToken(bearer)
   if (isCategorySelectClaims(jwt)) {
     authStore.setToken(bearer)
-    return
+    return false
   }
 
   if (isRegisterClaims(jwt) || isReRegisterClaims(jwt)) {
     authStore.setToken(bearer)
     router.push({ name: 'register' })
-    return
+    return false
   }
 
   // Handle non-login token types that need redirects (email verification, etc.)
@@ -494,16 +496,16 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     // Use router-based redirect for token types handled by Vue3 routes
     if (jwt.type === TokenType.EmailVerificationRequired) {
       router.push({ name: 'verify-email' })
-      return
+      return false
     }
     if (jwt.type === TokenType.DisclaimerAcknowledgeRequired) {
       router.push({ name: 'disclaimer' })
-      return
+      return false
     }
 
     if (jwt.type === TokenType.PasswordResetRequired || jwt.type === TokenType.PasswordReset) {
       router.push({ name: 'reset-password' })
-      return
+      return false
     }
 
     // Fall through to window.location for other types.
@@ -551,7 +553,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     const { data: maintenance } = await getMaintenance()
     if (maintenance?.enabled) {
       router.push({ name: 'maintenance' })
-      return
+      return false
     }
   } else {
     authStore.setToken(bearer)
@@ -562,14 +564,43 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     // Use Vue router for paths handled by the Vue3 app
     if (location.startsWith('/notifications/')) {
       router.push(location)
-      return
+      return false
     }
     window.location.pathname = location
-    return
+    return true
   }
 
   window.location.pathname = getPreferredFrontend() === 'vue3' ? '/frontend/desktops' : '/'
+  return true
 }
+
+const isLoggingIn = ref(false)
+
+const runLogin = async (options: ClientOptions<LoginData>) => {
+  if (isLoggingIn.value) {
+    return
+  }
+
+  isLoggingIn.value = true
+  let leavingPage = false
+  try {
+    leavingPage = await submitLogin(options)
+  } catch (err) {
+    console.error(err)
+    loginError.value = 'unknown'
+  } finally {
+    if (!leavingPage) {
+      isLoggingIn.value = false
+    }
+  }
+}
+
+// Restored from the bfcache (back button after a successful login)
+useEventListener(window, 'pageshow', (event: PageTransitionEvent) => {
+  if (event.persisted) {
+    isLoggingIn.value = false
+  }
+})
 
 const onFormSubmit = async (values) => {
   loginError.value = undefined
@@ -584,7 +615,7 @@ const onFormSubmit = async (values) => {
     return
   }
 
-  await submitLogin({
+  await runLogin({
     body: values,
     query: {
       category_id: selectedCategory.value,
@@ -634,7 +665,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
   // We extract it outside the interceptor, because afterwards will get deleted
   const bearer = getAuthBearer(cookies)
 
-  await submitLogin({
+  await runLogin({
     headers: {
       Authorization: 'Bearer ' + bearer
     },
@@ -751,6 +782,7 @@ watch(categoryError, (newErr) => {
               :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
               :autofocus="!showCategoriesDropdown"
               :style="config?.providers?.form?.submit_extra_styles"
+              :loading="isLoggingIn"
               @submit="onFormSubmit"
               @forgot-password="onForgotPassword"
             />

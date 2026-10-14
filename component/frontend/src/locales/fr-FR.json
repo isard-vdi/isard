@@ -58,7 +58,8 @@
         "username": "Nom d'utilisateur",
         "password": "Mot de passe",
         "forgot-password": "Mot de passe oublié?",
-        "login": "Se connecter"
+        "login": "Se connecter",
+        "logging-in": "Connexion en cours…"
       },
       "login-provider-external": {
         "default-text": {

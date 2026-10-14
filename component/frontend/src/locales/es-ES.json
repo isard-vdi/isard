@@ -1346,7 +1346,8 @@
         "username": "Nombre de usuario",
         "password": "Contraseña",
         "forgot-password": "¿Has olvidado tu contraseña?",
-        "login": "Iniciar sesión"
+        "login": "Iniciar sesión",
+        "logging-in": "Iniciando sesión…"
       },
       "login-provider-external": {
         "default-text": {

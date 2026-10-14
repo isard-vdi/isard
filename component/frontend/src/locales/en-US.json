@@ -1739,7 +1739,8 @@
         "username": "Username",
         "password": "Password",
         "forgot-password": "Forgot password?",
-        "login": "Login"
+        "login": "Login",
+        "logging-in": "Logging in…"
       },
       "login-provider-external": {
         "default-text": {
