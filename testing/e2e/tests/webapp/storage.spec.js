@@ -1659,7 +1659,7 @@ test.describe('Admin Storage — webapp', () => {
   test.skip('S25: orphan child does not poison its recovered parent (host-verified)', async () => {})
 
   // -------------------------------------------------------------------
-  // Scenario 25 — Repair a damaged disk from the row action buttons
+  // Scenario 26 — Repair a damaged disk from the row action buttons
   // -------------------------------------------------------------------
   // The Repair buttons live on a `damaged` row in the "Other status" table.
   // The diskless e2e env has no damaged disk, so the status-count dropdown, the
@@ -1719,7 +1719,7 @@ test.describe('Admin Storage — webapp', () => {
     return row
   }
 
-  test('S25: Repair leaks shows the reason, fires check -r leaks, and the row leaves the table', async ({
+  test('S26: Repair leaks shows the reason, fires check -r leaks, and the row leaves the table', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1755,7 +1755,7 @@ test.describe('Admin Storage — webapp', () => {
     ).toHaveCount(0, { timeout: 10000 })
   })
 
-  test('S25b: Repair leaks Cancel fires no repair call and keeps the row', async ({
+  test('S26b: Repair leaks Cancel fires no repair call and keeps the row', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1782,7 +1782,7 @@ test.describe('Admin Storage — webapp', () => {
     await expect(row).toBeVisible()
   })
 
-  test('S25c: Repair all on a damaged row fires check -r all', async ({
+  test('S26c: Repair all on a damaged row fires check -r all', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1804,7 +1804,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.url()).toMatch(/\/repair\/all$/)
   })
 
-  test('S26: Repair all pending leaks batch button fires the batch repair', async ({
+  test('S27: Repair all pending leaks batch button fires the batch repair', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
@@ -1825,7 +1825,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.method()).toBe('PUT')
   })
 
-  test('S26b: Repair all pending leaks Cancel fires no batch call', async ({
+  test('S27b: Repair all pending leaks Cancel fires no batch call', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
@@ -1851,7 +1851,7 @@ test.describe('Admin Storage — webapp', () => {
   })
 
   // -------------------------------------------------------------------
-  // Scenario 27 — pending-action filter + Pending column
+  // Scenario 28 — pending-action filter + Pending column
   // -------------------------------------------------------------------
   const PEND_ID = 'e2epnd00-0000-0000-0000-000000000001'
 
@@ -1873,7 +1873,7 @@ test.describe('Admin Storage — webapp', () => {
     }
   }
 
-  test('S27: pending-action filter loads by action and the Pending column shows the keys', async ({
+  test('S28: pending-action filter loads by action and the Pending column shows the keys', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/admin\/items\/storage\/pending\/sparsify(\?|$)/, (route) =>
@@ -1895,7 +1895,7 @@ test.describe('Admin Storage — webapp', () => {
     await expect(row).toContainText('sparsify')
   })
 
-  test('S27b: the ready table renders a Pending column', async ({ authenticatedPage: page }) => {
+  test('S28b: the ready table renders a Pending column', async ({ authenticatedPage: page }) => {
     await gotoStorage(page)
     await waitForSeedARow(page)
     await expect(
@@ -1904,9 +1904,9 @@ test.describe('Admin Storage — webapp', () => {
   })
 
   // -------------------------------------------------------------------
-  // Scenario 28 — Check integrity row button
+  // Scenario 29 — Check integrity row button
   // -------------------------------------------------------------------
-  test('S28: Check integrity on a ready row fires the check route', async ({
+  test('S29: Check integrity on a ready row fires the check route', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/admin\/item\/storage\/[^/]+\/check(\?|$)/, (route) =>
@@ -1928,7 +1928,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.url()).toMatch(new RegExp(`/admin/item/storage/${SEED_A}/check$`))
   })
 
-  test('S28b: Check integrity Cancel fires no call', async ({ authenticatedPage: page }) => {
+  test('S29b: Check integrity Cancel fires no call', async ({ authenticatedPage: page }) => {
     await page.route(/\/api\/v4\/admin\/item\/storage\/[^/]+\/check(\?|$)/, (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
     )
@@ -1948,9 +1948,9 @@ test.describe('Admin Storage — webapp', () => {
   })
 
   // -------------------------------------------------------------------
-  // Scenario 29 — Sparsify row button
+  // Scenario 30 — Sparsify row button
   // -------------------------------------------------------------------
-  test('S29: Sparsify on a ready row fires the sparsify route', async ({
+  test('S30: Sparsify on a ready row fires the sparsify route', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/sparsify\/priority\/[^/]+(\?|$)/, (route) =>
@@ -1972,7 +1972,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.url()).toMatch(new RegExp(`/item/storage/${SEED_A}/sparsify/priority/`))
   })
 
-  test('S29b: Sparsify Cancel fires no call', async ({ authenticatedPage: page }) => {
+  test('S30b: Sparsify Cancel fires no call', async ({ authenticatedPage: page }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/sparsify\/priority\/[^/]+(\?|$)/, (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
     )
@@ -1992,9 +1992,9 @@ test.describe('Admin Storage — webapp', () => {
   })
 
   // -------------------------------------------------------------------
-  // Scenario 30 — Run sweep now batch button
+  // Scenario 31 — Run sweep now batch button
   // -------------------------------------------------------------------
-  test('S30: Run sweep now fires the sweep run endpoint', async ({ authenticatedPage: page }) => {
+  test('S31: Run sweep now fires the sweep run endpoint', async ({ authenticatedPage: page }) => {
     await page.route(/\/api\/v4\/admin\/storage\/sweep\/run(\?|$)/, (route) =>
       route.fulfill({
         status: 200,
@@ -2013,7 +2013,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.method()).toBe('POST')
   })
 
-  test('S30b: Run sweep now Cancel fires no call', async ({ authenticatedPage: page }) => {
+  test('S31b: Run sweep now Cancel fires no call', async ({ authenticatedPage: page }) => {
     await page.route(/\/api\/v4\/admin\/storage\/sweep\/run(\?|$)/, (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '{"actions":{}}' }),
     )
