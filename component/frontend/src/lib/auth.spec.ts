@@ -10,8 +10,11 @@ import {
   restoreStashedCookies,
   stashToken,
   takeStashedToken,
-  useCookies
+  type useCookies
 } from './auth'
+import { scopedCookies, stopCookiePollingAfterEach } from '@/testing/cookieScope'
+
+stopCookiePollingAfterEach()
 
 const buildJwt = (payload: object): string => {
   const encode = (o: object) =>
@@ -66,7 +69,7 @@ describe('token stash', () => {
     setAuthCookie('isardvdi_session', 'the.session.token')
     setAuthCookie('authorization', 'the.authorization.token')
 
-    stashToken(useCookies())
+    stashToken(scopedCookies())
 
     expect(takeStashedToken()).toEqual({
       url: '/reset-password',
@@ -80,7 +83,7 @@ describe('token stash', () => {
   it('keeps only the cookie an external login left behind', () => {
     setAuthCookie('authorization', 'the.authorization.token')
 
-    stashToken(useCookies())
+    stashToken(scopedCookies())
 
     expect(takeStashedToken()).toEqual({
       url: '/reset-password',
@@ -90,7 +93,7 @@ describe('token stash', () => {
   })
 
   it('stashes nothing when there is no auth cookie', () => {
-    stashToken(useCookies())
+    stashToken(scopedCookies())
 
     expect(sessionStorage.length).toBe(0)
   })
@@ -106,7 +109,7 @@ describe('token stash', () => {
 
   it('discards the stash without handing it back', () => {
     setAuthCookie('isardvdi_session', 'the.session.token')
-    stashToken(useCookies())
+    stashToken(scopedCookies())
 
     discardStashedToken()
 
@@ -122,7 +125,7 @@ describe('token stash', () => {
       throw new DOMException('denied', 'SecurityError')
     })
 
-    expect(() => stashToken(useCookies())).not.toThrow()
+    expect(() => stashToken(scopedCookies())).not.toThrow()
     expect(takeStashedToken()).toBeUndefined()
   })
 })
