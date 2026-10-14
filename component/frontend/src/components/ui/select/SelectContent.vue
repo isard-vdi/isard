@@ -43,7 +43,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
           cn(
             'px-[6px] py-[4px]',
             position === 'popper' &&
-              'h-[--reka-select-trigger-height] w-full min-w-[--reka-select-trigger-width]'
+              'h-(--reka-select-trigger-height) w-full min-w-(--reka-select-trigger-width)'
           )
         "
       >

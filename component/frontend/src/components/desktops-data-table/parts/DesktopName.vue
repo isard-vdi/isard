@@ -30,7 +30,8 @@ const { isTruncated } = useIsTextTruncated(nameRef, () => props.desktopName)
 const notificationRef = ref<HTMLElement | null>(null)
 const { isTruncated: isNotificationTruncated } = useIsTextTruncated(
   notificationRef,
-  () => props.notificationText
+  () => props.notificationText,
+  'y'
 )
 </script>
 

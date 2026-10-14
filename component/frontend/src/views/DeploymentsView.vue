@@ -13,6 +13,7 @@ import {
   updateDeploymentCoOwnersMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type ErrorResponse, type OwnedDeployment } from '@/gen/oas/apiv4'
+import { visibilityStateFromCounts } from '@/lib/deployment-visibility'
 import { QuotaExceededModal } from '@/components/modal'
 import { AllowedModal, type AllowedOption, type AllowedSelection } from '@/components/modal/allowed'
 import { toast } from '@/components/ui/toast'
@@ -139,7 +140,9 @@ const header = computed(() => [
     key: 'tag_visible',
     name: t('views.deployments.data-table.headers.visibility'),
     sortable: true,
-    width: 'max-content'
+    // Fixed rather than max-content: the longest badge is "partially visible",
+    // and sizing to it shifts every other column as soon as one row has it.
+    width: '240px'
   },
   {
     key: 'name',
@@ -182,15 +185,33 @@ const totalDeployments = computed(() => deployments.value?.deployments?.length ?
 
 const isFirstRun = computed(() => !deploymentsArePending.value && totalDeployments.value === 0)
 
-const badgeState = (isVisible: boolean) => ({
-  color: isVisible ? 'blue' : ('gray' as const),
-  content: isVisible
-    ? t('views.deployments.visibility.visible')
-    : t('views.deployments.visibility.hidden'),
-  icon: isVisible ? 'eye' : 'eye-off',
-  shape: 'square' as const,
-  class: 'gap-2'
-})
+// Derived from the counts, not from tag_visible alone: that flag is the OR
+// over the desktops, so it cannot tell "all visible" from "some visible".
+const badgeState = (deployment: OwnedDeployment) => {
+  const state = visibilityStateFromCounts(
+    deployment.visible_desktops,
+    deployment.total_desktops,
+    !!deployment.tag_visible
+  )
+  if (state === 'indeterminate') {
+    return {
+      color: 'lightyellow' as const,
+      content: t('views.deployments.visibility.mixed'),
+      icon: 'minus',
+      shape: 'square' as const,
+      class: 'gap-2 whitespace-nowrap'
+    }
+  }
+  return {
+    color: state ? ('blue' as const) : ('gray' as const),
+    content: state
+      ? t('views.deployments.visibility.visible')
+      : t('views.deployments.visibility.hidden'),
+    icon: state ? 'eye' : 'eye-off',
+    shape: 'square' as const,
+    class: 'gap-2 whitespace-nowrap'
+  }
+}
 
 interface DeploymentAction {
   key: string
@@ -249,6 +270,13 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
       recreateModalDeploymentData.value = { id: deployment.id, name: deployment.name }
       showRecreateModal.value = true
     }
+  },
+  {
+    key: 'manage-visibility',
+    icon: 'eye',
+    label: t('views.deployments.dropdown.buttons.manage-visibility'),
+    fn: (deployment: OwnedDeployment) =>
+      router.push({ name: 'deployment-visibility', params: { deploymentId: deployment.id } })
   },
   {
     key: 'reserve',
@@ -508,7 +536,7 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
         @row-click="goToDeployment"
       >
         <template #cell-tag_visible="{ row }">
-          <Badge v-bind="badgeState(row.tag_visible)" />
+          <Badge v-bind="badgeState(row as OwnedDeployment)" />
         </template>
         <template #cell-name="{ row }">
           <div class="text-sm font-semibold">{{ row.name }}</div>

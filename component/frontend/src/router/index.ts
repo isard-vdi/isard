@@ -284,6 +284,15 @@ const router = createRouter({
               component: () => import('../views/ViewDeploymentView.vue')
             },
             {
+              path: ':deploymentId/visibility',
+              name: 'deployment-visibility',
+              component: () => import('../views/deployments/DeploymentVisibilityView.vue'),
+              meta: {
+                title: 'router.deployment-visibility.title',
+                subtitle: 'router.deployment-visibility.subtitle'
+              }
+            },
+            {
               path: ':deploymentId/videowall',
               name: 'deployment-videowall',
               component: () => import('../views/deployments/DeploymentVideowallView.vue'),

@@ -67,23 +67,54 @@ class DeploymentUsers(RethinkSharedConnection):
                 # mark the allowed users a recreate will skip.
                 "active": user.get("active") is True,
                 "desktops_statuses": [],
+                "desktops": [],
                 "visible": False,
                 "last_access": None,
+                "_statuses": {},
             }
             for user in users_data
         }
-        grouped_desktops = (
-            DeploymentDesktopsProcessed.get_deployment_desktops_grouped_by_user_status(
-                deployment_id
+
+        # One flat row per desktop, grouped in Python. |rows| is
+        # users x desktops, exactly what gets serialized anyway, so this
+        # costs no extra transfer and saves a round-trip over grouping
+        # twice in ReQL.
+        from isardvdi_common.models.deployment import Deployment
+
+        matrix_rows = (
+            DeploymentDesktopsProcessed.get_deployment_desktops_visibility_matrix(
+                deployment_id,
+                legacy_tag_desktop_id=Deployment.first_tag_desktop_id(deployment_id),
             )
         )
-        # Match each user with its desktops
-        for user_desktops in grouped_desktops:
-            user_id = user_desktops["user"]
-            if user_id in user_map:
-                user_map[user_id]["desktops_statuses"] = user_desktops["statuses"]
-                user_map[user_id]["visible"] = user_desktops["visible"]
-                user_map[user_id]["last_access"] = user_desktops["last_access"]
+        for row in matrix_rows:
+            entry = user_map.get(row["user"])
+            if entry is None:
+                continue
+            entry["desktops"].append(
+                {
+                    "tag_desktop_id": row["tag_desktop_id"] or None,
+                    "desktop_id": row["desktop_id"],
+                    "name": row["name"],
+                    "visible": bool(row["visible"]),
+                    "status": row["status"],
+                }
+            )
+            entry["_statuses"][row["status"]] = (
+                entry["_statuses"].get(row["status"], 0) + 1
+            )
+            # "At least one visible", the same aggregate this field has
+            # always carried.
+            if row["visible"]:
+                entry["visible"] = True
+            if row["accessed"] is not None:
+                entry["last_access"] = max(entry["last_access"] or 0, row["accessed"])
+
+        for entry in user_map.values():
+            entry["desktops_statuses"] = [
+                {"status": status, "amount": amount}
+                for status, amount in entry.pop("_statuses").items()
+            ]
 
         return list(user_map.values())
 

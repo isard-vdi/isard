@@ -549,3 +549,137 @@ def test_user_deployment_desktop_viewers_declared_as_strings():
     # A $ref here makes the generated clients call DomainViewerEnum() on a
     # value the serializer just hyphenated, and they raise on it.
     assert items == {"type": "string"}
+
+
+# ─── Scoped visibility SET (the matrix endpoint) ────────────────────────
+
+
+def _mock_set_visibility(monkeypatch, calls, **overrides):
+    result = {
+        "id": "dep-1",
+        "tag_visible": False,
+        "visible_desktops": 0,
+        "existing_desktops": 6,
+        "updated": 6,
+        "stopped": [],
+    }
+    result.update(overrides)
+
+    def _set_visibility(*args):
+        calls.append(args)
+        return result
+
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.set_visibility",
+        staticmethod(_set_visibility),
+    )
+
+
+def test_set_deployment_visibility_whole_deployment(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    _mock_set_visibility(monkeypatch, calls)
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"visible": False},
+    )
+
+    assert response.status_code == 200
+    # Every selector omitted means "all", and stop_started_domains
+    # defaults to False so a matrix edit never stops a desktop implicitly.
+    assert calls == [("dep-1", False, None, None, None, False)]
+    assert response.json()["visible_desktops"] == 0
+
+
+def test_set_deployment_visibility_desktop_column(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    _mock_set_visibility(monkeypatch, calls, tag_visible=True, visible_desktops=3)
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"visible": True, "tag_desktop_ids": ["desk-a"]},
+    )
+
+    assert response.status_code == 200
+    assert calls == [("dep-1", True, None, ["desk-a"], None, False)]
+    assert response.json()["tag_visible"] is True
+
+
+def test_set_deployment_visibility_single_cell(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    _mock_set_visibility(monkeypatch, calls, updated=1)
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={
+            "visible": False,
+            "users": ["user-1"],
+            "tag_desktop_ids": ["desk-a"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert calls == [("dep-1", False, ["user-1"], ["desk-a"], None, False)]
+    assert response.json()["updated"] == 1
+
+
+def test_set_deployment_visibility_desktop_ids_undo(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    _mock_set_visibility(monkeypatch, calls, tag_visible=True, visible_desktops=2)
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"visible": True, "desktop_ids": ["desk-1", "desk-2"]},
+    )
+
+    assert response.status_code == 200
+    assert calls == [("dep-1", True, None, None, ["desk-1", "desk-2"], False)]
+
+
+def test_set_deployment_visibility_stop_started_passthrough(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    _mock_set_visibility(monkeypatch, calls, stopped=["desk-1"])
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"visible": False, "stop_started_domains": True},
+    )
+
+    assert response.status_code == 200
+    assert calls == [("dep-1", False, None, None, None, True)]
+    assert response.json()["stopped"] == ["desk-1"]
+
+
+def test_set_deployment_visibility_requires_visible(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"users": ["user-1"]},
+    )
+
+    # The app maps request-validation errors to 400, not FastAPI's 422.
+    assert response.status_code == 400

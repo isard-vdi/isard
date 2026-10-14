@@ -23,8 +23,8 @@ import { type DeploymentUserDetail, type ErrorResponse } from '@/gen/oas/apiv4'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
-import { Switch } from '@/components/ui/switch'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import { userDesktops, visibilityStateFromCounts, visibleCount } from '@/lib/deployment-visibility'
 import { useMediaQuery } from '@vueuse/core'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -39,6 +39,7 @@ import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
 import { DeleteDesktopsModal } from '@/components/deployments/actions/delete-desktops-modal'
+import { DeploymentUserVisibilityModal } from '@/components/deployments/actions/user-visibility-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import DeploymentProvisioningModal from '@/components/deployments/DeploymentProvisioningModal.vue'
@@ -75,15 +76,32 @@ watch(deploymentEntryIsError, (isError) => {
 })
 
 const visibilityBadgeClass = computed(() => {
-  const isVisible = deploymentEntry.value?.info.tag_visible
+  const info = deploymentEntry.value?.info
+  // `existing_desktops`, not `total_desktops`: the latter is desktops x users,
+  // an expected count, so a deployment with missing desktops would read as
+  // partially visible when it is not.
+  const state = visibilityStateFromCounts(
+    info?.visible_desktops ?? 0,
+    info?.existing_desktops ?? 0,
+    !!info?.tag_visible
+  )
+  if (state === 'indeterminate') {
+    return {
+      color: 'lightyellow',
+      content: t('views.deployments.visibility.mixed'),
+      icon: 'minus',
+      shape: 'square',
+      class: 'gap-2 whitespace-nowrap'
+    } as const
+  }
   return {
-    color: isVisible ? 'blue' : 'gray',
-    content: isVisible
+    color: state ? 'blue' : 'gray',
+    content: state
       ? t('views.deployments.visibility.visible')
       : t('views.deployments.visibility.hidden'),
-    icon: isVisible ? 'eye' : 'eye-off',
+    icon: state ? 'eye' : 'eye-off',
     shape: 'square',
-    class: 'gap-2'
+    class: 'gap-2 whitespace-nowrap'
   } as const
 })
 
@@ -115,7 +133,7 @@ const areUsersVisible = (users: DeploymentUserDetail) => {
 
 const header = computed(() => [
   {
-    name: t('views.deployment.data-table.headers.visible'),
+    name: t('views.deployment.data-table.headers.visible-desktops'),
     key: 'visible',
     sortable: false,
     width: 'minmax(80px, max-content)'
@@ -221,6 +239,7 @@ const isCoOwner = computed(() => deploymentEntry.value?.info.co_owner === true)
 const showBastionConfigModal = ref(false)
 const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
 const deleteDesktopsModalData = ref<{ userId: string; username: string } | null>(null)
+const visibilityUserModalData = ref<{ userId: string; username: string } | null>(null)
 
 function downloadBastionCsv() {
   getDeploymentBastionCsv({
@@ -289,6 +308,12 @@ const dropdownActions = computed(() => [
     label: t('views.deployments.dropdown.buttons.recreate'),
     disabled: isRecreatingDesktops.value,
     fn: () => (showRecreateModal.value = true)
+  },
+  {
+    key: 'manage-visibility',
+    icon: 'eye',
+    label: t('views.deployments.dropdown.buttons.manage-visibility'),
+    fn: () => goToVisibility()
   },
   {
     key: 'reserve',
@@ -472,6 +497,12 @@ const enterVideowall = () => {
   router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
 }
 
+const visibleCountText = (user: DeploymentUserDetail) =>
+  `${visibleCount(userDesktops(user))}/${userDesktops(user).length}`
+
+const goToVisibility = () =>
+  router.push({ name: 'deployment-visibility', params: { deploymentId: deploymentId.value } })
+
 const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
 </script>
 
@@ -549,6 +580,14 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :user-id="bastionUserModalData.userId"
     :username="bastionUserModalData.username"
     @close="bastionUserModalData = null"
+  />
+  <DeploymentUserVisibilityModal
+    v-if="visibilityUserModalData !== null"
+    :open="visibilityUserModalData !== null"
+    :deployment-id="deploymentId"
+    :user-id="visibilityUserModalData.userId"
+    :username="visibilityUserModalData.username"
+    @close="visibilityUserModalData = null"
   />
   <DeleteDesktopsModal
     v-if="deleteDesktopsModalData !== null"
@@ -731,149 +770,165 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
         <Skeleton class="h-16 w-full rounded-r-2xl" />
       </div>
     </div>
-    <template v-else-if="filteredDeploymentUsers.length > 0">
-      <DataTable
-        :rows="filteredDeploymentUsers"
-        :headers="header"
-        cell-class="h-19"
-        :is-clickable="false"
-      >
-        <template #cell-visible>
-          <Switch @update:model-value="handleNotImplemented" />
-        </template>
-        <template #cell-last_access="{ row }">
-          <Tooltip v-if="row.last_access">
+    <DataTable
+      v-else-if="filteredDeploymentUsers.length > 0"
+      :rows="filteredDeploymentUsers"
+      :headers="header"
+      cell-class="h-19"
+      :is-clickable="false"
+    >
+      <template #cell-visible="{ row }">
+        <div
+          class="flex justify-center w-full text-sm font-medium tracking-widest text-gray-warm-900"
+        >
+          {{ visibleCountText(row as DeploymentUserDetail) }}
+        </div>
+      </template>
+      <template #cell-last_access="{ row }">
+        <Tooltip v-if="row.last_access">
+          <TooltipTrigger as-child>
+            <span>
+              {{
+                d(row.last_access * 1000, { dateStyle: 'short' }) +
+                ', ' +
+                d(row.last_access * 1000, { timeStyle: 'medium' })
+              }}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :title="formatRelativeTime(row.last_access, locale)" />
+        </Tooltip>
+        <span v-else>—</span>
+      </template>
+      <template #cell-name="{ row }">
+        <div class="flex items-center gap-2">
+          <AvatarLabel
+            :src="row.photo"
+            :name="row.name"
+            :name-class="row.active === false ? 'text-gray-warm-400' : ''"
+          />
+          <Tooltip v-if="row.active === false">
             <TooltipTrigger as-child>
-              <span>
-                {{
-                  d(row.last_access * 1000, { dateStyle: 'short' }) +
-                  ', ' +
-                  d(row.last_access * 1000, { timeStyle: 'medium' })
-                }}
-              </span>
+              <Badge
+                color="gray"
+                shape="square"
+                size="sm"
+                icon="slash-circle-01"
+                class="w-fit gap-1.5"
+                :content="t('views.deployment.data-table.disabled-user.badge')"
+              />
             </TooltipTrigger>
-            <TooltipContent :title="formatRelativeTime(row.last_access, locale)" />
+            <TooltipContent :title="t('views.deployment.data-table.disabled-user.tooltip')" />
           </Tooltip>
-          <span v-else>—</span>
-        </template>
-        <template #cell-name="{ row }">
-          <div class="flex items-center gap-2">
-            <AvatarLabel
-              :src="row.photo"
-              :name="row.name"
-              :name-class="row.active === false ? 'text-gray-warm-400' : ''"
-            />
-            <Tooltip v-if="row.active === false">
+        </div>
+      </template>
+      <template #cell-started_desktops="{ row }">
+        <div
+          class="flex justify-center w-full text-sm font-medium tracking-widest text-gray-warm-900"
+        >
+          {{ userStartedDesktopCount(row) }}/{{ userDesktopCount(row) }}
+        </div>
+      </template>
+      <template #cell-actions="{ row }">
+        <div class="flex justify-between w-full gap-6">
+          <div class="flex gap-4">
+            <Button
+              icon="arrow-circle-broken-right"
+              hierarchy="secondary-color"
+              :as="RouterLink"
+              :to="{
+                name: 'view-deployment',
+                params: {
+                  deploymentId: row.deployment_id,
+                  userId: row.id
+                }
+              }"
+            >
+              {{ t('views.deployment.buttons.enter') }}
+            </Button>
+            <Button
+              v-if="row.desktops_statuses.some((s) => s.status === DesktopStatusEnum.STARTED)"
+              icon="stop"
+              hierarchy="destructive"
+              @click="handleNotImplemented"
+            >
+              {{ t('views.deployment.buttons.stop') }}
+            </Button>
+          </div>
+          <div class="flex items-center justify-end w-fit h-full gap-6">
+            <Tooltip>
               <TooltipTrigger as-child>
-                <Badge
-                  color="gray"
-                  shape="square"
-                  size="sm"
-                  icon="slash-circle-01"
-                  class="w-fit gap-1.5"
-                  :content="t('views.deployment.data-table.disabled-user.badge')"
-                />
+                <!-- Button is active if at least one desktop status is STARTED, STOPPING, or SHUTTING_DOWN -->
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="tv-03"
+                  class="aspect-square p-[10px]"
+                  :disabled="
+                    !row.desktops_statuses.some((s) =>
+                      [
+                        DesktopStatusEnum.STARTED,
+                        DesktopStatusEnum.STOPPING,
+                        DesktopStatusEnum.SHUTTING_DOWN
+                      ].includes(s.status)
+                    )
+                  "
+                  @click="enterVideowall"
+                ></Button>
               </TooltipTrigger>
-              <TooltipContent :title="t('views.deployment.data-table.disabled-user.tooltip')" />
+              <TooltipContent side="top" :title="t('views.deployment.tooltips.videowall')" />
+            </Tooltip>
+            <Tooltip v-if="false">
+              <TooltipTrigger as-child>
+                <!-- Deployment resources -->
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="file-attachment-04"
+                  class="aspect-square p-[10px]"
+                  @click="handleNotImplemented"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.resources')" />
+            </Tooltip>
+            <Tooltip v-if="canUseBastion">
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="globe-04"
+                  class="aspect-square p-[10px]"
+                  :aria-label="t('views.deployment.tooltips.bastion')"
+                  @click="bastionUserModalData = { userId: row.id, username: row.name }"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.bastion')" />
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="eye"
+                  class="aspect-square p-[10px]"
+                  :aria-label="t('views.deployment.tooltips.visibility')"
+                  :disabled="!userDesktops(row as DeploymentUserDetail).length"
+                  @click="visibilityUserModalData = { userId: row.id, username: row.name }"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.visibility')" />
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="trash-04"
+                  class="aspect-square p-[10px]"
+                  :aria-label="t('views.deployment.tooltips.delete')"
+                  @click="deleteDesktopsModalData = { userId: row.id, username: row.name }"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.delete')" />
             </Tooltip>
           </div>
-        </template>
-        <template #cell-started_desktops="{ row }">
-          <div
-            class="flex justify-center w-full text-sm font-medium tracking-widest text-gray-warm-900"
-          >
-            {{ userStartedDesktopCount(row) }}/{{ userDesktopCount(row) }}
-          </div>
-        </template>
-        <template #cell-actions="{ row }">
-          <div class="flex justify-between w-full gap-6">
-            <div class="flex gap-4">
-              <Button
-                icon="arrow-circle-broken-right"
-                hierarchy="secondary-color"
-                :as="RouterLink"
-                :to="{
-                  name: 'view-deployment',
-                  params: {
-                    deploymentId: row.deployment_id,
-                    userId: row.id
-                  }
-                }"
-              >
-                {{ t('views.deployment.buttons.enter') }}
-              </Button>
-              <Button
-                v-if="row.desktops_statuses.some((s) => s.status === DesktopStatusEnum.STARTED)"
-                icon="stop"
-                hierarchy="destructive"
-                @click="handleNotImplemented"
-              >
-                {{ t('views.deployment.buttons.stop') }}
-              </Button>
-            </div>
-            <div class="flex items-center justify-end w-fit h-full gap-6">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <!-- Button is active if at least one desktop status is STARTED, STOPPING, or SHUTTING_DOWN -->
-                  <Button
-                    hierarchy="secondary-gray"
-                    icon="tv-03"
-                    class="aspect-square p-[10px]"
-                    :disabled="
-                      !row.desktops_statuses.some((s) =>
-                        [
-                          DesktopStatusEnum.STARTED,
-                          DesktopStatusEnum.STOPPING,
-                          DesktopStatusEnum.SHUTTING_DOWN
-                        ].includes(s.status)
-                      )
-                    "
-                    @click="enterVideowall"
-                  ></Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" :title="t('views.deployment.tooltips.videowall')" />
-              </Tooltip>
-              <Tooltip v-if="false">
-                <TooltipTrigger as-child>
-                  <!-- Deployment resources -->
-                  <Button
-                    hierarchy="secondary-gray"
-                    icon="file-attachment-04"
-                    class="aspect-square p-[10px]"
-                    @click="handleNotImplemented"
-                  ></Button>
-                </TooltipTrigger>
-                <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.resources')" />
-              </Tooltip>
-              <Tooltip v-if="canUseBastion">
-                <TooltipTrigger as-child>
-                  <Button
-                    hierarchy="secondary-gray"
-                    icon="globe-04"
-                    class="aspect-square p-[10px]"
-                    :aria-label="t('views.deployment.tooltips.bastion')"
-                    @click="bastionUserModalData = { userId: row.id, username: row.name }"
-                  ></Button>
-                </TooltipTrigger>
-                <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.bastion')" />
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    hierarchy="secondary-gray"
-                    icon="trash-04"
-                    class="aspect-square p-[10px]"
-                    :aria-label="t('views.deployment.tooltips.delete')"
-                    @click="deleteDesktopsModalData = { userId: row.id, username: row.name }"
-                  ></Button>
-                </TooltipTrigger>
-                <TooltipContent :side="'top'" :title="t('views.deployment.tooltips.delete')" />
-              </Tooltip>
-            </div>
-          </div>
-        </template>
-      </DataTable>
-    </template>
+        </div>
+      </template>
+    </DataTable>
     <EmptyState
       v-else
       kind="deployment-users"

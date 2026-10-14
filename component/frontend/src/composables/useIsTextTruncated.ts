@@ -3,19 +3,27 @@ import { useResizeObserver } from '@vueuse/core'
 
 export function useIsTextTruncated(
   elRef: Ref<HTMLElement | null>,
-  textDep?: MaybeRefOrGetter<unknown>
+  textDep?: MaybeRefOrGetter<unknown>,
+  // A single-line ellipsis overflows horizontally, a line clamp vertically.
+  // Checking both would report every one-line element as truncated, because
+  // `scrollHeight` rounds a fractional line height up past `clientHeight`.
+  axis: 'x' | 'y' = 'x'
 ) {
   // Reactive state that will indicate if the text is truncated or not
   const isTruncated = ref(false)
 
-  // Checks if the element's content overflows horizontally
+  // Checks if the element's content overflows its box
   const check = () => {
     const el = elRef.value
 
     // if the element is not yet available in the DOM, exit
     if (!el) return
 
-    isTruncated.value = el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight
+    // scrollWidth/scrollHeight = full content size
+    // clientWidth/clientHeight = visible size
+    // If content is bigger than the container it's truncated
+    isTruncated.value =
+      axis === 'y' ? el.scrollHeight > el.clientHeight : el.scrollWidth > el.clientWidth
   }
 
   // Observe element size changes

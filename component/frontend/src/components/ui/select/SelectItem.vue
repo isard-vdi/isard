@@ -20,7 +20,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="
       cn(
         `relative flex w-full cursor-default select-none items-center
-         rounded-sm py-1.5 p-[10px]
+         rounded-sm p-[10px] pr-8
          text-md text-gray-warm-900 font-medium outline-none
          hover:cursor-pointer hover:bg-brand-100
          focus:bg-brand-100 focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50`,
