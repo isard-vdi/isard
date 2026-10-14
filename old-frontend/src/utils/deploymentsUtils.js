@@ -73,10 +73,11 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentDesktop (desktop, { partial = false } = {}) {
-    const { id, ip, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, visible, tag } = desktop
+    const { id, ip, rdp, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, visible, tag } = desktop
     const out = {
       id,
       ip,
+      rdp,
       name,
       user,
       userName,

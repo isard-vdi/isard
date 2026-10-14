@@ -1627,10 +1627,24 @@
         "rdp": {
           "pending": "Esperando el servicio RDP",
           "waiting": "Esperando el servicio RDP",
-          "refused": "El escritorio rechaza RDP ({reason})",
+          "refused": "El escritorio rechaza el RDP: {reason}",
           "auth_failed": "Las credenciales RDP guardadas no son válidas en el escritorio",
           "unverified": "No se han podido verificar las credenciales RDP",
-          "last_failed": "La última conexión RDP ha fallado"
+          "last_failed": "La última conexión RDP ha fallado",
+          "waiting_ip": "Esperando a que el escritorio tenga IP",
+          "reason": {
+            "port_closed": "el servicio RDP del escritorio aún no escucha",
+            "unreachable": "el escritorio no responde en la red",
+            "not_rdp": "el puerto RDP del escritorio no responde con el protocolo RDP",
+            "tls_required": "el escritorio solo acepta conexiones cifradas con TLS; revisa la configuración RDP del invitado",
+            "tls_not_allowed": "el escritorio no acepta conexiones cifradas con TLS; revisa la configuración RDP del invitado",
+            "nla_required": "el escritorio exige autenticación a nivel de red (NLA); revisa la configuración RDP del invitado",
+            "certificate": "el escritorio no tiene un certificado RDP válido; revisa la configuración RDP del invitado",
+            "security_refused": "el escritorio ha rechazado la seguridad de la conexión; revisa la configuración RDP del invitado",
+            "account_blocked": "la cuenta del escritorio está bloqueada o caducada",
+            "no_credentials": "el escritorio no tiene credenciales RDP guardadas",
+            "other": "la negociación RDP con el escritorio ha fallado; revisa la configuración RDP del invitado"
+          }
         }
       },
       "advanced-options-modal": {

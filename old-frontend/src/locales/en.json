@@ -429,11 +429,25 @@
             "rdp": {
                 "pending": "RDP: waiting for the desktop's RDP service",
                 "waiting": "RDP: waiting for the desktop's RDP service",
-                "refused": "RDP: the desktop refuses the connection ({reason})",
+                "refused": "RDP: the desktop refuses the connection: {reason}",
                 "auth_failed": "RDP: the stored credentials are not valid in the desktop. Update them in the desktop settings",
                 "unverified": "RDP: available (credentials could not be verified)",
                 "ready": "RDP: ready",
-                "last_failed": "RDP: the last connection failed"
+                "last_failed": "RDP: the last connection failed",
+                "waiting_ip": "RDP: waiting for the desktop to get an IP",
+                "reason": {
+                    "port_closed": "the desktop RDP service is not listening yet",
+                    "unreachable": "the desktop does not answer on the network",
+                    "not_rdp": "the desktop RDP port does not answer with the RDP protocol",
+                    "tls_required": "the desktop only accepts TLS-encrypted connections; check the guest RDP settings",
+                    "tls_not_allowed": "the desktop does not accept TLS-encrypted connections; check the guest RDP settings",
+                    "nla_required": "the desktop requires Network Level Authentication (NLA); check the guest RDP settings",
+                    "certificate": "the desktop has no valid RDP certificate; check the guest RDP settings",
+                    "security_refused": "the desktop refused the connection security; check the guest RDP settings",
+                    "account_blocked": "the desktop account is locked or expired",
+                    "no_credentials": "the desktop has no stored RDP credentials",
+                    "other": "the RDP negotiation with the desktop failed; check the guest RDP settings"
+                }
             },
             "actions": {
                 "delete": "Delete",

@@ -427,11 +427,25 @@
       "rdp": {
         "pending": "RDP: esperando el servicio RDP del escritorio",
         "waiting": "RDP: esperando el servicio RDP del escritorio",
-        "refused": "RDP: el escritorio rechaza la conexión ({reason})",
+        "refused": "RDP: el escritorio rechaza la conexión: {reason}",
         "auth_failed": "RDP: las credenciales guardadas no son válidas en el escritorio. Actualízalas en la configuración del escritorio",
         "unverified": "RDP: disponible (no se han podido verificar las credenciales)",
         "ready": "RDP: listo",
-        "last_failed": "RDP: la última conexión ha fallado"
+        "last_failed": "RDP: la última conexión ha fallado",
+        "waiting_ip": "RDP: esperando a que el escritorio tenga IP",
+        "reason": {
+          "port_closed": "el servicio RDP del escritorio aún no escucha",
+          "unreachable": "el escritorio no responde en la red",
+          "not_rdp": "el puerto RDP del escritorio no responde con el protocolo RDP",
+          "tls_required": "el escritorio solo acepta conexiones cifradas con TLS; revisa la configuración RDP del invitado",
+          "tls_not_allowed": "el escritorio no acepta conexiones cifradas con TLS; revisa la configuración RDP del invitado",
+          "nla_required": "el escritorio exige autenticación a nivel de red (NLA); revisa la configuración RDP del invitado",
+          "certificate": "el escritorio no tiene un certificado RDP válido; revisa la configuración RDP del invitado",
+          "security_refused": "el escritorio ha rechazado la seguridad de la conexión; revisa la configuración RDP del invitado",
+          "account_blocked": "la cuenta del escritorio está bloqueada o caducada",
+          "no_credentials": "el escritorio no tiene credenciales RDP guardadas",
+          "other": "la negociación RDP con el escritorio ha fallado; revisa la configuración RDP del invitado"
+        }
       },
       "actions": {
         "delete": "Borrar",

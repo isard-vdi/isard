@@ -158,6 +158,62 @@ export class DesktopUtils {
     return !desktop.rdp || ['ready', 'unverified'].includes(desktop.rdp.state)
   }
 
+  // Where a desktop's RDP viewers stand, for the viewer buttons to show it
+  // (spinner or warning icon, the text as tooltip and as a notification on
+  // click/tap) instead of adding lines to the card. ``blocked`` mirrors the
+  // server: only admins and managers may open an RDP that is not verified.
+  static get RDP_STATES () {
+    return ['pending', 'waiting', 'refused', 'auth_failed', 'unverified']
+  }
+
+  // The vpn writes the reason as an internal code: the user gets a translated
+  // sentence picked by key, and an unknown code a generic one, never the code.
+  static rdpReason (reason) {
+    const keys = {
+      port_closed: 'port_closed',
+      unreachable: 'unreachable',
+      not_rdp: 'not_rdp',
+      tls_required: 'tls_required',
+      tls_not_allowed: 'tls_not_allowed',
+      nla_required: 'nla_required',
+      certificate_missing: 'certificate',
+      certificate_not_allowed: 'certificate',
+      security_refused: 'security_refused',
+      account_blocked: 'account_blocked',
+      no_credentials: 'no_credentials'
+    }
+    const key = typeof reason === 'string' && Object.prototype.hasOwnProperty.call(keys, reason) ? keys[reason] : 'other'
+    return i18n.t(`components.desktop-cards.rdp.reason.${key}`)
+  }
+
+  static rdpViewerState (desktop, roleId) {
+    const state = ((desktop && desktop.state) || '').toLowerCase()
+    if (state === desktopStates.waitingip) {
+      return { blocked: true, error: false, text: i18n.t('components.desktop-cards.rdp.waiting_ip') }
+    }
+    if (state !== desktopStates.started || !desktop.rdp) {
+      return { blocked: false, error: false, text: '' }
+    }
+    const rdp = desktop.rdp
+    const pending = !DesktopUtils.rdpReady(desktop)
+    const lastFailed = !pending && !!rdp.last && !rdp.last.connected
+    let text = ''
+    if (lastFailed) {
+      text = i18n.t(rdp.last.result === 'auth_failed' ? 'components.desktop-cards.rdp.auth_failed' : 'components.desktop-cards.rdp.last_failed')
+    } else if (rdp.state === 'auth_failed' && rdp.reason === 'account_blocked') {
+      text = i18n.t('components.desktop-cards.rdp.reason.account_blocked')
+    } else if (rdp.state === 'unverified' && rdp.reason === 'no_credentials') {
+      text = i18n.t('components.desktop-cards.rdp.reason.no_credentials')
+    } else if (rdp.state !== 'ready') {
+      text = DesktopUtils.RDP_STATES.includes(rdp.state) ? i18n.t(`components.desktop-cards.rdp.${rdp.state}`, { reason: DesktopUtils.rdpReason(rdp.reason) }) : ''
+    }
+    return {
+      blocked: pending && !['admin', 'manager'].includes(roleId),
+      error: ['refused', 'auth_failed'].includes(rdp.state) || lastFailed,
+      text
+    }
+  }
+
   static networkNeedsIp (interfaces) {
     return (interfaces.includes('wireguard'))
   }

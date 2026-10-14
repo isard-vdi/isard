@@ -15,6 +15,7 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toast'
 import { type Viewer, ViewerSelectDropdownItem } from '.'
 
 const { t } = useI18n()
@@ -80,10 +81,20 @@ const dismissTooltip = () => {
   viewerTooltipDismissed.value = true
 }
 
+// A refused guest shows a warning, not a spinner: waiting won't fix it.
+const viewerIcon = (viewer: Viewer) => {
+  if (viewer.tone === 'error') return 'alert-circle'
+  if (viewer.loading) return 'loading-02'
+  return ''
+}
+
 const selectViewer = (viewer: Viewer) => {
-  // if (viewer.loading) {
-  //   return
-  // }
+  // A blocked viewer with a status stays tappable so touch screens, where the
+  // tooltip never opens, still get told why it can't be opened yet.
+  if (viewer.loading) {
+    if (viewer.status) toast.info(viewer.status)
+    return
+  }
 
   if (viewer.id !== selectedViewerId.value) {
     selectedViewerId.value = viewer.id
@@ -99,24 +110,36 @@ const selectViewer = (viewer: Viewer) => {
     <Tooltip
       v-if="props.size !== 'compact'"
       :open="tooltipOpen"
-      :disabled="viewerTooltipDismissed"
+      :disabled="viewerTooltipDismissed && !selectedViewer.status"
       @update:open="tooltipOpen = $event"
     >
       <TooltipTrigger as-child>
         <Button
           :class="
-            cn('min-w-0 overflow-hidden', props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs')
+            cn(
+              'min-w-0 overflow-hidden',
+              props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs',
+              selectedViewer.loading && selectedViewer.status && 'opacity-60 cursor-not-allowed'
+            )
           "
           :size="props.buttonSize"
-          :icon="selectedViewer.loading ? 'loading-02' : ''"
+          :icon="viewerIcon(selectedViewer)"
           :icon-size="props.dense ? 'xs' : undefined"
-          icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-          :disabled="selectedViewer.loading"
+          :icon-class="selectedViewer.loading && selectedViewer.tone !== 'error' ? 'motion-safe:animate-[spin_2s_linear_infinite]' : ''"
+          :disabled="selectedViewer.loading && !selectedViewer.status"
+          :aria-disabled="selectedViewer.loading ? 'true' : undefined"
+          :data-viewer-status="selectedViewer.status ? selectedViewer.tone || 'info' : undefined"
           @click="selectViewer(selectedViewer)"
           ><span class="min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
         >
       </TooltipTrigger>
       <TooltipContent
+        v-if="selectedViewer.status"
+        :title="selectedViewer.status"
+        data-testid="viewer-status-tooltip"
+      />
+      <TooltipContent
+        v-else
         :title="selectedViewerTooltipTitle"
         :subtitle="selectedViewerTooltipDescription"
         :dismiss-label="t('viewers.tooltip-dismiss')"

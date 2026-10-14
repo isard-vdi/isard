@@ -102,6 +102,10 @@ function setViewerButtonData(desktop_id,data){
         }
     }
 
+    // RDP step of the guest, shown on the RDP buttons as an icon + tooltip.
+    // Admins and managers may open an unverified RDP, so nothing is disabled.
+    const rdpStatus = rdpViewerStatus(data)
+
     html=""
     $.each(offer, function(idx,disp){
             prehtml='<div class="row"><div class="col-12 text-center">'
@@ -125,7 +129,10 @@ function setViewerButtonData(desktop_id,data){
             type=['rdp', 'vnc'].includes(disp['type'])? '<i class="fa fa-html5"></i>' : '<i class="fa fa-download"></i>'
             btntext=disp['text']
             client=['rdp', 'vnc'].includes(disp['type'])? 'browser' : 'file'
-            html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
+            isRdp=['rdp', 'rdpgw', 'rdpvpn'].includes(disp['type'])
+            rdpIcon=(isRdp && rdpStatus) ? ' <i class="fa '+rdpStatus.icon+'"></i>' : ''
+            rdpTitle=(isRdp && rdpStatus) ? ' title="'+rdpStatus.text+'" data-rdp-status="'+rdpStatus.tone+'"' : ''
+            html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%"'+rdpTitle+'>'+lock+' '+type+' '+btntext+rdpIcon+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
         if('viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip']){
@@ -169,6 +176,32 @@ function setViewerButtonData(desktop_id,data){
         })
         $("#modalOpenViewer").modal('hide');
     });
+}
+
+function rdpViewerStatus(data){
+    const viewer = data.viewer || {}
+    const rdp = viewer.rdp
+    if (!viewer.guest_ip || !rdp) return null
+    const last = viewer.rdp_last
+    // Fixed texts picked by key: nothing that comes from the API is shown,
+    // because the result is concatenated into the button HTML.
+    const texts = {
+        pending: 'Waiting for the desktop RDP service',
+        waiting: 'Waiting for the desktop RDP service',
+        refused: 'The desktop refuses RDP',
+        auth_failed: 'The stored RDP credentials are not valid in the desktop',
+        unverified: 'RDP available, credentials could not be verified'
+    }
+    if (rdp.state === 'ready' && last && !last.connected) {
+        return { tone: 'error', icon: 'fa-exclamation-triangle', text: last.result === 'auth_failed' ? texts.auth_failed : 'The last RDP connection failed' }
+    }
+    if (rdp.state === 'ready' || !Object.prototype.hasOwnProperty.call(texts, rdp.state)) return null
+    // Admins also get the internal code, only when it is one of the plain
+    // words the vpn writes, so it is safe inside the HTML attribute.
+    const code = (typeof rdp.reason === 'string' && /^[a-z0-9_]{1,40}$/.test(rdp.reason)) ? ' [' + rdp.reason + ']' : ''
+    if (['refused', 'auth_failed'].includes(rdp.state)) return { tone: 'error', icon: 'fa-exclamation-triangle', text: texts[rdp.state] + code }
+    if (rdp.state === 'unverified') return { tone: 'info', icon: 'fa-info-circle', text: texts.unverified }
+    return { tone: 'wait', icon: 'fa-spinner fa-pulse', text: texts[rdp.state] }
 }
 
 function viewerButtonsIP(id,ip){

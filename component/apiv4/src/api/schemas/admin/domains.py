@@ -276,6 +276,14 @@ class AdminDomainViewerInfo(BaseModel):
     """Subset of the ``viewer`` field exposed for the admin viewer page."""
 
     guest_ip: Optional[str] = None
+    rdp: Optional[dict] = Field(
+        default=None,
+        description="RDP verification state of the running desktop: state, protocol, reason, at.",
+    )
+    rdp_last: Optional[dict] = Field(
+        default=None,
+        description="How the last RDP viewer connection ended up: via, connected, result, at.",
+    )
 
 
 class AdminDomainViewerDataResponse(BaseModel):

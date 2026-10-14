@@ -1,11 +1,13 @@
 <template>
   <!-- TODO: change spinnerActive to clickActive -->
   <b-button
-    :disabled="!active"
+    v-b-tooltip="{ title: tooltip || '', placement: 'top', customClass: 'isard-tooltip', trigger: 'hover', disabled: !tooltip }"
+    :disabled="!active && !blocked"
     size="md"
     class="rounded-pill pt-2"
-    :class="[buttonClass]"
-    @click="active && $emit('buttonClicked')"
+    :class="[buttonClass, { 'btn-blocked': !active && blocked }]"
+    :aria-disabled="!active ? 'true' : undefined"
+    @click="active ? $emit('buttonClicked') : blocked && $emit('blockedClicked')"
   >
     <b-icon
       v-if="iconName !== '' && iconName !== undefined"
@@ -22,7 +24,18 @@ export default {
     buttonClass: String,
     buttText: String,
     active: [Boolean, String],
-    iconName: String
+    iconName: String,
+    // An inactive button that still answers a click/tap with ``blockedClicked``,
+    // so touch screens (no hover tooltip) can be told why it is inactive.
+    blocked: Boolean,
+    tooltip: String
   }
 }
 </script>
+
+<style scoped>
+.btn-blocked {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+</style>
