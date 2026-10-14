@@ -51,3 +51,24 @@ def table_config_created_and_populated():
         print(e)
         print("Traceback: \n .{}".format(traceback.format_exc()))
         return False
+
+
+def get_shared_storage_stall():
+    try:
+        with rethink_conn() as r_conn:
+            return (
+                r.table("config")
+                .get(1)
+                .pluck("shared_storage_stall")
+                .run(r_conn)
+                .get("shared_storage_stall")
+            )
+    except r.ReqlNonExistenceError:
+        return None
+
+
+def set_shared_storage_stall(state):
+    with rethink_conn() as r_conn:
+        r.table("config").get(1).update({"shared_storage_stall": r.literal(state)}).run(
+            r_conn
+        )

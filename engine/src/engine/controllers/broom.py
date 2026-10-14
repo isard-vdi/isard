@@ -19,6 +19,9 @@ from engine.services.db import (
     get_domains_with_transitional_status,
     get_hyp_hostname_from_id,
     get_hyp_hostnames_online,
+    get_hyps_health,
+    get_shared_storage_stall,
+    set_shared_storage_stall,
     update_domain_hyp_started,
     update_domain_status,
     update_hyp_degraded_status,
@@ -27,7 +30,16 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_info_if_stopped,
 )
+from engine.services.lib import domain_guard
 from engine.services.lib.functions import exec_remote_cmd, get_tid
+from engine.services.lib.storage_stall import (
+    PROBE_DEADLINE_S,
+    STALL_LOG_TOKEN,
+    STORAGE_PROBE_CMD,
+    SharedStorageStall,
+    assess_hypervisors,
+    parse_probe_output,
+)
 from engine.services.log import logs
 
 # =============================================================================
@@ -43,27 +55,24 @@ BROOM_MAX_WORKERS = 20
 # Timeout in seconds before force-stopping a Shutting-down domain
 BROOM_SHUTDOWN_TIMEOUT = 90
 
-# Probe the hypervisor's /isard mounts every this many broom cycles
-BROOM_STORAGE_PROBE_EVERY = 6
 
-STORAGE_PROBE_CMD = (
-    "for m in $(awk '$2 ~ \"^/isard\" {print $2}' /proc/mounts); do "
-    'timeout -s KILL 5 stat -f "$m" >/dev/null 2>&1 || echo "$m"; done'
-)
-
-_storage_hung = {}
-
-
-def _hung_mounts(hyp_id, disk_interval, hostname, user, port):
-    if disk_interval % BROOM_STORAGE_PROBE_EVERY == 1:
-        try:
-            out = exec_remote_cmd(
-                STORAGE_PROBE_CMD, hostname, username=user, port=port, timeout=20
-            )["out"]
-            _storage_hung[hyp_id] = out.decode().split()
-        except Exception as e:
-            _storage_hung[hyp_id] = [f"probe failed: {e}"]
-    return _storage_hung.get(hyp_id, [])
+def _probe_storage(hyp_id):
+    """The hypervisor's /isard mounts that do not answer, over ssh, never libvirt."""
+    hyp_info = get_hyp_hostname_from_id(hyp_id)
+    if hyp_info is None or hyp_info[0] is False:
+        return {"hung": [], "error": "no hostname in database"}
+    hostname, port, user = hyp_info[0], hyp_info[1], hyp_info[2]
+    try:
+        out = exec_remote_cmd(
+            STORAGE_PROBE_CMD,
+            hostname,
+            username=user,
+            port=port,
+            timeout=PROBE_DEADLINE_S,
+        )["out"]
+    except Exception as e:
+        return {"hung": [], "error": str(e) or type(e).__name__}
+    return {"hung": parse_probe_output(out), "error": None}
 
 
 # A domain libvirt reports whose database status is one of these is already
@@ -229,14 +238,6 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
             return result
 
         try:
-            hung = _hung_mounts(hyp_id, disk_interval, hostname, user, port)
-            if hung:
-                result["error"] = (
-                    f"hypervisor {hyp_id} storage not responding: {' '.join(hung)}"
-                )
-                logs.broom.error(result["error"])
-                return result
-
             # Update storage usage if needed
             if disk_interval == 1:
                 mountpoints = h.get_storage_used()
@@ -359,22 +360,110 @@ class ThreadBroom(threading.Thread):
         self._executor = ThreadPoolExecutor(
             max_workers=BROOM_MAX_WORKERS, thread_name_prefix="broom_hyp_check"
         )
-        # Track which hypervisors the broom has marked as degraded
-        self._broom_degraded_hyps = set()
+        # probes must answer even when every libvirt check is blocked
+        self._probe_executor = ThreadPoolExecutor(
+            max_workers=BROOM_MAX_WORKERS, thread_name_prefix="broom_storage_probe"
+        )
+        self._broom_degraded_hyps = {}
         # hyp_id -> (future, state); a check blocked in libvirt cannot be
         # cancelled, so it is never resubmitted while still running
         self._inflight = {}
+        self._probe_inflight = {}
+        self._stall = SharedStorageStall()
+        try:
+            self._stall.resume(get_shared_storage_stall())
+        except Exception as e:
+            logs.broom.error(f"Could not read the shared storage condition: {e}")
+        domain_guard.reset()
 
     def stop_thread(self):
         """Stop the broom thread and cleanup resources."""
         self.stop = True
+        for executor in (self._executor, self._probe_executor):
+            try:
+                executor.shutdown(wait=False)
+            except Exception:
+                pass
+
+    def _probe_storage_concurrent(self, hyp_ids):
+        """``{hyp_id: {"hung": [...], "error": str|None}}``, probed in parallel."""
+        results = {}
+        futures = {}
+        now = time()
+        for hyp_id in hyp_ids:
+            previous = self._probe_inflight.get(hyp_id)
+            if previous is not None and not previous[0].done():
+                results[hyp_id] = {
+                    "hung": [],
+                    "error": f"probe has not answered for {int(now - previous[1])}s",
+                }
+                continue
+            future = self._probe_executor.submit(_probe_storage, hyp_id)
+            self._probe_inflight[hyp_id] = (future, now)
+            futures[future] = hyp_id
+        if futures:
+            wait(futures, timeout=PROBE_DEADLINE_S + 2)
+        for future, hyp_id in futures.items():
+            if not future.done():
+                results[hyp_id] = {
+                    "hung": [],
+                    "error": f"probe did not answer within {PROBE_DEADLINE_S}s",
+                }
+                continue
+            try:
+                results[hyp_id] = future.result()
+            except Exception as e:
+                results[hyp_id] = {"hung": [], "error": str(e)}
+        for hyp_id in list(self._probe_inflight):
+            if hyp_id not in hyp_ids and self._probe_inflight[hyp_id][0].done():
+                del self._probe_inflight[hyp_id]
+        return results
+
+    def _assess_storage(self, hyp_ids):
+        probes = self._probe_storage_concurrent(hyp_ids)
         try:
-            self._executor.shutdown(wait=False)
-        except Exception:
-            pass
+            healths = get_hyps_health(hyp_ids)
+        except Exception as e:
+            logs.broom.error(f"Could not read hypervisor health reports: {e}")
+            healths = {}
+        if not isinstance(healths, dict):
+            healths = {}
+        now = time()
+        causes, hung_by_hyp = assess_hypervisors(hyp_ids, probes, healths, now)
+        self._observe_shared_stall(hyp_ids, hung_by_hyp, now)
+        return causes
+
+    def _observe_shared_stall(self, online, hung_by_hyp, now):
+        transition = self._stall.observe(online, hung_by_hyp, now)
+        if transition is None:
+            return
+        state = self._stall.last_cleared if transition == "clear" else self._stall.state
+        emit = logs.broom.info if transition == "clear" else logs.broom.error
+        emit(
+            "%s state=%s since=%s hypervisors=%s mounts=%s online=%s",
+            STALL_LOG_TOKEN,
+            transition,
+            int(state.get("since") or 0),
+            ",".join(state.get("hypervisors") or []),
+            ",".join(state.get("mounts") or []),
+            state.get("online"),
+        )
+        try:
+            set_shared_storage_stall(state)
+        except Exception as e:
+            logs.broom.error(f"Could not store the shared storage condition: {e}")
+
+    def _mark_degraded(self, hyp_id, reason):
+        if self._broom_degraded_hyps.get(hyp_id) == reason:
+            return
+        try:
+            update_hyp_degraded_status(hyp_id, is_degraded=True, reason=reason)
+            self._broom_degraded_hyps[hyp_id] = reason
+        except Exception as e:
+            logs.broom.error(f"Failed to mark hypervisor {hyp_id} as degraded: {e}")
 
     def _check_hypervisors_concurrent(
-        self, hyp_ids, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP
+        self, hyp_ids, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP, causes=None
     ):
         """Check multiple hypervisors concurrently.
 
@@ -382,10 +471,17 @@ class ThreadBroom(threading.Thread):
             hyp_ids: List of hypervisor IDs to check
             disk_interval: Current disk interval counter
             DB_DOMAINS_ID_STARTED_WITH_HYP: Set of domain IDs with hyp_started set
+            causes: hyp_id -> storage/health reason; degraded, not libvirt-checked
 
         Returns:
             dict mapping hyp_id -> {"active_domains": {...}} for successful checks
         """
+        causes = causes or {}
+        for hyp_id, reason in causes.items():
+            if hyp_id in hyp_ids:
+                logs.broom.warning(f"Hypervisor {hyp_id} degraded: {reason}")
+                self._mark_degraded(hyp_id, reason)
+        hyp_ids = [h for h in hyp_ids if h not in causes]
         hyps_domain_started = {}
 
         # Forget finished checks of hypervisors that are no longer online
@@ -461,26 +557,15 @@ class ThreadBroom(threading.Thread):
 
         # Mark failed hypervisors as degraded
         for hyp_id in failed_hyps:
-            if hyp_id not in self._broom_degraded_hyps:
-                try:
-                    update_hyp_degraded_status(
-                        hyp_id,
-                        is_degraded=True,
-                        reason="broom connectivity check failed",
-                    )
-                    self._broom_degraded_hyps.add(hyp_id)
-                except Exception as e:
-                    logs.broom.error(
-                        f"Failed to mark hypervisor {hyp_id} as degraded: {e}"
-                    )
+            self._mark_degraded(hyp_id, "libvirt: broom connectivity check failed")
 
         # Recover hypervisors that were degraded by broom but now succeed
-        recovered = self._broom_degraded_hyps & succeeded_hyps
+        recovered = set(self._broom_degraded_hyps) & succeeded_hyps
         for hyp_id in recovered:
             try:
                 update_hyp_degraded_status(hyp_id, is_degraded=False)
                 update_hyp_libvirt_warning(hyp_id, clear=True)
-                self._broom_degraded_hyps.discard(hyp_id)
+                self._broom_degraded_hyps.pop(hyp_id, None)
                 logs.broom.info(
                     f"Hypervisor {hyp_id} recovered from broom-detected degraded state"
                 )
@@ -493,7 +578,9 @@ class ThreadBroom(threading.Thread):
         # from a previous session) that now pass the connectivity check
         try:
             db_degraded = get_degraded_hyp_ids()
-            stale_degraded = (db_degraded & succeeded_hyps) - self._broom_degraded_hyps
+            stale_degraded = (db_degraded & succeeded_hyps) - set(
+                self._broom_degraded_hyps
+            )
             for hyp_id in stale_degraded:
                 try:
                     update_hyp_degraded_status(hyp_id, is_degraded=False)
@@ -602,10 +689,22 @@ class ThreadBroom(threading.Thread):
                         "time": round(time() - t_broom_inner, 2),
                     }
                 )
+                t_broom_inner = time()
+                storage_causes = self._assess_storage(HYPERS_ONLINE)
+                t_broom_data.append(
+                    {
+                        "step": "probe_storage",
+                        "count": len(storage_causes),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
                 # Check all hypervisors concurrently instead of sequentially
                 t_broom_inner = time()
                 hyps_domain_started = self._check_hypervisors_concurrent(
-                    HYPERS_ONLINE, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP
+                    HYPERS_ONLINE,
+                    disk_interval,
+                    DB_DOMAINS_ID_STARTED_WITH_HYP,
+                    causes=storage_causes,
                 )
                 t_broom_data.append(
                     {
