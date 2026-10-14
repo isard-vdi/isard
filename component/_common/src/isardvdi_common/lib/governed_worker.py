@@ -54,6 +54,7 @@ it needs no fork handling because the Redis client is already RQ-fork-safe.
 """
 
 import json
+import logging
 import os
 import threading
 import time
@@ -72,7 +73,12 @@ from isardvdi_common.lib.queue_tiers import (
 from isardvdi_common.lib.registered_worker import SelfRegisteringWorkerMixin
 from rq import Worker
 from rq.exceptions import DequeueTimeout
+from rq.registry import ScheduledJobRegistry
+from rq.scheduler import RQScheduler
+from rq.utils import current_timestamp
 from rq.worker import WorkerStatus
+
+log = logging.getLogger(__name__)
 
 # Redis SET of job ids currently holding a heavy slot.
 HEAVY_RUNNING_KEY = "governor:heavy_running"
@@ -844,6 +850,32 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         finally:
             self.queues = original
 
+    def _enqueue_due_lane_retries(self):
+        """Enqueue the due retries of the discovered per-category lanes.
+
+        RQ's scheduler serves only ``self.queues``, so without this a retry
+        scheduled on a category lane stays ``scheduled`` for ever.
+        """
+        try:
+            now = current_timestamp()
+            due = [
+                lane.name
+                for lane in self._discovered_lane_queues()
+                if ScheduledJobRegistry(queue=lane).get_jobs_to_schedule(now, 1)
+            ]
+            if not due:
+                return
+            scheduler = RQScheduler(
+                due, connection=self.connection, serializer=self.serializer
+            )
+            if scheduler.acquire_locks():
+                try:
+                    scheduler.enqueue_scheduled_jobs()
+                finally:
+                    scheduler.release_locks()
+        except Exception:
+            log.exception("could not enqueue the due retries of the category lanes")
+
     def _ordered_base_for_poll(self):
         """The static base queue set for this poll. For the ungoverned bg-floor —
         the SOLE heavy drainer once every governed pool is deferring under
@@ -1116,6 +1148,7 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
             self.heartbeat()
             if self.should_run_maintenance_tasks:
                 self.run_maintenance_tasks()
+            self._enqueue_due_lane_retries()
 
             # Pull the live governor knobs (DB->env->hardcoded) for this poll, so
             # an admin's edit is honoured within one cycle without a restart.
