@@ -249,7 +249,10 @@ class TestInfoStamp:
 
         _capture_run(
             monkeypatch,
-            result=_Completed(returncode=1, stderr=b"qemu-img: some error"),
+            result=_Completed(
+                returncode=1,
+                stderr=b"qemu-img: Could not open '/isard/g/d.qcow2': No such file or directory",
+            ),
         )
         data = task.qemu_img_info_backing_chain(
             "s1", "/isard/g/d.qcow2", qcow2_geometry=geo

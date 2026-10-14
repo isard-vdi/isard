@@ -765,7 +765,7 @@ class Engine(object):
                                         ):
                                             try:
                                                 storage.check_backing_chain(
-                                                    user_id, blocking=False, retry=1
+                                                    user_id, blocking=False, retry=3
                                                 )
                                             except Exception as e:
                                                 logs.main.debug(

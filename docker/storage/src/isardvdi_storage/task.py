@@ -64,6 +64,44 @@ QEMU_IMG_TIMEOUT = 30  # seconds; read-only `qemu-img info` probes, guards an NF
 QEMU_IMG_WRITE_MARGIN = 30  # seconds a writing call expires before its RQ budget
 
 
+# glibc and musl strerror() texts, which differ for EIO and ETIMEDOUT
+_TRANSIENT_IO_MARKERS = (
+    b"Input/output error",
+    b"I/O error",
+    b"Stale file handle",
+    b"Resource temporarily unavailable",
+    b"Connection timed out",
+    b"Operation timed out",
+    b"EIO",
+    b"ESTALE",
+    b"EAGAIN",
+)
+
+
+class BackingChainUnknown(Exception):
+    """The chain could not be read, which says nothing about whether it is whole.
+
+    Raised so the job fails and RQ retries it with the intervals the enqueuer
+    set; once the attempts run out the chain has no reading, so nothing
+    downstream writes a status or cascades from it.
+    """
+
+    def __init__(self, storage_path, reason):
+        super().__init__(f"{storage_path}: {reason}")
+        job = get_current_job()
+        retries_left = getattr(job, "retries_left", None) or 0
+        log.warning(
+            "qemu_img_info_backing_chain: %s unreadable (%s); %s",
+            storage_path,
+            reason,
+            (
+                f"{retries_left} retries left"
+                if retries_left
+                else "no retries left, storage status left unchanged"
+            ),
+        )
+
+
 def _qemu_img_write_timeout(action):
     """Subprocess ceiling for a ``qemu-img`` call that writes: the action's budget."""
     return max(QEMU_IMG_TIMEOUT, job_timeout_for(action) - QEMU_IMG_WRITE_MARGIN)
@@ -863,6 +901,8 @@ def qemu_img_info_backing_chain(
     :type qcow2_geometry: dict | None
     :return: Storage data to update
     :rtype: dict
+    :raises BackingChainUnknown: Timeout, transient I/O error, or any error
+        that is not a ``Could not open '<path>'`` proof
     """
 
     try:
@@ -882,8 +922,7 @@ def qemu_img_info_backing_chain(
             timeout=QEMU_IMG_TIMEOUT,
         )
     except TimeoutExpired:
-        log.error("qemu_img_info_backing_chain: timeout for %s", storage_path)
-        return {"id": storage_id, "status": "broken_chain"}
+        raise BackingChainUnknown(storage_path, "timeout")
     storage_data = {"id": storage_id}
     if completed_process.returncode == 0:
         storage_data["status"] = "ready"
@@ -896,16 +935,12 @@ def qemu_img_info_backing_chain(
         if qcow2_geometry:
             storage_data["qcow2_geometry"] = qcow2_geometry
     else:
-        match = search(
-            rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
-        )
+        stderr = completed_process.stderr or b""
+        if any(marker in stderr for marker in _TRANSIENT_IO_MARKERS):
+            raise BackingChainUnknown(storage_path, stderr.decode(errors="replace"))
+        match = search(rb"^qemu-img: Could not open \'([^\']*)\': ", stderr)
         if match is None:
-            log.error(
-                "qemu_img_info_backing_chain: unexpected stderr for %s: %s",
-                storage_path,
-                completed_process.stderr,
-            )
-            storage_data["status"] = "broken_chain"
+            raise BackingChainUnknown(storage_path, stderr.decode(errors="replace"))
         else:
             path = match.group(1).decode()
             if path == storage_path:
@@ -920,6 +955,8 @@ def qemu_img_info_backing_chain(
                     storage_data["status"] = (
                         "orphan" if path == backing else "broken_chain"
                     )
+                except TimeoutExpired:
+                    raise BackingChainUnknown(storage_path, "timeout")
                 except Exception:
                     storage_data["status"] = "broken_chain"
 
