@@ -223,6 +223,11 @@ ci-test-webapp-js:
 # `seed-test-db` is shared with the end-to-end section below.
 # ---------------------------------------------------------------------------
 
+# The playwright and seeding images carry no /etc/localtime bind, unlike every
+# product service, so without this they run in UTC. Override per install:
+# `TZ=Europe/Rome make test-e2e`.
+TZ ?= Europe/Madrid
+
 # Usage:
 #   make test-e2e                                          # run all specs
 #   make test-e2e E2E_ARGS=tests/webapp/login.spec.js      # single spec
@@ -233,6 +238,7 @@ seed-test-db:
 	docker run $(_docker_tty) --rm \
 	--network=isard-network \
 	--volumes-from isard-storage \
+	-e TZ=$(TZ) \
 	-e RETHINKDB_HOST=isard-db \
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
@@ -301,6 +307,7 @@ test-e2e: seed-test-db
 	--rm --ipc=host \
 	--network=isard-network \
 	-e DOCKER=1 \
+	-e TZ=$(TZ) \
 	-e CI \
 	-e E2E_WORKERS \
 	-e E2E_RETRIES \
