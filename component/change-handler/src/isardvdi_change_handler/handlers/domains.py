@@ -28,9 +28,6 @@ from isardvdi_common.lib.deployments.deployment_desktops import (
     DeploymentDesktopsProcessed,
 )
 from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
-from isardvdi_common.lib.domains.desktops.desktop_direct_viewer import (
-    DesktopDirectViewer,
-)
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.models.deployment import Deployment
 from isardvdi_common.schemas.domains import DesktopStatusEnum
@@ -366,10 +363,12 @@ class DesktopDomainHandler:
 
         ## Direct viewer room
         # Fires whenever a direct-viewer-visible desktop changes status OR
-        # when its guest IP appears while started (so the viewer can pick up
-        # the freshly generated viewer URLs/cookies). This keeps the direct
-        # viewer card in sync when the owner stops/resets the desktop from
-        # elsewhere.
+        # its viewers change while started (a new viewer password on every
+        # start, or the guest IP appearing). This keeps the direct viewer card
+        # in sync when the owner stops/resets the desktop from elsewhere.
+        # The viewers themselves are not sent: they are built for the domain
+        # the page is open on, which only its own request knows, so the page
+        # fetches them again when told they changed.
 
         jumperurl = (new_val.additional_properties or {}).get("jumperurl")
         new_viewer = (new_val.additional_properties or {}).get("viewer") or {}
@@ -385,43 +384,25 @@ class DesktopDomainHandler:
         # lands without the raw status changing.
         parsed_status = desktop["status"]
         status_changed = _frontend_status(old_val) != parsed_status
-        guest_ip_became_available = (
+        viewers_changed = bool(
             new_val.status == DesktopStatusEnum.started.value
             and new_viewer.get("passwd")
-            and old_viewer.get("guest_ip") != new_viewer.get("guest_ip")
+            and (
+                old_viewer.get("passwd") != new_viewer.get("passwd")
+                or old_viewer.get("guest_ip") != new_viewer.get("guest_ip")
+            )
         )
 
-        if direct_viewer_visible and (status_changed or guest_ip_became_available):
-            viewer_data = {
-                "id": new_val.id,
-                "status": parsed_status,
-            }
-            if guest_ip_became_available:
-                try:
-                    viewers = DesktopDirectViewer.desktop_viewer_from_token(
-                        jumperurl, start_desktop=False
-                    )
-                except Exception as e:
-                    print(f"Error in desktop_viewer_from_token: {e}")
-                    viewers = None
-                if viewers is not None:
-                    viewer_data = {
-                        "id": viewers.pop("id", None),
-                        "jwt": viewers.pop("jwt", None),
-                        "name": viewers.pop("name", None),
-                        "description": viewers.pop("description", None),
-                        # Prefer the real status over the helper's hard-coded value
-                        "status": parsed_status,
-                        "ip": viewers.pop("ip", None),
-                        "scheduled": viewers.pop("scheduled", None),
-                        "viewers": viewers["viewers"],
-                        "needs_booking": viewers.pop("needs_booking", False),
-                        "next_booking_start": viewers.pop("next_booking_start", None),
-                        "next_booking_end": viewers.pop("next_booking_end", None),
-                    }
+        if direct_viewer_visible and (status_changed or viewers_changed):
             await self.emit(
                 "directviewer_update",
-                json_dumps(viewer_data),
+                json_dumps(
+                    {
+                        "id": new_val.id,
+                        "status": parsed_status,
+                        "viewers_changed": viewers_changed,
+                    }
+                ),
                 namespace="/userspace",
                 room=new_val.id,
             )

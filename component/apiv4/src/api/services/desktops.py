@@ -95,11 +95,17 @@ def _get_desktop_viewer_cache_key(
     user_id: str,
     desktop_id: str,
     viewer_type: str,
+    host: str,
     is_admin: bool = False,
-    request: Optional[Request] = None,
 ) -> tuple:
-    # user_id is in the key so different users never share a cached viewer credential (e.g. SPICE password); `request` is unhashable.
-    return hashkey(user_id, desktop_id, viewer_type, is_admin)
+    # user_id is in the key so different users never share a cached viewer credential
+    return hashkey(
+        user_id,
+        desktop_id,
+        viewer_type,
+        host,
+        is_admin,
+    )
 
 
 def _bastion_request_enabled(bastion_data):
@@ -743,7 +749,10 @@ class DesktopService:
         token: str, request: Request, start_desktop: bool = True
     ) -> dict:
         direct_viewer = DesktopDirectViewer.desktop_viewer_from_token(
-            token, start_desktop=start_desktop, request=request
+            token,
+            start_desktop=start_desktop,
+            request=request,
+            host=request.headers.get("host"),
         )
         # Carried here so the card can gate the bastion button without the
         # direct viewer having to fetch get-details up front.
@@ -1336,8 +1345,8 @@ class DesktopService:
         user_id: str,
         desktop_id: str,
         viewer_type: str,
+        host: str,
         is_admin: bool = False,
-        request: Optional[Request] = None,
     ) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
@@ -1346,7 +1355,11 @@ class DesktopService:
                 description_code="not_found",
             )
         viewer = DesktopDirectViewer.desktop_viewer(
-            desktop_id, protocol=viewer_type, get_cookie=True, admin_role=is_admin
+            desktop_id,
+            protocol=viewer_type,
+            get_cookie=True,
+            admin_role=is_admin,
+            host=host,
         )
         return viewer
 

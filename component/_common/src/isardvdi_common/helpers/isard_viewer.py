@@ -121,6 +121,7 @@ class IsardViewer(RethinkSharedConnection):
         domain=False,
         user_id=False,
         admin_role=False,
+        host=None,
     ):
         if not domain:
             try:
@@ -253,7 +254,8 @@ class IsardViewer(RethinkSharedConnection):
             }
 
         ## Browser viewers
-        viewer_url = "https://" + domain["viewer"]["static"]
+        web_host = host or domain["viewer"]["static"]
+        viewer_url = "https://" + web_host
         if protocol == "browser-spice":
             data = {
                 "vmName": domain["name"],
@@ -343,7 +345,7 @@ class IsardViewer(RethinkSharedConnection):
                 "vmHost": domain["viewer"]["guest_ip"],
                 "vmUsername": guest_credentials(domain).get("username", ""),
                 "vmPassword": guest_credentials(domain).get("password", ""),
-                "host": domain["viewer"]["static"],
+                "host": web_host,
                 "port": domain["viewer"].get("html5_ext_port", "443"),
                 "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),
             }

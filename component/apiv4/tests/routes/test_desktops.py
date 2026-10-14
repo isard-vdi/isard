@@ -412,10 +412,11 @@ def test_get_desktop_viewer(monkeypatch, test_client):
     captured = {}
     logged = {}
 
-    def fake_get_viewer(user_id, desktop_id, viewer_type, is_admin, request):
+    def fake_get_viewer(user_id, desktop_id, viewer_type, host, is_admin=False):
         captured["user_id"] = user_id
         captured["desktop_id"] = desktop_id
         captured["viewer_type"] = viewer_type
+        captured["host"] = host
         captured["is_admin"] = is_admin
         return stub
 
@@ -450,6 +451,7 @@ def test_get_desktop_viewer(monkeypatch, test_client):
         "user_id": jwt.payload["user_id"],
         "desktop_id": "desktop-1",
         "viewer_type": "browser-vnc",
+        "host": "testserver",  # TestClient's default Host header
         "is_admin": True,  # default MockJWT role_id == "admin"
     }
     assert logged == {
@@ -509,6 +511,91 @@ def test_get_desktop_direct_viewer_accepts_waiting_ip_stub(monkeypatch, test_cli
         "mime": None,
         "content": None,
     }
+
+
+def test_get_desktop_viewer_opens_on_the_request_host(monkeypatch, test_client):
+    """A multitenant install serves several domains, and the frontends set the
+    viewer cookies on the one the user is on. The viewer must be built for
+    that host, and a viewer cached for one domain must not be served to
+    another."""
+    from api.services.desktops import _GET_DESKTOP_VIEWER_CACHE
+
+    _GET_DESKTOP_VIEWER_CACHE.clear()
+    hosts = []
+
+    def fake_desktop_viewer(desktop_id, **kwargs):
+        hosts.append(kwargs["host"])
+        return {
+            "kind": "browser",
+            "protocol": "vnc",
+            "viewer": f"https://{kwargs['host']}/viewer/noVNC/",
+            "cookie": "session=abc",
+        }
+
+    monkeypatch.setattr(
+        "api.services.desktops.RethinkDomain.exists",
+        staticmethod(lambda desktop_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopDirectViewer.desktop_viewer",
+        staticmethod(fake_desktop_viewer),
+    )
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.logging.Logging.logs_domain_event_viewer",
+        staticmethod(lambda *args, **kwargs: None),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    jwt = MockJWT()
+    for host in ("tenant-a.example", "tenant-b.example"):
+        response = test_client(
+            url="/item/desktop/desktop-1/get-viewer/browser-vnc",
+            jwt=jwt,
+            headers={"host": host},
+        )
+        assert response.status_code == 200
+        assert response.json()["viewer"] == f"https://{host}/viewer/noVNC/"
+
+    # Both requests land within the cache TTL: the second one only reaches the
+    # viewer builder because the host is part of the cache key.
+    assert hosts == ["tenant-a.example", "tenant-b.example"]
+
+
+@pytest.mark.parametrize("action", ["get-viewer", "renew-viewer"])
+def test_direct_viewer_opens_on_the_request_host(monkeypatch, test_client, action):
+    captured = {}
+
+    def fake_desktop_viewer_from_token(
+        token, start_desktop=True, request=None, host=None
+    ):
+        captured["host"] = host
+        return {
+            "id": "desktop-1",
+            "jwt": "fake-jwt",
+            "name": "Desktop 1",
+            "description": "",
+            "status": "Started",
+            "scheduled": {"shutdown": False},
+            "viewers": {},
+            "type": "persistent",
+        }
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopDirectViewer.desktop_viewer_from_token",
+        staticmethod(fake_desktop_viewer_from_token),
+    )
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService._bastion_direct_viewer",
+        staticmethod(lambda desktop_id: {"enabled": False}),
+    )
+
+    response = test_client(
+        url=f"/item/desktop/token/some-token/{action}",
+        headers={"host": "tenant.example"},
+    )
+
+    assert response.status_code == 200
+    assert captured["host"] == "tenant.example"
 
 
 # ─── §99 audit fixes (parity regressions found in v3 ↔ v4 audit) ────────

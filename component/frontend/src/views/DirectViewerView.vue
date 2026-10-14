@@ -98,7 +98,6 @@ const { data: loginConfig } = useQuery(apiV4LoginConfigOptions({ client: directV
 const queryKey = getDesktopViewerByTokenQueryKey({
   path: { token: token.value }
 })
-const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, queryClient, queryKey)
 
 type OverlayKind = 'networks' | 'bastion' | 'info'
 const activeOverlay = ref<OverlayKind | null>(null)
@@ -137,7 +136,7 @@ const desktopIp = computed(() => desktopViewer.value?.ip)
 // so a page left open would 401 until a reload. get-viewer can't be polled to
 // refresh it — it starts a stopped desktop and logs an access — hence the
 // dedicated renew-viewer route.
-const { mutateAsync: renewViewerToken } = useMutation({
+const { mutate: refreshViewers, mutateAsync: renewViewerToken } = useMutation({
   mutationFn: () =>
     renewDesktopViewerByToken({
       path: { token: token.value },
@@ -156,6 +155,13 @@ const { mutateAsync: renewViewerToken } = useMutation({
 })
 
 useJwtRenewal(viewerJwt, renewViewerToken)
+
+const { isConnected, connect: connectSocket } = useDirectViewerSocket(
+  token,
+  queryClient,
+  queryKey,
+  () => refreshViewers()
+)
 
 watch(
   () => desktopViewer.value?.jwt,
