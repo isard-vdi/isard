@@ -79,27 +79,30 @@ _TRANSIENT_IO_MARKERS = (
 
 
 class BackingChainUnknown(Exception):
-    """The chain could not be read, which says nothing about whether it is whole.
+    """The chain could not be read, which says nothing about whether it is whole."""
 
-    Raised so the job fails and RQ retries it with the intervals the enqueuer
-    set; once the attempts run out the chain has no reading, so nothing
-    downstream writes a status or cascades from it.
-    """
 
-    def __init__(self, storage_path, reason):
-        super().__init__(f"{storage_path}: {reason}")
-        job = get_current_job()
-        retries_left = getattr(job, "retries_left", None) or 0
-        log.warning(
-            "qemu_img_info_backing_chain: %s unreadable (%s); %s",
-            storage_path,
-            reason,
-            (
-                f"{retries_left} retries left"
-                if retries_left
-                else "no retries left, storage status left unchanged"
-            ),
-        )
+def _unreadable_chain(storage_id, storage_path, reason):
+    """Raise for RQ to retry; a chain step out of retries returns a reading without status."""
+    job = get_current_job()
+    retries_left = getattr(job, "retries_left", None) or 0
+    in_chain = bool((getattr(job, "meta", None) or {}).get("dependency_ids"))
+    if retries_left:
+        outcome = f"{retries_left} retries left"
+    elif in_chain:
+        outcome = "no retries left, chain continues with the storage status unchanged"
+    else:
+        outcome = "no retries left, storage status left unchanged"
+    log.warning(
+        "qemu_img_info_backing_chain: %s unreadable (%s); %s",
+        storage_path,
+        reason,
+        outcome,
+    )
+    if retries_left or not in_chain:
+        raise BackingChainUnknown(f"{storage_path}: {reason}")
+    # the steps after it have to run: the file operation before it already happened
+    return {"id": storage_id}
 
 
 def _qemu_img_write_timeout(action):
@@ -902,7 +905,8 @@ def qemu_img_info_backing_chain(
     :return: Storage data to update
     :rtype: dict
     :raises BackingChainUnknown: Timeout, transient I/O error, or any error
-        that is not a ``Could not open '<path>'`` proof
+        that is not a ``Could not open '<path>'`` proof, unless the job is a
+        chain step with no retry left, which gets ``{"id": storage_id}``
     """
 
     try:
@@ -922,7 +926,7 @@ def qemu_img_info_backing_chain(
             timeout=QEMU_IMG_TIMEOUT,
         )
     except TimeoutExpired:
-        raise BackingChainUnknown(storage_path, "timeout")
+        return _unreadable_chain(storage_id, storage_path, "timeout")
     storage_data = {"id": storage_id}
     if completed_process.returncode == 0:
         storage_data["status"] = "ready"
@@ -936,11 +940,11 @@ def qemu_img_info_backing_chain(
             storage_data["qcow2_geometry"] = qcow2_geometry
     else:
         stderr = completed_process.stderr or b""
-        if any(marker in stderr for marker in _TRANSIENT_IO_MARKERS):
-            raise BackingChainUnknown(storage_path, stderr.decode(errors="replace"))
         match = search(rb"^qemu-img: Could not open \'([^\']*)\': ", stderr)
-        if match is None:
-            raise BackingChainUnknown(storage_path, stderr.decode(errors="replace"))
+        if match is None or any(m in stderr for m in _TRANSIENT_IO_MARKERS):
+            return _unreadable_chain(
+                storage_id, storage_path, stderr.decode(errors="replace")
+            )
         else:
             path = match.group(1).decode()
             if path == storage_path:
@@ -956,7 +960,7 @@ def qemu_img_info_backing_chain(
                         "orphan" if path == backing else "broken_chain"
                     )
                 except TimeoutExpired:
-                    raise BackingChainUnknown(storage_path, "timeout")
+                    return _unreadable_chain(storage_id, storage_path, "timeout")
                 except Exception:
                     storage_data["status"] = "broken_chain"
 
