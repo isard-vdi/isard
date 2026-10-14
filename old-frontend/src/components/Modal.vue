@@ -41,6 +41,7 @@ export default {
       COOKIE_EXPIRED: i18n.t('components.rdp-modal.title.error'),
       RETRYING: i18n.t('components.rdp-modal.title.retrying'),
       RDP_NOT_RUNNING: i18n.t('components.rdp-modal.title.rdp-not-running'),
+      RDP_AUTH_FAILED: i18n.t('components.rdp-modal.title.rdp-auth-failed'),
       DESKTOP_STOPPED: i18n.t('components.rdp-modal.title.desktop-stopped')
     }))
 
@@ -56,6 +57,7 @@ export default {
       COOKIE_EXPIRED: i18n.t('components.rdp-modal.message.cookie-expired'),
       RETRYING: i18n.t('components.rdp-modal.message.retrying', { retry: props.retry, maxRetries: props.maxRetries }),
       RDP_NOT_RUNNING: i18n.t('components.rdp-modal.message.rdp-not-running'),
+      RDP_AUTH_FAILED: i18n.t('components.rdp-modal.message.rdp-auth-failed'),
       DESKTOP_STOPPED: i18n.t('components.rdp-modal.message.desktop-stopped')
     }))
 

@@ -36,6 +36,11 @@ import { jwtDecode } from 'jwt-decode'
 
 Guacamole.Mouse = GuacMouse.mouse
 
+// guacd reports a failed security negotiation with the same code, only its message tells them apart
+const isAuthFailure = (error) => Boolean(error) &&
+  error.code === Guacamole.Status.Code.CLIENT_UNAUTHORIZED &&
+  /authentication failure/i.test(error.message || '')
+
 export default {
   name: 'Rdp',
   components: {
@@ -62,6 +67,7 @@ export default {
       clientState: 0,
       clientRetries: 0,
       maxClientRetries: 3,
+      lastError: null,
       retryTimer: null
     }
   },
@@ -152,7 +158,7 @@ export default {
         }, 5000)
       } else {
         console.log('Max number of retries reached. Disconnecting.')
-        this.connectionState = states.RDP_NOT_RUNNING
+        this.connectionState = isAuthFailure(this.lastError) ? states.RDP_AUTH_FAILED : states.RDP_NOT_RUNNING
       }
     },
     async isDesktopStopped () {
@@ -339,7 +345,6 @@ export default {
             break
           case 3:
             this.connectionState = states.CONNECTED
-            this.clientRetries = 0
             // without this manual resize, the viewer is never going to "start" correctly. Maybe 2000ms isn't enough for all the situations?
             setTimeout(() => this.resize(), 2000)
             window.addEventListener('resize', this.resize)
@@ -358,6 +363,7 @@ export default {
       }
 
       this.client.onerror = (error) => {
+        this.lastError = error
         this.client.disconnect()
         // eslint-disable-next-line no-console
         console.error(`Client error ${JSON.stringify(error)}`)
@@ -396,6 +402,13 @@ export default {
 
       this.client.onclipboard = clipboard.onClipboard
       this.display = this.client.getDisplay()
+      // guacd reaches the connected state before the guest has negotiated; only a sized display proves it did
+      this.display.onresize = (width, height) => {
+        if (width > 0 && height > 0) {
+          this.clientRetries = 0
+          this.lastError = null
+        }
+      }
       const displayElm = this.$refs.display
       // Drop the display of a previous connection attempt
       displayElm.replaceChildren()

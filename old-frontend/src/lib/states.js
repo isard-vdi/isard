@@ -94,6 +94,14 @@ export default {
   RDP_NOT_RUNNING: 'RDP_NOT_RUNNING',
 
   /**
+   * The Guacamole connection cannot be established because the desktop
+   * rejects the credentials stored for it.
+   *
+   * @type String
+   */
+  RDP_AUTH_FAILED: 'RDP_AUTH_FAILED',
+
+  /**
    * The Guacamole connection cannot be established because the desktop is no
    * longer running.
    *
