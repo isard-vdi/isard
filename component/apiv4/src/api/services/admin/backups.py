@@ -194,8 +194,50 @@ class AdminBackupsService:
         Config.set_backups_integrity_enabled(value)
         return {"integrity_enabled": value}
 
+    BACKUP_KINDS = ("db", "redis", "stats", "config", "disks", "pools")
+
     @staticmethod
     def get_backup_config() -> dict:
+        """Latest report's backup config, else env (backupninja may run elsewhere)."""
+        from_report = AdminBackupsService._config_from_latest_report()
+        if from_report is not None:
+            return from_report
+        return AdminBackupsService._config_from_env()
+
+    @staticmethod
+    def _config_from_latest_report() -> Optional[dict]:
+        recent = BackupsProcessed.list_recent(1)
+        report_cfg = recent[0].get("backup_config") if recent else None
+        if not isinstance(report_cfg, dict):
+            return None
+
+        def hour_of(value) -> Optional[int]:
+            if isinstance(value, dict):
+                value = value.get("hour")
+            return value if isinstance(value, int) else None
+
+        schedule_raw = report_cfg.get("schedule") or {}
+        enabled_raw = report_cfg.get("enabled") or {}
+        schedule = {
+            k: hour_of(schedule_raw.get(k)) for k in AdminBackupsService.BACKUP_KINDS
+        }
+        enabled = {
+            k: bool(enabled_raw.get(k)) for k in AdminBackupsService.BACKUP_KINDS
+        }
+
+        main_hour = hour_of(report_cfg.get("main_schedule"))
+        if main_hour is None:
+            hours = [h for h in schedule.values() if h is not None]
+            main_hour = max(set(hours), key=hours.count) if hours else 19
+
+        return {
+            "schedule": schedule,
+            "enabled": enabled,
+            "main_schedule_hour": main_hour,
+        }
+
+    @staticmethod
+    def _config_from_env() -> dict:
         """Get backup configuration from environment variables."""
 
         def parse_backup_schedule(schedule_env: str) -> Optional[int]:
