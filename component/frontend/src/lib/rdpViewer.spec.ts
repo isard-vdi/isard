@@ -73,9 +73,9 @@ describe('rdpViewerEntry', () => {
       rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'refused', reason: evil }, false, tt)
     ).toMatchObject({ status: 'refused' })
     expect(named.at(-1)).toEqual({ reason: 'other' })
-    expect(
-      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: evil }, false, tt)
-    ).toMatchObject({ status: undefined })
+    expect(rdpViewerEntry('browser-rdp', '10.2.0.5', { state: evil }, false, tt)).toMatchObject({
+      status: undefined
+    })
   })
 
   it('shows a translated sentence for the reason, never the internal code', () => {
@@ -84,14 +84,42 @@ describe('rdpViewerEntry', () => {
       if (n) named.push(n)
       return key
     }
-    rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'refused', reason: 'tls_not_allowed' }, false, tt)
-    expect(named.at(-1)).toEqual({ reason: 'components.desktops.desktop-card.rdp.reason.tls_not_allowed' })
-    rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'refused', reason: 'certificate_missing' }, false, tt)
-    expect(named.at(-1)).toEqual({ reason: 'components.desktops.desktop-card.rdp.reason.certificate' })
-    rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'refused', reason: 'negotiation_failure_9' }, false, tt)
+    rdpViewerEntry(
+      'browser-rdp',
+      '10.2.0.5',
+      { state: 'refused', reason: 'tls_not_allowed' },
+      false,
+      tt
+    )
+    expect(named.at(-1)).toEqual({
+      reason: 'components.desktops.desktop-card.rdp.reason.tls_not_allowed'
+    })
+    rdpViewerEntry(
+      'browser-rdp',
+      '10.2.0.5',
+      { state: 'refused', reason: 'certificate_missing' },
+      false,
+      tt
+    )
+    expect(named.at(-1)).toEqual({
+      reason: 'components.desktops.desktop-card.rdp.reason.certificate'
+    })
+    rdpViewerEntry(
+      'browser-rdp',
+      '10.2.0.5',
+      { state: 'refused', reason: 'negotiation_failure_9' },
+      false,
+      tt
+    )
     expect(named.at(-1)).toEqual({ reason: 'components.desktops.desktop-card.rdp.reason.other' })
     expect(
-      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'auth_failed', reason: 'account_blocked' }, false, tt).status
+      rdpViewerEntry(
+        'browser-rdp',
+        '10.2.0.5',
+        { state: 'auth_failed', reason: 'account_blocked' },
+        false,
+        tt
+      ).status
     ).toBe('components.desktops.desktop-card.rdp.reason.account_blocked')
   })
 })

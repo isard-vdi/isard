@@ -46,20 +46,26 @@ const handleDismiss = () => {
         <Button
           class="mr-2 w-full justify-start"
           hierarchy="link-gray"
-          :icon="props.viewer.tone === 'error' ? 'alert-circle' : props.viewer.loading ? 'loading-02' : ''"
+          :icon="
+            props.viewer.tone === 'error'
+              ? 'alert-circle'
+              : props.viewer.loading
+                ? 'loading-02'
+                : ''
+          "
           icon-size="md"
-          :icon-class="props.viewer.loading && props.viewer.tone !== 'error' ? 'motion-safe:animate-[spin_2s_linear_infinite]' : ''"
+          :icon-class="
+            props.viewer.loading && props.viewer.tone !== 'error'
+              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
+              : ''
+          "
           :disabled="props.viewer.loading && !props.viewer.status"
           :aria-disabled="props.viewer.loading ? 'true' : undefined"
         >
           {{ t(`viewers.${props.viewer.id}`) }}
         </Button>
       </TooltipTrigger>
-      <TooltipContent
-        v-if="props.viewer.status"
-        :title="props.viewer.status"
-        side="left"
-      />
+      <TooltipContent v-if="props.viewer.status" :title="props.viewer.status" side="left" />
       <TooltipContent
         v-else
         :title="t(`viewers.tooltip.${props.viewer.id}.title`)"

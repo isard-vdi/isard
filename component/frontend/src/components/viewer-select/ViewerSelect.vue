@@ -125,7 +125,11 @@ const selectViewer = (viewer: Viewer) => {
           :size="props.buttonSize"
           :icon="viewerIcon(selectedViewer)"
           :icon-size="props.dense ? 'xs' : undefined"
-          :icon-class="selectedViewer.loading && selectedViewer.tone !== 'error' ? 'motion-safe:animate-[spin_2s_linear_infinite]' : ''"
+          :icon-class="
+            selectedViewer.loading && selectedViewer.tone !== 'error'
+              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
+              : ''
+          "
           :disabled="selectedViewer.loading && !selectedViewer.status"
           :aria-disabled="selectedViewer.loading ? 'true' : undefined"
           :data-viewer-status="selectedViewer.status ? selectedViewer.tone || 'info' : undefined"

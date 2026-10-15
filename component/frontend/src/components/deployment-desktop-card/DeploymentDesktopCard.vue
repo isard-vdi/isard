@@ -242,7 +242,13 @@ import DomainImage from '@/components/domain/DomainImage.vue'
                             v-for="viewer in desktopViewers"
                             :key="viewer"
                             :viewer="
-                              rdpViewerEntry(viewer, props.desktop.ip, props.desktop.rdp, rdpBypass, t)
+                              rdpViewerEntry(
+                                viewer,
+                                props.desktop.ip,
+                                props.desktop.rdp,
+                                rdpBypass,
+                                t
+                              )
                             "
                             :tooltip-dismissed="viewerTooltipDismissed"
                             @select="emit('openViewer', viewer.replace(/_/g, '-'))"
