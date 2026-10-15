@@ -212,7 +212,9 @@ def test_a_pass_that_corrects_nothing_says_nothing(acted):
 def test_a_domain_the_database_never_heard_of_is_reported_as_destroyed(acted):
     connection = MagicMock()
     connection.connected = True
-    connection.get_domains.return_value = {"ghost": {"status": "Started", "detail": ""}}
+    connection.list_domain_states.return_value = {
+        "ghost": {"status": "Started", "detail": ""}
+    }
     connection.get_storage_used.return_value = {}
     with patch.object(
         mod, "get_hyp_hostname_from_id", return_value=("h", 22, "u", False, None)

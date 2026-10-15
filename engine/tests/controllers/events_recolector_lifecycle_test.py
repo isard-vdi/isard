@@ -586,7 +586,7 @@ def test_a_deregistered_hypervisor_leaves_the_report(running, virt):
 # mutations the characterisation tests do not see
 
 
-def test_two_domain_events_are_processed_at_the_same_time():
+def test_events_of_two_domains_are_processed_at_the_same_time():
     """One slow write must not hold up other domains' events: the pool needs more than one worker."""
     barrier = threading.Barrier(2)
     entered = []
@@ -599,11 +599,12 @@ def test_two_domain_events_are_processed_at_the_same_time():
         mp.setattr(er, "_process_domain_event_async", _slow)
         conn = MagicMock()
         conn.getURI.return_value = "qemu+ssh://root@hyp1.example:2022/system"
-        dom = MagicMock()
+        dom, other = MagicMock(), MagicMock()
         dom.name.return_value = DOM
+        other.name.return_value = DOM + "-other"
 
         er.myDomainEventCallbackRethink(conn, dom, 2, 0, None)
-        er.myDomainEventCallbackRethink(conn, dom, 5, 1, None)
+        er.myDomainEventCallbackRethink(conn, other, 5, 1, None)
 
         _wait_for(lambda: len(entered) == 2, "both events to be in flight at once")
 
