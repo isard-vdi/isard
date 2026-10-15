@@ -27,7 +27,7 @@ FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec4
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     bash borgbackup~1.4 coreutils curl envsubst flock jq libffi libjpeg-turbo \
-    nfs-utils openssl redis zlib
+    logrotate nfs-utils openssl redis zlib
 
 # Bring the built virtualenv AND its uv-managed Python interpreter, keeping
 # the venv at its build path (/workspace/.venv) so the rethinkdb-* console
@@ -60,12 +60,17 @@ COPY docker/backupninja/session_preflight.sh /usr/local/bin/
 COPY docker/backupninja/borg_compact.sh /usr/local/bin/
 COPY docker/backupninja/detect_orphaned_session.sh /usr/local/bin/
 COPY docker/backupninja/self_heal.sh /etc/periodic/15min/backupninja-self-heal
+COPY docker/backupninja/logrotate.conf /usr/local/etc/logrotate-backupninja.conf
+# logrotate refuses a config writable by group/other
+RUN chmod 644 /usr/local/etc/logrotate-backupninja.conf
+COPY docker/backupninja/logrotate_backupninja.sh /etc/periodic/hourly/backupninja-logrotate
 RUN chmod +x /usr/local/bin/send_backup_report.sh
 RUN chmod +x /usr/local/bin/borg_integrity_template.sh
 RUN chmod +x /usr/local/bin/session_preflight.sh
 RUN chmod +x /usr/local/bin/borg_compact.sh
 RUN chmod +x /usr/local/bin/detect_orphaned_session.sh
 RUN chmod +x /etc/periodic/15min/backupninja-self-heal
+RUN chmod +x /etc/periodic/hourly/backupninja-logrotate
 COPY docker/backupninja/backup.d /usr/local/share/backup.d
 
 WORKDIR /
