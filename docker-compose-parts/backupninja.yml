@@ -52,6 +52,8 @@ services:
       - /opt/isard/templates:/opt/isard/templates:ro
       - /opt/isard/groups:/opt/isard/groups:ro
       - /opt/isard/media:/opt/isard/media:ro
+      # rslave: per-pool filesystems mounted later must still be visible
+      - /opt/isard/storage_pools:/opt/isard/storage_pools:ro,rslave
     environment:
       # General backup settings
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
@@ -110,3 +112,11 @@ services:
       - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
       - BACKUP_DISKS_MEDIA_ENABLED=${BACKUP_DISKS_MEDIA_ENABLED-false}
       - BACKUP_DISKS_CREATE_OPTIONS=${BACKUP_DISKS_CREATE_OPTIONS-}
+
+      # Off by default: enabling it can push terabytes to the backup target
+      - BACKUP_POOLS_ENABLED=${BACKUP_POOLS_ENABLED-false}
+      - BACKUP_POOLS_WHEN=${BACKUP_POOLS_WHEN-everyday at 01:00}
+      - BACKUP_POOLS_PRUNE=${BACKUP_POOLS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
+      - BACKUP_POOLS_EXCLUDE=${BACKUP_POOLS_EXCLUDE-*/volatile*}
+      - BACKUP_POOLS_NICE=${BACKUP_POOLS_NICE-ionice -c3 nice -n19}
+      - BACKUP_POOLS_CREATE_OPTIONS=${BACKUP_POOLS_CREATE_OPTIONS-}
