@@ -5,14 +5,26 @@ tmp_dir=$( mktemp -d )
 for i in `find /usr/local/etc/haproxy/cfg/customs -iname '*.cfg'`; do cp $i "$tmp_dir"; done
 for i in `find /usr/local/etc/haproxy/cfg/_base -iname '*.cfg'`; do cp $i "$tmp_dir"; done
 
+has_web=false
+has_monitor=false
 for part in $FLAVOUR; do
   if [ "$part" = "hypervisor" ] || [ "$part" = "video-standalone" ]
   then
           part="video"
   fi
+  [ "$part" = "web" ] && has_web=true
+  [ "$part" = "monitor" ] && has_monitor=true
 
   for i in `find /usr/local/etc/haproxy/cfg/$part -iname '*.cfg'`; do cp $i "$tmp_dir"; done
 done
+
+# GRAFANA_HOST other than the entrypoint default means grafana runs on another node.
+# Same file names as the monitor part, so a customs copy of them is replaced, not doubled.
+if [ "$has_web" = true ] && [ "$has_monitor" = false ] \
+   && [ -n "$GRAFANA_HOST" ] && [ "$GRAFANA_HOST" != "isard-grafana" ]; then
+  echo "Grafana on a remote monitor: proxying /monitor to $GRAFANA_HOST:3000"
+  for i in `find /usr/local/etc/haproxy/cfg/monitor-remote -iname '*.cfg'`; do cp $i "$tmp_dir"; done
+fi
 
 # One acl line per extra name: haproxy expands "${VAR}" to a single pattern, so
 # a list cannot travel in one variable. Sorts inside the secured frontend.
