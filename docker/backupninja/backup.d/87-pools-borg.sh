@@ -48,18 +48,58 @@ while IFS= read -r d; do
 done <"$DIRS_FILE"
 rm -f "$DIRS_FILE"
 
+# borg logs "<path>: open: [Errno 11] ..." for a file held under an NFS delegation
+skipped_from() { grep "Resource temporarily unavailable" "$1" | sed 's/: .*//' | sort -u; }
+
+ts=$(date +%Y-%m-%dT%H:%M:%S)
+out=$(mktemp)
+
 # $BACKUP_POOLS_CREATE_OPTIONS is deliberately unquoted: word-split like the disks handler
 ${BACKUP_POOLS_NICE:-ionice -c3 nice -n19} borg create --stats --compression lz4 \
     $BACKUP_POOLS_CREATE_OPTIONS \
-    "$REPO::{now:%Y-%m-%dT%H:%M:%S}" "$@" >>"$LOG_FILE" 2>&1
+    "$REPO::$ts" "$@" >"$out" 2>&1
 rc=$?
+cat "$out" >>"$LOG_FILE"
 
-# borg: 0 ok, 1 warning (files changed while read), >=2 error
+# borg: 0 ok, 1 warning (incl. a qcow2 skipped under an NFS lease), >=2 error
 if [ "$rc" -ge 2 ]; then
     echo "Fatal: borg create failed for $REPO (exit $rc); skipping prune"
+    rm -f "$out"
     exit 1
 fi
 echo "Info: pools borg create finished (exit $rc, $NDIRS directories)"
+
+# the report parser turns each BACKUP_SKIPPED_FILE warning into skipped_files
+skipped=$(skipped_from "$out")
+rm -f "$out"
+if [ -n "$skipped" ]; then
+    echo "Info: retrying $(printf '%s\n' "$skipped" | grep -c .) file(s) borg skipped on the first pass"
+    set --
+    while IFS= read -r p; do [ -n "$p" ] && set -- "$@" "$p"; done <<EOF
+$skipped
+EOF
+    retry=$(mktemp)
+    ${BACKUP_POOLS_NICE:-ionice -c3 nice -n19} borg create --compression lz4 \
+        $BACKUP_POOLS_CREATE_OPTIONS \
+        "$REPO::$ts-retry" "$@" >"$retry" 2>&1
+    rrc=$?
+    cat "$retry" >>"$LOG_FILE"
+    if [ "$rrc" -ge 2 ]; then
+        still="$skipped"
+    else
+        still=$(skipped_from "$retry")
+    fi
+    rm -f "$retry"
+    # don't leave an empty companion archive behind if the retry recovered nothing
+    if [ "$still" = "$skipped" ]; then
+        borg delete "$REPO::$ts-retry" >/dev/null 2>&1 || true
+    fi
+    if [ -n "$still" ]; then
+        printf '%s\n' "$still" | while IFS= read -r p; do
+            [ -n "$p" ] && echo "Warning: BACKUP_SKIPPED_FILE: $p"
+        done
+    fi
+fi
 
 # an empty prune policy would delete every archive
 if [ -z "$BACKUP_POOLS_PRUNE" ]; then

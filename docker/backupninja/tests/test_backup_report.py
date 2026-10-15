@@ -139,6 +139,37 @@ def test_report_carries_pools_scope_and_pool_dirs(tmp_path):
     assert d["backup_types_status"]["pools"] == "success"
 
 
+def test_report_collects_skipped_files(tmp_path):
+    log = _write_pools_session_log(
+        tmp_path,
+        [
+            "2026-01-15T01:00:01 Info: >>>> starting action /x/87-pools-borg.sh",
+            # explicit marker: pools file still unreadable after the retry pass
+            "Warning: BACKUP_SKIPPED_FILE: /opt/isard/storage_pools/fast/a.qcow2",
+            # raw borg line (e.g. the disks handler, which cannot retry)
+            "/opt/isard/groups/b.qcow2: open: [Errno 11] Resource temporarily "
+            "unavailable: '/opt/isard/groups/b.qcow2'",
+            "2026-01-15T01:04:00 Info: <<<< finished action /x/87-pools-borg.sh: WARNING",
+        ],
+    )
+    d = BackupLogParser(log).parse().to_dict()
+    assert d["skipped_files"] == [
+        "/opt/isard/groups/b.qcow2",
+        "/opt/isard/storage_pools/fast/a.qcow2",
+    ]
+
+
+def test_report_has_no_skipped_files_key_when_none(tmp_path):
+    log = _write_pools_session_log(
+        tmp_path,
+        [
+            "2026-01-15T01:00:01 Info: >>>> starting action /x/87-pools-borg.sh",
+            "2026-01-15T01:04:00 Info: <<<< finished action /x/87-pools-borg.sh: SUCCESS",
+        ],
+    )
+    assert "skipped_files" not in BackupLogParser(log).parse().to_dict()
+
+
 # backward compatibility of the report sender (fake client via _post_report)
 
 

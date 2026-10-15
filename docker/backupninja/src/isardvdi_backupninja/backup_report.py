@@ -79,6 +79,12 @@ INFORMATIONAL_PATTERNS_BY_TYPE: Dict[str, Tuple[str, ...]] = {
     "disks": ("file changed while we backed it up",),
 }
 
+# pools emits the marker after its retry; the disks handler only logs the raw line
+SKIPPED_FILE_MARKER = "BACKUP_SKIPPED_FILE:"
+SKIPPED_FILE_LEASE_RE = re.compile(
+    r"^(/.+?): (?:\w+: )?\[Errno \d+\] Resource temporarily unavailable"
+)
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -129,6 +135,7 @@ class BackupReport:
     backup_type_summary: Optional[Dict[str, Any]] = None
     filesystem_metrics: Optional[Dict[str, Any]] = None
     backup_config: Optional[Dict[str, Any]] = None
+    skipped_files: Optional[List[str]] = None
 
     def total_duration(self) -> Optional[int]:
         total = 0.0
@@ -170,6 +177,8 @@ class BackupReport:
             out["filesystem_metrics"] = self.filesystem_metrics
         if self.backup_config:
             out["backup_config"] = self.backup_config
+        if self.skipped_files:
+            out["skipped_files"] = self.skipped_files
         return out
 
 
@@ -414,6 +423,7 @@ class BackupLogParser:
         backup_config = collect_backup_config()
         backup_types_status = analyze_backup_types_status(actions, backup_config)
         backup_types_summary = generate_type_summary(actions, filesystem_metrics)
+        skipped_files = self._collect_skipped_files(session_lines)
 
         return BackupReport(
             timestamp=session_timestamp or datetime.now(),
@@ -433,7 +443,19 @@ class BackupLogParser:
             backup_type_summary=backup_types_summary,
             filesystem_metrics=filesystem_metrics,
             backup_config=backup_config,
+            skipped_files=skipped_files,
         )
+
+    def _collect_skipped_files(self, log_lines: List[str]) -> Optional[List[str]]:
+        found = set()
+        for line in log_lines:
+            if SKIPPED_FILE_MARKER in line:
+                found.add(line.split(SKIPPED_FILE_MARKER, 1)[1].strip())
+                continue
+            m = SKIPPED_FILE_LEASE_RE.search(line)
+            if m:
+                found.add(m.group(1))
+        return sorted(found) if found else None
 
     # -----------------------------------------------------------------------
     # Action parsing
