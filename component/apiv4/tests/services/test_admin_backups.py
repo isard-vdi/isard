@@ -348,3 +348,119 @@ class TestNormalizeCheck:
     def test_arbitrary_object_stringified(self):
         out = _normalize_check(42)
         assert out == {"name": "42", "status": "success"}
+
+
+# insert_backup scope enum + get_backup_config pools kind
+
+
+def _stub_insert_db(monkeypatch):
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.insert",
+        classmethod(lambda cls, data: {"inserted": 1, "generated_keys": ["bkp1"]}),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.count",
+        classmethod(lambda cls: 1),
+    )
+
+
+class TestInsertBackupScope:
+    """A category storage-pool session reports scope='pools'; the ingestion
+    endpoint must accept it while still rejecting genuinely unknown scopes."""
+
+    def _payload(self, scope):
+        return {
+            "timestamp": 1,
+            "status": "SUCCESS",
+            "type": "automated",
+            "scope": scope,
+        }
+
+    def test_accepts_pools_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        out = AdminBackupsService.insert_backup(self._payload("pools"))
+        assert out["status"] == "success"
+
+    def test_still_accepts_disks_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        out = AdminBackupsService.insert_backup(self._payload("disks"))
+        assert out["status"] == "success"
+
+    def test_rejects_unknown_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        with pytest.raises(Error):
+            AdminBackupsService.insert_backup(self._payload("bogus"))
+
+
+def _stub_latest_report(monkeypatch, record):
+    """Stub the DB read the config endpoint now goes through. ``record=None``
+    means no report stored yet (the env fall-back path)."""
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.list_recent",
+        classmethod(lambda cls, limit: ([record] if record is not None else [])),
+    )
+
+
+class TestGetBackupConfigPools:
+    """Env fall-back path (no report stored yet)."""
+
+    def test_pools_schedule_and_enabled_present(self, monkeypatch):
+        _stub_latest_report(monkeypatch, None)
+        monkeypatch.setenv("BACKUP_POOLS_WHEN", "everyday at 03:00")
+        monkeypatch.setenv("BACKUP_POOLS_ENABLED", "true")
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["schedule"]["pools"] == 3
+        assert cfg["enabled"]["pools"] is True
+
+    def test_pools_defaults_when_unset(self, monkeypatch):
+        _stub_latest_report(monkeypatch, None)
+        monkeypatch.delenv("BACKUP_POOLS_WHEN", raising=False)
+        monkeypatch.delenv("BACKUP_POOLS_ENABLED", raising=False)
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["schedule"]["pools"] is None
+        assert cfg["enabled"]["pools"] is False
+
+
+class TestGetBackupConfigFromReport:
+    """apiv4 gets no BACKUP_* env (backupninja may run on another host), so the
+    config endpoint must reflect the latest report's backup_config, not env."""
+
+    def _report(self):
+        return {
+            "backup_config": {
+                "schedule": {
+                    "db": {"hour": 1, "minute": 0},
+                    "disks": {"hour": 5, "minute": 30},
+                    "pools": {"hour": 3, "minute": 0},
+                },
+                "enabled": {"db": True, "disks": True, "pools": True, "redis": False},
+                "main_schedule": {"hour": 1},
+            }
+        }
+
+    def test_report_wins_over_env(self, monkeypatch):
+        for k in ("DB", "REDIS", "STATS", "CONFIG", "DISKS", "POOLS"):
+            monkeypatch.delenv(f"BACKUP_{k}_ENABLED", raising=False)
+            monkeypatch.delenv(f"BACKUP_{k}_WHEN", raising=False)
+        _stub_latest_report(monkeypatch, self._report())
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["enabled"]["db"] is True
+        assert cfg["enabled"]["pools"] is True
+        assert cfg["enabled"]["redis"] is False
+        assert cfg["schedule"]["disks"] == 5
+        assert cfg["schedule"]["pools"] == 3
+        assert cfg["main_schedule_hour"] == 1
+
+    def test_falls_back_to_env_when_no_report(self, monkeypatch):
+        _stub_latest_report(monkeypatch, None)
+        monkeypatch.setenv("BACKUP_DISKS_ENABLED", "true")
+        monkeypatch.setenv("BACKUP_DISKS_WHEN", "everyday at 02:00")
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["enabled"]["disks"] is True
+        assert cfg["schedule"]["disks"] == 2
+
+    def test_falls_back_when_report_has_no_backup_config(self, monkeypatch):
+        _stub_latest_report(monkeypatch, {"status": "SUCCESS"})
+        monkeypatch.delenv("BACKUP_POOLS_ENABLED", raising=False)
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["enabled"]["pools"] is False

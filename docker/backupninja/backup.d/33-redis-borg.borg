@@ -1,6 +1,8 @@
 when = $BACKUP_REDIS_WHEN
 
 [source]
+## the borg handler unsets BORG_CACHE_DIR for a job without cache_directory
+cache_directory = $BORG_CACHE_DIR
 include = /redisdump
 
 ## for more info see : borg prune -h

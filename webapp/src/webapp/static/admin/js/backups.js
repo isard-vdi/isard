@@ -324,7 +324,7 @@ $(document).ready(function () {
                 // Backup Types Status
                 if (data.backup_types_status) {
                     content += '<h5>Backup Types Status</h5>';
-                    var backupTypes = ['db', 'redis', 'stats', 'config', 'disks'];
+                    var backupTypes = ['db', 'redis', 'stats', 'config', 'disks', 'pools'];
                     for (var i = 0; i < backupTypes.length; i++) {
                         var type = backupTypes[i];
                         var status = data.backup_types_status[type] || 'not_included';
@@ -340,6 +340,10 @@ $(document).ready(function () {
                                 icon = '<i class="fa fa-times text-danger"></i>';
                                 statusText = 'Failed';
                                 break;
+                            case 'warning':
+                                icon = '<i class="fa fa-exclamation-triangle text-warning"></i>';
+                                statusText = 'Warning';
+                                break;
                             case 'not_included':
                             default:
                                 icon = '<i class="fa fa-minus text-muted"></i>';
@@ -352,6 +356,9 @@ $(document).ready(function () {
                         // Add disk types info for disks
                         if (type === 'disks' && status === 'success' && data.disk_types && data.disk_types.length > 0) {
                             content += ' (' + data.disk_types.join(', ') + ')';
+                        }
+                        if (type === 'pools' && (data.pool_dirs || data.pool_dirs === 0)) {
+                            content += ' (' + data.pool_dirs + ' director' + (data.pool_dirs === 1 ? 'y' : 'ies') + ')';
                         }
                         content += '</p>';
                     }
@@ -490,6 +497,14 @@ $(document).ready(function () {
                         if (data.backup_config.disks.groups_enabled) diskTypes.push('<i class="fa fa-check text-success"></i> Groups');
                         if (data.backup_config.disks.media_enabled) diskTypes.push('<i class="fa fa-check text-success"></i> Media');
                         content += diskTypes.join(' | ') + '</p>';
+                    }
+
+                    if (data.backup_config.pools && data.backup_config.enabled && data.backup_config.enabled.pools) {
+                        content += '<p><strong>Storage Pools Backup:</strong> ';
+                        content += '<i class="fa fa-check text-success"></i> Enabled';
+                        if (data.backup_config.pools.when) content += ' | Schedule: <code>' + data.backup_config.pools.when + '</code>';
+                        if (data.backup_config.pools.exclude) content += ' | Exclude: <code>' + data.backup_config.pools.exclude + '</code>';
+                        content += '</p>';
                     }
 
                     content += '</div>';

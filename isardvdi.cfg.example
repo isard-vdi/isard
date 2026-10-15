@@ -1,4 +1,4 @@
-# Isard main config v3.0.11
+# Isard main config v3.0.12
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -222,6 +222,31 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## chunker do not deduplicate, so on an existing repository every disk that
 ## changes is stored in full once more: check free space and retention first.
 #BACKUP_DISKS_CREATE_OPTIONS=""
+
+# Disks that live in category storage pools (/opt/isard/storage_pools/<pool>/...)
+# are NOT covered by BACKUP_DISKS_* above; this backs them up into a separate
+# /backup/pools repo. Disabled by default because enabling it on an existing
+# install can push terabytes to the backup target unannounced.
+# BACKUP_POOLS_EXCLUDE is a space-separated list of fnmatch patterns matched
+# against the whole path, so the default */volatile* drops any path that has a
+# "volatile" segment anywhere in it. BACKUP_POOLS_NICE prefixes the borg run.
+# The first full pass can take days. A second manual run is skipped with a
+# warning (the job's own flock -n); a scheduled night that overlaps a still-
+# running pass instead fails visibly on backupninja's per-action lock.
+# To avoid that, enable with an infrequent BACKUP_POOLS_WHEN (e.g. weekly), run
+# the first pass by hand and detached, and only then tighten the schedule:
+#   docker exec -d isard-backupninja run.sh execute-now pools
+#BACKUP_POOLS_ENABLED=false
+#BACKUP_POOLS_WHEN="everyday at 01"
+#BACKUP_POOLS_PRUNE="--keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space"
+#BACKUP_POOLS_EXCLUDE="*/volatile*"
+#BACKUP_POOLS_NICE="ionice -c3 nice -n19"
+# BACKUP_POOLS_CREATE_OPTIONS adds flags to `borg create`, empty by default.
+# The pools repo is created fresh, so (unlike the disks repo) it can adopt the
+# recommended "--sparse --chunker-params fixed,4194304" from the first pass at
+# no chunker-transition cost: borg only supports --sparse with the fixed
+# chunker, and chunks cut by a different chunker never deduplicate.
+#BACKUP_POOLS_CREATE_OPTIONS="--sparse --chunker-params fixed,4194304"
 
 ## Host directory for the gzipped JSONL dumps written by apiv4
 ## before the daily logs_desktops / logs_users retention cron

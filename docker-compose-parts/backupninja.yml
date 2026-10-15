@@ -26,12 +26,6 @@ services:
     volumes:
       - ${BACKUP_DIR-/opt/isard-local/backup}:/backup:rw
       - /opt/isard-local/logs/backupninja:/var/log/
-      # Persist borg's chunks/files indexes and security registry on the
-      # host so a container restart doesn't trigger a full cache rebuild.
-      # The rebuild scans every existing archive and on multi-TB repos
-      # can take 24h+, blocking the next nightly borg create.
-      - /opt/isard-local/backup/borg-cache:/root/.cache/borg
-      - /opt/isard-local/backup/borg-config:/root/.config/borg
       - /etc/localtime:/etc/localtime:ro
       # Stats
       - /opt/isard/stats:/opt/isard/stats
@@ -52,9 +46,14 @@ services:
       - /opt/isard/templates:/opt/isard/templates:ro
       - /opt/isard/groups:/opt/isard/groups:ro
       - /opt/isard/media:/opt/isard/media:ro
+      # rslave: per-pool filesystems mounted later must still be visible
+      - /opt/isard/storage_pools:/opt/isard/storage_pools:ro,rslave
     environment:
       # General backup settings
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
+      # on the backup target, so a container restart doesn't force a full borg cache rebuild
+      - BORG_CACHE_DIR=/backup/borg-cache
+      - BORG_CONFIG_DIR=/backup/borg-config
       - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
 
       # API settings for backup reporting
@@ -89,6 +88,7 @@ services:
       - BACKUP_REDIS_PRUNE=${BACKUP_REDIS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - REDIS_HOST=${REDIS_HOST:-isard-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
 
       # Stats
       - BACKUP_STATS_ENABLED=${BACKUP_STATS_ENABLED-false}
@@ -110,3 +110,11 @@ services:
       - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
       - BACKUP_DISKS_MEDIA_ENABLED=${BACKUP_DISKS_MEDIA_ENABLED-false}
       - BACKUP_DISKS_CREATE_OPTIONS=${BACKUP_DISKS_CREATE_OPTIONS-}
+
+      # Off by default: enabling it can push terabytes to the backup target
+      - BACKUP_POOLS_ENABLED=${BACKUP_POOLS_ENABLED-false}
+      - BACKUP_POOLS_WHEN=${BACKUP_POOLS_WHEN-everyday at 01:00}
+      - BACKUP_POOLS_PRUNE=${BACKUP_POOLS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
+      - BACKUP_POOLS_EXCLUDE=${BACKUP_POOLS_EXCLUDE-*/volatile*}
+      - BACKUP_POOLS_NICE=${BACKUP_POOLS_NICE-ionice -c3 nice -n19}
+      - BACKUP_POOLS_CREATE_OPTIONS=${BACKUP_POOLS_CREATE_OPTIONS-}

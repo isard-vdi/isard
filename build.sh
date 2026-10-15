@@ -482,6 +482,10 @@ create_docker_compose_file(){
 	then
 		BACKUP_DISKS_ENABLED="false"
 	fi
+	if [ -z "$BACKUP_POOLS_ENABLED" ]
+	then
+		BACKUP_POOLS_ENABLED="false"
+	fi
 	if [ -z "$FLAVOUR" ]
 	then
 		FLAVOUR="all-in-one"
@@ -577,11 +581,11 @@ create_docker_compose_file(){
 		fi
 	fi
 
-	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
+	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ] && [ "$BACKUP_POOLS_ENABLED" = "false" ]
 	then
 		if [ "$FLAVOUR" = "backupninja" ]
 		then
-			echo "ERROR: flavour backupninja needs at least BACKUP_DB_ENABLED or BACKUP_DISKS_ENABLED in cfg"
+			echo "ERROR: flavour backupninja needs at least BACKUP_DB_ENABLED, BACKUP_DISKS_ENABLED or BACKUP_POOLS_ENABLED in cfg"
 			exit 1
 		fi
 		parts="$(echo $parts | remove_part "backupninja")"

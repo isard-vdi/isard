@@ -50,12 +50,12 @@ integrity_when_for() {
     esac
 }
 
-# Return the scope name (db|redis|stats|config|disks|full) for a schedule
+# Return the scope name (db|redis|stats|config|disks|pools|full) for a schedule
 # string, based on which BACKUP_*_WHEN variables match it and are enabled.
 scope_for_schedule() {
     schedule="$1"
     matches=""
-    for kind in db redis stats config disks; do
+    for kind in db redis stats config disks pools; do
         upper=$(echo "$kind" | tr '[:lower:]' '[:upper:]')
         eval enabled="\$BACKUP_${upper}_ENABLED"
         eval when="\$BACKUP_${upper}_WHEN"
@@ -113,6 +113,8 @@ mkdir -p /backup/config
 borg init -e none /backup/config > /dev/null 2>&1 || true
 mkdir -p /backup/disks
 borg init -e none /backup/disks > /dev/null 2>&1 || true
+mkdir -p /backup/pools
+borg init -e none /backup/pools > /dev/null 2>&1 || true
 mkdir -p /backup/extract
 
 # Unmount if nfs as it will be mounted at backup cron time
@@ -216,6 +218,10 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
+    # Refuse an all-empty config archive (runs before 72-config-borg).
+    install -D -m700 "/usr/local/share/backup.d/71-config-source-check.sh" "$STAGING_DIR/71-config-source-check.sh"
+    sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "$STAGING_DIR/71-config-source-check.sh"
+
     INTEGRITY_WHEN_CONFIG="$(integrity_when_for "$BACKUP_CONFIG_WHEN")"
     if [ "$INTEGRITY_WHEN_CONFIG" != "disabled" ]; then
         for job in $static_jobs; do
@@ -282,6 +288,41 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
             sed -i "1a\\when = $INTEGRITY_WHEN_DISKS" "$STAGING_DIR/$job"
         done
     fi
+
+    if [ "$BACKUP_POOLS_ENABLED" != "true" ]; then
+        install -D -m700 "/usr/local/share/backup.d/81-pools-unbacked-warn.sh" "$STAGING_DIR/81-pools-unbacked-warn.sh"
+        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "$STAGING_DIR/81-pools-unbacked-warn.sh"
+    fi
+fi
+
+# Pools
+if [ "$BACKUP_POOLS_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "POOLS ENABLED: Enabled storage-pools backup $BACKUP_POOLS_WHEN with $BACKUP_POOLS_PRUNE prune policy"
+        echo "               Excluding: $BACKUP_POOLS_EXCLUDE"
+        if [ -n "$BACKUP_POOLS_CREATE_OPTIONS" ]; then
+            echo "               Extra borg create options: $BACKUP_POOLS_CREATE_OPTIONS"
+        fi
+        echo "               Logs can be found at $LOG_FILE folder"
+    fi
+
+    scheduled_jobs="86-pools-info.sh 87-pools-borg.sh 88-pools-compact.sh"
+
+    static_jobs="89-pools-borg-integrity.sh"
+
+    mkdir -p -m700 "$STAGING_DIR"
+    for job in $scheduled_jobs; do
+        install -D -m700 "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+        sed -i "1a\\when = $BACKUP_POOLS_WHEN" "$STAGING_DIR/$job"
+    done
+
+    INTEGRITY_WHEN_POOLS="$(integrity_when_for "$BACKUP_POOLS_WHEN")"
+    if [ "$INTEGRITY_WHEN_POOLS" != "disabled" ]; then
+        for job in $static_jobs; do
+            install -D -m700 "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_POOLS" "$STAGING_DIR/$job"
+        done
+    fi
 fi
 
 # Add session start and end markers for automated backups based on 'when' schedules
@@ -291,6 +332,7 @@ ENABLED_WHEN_SCHEDULES=""
 [ "$BACKUP_STATS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_STATS_WHEN"
 [ "$BACKUP_CONFIG_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_CONFIG_WHEN"
 [ "$BACKUP_DISKS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_DISKS_WHEN"
+[ "$BACKUP_POOLS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_POOLS_WHEN"
 
 # Get unique when schedules (preserve whole phrases using | as delimiter)
 UNIQUE_SCHEDULES=$(echo "$ENABLED_WHEN_SCHEDULES" | tr '|' '\n' | grep -v "^$" | sort -u | grep -v "disabled" || true)
@@ -411,12 +453,18 @@ backup_args() {
             ;;
 
         "disks")
-            export BACKUP_SCRIPTS_PREFIX="8*"
+            # 8[0-5]* excludes the pools jobs (86-89), which share the 8x range.
+            export BACKUP_SCRIPTS_PREFIX="8[0-5]*"
             export BACKUP_PATH="/backup/disks"
             ;;
 
+        "pools")
+            export BACKUP_SCRIPTS_PREFIX="8[6-9]*"
+            export BACKUP_PATH="/backup/pools"
+            ;;
+
         *)
-            echo "Invalid backup option, must be 'db', 'redis', 'stats', 'config' or 'disks'"
+            echo "Invalid backup option, must be 'db', 'redis', 'stats', 'config', 'disks' or 'pools'"
             exit 1
             ;;
     esac
@@ -473,7 +521,7 @@ case "$1" in
         echo "$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_START: manual full backup initiated by user" >> "$LOG_FILE"
 
         # Execute all backup types, continuing even if individual ones fail
-        for backup_type in "db" "redis" "stats" "config" "disks"; do
+        for backup_type in "db" "redis" "stats" "config" "disks" "pools"; do
             backup_args "$backup_type" || true
             execute_now "$BACKUP_SCRIPTS_PREFIX" || true
         done
