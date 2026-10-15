@@ -1,6 +1,8 @@
 #!/bin/sh
 
 export PATH="/workspace/.venv/bin:$PATH"
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
 
 # backupninja only counts a status that starts at column 0 (^Fatal:/^Warning:)
 LOG_FILE="${LOG_FILE:-/var/log/backupninja.log}"
