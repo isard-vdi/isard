@@ -5,7 +5,7 @@
 # The integrity verification is the authoritative test of backup recoverability and validity
 #
 # Usage: Copy this file and set the following variables:
-# - BACKUP_TYPE: "db", "redis", "stats", "config", "disks"
+# - BACKUP_TYPE: "db", "redis", "stats", "config", "disks", "pools"
 # - BACKUP_WHEN_VAR: Environment variable name for schedule (e.g., "BACKUP_DB_WHEN")
 # - MIN_FILES: Minimum expected file count (0 for optional content)
 # - MIN_SIZE: Minimum expected size in bytes

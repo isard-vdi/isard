@@ -98,7 +98,7 @@ class BackupAction:
     compact_results: Optional[Dict[str, Any]] = None
 
     def classify(self) -> str:
-        """Return 'db' | 'redis' | 'stats' | 'config' | 'disks' | 'other'."""
+        """Return 'db' | 'redis' | 'stats' | 'config' | 'disks' | 'pools' | 'other'."""
         basename = self.name.rsplit("/", 1)[-1]
         match = re.match(r"(\d+)", basename)
         if not match:
