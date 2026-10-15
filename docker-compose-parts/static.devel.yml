@@ -35,7 +35,6 @@ services:
       isard-network:
     working_dir: /usr/local/src/isard-old-frontend/
     environment:
-      CYPRESS_CACHE_FOLDER: /usr/local/src/isard-old-frontend/node_modules/.cache/cypress
       WDS_PUBLIC: "https://${DOMAIN:-localhost}:${HTTPS_PORT:-443}"
     command: sh -c "bun install && bun run serve"
     volumes:
