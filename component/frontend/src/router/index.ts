@@ -561,7 +561,9 @@ router.beforeEach(async (to, from, next) => {
     authStore.claims?.exp &&
     adjustedNow > authStore.claims.exp * 1000
   ) {
-    authStore.logout()
+    if (await authStore.logout()) {
+      return
+    }
     return next({ name: 'login' })
   }
 
@@ -606,7 +608,9 @@ router.beforeEach(async (to, from, next) => {
     } catch (e) {
       console.warn('The session was expired and could not be renewed:', e)
       console.error(e)
-      authStore.logout()
+      if (await authStore.logout()) {
+        return
+      }
       return next(await sessionStore.loginRoute())
     }
   }

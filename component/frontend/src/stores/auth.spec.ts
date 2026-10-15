@@ -1,5 +1,7 @@
 // @vitest-environment-options {"url": "https://localhost/"}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp } from 'vue'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 vi.mock('@/gen/oas/authentication', () => ({ renew: vi.fn() }))
 
@@ -28,6 +30,12 @@ const clearCookies = () => {
   }
 }
 
+// The store builds its logout mutation at setup, so it needs what main.ts gives it:
+// pinia and vue-query installed on the same app.
+const activateAppPinia = () => {
+  createApp({}).use(freshPinia()).use(VueQueryPlugin, { queryClient: new QueryClient() })
+}
+
 const HIDDEN_AT = 1_000_000
 
 const leavePageWith = (cookies: { session?: string; authorization?: string }) => {
@@ -50,7 +58,7 @@ beforeEach(() => {
   clearCookies()
   sessionStorage.clear()
   history.replaceState(null, '', '/reset-password')
-  freshPinia()
+  activateAppPinia()
 })
 
 afterEach(() => {
@@ -134,7 +142,7 @@ describe('auth store: restoreStashedTokenOnBoot', () => {
     useAuthStore().restoreStashedTokenOnBoot()
     expect(getBearer(scopedCookies())).toBeUndefined()
 
-    freshPinia()
+    activateAppPinia()
     loadedBy('reload')
     useAuthStore().restoreStashedTokenOnBoot()
     expect(getBearer(scopedCookies())).toBeUndefined()

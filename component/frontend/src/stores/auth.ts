@@ -16,6 +16,11 @@ import {
 import { renew } from '@/gen/oas/authentication'
 import { setFaroUser } from '@/lib/faro-hook'
 
+import { useMutation } from '@tanstack/vue-query'
+import { logoutMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+
+const WEBAPP_LOGOUT_TIMEOUT_MS = 3000
+
 export const useAuthStore = defineStore('auth', () => {
   const claims = ref<TypeClaims | null>(null)
   const token = ref<string | null>(null)
@@ -71,7 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
         previousCookieValue = undefined
 
         // Before resetting auth state, call authentication logout endpoint
-        logoutAuthentication(tokenForLogout)
+        void logoutAuthentication(tokenForLogout).then(followLogoutRedirect)
 
         // Clear auth state without clearing cookie (already gone)
         $reset()
@@ -108,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.debug('🔐 Auth initialized successfully')
     } catch (error) {
       console.error('❌ Auth initialization failed:', error)
-      logout()
+      void logout()
     }
   }
 
@@ -161,61 +166,111 @@ export const useAuthStore = defineStore('auth', () => {
     return renewInFlight
   }
 
-  const logout = (clearCookie = true) => {
+  const isLoggingOut = ref(false)
+
+  const logout = async (clearCookie = true): Promise<boolean> => {
+    if (isLoggingOut.value) {
+      console.debug('⚠️ Logout already in progress')
+      return false
+    }
+
     if (!isAuthenticated.value) {
       console.debug('⚠️ Logout called but user is not authenticated')
-      return
+      return false
     }
 
-    const currentToken = token.value
-    const currentUser = user.value
-    const currentTokenType = claims.value?.type
-    const currentExp = claims.value?.exp
+    isLoggingOut.value = true
+    let redirecting = false
 
-    // Clear auth state and cookie immediately
-    if (clearCookie) {
-      removeToken(cookies)
-    }
-    token.value = null
-    claims.value = null
-    previousCookieValue = undefined
+    try {
+      const currentToken = token.value
+      const currentUser = user.value
+      const currentTokenType = claims.value?.type
+      const currentExp = claims.value?.exp
 
-    // Intermediate tokens (disclaimer-acknowledgement-required, register,
-    // email-verification-required, etc.) have no backend session to revoke
-    // and /authentication/logout only accepts login tokens.
-    if (currentToken && currentTokenType === TokenType.Login) {
-      if (['manager', 'admin'].includes(currentUser?.role_id || '')) {
-        logoutWebapp(currentToken)
+      // Clear auth state and cookie immediately
+      if (clearCookie) {
+        removeToken(cookies)
       }
-      if (currentExp && currentExp * 1000 > Date.now()) {
-        logoutAuthentication(currentToken)
+      token.value = null
+      claims.value = null
+      previousCookieValue = undefined
+
+      // Intermediate tokens (disclaimer-acknowledgement-required, register,
+      // email-verification-required, etc.) have no backend session to revoke
+      // and /authentication/logout only accepts login tokens.
+      if (currentToken && currentTokenType === TokenType.Login) {
+        const webappLogout = ['manager', 'admin'].includes(currentUser?.role_id || '')
+          ? logoutWebapp(currentToken)
+          : undefined
+        if (currentExp && currentExp * 1000 > Date.now()) {
+          const redirect = await logoutAuthentication(currentToken)
+          await webappLogout
+          redirecting = followLogoutRedirect(redirect)
+        }
+      }
+
+      return redirecting
+    } finally {
+      if (!redirecting) {
+        isLoggingOut.value = false
       }
     }
   }
 
   // TODO: This should be done by authentication
-  const logoutWebapp = (authToken: string) => {
+  const logoutWebapp = async (authToken: string): Promise<void> => {
     console.debug('🚪 Webapp logout initiated')
-    fetch('/isard-admin/logout/remote', {
+    await fetch('/isard-admin/logout/remote', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(WEBAPP_LOGOUT_TIMEOUT_MS)
     })
       .then(() => console.debug('✅ Webapp logout successful'))
       .catch((error) => console.error('❌ Webapp logout failed:', error))
   }
 
-  const logoutAuthentication = (authToken?: string) => {
+  const { mutateAsync: logoutAuth } = useMutation({
+    ...logoutMutation(),
+    onSuccess: () => console.debug('✅ Auth service logout successful'),
+    onError: (error) => console.error('❌ Auth service logout failed:', error)
+  })
+
+  const logoutAuthentication = async (authToken?: string): Promise<string | undefined> => {
+    const bearer = authToken || token.value
+    if (!bearer) {
+      return undefined
+    }
+
     console.debug('🚪 Auth service logout initiated')
-    fetch('/authentication/logout', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${authToken || token.value}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
-    })
-      .then(() => console.debug('✅ Auth service logout successful'))
-      .catch((error) => console.error('❌ Auth service logout failed:', error))
+    try {
+      const data = await logoutAuth({
+        body: {},
+        headers: { Authorization: `Bearer ${bearer}` }
+      })
+      return data?.redirect
+    } catch {
+      return undefined
+    }
+  }
+
+  const followLogoutRedirect = (redirect?: string): boolean => {
+    if (!redirect) {
+      return false
+    }
+
+    try {
+      const url = new URL(redirect, window.location.origin)
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return false
+      }
+
+      console.debug('↪️ Following the authentication logout redirect:', url.href)
+      window.location.assign(url.href)
+      return true
+    } catch {
+      return false
+    }
   }
 
   const $reset = () => {
