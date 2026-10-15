@@ -253,12 +253,47 @@ virsh create /src/checks/domain.xml
 virsh destroy domain
 report_step 7 "Domain test" None
 
+# A malformed PORT/PROTO spec is skipped so it can never widen what guests reach
+iptables_port_spec() {
+   echo "$1" | grep -Eq '^[0-9]{1,5}/(tcp|udp)$' && [ "${1%/*}" -ge 1 ] && [ "${1%/*}" -le 65535 ]
+}
+
 echo "---> Applying custom BLACKLIST_IPTABLES rules"
 BLACKLIST_IPTABLES=$(echo $BLACKLIST_IPTABLES | tr "," " ")
+_rules=""
 for BLACKLIST_IPTABLES in $BLACKLIST_IPTABLES
 do
    echo "$BLACKLIST_IPTABLES"
-   iptables -I FORWARD -d "$BLACKLIST_IPTABLES" -o eth0 -j REJECT --reject-with icmp-port-unreachable
+   _addr=${BLACKLIST_IPTABLES%%:*}
+   if [ -z "$_addr" ]; then
+      echo "     WARNING: ignoring BLACKLIST_IPTABLES entry '$BLACKLIST_IPTABLES' without address"
+      continue
+   fi
+   _len=${_addr#*/}
+   [ "$_len" = "$_addr" ] && _len=32
+   _rules="$_rules$_len 0 $_addr -
+"
+   [ "$_addr" = "$BLACKLIST_IPTABLES" ] && continue
+   # CIDR:!PORT/PROTO[:!PORT/PROTO...] keeps those ports open inside the blocked network
+   for _exc in $(echo "${BLACKLIST_IPTABLES#*:}" | tr ":" " ")
+   do
+      _spec=${_exc#!}
+      if [ "$_spec" = "$_exc" ] || ! iptables_port_spec "$_spec"; then
+         echo "     WARNING: ignoring invalid exception '$_exc' in BLACKLIST_IPTABLES entry '$BLACKLIST_IPTABLES'"
+         continue
+      fi
+      _rules="$_rules$_len 1 $_addr $_spec
+"
+   done
+done
+# Inserted from the widest network to the narrowest, so where entries overlap the most specific one wins
+printf '%s' "$_rules" | sort -n -k1,1 -k2,2 | while read -r _len _kind _addr _spec
+do
+   if [ "$_kind" = 0 ]; then
+      iptables -I FORWARD -d "$_addr" -o eth0 -j REJECT --reject-with icmp-port-unreachable
+   else
+      iptables -I FORWARD -d "$_addr" -o eth0 -p "${_spec#*/}" --dport "${_spec%/*}" -j ACCEPT
+   fi
 done
 
 echo "---> Securing network connections from guests to dockers..."
@@ -274,8 +309,28 @@ WHITELIST_IPTABLES=$(echo $WHITELIST_IPTABLES | tr "," " ")
 for WHITELIST_IPTABLES in $WHITELIST_IPTABLES
 do
    echo "$WHITELIST_IPTABLES"
-   iptables -I FORWARD -s "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
-   iptables -I FORWARD -d "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
+   _addr=${WHITELIST_IPTABLES%%:*}
+   if [ -z "$_addr" ]; then
+      echo "     WARNING: ignoring WHITELIST_IPTABLES entry '$WHITELIST_IPTABLES' without address"
+      continue
+   fi
+   if [ "$_addr" = "$WHITELIST_IPTABLES" ]; then
+      iptables -I FORWARD -s "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
+      iptables -I FORWARD -d "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
+      continue
+   fi
+   # ADDR:PORT/PROTO[:PORT/PROTO...] only opens those ports; replies ride conntrack
+   _ok=0
+   for _spec in $(echo "${WHITELIST_IPTABLES#*:}" | tr ":" " ")
+   do
+      if ! iptables_port_spec "$_spec"; then
+         echo "     WARNING: ignoring invalid port '$_spec' in WHITELIST_IPTABLES entry '$WHITELIST_IPTABLES'"
+         continue
+      fi
+      iptables -I FORWARD -d "$_addr" -o eth0 -p "${_spec#*/}" --dport "${_spec%/*}" -j ACCEPT
+      _ok=1
+   done
+   [ "$_ok" = 1 ] && iptables -I FORWARD -s "$_addr" -o eth0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 done
 report_step 8 "Firewall rules" None
 
