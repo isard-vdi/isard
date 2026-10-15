@@ -2928,6 +2928,7 @@
     },
     "new-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "El servei no està disponible temporalment. Torna-ho a provar d'aquí a uns minuts.",
         "generic": {
           "title": "Error en crear l'escriptori",
           "description": "Hi ha hagut un error en crear l'escriptori. Si us plau, torna-ho a provar."
@@ -3106,6 +3107,7 @@
     },
     "start-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "El servei no està disponible temporalment. Torna-ho a provar d'aquí a uns minuts.",
         "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar.",
         "desktop_storage_not_ready": "El disc de l'escriptori encara no està a punt. Espera uns minuts i torna-ho a provar.",
         "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador."

@@ -26,6 +26,7 @@ from engine.services.db import (
     close_rethink_connection,
     delete_table_item,
     get_domains_flag_autostart_to_starting,
+    get_shared_storage_stall,
     new_rethink_connection,
     update_domain_status,
     update_domains_in_deleted_hyper,
@@ -50,6 +51,15 @@ from engine.services.threads.threads import launch_thread_worker
 #
 # TEST HYPS AND START THREADS FOR HYPERVISORS
 #                self.test_hyps_and_start_threads()
+
+
+def shared_storage_stalled():
+    try:
+        state = get_shared_storage_stall()
+    except Exception as e:
+        logs.main.error(f"Could not read the shared storage condition: {e}")
+        return False
+    return isinstance(state, dict) and state.get("active") is True
 
 
 def test_orchestrator(
@@ -212,23 +222,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
                     pass
 
                 if action["type"] == "hyp_degraded":
-                    # Hypervisor is degraded (slow/overloaded) - migrate queued actions
-                    hyp_id = action["hyp_id"]
-                    reason = action.get("reason", "unknown")
-                    logs.main.warning(
-                        f"Hypervisor {hyp_id} marked as degraded: {reason}. "
-                        f"Migrating queued actions to other hypervisors."
-                    )
-                    pool_obj = self.manager.pools.get("default")
-                    pool_balancer = getattr(pool_obj, "balancer", None)
-                    move_actions_to_others_hypers(
-                        hyp_id,
-                        self.d_queues,
-                        remove_stopping=False,  # Keep stop actions in queue
-                        remove_if_no_more_hyps=False,  # Keep if no alternatives
-                        balancer=pool_balancer,
-                        keep_gpu_actions=True,  # Keep GPU actions for when hyp recovers
-                    )
+                    self.handle_hyp_degraded(action)
 
                 if action["type"] == "hyp_only_forced":
                     hyp_id = action["hyp_id"]
@@ -268,6 +262,31 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 # not terminate the whole loop, otherwise the hypervisor stays Offline
                 # forever and all desktop/deployment creation returns HTTP 428.
                 continue
+
+    def handle_hyp_degraded(self, action):
+        """Move a degraded hypervisor's queue, except during a shared storage stall."""
+        hyp_id = action["hyp_id"]
+        if shared_storage_stalled():
+            logs.main.warning(
+                f"Hypervisor {hyp_id} degraded during a shared storage stall; "
+                "its queued actions stay where they are."
+            )
+            return
+        reason = action.get("reason", "unknown")
+        logs.main.warning(
+            f"Hypervisor {hyp_id} marked as degraded: {reason}. "
+            f"Migrating queued actions to other hypervisors."
+        )
+        pool_obj = self.manager.pools.get("default")
+        pool_balancer = getattr(pool_obj, "balancer", None)
+        move_actions_to_others_hypers(
+            hyp_id,
+            self.d_queues,
+            remove_stopping=False,  # Keep stop actions in queue
+            remove_if_no_more_hyps=False,  # Keep if no alternatives
+            balancer=pool_balancer,
+            keep_gpu_actions=True,  # Keep GPU actions for when hyp recovers
+        )
 
     def set_hyp_thread_dead(self, hyp_id):
         pool_obj = self.manager.pools.get("default")

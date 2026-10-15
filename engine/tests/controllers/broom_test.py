@@ -70,6 +70,8 @@ def _one_pass(domains, active_by_hyp=None):
     ), patch.object(
         broom, "_check_hypervisors_concurrent", return_value=(active_by_hyp or {})
     ), patch.object(
+        broom, "_assess_storage", return_value={}
+    ), patch.object(
         mod, "update_domain_status", recorder.update_domain_status
     ), patch.object(
         mod, "update_domain_hyp_started", recorder.update_domain_hyp_started

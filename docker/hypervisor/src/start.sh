@@ -195,6 +195,9 @@ done
 echo "Libvirt started!"
 report_step 4 "Libvirt startup" None
 
+echo "---> Starting health reporter..."
+isardvdi-hypervisor-health >/dev/null 2>&1 &
+
 #echo "---> Setting vlans..."
 #sh -c "/src/vlans/vlans-discover.sh"
 

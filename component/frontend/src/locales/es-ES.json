@@ -2928,6 +2928,7 @@
     },
     "new-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
         "generic": {
           "title": "Error al crear el escritorio",
           "description": "Hubo un error al crear tu escritorio, por favor, inténtalo de nuevo."
@@ -3079,6 +3080,7 @@
     },
     "start-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
         "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo.",
         "desktop_storage_not_ready": "El disco del escritorio todavía no está listo. Espera unos minutos y vuelve a intentarlo.",
         "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador."

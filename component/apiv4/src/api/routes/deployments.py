@@ -35,6 +35,7 @@ from api.dependencies.domains import (
     tag_desktop_ids_belong_to_deployment,
 )
 from api.dependencies.quotas import can_create_deployment
+from api.dependencies.shared_storage_stall import refuse_during_shared_storage_stall
 from api.dependencies.storage_pools import check_create_storage_pool_availability
 from api.schemas.allowed import AllowedResponse
 from api.schemas.bastion import BastionActiveResponse
@@ -1011,8 +1012,12 @@ async def bulk_delete_deployments(
         204: {"description": "Desktops started successfully"},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
     },
-    dependencies=[Depends(owns_deployment_id())],
+    dependencies=[
+        Depends(owns_deployment_id()),
+        Depends(refuse_during_shared_storage_stall),
+    ],
 )
 async def start_all_desktops_in_deployment(
     request: Request,

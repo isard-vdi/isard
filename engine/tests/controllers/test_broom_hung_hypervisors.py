@@ -22,7 +22,6 @@ HEALTHY = ["healthy-1", "healthy-2"]
 def storage_probe(monkeypatch):
     probe = MagicMock(return_value={"out": b"", "err": b""})
     monkeypatch.setattr(broom, "exec_remote_cmd", probe, raising=False)
-    monkeypatch.setattr(broom, "_storage_hung", {}, raising=False)
     return probe
 
 
@@ -177,36 +176,12 @@ def test_unreadable_disk_usage_is_not_stored(monkeypatch, disk_usage, stored):
     assert [c.args[2]["mountpoints"] for c in written.call_args_list] == stored
 
 
-def test_a_hung_storage_mount_fails_the_check(monkeypatch, storage_probe):
-    h = _connected(monkeypatch)
+def test_the_libvirt_check_no_longer_probes_storage(monkeypatch, storage_probe):
+    """The probe runs apart from libvirt now; the check only talks to libvirt."""
+    _connected(monkeypatch)
     storage_probe.return_value = {"out": b"/isard/groups\n", "err": b""}
 
     result = broom._check_single_hypervisor("hyp-1", 1, set())
 
-    assert result["success"] is False
-    assert "/isard/groups" in result["error"]
-    h.get_domains.assert_not_called()
-    h.get_storage_used.assert_not_called()
-
-
-def test_the_verdict_holds_between_probes(monkeypatch, storage_probe):
-    _connected(monkeypatch)
-    storage_probe.return_value = {"out": b"/isard/groups\n", "err": b""}
-    assert broom._check_single_hypervisor("hyp-1", 1, set())["success"] is False
-
-    storage_probe.return_value = {"out": b"", "err": b""}
-    assert broom._check_single_hypervisor("hyp-1", 2, set())["success"] is False
-    assert storage_probe.call_count == 1
-
-    assert broom._check_single_hypervisor("hyp-1", 7, set())["success"] is True
-    assert storage_probe.call_count == 2
-
-
-def test_a_probe_that_cannot_run_fails_the_check(monkeypatch, storage_probe):
-    _connected(monkeypatch)
-    storage_probe.side_effect = TimeoutError("ssh timed out")
-
-    result = broom._check_single_hypervisor("hyp-1", 1, set())
-
-    assert result["success"] is False
-    assert "storage not responding" in result["error"]
+    assert result["success"] is True
+    storage_probe.assert_not_called()

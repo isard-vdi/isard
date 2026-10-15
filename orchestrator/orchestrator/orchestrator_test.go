@@ -38,6 +38,7 @@ func TestStart(t *testing.T) {
 		PrepareAPI        func(context.CancelFunc, *apiv4.MockInvoker)
 		CfgRata           cfg.DirectorRata
 		CfgDisabled       bool
+		StorageStalled    bool
 	}{
 		"should remove an hypervisor from the dead row if it's available, instead of scaling up": {
 			PrepareOperations: func(s *grpcmock.Server) {
@@ -661,6 +662,18 @@ func TestStart(t *testing.T) {
 				HyperMaxRAM:        102400,
 			},
 		},
+		"should not scale hypervisors while the shared storage is stalled": {
+			PrepareOperations: func(s *grpcmock.Server) {},
+			PrepareAPI: func(cancel context.CancelFunc, m *apiv4.MockInvoker) {
+				m.On("AdminOrchestratorHypervisorsList", mock.AnythingOfType("*context.cancelCtx")).Return(
+					func(ctx context.Context) (apiv4.AdminOrchestratorHypervisorsListRes, error) {
+						res := apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON{}
+						return &res, nil
+					},
+				)
+			},
+			StorageStalled: true,
+		},
 		"should not do anything if the orchestrator is disabled": {
 			PrepareOperations: func(s *grpcmock.Server) {},
 			PrepareAPI:        func(cancel context.CancelFunc, m *apiv4.MockInvoker) {},
@@ -699,6 +712,9 @@ func TestStart(t *testing.T) {
 
 			apiCli := apiv4.NewMockInvoker(t)
 			tc.PrepareAPI(cancel, apiCli)
+			apiCli.On("AdminSharedStorageStall", mock.Anything).Return(
+				&apiv4.SharedStorageStallResponse{Active: apiv4.NewOptBool(tc.StorageStalled)}, nil,
+			).Maybe()
 
 			rata := director.NewRata(
 				tc.CfgRata,
@@ -731,6 +747,19 @@ func TestStart(t *testing.T) {
 			})
 
 			go o.Start(ctx)
+
+			if tc.StorageStalled {
+				time.Sleep(2*pollingInterval + 100*time.Millisecond)
+				cancel()
+
+				apiCli.AssertCalled(t, "AdminSharedStorageStall", mock.Anything)
+				// no ListHypervisors expectation: asking the operations
+				// service anything would be logged as an error
+				assert.NoError(s.ExpectationsWereMet())
+				assert.Empty(logBuf)
+
+				return
+			}
 
 			if tc.CfgDisabled {
 				time.Sleep(2*pollingInterval + 100*time.Millisecond)

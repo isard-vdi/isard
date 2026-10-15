@@ -128,7 +128,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			scaling := o.scaling
 			o.scaleMux.Unlock()
 
-			if !scaling {
+			if !scaling && !o.sharedStorageStalled(ctx) {
 				res, err := o.apiCli.AdminOrchestratorHypervisorsList(ctx)
 				if err != nil {
 					o.log.Error().Err(err).Msg("get hypervisors")

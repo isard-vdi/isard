@@ -25,6 +25,7 @@ from typing import Optional, Union
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.shared_storage_stall import SharedStorageStall
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.lib.storage.physical_usage import read_usage
 from isardvdi_common.schemas.hypervisor import HypervisorStatus
@@ -180,6 +181,17 @@ class AdminHypervisorsService:
     def update_hyper_boot_progress(hyper_id: str, boot_progress: dict) -> None:
         """Refresh hypervisor boot_progress payload (called from monitoring agents)."""
         HypervisorsProcessed.update_hyper_boot_progress(hyper_id, boot_progress)
+
+    @staticmethod
+    def update_hyper_health(hyper_id: str, health: dict) -> None:
+        """Store a hypervisor's health report, stamped with the server's time."""
+        HypervisorsProcessed.update_hyper_health(hyper_id, health)
+
+    @staticmethod
+    def get_shared_storage_stall() -> dict:
+        """The shared-storage condition, inactive when none was ever declared."""
+        state = SharedStorageStall.current()
+        return state if isinstance(state, dict) else {"active": False}
 
     @staticmethod
     def register_vlans(vlans: list[str]) -> None:

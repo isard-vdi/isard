@@ -294,6 +294,7 @@ class AdminHypervisor(BaseModel):
     physical_gpus: list[str] = []
     orchestrator_managed: Optional[bool] = None
     boot_progress: Optional[dict] = None
+    health: Optional[dict] = None
     degraded: Optional[dict] = None
     libvirt_warning: Optional[dict] = None
     icon: Optional[str] = None
@@ -331,6 +332,23 @@ class AdminBootProgressRequest(BaseModel):
     """
 
     boot_progress: Dict[str, Any]
+
+
+class AdminHypervisorHealthRequest(BaseModel):
+    """A hypervisor's self-measured health: mount latency, hung mounts, NFS, D-state qemu, libvirt, load."""
+
+    health: Dict[str, Any]
+
+
+class SharedStorageStallResponse(BaseModel):
+    """The install-level shared-storage condition the engine declares."""
+
+    active: bool = False
+    since: Optional[float] = None
+    cleared_at: Optional[float] = None
+    hypervisors: List[str] = []
+    mounts: List[str] = []
+    online: Optional[int] = None
 
 
 class AdminGpuAppliedRequest(BaseModel):

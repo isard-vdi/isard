@@ -2930,6 +2930,7 @@
     },
     "new-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "The service is temporarily unavailable. Please try again in a few minutes.",
         "generic": {
           "title": "Error creating desktop",
           "description": "There was an error while creating your desktop, please try again."
@@ -3066,6 +3067,7 @@
     },
     "start-desktop": {
       "errors": {
+        "service_temporarily_unavailable": "The service is temporarily unavailable. Please try again in a few minutes.",
         "generic": "The desktop could not be started. Please try again.",
         "desktop_storage_not_ready": "The desktop's disk is not ready yet. Wait a few minutes and try again.",
         "storage_not_found": "The desktop's disk could not be found. Contact your administrator."

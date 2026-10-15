@@ -315,6 +315,16 @@ def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
                 },
             }
             logs.workers.warning(f"[{hyp_id}] Hypervisor marked as DEGRADED: {reason}")
+            # a new reason for the same degradation keeps when it started
+            fresh = update_data
+            update_data = lambda row: r.expr(fresh).merge(
+                r.branch(
+                    row["degraded"]["is_degraded"].default(False).eq(True)
+                    & row["degraded"]["since"].default(None).ne(None),
+                    {"degraded": {"since": row["degraded"]["since"]}},
+                    {},
+                )
+            )
         else:
             # Recover - restore cap_status from capabilities
             hyp = r.table("hypervisors").get(hyp_id).pluck("capabilities").run(conn)
@@ -345,6 +355,16 @@ def get_degraded_hyp_ids():
             .get_field("id")
             .run(conn)
         )
+
+
+def get_hyps_health(hyp_ids):
+    if not hyp_ids:
+        return {}
+    with rethink_conn() as conn:
+        rows = list(
+            r.table("hypervisors").get_all(*hyp_ids).pluck("id", "health").run(conn)
+        )
+    return {row["id"]: row.get("health") for row in rows}
 
 
 def update_hyp_libvirt_warning(hyp_id, slow_count=None, avg_ms=None, clear=False):
@@ -689,6 +709,19 @@ def get_hypers_online(
     )
 
 
+def filter_degraded_hypers(hypers_online):
+    """Drop degraded hypervisors; with none left there is nowhere to start."""
+    healthy = [
+        h for h in hypers_online if not (h.get("degraded") or {}).get("is_degraded")
+    ]
+    if len(healthy) != len(hypers_online):
+        logs.workers.warning(
+            "Degraded hypervisors excluded from placement: %s"
+            % sorted(h["id"] for h in hypers_online if h not in healthy)
+        )
+    return healthy
+
+
 def filter_available_hypers(
     hypers_online,
     forced_hyp=None,
@@ -696,6 +729,8 @@ def filter_available_hypers(
     exclude_gpu=False,
     exclude_outofmem=True,
 ):
+    hypers_online = filter_degraded_hypers(hypers_online)
+
     # exclude hypers with low memory (HYPER_FREE_MEM)
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
@@ -1009,6 +1044,7 @@ def get_hypers_gpu_online(
             "hugepages_info",
             "pci_devices",
             "numa_topology",
+            "degraded",
         )
         .run(r_conn)
     )
@@ -1025,6 +1061,8 @@ def get_hypers_gpu_online(
             in hyp.get("enabled_storage_pools", hyp.get("storage_pools", [])),
         )
     ]
+
+    hypers_online = filter_degraded_hypers(hypers_online)
 
     # exclude hypers with low memory (HYPER_FREE_MEM)
     if exclude_outofmem:
