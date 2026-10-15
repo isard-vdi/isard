@@ -348,3 +348,61 @@ class TestNormalizeCheck:
     def test_arbitrary_object_stringified(self):
         out = _normalize_check(42)
         assert out == {"name": "42", "status": "success"}
+
+
+# insert_backup scope enum + get_backup_config pools kind
+
+
+def _stub_insert_db(monkeypatch):
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.insert",
+        classmethod(lambda cls, data: {"inserted": 1, "generated_keys": ["bkp1"]}),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.count",
+        classmethod(lambda cls: 1),
+    )
+
+
+class TestInsertBackupScope:
+    """A category storage-pool session reports scope='pools'; the ingestion
+    endpoint must accept it while still rejecting genuinely unknown scopes."""
+
+    def _payload(self, scope):
+        return {
+            "timestamp": 1,
+            "status": "SUCCESS",
+            "type": "automated",
+            "scope": scope,
+        }
+
+    def test_accepts_pools_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        out = AdminBackupsService.insert_backup(self._payload("pools"))
+        assert out["status"] == "success"
+
+    def test_still_accepts_disks_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        out = AdminBackupsService.insert_backup(self._payload("disks"))
+        assert out["status"] == "success"
+
+    def test_rejects_unknown_scope(self, monkeypatch):
+        _stub_insert_db(monkeypatch)
+        with pytest.raises(Error):
+            AdminBackupsService.insert_backup(self._payload("bogus"))
+
+
+class TestGetBackupConfigPools:
+    def test_pools_schedule_and_enabled_present(self, monkeypatch):
+        monkeypatch.setenv("BACKUP_POOLS_WHEN", "everyday at 03:00")
+        monkeypatch.setenv("BACKUP_POOLS_ENABLED", "true")
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["schedule"]["pools"] == 3
+        assert cfg["enabled"]["pools"] is True
+
+    def test_pools_defaults_when_unset(self, monkeypatch):
+        monkeypatch.delenv("BACKUP_POOLS_WHEN", raising=False)
+        monkeypatch.delenv("BACKUP_POOLS_ENABLED", raising=False)
+        cfg = AdminBackupsService.get_backup_config()
+        assert cfg["schedule"]["pools"] is None
+        assert cfg["enabled"]["pools"] is False

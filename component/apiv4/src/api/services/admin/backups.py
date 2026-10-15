@@ -107,7 +107,7 @@ class AdminBackupsService:
         if data["type"] not in ["automated", "manual"]:
             raise Error("bad_request", "Backup type must be 'automated' or 'manual'")
 
-        valid_scopes = ["full", "db", "redis", "stats", "config", "disks"]
+        valid_scopes = ["full", "db", "redis", "stats", "config", "disks", "pools"]
         if data["scope"] not in valid_scopes:
             raise Error(
                 "bad_request",
@@ -213,6 +213,7 @@ class AdminBackupsService:
                 "stats": parse_backup_schedule(os.getenv("BACKUP_STATS_WHEN", "")),
                 "config": parse_backup_schedule(os.getenv("BACKUP_CONFIG_WHEN", "")),
                 "disks": parse_backup_schedule(os.getenv("BACKUP_DISKS_WHEN", "")),
+                "pools": parse_backup_schedule(os.getenv("BACKUP_POOLS_WHEN", "")),
             },
             "enabled": {
                 "db": os.getenv("BACKUP_DB_ENABLED", "false").lower() == "true",
@@ -220,6 +221,7 @@ class AdminBackupsService:
                 "stats": os.getenv("BACKUP_STATS_ENABLED", "false").lower() == "true",
                 "config": os.getenv("BACKUP_CONFIG_ENABLED", "false").lower() == "true",
                 "disks": os.getenv("BACKUP_DISKS_ENABLED", "false").lower() == "true",
+                "pools": os.getenv("BACKUP_POOLS_ENABLED", "false").lower() == "true",
             },
         }
 

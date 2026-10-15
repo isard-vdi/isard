@@ -43,7 +43,9 @@ class BackupReportRequest(BaseModel):
     status: str = Field(description="Backup status")
     type: str = Field(description="Backup type: 'automated' or 'manual'")
     scope: str = Field(
-        description="Backup scope: 'full', 'db', 'redis', 'stats', 'config', or 'disks'"
+        description=(
+            "Backup scope: 'full', 'db', 'redis', 'stats', 'config', 'disks', or 'pools'"
+        )
     )
     details: Optional[dict] = Field(
         default=None, description="Backup details with checks, warnings, time_breakdown"
@@ -92,6 +94,7 @@ class BackupConfigSchedule(BaseModel):
     stats: Optional[int] = None
     config: Optional[int] = None
     disks: Optional[int] = None
+    pools: Optional[int] = None
 
 
 class BackupConfigEnabled(BaseModel):
@@ -102,6 +105,7 @@ class BackupConfigEnabled(BaseModel):
     stats: bool = False
     config: bool = False
     disks: bool = False
+    pools: bool = False
 
 
 class BackupConfigResponse(BaseModel):
