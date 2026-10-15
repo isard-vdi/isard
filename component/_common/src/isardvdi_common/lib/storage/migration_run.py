@@ -44,7 +44,7 @@ try:  # py3.9+ stdlib; always present on our 3.13 images
 except ImportError:  # pragma: no cover
     ZoneInfo = None
 
-import redis
+from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
@@ -197,7 +197,7 @@ def _job_abandoned(task):
     of resuming — still data-loss-safe (sources retained), so the race is benign.
     """
     try:
-        conn = redis.from_url(rq_url())
+        conn = shared_client(rq_url())
         registry = StartedJobRegistry(task.job.origin, connection=conn)
         cutoff = time() - ABANDON_GRACE_S
         return task.id in registry.get_expired_job_ids(cutoff)
@@ -799,9 +799,8 @@ class MigrationRunner:
         """Best-effort XADD of a migration progress event so the change-handler
         emits the aggregate ``storage:migration`` SocketIO event. Never fails
         the tick — the ledger (not the socket) is the source of truth."""
-        conn = None
         try:
-            conn = redis.from_url(rq_url())
+            conn = shared_client(rq_url())
             # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared
             # result stream for every producer. The floor in task_streams exists
             # because the old tight cap discarded UNREAD kind=result entries under
@@ -818,13 +817,6 @@ class MigrationRunner:
                 "migration: could not publish progress event for %s",
                 self.migration_id,
             )
-        finally:
-            # close the per-call client so a per-minute tick does not churn sockets
-            if conn is not None:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
 
     def _skip_tree(self, tree_items, state, reason):
         for it in tree_items:
@@ -1673,22 +1665,19 @@ class MigrationRunner:
         """True if any governed worker is at its heavy cap or deferring; None
         when no worker publishes status (signal absent) or on error."""
         try:
-            conn = redis.from_url(
+            conn = shared_client(
                 rq_url(),
                 decode_responses=True,
                 socket_timeout=5,
                 socket_connect_timeout=5,
             )
-            try:
-                keys = list(conn.scan_iter(match="governor:worker:*", count=100))
-                if not keys:
-                    return None
-                for key in keys:
-                    if any(v == "1" for v in conn.hmget(key, "deferring", "at_cap")):
-                        return True
-                return False
-            finally:
-                conn.close()
+            keys = list(conn.scan_iter(match="governor:worker:*", count=100))
+            if not keys:
+                return None
+            for key in keys:
+                if any(v == "1" for v in conn.hmget(key, "deferring", "at_cap")):
+                    return True
+            return False
         except Exception:
             log.exception("migration: could not read governor worker status")
             return None
@@ -2149,10 +2138,8 @@ def advance(migration_id, *, check_abandon=True):
         status == MigrationStatus.PAUSED.value and m.pause_reason in ("load", "space")
     ):
         return "not_drivable"
-    # ONE connection per advance(), reused for acquire/reacquire/release, with a
-    # socket timeout so a STALLED (not down) redis surfaces as an error instead of
-    # hanging the drain while holding a lease whose TTL then lapses.
-    conn = redis.from_url(rq_url(), socket_timeout=5, socket_connect_timeout=5)
+    # the socket timeout makes a stalled redis raise instead of hanging past the lease TTL
+    conn = shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
     lock = conn.lock(
         f"lock:migration:advance:{migration_id}",
         timeout=ADVANCE_LOCK_TTL,
@@ -2190,13 +2177,9 @@ def advance(migration_id, *, check_abandon=True):
         # LockNotOwnedError if our lease lapsed and was re-taken; a stalled redis
         # raises TimeoutError. Swallow BOTH (RedisError) -- the lease expires via
         # its TTL regardless -- so teardown never leaks an exception out of
-        # advance(). Then close the per-call client so we don't churn sockets.
+        # advance().
         try:
             lock.release()
         except RedisError:
-            pass
-        try:
-            conn.close()
-        except Exception:
             pass
     return "aborted" if aborted else "done"

@@ -256,3 +256,10 @@ def pinned_helper_returns(monkeypatch, request):
             monkeypatch.setattr(target, value, raising=False)
         except Exception:
             pass
+
+
+@pytest.fixture(autouse=True)
+def _no_shared_redis_clients(monkeypatch):
+    from isardvdi_common.connections import redis_client
+
+    monkeypatch.setattr(redis_client, "_clients", {})

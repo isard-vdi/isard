@@ -30,3 +30,10 @@ def empty_redis():
         yield stub
     finally:
         RedisBase._redis = original
+
+
+@pytest.fixture(autouse=True)
+def _no_shared_redis_clients(monkeypatch):
+    from isardvdi_common.connections import redis_client
+
+    monkeypatch.setattr(redis_client, "_clients", {})

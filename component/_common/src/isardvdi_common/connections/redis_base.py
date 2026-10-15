@@ -20,6 +20,7 @@
 import os
 from abc import ABC
 
+from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 from isardvdi_common.connections.redis_urls import RQ_DB
 from redis import Redis
 
@@ -34,4 +35,5 @@ class RedisBase(ABC):
         port=int(os.environ.get("REDIS_PORT") or 6379),
         password=os.environ.get("REDIS_PASSWORD", ""),
         db=RQ_DB,
+        maint_notifications_config=NO_MAINT_NOTIFICATIONS,
     )

@@ -20,6 +20,7 @@
 import logging
 from time import sleep
 
+from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -41,6 +42,11 @@ class RedisRetry(Redis):
     Retrying for ever is the point: the storage workers are started with this
     class so that a redis restart does not kill them mid-chain.
     """
+
+    @classmethod
+    def from_url(cls, url, **kwargs):
+        kwargs.setdefault("maint_notifications_config", NO_MAINT_NOTIFICATIONS)
+        return super().from_url(url, **kwargs)
 
     def execute_command(self, *args, **kwargs):
         attempts = 0

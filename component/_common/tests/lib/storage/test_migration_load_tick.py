@@ -211,7 +211,7 @@ def _busy_conn():
 
 def test_advance_drives_a_load_paused_job(monkeypatch):
     _fake_migration(monkeypatch, status=PAUSED, pause_reason="load")
-    monkeypatch.setattr(mr.redis, "from_url", lambda *a, **k: _busy_conn())
+    monkeypatch.setattr(mr, "shared_client", lambda *a, **k: _busy_conn())
     # "busy" (not "not_drivable") proves it passed the gate to the lock
     assert mr.advance("m") == "busy"
 
