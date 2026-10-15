@@ -21,16 +21,49 @@ from isardvdi_common.models.storage_migration import MigrationStatus
 
 
 class _Mig:
-    def __init__(self, status, config, selection=None):
-        self.status = status
+    """``status`` is what the driver read; ``live`` is the row the guarded write
+    tests. They diverge when the admin writes it mid-tick."""
+
+    def __init__(self, status, config, selection=None, live_status=None):
+        self.id = "m"
+        self.live = {"status": live_status if live_status is not None else status}
+        object.__setattr__(self, "status", status)
         self.config = config
         self.selection = selection or {"kind": "pool", "dst_pool_id": "dst"}
         self.current_window = None
         self.last_occurrence = None
         self.throughput_ewma = {}
 
+    def __setattr__(self, name, value):
+        # an unguarded write must show on the live row, or nothing is proven
+        if name == "status" and "live" in self.__dict__:
+            self.live["status"] = value
+        object.__setattr__(self, name, value)
+
+    def _update_cache(self, **fields):
+        pass
+
     def recompute_totals(self):
         pass
+
+
+def _patch_status_claim(monkeypatch, mig_obj):
+    """Honour ``update_document_if`` against the live row of ``mig_obj``."""
+
+    def _claim(
+        cls, doc_id, update_data, *, field, values=None, excluding=None, validate=True
+    ):
+        held = mig_obj.live.get(field)
+        if (values is not None and held not in values) or (
+            excluding is not None and held in excluding
+        ):
+            return False
+        mig_obj.live.update(update_data)
+        for key, value in update_data.items():
+            object.__setattr__(mig_obj, key, value)
+        return True
+
+    monkeypatch.setattr(mr.StorageMigration, "update_document_if", classmethod(_claim))
 
 
 def _item(sid, state, tree="r", **kw):
@@ -121,6 +154,7 @@ def _runner(
             pass
 
     monkeypatch.setattr(mr, "Storage", _Storage)
+    _patch_status_claim(monkeypatch, mig_obj)
 
     r = object.__new__(mr.MigrationRunner)
     r.migration_id = "m"
@@ -556,3 +590,18 @@ def test_a_disk_moves_at_most_once_per_occurrence(monkeypatch):
     r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
     r.tick()
     assert items[0]["state"] == "released"
+
+
+def test_an_admin_cancel_landing_mid_tick_is_not_overwritten(monkeypatch):
+    """The advance lease excludes other drivers, not apiv4's unlocked set_action."""
+    items = [_item("r", "released")]
+    m = _Mig(
+        "running",
+        {"recurring": True, "window": WINDOW},
+        live_status=MigrationStatus.FINISHING_TREE.value,
+    )
+    r = _runner(monkeypatch, items, m, now=NOW)
+
+    r.tick()
+
+    assert m.live["status"] == MigrationStatus.FINISHING_TREE.value

@@ -39,6 +39,14 @@ from . import storage as task_results_storage
 # without storage.py needing to import media.py.
 task_results_storage.register_item_class("media", Media)
 
+# statuses a live download chain owns; outside them an abort, delete or newer retry owns the row
+_DOWNLOAD_IN_FLIGHT_STATUSES = (
+    "Download",
+    "DownloadStarting",
+    "Downloading",
+    "ResetDownloading",
+)
+
 
 def _update_media(media_dict):
     # update, never upsert: a media deleted while downloading must stay deleted
@@ -72,27 +80,21 @@ def handle_media_update(task, **media_dict):
 
 
 def handle_media_download_update_status(task, media_id):
-    """Set media status after a download task chain completes.
-
-    Unlike the generic :func:`storage.handle_update_status`, this handler is
-    aware of the ``DownloadAborting`` race: ``download_url`` may finish
-    successfully (curl exited 0) just as the user requested an abort,
-    leaving the media row in ``DownloadAborting`` by the time we run. In
-    that case the download is treated as failed so the media does not end
-    up stuck in ``Downloaded``.
-
-    Port of ``media_download_update_status`` from
-    ``naomi.hidalgo/fix/1171-media-fixes:c84a99e43`` — original location
-    was ``isardvdi_core_worker/task.py`` (file deleted by the core_worker
-    retirement).
-    """
-    if not Media.exists(media_id):
+    """Set media status after a download task chain completes."""
+    if task.depending_status == "finished" and Media.update_document_if(
+        media_id,
+        {"status": "Downloaded"},
+        field="status",
+        values=_DOWNLOAD_IN_FLIGHT_STATUSES,
+    ):
         return
-    media = Media(media_id)
-    if task.depending_status == "finished" and media.status != "DownloadAborting":
-        media.status = "Downloaded"
-    else:
-        media.status = "DownloadFailed"
+    # an abort in this window wins: curl was killed and the partial file deleted
+    Media.update_document_if(
+        media_id,
+        {"status": "DownloadFailed"},
+        field="status",
+        values=_DOWNLOAD_IN_FLIGHT_STATUSES + ("DownloadAborting",),
+    )
 
 
 def handle_recycle_bin_update(task, **recycle_bin_dict):

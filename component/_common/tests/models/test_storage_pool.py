@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models import storage_pool as sp_mod
 from isardvdi_common.models.storage_pool import StoragePool
 
@@ -192,6 +193,16 @@ def test_get_by_user_kind_unassigned_category_uses_default(patched_kind):
     patched_kind("cat-other", [_default_pool(), pool])
     result = StoragePool.get_by_user_kind("user-1", "desktop")
     assert result.id == DEFAULT_STORAGE_POOL_ID
+
+
+def test_get_by_user_kind_with_no_default_pool_raises(patched_kind):
+    """An empty ``default`` used to be upserted, which created a blank row."""
+    patched_kind("cat-a", [])
+
+    with pytest.raises(Error) as exc:
+        StoragePool.get_by_user_kind("user-1", "desktop")
+
+    assert exc.value.error["description_code"] == "no_storage_pool_available"
 
 
 # --------------------------------------------------------------------------- #

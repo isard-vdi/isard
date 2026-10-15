@@ -26,14 +26,37 @@ def _lp(**over):
 
 class _Mig:
     def __init__(self, status, config, pause_reason=None, load_state=None, logs=None):
+        self.id = "m"
         self.status = status
         self.config = config
         self.pause_reason = pause_reason
         self.load_state = load_state if load_state is not None else {}
         self.logs = logs if logs is not None else []
 
+    def _update_cache(self, **fields):
+        pass
+
+
+_CLAIMED = {}
+
+
+@pytest.fixture(autouse=True)
+def _status_claim(monkeypatch):
+    """The guarded status write lands on the double the runner holds."""
+
+    def _claim(cls, doc_id, update_data, *, field, values=None, **_kw):
+        mig_obj = _CLAIMED["mig"]
+        if values is not None and getattr(mig_obj, field) not in values:
+            return False
+        for key, value in update_data.items():
+            setattr(mig_obj, key, value)
+        return True
+
+    monkeypatch.setattr(mr.StorageMigration, "update_document_if", classmethod(_claim))
+
 
 def _runner(mig_obj, sample):
+    _CLAIMED["mig"] = mig_obj
     r = object.__new__(mr.MigrationRunner)
     r.migration = mig_obj
     r.config = mig_obj.config

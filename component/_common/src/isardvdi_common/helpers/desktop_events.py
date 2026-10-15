@@ -266,13 +266,20 @@ class DesktopEvents(RethinkCustomBase):
                     else False
                 )
                 with cls._rdb_context():
+                    # the read loop sleeps between batches: write only while the row still holds the decision
                     r.table("domains").get(desktop["id"]).update(
-                        {
-                            "status": new_status,
-                            "viewer": {},
-                            "accessed": int(time.time()),
-                            "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
-                        }
+                        lambda row: r.branch(
+                            row["status"].eq(desktop["status"]),
+                            {
+                                "status": new_status,
+                                "viewer": {},
+                                "accessed": int(time.time()),
+                                "create_dict": {
+                                    "hardware": {"qos_disk_id": qos_disk_id}
+                                },
+                            },
+                            {},
+                        )
                     ).run(cls._rdb_connection)
                     notify_admins(
                         "desktop_action",

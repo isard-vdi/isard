@@ -132,9 +132,18 @@ def _promote_domains_to_stopped(storage_object):
     for domain in storage_object.domains:
         previous_status = domain.status
         if previous_status in _DOMAIN_PRE_READY_STATUSES:
-            domain.detail = _promotion_detail(previous_status, domain.detail)
-            domain.status = "Stopped"
-            domain.current_action = None
+            # the engine and the chain's later steps write these statuses too
+            Domain.update_document_if(
+                domain.id,
+                {
+                    "status": "Stopped",
+                    "current_action": None,
+                    "detail": _promotion_detail(previous_status, domain.detail),
+                },
+                field="status",
+                values=(previous_status,),
+                validate=False,
+            )
 
 
 def _restore_orphan_to_ready(storage_object, found_by):
@@ -255,8 +264,13 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
         ):
             domain.status = "Failed"
         for child in storage_object.dependents(include_deleted=True):
-            if child.status != "deleted":
-                child.status = "orphan"
+            Storage.update_document_if(
+                child.id,
+                {"status": "orphan"},
+                field="status",
+                excluding=("deleted",),
+                validate=False,
+            )
     if storage_dict.get("status") == "ready" and status == "ready":
         _promote_domains_to_stopped(storage_object)
         _recover_orphan_dependents(storage_object)

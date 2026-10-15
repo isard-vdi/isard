@@ -763,8 +763,11 @@ class MigrationRunner:
             min_free_pct=min_free_pct,
             min_free_bytes=min_free_bytes,
         )
-        self.migration.pause_reason = "space"
-        self.migration.status = MigrationStatus.PAUSED.value
+        self._claim_status(
+            str(self.migration.status),
+            MigrationStatus.PAUSED.value,
+            pause_reason="space",
+        )
 
     def _resume_after_space(self):
         probe = getattr(self.migration, "space_probe", None) or {}
@@ -782,8 +785,9 @@ class MigrationRunner:
             min_free_pct=min_free_pct,
             min_free_bytes=min_free_bytes,
         )
-        self.migration.pause_reason = None
-        self.migration.status = MigrationStatus.RUNNING.value
+        self._claim_status(
+            str(self.migration.status), MigrationStatus.RUNNING.value, pause_reason=None
+        )
 
     def _log(self, event, message, **data):
         """Append one entry to the migration's durable ``logs`` list."""
@@ -1635,6 +1639,20 @@ class MigrationRunner:
         "blocked": _blocked,
     }
 
+    def _claim_status(self, expected, target, **fields):
+        """Move the status only while the row still reads ``expected``; apiv4's set_action takes no lease."""
+        data = {"status": target, **fields}
+        claimed = StorageMigration.update_document_if(
+            self.migration.id,
+            data,
+            field="status",
+            values=(expected,),
+            validate=False,
+        )
+        if claimed:
+            self.migration._update_cache(**data)
+        return claimed
+
     # -- adaptive load policy ---------------------------------------------- #
     def _started_desktops_count(self):
         """Cheapest honest signal of "the system is in use". None on any error,
@@ -1738,14 +1756,14 @@ class MigrationRunner:
                 decision.action, decision.reason, decision.parallelism, sample, now
             )
         elif decision.action == "pause":
-            self.migration.pause_reason = "load"
-            self.migration.status = MigrationStatus.PAUSED.value
+            self._claim_status(
+                status, MigrationStatus.PAUSED.value, pause_reason="load"
+            )
             self._append_load_log(
                 decision.action, decision.reason, decision.parallelism, sample, now
             )
         elif decision.action == "resume":
-            self.migration.pause_reason = None
-            self.migration.status = MigrationStatus.RUNNING.value
+            self._claim_status(status, MigrationStatus.RUNNING.value, pause_reason=None)
             self._append_load_log(
                 decision.action, decision.reason, decision.parallelism, sample, now
             )
@@ -1960,8 +1978,9 @@ class MigrationRunner:
             if cur != MigrationStatus.PAUSED.value or space_paused:
                 # tag the reason so the adaptive loop never mistakes a failure
                 # pause for its own load pause and auto-resumes it.
-                self.migration.pause_reason = "failure"
-                self.migration.status = MigrationStatus.PAUSED.value
+                self._claim_status(
+                    cur, MigrationStatus.PAUSED.value, pause_reason="failure"
+                )
         elif self.is_complete():
             # Set the next status only on the TRANSITION (a recurring job stays in
             # ``scheduled`` across many ticks, so guard against re-reactivating /
@@ -1979,9 +1998,10 @@ class MigrationRunner:
             )
             if cur != target:
                 self.reactivate()  # crash-safe autostart restore, once per settle
-                self.migration.status = target
                 if space_paused:
-                    self.migration.pause_reason = None
+                    self._claim_status(cur, target, pause_reason=None)
+                else:
+                    self._claim_status(cur, target)
         elif not space_paused:
             target = mig.recurring_status_target(
                 False,
@@ -2021,7 +2041,7 @@ class MigrationRunner:
                 target = MigrationStatus.BUDGET_REACHED.value
             # recurring: running (in-window/in-flight) or scheduled (idle).
             if target is not None and cur != target:
-                self.migration.status = target
+                self._claim_status(cur, target)
         # Surface the live window for the admin UI (incl. the next-run lookahead
         # for a scheduled/recurring job).
         self.migration.current_window = {

@@ -344,6 +344,7 @@ def update_domain_status(
     hyp_id=None,
     detail="",
     keep_hyp_id=False,
+    expected_status=None,
 ):
     if DEBUG_CHANGES:
         thread_name = threading.currentThread().name
@@ -387,60 +388,71 @@ def update_domain_status(
                     .run(conn)["hyp_started"]
                 )
 
-        # Atomic handling for Stopped status: remove viewer and reset fields in one operation
+        def _stopped(domain):
+            return domain.without("viewer", {"create_dict": "personal_vlans"}).merge(
+                {
+                    "status": status,
+                    "hyp_started": False,
+                    "detail": json.dumps(detail),
+                    "create_dict": {"personal_vlans": False},
+                }
+            )
+
         if status == "Stopped":
             with rethink_conn() as conn:
                 results = (
                     r.table("domains")
                     .get(id_domain)
                     .replace(
-                        lambda domain: domain.without(
-                            "viewer", {"create_dict": "personal_vlans"}
-                        ).merge(
-                            {
-                                "status": status,
-                                "hyp_started": False,
-                                "detail": json.dumps(detail),
-                                "create_dict": {"personal_vlans": False},
-                            }
+                        # ``without`` on a gone row is a query error, so this null check wraps the status check
+                        lambda domain: r.branch(
+                            domain.eq(None),
+                            domain,
+                            (
+                                _stopped(domain)
+                                if expected_status is None
+                                else r.branch(
+                                    domain["status"].eq(expected_status),
+                                    _stopped(domain),
+                                    domain,
+                                )
+                            ),
                         ),
                         return_changes=True,
                     )
                     .run(conn)
                 )
+            if results.get("errors"):
+                logs.main.error(
+                    f"Failed to set status {status} on domain {id_domain}: "
+                    f"{results.get('first_error')}"
+                )
             return results
 
-        if hyp_id is None:
-            with rethink_conn() as conn:
-                results = (
-                    r.table("domains")
-                    .get(id_domain)
-                    .update(
-                        {
-                            "status": status,
-                            "hyp_started": False,
-                            "detail": json.dumps(detail),
-                        },
-                        return_changes=True,
-                    )
-                    .run(conn)
-                )
-        else:
-            d_update = {
-                "hyp_started": hyp_id,
-                "status": status,
-                "detail": json.dumps(detail),
-            }
+        d_update = {
+            "hyp_started": False if hyp_id is None else hyp_id,
+            "status": status,
+            "detail": json.dumps(detail),
+        }
 
-            with rethink_conn() as conn:
-                results = (
-                    r.table("domains")
-                    .get(id_domain)
-                    .update(d_update, return_changes=True)
-                    .run(conn)
+        with rethink_conn() as conn:
+            results = (
+                r.table("domains")
+                .get(id_domain)
+                .update(
+                    (
+                        d_update
+                        if expected_status is None
+                        else lambda row: r.branch(
+                            row["status"].eq(expected_status), d_update, {}
+                        )
+                    ),
+                    return_changes=True,
                 )
+                .run(conn)
+            )
 
-        if status == "Failed":
+        if status == "Failed" and (results.get("replaced") or results.get("unchanged")):
             remove_fieds_when_stopped(id_domain)
 
         # if results_zero(results):
@@ -457,8 +469,12 @@ def update_domain_status(
         return False
 
 
-def update_domain_hyp_started(domain_id, hyp_id, detail="", status="Started"):
-    results = update_domain_status(status, domain_id, hyp_id, detail=detail)
+def update_domain_hyp_started(
+    domain_id, hyp_id, detail="", status="Started", expected_status=None
+):
+    results = update_domain_status(
+        status, domain_id, hyp_id, detail=detail, expected_status=expected_status
+    )
     return results
 
 
@@ -585,10 +601,15 @@ def remove_domain_viewer_values(domain_id):
                 r.table("domains")
                 .get(domain_id)
                 .replace(
+                    # a gone row, or one without ``status``, makes the comparison a query error
                     lambda domain: r.branch(
-                        domain["status"].eq("Stopped"),
-                        domain.without("viewer"),
+                        domain.eq(None),
                         domain,
+                        r.branch(
+                            domain["status"].default(None).eq("Stopped"),
+                            domain.without("viewer"),
+                            domain,
+                        ),
                     )
                 )
                 .run(conn)
@@ -605,9 +626,16 @@ def remove_domain_viewer_values(domain_id):
             return False
 
     # Check if operation actually modified the document
-    if result.get("replaced", 0) == 0 and result.get("unchanged", 0) > 0:
+    if result.get("errors"):
+        logs.main.error(
+            f"Failed to remove viewer values for domain {domain_id}: "
+            f"{result.get('first_error')}"
+        )
+        return False
+    if result.get("replaced", 0) == 0:
         logs.main.debug(
-            f"Domain {domain_id} is not stopped, cannot remove viewer values"
+            f"Domain {domain_id} is not stopped or no longer exists, "
+            "cannot remove viewer values"
         )
         return False
     logs.main.info(f"Viewer values removed for domain {domain_id}")

@@ -817,6 +817,10 @@ def _finalize_stuck_domain(domain):
     A domain whose storage is still in flight (a live chain) is left alone —
     Pass 2 and the consumer own it.
     """
+    # the scan's cached row may be stale by now: read it again before deciding
+    domain = Domain.build(domain.id) or domain
+    if domain.status not in _DOMAIN_LOCK_STATUSES:
+        return 0
     declared_ids = [
         disk["storage_id"]
         for disk in domain.create_dict.get("hardware", {}).get("disks", [])
@@ -829,8 +833,14 @@ def _finalize_stuck_domain(domain):
     # desktop promoted to Stopped with a missing disk looks bootable and fails
     # at the next start instead.
     if declared_ids and len(storages) < len(declared_ids):
-        domain.status = "Failed"
-        domain.current_action = None
+        if not Domain.update_document_if(
+            domain.id,
+            {"status": "Failed", "current_action": None},
+            field="status",
+            values=(domain.status,),
+            validate=False,
+        ):
+            return 0
         log.warning(
             "reconcile: finalized orphaned domain %s (backing storage gone -> Failed)",
             domain.id,

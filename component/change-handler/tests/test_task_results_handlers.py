@@ -339,18 +339,49 @@ def test_media_update_indirect_skips_empty_dependency_result_without_recursing()
 # ---------------------------------------------------------------------------
 
 
-def test_media_download_update_status_downloaded_when_no_abort():
-    """depending_status=finished + media not aborting → Downloaded."""
+def _media_over(store):
+    """A Media class whose guarded write is honoured against ``store``."""
+
+    class _Media:
+        @staticmethod
+        def exists(media_id):
+            return media_id in store
+
+        def __init__(self, media_id):
+            object.__setattr__(self, "_id", media_id)
+
+        @property
+        def status(self):
+            return store[self._id]["status"]
+
+        def __setattr__(self, name, value):
+            store[self._id][name] = value
+
+        @staticmethod
+        def update_document_if(doc_id, update_data, *, field, values, validate=True):
+            row = store.get(doc_id)
+            if row is None or row.get(field) not in values:
+                return False
+            row.update(update_data)
+            return True
+
+    return _Media
+
+
+def _settle(store, depending_status="finished", media_id="m1"):
     from isardvdi_change_handler.task_results import media
 
-    task = _task(depending_status="finished")
-    fake_media = MagicMock()
-    fake_media.status = "Downloading"
-    with patch.object(media, "Media") as mock_media_cls:
-        mock_media_cls.exists.return_value = True
-        mock_media_cls.return_value = fake_media
-        media.handle_media_download_update_status(task, media_id="m1")
-    assert fake_media.status == "Downloaded"
+    with patch.object(media, "Media", _media_over(store)):
+        media.handle_media_download_update_status(
+            _task(depending_status=depending_status), media_id=media_id
+        )
+
+
+def test_media_download_update_status_downloaded_when_no_abort():
+    """depending_status=finished + media not aborting → Downloaded."""
+    store = {"m1": {"status": "Downloading"}}
+    _settle(store)
+    assert store["m1"]["status"] == "Downloaded"
 
 
 def test_media_download_update_status_failed_when_aborting():
@@ -358,44 +389,25 @@ def test_media_download_update_status_failed_when_aborting():
 
     Pins the race condition: curl may have finished successfully just as
     the user aborted. The media row's current status is the only authority
-    here, not the chain's depending_status. From
-    naomi.hidalgo/fix/1171-media-fixes:c84a99e43.
+    here, not the chain's depending_status.
     """
-    from isardvdi_change_handler.task_results import media
-
-    task = _task(depending_status="finished")
-    fake_media = MagicMock()
-    fake_media.status = "DownloadAborting"
-    with patch.object(media, "Media") as mock_media_cls:
-        mock_media_cls.exists.return_value = True
-        mock_media_cls.return_value = fake_media
-        media.handle_media_download_update_status(task, media_id="m1")
-    assert fake_media.status == "DownloadFailed"
+    store = {"m1": {"status": "DownloadAborting"}}
+    _settle(store)
+    assert store["m1"]["status"] == "DownloadFailed"
 
 
 def test_media_download_update_status_failed_when_chain_failed():
     """depending_status=failed → DownloadFailed regardless of media row."""
-    from isardvdi_change_handler.task_results import media
-
-    task = _task(depending_status="failed")
-    fake_media = MagicMock()
-    fake_media.status = "Downloading"
-    with patch.object(media, "Media") as mock_media_cls:
-        mock_media_cls.exists.return_value = True
-        mock_media_cls.return_value = fake_media
-        media.handle_media_download_update_status(task, media_id="m1")
-    assert fake_media.status == "DownloadFailed"
+    store = {"m1": {"status": "Downloading"}}
+    _settle(store, depending_status="failed")
+    assert store["m1"]["status"] == "DownloadFailed"
 
 
 def test_media_download_update_status_skips_missing_media():
-    """Media.exists=False → no write."""
-    from isardvdi_change_handler.task_results import media
-
-    task = _task(depending_status="finished")
-    with patch.object(media, "Media") as mock_media_cls:
-        mock_media_cls.exists.return_value = False
-        media.handle_media_download_update_status(task, media_id="missing")
-    mock_media_cls.assert_not_called()  # __init__ not invoked
+    """A row that is not there gets no write."""
+    store = {}
+    _settle(store, media_id="missing")
+    assert store == {}
 
 
 # ---------------------------------------------------------------------------
@@ -688,12 +700,15 @@ def test_orphan_propagation_walks_through_already_deleted_rows():
         mock_storage_cls.write_reading.return_value = "orphan"
         mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
+        orphaned = mock_storage_cls.update_document_if
 
     assert storage_obj.asked_with == [True]
-    # The row that is already gone is left alone; the live disk behind it
-    # is the one that has just lost its chain.
-    assert bin_copy.status == "deleted"
-    assert live_below.status == "orphan"
+    # both are asked; the server leaves the one already deleted alone
+    assert [c.args[0] for c in orphaned.call_args_list] == [bin_copy.id, live_below.id]
+    for c in orphaned.call_args_list:
+        assert c.args[1] == {"status": "orphan"}
+        assert c.kwargs["field"] == "status"
+        assert c.kwargs["excluding"] == ("deleted",)
 
 
 def test_orphan_propagation_is_skipped_for_a_healthy_status():
@@ -742,10 +757,11 @@ def test_orphan_propagation_fails_domains_behind_a_deleted_row():
         mock_storage_cls.write_reading.return_value = "orphan"
         mock_storage_cls.return_value = storage_obj
         storage._apply_storage_update({"id": "s1", "status": "orphan"})
+        orphaned = mock_storage_cls.update_document_if
 
     assert ("domains", True) in storage_obj.asked_with
     assert ("storages", True) in storage_obj.asked_with
-    assert live.status == "orphan"
+    assert live.id in [c.args[0] for c in orphaned.call_args_list]
     assert dom_live.status == "Failed"
 
 
