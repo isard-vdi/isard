@@ -14,6 +14,14 @@ if ! flock -n 9; then
     exit 0
 fi
 
+# a manual run has no session NFS mount; nfs_mount.sh is a no-op when already mounted
+if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
+    if ! "${NFS_MOUNT_CMD:-/usr/local/bin/nfs_mount.sh}"; then
+        echo "Fatal: NFS mount failed; not archiving pools"
+        exit 1
+    fi
+fi
+
 # never archive or prune a partial set
 DIRS_FILE=$(mktemp)
 ERR_FILE=$(mktemp)
