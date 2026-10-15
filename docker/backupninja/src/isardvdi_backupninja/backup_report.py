@@ -34,7 +34,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from isardvdi_apiv4_client.api.role_admin import admin_backup_report
 from isardvdi_apiv4_client.models import BackupReportRequest
-from isardvdi_apiv4_client_auth import build_client, raise_for_status
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,11 +53,12 @@ PREFIX_TYPE_RANGES: List[Tuple[int, int, str]] = [
     (30, 39, "redis"),
     (40, 49, "stats"),
     (70, 79, "config"),
-    (80, 89, "disks"),
+    (80, 85, "disks"),
+    (86, 89, "pools"),
     (90, 99, "session"),
 ]
 
-VALID_SCOPES = {"full", "db", "redis", "stats", "config", "disks"}
+VALID_SCOPES = {"full", "db", "redis", "stats", "config", "disks", "pools"}
 
 SUCCESS_STATUSES = {"SUCCESS", "OK"}
 WARNING_STATUSES = {"WARNING"}
@@ -123,6 +124,7 @@ class BackupReport:
     backup_type: Optional[str] = None
     backup_scope: Optional[str] = None
     disk_types: Optional[List[str]] = None
+    pool_dirs: Optional[int] = None
     backup_types_status: Optional[Dict[str, str]] = None
     backup_type_summary: Optional[Dict[str, Any]] = None
     filesystem_metrics: Optional[Dict[str, Any]] = None
@@ -151,6 +153,7 @@ class BackupReport:
             "type": backup_type,
             "scope": scope,
             "disk_types": self.disk_types,
+            "pool_dirs": self.pool_dirs,
             "backup_types_status": self.backup_types_status,
             "total_actions": self.total_actions,
             "successful_actions": self.successful_actions,
@@ -380,6 +383,7 @@ class BackupLogParser:
             actions
         )
         disk_types = session_info.get("disk_types")
+        pool_dirs = session_info.get("pool_dirs")
         session_timestamp = session_info.get("timestamp") or _fallback_timestamp(
             actions
         )
@@ -424,6 +428,7 @@ class BackupLogParser:
             backup_type=backup_type,
             backup_scope=backup_scope,
             disk_types=disk_types,
+            pool_dirs=pool_dirs,
             backup_types_status=backup_types_status,
             backup_type_summary=backup_types_summary,
             filesystem_metrics=filesystem_metrics,
@@ -623,6 +628,10 @@ class BackupLogParser:
                 m = re.search(r"BACKUP_DISK_TYPES:\s*(.+)$", line)
                 if m and m.group(1).strip():
                     info["disk_types"] = m.group(1).split()
+            if "BACKUP_POOL_DIRS:" in line:
+                m = re.search(r"BACKUP_POOL_DIRS:\s*(\d+)", line)
+                if m:
+                    info["pool_dirs"] = int(m.group(1))
 
         # Pick the timestamp from SESSION_END (preferred) or FINISHED.
         for i in range(len(log_lines) - 1, -1, -1):
@@ -698,7 +707,7 @@ def analyze_backup_types_status(
     """Per-type status, including per-sub-source breakdown for disks."""
 
     status: Dict[str, str] = {
-        t: "not_included" for t in ("db", "redis", "stats", "config", "disks")
+        t: "not_included" for t in ("db", "redis", "stats", "config", "disks", "pools")
     }
     per_type: Dict[str, List[BackupAction]] = {t: [] for t in status}
 
@@ -971,15 +980,15 @@ def collect_backup_config() -> Dict[str, Any]:
     cfg: Dict[str, Any] = {
         "schedule": {
             kind: parse_schedule(os.getenv(f"BACKUP_{kind.upper()}_WHEN"))
-            for kind in ("db", "redis", "stats", "config", "disks")
+            for kind in ("db", "redis", "stats", "config", "disks", "pools")
         },
         "enabled": {
             kind: os.getenv(f"BACKUP_{kind.upper()}_ENABLED", "false").lower() == "true"
-            for kind in ("db", "redis", "stats", "config", "disks")
+            for kind in ("db", "redis", "stats", "config", "disks", "pools")
         },
         "prune_policies": {
             kind: os.getenv(f"BACKUP_{kind.upper()}_PRUNE", "")
-            for kind in ("db", "redis", "stats", "config", "disks")
+            for kind in ("db", "redis", "stats", "config", "disks", "pools")
         },
         "nfs": {
             "enabled": os.getenv("BACKUP_NFS_ENABLED", "false").lower() == "true",
@@ -995,6 +1004,11 @@ def collect_backup_config() -> Dict[str, Any]:
             == "true",
             "media_enabled": os.getenv("BACKUP_DISKS_MEDIA_ENABLED", "false").lower()
             == "true",
+        },
+        "pools": {
+            "enabled": os.getenv("BACKUP_POOLS_ENABLED", "false").lower() == "true",
+            "when": os.getenv("BACKUP_POOLS_WHEN", ""),
+            "exclude": os.getenv("BACKUP_POOLS_EXCLUDE", ""),
         },
         "email": os.getenv("BACKUP_REPORT_EMAIL", ""),
         "backup_dir": os.getenv("BACKUP_DIR", "/opt/isard-local/backup"),
@@ -1022,47 +1036,51 @@ def collect_backup_config() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def send_with_queue(
-    report_dict: Dict[str, Any],
-    api_domain: Optional[str] = None,
-    queue_dir: str = QUEUE_DIR_DEFAULT,
-    max_attempts: int = 3,
-) -> bool:
-    """POST the report. On failure, queue it for retry. Then flush the queue.
-
-    Returns True if the current report was delivered successfully.
-    """
-    # ``api_domain`` was the legacy ApiRest base-url override. The generated
-    # apiv4 client picks its target from the bundled service-token registry
-    # via ``build_client(...)``, so the parameter is accepted-but-ignored
-    # for backwards compatibility with the run.sh CLI surface.
-    if api_domain:
-        logger.debug("api_domain=%s ignored — generated client", api_domain)
-
-    os.makedirs(queue_dir, exist_ok=True)
-
-    delivered = _post_with_retries(report_dict, max_attempts)
-    if not delivered:
-        _enqueue(queue_dir, report_dict)
-
-    # Try to flush anything queued from previous runs (best-effort).
-    flush_queue(queue_dir, max_attempts=1)
-
-    return delivered
+# any other 4xx is an invalid report: queuing it would retry it forever
+_RETRYABLE_STATUS = {401, 403, 429}
 
 
-def _post_with_retries(payload: Dict[str, Any], max_attempts: int) -> bool:
-    """POST a single report via the generated apiv4 client with retries."""
+def _post_report(payload: Dict[str, Any]) -> None:
+    """POST one report via the generated apiv4 client; raise on non-2xx."""
+    body = _build_request_body(payload)
+    with build_client("isard-backupninja") as client:
+        resp = admin_backup_report.sync_detailed(client=client, body=body)
+        raise_for_status(resp)
+
+
+def _is_invalid(err: Exception) -> bool:
+    """A 4xx other than the retryable auth/rate-limit ones = permanent reject."""
+    return (
+        isinstance(err, ApiV4Error)
+        and 400 <= err.status_code < 500
+        and err.status_code not in _RETRYABLE_STATUS
+    )
+
+
+def _is_scope_rejection(err: Exception, scope: Optional[str]) -> bool:
+    """True if an older apiv4 rejected the report only for its unknown pools scope."""
+    return (
+        scope == "pools"
+        and _is_invalid(err)
+        and "scope" in (getattr(err, "description", "") or "").lower()
+    )
+
+
+def _deliver(
+    payload: Dict[str, Any], max_attempts: int
+) -> Tuple[str, Optional[Exception]]:
+    """POST with retries. Returns ('delivered'|'invalid'|'transient', err|None)."""
     delay = 2.0
+    last_err: Optional[Exception] = None
     for attempt in range(1, max_attempts + 1):
         try:
-            body = _build_request_body(payload)
-            with build_client("isard-backupninja") as client:
-                resp = admin_backup_report.sync_detailed(client=client, body=body)
-                raise_for_status(resp)
+            _post_report(payload)
             logger.info("Backup report delivered (attempt %d)", attempt)
-            return True
+            return "delivered", None
         except Exception as e:
+            last_err = e
+            if _is_invalid(e):
+                return "invalid", e
             logger.warning(
                 "Backup report POST failed (attempt %d/%d): %s",
                 attempt,
@@ -1072,7 +1090,54 @@ def _post_with_retries(payload: Dict[str, Any], max_attempts: int) -> bool:
             if attempt < max_attempts:
                 time.sleep(delay)
                 delay *= 2
-    return False
+    return "transient", last_err
+
+
+def send_with_queue(
+    report_dict: Dict[str, Any],
+    api_domain: Optional[str] = None,
+    queue_dir: str = QUEUE_DIR_DEFAULT,
+    max_attempts: int = 3,
+) -> bool:
+    """POST; queue transient failures; resend pools as scope full to an older apiv4."""
+    if api_domain:
+        logger.debug("api_domain=%s ignored — generated client", api_domain)
+
+    os.makedirs(queue_dir, exist_ok=True)
+
+    outcome, err = _deliver(report_dict, max_attempts)
+    delivered = outcome == "delivered"
+
+    if outcome == "transient":
+        _enqueue(queue_dir, report_dict)
+    elif outcome == "invalid":
+        if _is_scope_rejection(err, report_dict.get("scope")):
+            logger.warning(
+                "apiv4 rejected scope='pools' (older apiv4); resending as "
+                "scope='full' with scope_requested='pools'"
+            )
+            fallback = dict(report_dict)
+            fallback["scope"] = "full"
+            fallback["scope_requested"] = "pools"
+            fb_outcome, fb_err = _deliver(fallback, max_attempts)
+            if fb_outcome == "delivered":
+                delivered = True
+            elif fb_outcome == "transient":
+                _enqueue(queue_dir, fallback)
+            else:
+                logger.error(
+                    "apiv4 also rejected the scope='full' fallback; dropping: %s",
+                    fb_err,
+                )
+        else:
+            logger.error(
+                "apiv4 rejected the backup report as invalid; dropping "
+                "(not queued): %s",
+                err,
+            )
+
+    flush_queue(queue_dir, max_attempts=1)
+    return delivered
 
 
 def _build_request_body(payload: Dict[str, Any]) -> BackupReportRequest:
@@ -1143,11 +1208,18 @@ def flush_queue(queue_dir: str, max_attempts: int = 1) -> int:
             logger.warning("Dropping unreadable queued report %s: %s", path, e)
             _safe_unlink(path)
             continue
-        if _post_with_retries(payload, max_attempts):
+        outcome, err = _deliver(payload, max_attempts)
+        if outcome == "delivered":
             _safe_unlink(path)
             sent += 1
+        elif outcome == "invalid":
+            logger.error(
+                "Dropping queued backup report the API rejected as invalid " "(%s): %s",
+                path,
+                err,
+            )
+            _safe_unlink(path)
         else:
-            # Stop at the first failure — avoid hammering the API when it's down.
             break
     if sent:
         logger.info("Flushed %d queued backup reports", sent)
