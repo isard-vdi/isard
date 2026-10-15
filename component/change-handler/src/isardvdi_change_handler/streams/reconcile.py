@@ -94,6 +94,8 @@ from isardvdi_common.models.task import (
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import JobStatus
 
+from ..task_results.domain import handle_domain_change_storage
+
 # Imported, never called: the pass no longer writes a storage row itself, and
 # the tests patch these to assert it stays that way. Deleting them as "unused"
 # breaks those tests with AttributeError, not at the deletion site.
@@ -159,12 +161,7 @@ def _dep_job_status(dep):
 # storage locks, never runtime states, so re-observing them cannot race the VM
 # lifecycle.
 #
-# ``CreatingDisk`` is covered for the case that actually strands desktops: the
-# chain died before producing the disk, and the re-observation settles the row
-# ``deleted`` so the domain fails instead of hanging. A ``CreatingDisk`` domain
-# whose disk IS present is re-observed but not advanced — handing it to engine
-# needs a transition that survives the chain's later storage updates, since
-# ``CreatingDomain`` is itself in the promote-to-``Stopped`` set.
+# ``CreatingDisk``: a ``deleted`` disk fails the domain; a ``ready`` one with no chain left is handed on.
 _DOMAIN_LOCK_STATUSES = ("Maintenance", "CreatingTemplate", "CreatingDisk")
 
 
@@ -850,6 +847,17 @@ def _finalize_stuck_domain(domain):
         return 0
     if any(_task_alive(storage) for storage in storages):
         return 0
+    if domain.status == "CreatingDisk" and all(
+        storage.status == "ready" for storage in storages
+    ):
+        # the chain's own last step, which a disk check without a verdict left undone
+        handle_domain_change_storage(None, domain.id, declared_ids[0])
+        log.warning(
+            "reconcile: handed CreatingDisk domain %s on, its disk %s is ready",
+            domain.id,
+            declared_ids[0],
+        )
+        return 1
     for storage in storages:
         try:
             # ``find`` is the observation that converges a DOMAIN: the disk is

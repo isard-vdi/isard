@@ -37,6 +37,9 @@ _DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
     }
 )
 
+# no verdict yet (a stalled store): reconcile hands the domain on once the disk reads ready
+STORAGE_AWAITING_VERDICT = frozenset({"maintenance", "creating"})
+
 _DOMAIN_CREATING_TO_CREATING_DISK = frozenset(
     {
         "Creating",
@@ -61,7 +64,8 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     in a pre-libvirt creation status, advances it to ``CreatingDomain``
     so engine's libvirt-define handler takes over.
 
-    When the storage isn't ready and the domain is still in a create
+    When the storage carries a verdict other than ready (not one of
+    ``STORAGE_AWAITING_VERDICT``) and the domain is still in a create
     state the chain failed upstream (create/qemu-img-info produced a disk
     that ``storage_update`` marked deleted/orphan/broken_chain). This is a
     **terminal** condition, not a transient one: the handler runs in the
@@ -88,6 +92,8 @@ def handle_domain_change_storage(task, domain_id, storage_id):
         return
 
     if storage.status != "ready":
+        if storage.status in STORAGE_AWAITING_VERDICT:
+            return
         # A replay finds both rows already Failed, which is not a create
         # status, so this guard must not depend on one.
         if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
