@@ -218,6 +218,10 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
+    # Refuse an all-empty config archive (runs before 72-config-borg).
+    install -D -m700 "/usr/local/share/backup.d/71-config-source-check.sh" "$STAGING_DIR/71-config-source-check.sh"
+    sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "$STAGING_DIR/71-config-source-check.sh"
+
     INTEGRITY_WHEN_CONFIG="$(integrity_when_for "$BACKUP_CONFIG_WHEN")"
     if [ "$INTEGRITY_WHEN_CONFIG" != "disabled" ]; then
         for job in $static_jobs; do
