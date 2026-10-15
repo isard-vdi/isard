@@ -300,7 +300,7 @@ function actionsDomainDetail() {
           return {
             results: $.map(data, function (item, i) {
               return {
-                text: item.name + '[' + item['uid'] + '] ',
+                text: item.name + ' [' + item['uid'] + '] (' + item['category_name'] + ')',
                 id: item.id
               }
             })

@@ -507,14 +507,15 @@ class AdminUserNavItem(BaseModel):
 class AdminUserSearchItem(BaseModel):
     """Row shape for ``POST /admin/items/users/search``.
 
-    ``Alloweds.get_table_term`` plucks ``id``/``name``/``uid`` for admins
-    and adds ``category`` for managers. Both fields kept optional so a
+    ``Alloweds.get_table_term`` plucks ``id``/``name``/``uid``/``category_name`` for admins
+    and adds ``category`` for managers. Fields kept optional so a
     single model handles either pluck variant."""
 
     id: str
     name: Optional[str] = None
     uid: Optional[str] = None
     category: Optional[str] = None
+    category_name: Optional[str] = None
 
 
 class AdminCSVValidateCreateResponse(BaseModel):

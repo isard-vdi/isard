@@ -1096,21 +1096,21 @@ class AdminUsersService:
 
     @staticmethod
     def search_users(payload: dict, term: str) -> list[dict]:
-        """Search users by term."""
+        """Search users whose name or uid contains ``term``."""
         if payload["role_id"] == "admin":
             return Alloweds.get_table_term(
                 "users",
-                "name",
+                ["name", "uid"],
                 term,
-                pluck=["id", "name", "uid"],
+                pluck=["id", "name", "uid", "category_name"],
                 query_filter=lambda user: user["role"] != "user",
             )
         else:
             return Alloweds.get_table_term(
                 "users",
-                "name",
+                ["name", "uid"],
                 term,
-                pluck=["id", "name", "category", "uid"],
+                pluck=["id", "name", "category", "uid", "category_name"],
                 index_key="category",
                 index_value=payload["category_id"],
                 query_filter=lambda user: user["role"] != "user",

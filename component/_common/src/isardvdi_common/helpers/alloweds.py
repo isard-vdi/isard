@@ -83,6 +83,8 @@ class Alloweds(RethinkCustomBase):
         index_key=None,
         index_value=None,
     ):
+        fields = [field] if isinstance(field, str) else field
+        pattern = "(?i)" + re.escape(value)
         query = r.table(table)
         if index_key and index_value:
             query = query.get_all(index_value, index=index_key)
@@ -109,7 +111,11 @@ class Alloweds(RethinkCustomBase):
             )
         with cls._rdb_context():
             return list(
-                query.filter(lambda doc: doc[field].match("(?i)" + re.escape(value)))
+                query.filter(
+                    lambda doc: r.or_(
+                        *(doc[f].default("").match(pattern) for f in fields)
+                    )
+                )
                 .pluck(pluck)
                 .run(cls._rdb_connection)
             )
