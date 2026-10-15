@@ -726,11 +726,14 @@ class UiActions(object):
                         .get("xml_protected_sections", [])
                         or []
                     )
+                    needs_locality = is_gpu or "<hugepages>" in xml
                     if cputune_locked:
                         log.info(
                             f"{id_domain}: <cputune> is admin-protected; keeping the "
                             f"manual CPU pinning (skipping engine NUMA pinning)"
                         )
+                    elif not needs_locality:
+                        target_node = None
                     elif target_node is not None and target_node in numa_nodes:
                         cpulist = numa_nodes[target_node].get("cpulist", "")
                         if cpulist:
