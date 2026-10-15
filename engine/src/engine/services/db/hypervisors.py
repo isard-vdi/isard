@@ -571,7 +571,14 @@ def get_hypers_enabled_with_capabilities_status():
 
 def get_hyp_hostname_user_port_from_id(id):
     r_conn = new_rethink_connection()
-    l = r.table("hypervisors").get(id).pluck("hostname", "user", "port").run(r_conn)
+    # default({}) returns the documented False for a missing row; real errors still raise
+    l = (
+        r.table("hypervisors")
+        .get(id)
+        .pluck("hostname", "user", "port")
+        .default({})
+        .run(r_conn)
+    )
     close_rethink_connection(r_conn)
 
     if len(l) > 0:

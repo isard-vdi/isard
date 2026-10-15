@@ -602,8 +602,17 @@ class HypWorkerThread(threading.Thread):
                 self.h.conn.getLibVersion()
                 self.h.update_domain_coherence_in_db()
                 update_hyp_status(self.hyp_id, "Online")
+                # the events subscription is a separate connection: re-subscribe in case no close callback fired
+                self.q_event_register.put(
+                    {
+                        "type": "add_hyp_to_receive_events",
+                        "hyp_id": self.hyp_id,
+                        "worker": self,
+                    }
+                )
                 logs.workers.info(
-                    f"Successfully reconnected to hypervisor {self.hostname}"
+                    f"Successfully reconnected to hypervisor {self.hostname}; "
+                    f"events re-subscription queued for {self.hyp_id}"
                 )
                 return
             except Exception:
