@@ -474,7 +474,7 @@ class TestRegistryDownloadSource:
 
     def test_a_relative_isard_path_becomes_an_absolute_registry_url(self, monkeypatch):
         svc = self._cfg(monkeypatch)
-        url, headers = svc._registry_download_source(
+        url, headers = svc.registry_download_source(
             "media", {"url-isard": "windows-10-optimizer_v1.iso", "url-web": False}
         )
         assert url == (
@@ -485,19 +485,19 @@ class TestRegistryDownloadSource:
 
     def test_domains_use_their_own_folder(self, monkeypatch):
         svc = self._cfg(monkeypatch)
-        url, _ = svc._registry_download_source(
+        url, _ = svc.registry_download_source(
             "domains", {"url-isard": "some-template.qcow2"}
         )
         assert url.endswith("/storage/domains/some-template.qcow2")
 
     def test_a_trailing_slash_on_the_configured_url_is_not_doubled(self, monkeypatch):
         svc = self._cfg(monkeypatch, url="https://repository.example.com/")
-        url, _ = svc._registry_download_source("media", {"url-isard": "/x.iso"})
+        url, _ = svc.registry_download_source("media", {"url-isard": "/x.iso"})
         assert url == "https://repository.example.com/storage/media/x.iso"
 
     def test_url_web_is_absolute_and_carries_no_credentials(self, monkeypatch):
         svc = self._cfg(monkeypatch)
-        url, headers = svc._registry_download_source(
+        url, headers = svc.registry_download_source(
             "media", {"url-isard": False, "url-web": "https://elsewhere/x.iso"}
         )
         assert url == "https://elsewhere/x.iso"
@@ -505,7 +505,7 @@ class TestRegistryDownloadSource:
 
     def test_an_already_absolute_url_on_the_row_wins(self, monkeypatch):
         svc = self._cfg(monkeypatch)
-        url, headers = svc._registry_download_source(
+        url, headers = svc.registry_download_source(
             "media", {"url": "https://direct/x.iso", "url-isard": "x.iso"}
         )
         assert url == "https://direct/x.iso"
@@ -513,7 +513,7 @@ class TestRegistryDownloadSource:
 
     def test_no_registration_code_means_no_header(self, monkeypatch):
         svc = self._cfg(monkeypatch, code=None)
-        _url, headers = svc._registry_download_source("media", {"url-isard": "x.iso"})
+        _url, headers = svc.registry_download_source("media", {"url-isard": "x.iso"})
         assert headers == []
 
 
@@ -548,7 +548,7 @@ class TestPrivateRegistryDomainsFolder:
             private=[{"url-isard": "win_server_2025.qcow2"}],
             public=[{"url-isard": "debian.qcow2"}],
         )
-        url, headers = svc._registry_download_source(
+        url, headers = svc.registry_download_source(
             "domains", {"url-isard": "win_server_2025.qcow2"}
         )
         assert url == (
@@ -563,7 +563,7 @@ class TestPrivateRegistryDomainsFolder:
             private=[{"url-isard": "win_server_2025.qcow2"}],
             public=[{"url-isard": "debian.qcow2"}],
         )
-        url, _ = svc._registry_download_source("domains", {"url-isard": "debian.qcow2"})
+        url, _ = svc.registry_download_source("domains", {"url-isard": "debian.qcow2"})
         assert url.endswith("/storage/domains/debian.qcow2")
 
     def test_a_name_listed_in_both_keeps_the_public_folder(self, monkeypatch):
@@ -572,7 +572,7 @@ class TestPrivateRegistryDomainsFolder:
             private=[{"url-isard": "shared.qcow2"}],
             public=[{"url-isard": "shared.qcow2"}],
         )
-        url, _ = svc._registry_download_source("domains", {"url-isard": "shared.qcow2"})
+        url, _ = svc.registry_download_source("domains", {"url-isard": "shared.qcow2"})
         assert url.endswith("/storage/domains/shared.qcow2")
 
     def test_without_a_private_code_nothing_is_private(self, monkeypatch):
@@ -582,7 +582,7 @@ class TestPrivateRegistryDomainsFolder:
             public=[],
             private_code=False,
         )
-        url, _ = svc._registry_download_source(
+        url, _ = svc.registry_download_source(
             "domains", {"url-isard": "win_server_2025.qcow2"}
         )
         assert url.endswith("/storage/domains/win_server_2025.qcow2")
@@ -591,7 +591,7 @@ class TestPrivateRegistryDomainsFolder:
         self, monkeypatch
     ):
         svc = self._svc(monkeypatch, private=False, public=500)
-        url, _ = svc._registry_download_source("domains", {"url-isard": "x.qcow2"})
+        url, _ = svc.registry_download_source("domains", {"url-isard": "x.qcow2"})
         assert url.endswith("/storage/domains/x.qcow2")
 
 

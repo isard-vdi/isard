@@ -24,6 +24,7 @@ from urllib.parse import quote, urlparse
 
 import requests
 from api.schemas.media import CreateMediaRequest
+from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.helpers import Helpers
@@ -458,6 +459,20 @@ class MediaService:
                 description_code="media_status_invalid_for_start",
             )
 
+        url, headers = AdminDownloadsService.registry_download_source(
+            "media",
+            {
+                "url-isard": getattr(media, "url-isard"),
+                "url-web": getattr(media, "url-web"),
+            },
+        )
+        if not url or url.endswith("/"):
+            raise Error(
+                "bad_request",
+                f"Media {media_id} has no URL to download it from.",
+                description_code="media_url_not_valid",
+            )
+
         media.status = MediaStatusEnum.download_starting.value
         # Reset progress so the UI doesn't show stale percentages.
         media.progress = {
@@ -477,6 +492,7 @@ class MediaService:
 
         media.enqueue_download_chain(
             user_id=media.user,
-            url=media.url,
+            url=url,
+            headers=headers,
             insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
         )
