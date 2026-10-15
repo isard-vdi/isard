@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 isardvdi-backupninja-report = "isardvdi_backupninja.backup_report:main"
 isardvdi-backupninja-integrity-enabled = "isardvdi_backupninja.get_integrity_enabled:main"
+isardvdi-backup-pool-paths = "isardvdi_backupninja.pool_paths:main"
 
 [dependency-groups]
 test = [
