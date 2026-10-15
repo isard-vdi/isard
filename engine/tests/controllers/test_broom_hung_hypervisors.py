@@ -28,7 +28,7 @@ def storage_probe(monkeypatch):
 def _connected(monkeypatch, domains=None, disk_usage=None):
     h = MagicMock()
     h.connected = True
-    h.get_domains.return_value = domains or {}
+    h.list_domain_states.return_value = domains or {}
     h.get_storage_used.return_value = disk_usage or []
     monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
     monkeypatch.setattr(
@@ -132,7 +132,7 @@ def test_first_loop_publishes_the_state_libvirt_reports(
 ):
     h = MagicMock()
     h.connected = True
-    h.get_domains.return_value = {"dom-1": libvirt_state}
+    h.list_domain_states.return_value = {"dom-1": libvirt_state}
     monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
     monkeypatch.setattr(
         broom,
@@ -159,7 +159,7 @@ def test_first_loop_publishes_the_state_libvirt_reports(
 def test_unreadable_disk_usage_is_not_stored(monkeypatch, disk_usage, stored):
     h = MagicMock()
     h.connected = True
-    h.get_domains.return_value = {}
+    h.list_domain_states.return_value = {}
     h.get_storage_used.return_value = disk_usage
     monkeypatch.setattr(broom, "hyp", MagicMock(return_value=h))
     monkeypatch.setattr(

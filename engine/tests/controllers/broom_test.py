@@ -186,7 +186,7 @@ class TestWhatTheHypervisorReportsThatTheDatabaseDoesNotExpect:
     def _check(self, libvirt_domains, db_status, expected_in_db=()):
         connection = MagicMock()
         connection.connected = True
-        connection.get_domains.return_value = libvirt_domains
+        connection.list_domain_states.return_value = libvirt_domains
         connection.get_storage_used.return_value = {}
         with patch.object(
             mod, "get_hyp_hostname_from_id", return_value=("h", 22, "u", False, None)

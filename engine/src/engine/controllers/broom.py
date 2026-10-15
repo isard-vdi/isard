@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 from time import sleep, time
 
+import libvirt
 from tabulate import tabulate
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
@@ -16,6 +17,7 @@ from engine.models.hyp import hyp
 from engine.services.db import (
     get_degraded_hyp_ids,
     get_domain_status,
+    get_domains_with_status_in_list,
     get_domains_with_transitional_status,
     get_hyp_hostname_from_id,
     get_hyp_hostnames_online,
@@ -31,6 +33,12 @@ from engine.services.db import (
     update_vgpu_info_if_stopped,
 )
 from engine.services.lib import domain_guard
+from engine.services.lib.broom_reconcile import (
+    IDLE_PAUSED_AFTER_S,
+    AbsenceTracker,
+    IdlePausedTracker,
+    vcpu_seconds,
+)
 from engine.services.lib.functions import exec_remote_cmd, get_tid
 from engine.services.lib.storage_stall import (
     PROBE_DEADLINE_S,
@@ -249,14 +257,15 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                         soft=True,
                     )
 
-            # Get domains from hypervisor
-            d_domains_status_from_hyp = h.get_domains()
-            if d_domains_status_from_hyp is None:
-                d_domains_status_from_hyp = {}
+            d_domains_status_from_hyp = h.list_domain_states()
+            result["states"] = dict(d_domains_status_from_hyp)
 
             # Check domains running in hypervisor that are not in database
             for domain_id, status_and_detail in d_domains_status_from_hyp.items():
                 if domain_id not in DB_DOMAINS_ID_STARTED_WITH_HYP:
+                    if domain_guard.holder(domain_id) is not None:
+                        result["domains_handled"].append(domain_id)
+                        continue
                     domain_status = get_domain_status(domain_id)
                     if domain_status is None:
                         try:
@@ -342,6 +351,46 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
     return result
 
 
+def _is_held(domain_id):
+    return domain_guard.holder(domain_id) is not None
+
+
+def _destroy_idle_paused(hyp_id, domain_id, status, vcpu_time):
+    """Destroy a domain left paused at start, if libvirt still shows it so, and stop its row."""
+    hyp_info = get_hyp_hostname_from_id(hyp_id)
+    if hyp_info is None or hyp_info[0] is False:
+        return False
+    h = hyp(hyp_id, hyp_info[0], user=hyp_info[2], port=hyp_info[1])
+    if not h.connected:
+        return False
+    try:
+        dom = h.conn.lookupByName(domain_id)
+        if dom.state()[0] != libvirt.VIR_DOMAIN_PAUSED:
+            return False
+        if vcpu_seconds(dom) > vcpu_time + 0.001:
+            return False
+        dom.destroy()
+    finally:
+        h.disconnect()
+    log_broom_action(
+        "destroy_idle_paused_at_start",
+        domain_id,
+        "Stopped",
+        UPSTREAM_FAILURE,
+        from_status=status,
+        hyp_id=hyp_id,
+        reason=f"paused, vCPUs ran {vcpu_time:.2f}s, for {IDLE_PAUSED_AFTER_S}s or more",
+    )
+    update_domain_status(
+        "Stopped",
+        domain_id,
+        detail="Stopped by broom: left paused at start and never ran",
+        expected_status=status,
+    )
+    update_vgpu_info_if_stopped(domain_id)
+    return True
+
+
 def _timed_check(state, hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_HYP):
     """Run a hypervisor check, recording when it actually started running."""
     state["started_at"] = time()
@@ -370,6 +419,9 @@ class ThreadBroom(threading.Thread):
         self._inflight = {}
         self._probe_inflight = {}
         self._stall = SharedStorageStall()
+        self._absence = AbsenceTracker()
+        self._idle_paused = IdlePausedTracker()
+        self._reaping = {}
         try:
             self._stall.resume(get_shared_storage_stall())
         except Exception as e:
@@ -453,6 +505,43 @@ class ThreadBroom(threading.Thread):
         except Exception as e:
             logs.broom.error(f"Could not store the shared storage condition: {e}")
 
+    def _settle_absent(self, rows, online, hyps_domain_started):
+        listings = {h: d.get("states", {}) for h, d in hyps_domain_started.items()}
+        for row in self._absence.absent(rows, online, listings, _is_held):
+            log_broom_action(
+                "stop_absent_from_libvirt",
+                row["id"],
+                "Stopped",
+                UPSTREAM_FAILURE,
+                from_status=row["status"],
+                hyp_id=row.get("hyp_started") or None,
+                reason=f"not running in any of the {len(online)} online hypervisors",
+            )
+            update_domain_status(
+                "Stopped",
+                row["id"],
+                detail="Stopped by broom: not running in any online hypervisor",
+                expected_status=row["status"],
+            )
+            update_vgpu_info_if_stopped(row["id"])
+
+    def _reap_idle_paused(self, hyps_domain_started, now):
+        listings = {h: d.get("states", {}) for h, d in hyps_domain_started.items()}
+        statuses = {
+            domain_id: get_domain_status(domain_id)
+            for domain_id in IdlePausedTracker.candidates(listings)
+        }
+        for domain_id in [d for d, f in self._reaping.items() if f.done()]:
+            del self._reaping[domain_id]
+        for hyp_id, domain_id, status, vcpu_time in self._idle_paused.due(
+            listings, statuses, _is_held, now
+        ):
+            if domain_id in self._reaping:
+                continue
+            self._reaping[domain_id] = self._executor.submit(
+                _destroy_idle_paused, hyp_id, domain_id, status, vcpu_time
+            )
+
     def _mark_degraded(self, hyp_id, reason):
         if self._broom_degraded_hyps.get(hyp_id) == reason:
             return
@@ -534,7 +623,8 @@ class ThreadBroom(threading.Thread):
                     continue
                 if result["success"]:
                     hyps_domain_started[hyp_id] = {
-                        "active_domains": result["active_domains"]
+                        "active_domains": result["active_domains"],
+                        "states": result.get("states", {}),
                     }
                     succeeded_hyps.add(hyp_id)
                 else:
@@ -780,6 +870,20 @@ class ThreadBroom(threading.Thread):
                     )
 
                 t_broom_inner = time()
+                unknown_rows = get_domains_with_status_in_list(["Unknown"])
+                self._settle_absent(
+                    unknown_rows + l, HYPERS_ONLINE, hyps_domain_started
+                )
+                self._reap_idle_paused(hyps_domain_started, time())
+                t_broom_data.append(
+                    {
+                        "step": "settle_rows_libvirt_does_not_back",
+                        "count": len(unknown_rows),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
+
+                t_broom_inner = time()
                 for d in DB_DOMAINS_WITHOUT_HYP:
                     domain_id = d["id"]
                     status = d["status"]
@@ -808,6 +912,7 @@ class ThreadBroom(threading.Thread):
                 )
 
                 t_broom_inner = time()
+                without_verdict = {}
                 for d in DB_DOMAINS_STARTED_WITH_HYP:
                     domain_id = d["id"]
                     status = d["status"]
@@ -955,12 +1060,14 @@ class ThreadBroom(threading.Thread):
                                 )
                             )
                     else:
-                        if len(hyps_domain_started) > 0:
-                            logs.broom.error(
-                                "domain {} has an hyp_started: {} NOT IN hyps_domain_started keys:".format(
-                                    domain_id, hyp_started
-                                )
-                            )
+                        without_verdict[hyp_started] = (
+                            without_verdict.get(hyp_started, 0) + 1
+                        )
+                for hyp_started, count in sorted(without_verdict.items()):
+                    logs.broom.warning(
+                        f"{count} domains on hypervisor {hyp_started} left as they "
+                        "are: no verdict from it this pass"
+                    )
                 t_broom_data.append(
                     {
                         "step": "update_domains_with_hypervisor",

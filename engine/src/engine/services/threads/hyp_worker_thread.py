@@ -88,6 +88,8 @@ notify_thread_pool = ThreadPoolExecutor(max_workers=1)
 # the last value repeats until the hypervisor answers
 STOP_RETRY_BACKOFF_S = (10, 20, 40, 80, 160, 300)
 
+RECONCILE_ON_CONNECT_RETRY_S = (5, 15, 30)
+
 
 def notify_desktop_in_thread(domain, message):
     try:
@@ -196,7 +198,7 @@ class HypWorkerThread(threading.Thread):
 
         # Post-connect setup: reconcile domain state, mark the worker thread
         # Started, and start receiving libvirt events.
-        self.h.update_domain_coherence_in_db()
+        self._reconcile_domains_on_connect()
         update_hyp_thread_status("worker", self.hyp_id, "Started")
         self.q_event_register.put(
             {
@@ -609,7 +611,8 @@ class HypWorkerThread(threading.Thread):
 
                 self.h.connect_to_hyp()
                 self.h.conn.getLibVersion()
-                self.h.update_domain_coherence_in_db()
+                if not self._reconcile_domains_on_connect(retries=()):
+                    raise RuntimeError("could not list the domains")
                 update_hyp_status(self.hyp_id, "Online")
                 # the events subscription is a separate connection: re-subscribe in case no close callback fired
                 self.q_event_register.put(
@@ -956,6 +959,30 @@ class HypWorkerThread(threading.Thread):
             )
             return LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW
         return LIBVIRT_OPERATION_TIMEOUT
+
+    def _reconcile_domains_on_connect(self, retries=RECONCILE_ON_CONNECT_RETRY_S):
+        """List the domains under the libvirt timeout; rows it cannot settle wait for the broom."""
+        for attempt, delay in enumerate((*retries, None), start=1):
+            try:
+                states = self._execute_libvirt_with_timeout(
+                    self.h.list_domain_states,
+                    operation_name="libvirt listAllDomains (reconcile on connect)",
+                )
+                self.h.update_domain_coherence_in_db(states)
+                return True
+            except Exception as e:
+                if delay is None or self.stop:
+                    logs.workers.error(
+                        f"[{self.hyp_id}] could not reconcile its domains after "
+                        f"{attempt} attempt(s): {e}; the broom settles them"
+                    )
+                    return False
+                logs.workers.warning(
+                    f"[{self.hyp_id}] reconcile of its domains failed ({e}); "
+                    f"attempt {attempt + 1} in {delay}s"
+                )
+                time.sleep(delay)
+        return False
 
     def _refuse_start_while_held(self, action, action_time, intervals):
         held = domain_guard.holder(action["id_domain"])

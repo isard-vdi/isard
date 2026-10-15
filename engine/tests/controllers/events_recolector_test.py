@@ -206,25 +206,11 @@ def test_hypervisor_guard_is_skipped_when_hyp_started_is_unset(db, hyp_started):
 # F-EXTRA: the guard chain falls through and writes a non-status
 
 
-def test_resumed_over_failed_writes_the_event_name_as_the_status(db):
-    """F-EXTRA. Reproduced live: a domain in ``Failed`` gets ``status=Resumed``.
-
-    The Started/Resumed chain only covers StartingDomainDisposable,
-    CreatingDomain, Stopped, Started and Starting. Any other previous status
-    falls into the ``else``, which does ``status_to_update = domEventToString(
-    event)`` -- writing the libvirt EVENT NAME into the domain's STATUS field.
-
-    # WRONG ON PURPOSE
-    "Resumed" is not a state in IsardVDI's domain lifecycle. Live, the row sat
-    at status="Resumed" for 49 ms until the Started event behind it overwrote
-    it; any query in that window sees a status that does not exist.
-    """
+def test_resumed_over_failed_writes_nothing(db):
+    """F-EXTRA: a lifecycle event no longer revives a Failed or Stopped row."""
     _fire(db, 4, 0, status="Failed")  # Resumed(Unpaused) over Failed
 
-    db.update_domain_status.assert_called_once()
-    kwargs = db.update_domain_status.call_args.kwargs
-    assert kwargs["status"] == "Resumed"
-    assert kwargs["detail"] == "Event received: Unpaused"
+    db.update_domain_status.assert_not_called()
 
 
 def test_the_same_event_over_stopped_writes_nothing(db):
@@ -263,14 +249,24 @@ def test_unpaused_over_paused_is_translated_to_started(db):
     assert kwargs["detail"] == "Event received: Unpaused"
 
 
-def test_started_booted_over_stopped_writes_started(db):
-    """The ordinary happy path, measured live at ~231 ms end to end."""
-    _fire(db, 2, 0, status="Stopped")  # Started(Booted)
+def test_started_booted_over_starting_writes_started(db):
+    """The ordinary happy path: the start that raised the event is still on the row."""
+    _fire(db, 2, 0, status="Starting")  # Started(Booted)
 
     kwargs = db.update_domain_status.call_args.kwargs
     assert kwargs["status"] == "Started"
     assert kwargs["detail"] == "Event received: Booted"
     assert kwargs["hyp_id"] == HYP
+
+
+@pytest.mark.parametrize("status", ["Failed", "Stopped"])
+@pytest.mark.parametrize("event,detail", [(2, 0), (3, 0), (4, 0)])
+def test_a_late_event_does_not_revive_a_settled_row(db, status, event, detail):
+    """A Booted, Suspended or Resumed raised before the row was settled must not
+    undo it; whether the domain really runs is the broom's live listing to say."""
+    _fire(db, event, detail, status=status)
+
+    db.update_domain_status.assert_not_called()
 
 
 def test_started_over_creating_domain_is_swallowed_but_resumed_is_not(db):

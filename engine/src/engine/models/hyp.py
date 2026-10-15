@@ -65,6 +65,7 @@ from engine.services.db.hypervisors import (
     update_operator_passthrough,
     update_requested_profile,
 )
+from engine.services.lib.broom_reconcile import vcpu_seconds
 from engine.services.lib.functions import (
     SSHTimeoutError,
     calcule_cpu_hyp_stats,
@@ -2918,29 +2919,7 @@ class hyp(object):
         self.domains_states = {}
         if self.connected:
             try:
-                for d in self.conn.listAllDomains(
-                    libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
-                ):
-                    try:
-                        domain_name = d.name()
-                        l_libvirt_state = d.state()
-                        state_id = l_libvirt_state[0]
-                        reason_id = (
-                            -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
-                        )
-                        self.domains_states[domain_name] = {
-                            "status": virDomainState[state_id]["status"],
-                            "detail": virDomainState[state_id]
-                            .get("reason", {})
-                            .get(reason_id, {})
-                            .get("detail", ""),
-                        }
-                    except:
-                        log.info(
-                            "unkown domain fail when trying to get his name, power off??"
-                        )
-                        continue
-                    self.domains[domain_name] = d
+                self.list_domain_states()
             except:
                 log.error(
                     "error when try to list domain in hypervisor {}".format(
@@ -2948,11 +2927,39 @@ class hyp(object):
                     )
                 )
                 self.domains = {}
+                self.domains_states = {}
 
         return self.domains_states
 
-    def update_domain_coherence_in_db(self):
-        d_domains_with_states = self.get_domains()
+    def list_domain_states(self):
+        """Like ``get_domains``, but raises when libvirt cannot list, instead of answering ``{}``."""
+        self.domains = {}
+        self.domains_states = {}
+        for d in self.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
+            try:
+                domain_name = d.name()
+                l_libvirt_state = d.state()
+                state_id = l_libvirt_state[0]
+                reason_id = -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
+                state = {
+                    "status": virDomainState[state_id]["status"],
+                    "detail": virDomainState[state_id]
+                    .get("reason", {})
+                    .get(reason_id, {})
+                    .get("detail", ""),
+                }
+                if state["status"] == "Paused":
+                    state["vcpu_time"] = vcpu_seconds(d)
+            except:
+                log.info("unkown domain fail when trying to get his name, power off??")
+                continue
+            self.domains_states[domain_name] = state
+            self.domains[domain_name] = d
+        return self.domains_states
+
+    def update_domain_coherence_in_db(self, d_domains_with_states=None):
+        if d_domains_with_states is None:
+            d_domains_with_states = self.list_domain_states()
         set_domains_running_in_hyps = set()
         if self.id_hyp_rethink is None:
             try:
@@ -2981,6 +2988,7 @@ class hyp(object):
                 "Stopped",
                 domain_id,
                 detail=f"domain not running in hyp {self.id_hyp_rethink}",
+                expected_status=domains_with_hyp_started_in_db[domain_id],
             )
 
     #

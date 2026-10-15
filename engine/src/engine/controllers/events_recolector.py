@@ -12,6 +12,7 @@
 ##############################################################################
 
 import atexit
+import collections
 import queue
 import threading
 import time
@@ -86,6 +87,43 @@ def _shutdown_event_processor_pool():
 
 # Register shutdown handler for graceful cleanup
 atexit.register(_shutdown_event_processor_pool)
+
+
+class PerKeySerialDispatcher:
+    """Runs work on a shared pool, one item at a time and in submission order per key."""
+
+    def __init__(self, pool):
+        self._pool = pool
+        self._lock = threading.Lock()
+        self._pending = {}
+
+    def submit(self, key, fn, *args):
+        with self._lock:
+            queued = self._pending.get(key)
+            if queued is not None:
+                queued.append((fn, args))
+                return
+            self._pending[key] = collections.deque()
+        self._pool.submit(self._drain, key, fn, args)
+
+    def _drain(self, key, fn, args):
+        while True:
+            try:
+                fn(*args)
+            except Exception as e:
+                logs.status.error(f"Error processing an event of {key}: {e}")
+            with self._lock:
+                queued = self._pending[key]
+                if not queued:
+                    del self._pending[key]
+                    return
+                fn, args = queued.popleft()
+
+
+_domain_event_dispatcher = PerKeySerialDispatcher(_event_processor_pool)
+
+# an event raised before the row settled; a live domain is adopted from the broom's listing
+STATUSES_NOT_REVIVED_BY_EVENTS = ("Failed", "Stopped")
 
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
 import pprint
@@ -531,6 +569,17 @@ def _process_domain_event_async(conn_uri, dom_name, event, detail, opaque, event
                     )
                 )
 
+            if (
+                dict_event["event"] in ("Started", "Resumed", "Suspended")
+                and domain_status in STATUSES_NOT_REVIVED_BY_EVENTS
+            ):
+                logs.status.warning(
+                    f"EVENT_IGNORED: {dict_event['event']} ({dict_event['detail']}) "
+                    f"of {dom_id} in {hyp_id} raised at {event_time}, row is "
+                    f"{domain_status}; left to the broom's live listing"
+                )
+                return
+
             if dict_event["event"] in ("Started", "Resumed"):
                 if (
                     domain_status == "StartingDomainDisposable"
@@ -666,9 +715,15 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
     dom_name = dom.name()
     conn_uri = conn.getURI()
 
-    # Queue the actual processing to the thread pool
-    _event_processor_pool.submit(
-        _process_domain_event_async, conn_uri, dom_name, event, detail, opaque, now
+    _domain_event_dispatcher.submit(
+        dom_name,
+        _process_domain_event_async,
+        conn_uri,
+        dom_name,
+        event,
+        detail,
+        opaque,
+        now,
     )
 
 
