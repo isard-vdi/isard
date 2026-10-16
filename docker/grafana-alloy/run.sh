@@ -10,6 +10,15 @@ else
 	rm -f /etc/alloy/journal.alloy
 fi
 
+case "$FLAVOUR" in
+	all-in-one | *web* | *video* | *monitor*)
+		cp /usr/local/etc/alloy/certificates.alloy /etc/alloy/certificates.alloy
+		;;
+	*)
+		rm -f /etc/alloy/certificates.alloy
+		;;
+esac
+
 if [ "$PYROSCOPE_EBPF" = "true" ]; then
 	cp /usr/local/etc/alloy/profiling.alloy /etc/alloy/profiling.alloy
 fi

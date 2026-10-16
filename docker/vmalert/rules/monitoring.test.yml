@@ -1,6 +1,7 @@
 rule_files:
   - monitoring.rules.yml
   - system_health.rules.yml
+  - certificates.rules.yml
 
 evaluation_interval: 1m
 
@@ -84,3 +85,51 @@ tests:
         exp_samples:
           - labels: 'isardvdi:vmalert_heartbeat'
             value: 1
+
+  - name: certificate_ten_days_away_warns_and_does_not_page
+    interval: 10m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
+        values: "864000x20"
+      - series: 'probe_success{job="certificates",domain="a"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 2h
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: certificates
+              job: certificates
+              domain: a
+            exp_annotations:
+              summary: "The certificate of a expires in 10 days"
+              description: "The TLS certificate served on a:443 expires in less than 14 days. Renewal should have happened already: check the certificate renewal of the portal."
+    metricsql_expr_test:
+      - expr: isardvdi:area_monitored
+        eval_time: 1h
+        exp_samples:
+          - labels: 'isardvdi:area_monitored{area="certificates"}'
+            value: 1
+
+  - name: certificate_far_away_is_quiet
+    interval: 10m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
+        values: "7776000x20"
+      - series: 'probe_success{job="certificates",domain="a"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 3h
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 3h
+        groupname: certificates
+        alertname: CertificateNotReadable
+        exp_alerts: []
