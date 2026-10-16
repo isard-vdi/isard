@@ -236,6 +236,15 @@ def last_task_ids(connection, owner_ids, kind=STORAGE):
         return answer
 
 
+def drop_index(connection, owner_id, kind=STORAGE):
+    """Forget ``owner_id``'s task history once its row is gone. Never raises."""
+    key = index_key(kind, owner_id)
+    try:
+        connection.unlink(key)
+    except Exception:
+        log.warning("task index: could not drop %s", key, exc_info=True)
+
+
 def owner_task_ids(connection, owner_id, kind=STORAGE):
     """``owner_id``'s task ids, newest first, proven to still exist.
 

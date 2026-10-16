@@ -1684,6 +1684,7 @@ class AdminQueuesService:
         for job in jobs:
             try:
                 job.delete(delete_dependents=True)
+                Result.delete_all(job)
             except Exception:
                 errors.append(job.id)
             else:

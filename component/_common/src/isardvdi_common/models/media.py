@@ -26,7 +26,7 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
-from isardvdi_common.lib.task_index import MEDIA, current_task_id
+from isardvdi_common.lib.task_index import MEDIA, current_task_id, drop_index
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
@@ -68,6 +68,20 @@ class Media(RethinkCustomBase):
     """
 
     _rdb_table = "media"
+
+    @classmethod
+    def delete(cls, document_id):
+        deleted = super().delete(document_id)
+        if deleted:
+            drop_index(Task._redis, document_id, kind=MEDIA)
+        return deleted
+
+    @classmethod
+    def delete_document_if(cls, document_id, *, field, values):
+        deleted = super().delete_document_if(document_id, field=field, values=values)
+        if deleted:
+            drop_index(Task._redis, document_id, kind=MEDIA)
+        return deleted
 
     def create_task(self, *args, **kwargs):
         """

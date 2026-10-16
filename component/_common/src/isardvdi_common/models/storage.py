@@ -31,7 +31,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
-from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.lib.task_index import current_task_id, drop_index
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
 from pydantic import BaseModel, Field
@@ -285,6 +285,20 @@ class Storage(RethinkCustomBase):
     """
 
     _rdb_table = "storage"
+
+    @classmethod
+    def delete(cls, document_id):
+        deleted = super().delete(document_id)
+        if deleted:
+            drop_index(Task._redis, document_id)
+        return deleted
+
+    @classmethod
+    def delete_document_if(cls, document_id, *, field, values):
+        deleted = super().delete_document_if(document_id, field=field, values=values)
+        if deleted:
+            drop_index(Task._redis, document_id)
+        return deleted
 
     @classmethod
     def new_dict(cls, user_id, pool_usage, parent_id=None, format="qcow2") -> "Storage":
