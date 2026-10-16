@@ -3,7 +3,7 @@
 """Tests for ``async_watch_resync``, the lifespan task that resyncs HAProxy on request."""
 
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import grpc
 import pytest
@@ -46,13 +46,14 @@ class _FakeStream:
 _real_sleep = asyncio.sleep
 
 
-def _msg(reason):
-    return MagicMock(reason=reason)
+def _msg(reason, id=1):
+    return MagicMock(reason=reason, id=id)
 
 
-def _run(streams, monkeypatch, on_resync=None):
+def _run(streams, monkeypatch, on_resync=None, ack=None):
     stub = MagicMock()
     stub.WatchResync = MagicMock(side_effect=streams)
+    stub.AckResync = ack or AsyncMock()
     monkeypatch.setattr(
         grpc_client.haproxy_sync_pb2_grpc, "HaproxySyncServiceStub", lambda _c: stub
     )
@@ -130,3 +131,35 @@ def test_streams_are_cancelled_when_they_end(monkeypatch):
     _run([first, _FakeStream([_StopLoop()])], monkeypatch)
 
     assert first.cancelled
+
+
+def test_every_resync_reports_its_outcome(monkeypatch):
+    on_resync = MagicMock(side_effect=[RuntimeError("rethinkdb down"), None])
+
+    _, _, stub = _run(
+        [
+            _FakeStream(
+                [_msg("haproxy reload", 7), _msg("haproxy reload", 8), _StopLoop()]
+            )
+        ],
+        monkeypatch,
+        on_resync,
+    )
+
+    acks = [c.args[0] for c in stub.AckResync.call_args_list]
+    assert [(a.id, a.error) for a in acks] == [(7, "rethinkdb down"), (8, "")]
+
+
+def test_a_failed_report_does_not_stop_the_stream(monkeypatch):
+    on_resync, _, stub = _run(
+        [
+            _FakeStream(
+                [_msg("haproxy reload", 1), _msg("haproxy reload", 2), _StopLoop()]
+            )
+        ],
+        monkeypatch,
+        ack=AsyncMock(side_effect=_FakeRpcError()),
+    )
+
+    assert stub.WatchResync.call_count == 1
+    assert on_resync.call_count == 2

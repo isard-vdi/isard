@@ -162,11 +162,17 @@ func (h *HAProxySyncServer) BastionGetCurrentMaps(ctx context.Context, req *hapr
 }
 
 func (h *HAProxySyncServer) WatchResync(req *haproxysyncv1.WatchResyncRequest, stream haproxysyncv1.HaproxySyncService_WatchResyncServer) error {
-	if err := h.haproxysync.WatchResync(stream.Context(), func(reason string) error {
-		return stream.Send(&haproxysyncv1.WatchResyncResponse{Reason: reason})
+	if err := h.haproxysync.WatchResync(stream.Context(), func(r haproxysync.ResyncRequest) error {
+		return stream.Send(&haproxysyncv1.WatchResyncResponse{Reason: r.Reason, Id: r.ID})
 	}); err != nil {
 		return status.Error(codes.Unavailable, fmt.Errorf("send resync request: %w", err).Error())
 	}
 
 	return nil
+}
+
+func (h *HAProxySyncServer) AckResync(ctx context.Context, req *haproxysyncv1.AckResyncRequest) (*haproxysyncv1.AckResyncResponse, error) {
+	h.haproxysync.AckResync(req.GetId(), req.GetError())
+
+	return &haproxysyncv1.AckResyncResponse{}, nil
 }

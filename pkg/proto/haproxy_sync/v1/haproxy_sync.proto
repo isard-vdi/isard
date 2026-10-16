@@ -28,8 +28,12 @@ service HaproxySyncService {
   rpc BastionGetCurrentMaps(BastionGetCurrentMapsRequest) returns (BastionGetCurrentMapsResponse) {}
 
   // WatchResync streams a request every time the HAProxy runtime state was lost and has to be
-  // pushed again: once when the stream opens and after every HAProxy reload.
+  // pushed again: once when the stream opens and after every HAProxy reload. A request is sent
+  // again, with a new id, until AckResync reports it succeeded or a newer one replaces it.
   rpc WatchResync(WatchResyncRequest) returns (stream WatchResyncResponse) {}
+
+  // AckResync reports the outcome of the push a WatchResync request asked for
+  rpc AckResync(AckResyncRequest) returns (AckResyncResponse) {}
 }
 
 message DomainSyncDomain {
@@ -102,4 +106,13 @@ message WatchResyncRequest {}
 // WatchResyncResponse asks the client to push the full state again.
 message WatchResyncResponse {
   string reason = 1;
+  uint64 id = 2;
 }
+
+message AckResyncRequest {
+  uint64 id = 1;
+  // error is empty when the push succeeded
+  string error = 2;
+}
+
+message AckResyncResponse {}

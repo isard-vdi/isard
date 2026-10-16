@@ -95,7 +95,7 @@ def create_resync_watch_channel(host, port):
 
 
 async def async_watch_resync(channel, on_resync, max_backoff=30):
-    """Keep the haproxy-sync `WatchResync` stream open and call `on_resync(reason)` per request."""
+    """Call `on_resync(reason)` per haproxy-sync `WatchResync` request and report its outcome."""
     stub = haproxy_sync_pb2_grpc.HaproxySyncServiceStub(channel)
     backoff = 1
 
@@ -105,13 +105,31 @@ async def async_watch_resync(channel, on_resync, max_backoff=30):
             try:
                 async for message in call:
                     backoff = 1
-                    log.info(f"haproxy-sync asked for a resync: {message.reason}")
+                    log.info(
+                        f"haproxy-sync asked for a resync: {message.reason} "
+                        f"(request {message.id})"
+                    )
+                    error = ""
                     try:
                         await asyncio.to_thread(on_resync, message.reason)
-                    except Exception:
+                    except Exception as exc:
+                        error = str(exc) or type(exc).__name__
                         log.warning(
-                            f"HAProxy resync failed (reason: {message.reason})",
+                            f"HAProxy resync failed (reason: {message.reason}, "
+                            f"request {message.id}), haproxy-sync will ask again",
                             exc_info=True,
+                        )
+                    try:
+                        await stub.AckResync(
+                            haproxy_sync_pb2.AckResyncRequest(
+                                id=message.id, error=error
+                            ),
+                            timeout=10,
+                        )
+                    except grpc.RpcError as exc:
+                        log.warning(
+                            f"Could not report HAProxy resync request {message.id}: "
+                            f"{exc.code().name}"
                         )
             finally:
                 call.cancel()
