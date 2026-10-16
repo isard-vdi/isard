@@ -49,6 +49,7 @@ services:
       -storageDataPath=/victoria-metrics-data
       -retentionPeriod=${VICTORIAMETRICS_RETENTION_TIME:-${PROMETHEUS_RETENTION_TIME:-40d}}
       -selfScrapeInterval=30s
+      -vmalert.proxyURL=http://isard-vmalert:8880
 
   isard-vmalert:
     container_name: isard-vmalert

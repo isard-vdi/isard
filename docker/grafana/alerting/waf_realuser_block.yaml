@@ -7,7 +7,7 @@ apiVersion: 1
 # body-parse hard-deny hits a legitimate path (the deny that is invisible in
 # DetectionOnly and only bites in blocking mode). The classification mirrors the
 # read-only Loki detector shipped in the WAF repo (utils/waf-monitor/detect.py):
-# a disruptive block / 200002 on a legit path, from a client that is NOT an
+# a 949110 deny / 200002 on a legit path, from a client that is NOT an
 # internal RFC1918/loopback address and whose path is NOT a scanner shape.
 #
 # WHY a central Grafana rule instead of a monitor per WAF: the raw isard-waf
@@ -50,6 +50,7 @@ contactPoints:
         settings:
           bottoken: ${GRAFANA_TELEGRAM_TOKEN}
           chatid: ${GRAFANA_TELEGRAM_CHAT_ID}
+          parse_mode: None
         disableResolveMessage: false
 
 groups:
@@ -59,7 +60,7 @@ groups:
     interval: 1m
     rules:
       # ------------------------------------------------------------------
-      # WafRealUserBlocked — a disruptive block (or a 200002 hard-deny) on a
+      # WafRealUserBlocked — a 949110 deny (or a 200002/3 hard-deny) on a
       # legitimate path from a real external client in the last 5m. One firing
       # instance; the offending client/rule/uri are in Loki.
       # ------------------------------------------------------------------
@@ -72,10 +73,12 @@ groups:
         labels:
           severity: critical
           service: isard-waf
+          area: web
         annotations:
           summary: WAF blocked a real user on a legitimate path
           description: >-
-            isard-waf issued a disruptive block (or a 200002 body-parse hard-deny)
+            isard-waf denied a request (inbound anomaly score 949110, or a
+            200002/200003 body-parse hard-deny)
             against a real external client on a legitimate application path within
             the last 5m — very likely a false positive 403'ing a genuine user.
             Inspect Loki {service_name="isard-waf"} for the client IP, rule_id and
@@ -96,7 +99,7 @@ groups:
                 uid: P8E80F9AEF21F6940
               editorMode: code
               queryType: instant
-              expr: 'sum(count_over_time({service_name="isard-waf"} |~ `"disruptive":true|"rule_id":200002` | json uri="match.uri", client="match.client" | uri =~ `(?i).*/(authentication|isard-admin|socket\.io|viewer|websocket-tunnel|api/v[34]|monitor/api|monitor/user|monitor/d/|faro).*` | uri !~ `(?i).*(xmlrpc|\.env|\.git|\.php|/owa|/ecp|/RDWeb|/cgi-bin|/vendor/|/wp-|/\.[a-z]|\.tfstate|terraform|\.bak|\.old|\.swp|id_rsa|\.htpasswd|\.npmrc|\.dockercfg|\.aws).*` | client !~ `(10\.|172\.|192\.168\.|127\.|::1).*`[5m]))'
+              expr: 'sum(count_over_time({service_name="isard-waf"} |~ `"rule_id": ?(949110|20000[23])\b` | json uri="match.uri", client="match.client" | uri =~ `(?i).*/(authentication|isard-admin|socket\.io|viewer|websocket-tunnel|api/v[34]|monitor/api|monitor/user|monitor/d/|faro).*` | uri !~ `(?i).*(xmlrpc|\.env|\.git|\.php|/owa|/ecp|/RDWeb|/cgi-bin|/vendor/|/wp-|/\.[a-z]|\.tfstate|terraform|\.bak|\.old|\.swp|id_rsa|\.htpasswd|\.npmrc|\.dockercfg|\.aws).*` | client !~ `(10\.|172\.|192\.168\.|127\.|::1).*`[5m]))'
               intervalMs: 1000
               maxDataPoints: 43200
           - refId: B
