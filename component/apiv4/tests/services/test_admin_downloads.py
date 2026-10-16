@@ -36,6 +36,16 @@ from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.media import MediaModel
 from isardvdi_common.schemas.domains import DomainKindEnum
 
+VENDOR_CPU_XML = """
+<domain type="kvm">
+  <name>slax</name>
+  <cpu mode="custom" match="exact">
+    <model>Haswell-noTSX</model>
+  </cpu>
+  <devices/>
+</domain>
+""".strip()
+
 TETROS_XML = """
 <domain type='kvm'>
   <name>tetros</name>
@@ -205,6 +215,32 @@ class TestParseXmlProtectionHints:
         assert hints["not_change_cpu_section"] is False
         assert "cpu" not in hints["protected_sections"]
 
+    def test_vendor_cpu_model_is_not_protected(self):
+        hints = AdminDownloadsService._parse_xml_protection_hints(VENDOR_CPU_XML)
+        assert hints["not_change_cpu_section"] is False
+        assert "cpu" not in hints["protected_sections"]
+
+    @pytest.mark.parametrize(
+        "model", ["Haswell-noTSX", "Skylake-Client", "EPYC", "Opteron_G5", "Penryn"]
+    )
+    def test_no_vendor_cpu_model_is_protected(self, model):
+        xml = (
+            "<domain type='kvm'><cpu mode='custom' match='exact'>"
+            f"<model>{model}</model></cpu><devices/></domain>"
+        )
+        hints = AdminDownloadsService._parse_xml_protection_hints(xml)
+        assert hints["not_change_cpu_section"] is False
+
+    @pytest.mark.parametrize("model", ["kvm32", "qemu64", "pentium", "core2duo"])
+    def test_generic_cpu_model_is_protected(self, model):
+        xml = (
+            "<domain type='kvm'><cpu mode='custom' match='exact'>"
+            f"<model fallback='allow'>{model}</model></cpu><devices/></domain>"
+        )
+        hints = AdminDownloadsService._parse_xml_protection_hints(xml)
+        assert hints["not_change_cpu_section"] is True
+        assert hints["protected_sections"] == ["cpu"]
+
     def test_interface_without_model_not_protected(self):
         xml = (
             "<domain type='kvm'>"
@@ -243,6 +279,12 @@ class TestFormatDomainsProtectionHints:
             "interface",
             "video",
         }
+
+    def test_vendor_cpu_entry_leaves_cpu_to_the_install(self):
+        entry = _registry_entry(cd_bus="sata", top_bus="sata", xml=VENDOR_CPU_XML)
+        result = _run_format(entry)
+        assert "not_change_cpu_section" not in result["create_dict"]["hardware"]
+        assert "xml_protected_sections" not in result["create_dict"]
 
     def test_entry_without_xml_does_not_set_hints(self):
         """Debian-style entry with no registry xml leaves both fields absent

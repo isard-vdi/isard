@@ -50,6 +50,26 @@ URL_DOWNLOAD_INSECURE_SSL = (
     os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
 )
 
+# QEMU's generic models: every x86 KVM host can run them, unlike vendor models.
+PORTABLE_CPU_MODELS = frozenset(
+    {
+        "486",
+        "pentium",
+        "pentium2",
+        "pentium3",
+        "pentiumpro",
+        "coreduo",
+        "n270",
+        "core2duo",
+        "qemu32",
+        "kvm32",
+        "cpu64-rhel5",
+        "cpu64-rhel6",
+        "kvm64",
+        "qemu64",
+    }
+)
+
 
 def _registry_rejection(kind: str, entry: dict) -> Optional[str]:
     """Why this registry entry must not become a row, or None if it may.
@@ -643,8 +663,10 @@ class AdminDownloadsService:
         (``engine/models/domain_xml.py:recreate_xml_to_start``): it replaces
         the ``<cpu>`` section with host-model and rebuilds ``<interface>``
         and ``<video>`` elements from DB rows. That clobbers guests whose
-        registry XML encodes a specific CPU model or legacy NIC/video
-        driver (e.g. TetrOS ships ``kvm32`` CPU and ``rtl8139`` NIC).
+        registry XML encodes a generic legacy CPU model or legacy NIC/video
+        driver (e.g. TetrOS ships ``kvm32`` CPU and ``rtl8139`` NIC). A
+        vendor CPU model is not protected: it only boots on hosts that have
+        every one of its features, so the install's CPU mode replaces it.
 
         This helper inspects the XML and returns two pre-existing escape
         hatches the engine already honours:
@@ -669,11 +691,7 @@ class AdminDownloadsService:
             mode = cpu.get("mode", "")
             model_el = cpu.find("model")
             model_text = (model_el.text or "").strip() if model_el is not None else ""
-            if (
-                mode == "custom"
-                and model_text
-                and model_text not in ("host-model", "host-passthrough")
-            ):
+            if mode == "custom" and model_text in PORTABLE_CPU_MODELS:
                 result["not_change_cpu_section"] = True
                 result["protected_sections"].append("cpu")
 
