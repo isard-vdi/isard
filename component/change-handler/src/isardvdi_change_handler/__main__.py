@@ -26,6 +26,7 @@ from os import environ
 import redis.asyncio as aioredis
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from isardvdi_common.connections.redis_urls import changefeed_url, socketio_url
+from isardvdi_common.helpers.log import logger as root_logger
 from isardvdi_common.helpers.redact import redact_secrets
 from socketio import AsyncRedisManager
 
@@ -122,31 +123,12 @@ handler_map = {
 
 
 def _configure_logging():
-    """Configure root logging for the change-handler process.
-
-    Called once from :func:`main` before any coroutine starts so both
-    the pub/sub listener and the new task-results stream consumer
-    share the same format and level.
-    """
-    logging_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
     if environ.get("DEBUG_WEBSOCKETS", "") == "true":
+        root_logger.setLevel(log.DEBUG)
         log.warning("Running in development mode, setting log level to DEBUG.")
-        log.basicConfig(
-            level=log.DEBUG,
-            format=logging_format,
-            handlers=[log.StreamHandler()],  # Ensures output goes to stdout
-            force=True,  # Override any existing logging configuration
-        )
-        log.debug("Debug mode enabled, logging at DEBUG level.")
     else:
+        root_logger.setLevel(log.INFO)
         log.warning("Running in production mode, setting log level to INFO.")
-        log.basicConfig(
-            level=log.INFO,
-            format=logging_format,
-            handlers=[log.StreamHandler()],  # Ensures output goes to stdout
-            force=True,  # Override any existing logging configuration
-        )
 
 
 async def listen_to_redis():
