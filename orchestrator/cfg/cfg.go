@@ -47,6 +47,8 @@ type DirectorRata struct {
 	MaxRAMLimitMargin        int                                `mapstructure:"max_ram_limit_margin"`
 	MaxRAMLimitMarginHourly  map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_limit_margin_hourly"`
 
+	DeadRowRAMMargin int `mapstructure:"dead_row_ram_margin"`
+
 	HyperMinCPU int `mapstructure:"hyper_min_cpu"`
 	HyperMinRAM int `mapstructure:"hyper_min_ram"`
 	HyperMaxCPU int `mapstructure:"hyper_max_cpu"`
@@ -99,6 +101,7 @@ func setDefaults() {
 			"max_ram_limit_percent_hourly": nil,
 			"max_ram_limit_margin":         0,
 			"max_ram_limit_margin_hourly":  nil,
+			"dead_row_ram_margin":          0,
 			"hyper_min_cpu":                0,
 			"hyper_min_ram":                0,
 			"hyper_max_cpu":                0,
