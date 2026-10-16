@@ -764,13 +764,19 @@ async def duplicate_template(
     data: DuplicateTemplateRequest,
 ):
     try:
+        parsed_data = data.model_dump()
+        if request.token_payload.get("role_id") not in ["admin", "manager"]:
+            parsed_data["allowed"] = AllowedBase(
+                **parsed_data.get("allowed", {})
+            ).model_dump()
+
         return JSONResponse(
             content=SimpleResponse(
                 id=await asyncio.to_thread(
                     TemplateService.duplicate_template,
                     request.token_payload,
                     template_id,
-                    data.model_dump(),
+                    parsed_data,
                 )
             ).model_dump(mode="json"),
             status_code=200,
