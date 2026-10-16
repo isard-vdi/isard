@@ -1535,12 +1535,14 @@ def move(
     )
 
 
-def move_delete(path):
+def move_delete(path, pool_root=None):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
 
     :param path: Path of the original file
     :type path: str
+    :param pool_root: Mountpoint of the disk's storage pool, from the caller
+    :type pool_root: str
     :rtype: int
     """
     if isfile(path):
@@ -1550,10 +1552,7 @@ def move_delete(path):
 
         rename(path, join(delete_path, basename(path)))
         return 0
-    if isdir(dirname(path)):
-        # Its directory is reachable and the file is not there: already
-        # gone. Failing here strands the recycle-bin entry of a storage
-        # whose file was never materialised.
+    if _absent_on_a_live_volume(path, pool_root):
         log.info("move_delete: %s is already absent", path)
         return 0
     raise ValueError(f"Path {path} not found")
@@ -1930,24 +1929,48 @@ def convert(
     return rc
 
 
-def delete(path):
+def _pool_root(path, pool_root=None):
+    """Deepest known root of ``path``: caller's mountpoint or its storage_pools dir."""
+    roots = []
+    if pool_root and (
+        path == pool_root or path.startswith(pool_root.rstrip("/") + "/")
+    ):
+        roots.append(pool_root.rstrip("/") or "/")
+    match = search(r"^(.*?/storage_pools/[^/]+)/", path)
+    if match:
+        roots.append(match.group(1))
+    return max(roots, key=len) if roots else None
+
+
+def _absent_on_a_live_volume(path, pool_root=None):
+    """True if the disk's directory exists or its pool root is a non-empty mount."""
+    if isdir(dirname(path)):
+        return True
+    root = _pool_root(path, pool_root)
+    if root is None or not isdir(root):
+        return False
+    os.statvfs(root)
+    with os.scandir(root) as entries:
+        return next(entries, None) is not None
+
+
+def delete(path, pool_root=None):
     """
     Delete disk.
 
     :param path: Path to disk
     :type path: str
+    :param pool_root: Mountpoint of the disk's storage pool, from the caller
+    :type pool_root: str
     """
     if isfile(path):
         remove(path)
         return
 
-    parent = dirname(path)
-    if isdir(parent):
-        log.info(
-            f"delete: {path} absent on a reachable mount, skipping",
-        )
+    if _absent_on_a_live_volume(path, pool_root):
+        log.info(f"delete: {path} absent on a live volume, skipping")
         return
-    raise FileNotFoundError(f"delete: {path} parent directory unreachable")
+    raise FileNotFoundError(f"delete: {path} absent and its volume is unreachable")
 
 
 def virt_win_reg(storage_path, registry_patch):
