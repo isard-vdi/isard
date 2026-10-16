@@ -8,6 +8,7 @@ export const EMPTY_STATE_IMAGES = {
   deployments: desktopsEmptyImg,
   'shared-deployments': desktopsEmptyImg,
   'deployment-users': desktopsEmptyImg,
+  'template-sources': desktopsEmptyImg,
   templates: templatesEmptyImg,
   'shared-templates': templatesEmptyImg,
   media: templatesEmptyImg,
