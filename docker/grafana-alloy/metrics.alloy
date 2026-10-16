@@ -21,6 +21,7 @@ prometheus.exporter.unix "exporter_node_exporter" {
 		"netclass",
 		"nfs",
 		"nfsd",
+		"pressure",
 		"schedstat",
 		"stat",
 		"textfile",

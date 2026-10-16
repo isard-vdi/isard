@@ -1,0 +1,322 @@
+rule_files:
+  - storage_io.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---- central ---------------------------------------------------------------------------
+  - name: central_nfs_server_backend_stalled
+    interval: 1m
+    input_series:
+      - series: 'node_disk_io_now{domain="nfs",device="md127"}'
+        values: "5x10"
+      - series: 'node_disk_reads_completed_total{domain="nfs",device="sda"}'
+        values: "0+10x10"
+      - series: 'node_disk_writes_completed_total{domain="nfs",device="sda"}'
+        values: "0+10x10"
+      - series: 'node_nfsd_server_rpcs_total{domain="nfs"}'
+        values: "0+100x10"
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: storage_io
+        alertname: StorageCentralBackendStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: nfs-server
+              scope: central
+              domain: nfs
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. E/S encallada a nfs"
+              description: "The NFS server nfs holds I/O on its md/dm devices (or is fully stalled on I/O) while the disks under them completed fewer than 100 operations per second for 2m. Every hypervisor waits on it. Check the storage path under the server: kernel log, NIC, iSCSI sessions, array."
+
+  - name: central_quiet_when_disks_keep_up_or_host_serves_no_nfs
+    interval: 1m
+    input_series:
+      - series: 'node_disk_io_now{domain="nfs",device="md127"}'
+        values: "5x10"
+      - series: 'node_disk_reads_completed_total{domain="nfs",device="sda"}'
+        values: "0+60000x10"
+      - series: 'node_disk_writes_completed_total{domain="nfs",device="sda"}'
+        values: "0+60000x10"
+      - series: 'node_nfsd_server_rpcs_total{domain="nfs"}'
+        values: "0+100x10"
+      - series: 'node_disk_io_now{domain="h1",device="dm-0"}'
+        values: "3x10"
+      - series: 'node_disk_reads_completed_total{domain="h1",device="nvme0n1"}'
+        values: "0+10x10"
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: storage_io
+        alertname: StorageCentralBackendStalled
+        exp_alerts: []
+
+  - name: central_nfs_server_saturated
+    interval: 1m
+    input_series:
+      - series: 'node_nfsd_server_rpcs_total{domain="nfs"}'
+        values: "0+100x15"
+      - series: 'node_cpu_seconds_total{domain="nfs",cpu="0",mode="iowait"}'
+        values: "0+42x15"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: storage_io
+        alertname: StorageCentralServerOverloaded
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: nfs-server
+              scope: central
+              domain: nfs
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. nfs saturat d'E/S"
+              description: "The NFS server nfs has spent most of the last 5m waiting for its disks (iowait over 60% or every task stalled on I/O over 30% of the time). All hypervisors read and write through it."
+
+  # Two of three hypervisors retransmitting: shared, so central.
+  - name: central_most_hypervisors_retransmit
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x15"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x15"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x15"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x15"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x15"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x15"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h1"}'
+        values: "0+120x15"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h2"}'
+        values: "0+120x15"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h3"}'
+        values: "0+6x15"
+    alert_rule_test:
+      - eval_time: 9m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: storage-central
+              scope: central
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
+
+  # Two of three hypervisors hung on NFS: host collector silent, container collector alive.
+  - name: central_most_hypervisors_silent
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x15"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x15"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x15"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1 1 _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1 1 _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x15"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: storage-central
+              scope: central
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
+
+  - name: central_degraded_burst
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "1 0 0 0 0 0"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="storage"}'
+        values: "0 0 1 0 0 0"
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: storage-central
+              scope: central
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors degradats en 5 minuts"
+              description: "2 hypervisors were marked degraded within 5 minutes, even if not all at the same moment. A burst like this usually has a shared cause such as the storage."
+
+  # ---- one host --------------------------------------------------------------------------
+  # One of four hypervisors retransmitting: that host, not the central NFS.
+  - name: one_hypervisor_retransmits_is_local
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x40"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x40"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x40"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h4"}'
+        values: "1x40"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x40"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x40"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x40"
+      - series: 'node_boot_time_seconds{domain="h4"}'
+        values: "1x40"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h1"}'
+        values: "0+120x40"
+    alert_rule_test:
+      - eval_time: 16m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              component: nfs-client
+              signal: nfs
+              domain: h1
+            exp_annotations:
+              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
+      - eval_time: 38m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              component: nfs-client
+              signal: nfs
+              domain: h1
+            exp_annotations:
+              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              component: nfs-client
+              signal: nfs
+              domain: h1
+            exp_annotations:
+              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs) des de fa 30 min; la resta funcionen"
+              description: "h1 has shown nfs trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
+
+  - name: one_hypervisor_iowait_is_local_and_other_hosts_are_hosts
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x20"
+      - series: 'node_cpu_seconds_total{domain="h1",cpu="0",mode="iowait"}'
+        values: "0+24x20"
+      - series: 'node_cpu_seconds_total{domain="web",cpu="0",mode="iowait"}'
+        values: "0+24x20"
+    alert_rule_test:
+      - eval_time: 17m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts: []
+      - eval_time: 17m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              component: host-io
+              signal: iowait
+              domain: h1
+            exp_annotations:
+              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (iowait); la resta funcionen"
+              description: "h1 shows iowait trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
+      - eval_time: 17m
+        groupname: storage_io
+        alertname: HostIoProblem
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hosts
+              scope: host
+              component: host-io
+              signal: iowait
+              domain: web
+            exp_annotations:
+              summary: "I/O problem on web (iowait)"
+              description: "web, which is neither a hypervisor nor the NFS server, has shown iowait trouble for 10m. Check what is writing on it and its disks."
+
+  # ---- nothing ---------------------------------------------------------------------------
+  - name: healthy_platform_is_quiet
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x20"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h1"}'
+        values: "0+6x20"
+      - series: 'node_cpu_seconds_total{domain="h1",cpu="0",mode="iowait"}'
+        values: "0+6x20"
+      - series: 'node_pressure_io_waiting_seconds_total{domain="h2"}'
+        values: "0+12x20"
+      - series: 'node_nfsd_server_rpcs_total{domain="nfs"}'
+        values: "0+100x20"
+      - series: 'node_cpu_seconds_total{domain="nfs",cpu="0",mode="iowait"}'
+        values: "0+12x20"
+    alert_rule_test:
+      - eval_time: 18m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: storage_io
+        alertname: StorageCentralServerOverloaded
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: storage_io
+        alertname: HostIoProblem
+        exp_alerts: []

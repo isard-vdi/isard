@@ -86,13 +86,14 @@ tests:
           - labels: 'isardvdi:vmalert_heartbeat'
             value: 1
 
+  # vmalert-tool's clock starts at 2000-01-01T00:00:00Z (946684800), so expiries are absolute from there.
   - name: certificate_ten_days_away_warns_and_does_not_page
-    interval: 10m
+    interval: 1m
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
-        values: "864000x20"
+        values: "947548800x200"
       - series: 'probe_success{job="certificates",domain="a"}'
-        values: "1x20"
+        values: "1x200"
     alert_rule_test:
       - eval_time: 30m
         groupname: certificates
@@ -118,12 +119,12 @@ tests:
             value: 1
 
   - name: certificate_far_away_is_quiet
-    interval: 10m
+    interval: 1m
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
-        values: "7776000x20"
+        values: "954460800x200"
       - series: 'probe_success{job="certificates",domain="a"}'
-        values: "1x20"
+        values: "1x200"
     alert_rule_test:
       - eval_time: 3h
         groupname: certificates

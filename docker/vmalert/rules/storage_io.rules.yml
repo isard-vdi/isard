@@ -1,0 +1,137 @@
+# Shared storage and host I/O, split by scope:
+#   scope=central  the NFS/storage server itself, or most hypervisors at once: the whole platform;
+#   scope=host     one hypervisor (or a minority) while the rest are fine: that host.
+# The scope label lets a notifier drop every scope=host alert while a scope=central one fires.
+groups:
+  - name: storage_io_signals
+    rules:
+      - record: isardvdi:hypervisor_host
+        expr: group by (domain) (container_last_seen{name="isard-hypervisor"})
+
+      - record: isardvdi:nfs_server_host
+        expr: group by (domain) (node_nfsd_server_rpcs_total)
+
+      # One series per host and failing signal: iowait, psi, nfs or silent.
+      - record: isardvdi:host_io_bad
+        expr: |
+          label_replace(label_replace(group by (domain) (avg by (domain) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) > 0.3), "signal", "iowait", "", ""), "component", "host-io", "", "")
+          or label_replace(label_replace(group by (domain) (
+               (max by (domain) (rate(node_pressure_io_waiting_seconds_total[5m])) > 0.5)
+               or (max by (domain) (rate(node_pressure_io_stalled_seconds_total[5m])) > 0.3)), "signal", "psi", "", ""), "component", "host-io", "", "")
+          or label_replace(label_replace(group by (domain) (
+               (sum by (domain) (rate(node_nfs_rpc_retransmissions_total[5m])) > 1)
+               or (sum by (domain) (increase(node_mountstats_nfs_operations_major_timeouts_total[5m])) > 0)
+               or (max by (domain) (
+                    rate(node_mountstats_nfs_operations_request_time_seconds_total{operation=~"READ|WRITE|COMMIT|GETATTR"}[5m])
+                    / (rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE|COMMIT|GETATTR"}[5m]) > 1)) > 0.25)), "signal", "nfs", "", ""), "component", "nfs-client", "", "")
+          or label_replace(label_replace(group by (domain) (
+               count by (domain) (container_last_seen{name="isard-hypervisor"})
+               unless on (domain) count by (domain) (node_boot_time_seconds)), "signal", "silent", "", ""), "component", "nfs-client", "", "")
+
+  - name: storage_io
+    rules:
+      # ---- scope central ---------------------------------------------------------------
+      # I/O held on md/dm while the disks under it complete next to nothing, on a host that
+      # serves NFS: the backend under the server (iSCSI, NIC, array) stopped answering.
+      - alert: StorageCentralBackendStalled
+        expr: |
+          (
+            (sum by (domain) (node_disk_io_now{device=~"md.*|dm-.*"}) > 0)
+            or on (domain)
+            (max by (domain) (rate(node_pressure_io_stalled_seconds_total[1m])) > 0.7)
+          )
+          and on (domain)
+          (
+            sum by (domain) (rate(node_disk_reads_completed_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+"}[1m])
+                           + rate(node_disk_writes_completed_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+"}[1m]))
+            < 100
+          )
+          and on (domain) isardvdi:nfs_server_host
+        for: 2m
+        labels:
+          severity: critical
+          area: storage
+          component: nfs-server
+          scope: central
+        annotations:
+          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. E/S encallada a {{ $labels.domain }}"
+          description: "The NFS server {{ $labels.domain }} holds I/O on its md/dm devices (or is fully stalled on I/O) while the disks under them completed fewer than 100 operations per second for 2m. Every hypervisor waits on it. Check the storage path under the server: kernel log, NIC, iSCSI sessions, array."
+
+      - alert: StorageCentralServerOverloaded
+        expr: |
+          (
+            (avg by (domain) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) > 0.6)
+            or (max by (domain) (rate(node_pressure_io_stalled_seconds_total[5m])) > 0.3)
+          )
+          and on (domain) isardvdi:nfs_server_host
+        for: 5m
+        labels:
+          severity: critical
+          area: storage
+          component: nfs-server
+          scope: central
+        annotations:
+          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $labels.domain }} saturat d'E/S"
+          description: "The NFS server {{ $labels.domain }} has spent most of the last 5m waiting for its disks (iowait over 60% or every task stalled on I/O over 30% of the time). All hypervisors read and write through it."
+
+      # The same I/O symptom on at least two hypervisors that are also at least half of them.
+      - alert: StorageCentralManyHypervisors
+        expr: |
+          (count(group by (domain) (isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host)) >= 2)
+          and on ()
+          (count(group by (domain) (isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host))
+            / count(isardvdi:hypervisor_host) >= 0.5)
+        for: 2m
+        labels:
+          severity: critical
+          area: storage
+          component: storage-central
+          scope: central
+        annotations:
+          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors amb el mateix problema d'E/S"
+          description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
+
+      - alert: StorageCentralDegradedBurst
+        expr: count(max_over_time(isardvdi_isardvdi_api_hypervisor_degraded[5m]) == 1) >= 2
+        labels:
+          severity: critical
+          area: storage
+          component: storage-central
+          scope: central
+        annotations:
+          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors degradats en 5 minuts"
+          description: "{{ $value }} hypervisors were marked degraded within 5 minutes, even if not all at the same moment. A burst like this usually has a shared cause such as the storage."
+
+      # ---- scope host --------------------------------------------------------------------
+      - alert: HypervisorIoProblem
+        expr: isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host
+        for: 10m
+        labels:
+          severity: warning
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Problema d'E/S o d'NFS a l'hipervisor {{ $labels.domain }} ({{ $labels.signal }}); la resta funcionen"
+          description: "{{ $labels.domain }} shows {{ $labels.signal }} trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
+
+      - alert: HypervisorIoProblem
+        expr: isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host
+        for: 30m
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Problema d'E/S o d'NFS a l'hipervisor {{ $labels.domain }} ({{ $labels.signal }}) des de fa 30 min; la resta funcionen"
+          description: "{{ $labels.domain }} has shown {{ $labels.signal }} trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
+
+      - alert: HostIoProblem
+        expr: isardvdi:host_io_bad unless on (domain) (isardvdi:hypervisor_host or isardvdi:nfs_server_host)
+        for: 10m
+        labels:
+          severity: warning
+          area: hosts
+          scope: host
+        annotations:
+          summary: "I/O problem on {{ $labels.domain }} ({{ $labels.signal }})"
+          description: "{{ $labels.domain }}, which is neither a hypervisor nor the NFS server, has shown {{ $labels.signal }} trouble for 10m. Check what is writing on it and its disks."
