@@ -80,14 +80,18 @@ _HUGEPAGE_SIZES = ((("1", "G"), "1G", 1048576), (("2", "M"), "2M", 2048))
 
 
 def pick_hugepage_size(memory_kb, hugepages, free_kb):
-    """Largest hugepage size that divides the memory and has enough free pages."""
+    """Largest mounted hugepage size that divides the memory and has enough free."""
     memory_kb = round(memory_kb)
+    # absent on hypervisors that predate it: any size with a pool stays eligible
+    usable = hugepages.get("mount_sizes")
     pool_kb = {
         label: (hugepages.get(label) or {}).get("total", 0) * page_kb
         for _, label, page_kb in _HUGEPAGE_SIZES
     }
     for page, label, page_kb in _HUGEPAGE_SIZES:
         if not pool_kb[label] or memory_kb % page_kb:
+            continue
+        if usable is not None and label not in usable:
             continue
         # free_kb is summed over all sizes; the other pools bound how much is not ours
         free_of_size_kb = free_kb - sum(v for k, v in pool_kb.items() if k != label)

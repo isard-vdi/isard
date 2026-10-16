@@ -2019,6 +2019,41 @@ def discover_pci_devices(gpu_list=None):
     return devices
 
 
+_HUGEPAGE_SIZE_LABELS = {1048576: "1G", 2048: "2M"}
+_SIZE_UNITS = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
+
+
+def _hugetlbfs_mount_sizes(
+    mountpoint="/dev/hugepages", mounts="/proc/mounts", meminfo="/proc/meminfo"
+):
+    """Page size labels QEMU can back from the hugetlbfs mounted at mountpoint."""
+    try:
+        with open(mounts) as f:
+            entries = [line.split() for line in f]
+    except OSError:
+        return []
+    options = None
+    for fields in entries:
+        if len(fields) >= 4 and fields[1] == mountpoint and fields[2] == "hugetlbfs":
+            options = dict(o.partition("=")[::2] for o in fields[3].split(","))
+    if options is None:
+        return []
+    size_kb = None
+    match = re.fullmatch(r"(\d+)([KMG]?)", options.get("pagesize", "").upper())
+    if match:
+        size_kb = int(match.group(1)) * _SIZE_UNITS[match.group(2)] // 1024
+    else:
+        try:
+            with open(meminfo) as f:
+                for line in f:
+                    if line.startswith("Hugepagesize:"):
+                        size_kb = int(line.split()[1])
+        except (OSError, ValueError, IndexError):
+            pass
+    label = _HUGEPAGE_SIZE_LABELS.get(size_kb)
+    return [label] if label else []
+
+
 def discover_hugepages():
     """Detect hugepage availability from /sys/kernel/mm/hugepages/.
 
@@ -2031,13 +2066,8 @@ def discover_hugepages():
             "1G":  {"total": int, "free": int}
             "2M":  {"total": int, "free": int}
             "mounted": bool  (True if /dev/hugepages is a mount point)
+            "mount_sizes": list of the size labels that mount can back
     """
-    # Map sysfs directory suffixes to human-readable size labels
-    _SIZE_MAP = {
-        1048576: "1G",  # hugepages-1048576kB = 1G pages
-        2048: "2M",  # hugepages-2048kB = 2M pages
-    }
-
     result = {"1G": {"total": 0, "free": 0}, "2M": {"total": 0, "free": 0}}
 
     hugepages_dir = "/sys/kernel/mm/hugepages"
@@ -2053,7 +2083,7 @@ def discover_hugepages():
             continue
 
         size_kb = int(match.group(1))
-        label = _SIZE_MAP.get(size_kb)
+        label = _HUGEPAGE_SIZE_LABELS.get(size_kb)
         if not label:
             continue
 
@@ -2075,6 +2105,7 @@ def discover_hugepages():
 
     # Check if hugetlbfs is mounted (QEMU needs this inside the container)
     result["mounted"] = os.path.ismount("/dev/hugepages")
+    result["mount_sizes"] = _hugetlbfs_mount_sizes()
 
     return result
 

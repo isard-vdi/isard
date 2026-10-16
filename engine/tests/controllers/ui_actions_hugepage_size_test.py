@@ -67,3 +67,31 @@ def test_not_enough_free_pages_of_any_size():
 
 def test_no_pool_at_all():
     assert pick_hugepage_size(4 * GIB, {"mounted": True}, 0) is None
+
+
+@pytest.mark.parametrize(
+    "memory_kb, expected",
+    [(512 * 1024, None), (GIB, ("1", "G")), (2 * GIB, ("1", "G"))],
+)
+def test_a_mixed_pool_mounted_at_1g_never_asks_for_2m(memory_kb, expected):
+    pool = dict(BOTH, mount_sizes=["1G"])
+    assert pick_hugepage_size(memory_kb, pool, BOTH_FREE) == expected
+
+
+@pytest.mark.parametrize(
+    "memory_kb, expected",
+    [(512 * 1024, None), (GIB, ("1", "G")), (2 * GIB, ("1", "G"))],
+)
+def test_a_1g_only_pool_mounted_at_1g_keeps_its_behaviour(memory_kb, expected):
+    pool = {"mounted": True, "1G": {"total": 8}, "mount_sizes": ["1G"]}
+    assert pick_hugepage_size(memory_kb, pool, 8 * GIB) == expected
+
+
+def test_a_mixed_pool_mounted_at_2m_backs_whole_gibs_with_2m():
+    pool = dict(BOTH, mount_sizes=["2M"])
+    assert pick_hugepage_size(4 * GIB, pool, BOTH_FREE) == ("2", "M")
+
+
+def test_a_hugepages_dir_that_is_not_hugetlbfs_backs_nothing():
+    pool = dict(BOTH, mount_sizes=[])
+    assert pick_hugepage_size(GIB, pool, BOTH_FREE) is None
