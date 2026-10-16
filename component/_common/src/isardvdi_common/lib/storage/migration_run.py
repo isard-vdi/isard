@@ -207,6 +207,9 @@ def _job_abandoned(task):
 
 
 class MigrationRunner:
+    #: the ledger as read once per tick, kept in step by every write the runner makes
+    _snapshot = None
+
     def __init__(
         self,
         migration_id,
@@ -231,7 +234,9 @@ class MigrationRunner:
 
     # -- helpers ----------------------------------------------------------- #
     def _items(self):
-        return StorageMigrationItem.dicts_by_migration(self.migration_id)
+        if self._snapshot is None:
+            self._snapshot = StorageMigrationItem.ledger_rows(self.migration_id)
+        return self._snapshot
 
     def _set(self, item, **fields):
         """Idempotent ledger write keyed by item id (at-least-once safe)."""
@@ -489,6 +494,7 @@ class MigrationRunner:
         for item in items:
             if item["storage_id"] not in existing:
                 StorageMigrationItem.upsert(item)
+                self._snapshot = None
 
     def _rearm_for_occurrence(self, occurrence_key):
         """New-occurrence re-scan: insert newly-matching disks AND re-arm the
@@ -543,6 +549,7 @@ class MigrationRunner:
             for p in planned_items:
                 if p["storage_id"] not in existing:
                     StorageMigrationItem.upsert(p)
+                    self._snapshot = None
 
     def _rearm_returned(self, item, planned):
         """A released disk back on the source: a fresh item from the re-plan,
@@ -551,8 +558,9 @@ class MigrationRunner:
             name: field.get_default(call_default_factory=True)
             for name, field in StorageMigrationItemModel.model_fields.items()
         }
-        fresh.update(planned, audit=list(item.get("audit") or []))
+        fresh.update(planned)
         fresh.pop("id", None)
+        fresh.pop("audit", None)
         self._set(item, **fresh)
         self._rearm_item(item, 0)
 
@@ -594,9 +602,8 @@ class MigrationRunner:
         migration = getattr(self, "migration", None)
         occurrence = getattr(migration, "last_occurrence", None) or "initial"
         record = mig.build_audit_record(item, result, occurrence, time())
-        audit = list(item.get("audit") or [])
-        audit.append(record)
-        self._set(item, audit=audit)
+        StorageMigrationItem.append_audit(item["id"], record)
+        item["audit"] = [*(item.get("audit") or []), record]
 
     def _failure_reason(self, item):
         """What the disk's failing task actually said, or None.
@@ -1794,6 +1801,7 @@ class MigrationRunner:
     def tick(self):
         """Advance every tree by at most one step. Returns a list of
         ``(tree_id, item_id|None, action)`` describing what happened."""
+        self._snapshot = None
         # Adaptive load policy runs BEFORE the tree-driving reads parallelism; a
         # job parked by load drives no trees and resumes on a later clean tick.
         if mig.load_policy_is_adaptive(self.config):
@@ -1891,7 +1899,9 @@ class MigrationRunner:
             # earlier in THIS tick has already spent its bytes, so a single
             # top-of-tick decision would overshoot by parallelism x tree.
             return not mig.budget_allows_new_tree(
-                mig.occurrence_bytes_moved(self._items(), occurrence),
+                StorageMigrationItem.occurrence_bytes_moved(
+                    self.migration_id, occurrence, mig._BUDGET_SPENDING_RESULTS
+                ),
                 budget,
             )
 
@@ -1975,7 +1985,7 @@ class MigrationRunner:
             for (_t, _i, action) in results
         ):
             failed_this_tick = True
-        totals = self.migration.recompute_totals() or {}
+        totals = self.migration.recompute_totals(self._items()) or {}
 
         recurring = bool(self.config.get("recurring"))
         policy = self.config.get("failure_policy") or "retry_quarantine"
