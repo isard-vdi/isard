@@ -1,0 +1,1850 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "One-glance health of the whole install. Each tile is the worst state of its area: green OK, yellow warning, red critical, grey NO DATA (the source is missing, which is never shown as healthy). Click a tile for the detailed dashboard.",
+  "editable": true,
+  "graphTooltip": 0,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "All dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Hypervisors",
+      "description": "CRITICAL: no hypervisor Online, or any hypervisor in Error. WARNING: a hypervisor's stats exporter cannot read libvirt. Plus any firing alert with area=hypervisors.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hypervisors\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Online\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) == bool 0), \"k\", \"s1\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Error\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) > bool 0), \"k\", \"s2\", \"\", \"\")\n  or label_replace(min(isardvdi_hypervisor_scrape_duration_success) == bool 0, \"k\", \"s3\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Hypervisors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Hypervisors: details",
+              "url": "/d/Hypers?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for hypervisors",
+              "url": "/d/system-health?${__url_time_range}&var-area=hypervisors&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Storage & NFS",
+      "description": "Filesystems under /opt/isard (local or NFS) over 90% (WARNING) / 95% (CRITICAL) on any host, plus alerts with area=storage (storage workers, PSI).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 2,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"storage\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"storage\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"storage\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(max(((1 - node_filesystem_avail_bytes{mountpoint=~\"/opt/isard(/.*)?\",fstype!~\"tmpfs|rootfs\"} / node_filesystem_size_bytes{mountpoint=~\"/opt/isard(/.*)?\",fstype!~\"tmpfs|rootfs\"}) > bool 0.90) + ((1 - node_filesystem_avail_bytes{mountpoint=~\"/opt/isard(/.*)?\",fstype!~\"tmpfs|rootfs\"} / node_filesystem_size_bytes{mountpoint=~\"/opt/isard(/.*)?\",fstype!~\"tmpfs|rootfs\"}) > bool 0.95)), \"k\", \"s1\", \"\", \"\")\n  or label_replace(0 * isardvdi_storage_governor:worker_up:sum, \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Storage & NFS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Storage & NFS: details",
+              "url": "/d/K_PGRuiVk?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for storage",
+              "url": "/d/system-health?${__url_time_range}&var-area=storage&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Queues / Governor",
+      "description": "Storage-governor vmalert rules with area=queues (backlog, SLA age, task streams, exporter). CRITICAL when the governor scrape fails.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"queues\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"queues\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"queues\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(0 * max(isardvdi_storage_governor_scrape_duration_seconds), \"k\", \"s1\", \"\", \"\")\n  or label_replace(2 * (min(isardvdi_storage_governor_scrape_duration_success) == bool 0), \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Queues / Governor"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Queues / Governor: details",
+              "url": "/d/isard-storage-governor?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for queues",
+              "url": "/d/system-health?${__url_time_range}&var-area=queues&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Redis",
+      "description": "CRITICAL: broker down. WARNING: used memory over 90% of maxmemory. Plus alerts with area=redis (evictions).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"redis\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"redis\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"redis\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * (min(isardvdi_storage_governor_redis_up) == bool 0), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max(isardvdi_storage_governor_redis_used_memory_ratio) > bool 0.9, \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Redis"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Redis: details",
+              "url": "/d/isard-storage-governor?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for redis",
+              "url": "/d/system-health?${__url_time_range}&var-area=redis&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "RethinkDB",
+      "description": "CRITICAL: haproxy's isard-db health check is DOWN. NO DATA when the exporter is not reporting. No rule yet for slow queries.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"rethinkdb\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"rethinkdb\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"rethinkdb\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * max(min by (proxy) (haproxy_backend_status{proxy=~\"be_isard-db\",state=\"DOWN\"})), \"k\", \"s1\", \"\", \"\")\n  or label_replace(0 * max(rethinkdb_cluster_client_connections), \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "RethinkDB"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "RethinkDB: details",
+              "url": "/d/yQkJsuQZafe?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for rethinkdb",
+              "url": "/d/system-health?${__url_time_range}&var-area=rethinkdb&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Web / API",
+      "description": "CRITICAL: a core backend (apiv4, authentication, static, webapp, socketio, scheduler) is DOWN in haproxy, stats cannot query the API, or over 5% of HTTPS responses are 5xx (5m). WARNING: over 1% 5xx.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 10,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"web\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"web\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"web\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * max(min by (proxy) (haproxy_backend_status{proxy=~\"be_isard-(apiv4|authentication|static|webapp|socketio|scheduler)\",state=\"DOWN\"})), \"k\", \"s1\", \"\", \"\")\n  or label_replace(((sum(rate(haproxy_frontend_http_responses_total{proxy=\"fe_http_secured\",code=\"5xx\"}[5m])) / clamp_min(sum(rate(haproxy_frontend_http_responses_total{proxy=\"fe_http_secured\"}[5m])), 1)) > bool 0.01) + ((sum(rate(haproxy_frontend_http_responses_total{proxy=\"fe_http_secured\",code=\"5xx\"}[5m])) / clamp_min(sum(rate(haproxy_frontend_http_responses_total{proxy=\"fe_http_secured\"}[5m])), 1)) > bool 0.05), \"k\", \"s2\", \"\", \"\")\n  or label_replace(2 * (min(isardvdi_isardvdi_api_scrape_duration_success) == bool 0), \"k\", \"s3\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Web / API"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Web / API: details",
+              "url": "/d/rEqu1u5ue?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for web",
+              "url": "/d/system-health?${__url_time_range}&var-area=web&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Viewers",
+      "description": "CRITICAL: the SPICE/VNC proxies (websockify, squid) are DOWN in haproxy. WARNING: the RDP gateways (guacamole, rdpgw) are DOWN, or the viewer socket collector fails.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"viewers\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"viewers\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"viewers\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * max(min by (proxy) (haproxy_backend_status{proxy=~\"be_isard-(websockify|squid)\",state=\"DOWN\"})), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max(min by (proxy) (haproxy_backend_status{proxy=~\"be_isard-(guacamole|rdpgw)\",state=\"DOWN\"})), \"k\", \"s2\", \"\", \"\")\n  or label_replace(min(isardvdi_socket_scrape_duration_success) == bool 0, \"k\", \"s3\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Viewers"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Viewers: details",
+              "url": "/d/system-status?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for viewers",
+              "url": "/d/system-health?${__url_time_range}&var-area=viewers&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Hosts",
+      "description": "Every host running grafana-alloy: available memory under 10% (WARNING) / 5% (CRITICAL), root filesystem over 90% / 95%.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hosts\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(max(((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < bool 0.10) + ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < bool 0.05)), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max(((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.90) + ((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.95)), \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Hosts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Hosts: details",
+              "url": "/d/9GQgQli4k?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for hosts",
+              "url": "/d/system-health?${__url_time_range}&var-area=hosts&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Monitoring",
+      "description": "WARNING: a scrape target is down. Plus alerts with area=monitoring (telemetry not reaching the monitor, logs discarded, rule errors). NO DATA when vmalert is not evaluating.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"monitoring\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"monitoring\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"monitoring\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(max(up == bool 0), \"k\", \"s1\", \"\", \"\")\n  or label_replace(0 * max(isardvdi:vmalert_heartbeat), \"k\", \"s2\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Monitoring"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Monitoring: details",
+              "url": "/d/pORx8n2Cs?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            },
+            {
+              "title": "Firing alerts for monitoring",
+              "url": "/d/system-health?${__url_time_range}&var-area=monitoring&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Backups",
+      "description": "Only alerts with area=backups. No backup metric is exported yet, so this tile reads NO DATA until a rule exists \u2014 never green by default.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"backups\"}), \"k\", \"s0\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Backups"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Firing alerts for backups",
+              "url": "/d/system-health?${__url_time_range}&var-area=backups&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Certificates",
+      "description": "Only alerts with area=certificates. No certificate-expiry metric is exported yet, so this tile reads NO DATA until a rule exists.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 20,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"certificates\"}), \"k\", \"s0\", \"\", \"\")\n)",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "Certificates"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "WARNING",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "CRITICAL",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "links": [
+            {
+              "title": "Firing alerts for certificates",
+              "url": "/d/system-health?${__url_time_range}&var-area=certificates&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 18
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Alerts firing",
+      "description": "Every vmalert rule firing now, any area. Shows NO DATA when vmalert is not evaluating (its heartbeat series is absent), so an empty list is never mistaken for a healthy one.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 22,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(ALERTS{alertstate=\"firing\",severity=\"critical\"}) or on() (0 * max(isardvdi:vmalert_heartbeat))",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "critical"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(ALERTS{alertstate=\"firing\",severity=\"warning\"}) or on() (0 * max(isardvdi:vmalert_heartbeat))",
+          "instant": true,
+          "range": false,
+          "refId": "B",
+          "legendFormat": "warning"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "NO DATA",
+          "unit": "none",
+          "decimals": 0,
+          "links": [
+            {
+              "title": "Firing alerts",
+              "url": "/d/system-health?${__url_time_range}&viewPanel=panel-20",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "critical"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "vertical",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 20,
+      "type": "table",
+      "title": "Firing alerts",
+      "description": "Every vmalert rule firing now. Since = when it went active (blank when vmalert did not record it). The summary and runbook text of each rule are in Alerting > Alert rules (data source-managed). Use the area selector at the top to filter.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 16,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "(label_replace(ALERTS_FOR_STATE{area=~\"$area\"}, \"alertstate\", \"firing\", \"\", \"\") * 1000 and ignoring() ALERTS{alertstate=\"firing\",area=~\"$area\"})\nor (0 * ALERTS{alertstate=\"firing\",area=~\"$area\"})",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "alertstate": true,
+              "source": true,
+              "alertgroup": true,
+              "job": true,
+              "container_name": true,
+              "domain": true,
+              "k": true
+            },
+            "indexByName": {
+              "alertname": 0,
+              "area": 1,
+              "severity": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "Value": "since",
+              "alertname": "alert"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "severity",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "since"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "-",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "severity"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "warning": {
+                        "color": "yellow",
+                        "index": 1
+                      },
+                      "info": {
+                        "color": "blue",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "alert"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Rule, summary and description",
+                    "url": "/alerting/list?search=${__value.text}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "area"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Only this area",
+                    "url": "/d/system-health?${__url_time_range}&var-area=${__value.text}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Last data received",
+      "description": "Age of the newest sample of each source, on its stalest host. Over 2 minutes is WARNING, over 10 minutes CRITICAL. A source silent for more than an hour shows NO DATA: a missing source is never green.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 16,
+        "y": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(isardvdi_isardvdi_api_scrape_duration_seconds[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "A",
+          "legendFormat": "API collector (stats-go)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(isardvdi_storage_governor_scrape_duration_seconds[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "B",
+          "legendFormat": "Storage governor"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(isardvdi_hypervisor_scrape_duration_seconds[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "C",
+          "legendFormat": "Hypervisor collectors"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(node_time_seconds[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "D",
+          "legendFormat": "Hosts (node exporter)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(haproxy_frontend_status[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "E",
+          "legendFormat": "HAProxy"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(rethinkdb_cluster_client_connections[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "F",
+          "legendFormat": "RethinkDB exporter"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(isardvdi:vmalert_heartbeat[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "G",
+          "legendFormat": "vmalert evaluation"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(grafana_build_info[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "H",
+          "legendFormat": "Grafana"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "time() - min(max by (domain) (tlast_over_time(alloy_build_info[1h])))",
+          "instant": true,
+          "range": false,
+          "refId": "I",
+          "legendFormat": "Telemetry senders (alloy)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "noValue": "NO DATA",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 600
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "NO DATA",
+                  "color": "#8e8e8e",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "orientation": "horizontal",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "tags": [
+    "isardvdi",
+    "health",
+    "overview"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "area",
+        "label": "Area",
+        "type": "custom",
+        "query": "hypervisors,storage,queues,redis,rethinkdb,web,viewers,hosts,monitoring,backups,certificates",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "System Health",
+  "uid": "system-health",
+  "version": 1
+}
