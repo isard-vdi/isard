@@ -56,6 +56,7 @@ from engine.services.log import logs
 
 # Timeout in seconds for checking a single hypervisor
 BROOM_HYP_TIMEOUT = 30
+REASON_MAX_CHARS = 200
 
 # Maximum number of concurrent hypervisor checks
 BROOM_MAX_WORKERS = 20
@@ -582,7 +583,7 @@ class ThreadBroom(threading.Thread):
             return hyps_domain_started
 
         now = time()
-        failed_hyps = set()
+        failed_hyps = {}
         succeeded_hyps = set()
         futures = {}
         for hyp_id in hyp_ids:
@@ -590,7 +591,9 @@ class ThreadBroom(threading.Thread):
             if previous is not None and not previous[0].done():
                 started_at = previous[1]["started_at"]
                 if started_at is not None and now - started_at > BROOM_HYP_TIMEOUT:
-                    failed_hyps.add(hyp_id)
+                    failed_hyps[hyp_id] = (
+                        f"libvirt: check did not answer within {BROOM_HYP_TIMEOUT}s"
+                    )
                     if now - previous[1].get("warned_at", 0) >= 60:
                         previous[1]["warned_at"] = now
                         logs.broom.warning(
@@ -616,7 +619,7 @@ class ThreadBroom(threading.Thread):
                 try:
                     result = future.result()
                 except Exception as e:
-                    failed_hyps.add(hyp_id)
+                    failed_hyps[hyp_id] = f"libvirt: check raised: {e}"
                     logs.broom.error(
                         f"Exception getting result for hypervisor {hyp_id}: {e}"
                     )
@@ -628,7 +631,9 @@ class ThreadBroom(threading.Thread):
                     }
                     succeeded_hyps.add(hyp_id)
                 else:
-                    failed_hyps.add(hyp_id)
+                    failed_hyps[hyp_id] = (
+                        f"libvirt: check failed: {result.get('error') or 'unknown'}"
+                    )
                     logs.broom.warning(
                         f"Hypervisor {hyp_id} check failed: {result.get('error', 'unknown')}"
                     )
@@ -640,14 +645,16 @@ class ThreadBroom(threading.Thread):
                     f"Hypervisor {hyp_id} check did not start within {BROOM_HYP_TIMEOUT + 5}s (pool busy), no verdict this cycle"
                 )
             elif time() - started_at >= BROOM_HYP_TIMEOUT:
-                failed_hyps.add(hyp_id)
+                failed_hyps[hyp_id] = (
+                    f"libvirt: check did not answer within {BROOM_HYP_TIMEOUT}s"
+                )
                 logs.broom.warning(
                     f"Hypervisor {hyp_id} check timed out after {int(time() - started_at)}s"
                 )
 
         # Mark failed hypervisors as degraded
-        for hyp_id in failed_hyps:
-            self._mark_degraded(hyp_id, "libvirt: broom connectivity check failed")
+        for hyp_id, reason in failed_hyps.items():
+            self._mark_degraded(hyp_id, reason[:REASON_MAX_CHARS])
 
         # Recover hypervisors that were degraded by broom but now succeed
         recovered = set(self._broom_degraded_hyps) & succeeded_hyps
