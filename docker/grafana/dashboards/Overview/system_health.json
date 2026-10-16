@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "One-glance health of the whole install. Each tile is the worst state of its area: green OK, yellow warning, red critical, grey NO DATA (the source is missing, which is never shown as healthy). Click a tile for the detailed dashboard.",
+  "description": "One-glance health of the whole install. Each tile is the worst state of its area: green OK, yellow warning, red critical, purple NO DATA (its source stopped reporting, never shown as healthy), light grey NOT MONITORED (nothing on this install watches that area). Click a tile for the detailed dashboard.",
   "editable": true,
   "graphTooltip": 0,
   "links": [
@@ -70,12 +70,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -85,8 +95,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -197,12 +215,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -212,8 +240,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -324,12 +360,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -339,8 +385,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -451,12 +505,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -466,8 +530,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -578,12 +650,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -593,8 +675,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -705,12 +795,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -720,8 +820,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -832,12 +940,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -847,8 +965,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -959,12 +1085,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -974,8 +1110,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -1086,12 +1230,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -1101,8 +1255,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -1165,7 +1327,7 @@
       "id": 10,
       "type": "stat",
       "title": "Backups",
-      "description": "Only alerts with area=backups. No backup metric is exported yet, so this tile reads NO DATA until a rule exists \u2014 never green by default.",
+      "description": "Alerts with area=backups. Reads NOT MONITORED until a backup source records isardvdi:area_monitored{area=\"backups\"}.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -1182,7 +1344,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"backups\"}), \"k\", \"s0\", \"\", \"\")\n)",
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"backups\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"backups\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(0 * max(isardvdi:area_monitored{area=\"backups\"}), \"k\", \"s1\", \"\", \"\")\n  or label_replace(-1 * max(isardvdi:vmalert_heartbeat), \"k\", \"s2\", \"\", \"\")\n)",
           "instant": true,
           "range": false,
           "refId": "A",
@@ -1213,12 +1375,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -1228,8 +1400,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
@@ -1280,7 +1460,7 @@
       "id": 11,
       "type": "stat",
       "title": "Certificates",
-      "description": "Only alerts with area=certificates. No certificate-expiry metric is exported yet, so this tile reads NO DATA until a rule exists.",
+      "description": "Expiry of the certificate each portal host serves on 443: under 14 days WARNING, under 3 CRITICAL, unreadable WARNING. NOT MONITORED where no host probes it.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -1297,7 +1477,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"certificates\"}), \"k\", \"s0\", \"\", \"\")\n)",
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"certificates\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"certificates\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(0 * max(isardvdi:area_monitored{area=\"certificates\"}), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max((((probe_ssl_earliest_cert_expiry{job=\"certificates\"} - time()) / 86400) < bool 14) + (((probe_ssl_earliest_cert_expiry{job=\"certificates\"} - time()) / 86400) < bool 3)), \"k\", \"s2\", \"\", \"\")\n  or label_replace(max(probe_success{job=\"certificates\"} == bool 0), \"k\", \"s3\", \"\", \"\")\n  or label_replace(-1 * max(isardvdi:vmalert_heartbeat), \"k\", \"s4\", \"\", \"\")\n)",
           "instant": true,
           "range": false,
           "refId": "A",
@@ -1328,12 +1508,22 @@
               }
             },
             {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "NOT MONITORED",
+                  "color": "#c7d0d9",
+                  "index": 4
+                }
+              }
+            },
+            {
               "type": "special",
               "options": {
                 "match": "null",
                 "result": {
                   "text": "NO DATA",
-                  "color": "#8e8e8e",
+                  "color": "#8f3bb8",
                   "index": 3
                 }
               }
@@ -1343,8 +1533,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "#8f3bb8",
                 "value": null
+              },
+              {
+                "color": "#c7d0d9",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "yellow",
