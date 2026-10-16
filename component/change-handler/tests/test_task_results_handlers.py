@@ -48,6 +48,64 @@ async def test_storage_update_skips_when_depending_status_not_finished():
 
 
 @pytest.mark.asyncio
+async def test_an_unreadable_chain_fails_no_desktop_and_orphans_no_child():
+    """A check that could not read the chain fails its job; storage_update
+    must then leave the disk, its desktops and its children as they were."""
+    from isardvdi_change_handler.task_results import storage
+
+    dep = SimpleNamespace(task="qemu_img_info_backing_chain", result=None)
+    domain_obj = MagicMock(status="Stopped")
+    child_obj = MagicMock(status="ready")
+    storage_obj = MagicMock(domains=[domain_obj])
+    storage_obj.domains_dependents.return_value = []
+    storage_obj.dependents.return_value = [child_obj]
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.return_value = storage_obj
+        await storage.handle_storage_update(
+            AsyncMock(), _task(depending_status="failed", dependencies=[dep])
+        )
+        await storage.handle_storage_update(
+            AsyncMock(), _task(dependencies=[dep]), observer=True
+        )
+
+    mock_storage_cls.write_reading.assert_not_called()
+    mock_send.assert_not_awaited()
+    assert domain_obj.status == "Stopped"
+    assert child_obj.status == "ready"
+
+
+@pytest.mark.asyncio
+async def test_a_chain_step_reading_without_status_changes_nothing():
+    """A chain step that could not read the chain finishes with only the id, so
+    the chain goes on and storage_update writes no status and cascades nothing."""
+    from isardvdi_change_handler.task_results import storage
+
+    dep = SimpleNamespace(task="qemu_img_info_backing_chain", result={"id": "s1"})
+    domain_obj = MagicMock(status="CreatingTemplate")
+    child_obj = MagicMock(status="ready")
+    storage_obj = MagicMock(domains=[domain_obj])
+    storage_obj.domains_dependents.return_value = [domain_obj]
+    storage_obj.dependents.return_value = [child_obj]
+    with (
+        patch.object(storage, "Storage") as mock_storage_cls,
+        patch.object(storage, "send_status_socket", new=AsyncMock()),
+    ):
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.write_reading.return_value = "maintenance"
+        mock_storage_cls.return_value = storage_obj
+        await storage.handle_storage_update(AsyncMock(), _task(dependencies=[dep]))
+
+    (reading,), _ = mock_storage_cls.write_reading.call_args
+    assert reading == {"id": "s1"}
+    assert domain_obj.status == "CreatingTemplate"
+    assert child_obj.status == "ready"
+
+
+@pytest.mark.asyncio
 async def test_storage_update_indirect_walks_qemu_img_info_dependency():
     """No storage_dict → look at task.dependencies for a qemu_img_info result."""
     from isardvdi_change_handler.task_results import storage

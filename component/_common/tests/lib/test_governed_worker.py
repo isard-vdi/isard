@@ -2194,3 +2194,75 @@ def test_stop_unpublishes_all_lanes():
     w._stop_coverage_heartbeat()
     for tier in ("interactive", "standard"):
         assert r.zscore(qc.cov_key("p1", tier), "w-cov") is None
+
+
+# --- retries scheduled on discovered per-category lanes ---
+
+
+class _RecordingScheduler:
+    built = []
+
+    def __init__(self, queues, connection=None, serializer=None):
+        self.queues = list(queues)
+        self.calls = []
+        _RecordingScheduler.built.append(self)
+
+    def acquire_locks(self):
+        self.calls.append("acquire")
+        return set(self.queues)
+
+    def enqueue_scheduled_jobs(self):
+        self.calls.append("enqueue")
+
+    def release_locks(self):
+        self.calls.append("release")
+
+
+def _lane_retry_worker(monkeypatch, due):
+    r = _FakeRedis()
+    r.sadd("rq:queues", "rq:queue:storage.P.catA.background")
+    r.sadd("rq:queues", "rq:queue:storage.P.catB.background")
+    w = _mt_worker(r)
+    w.queue_class = _NameQueue
+    w._ordered_queues = _ordered(["storage.P.background"])
+    w._fair_targets = w._derive_fair_targets()
+    _RecordingScheduler.built = []
+    monkeypatch.setattr(gw, "RQScheduler", _RecordingScheduler)
+
+    class _Registry:
+        def __init__(self, queue):
+            self.name = queue.name
+
+        def get_jobs_to_schedule(self, *args):
+            return ["job"] if self.name in due else []
+
+    monkeypatch.setattr(gw, "ScheduledJobRegistry", _Registry)
+    return w
+
+
+def test_due_retries_on_a_category_lane_are_enqueued(monkeypatch):
+    w = _lane_retry_worker(monkeypatch, due={"storage.P.catA.background"})
+    w._enqueue_due_lane_retries()
+    (scheduler,) = _RecordingScheduler.built
+    assert scheduler.queues == ["storage.P.catA.background"]
+    assert scheduler.calls == ["acquire", "enqueue", "release"]
+
+
+def test_no_scheduler_is_built_without_due_retries(monkeypatch):
+    w = _lane_retry_worker(monkeypatch, due=set())
+    w._enqueue_due_lane_retries()
+    assert _RecordingScheduler.built == []
+
+
+def test_every_poll_enqueues_due_lane_retries(tmp_path):
+    w = _worker(
+        _FakeRedis(),
+        _psi_file(tmp_path, "cpu", 0.0),
+        _psi_file(tmp_path, "io", 0.0),
+        queue_class=_FakeQueueClass(["timeout", "none"]),
+    )
+    w._ordered_queues = [_Q("storage.p.interactive")]
+    polls = []
+    w._enqueue_due_lane_retries = lambda: polls.append(1)
+    assert w.dequeue_job_and_maintain_ttl(10) is None
+    assert len(polls) == 2

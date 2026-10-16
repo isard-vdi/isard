@@ -992,7 +992,7 @@ class Storage(RethinkCustomBase):
             queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{priority}",
             task="qemu_img_info_backing_chain",
             retry=retry,
-            retry_intervals=15,
+            retry_intervals=[15, 60, 240],
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,
