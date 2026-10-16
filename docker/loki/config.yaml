@@ -2,6 +2,8 @@ auth_enabled: false
 
 server:
   http_listen_port: 3100
+  # info logs every query, and the alert rules alone query it thousands of times a day
+  log_level: warn
   # Loki caps a gRPC message at 4 MiB, and a query response that crosses it is
   # dropped on the query path: the panel renders empty rather than failing, so
   # the gap reads as "there are no logs".
@@ -69,6 +71,12 @@ storage_config:
     directory: /data/saved
 
 limits_config:
-  # The log panels page through far more than the 5000-entry default, and going
-  # over truncates the result with no visible sign that it did.
-  max_entries_limit_per_query: 50000000000
+  # Over the 5000-entry default a log panel is truncated with no visible sign.
+  max_entries_limit_per_query: 100000
+  # Per-session frontend panels group by session_id, well past the default 500.
+  max_query_series: 5000
+  # Senders replay their WAL in one burst after an outage.
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  per_stream_rate_limit: 8MB
+  per_stream_rate_limit_burst: 32MB
