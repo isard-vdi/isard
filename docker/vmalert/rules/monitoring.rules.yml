@@ -1,0 +1,51 @@
+groups:
+  - name: monitoring_stack
+    rules:
+      - alert: MetricsTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "A metrics target is not answering its scrape"
+          description: "{{ $labels.job }} target {{ $labels.instance }} on {{ $labels.domain }} has failed every scrape for 5m, so its panels and the rules that read it are blind."
+
+      - alert: TelemetryNotReachingMonitor
+        expr: increase(prometheus_remote_storage_samples_failed_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "A host is failing to send its metrics to the monitor"
+          description: "The collector on {{ $labels.domain }} failed to deliver {{ $value | printf \"%.0f\" }} samples in 10m. It retries from its WAL, but the gap grows while this lasts."
+
+      - alert: LogsDiscardedByLoki
+        expr: sum by (reason) (increase(loki_discarded_samples_total[15m])) > 0
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "Loki is discarding log lines ({{ $labels.reason }})"
+          description: "{{ $value | printf \"%.0f\" }} log lines were rejected in 15m for {{ $labels.reason }}. They are lost, not delayed."
+
+      - alert: GrafanaNotScraped
+        expr: absent(grafana_build_info)
+        for: 10m
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "Grafana has reported no metrics for 10m"
+          description: "Either isard-grafana is down or its metrics endpoint is no longer scraped."
+
+      - alert: AlertRulesFailing
+        expr: sum by (group) (increase(vmalert_execution_errors_total[15m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "Alert rules in {{ $labels.group }} are failing to evaluate"
+          description: "A rule that cannot be evaluated can never fire. Check the vmalert log for the query error."

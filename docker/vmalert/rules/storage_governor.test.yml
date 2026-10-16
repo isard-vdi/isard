@@ -60,6 +60,7 @@ tests:
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: _pool
@@ -97,6 +98,7 @@ tests:
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: 9a3b
@@ -136,6 +138,7 @@ tests:
         alertname: StrandedLane
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
               pool: oldpool
               category: _pool
@@ -194,6 +197,7 @@ tests:
         alertname: CategoryStarved
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: 9a3b
@@ -244,6 +248,7 @@ tests:
         alertname: PSIPinned
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: workerA
             exp_annotations:
@@ -274,6 +279,7 @@ tests:
         alertname: PSIPinned
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: workerM
             exp_annotations:
@@ -317,6 +323,7 @@ tests:
         alertname: GovernorInflightScanTruncated
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Governor in-flight leak scan is truncated"
@@ -355,6 +362,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: warning
+              area: queues
             exp_annotations:
               summary: "Storage governor lane scan truncated"
               description: "The bounded lane scan has been cutting lanes that hold work for 30m (2 with queued, started, deferred or scheduled jobs, 5 cut in total); the view is not seeing every lane with work. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
@@ -377,6 +385,7 @@ tests:
         alertname: WorkerHeartbeatLost
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
               worker: storage.default.background.def456
               pool: default
@@ -403,6 +412,7 @@ tests:
         alertname: NoStorageWorkers
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
             exp_annotations:
               summary: "No storage workers are up"
@@ -426,6 +436,7 @@ tests:
         alertname: NoStorageWorkers
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
             exp_annotations:
               summary: "No storage workers are up"
@@ -459,6 +470,7 @@ tests:
         alertname: TaskStreamLagStuck
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               stream: "stream:task-results"
               group: change-handler
@@ -489,6 +501,7 @@ tests:
         alertname: TaskStreamPendingStuck
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               stream: "stream:task-results"
               group: change-handler
@@ -519,6 +532,7 @@ tests:
         alertname: TaskStreamBackpressured
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
             exp_annotations:
               summary: "Task-result stream is at its backpressure high-water mark"
@@ -547,6 +561,7 @@ tests:
         alertname: TaskStreamDeadLettering
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Task results are being dead-lettered"
@@ -580,6 +595,7 @@ tests:
         alertname: TaskStreamNoConsumers
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
               stream: "stream:task-results"
               group: change-handler
@@ -614,6 +630,7 @@ tests:
         alertname: TaskStreamsUnreadable
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Task-stream health cannot be read while Redis is up"
@@ -652,6 +669,7 @@ tests:
         alertname: WorkerHeartbeatLost
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
               worker: "storage-reserved:isard-storage:abc123"
               pool: default
@@ -672,6 +690,7 @@ tests:
         alertname: WorkerRegistrationStale
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: "storage-reserved:isard-storage:dead"
             exp_annotations:

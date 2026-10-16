@@ -1,0 +1,86 @@
+rule_files:
+  - monitoring.rules.yml
+  - system_health.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: target_down_fires_after_five_minutes
+    interval: 1m
+    input_series:
+      - series: 'up{job="containers",instance="isard-vmalert:8880",domain="a"}'
+        values: "1 0 0 0 0 0 0 0"
+      - series: 'up{job="containers",instance="isard-loki:3100",domain="a"}'
+        values: "1 1 1 1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: monitoring_stack
+        alertname: MetricsTargetDown
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: monitoring_stack
+        alertname: MetricsTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              job: containers
+              instance: isard-vmalert:8880
+              domain: a
+            exp_annotations:
+              summary: "A metrics target is not answering its scrape"
+              description: "containers target isard-vmalert:8880 on a has failed every scrape for 5m, so its panels and the rules that read it are blind."
+
+  - name: loki_discards_fire_per_reason_and_stay_quiet_when_flat
+    interval: 1m
+    input_series:
+      - series: 'loki_discarded_samples_total{reason="rate_limited",tenant="fake"}'
+        values: "0x20 40 80 80 80"
+      - series: 'loki_discarded_samples_total{reason="line_too_long",tenant="fake"}'
+        values: "3x25"
+    alert_rule_test:
+      - eval_time: 19m
+        groupname: monitoring_stack
+        alertname: LogsDiscardedByLoki
+        exp_alerts: []
+      - eval_time: 23m
+        groupname: monitoring_stack
+        alertname: LogsDiscardedByLoki
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              reason: rate_limited
+            exp_annotations:
+              summary: "Loki is discarding log lines (rate_limited)"
+              description: "80 log lines were rejected in 15m for rate_limited. They are lost, not delayed."
+
+  - name: grafana_absent_fires_and_present_does_not
+    interval: 1m
+    input_series:
+      - series: 'grafana_build_info{version="13.1.8"}'
+        values: "1 1 1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: monitoring_stack
+        alertname: GrafanaNotScraped
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: monitoring_stack
+        alertname: GrafanaNotScraped
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+            exp_annotations:
+              summary: "Grafana has reported no metrics for 10m"
+              description: "Either isard-grafana is down or its metrics endpoint is no longer scraped."
+
+  - name: heartbeat_is_recorded_every_evaluation
+    interval: 1m
+    metricsql_expr_test:
+      - expr: isardvdi:vmalert_heartbeat
+        eval_time: 3m
+        exp_samples:
+          - labels: 'isardvdi:vmalert_heartbeat'
+            value: 1

@@ -86,6 +86,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Storage lane backlog is high"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has {{ $value }} queued jobs (>200) sustained for 30m. Raise max_heavy or add elastic workers."
@@ -95,6 +96,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Storage lane backlog is rising"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} backlog grew by {{ $value }} over 30m (>25) and keeps rising. Growth confined to bulk/background while interactive is flat is expected shedding."
@@ -122,6 +124,7 @@ groups:
           or (isardvdi_storage_governor_oldest_queued_age_seconds{tier="background"} > 21600)
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Oldest queued job exceeds its tier SLA"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} head job has been queued for {{ $value }}s, past its tier SLA (interactive 300s / standard 900s / bulk 7200s / background 21600s). Inspect head-task drawer and consumer coverage."
@@ -171,6 +174,7 @@ groups:
         for: 10m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Storage job stuck in STARTED past its timeout"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has {{ $value }} started job(s) past their timeout for 10m, holding reserved/heavy slots. Inspect the long-running drawer and admin-cancel to free the slot."
@@ -181,6 +185,7 @@ groups:
         expr: isardvdi_storage_governor:failed:increase15m > 5
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Storage failures rising"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} accrued {{ $value }} failures in 15m (>5). Read the traceback drawer, fix, then retry."
@@ -189,6 +194,7 @@ groups:
         expr: isardvdi_storage_governor:failed:increase15m > 20
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Storage failures spiking"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} accrued {{ $value }} failures in 15m (>20). Read the traceback drawer, fix, then retry."
@@ -199,6 +205,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Heavy storage pool at admission cap"
           description: "Heavy running ({{ $value }}) has been at/above the effective max_heavy cap for 15m; global heavy admission is blocked. Raise max_heavy / add capacity; at-cap plus low throughput suggests a leaked counter (InflightLeak)."
@@ -213,6 +220,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Per-category storage lane is starved"
           description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has backlog but no inflight for 15m while peers run and a worker is alive. Raise its weight/cap or lower a hogging category."
@@ -225,6 +233,7 @@ groups:
         for: 20m
         labels:
           severity: info
+          area: queues
         annotations:
           summary: "Per-category storage lane at its cap"
           description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has been at its per-category inflight cap with backlog behind it for 20m. Raise the cap only if the node is unpressured; otherwise fair-share is working."
@@ -249,6 +258,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Task-stream consumer group is not draining"
           description: "Group {{ $labels.group }} on {{ $labels.stream }} has held a lag above 100 entries for 30m ({{ $value }} now). Nothing settles the chains behind those entries, and no queue gauge can see it. Check the change-handler is alive and consuming; the threshold is below the healthy burst peak on purpose, so it is the 30m that makes this real, not the number."
@@ -259,6 +269,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Task-stream entries are read but never acknowledged"
           description: "Group {{ $labels.group }} on {{ $labels.stream }} has held over 100 unacknowledged entries for 30m ({{ $value }} now). A consumer took them and did not finish; the reclaim pass should have taken them back. Check the change-handler for a wedged handler and the dead-letter stream for what it gave up on."
@@ -271,6 +282,7 @@ groups:
         for: 5m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Task-result stream is at its backpressure high-water mark"
           description: "The result stream holds {{ $value }} entries, past the 90000 high-water mark where enqueue is already being throttled, and 100000 is where unread results start being EVICTED (silent, unrecoverable loss of completions). Get the change-handler consuming again now."
@@ -281,6 +293,7 @@ groups:
         expr: isardvdi_storage_governor:streams_dead_length:increase15m > 0
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Task results are being dead-lettered"
           description: "{{ $value }} task results were dead-lettered in 15m: the consumer could not process them after every redelivery, so their chains will only be finalized by a reconcile pass, if at all. Read stream:task-results:dead and fix the handler that rejects them."
@@ -296,6 +309,7 @@ groups:
         for: 30m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Task-stream group has entries and no consumer at all"
           description: "Group {{ $labels.group }} on {{ $labels.stream }} has unread entries and zero registered consumers for 30m. Nothing will ever finalize those chains. Start the change-handler. Note this alert cannot be early -- dead consumers stay registered for 12h -- so treat TaskStreamLagStuck as the detector and this as the confirmation."
@@ -309,6 +323,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Task-stream health cannot be read while Redis is up"
           description: "The governor could not read the task streams for 15m even though the broker answers PING, so every stream gauge in this group is blind (their series are absent, not zero). Check XINFO/XLEN permissions and the stream keys."
@@ -329,6 +344,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: storage
         annotations:
           summary: "Storage worker pinned by PSI pressure"
           description: "Worker {{ $labels.worker }} has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
@@ -348,6 +364,7 @@ groups:
         for: 2m
         labels:
           severity: critical
+          area: storage
         annotations:
           summary: "Storage worker lost its heartbeat"
           description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
@@ -359,6 +376,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: storage
         annotations:
           summary: "Stale worker registration with no worker behind it"
           description: "The rq:workers set has held a member for 30m whose rq:worker hash does not exist, so no worker is behind it. RQ only sweeps it through a queue a live worker still serves, so on a lane with no worker left it stays for ever: start a worker on that lane, or SREM the member. Until then every worker count that reads the set is too high by one."
@@ -368,6 +386,7 @@ groups:
         for: 2m
         labels:
           severity: critical
+          area: storage
         annotations:
           summary: "No storage workers are up"
           description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
@@ -378,6 +397,7 @@ groups:
         for: 2m
         labels:
           severity: critical
+          area: redis
         annotations:
           summary: "Governor Redis broker is down"
           description: "The RQ Redis broker has reported down for 2m; governor state and admission control are blind. Restore Redis."
@@ -387,6 +407,7 @@ groups:
         for: 10m
         labels:
           severity: warning
+          area: redis
         annotations:
           summary: "Governor Redis near maxmemory"
           description: "RQ Redis used-memory ratio is {{ $value }} (>0.9) for 10m; evictions will silently corrupt the inflight SCARD gauges. Grow Redis / raise maxmemory."
@@ -395,6 +416,7 @@ groups:
         expr: isardvdi_storage_governor:redis_evicted_keys:increase15m > 0
         labels:
           severity: warning
+          area: redis
         annotations:
           summary: "Governor Redis is evicting keys"
           description: "RQ Redis evicted {{ $value }} keys in 15m; evicted governor sets silently lower the inflight counters. Grow Redis / raise maxmemory."
@@ -406,6 +428,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Heavy in-flight counter leaked"
           description: "The heavy in-flight counter has been over-counting live jobs for 30m (a SIGKILLed worker inflated SCARD). Usually self-heals at the next reconcile; if persistent, restart a worker to force a boot reconcile."
@@ -415,6 +438,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Per-category in-flight counter leaked"
           description: "Category {{ $labels.category }} in pool {{ $labels.pool }} has been over-counting live jobs for 30m. Usually self-heals at the next reconcile; if persistent, restart a worker."
@@ -425,6 +449,7 @@ groups:
         for: 30m
         labels:
           severity: info
+          area: queues
         annotations:
           summary: "Storage governor gating is disabled"
           description: "The governor kill-switch has been off for 30m; PSI/heavy-cap admission control is not enforcing. Re-enable via the storage_scheduler config if unintended."
@@ -434,6 +459,7 @@ groups:
         for: 10m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Governor config not mirrored to Redis"
           description: "The Redis governor:config has been missing/stale versus the DB for 10m (e.g. after a Redis restart); workers may run on env fallback. Open the config GET/PUT to re-publish."
@@ -449,6 +475,7 @@ groups:
         for: 10m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Stranded storage lane: backlog with no consumer"
           description: "Lane {{ $labels.pool }}/{{ $labels.category }}/{{ $labels.tier }} has backlog but no live consumer (coverage known) for 10m. Start/scale a worker for that pool/tier; confirm producer intent."
@@ -459,6 +486,7 @@ groups:
         for: 5m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Storage governor scrape failing"
           description: "The storage-governor exporter has failed its scrape of apiv4 for 5m; all gauges are blind. Fix apiv4 reachability / the stats-go admin token."
@@ -473,6 +501,7 @@ groups:
         for: 10m
         labels:
           severity: critical
+          area: queues
         annotations:
           summary: "Storage governor metrics absent"
           description: "No storage-governor metrics have been ingested for 10m (exporter/target gone). Check the stats-go collector and apiv4 reachability."
@@ -482,6 +511,7 @@ groups:
         for: 5m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Storage governor data is stale"
           description: "The governor payload age has exceeded 60s for 5m even though scrapes succeed (frozen cache / slow Redis). Investigate Redis latency or apiv4 to_thread starvation."
@@ -491,6 +521,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Storage governor lane scan truncated"
           description: "The bounded lane scan has been cutting lanes that hold work for 30m ({{ $value }} with queued, started, deferred or scheduled jobs{{ with query \"isardvdi_storage_governor_truncated_lanes\" }}, {{ . | first | value }} cut in total{{ end }}); the view is not seeing every lane with work. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
@@ -504,6 +535,7 @@ groups:
         for: 30m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: "Governor in-flight leak scan is truncated"
           description: "{{ $value }} in-flight members were dropped by the bounded leak-scan cap for 30m, so heavy_leak and category_leak are computed from a partial list. Reduce the in-flight backlog or raise the scan cap before trusting InflightLeak / CategoryInflightLeak."
@@ -517,6 +549,7 @@ groups:
         for: 5m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: 'Storage governor is shedding requests ({{ $labels.reason }})'
           description: >-
@@ -534,6 +567,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          area: queues
         annotations:
           summary: 'Storage workers are deferring background work continuously'
           description: >-

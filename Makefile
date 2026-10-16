@@ -200,7 +200,7 @@ test-vmalert:
 	@VER=$$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://'); \
 	[ -n "$$VER" ] || { echo "cannot read vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }; \
 	docker run --rm -v "$$(pwd)/docker/vmalert/rules:/rules" -w /rules \
-	  victoriametrics/vmalert-tool:$$VER unittest --files /rules/storage_governor.test.yml
+	  victoriametrics/vmalert-tool:$$VER unittest --files "/rules/*.test.yml"
 
 # Recovery-trap suite for docker/storage/utils/sparsify. Pure bash, so pytest
 # never sees it, and it needs real qcow2 images and a live lock holder: qemu-img
