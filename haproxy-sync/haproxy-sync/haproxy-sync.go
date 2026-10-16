@@ -40,6 +40,10 @@ type Interface interface {
 	// Bastion Individual Domains
 	BastionAddIndividualDomain(ctx context.Context, domain string) error
 	BastionDeleteIndividualDomain(ctx context.Context, domain string) error
+
+	// WatchResync calls send with a reason every time the state has to be pushed again: once on
+	// connect and after every HAProxy reload, until ctx ends or send fails.
+	WatchResync(ctx context.Context, send func(reason string) error) error
 }
 
 type DomainSyncDomain struct {
@@ -86,6 +90,8 @@ type HAproxySync struct {
 	Domains *HAProxySyncDomains
 	Bastion *HAProxySyncBastion
 
+	resync resyncHub
+
 	haproxy haproxy.Interface
 	acme    acme.Interface
 }
@@ -124,6 +130,8 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			subdomains:               map[string]bool{},
 			individualDomains:        map[string]bool{},
 		},
+
+		resync: resyncHub{subs: map[chan string]struct{}{}},
 
 		haproxy: haproxy,
 		acme:    acme,

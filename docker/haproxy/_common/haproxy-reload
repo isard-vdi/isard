@@ -29,6 +29,12 @@ if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
     kill -SIGUSR2 1
     if [ $? -eq 0 ]; then
         log "HAProxy reload signal sent successfully"
+        # the new worker starts with empty runtime maps: haproxy-sync asks apiv4 to push them again
+        if pkill -HUP -x haproxy-sync 2>/dev/null; then
+            log "Asked haproxy-sync to resync the runtime maps"
+        else
+            log "WARNING: haproxy-sync is not running, the runtime maps were not resynced"
+        fi
     else
         log "ERROR: Failed to send reload signal to HAProxy"
     fi

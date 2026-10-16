@@ -32,7 +32,7 @@ def test_startup_database_work_runs_off_the_loop_before_serving(monkeypatch):
     monkeypatch.setattr(api.Cards, "cleanup_missing", recorder("cleanup_cards"))
     monkeypatch.setattr(api, "_sync_haproxy_maps", recorder("haproxy_maps"))
     monkeypatch.setattr(
-        "api.connections.grpc_client.create_health_watch_channel",
+        "api.connections.grpc_client.create_resync_watch_channel",
         MagicMock(side_effect=RuntimeError("no haproxy in tests")),
     )
     queue = MagicMock(initialize=AsyncMock(), start=AsyncMock(), stop=AsyncMock())
