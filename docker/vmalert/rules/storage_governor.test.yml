@@ -755,6 +755,7 @@ tests:
         alertname: HypervisorsDegraded
         exp_alerts:
           - exp_labels:
+              area: hypervisors
               severity: critical
             exp_annotations:
               summary: "Several hypervisors are degraded at once"

@@ -11,6 +11,7 @@ groups:
         for: 1m
         labels:
           severity: critical
+          area: hypervisors
         annotations:
           summary: "Several hypervisors are degraded at once"
           description: "{{ $value }} online hypervisors have been marked degraded by the engine for 1m, so new desktops are not placed on them. Several at once usually means a shared cause such as the storage: check the reason on the hypervisors page and the engine log."
