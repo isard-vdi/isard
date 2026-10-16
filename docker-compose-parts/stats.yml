@@ -104,6 +104,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
       - FLAVOUR=${FLAVOUR}
       - DOMAIN=${DOMAIN:-localhost}
+      - HTTPS_PORT=${HTTPS_PORT:-443}
       - VICTORIAMETRICS_ADDRESS=${VICTORIAMETRICS_ADDRESS:-${PROMETHEUS_ADDRESS:-http://isard-victoriametrics:8428}}
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
       - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}

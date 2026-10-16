@@ -134,3 +134,28 @@ tests:
         groupname: certificates
         alertname: CertificateNotReadable
         exp_alerts: []
+
+  - name: certificate_not_trusted_is_info_only_when_the_public_probe_reads_it
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="certificates",domain="own-ca"}'
+        values: "1x100"
+      - series: 'probe_success{job="certificates_verify",domain="own-ca"}'
+        values: "0x100"
+      - series: 'probe_success{job="certificates",domain="public-ca"}'
+        values: "1x100"
+      - series: 'probe_success{job="certificates_verify",domain="public-ca"}'
+        values: "1x100"
+    alert_rule_test:
+      - eval_time: 90m
+        groupname: certificates
+        alertname: CertificateNotTrusted
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              area: certificates
+              job: certificates_verify
+              domain: own-ca
+            exp_annotations:
+              summary: "The certificate of own-ca does not match its name or is not trusted"
+              description: "own-ca:443 serves a certificate that fails verification for own-ca: wrong name, expired chain or a CA that is not public. Expected on installs with their own CA; otherwise browsers show an error."

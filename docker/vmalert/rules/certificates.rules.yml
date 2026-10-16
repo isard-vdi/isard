@@ -27,6 +27,17 @@ groups:
           summary: "The certificate of {{ $labels.domain }} expires in {{ $value | printf \"%.0f\" }} days"
           description: "The TLS certificate served on {{ $labels.domain }}:443 expires in less than 3 days. Users will get a certificate error when it does."
 
+      # info: a self-signed or private-CA install is untrusted by design and must not page.
+      - alert: CertificateNotTrusted
+        expr: (probe_success{job="certificates_verify"} == 0) and on (domain) (probe_success{job="certificates"} == 1)
+        for: 1h
+        labels:
+          severity: info
+          area: certificates
+        annotations:
+          summary: "The certificate of {{ $labels.domain }} does not match its name or is not trusted"
+          description: "{{ $labels.domain }}:443 serves a certificate that fails verification for {{ $labels.domain }}: wrong name, expired chain or a CA that is not public. Expected on installs with their own CA; otherwise browsers show an error."
+
       - alert: CertificateNotReadable
         expr: probe_success{job="certificates"} == 0
         for: 30m
