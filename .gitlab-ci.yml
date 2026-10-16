@@ -271,6 +271,7 @@ unit-test-python:
         COVERAGE_DIR: component/apiv4
       - COMPONENT: common
         COVERAGE_DIR: component/_common
+        EXTRA_APK_PACKAGES: "qemu-img"
       - COMPONENT: change-handler
         COVERAGE_DIR: component/change-handler
       - COMPONENT: changefeed
@@ -291,6 +292,7 @@ unit-test-python:
         COVERAGE_DIR: docker/vpn
       - COMPONENT: storage
         COVERAGE_DIR: docker/storage
+        EXTRA_APK_PACKAGES: "qemu-img rsync util-linux-misc"
       - COMPONENT: codegen
         COVERAGE_DIR: docker/codegen
       - COMPONENT: anonymize-db
