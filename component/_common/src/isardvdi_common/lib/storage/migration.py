@@ -1862,6 +1862,12 @@ def decide(sample, state, policy):
     return LoadDecision(par, "hold", 0, "load steady (dead band)")
 
 
+def is_space_floor_refusal(reason):
+    """Whether a task error is the worker refusing a copy below the destination's floor."""
+    text = str(reason or "")
+    return "refusing to copy" in text and "byte floor" in text and "below the" in text
+
+
 def task_error_line(exc_info, fallback):
     """The last line of a worker traceback — the sentence that says WHY (pure).
 

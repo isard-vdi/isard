@@ -714,23 +714,24 @@ class MigrationRunner:
             and getattr(self.migration, "pause_reason", None) == "space"
         )
 
-    def _space_floor_state(self):
+    def _space_floor_state(self, admitting=False):
         """True below the floor, False above it, None when there is no reading."""
         min_free_pct = int(self.config.get("min_free_pct") or 0)
         min_free_bytes = int(self.config.get("min_free_bytes") or 0)
         if not (min_free_pct or min_free_bytes):
             return False
-        if (
-            str(self.migration.status)
-            not in (
-                MigrationStatus.RUNNING.value,
-                MigrationStatus.WINDOW_CLOSED.value,
-            )
-            and not self._paused_for_space()
-        ):
-            return False
-        if self.is_complete():
-            return False
+        if not admitting:
+            if (
+                str(self.migration.status)
+                not in (
+                    MigrationStatus.RUNNING.value,
+                    MigrationStatus.WINDOW_CLOSED.value,
+                )
+                and not self._paused_for_space()
+            ):
+                return False
+            if self.is_complete():
+                return False
         reading = self.free_space_fn()
         if reading is None:
             return None
@@ -1608,7 +1609,29 @@ class MigrationRunner:
         self._flag(item, "review_damage", {"reason": reason})
 
     def _fail(self, item):
-        self._terminalize_tree_failure(item)
+        reason = None
+        if str(item.get("state")) == MigrationItemState.MOVING.value:
+            reason = self._failure_reason(item)
+            if mig.is_space_floor_refusal(reason):
+                self._defer_for_space(item, reason)
+                return
+        self._terminalize_tree_failure(item, reason)
+
+    def _defer_for_space(self, item, reason):
+        """Put a disk the worker refused for lack of room back to pending, uncounted."""
+        self._restore_storage_status(item)
+        self._set(
+            item,
+            state=MigrationItemState.PENDING.value,
+            move_task_id=None,
+            dst_owned=False,
+            maintenance_domains=None,
+            storage_orig_status=None,
+            error=reason,
+            space_deferrals=int(item.get("space_deferrals") or 0) + 1,
+        )
+        self._audit(item, "deferred_space")
+        self._space_deferred = True
 
     def _blocked(self, item):
         self._terminalize_tree_failure(item)
@@ -1843,6 +1866,19 @@ class MigrationRunner:
         slots = mig.admission_slots(
             list(phases.values()), self.config.get("parallelism")
         )
+        # a scheduled job at its window opening skips the check above
+        if (
+            not finishing
+            and win_open
+            and not space_paused
+            and slots > 0
+            and any(p == "not_started" for p in phases.values())
+            and self._space_floor_state(admitting=True) is True
+        ):
+            self._pause_for_space()
+            self._record_job_rate(False)
+            self._publish_progress()
+            return [("__space__", None, "paused_min_free")]
         # Per-occurrence byte budget: stop STARTING trees once spent. A tree in
         # flight always finishes -- stopping mid-tree would strand a half-moved
         # backing chain. Operator-set, because on a thin-provisioned pool no
@@ -1865,6 +1901,7 @@ class MigrationRunner:
 
         results = []
         failed_this_tick = False
+        self._space_deferred = False
         for tree_id, tree_items in trees.items():
             if phases[tree_id] == "not_started":
                 if finishing:
@@ -1902,6 +1939,7 @@ class MigrationRunner:
             results.append((tree_id, item["id"] if item else None, action))
             handler = self._ACTIONS.get(action)
             if handler is not None:
+                deferred_before = self._space_deferred
                 try:
                     handler(self, item)
                 except Exception:
@@ -1917,6 +1955,21 @@ class MigrationRunner:
                             error=f"action {action} raised",
                         )
                         failed_this_tick = True
+                if self._space_deferred and not deferred_before:
+                    results[-1] = (tree_id, results[-1][1], "space_deferred")
+                    space_paused = True
+        if self._space_deferred and not finishing:
+            self._log(
+                "paused_min_free",
+                "the storage worker refused a copy below the destination's "
+                "free-space floor; pausing, the disk stays pending",
+            )
+            self.migration.pause_reason = "space"
+            self.migration.status = MigrationStatus.PAUSED.value
+            self._record_job_rate(False)
+            self._touch()
+            self._publish_progress()
+            return results
         if any(
             action in ("fail", "blocked", "destination_exists")
             for (_t, _i, action) in results
