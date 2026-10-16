@@ -573,10 +573,62 @@ func TestBestHyperToPardon(t *testing.T) {
 				},
 			},
 		},
-		"should ensure that the hypervisor meets the minimum RAM requirements": {
+		"should return the hypervisor that closes the gap on its own over one with a longer sentence that doesn't": {
 			DeadRow: []*apiv4.OrchestratorHypervisor{{
-				ID: "smol :3",
+				ID:          "enough",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			}, {
+				ID:          "not enough",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(9999, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  99,
+				},
 			}},
+			MinRAM:   500,
+			RAMAvail: 1,
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:          "enough",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			},
+		},
+		"should return the hypervisor with the most free RAM if none closes the gap on its own": {
+			DeadRow: []*apiv4.OrchestratorHypervisor{{
+				ID:          "small",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(9999, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  99,
+				},
+			}, {
+				ID:          "big",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			}},
+			MinRAM:   5000,
+			RAMAvail: 1,
+			Expected: &apiv4.OrchestratorHypervisor{
+				ID:          "big",
+				DestroyTime: apiv4.NewNilDateTime(time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC)),
+				RAM: apiv4.OrchestratorResourceLoad{
+					Total: 9999,
+					Free:  999,
+				},
+			},
+		},
+		"should return nil if there are no hypervisors on the dead row": {
+			DeadRow:  []*apiv4.OrchestratorHypervisor{},
 			MinRAM:   1,
 			Expected: nil,
 		},
