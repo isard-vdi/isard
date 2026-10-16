@@ -34,6 +34,10 @@ prometheus.exporter.unix "exporter_node_exporter" {
 		directory = "/var/lib/node-exporter"
 	}
 
+	cpu {
+		guest = true
+	}
+
 	// netclass reads the host /sys/class/net, so it emits 19 series for every
 	// veth/bridge/tap the docker daemon and libvirt create — churn, not signal.
 	// Per-desktop traffic already comes labelled from stats
@@ -112,9 +116,42 @@ prometheus.exporter.cadvisor "exporter_cadvisor" {
 prometheus.scrape "metrics_cadvisor" {
 	targets = prometheus.exporter.cadvisor.exporter_cadvisor.targets
 
-	forward_to      = [prometheus.relabel.process_metrics_containers.receiver]
+	forward_to      = [prometheus.relabel.cadvisor_virtual_interfaces.receiver]
 	job_name        = "cadvisor"
 	scrape_interval = "30s"
+}
+
+// A host-network container sees every desktop vnet/tap and tunnel; per-desktop
+// traffic already comes from isardvdi_domain_net_*.
+prometheus.relabel "cadvisor_virtual_interfaces" {
+	forward_to = [prometheus.relabel.process_metrics_containers.receiver]
+
+	rule {
+		action        = "drop"
+		source_labels = ["interface"]
+		regex         = "(vnet|veth|tap|genev|ovs|vxlan|br-|docker|virbr).*"
+	}
+}
+
+prometheus.exporter.self "alloy" { }
+
+prometheus.scrape "metrics_alloy" {
+	targets = prometheus.exporter.self.alloy.targets
+
+	forward_to      = [prometheus.relabel.alloy_self.receiver]
+	job_name        = "alloy"
+	scrape_interval = "30s"
+}
+
+// Only what says whether this host's telemetry is reaching the monitor.
+prometheus.relabel "alloy_self" {
+	forward_to = [prometheus.relabel.process_metrics_containers.receiver]
+
+	rule {
+		action        = "keep"
+		source_labels = ["__name__"]
+		regex         = "alloy_build_info|prometheus_remote_storage_(samples_total|samples_failed_total|samples_dropped_total|samples_pending|highest_timestamp_in_seconds|queue_highest_sent_timestamp_seconds)|loki_write_(sent_entries_total|dropped_entries_total)"
+	}
 }
 
 discovery.relabel "containers_with_metrics" {
@@ -123,7 +160,7 @@ discovery.relabel "containers_with_metrics" {
 	rule {
 		action        = "keep"
 		source_labels = ["__meta_docker_container_name"]
-		regex         = "/isard-(loki|pyroscope|stats-go|stats-rethinkdb|portal|video|monitor-proxy)"
+		regex         = "/isard-(loki|pyroscope|stats-go|stats-rethinkdb|portal|video|monitor-proxy|vmalert|grafana)"
 	}
 
 	rule {
@@ -150,6 +187,30 @@ discovery.relabel "containers_with_metrics" {
 		regex         = "/isard-stats-rethinkdb;([^:]+):.*"
 		target_label  = "__address__"
 		replacement   = "${1}:9055"
+	}
+
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-vmalert;([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${1}:8880"
+	}
+
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-grafana;([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${1}:3000"
+	}
+
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/isard-grafana"
+		target_label  = "__metrics_path__"
+		replacement   = "/monitor/metrics"
 	}
 
 	// HAProxy

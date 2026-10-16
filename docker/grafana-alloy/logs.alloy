@@ -56,6 +56,17 @@ loki.process "containers" {
 		source = "output"
 	}
 
+	// The engine pretty-prints dicts and tracebacks one line per entry.
+	stage.match {
+		selector = "{container_name=\"isard-engine\"}"
+
+		stage.multiline {
+			firstline     = "^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}"
+			max_wait_time = "3s"
+			max_lines     = 500
+		}
+	}
+
 	stage.static_labels {
 		values = {
 			domain = sys.env("DOMAIN"),
