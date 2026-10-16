@@ -80,7 +80,7 @@ const MIG_FAILURE_LABELS = {
 const MIG_SOURCE_LABELS = {
   system: "Follow system setting", recycle_bin: "Keep under deleted/", delete: "Delete"
 };
-const MIG_DAMAGED_LABELS = { pause: "Pause the job", continue: "Mark it and continue" };
+const MIG_DAMAGED_LABELS = { pause: "Pause the job", continue: "Mark it and continue", repair_leaks: "Repair leaks, then continue", repair_all: "Repair all, then continue" };
 
 function migStatusBadge (status) {
   const s = MIG_STATUS[status] || { cls: "default", icon: "fa-question", tip: status };
@@ -407,6 +407,9 @@ function migActionEnabled (status, action) {
   if (action === "pause") return status === "running" || status === "waiting" ||
     status === "window_closed";
   if (action === "cancel") return true;
+  // Check disks first: worth it before the run starts (planned/paused/scheduled),
+  // not while it is actively moving.
+  if (action === "check") return status !== "running" && status !== "finishing_tree";
   return false;
 }
 
@@ -420,6 +423,7 @@ function migActionButtons (m) {
     return `<button class="btn btn-xs btn-${cls} mig-action" data-mig="${migEscape(m.id)}" data-action="${action}" ${off} title="${migEscape(tip)}" data-toggle="tooltip"><i class="fa ${icon}"></i> ${text}</button>`;
   };
   return `
+    ${btn("check", "info", "fa-stethoscope", "Check disks first", "Check every ready disk for damage/leaks before the run, so it never stalls on one it could have known about.")}
     ${btn("start", "success", "fa-play", "Start", "Start or resume this migration.")}
     ${btn("pause", "warning", "fa-pause", "Pause", "Pause after in-flight disks finish; resume later with no data loss.")}
     ${btn("cancel", "danger", "fa-stop", "Cancel", "Stop and abandon this migration. Already-moved disks stay in the destination.")}
@@ -509,7 +513,7 @@ function migConfigControls (m) {
       </label>
       <label style="margin-left:8px;" title="A disk that fails its integrity check is marked damaged and its chain stays; pause the job for you, or continue." data-toggle="tooltip">Damaged
         <select class="form-control input-sm cfg-on-damaged" ${dis}>
-          ${migOpt(["pause", "continue"], c.on_damaged || "pause", MIG_DAMAGED_LABELS)}
+          ${migOpt(["pause", "continue", "repair_leaks", "repair_all"], c.on_damaged || "pause", MIG_DAMAGED_LABELS)}
         </select>
       </label>
       <label style="margin-left:8px;" title="Move at most this much per run, then stop until the next window. Honoured at tree boundaries, so the run may overshoot by one tree. 0 = no limit." data-toggle="tooltip">Stop&nbsp;after&nbsp;GB
@@ -643,6 +647,19 @@ function migLoadDisks (migId, treeId) {
     .fail(function () { $cell.html('<span class="text-danger">Failed to load disks.</span>'); });
 }
 
+// Pre-flight census line (from "Check disks first"): shows how many of the
+// job's disks were checked and how many are leaky / damaged (won't move).
+function migCensusLine (m) {
+  const c = m.check_census || {};
+  if (!c.checked && !c.leaks && !c.corruptions) return "";
+  const nm = (m.not_moving_disks || []).length;
+  return `<div class="mig-check-census" style="margin:6px 0;color:#555;" title="From 'Check disks first': integrity checked before the run.">
+      <i class="fa fa-stethoscope"></i> Pre-flight: ${migEscape(c.checked || 0)} checked
+      <span class="label label-warning">${migEscape(c.leaks || 0)} leaks</span>
+      <span class="label label-danger">${migEscape(c.corruptions || 0)} damaged</span>${nm ? ` — ${nm} will not move` : ""}
+    </div>`;
+}
+
 // Detail row: totals cards + config controls + the paginated trees panel.
 function migDetail (m) {
   const t = m.totals || {};
@@ -656,6 +673,7 @@ function migDetail (m) {
   return `<tr class="mig-detail" data-mig="${migEscape(m.id)}"><td></td><td colspan="9">
       ${migRouteLine(m)}
       <div style="margin-bottom:6px;">${cards}</div>
+      ${migCensusLine(m)}
       ${migConfigControls(m)}
       ${migTreesPanel(m.id)}
     </td></tr>`;

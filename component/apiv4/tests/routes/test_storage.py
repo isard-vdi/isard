@@ -242,7 +242,7 @@ def test_batch_repair_pending_leaks(monkeypatch, test_client):
 
     def fake_batch(payload, limit):
         captured["limit"] = limit
-        return 7
+        return {"queued": 7, "skipped_has_descendants": 2}
 
     monkeypatch.setattr(
         "api.services.storage.StorageService.batch_repair_leaks",
@@ -256,7 +256,8 @@ def test_batch_repair_pending_leaks(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"queued": 7}
+    # the red-line skip count is carried through to the caller
+    assert response.json() == {"queued": 7, "skipped_has_descendants": 2}
     assert captured == {"limit": None}
 
 
@@ -265,13 +266,16 @@ def test_batch_repair_pending_leaks_honours_limit(monkeypatch, test_client):
     captured = {}
     monkeypatch.setattr(
         "api.services.storage.StorageService.batch_repair_leaks",
-        staticmethod(lambda payload, limit: captured.update(limit=limit) or 3),
+        staticmethod(
+            lambda payload, limit: captured.update(limit=limit)
+            or {"queued": 3, "skipped_has_descendants": 0}
+        ),
     )
     response = test_client(
         url="/items/storage/repair/leaks?limit=5", method="PUT", jwt=jwt
     )
     assert response.status_code == 200
-    assert response.json() == {"queued": 3}
+    assert response.json() == {"queued": 3, "skipped_has_descendants": 0}
     assert captured == {"limit": 5}
 
 

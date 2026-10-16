@@ -103,3 +103,58 @@ def test_a_damaged_disk_is_flagged_for_review(monkeypatch):
             {"reason": "/p/s1.qcow2: corruptions=62"},
         )
     ]
+
+
+def _release_runner(monkeypatch, drainable=True, media=False, media_held=None):
+    r, flags = _runner(monkeypatch)
+    _Task._redis = None
+    r._restore_storage_status = lambda item: None
+    r._is_media = lambda item: media
+    r._media_held_by_started = lambda sid: media_held
+    r._pool_queue = lambda path, verb: "q1"
+    r.lane_is_drainable = lambda conn, queue: drainable
+    r._enqueue = lambda verb, queue, kwargs: "del1"
+    r._audit = lambda item, result: None
+    return r, flags
+
+
+def test_release_flags_delete_backup_for_the_parked_source(monkeypatch):
+    r, flags = _release_runner(monkeypatch)
+    item = _item(src_path="/pool/cat/groups/s1.qcow2")
+
+    r._release(item)
+
+    assert item["move_delete_task_id"] == "del1"
+    assert flags == [
+        (
+            "s1",
+            "delete_backup",
+            "migration:m1",
+            {
+                "path": "/pool/cat/groups/deleted/s1.qcow2",
+                "src_dir": "/pool/cat/groups",
+            },
+        )
+    ]
+
+
+def test_release_that_retains_the_source_flags_nothing(monkeypatch):
+    """No consumer for the lane: the source stays put, so there is no backup in
+    deleted/ to mark."""
+    r, flags = _release_runner(monkeypatch, drainable=False)
+    item = _item(src_path="/pool/cat/groups/s1.qcow2")
+
+    r._release(item)
+
+    assert item["source_retained"] is True
+    assert flags == []
+
+
+def test_release_of_a_media_held_open_flags_nothing(monkeypatch):
+    r, flags = _release_runner(monkeypatch, media=True, media_held=["dom1"])
+    item = _item(src_path="/pool/cat/groups/s1.qcow2", kind="media")
+
+    r._release(item)
+
+    assert item["source_retained"] is True
+    assert flags == []

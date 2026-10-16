@@ -154,6 +154,47 @@ class StorageProcessed(RethinkSharedConnection):
             return list(query.pluck("id")["id"].run(cls._rdb_connection))
 
     @classmethod
+    def check_census(cls, storage_ids):
+        """Pre-flight census of a set of disks (one indexed read): how many have
+        been checked (``last_checked_at``), carry a ``repair_leaks`` mark, or are
+        ``damaged``, plus the damaged ones as ``not_moving_disks``. Used by the
+        migration's "check disks first" so a run never stalls on a disk it could
+        have known about."""
+        empty = {"checked": 0, "leaks": 0, "corruptions": 0, "not_moving_disks": []}
+        ids = list(storage_ids)
+        if not ids:
+            return empty
+        try:
+            with cls._rdb_context():
+                rows = list(
+                    r.table("storage")
+                    .get_all(r.args(ids))
+                    .pluck(
+                        "id",
+                        "status",
+                        "last_checked_at",
+                        "damage_reason",
+                        "pending_actions",
+                    )
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return empty
+        damaged = [
+            {"id": x["id"], "reason": x.get("damage_reason") or "damaged"}
+            for x in rows
+            if x.get("status") == "damaged"
+        ]
+        return {
+            "checked": sum(1 for x in rows if x.get("last_checked_at")),
+            "leaks": sum(
+                1 for x in rows if "repair_leaks" in (x.get("pending_actions") or {})
+            ),
+            "corruptions": len(damaged),
+            "not_moving_disks": damaged,
+        }
+
+    @classmethod
     def get_storages(
         cls,
         user_id=None,
@@ -161,10 +202,25 @@ class StorageProcessed(RethinkSharedConnection):
         pluck=None,
         category_id=None,
         categories=None,
+        pending_action=None,
+        limit=None,
     ):
         """_From /api/libv2/api_storage.py get_disks()_"""
         query = r.table("storage")
-        if user_id:
+        if pending_action:
+            # Oldest first through the pending-action index (the manager's
+            # "filter by pending action"); ``status`` narrows it if given.
+            if status:
+                query = query.get_all(
+                    [status, pending_action], index="status_pending_action"
+                )
+            else:
+                query = query.between(
+                    [pending_action, r.minval],
+                    [pending_action, r.maxval],
+                    index="pending_action_since",
+                ).order_by(index="pending_action_since")
+        elif user_id:
             query = query.get_all(user_id, index="user_id")
             if status:
                 query = query.filter({"status": status})
@@ -187,6 +243,8 @@ class StorageProcessed(RethinkSharedConnection):
                     "perms",
                     # why a damaged disk is damaged, so the admin table can show it
                     "damage_reason",
+                    # the pending-action keys the manager's Pending column reads
+                    "pending_actions",
                     {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
                 ]
             )
@@ -224,6 +282,9 @@ class StorageProcessed(RethinkSharedConnection):
                 ),
             }
         ).without("status_logs")
+
+        if limit:
+            query = query.limit(limit)
 
         with cls._rdb_context():
             storages = list(query.run(cls._rdb_connection))

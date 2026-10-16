@@ -261,12 +261,16 @@ test.describe('Admin Storage — webapp', () => {
       page.locator('h3').filter({ hasText: /Storage files in maintenance/ }),
     ).toBeVisible()
 
-    // Other status panel
+    // Other status panel. #status is data-driven (GET .../storage/status minus
+    // ready/maintenance), so a ready-only seed leaves only its default option:
+    // assert the panel renders, not that it has rows (cf. S8, which skips then).
+    await expect(
+      page.locator('h3').filter({ hasText: /Storages in other status/ }),
+    ).toBeVisible()
     const statusDropdown = page.locator('#status')
     await expect(statusDropdown).toBeVisible()
     await expect(statusDropdown).toBeEnabled()
-    const optionCount = await statusDropdown.locator('option').count()
-    expect(optionCount).toBeGreaterThan(1)
+    expect(await statusDropdown.locator('option').count()).toBeGreaterThanOrEqual(1)
 
     // UUID duplicates panel
     await expect(page.locator('#uuid_status')).toBeVisible()
@@ -1655,7 +1659,7 @@ test.describe('Admin Storage — webapp', () => {
   test.skip('S25: orphan child does not poison its recovered parent (host-verified)', async () => {})
 
   // -------------------------------------------------------------------
-  // Scenario 25 — Repair a damaged disk from the row action buttons
+  // Scenario 26 — Repair a damaged disk from the row action buttons
   // -------------------------------------------------------------------
   // The Repair buttons live on a `damaged` row in the "Other status" table.
   // The diskless e2e env has no damaged disk, so the status-count dropdown, the
@@ -1715,7 +1719,7 @@ test.describe('Admin Storage — webapp', () => {
     return row
   }
 
-  test('S25: Repair leaks shows the reason, fires check -r leaks, and the row leaves the table', async ({
+  test('S26: Repair leaks shows the reason, fires check -r leaks, and the row leaves the table', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1751,7 +1755,7 @@ test.describe('Admin Storage — webapp', () => {
     ).toHaveCount(0, { timeout: 10000 })
   })
 
-  test('S25b: Repair leaks Cancel fires no repair call and keeps the row', async ({
+  test('S26b: Repair leaks Cancel fires no repair call and keeps the row', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1778,7 +1782,7 @@ test.describe('Admin Storage — webapp', () => {
     await expect(row).toBeVisible()
   })
 
-  test('S25c: Repair all on a damaged row fires check -r all', async ({
+  test('S26c: Repair all on a damaged row fires check -r all', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/item\/storage\/[^/]+\/repair\/(leaks|all)(\?|$)/, (route) =>
@@ -1800,7 +1804,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.url()).toMatch(/\/repair\/all$/)
   })
 
-  test('S26: Repair all pending leaks batch button fires the batch repair', async ({
+  test('S27: Repair all pending leaks batch button fires the batch repair', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
@@ -1821,7 +1825,7 @@ test.describe('Admin Storage — webapp', () => {
     expect(req.method()).toBe('PUT')
   })
 
-  test('S26b: Repair all pending leaks Cancel fires no batch call', async ({
+  test('S27b: Repair all pending leaks Cancel fires no batch call', async ({
     authenticatedPage: page,
   }) => {
     await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
@@ -1844,5 +1848,186 @@ test.describe('Admin Storage — webapp', () => {
       .click({ timeout: 5000 })
 
     expect(await batchReq).toBeNull()
+  })
+
+  // -------------------------------------------------------------------
+  // Scenario 28 — pending-action filter + Pending column
+  // -------------------------------------------------------------------
+  const PEND_ID = 'e2epnd00-0000-0000-0000-000000000001'
+
+  function pendingRow(action) {
+    return {
+      id: PEND_ID,
+      status: 'ready',
+      directory_path: '/isard/groups',
+      type: 'qcow2',
+      parent: null,
+      user_name: 'admin',
+      category: 'default',
+      domains: [],
+      perms: ['r', 'w'],
+      'qemu-img-info': { 'virtual-size': 67108864, 'actual-size': 1048576 },
+      pending_actions: { [action]: { since: 1, found_by: 'e2e', detail: {} } },
+      last: {},
+      last_task_id: null,
+    }
+  }
+
+  test('S28: pending-action filter loads by action and the Pending column shows the keys', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/admin\/items\/storage\/pending\/sparsify(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([pendingRow('sparsify')]),
+      }),
+    )
+    await gotoStorage(page)
+    const loaded = page.waitForRequest(
+      (r) => /\/admin\/items\/storage\/pending\/sparsify/.test(r.url()) && r.method() === 'GET',
+      { timeout: 10000 },
+    )
+    await page.locator('#pending_action').selectOption('sparsify')
+    await loaded
+    const row = page.locator(`#storagesPendingTable tbody tr[id="${PEND_ID}"]`)
+    await row.waitFor({ state: 'visible', timeout: 10000 })
+    await expect(row).toContainText('sparsify')
+  })
+
+  test('S28b: the ready table renders a Pending column', async ({ authenticatedPage: page }) => {
+    await gotoStorage(page)
+    await waitForSeedARow(page)
+    await expect(
+      page.locator('#storage thead th').filter({ hasText: /^Pending$/ }),
+    ).toBeVisible()
+  })
+
+  // -------------------------------------------------------------------
+  // Scenario 29 — Check integrity row button
+  // -------------------------------------------------------------------
+  test('S29: Check integrity on a ready row fires the check route', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/admin\/item\/storage\/[^/]+\/check(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task_id: 'e2e-check' }),
+      }),
+    )
+    await gotoStorage(page)
+    const row = await waitForSeedARow(page)
+    const checkReq = page.waitForRequest(
+      (r) => /\/admin\/item\/storage\/[^/]+\/check/.test(r.url()) && r.method() === 'PUT',
+      { timeout: 10000 },
+    )
+    await row.locator('.btn-check-integrity').click()
+    await clickPnotifyOk(page)
+    const req = await checkReq
+    expect(req.url()).toMatch(new RegExp(`/admin/item/storage/${SEED_A}/check$`))
+  })
+
+  test('S29b: Check integrity Cancel fires no call', async ({ authenticatedPage: page }) => {
+    await page.route(/\/api\/v4\/admin\/item\/storage\/[^/]+\/check(\?|$)/, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    )
+    await gotoStorage(page)
+    const row = await waitForSeedARow(page)
+    const checkReq = page
+      .waitForRequest((r) => /\/admin\/item\/storage\/[^/]+\/check/.test(r.url()), { timeout: 2000 })
+      .catch(() => null)
+    await row.locator('.btn-check-integrity').click()
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
+    await pnotify.waitFor({ state: 'visible', timeout: 10000 })
+    await pnotify
+      .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: /cancel/i })
+      .first()
+      .click({ timeout: 5000 })
+    expect(await checkReq).toBeNull()
+  })
+
+  // -------------------------------------------------------------------
+  // Scenario 30 — Sparsify row button
+  // -------------------------------------------------------------------
+  test('S30: Sparsify on a ready row fires the sparsify route', async ({
+    authenticatedPage: page,
+  }) => {
+    await page.route(/\/api\/v4\/item\/storage\/[^/]+\/sparsify\/priority\/[^/]+(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task_id: 'e2e-sparsify' }),
+      }),
+    )
+    await gotoStorage(page)
+    const row = await waitForSeedARow(page)
+    const sparsifyReq = page.waitForRequest(
+      (r) => /\/item\/storage\/[^/]+\/sparsify\/priority\//.test(r.url()) && r.method() === 'PUT',
+      { timeout: 10000 },
+    )
+    await row.locator('.btn-sparsify-now').click()
+    await clickPnotifyOk(page)
+    const req = await sparsifyReq
+    expect(req.url()).toMatch(new RegExp(`/item/storage/${SEED_A}/sparsify/priority/`))
+  })
+
+  test('S30b: Sparsify Cancel fires no call', async ({ authenticatedPage: page }) => {
+    await page.route(/\/api\/v4\/item\/storage\/[^/]+\/sparsify\/priority\/[^/]+(\?|$)/, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    )
+    await gotoStorage(page)
+    const row = await waitForSeedARow(page)
+    const sparsifyReq = page
+      .waitForRequest((r) => /\/item\/storage\/[^/]+\/sparsify\//.test(r.url()), { timeout: 2000 })
+      .catch(() => null)
+    await row.locator('.btn-sparsify-now').click()
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
+    await pnotify.waitFor({ state: 'visible', timeout: 10000 })
+    await pnotify
+      .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: /cancel/i })
+      .first()
+      .click({ timeout: 5000 })
+    expect(await sparsifyReq).toBeNull()
+  })
+
+  // -------------------------------------------------------------------
+  // Scenario 31 — Run sweep now batch button
+  // -------------------------------------------------------------------
+  test('S31: Run sweep now fires the sweep run endpoint', async ({ authenticatedPage: page }) => {
+    await page.route(/\/api\/v4\/admin\/storage\/sweep\/run(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ actions: {} }),
+      }),
+    )
+    await gotoStorage(page)
+    const runReq = page.waitForRequest(
+      (r) => /\/admin\/storage\/sweep\/run/.test(r.url()) && r.method() === 'POST',
+      { timeout: 10000 },
+    )
+    await page.locator('#btn-run-sweep-now').click()
+    await clickPnotifyOk(page)
+    const req = await runReq
+    expect(req.method()).toBe('POST')
+  })
+
+  test('S31b: Run sweep now Cancel fires no call', async ({ authenticatedPage: page }) => {
+    await page.route(/\/api\/v4\/admin\/storage\/sweep\/run(\?|$)/, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"actions":{}}' }),
+    )
+    await gotoStorage(page)
+    const runReq = page
+      .waitForRequest((r) => /\/admin\/storage\/sweep\/run/.test(r.url()), { timeout: 2000 })
+      .catch(() => null)
+    await page.locator('#btn-run-sweep-now').click()
+    const pnotify = page.locator('.ui-pnotify').filter({ hasText: /confirmation needed/i }).last()
+    await pnotify.waitFor({ state: 'visible', timeout: 10000 })
+    await pnotify
+      .locator('.ui-pnotify-action-bar .ui-pnotify-action-button', { hasText: /cancel/i })
+      .first()
+      .click({ timeout: 5000 })
+    expect(await runReq).toBeNull()
   })
 })

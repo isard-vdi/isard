@@ -1574,6 +1574,16 @@ def _storage_qcow():
     return qcow
 
 
+def storage_check(storage_path):
+    """Read-only ``qemu-img check -U`` of a qcow2 outside any migration. Returns
+    the report ({ok, summary, corruptions, leaks, ...}); the change-handler
+    records damaged/repair_leaks and last_checked_at from it. Repairs nothing."""
+    qcow = _storage_qcow()
+    if not isfile(storage_path):
+        raise RuntimeError(f"storage_check: {storage_path} does not exist")
+    return qcow.qemu_img_check_report(storage_path)
+
+
 def rebase(child_path, new_backing_path, verify=False):
     """Re-point a qcow2 child's backing file to its parent's NEW path.
 

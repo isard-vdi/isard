@@ -887,7 +887,7 @@ Additionally, the admin action buttons on the row:
 
 ---
 
-## Scenario 25 — *Repair a damaged disk from the row action buttons*
+## Scenario 26 — *Repair a damaged disk from the row action buttons*
 
 ### Given
 
@@ -900,12 +900,12 @@ Additionally, the admin action buttons on the row:
 
 1. The row shows its `damage_reason` inline and both a **Repair leaks**
    (`.btn-repair-leaks`) and a **Repair all** (`.btn-repair-all`) button.
-2. **S25** — clicking **Repair leaks** and confirming **Ok** fires
+2. **S26** — clicking **Repair leaks** and confirming **Ok** fires
    `PUT /api/v4/item/storage/<id>/repair/leaks`; on success the table reloads and
    the repaired row leaves the `damaged` table.
-3. **S25b** — clicking **Repair leaks** and confirming **Cancel** fires no repair
+3. **S26b** — clicking **Repair leaks** and confirming **Cancel** fires no repair
    call and the row stays.
-4. **S25c** — clicking **Repair all** and confirming **Ok** fires
+4. **S26c** — clicking **Repair all** and confirming **Ok** fires
    `PUT /api/v4/item/storage/<id>/repair/all`.
 
 > The row-level buttons appear only for a `damaged` row (the actions column keys
@@ -915,7 +915,7 @@ Additionally, the admin action buttons on the row:
 
 ---
 
-## Scenario 26 — *Batch-repair every disk with pending leaks*
+## Scenario 27 — *Batch-repair every disk with pending leaks*
 
 ### Given
 
@@ -925,10 +925,46 @@ Additionally, the admin action buttons on the row:
 
 ### When / Then
 
-1. **S26** — clicking it and confirming **Ok** fires
+1. **S27** — clicking it and confirming **Ok** fires
    `PUT /api/v4/items/storage/repair/leaks` (which drains every ready disk carrying
    a `repair_leaks` mark through the pending-actions index).
-2. **S26b** — confirming **Cancel** fires no batch call.
+2. **S27b** — confirming **Cancel** fires no batch call.
+
+---
+
+## Scenario 28 — *Filter by pending action, and the Pending column*
+
+### Given
+
+1. The storage page has a **Storages with a pending action** panel with a
+   `#pending_action` `<select>` (the `StoragePendingAction` vocabulary) that loads
+   `#storagesPendingTable` from `GET /admin/items/storage/pending/{action}` (by index),
+   and every storage table now has a **Pending** column rendering the keys of
+   `pending_actions`.
+
+### When / Then
+
+1. **S28** — selecting an action fires the pending GET and the loaded row shows the
+   pending-action key in its Pending column.
+2. **S28b** — the Ready table renders the Pending column header.
+
+## Scenario 29 — *Check integrity from the row*
+
+1. **S29** — a Ready row's **Check integrity** (`.btn-check-integrity`) button, confirmed
+   **Ok**, fires `PUT /admin/item/storage/{id}/check`.
+2. **S29b** — confirming **Cancel** fires no call.
+
+## Scenario 30 — *Sparsify from the row*
+
+1. **S30** — a Ready row's **Sparsify** (`.btn-sparsify-now`) button, confirmed **Ok**,
+   fires `PUT /item/storage/{id}/sparsify/priority/{priority}`.
+2. **S30b** — confirming **Cancel** fires no call.
+
+## Scenario 31 — *Run one sweep pass now*
+
+1. **S31** — the **Run sweep now** (`#btn-run-sweep-now`) button, confirmed **Ok**, fires
+   `POST /admin/storage/sweep/run` with the form budget.
+2. **S31b** — confirming **Cancel** fires no call.
 
 ---
 
@@ -967,9 +1003,9 @@ Additionally, the admin action buttons on the row:
 | S22 — Find from modal | ✅ | Search modal closes; find API called; PNotify "Find task started" |
 | S23 — Delete from modal | ✅ | Confirmation dialog; DELETE call; tables reload on success |
 | S24 — Move/WinReg/Increase blocked (derivatives) | ✅ | Builds parent + 2 derived children via SDK; each action shows the block PNotify and its modal stays closed |
-| S25 — Repair leaks on a damaged row | ✅ | Reason shown; confirm Ok fires `repair/leaks` and the row leaves the table; Cancel fires nothing (S25b) |
-| S25c — Repair all on a damaged row | ✅ | Confirm Ok fires `repair/all` |
-| S26 — Repair all pending leaks (batch) | ✅ | Confirm Ok fires `items/storage/repair/leaks`; Cancel fires nothing (S26b) |
+| S26 — Repair leaks on a damaged row | ✅ | Reason shown; confirm Ok fires `repair/leaks` and the row leaves the table; Cancel fires nothing (S26b) |
+| S26c — Repair all on a damaged row | ✅ | Confirm Ok fires `repair/all` |
+| S27 — Repair all pending leaks (batch) | ✅ | Confirm Ok fires `items/storage/repair/leaks`; Cancel fires nothing (S27b) |
 
 ## APIs touched by the flows (reference)
 

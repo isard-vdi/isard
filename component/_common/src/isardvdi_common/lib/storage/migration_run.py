@@ -35,7 +35,7 @@ and is safe to host in isard-scheduler (the singleton orchestrator).
 import logging
 from datetime import datetime, timezone
 from functools import partial
-from os.path import dirname
+from os.path import basename, dirname, join
 from time import time
 from uuid import uuid4
 
@@ -50,6 +50,7 @@ from isardvdi_common.helpers import task_streams
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage import migration as mig
+from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from isardvdi_common.lib.task_index import index_task
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
@@ -1524,6 +1525,18 @@ class MigrationRunner:
             source_action=action,
             source_action_reason=reason,
         )
+        # move_delete parks the source under <dir>/deleted/ with no row pointing
+        # there; mark the orphan so pending_ids("delete_backup") finds it (the
+        # sweep never deletes a backup automatically).
+        src_dir = dirname(item["src_path"])
+        self._flag(
+            item,
+            "delete_backup",
+            {
+                "path": join(src_dir, RECYCLE_BIN_DIR, basename(item["src_path"])),
+                "src_dir": src_dir,
+            },
+        )
         self._audit(item, "moved_ok")
 
     def _source_action(self):
@@ -1622,6 +1635,24 @@ class MigrationRunner:
             if mig.is_space_floor_refusal(reason):
                 self._defer_for_space(item, reason)
                 return
+        # on_damaged=repair_*: a destination that failed verify on repairable
+        # damage gets ONE repair attempt (the repair task) before terminalizing;
+        # a clean re-verify then lets the disk continue in the batch -- but never
+        # a disk with descendants (a repair rewrites the qcow2 they back onto).
+        on_damaged = self.config.get("on_damaged") or "pause"
+        if (
+            on_damaged in ("repair_leaks", "repair_all")
+            and not item.get("repair_attempted")
+            and not self._is_media(item)
+            and mig.damage_from_reason(self._failure_reason(item)) is not None
+        ):
+            if self._has_descendants(item):
+                self._skip_repair_has_descendants(item)
+                return
+            if self._try_repair(
+                item, "leaks" if on_damaged == "repair_leaks" else "all"
+            ):
+                return
         self._terminalize_tree_failure(item, reason)
 
     def _defer_for_space(self, item, reason):
@@ -1640,6 +1671,79 @@ class MigrationRunner:
         self._audit(item, "deferred_space")
         self._space_deferred = True
 
+    def _has_descendants(self, item):
+        """Whether the disk has children. Fail-safe: an unreadable graph counts as
+        having them, so a repair is never risked on a parent."""
+        try:
+            return bool(Storage(item["storage_id"]).children)
+        except Exception:
+            log.exception(
+                "migration: could not read children of %s; refusing in-flight repair",
+                item["storage_id"],
+            )
+            return True
+
+    def _skip_repair_has_descendants(self, item):
+        """Refuse the repair, record it, terminalize (which pauses the job by the
+        on_damaged knob), then point review_damage at the manual procedure."""
+        reason = self._failure_reason(item)
+        self._set(item, repair_action="skipped_has_descendants", repair_attempted=True)
+        self._audit(item, "repair_skipped_has_descendants")
+        self._terminalize_tree_failure(item)
+        # Enriches the review_damage flag terminalize just wrote (last write wins).
+        self._flag(
+            item,
+            "review_damage",
+            {
+                "reason": reason,
+                "note": "template with descendants: manual repair procedure",
+            },
+        )
+
+    def _try_repair(self, item, what):
+        """Enqueue the repair on the damaged destination and move the disk
+        into ``repairing``; return False (fall through to terminalize) when the
+        lane has no consumer. The disk is already in maintenance with its
+        desktops stopped and its children not yet moved, so the repair's
+        preconditions hold by construction."""
+        queue = self._pool_queue(item["dst_path"], "qemu_img_check_repair")
+        if not self.lane_is_drainable(Task._redis, queue):
+            return False
+        task_id = self._enqueue(
+            "qemu_img_check_repair",
+            queue,
+            {"storage_path": item["dst_path"], "what": what},
+        )
+        self._set(
+            item,
+            state=MigrationItemState.REPAIRING.value,
+            repair_task_id=task_id,
+            repair_action=what,
+            repair_attempted=True,
+        )
+        self._audit(item, "repair_started")
+        return True
+
+    def _mark_repaired(self, item):
+        """The in-flight repair finished: record its result and send the disk back
+        through the verify gate (rebased, verify cleared). A clean re-verify lets
+        it continue; a still-damaged one terminalizes (repair_attempted is set)."""
+        try:
+            result = Task(item["repair_task_id"]).result
+        except Exception:
+            result = None
+        self._set(
+            item,
+            state=MigrationItemState.REBASED.value,
+            repair_result=result,
+            verify_passed=False,
+            verify_task_id=None,
+        )
+        self._audit(item, "repaired")
+
+    def _repair_failed(self, item):
+        self._terminalize_tree_failure(item)
+
     def _blocked(self, item):
         self._terminalize_tree_failure(item)
 
@@ -1657,6 +1761,8 @@ class MigrationRunner:
         "mark_verified": _mark_verified,
         "release": _release,
         "skip_release": _skip_release,
+        "mark_repaired": _mark_repaired,
+        "repair_failed": _repair_failed,
         "fail": _fail,
         "blocked": _blocked,
     }
@@ -1997,8 +2103,11 @@ class MigrationRunner:
             it.get("damaged") and it["id"] in touched for it in fresh
         )
         on_damaged = self.config.get("on_damaged") or "pause"
+        # A disk that ends up damaged pauses unless the knob is "continue":
+        # repair_* fell through here only after its one repair failed, so it
+        # falls back to pause (the secondary policy).
         pause_now = not finishing and (
-            (damaged_this_tick and on_damaged == "pause")
+            (damaged_this_tick and on_damaged != "continue")
             or (policy == "pause" and failed_this_tick and not damaged_this_tick)
         )
         any_failed = any(

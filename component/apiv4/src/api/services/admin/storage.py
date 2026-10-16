@@ -26,6 +26,7 @@ from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.lib.task_index import last_task_ids
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
+from isardvdi_common.schemas.storage import StoragePendingAction
 
 
 class AdminStorageService:
@@ -66,6 +67,24 @@ class AdminStorageService:
         # the row key a progress event is routed to. Serve the same id from the
         # index instead. It is the LAST KNOWN task, not proof of a running one —
         # ``has_pending_task`` is the field that answers "busy".
+        last = last_task_ids(Task._redis, [row.get("id") for row in rows])
+        for row in rows:
+            row["last_task_id"] = last.get(row.get("id"))
+        return rows
+
+    @staticmethod
+    def get_storages_by_pending_action(
+        payload: dict, action: str, limit: int = None
+    ) -> list:
+        """Storage rows carrying ``action`` pending, oldest first, read by index."""
+        if action not in {a.value for a in StoragePendingAction}:
+            raise Error("bad_request", f"Unknown pending action {action!r}")
+        category_id = (
+            payload["category_id"] if payload["role_id"] == "manager" else None
+        )
+        rows = StorageProcessed.get_storages(
+            pending_action=action, category_id=category_id, limit=limit
+        )
         last = last_task_ids(Task._redis, [row.get("id") for row in rows])
         for row in rows:
             row["last_task_id"] = last.get(row.get("id"))

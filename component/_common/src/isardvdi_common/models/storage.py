@@ -69,6 +69,20 @@ def storage_min_free_bytes():
     return value
 
 
+def _check_interactive_max_clusters():
+    """Allocated-cluster ceiling under which a standalone check runs on the
+    interactive lane; env-tunable, falling back to the queue_tiers default."""
+    raw = os.environ.get("STORAGE_CHECK_INTERACTIVE_MAX_CLUSTERS")
+    try:
+        return (
+            int(raw)
+            if raw not in (None, "")
+            else queue_tiers.CHECK_INTERACTIVE_MAX_CLUSTERS
+        )
+    except (TypeError, ValueError):
+        return queue_tiers.CHECK_INTERACTIVE_MAX_CLUSTERS
+
+
 # Owner category is resolved on every storage-task produce; cache per user so a
 # burst of produces for one owner does not re-hit rethinkdb.
 _owner_category_cache = SynchronizedTTLCache(maxsize=4096, ttl=60)
@@ -149,7 +163,7 @@ PENDING_ACTIONS = {
         "cleared_by": "qemu_img_info",
     },
     "delete_backup": {
-        "flagged_by": ("storage cleanup",),
+        "flagged_by": ("storage cleanup", "migration release"),
         "cleared_by": "delete",
     },
 }
@@ -166,6 +180,7 @@ SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
 DISK_EFFECTS = {
     "find": DiskEffect.NONE,
     "check_backing_chain": DiskEffect.NONE,
+    "check_integrity": DiskEffect.NONE,
     "rsync": DiskEffect.PATH,
     "mv": DiskEffect.PATH,
     "task_delete": DiskEffect.NONE,
@@ -402,6 +417,22 @@ class Storage(RethinkCustomBase):
                 query = r.table(cls._rdb_table).get_all(
                     [status, action], index="status_pending_action"
                 )
+            if limit:
+                query = query.limit(limit)
+            return list(query["id"].run(cls._rdb_connection))
+
+    @classmethod
+    def ready_ids_needing_check(cls, checked_before, limit=None):
+        """Ids of ready disks whose last integrity check is older than
+        ``checked_before`` (epoch) or that were never checked, through the
+        ``status`` index and bounded by ``limit``. The sweep's check_integrity
+        pass reads these; it is an age scan, not a pending-action read."""
+        with cls._rdb_context():
+            query = (
+                r.table(cls._rdb_table)
+                .get_all("ready", index="status")
+                .filter(lambda row: row["last_checked_at"].default(0) < checked_before)
+            )
             if limit:
                 query = query.limit(limit)
             return list(query["id"].run(cls._rdb_connection))
@@ -1765,6 +1796,10 @@ class Storage(RethinkCustomBase):
         # restores it verbatim if the repair task fails or is cancelled.
         previous_status = self.status
 
+        # a leak repair is quick foreground work (standard); a full repair
+        # (leaks + corruption) is heavy best-effort work (maintenance).
+        if priority in (None, "default"):
+            priority = queue_tiers.repair_tier(what)
         queue_repair = f"storage.{StoragePool.get_best_for_action('qemu_img_check_repair', path=self.directory_path).id}.{priority}"
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
 
@@ -1810,6 +1845,67 @@ class Storage(RethinkCustomBase):
                         }
                     ],
                 },
+            ],
+        )
+
+    def check_integrity(
+        self,
+        user_id,
+        priority="default",
+        retry: int = 0,
+        timeout=43200,
+    ):
+        """Enqueue a read-only ``qemu-img check`` outside a migration. Same guard
+        as repair -- never a disk a running desktop holds open -- but the row
+        stays as it is (the check writes nothing); the result handler records
+        ``damaged`` + ``damage_reason`` on corruption, a ``repair_leaks`` mark on
+        leaks, and ``last_checked_at`` either way.
+
+        :param user_id: user executing the check (auditable).
+        :return: Task ID.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        held = [
+            d.id
+            for d in (self.domains or [])
+            if getattr(d, "status", None)
+            in ("Started", "Starting", "Shutting-down", "Stopping", "Paused")
+        ]
+        if held:
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} is open by a running desktop; not checking it.",
+                description_code="storage_open_not_checkable",
+            )
+        if priority in (None, "default"):
+            # route by measured cost — a small disk checks in ~2 s so it
+            # rides the reserved interactive lane; a big one goes to standard.
+            info = getattr(self, "qemu-img-info", None)
+            info = info if isinstance(info, dict) else {}
+            clusters = (info.get("actual-size") or 0) // (
+                info.get("cluster-size") or 65536
+            )
+            priority = queue_tiers.check_tier(
+                clusters, _check_interactive_max_clusters()
+            )
+        queue_check = f"storage.{StoragePool.get_best_for_action('storage_check', path=self.directory_path).id}.{priority}"
+        return self.create_task(
+            user_id=user_id,
+            queue=queue_check,
+            task="storage_check",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={
+                "kwargs": {"storage_path": self.path},
+                "timeout": timeout,
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_check_result",
+                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                }
             ],
         )
 

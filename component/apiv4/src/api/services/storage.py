@@ -25,7 +25,13 @@ from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.storage.sweep import (
+    SWEEP_DEFAULTS,
+    SWEEP_PENDING_ACTION,
+    select_within_budget,
+)
 from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.models.config import Config
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task, tasks_from_ids
@@ -591,13 +597,20 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_repair_leaks(payload: dict, limit: int | None = None) -> int:
+    def batch_repair_leaks(payload: dict, limit: int | None = None) -> dict:
         """Repair every ``ready`` disk still carrying a ``repair_leaks`` mark, oldest
         first, bounded by ``limit`` (via the ``status_pending_action`` index, never a
-        scan); always ``what="leaks"``. Returns how many were queued."""
+        scan); always ``what="leaks"``. A disk with descendants is never repaired
+        automatically (a repair rewrites the qcow2 its children back onto): it is
+        skipped and counted, not queued. Returns {queued, skipped_has_descendants}."""
         storage_ids = Storage.pending_ids("repair_leaks", status="ready", limit=limit)
+        parents_with_children = StorageService._ids_with_children(storage_ids)
         queued = 0
+        skipped_has_descendants = 0
         for storage_id in storage_ids:
+            if storage_id in parents_with_children:
+                skipped_has_descendants += 1
+                continue
             try:
                 storage = get_storage(payload, storage_id)
                 storage.repair(
@@ -614,7 +627,191 @@ class StorageService:
                     f"There was an error creating a repair task for {storage_id}",
                     type="error",
                 )
+        return {"queued": queued, "skipped_has_descendants": skipped_has_descendants}
+
+    @staticmethod
+    def check_integrity(
+        payload: dict,
+        storage_id: str,
+        priority: str = "default",
+        retry: int = 0,
+    ) -> str:
+        """Enqueue a read-only integrity check for one disk (outside a migration)."""
+        priority = check_task_priority(payload, priority)
+        retry = check_task_retry(payload, retry)
+        storage = get_storage(payload, storage_id)
+        try:
+            return storage.check_integrity(
+                payload.get("user_id"), priority=priority, retry=retry
+            )
+        except Error:
+            raise  # keep the typed 4xx (open disk, pending task) intact
+        except Exception as e:
+            raise Error(*e.args)
+
+    @staticmethod
+    def batch_check_integrity_by_status(payload: dict, status: str) -> int:
+        """Check every disk with ``status`` (index-based ids). A disk a running
+        desktop holds open is skipped, not an error; returns how many were queued."""
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        queued = 0
+        for storage_id in storage_ids:
+            try:
+                get_storage(payload, storage_id).check_integrity(payload.get("user_id"))
+                queued += 1
+            except Error:
+                continue
+            except Exception:
+                notify_admin(
+                    payload["user_id"],
+                    "Error checking storage",
+                    f"There was an error creating a check task for {storage_id}",
+                    type="error",
+                )
         return queued
+
+    @staticmethod
+    def get_sweep_config() -> dict:
+        """The nightly-sweep config: presentation defaults under the stored block."""
+        return {**SWEEP_DEFAULTS, **(Config.get_storage_sweep_config() or {})}
+
+    @staticmethod
+    def set_sweep_config(payload: dict, data: dict) -> dict:
+        """Validate and persist the sweep config; returns the merged value.
+        delete_backup is deliberately not a sweep action — it is a manual purge."""
+        clean = {}
+        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity"):
+            if key in data:
+                clean[key] = bool(data[key])
+        for key, hi in (("hour", 23), ("minute", 59)):
+            if key in data:
+                value = int(data[key])
+                if not 0 <= value <= hi:
+                    raise Error("bad_request", f"{key} must be within 0-{hi}")
+                clean[key] = value
+        for key in ("max_disks", "max_bytes", "check_max_age_days"):
+            if key in data:
+                value = int(data[key])
+                if value < 0:
+                    raise Error("bad_request", f"{key} must be >= 0")
+                clean[key] = value
+        Config.update_storage_sweep(clean)
+        return StorageService.get_sweep_config()
+
+    @staticmethod
+    def run_sweep_pass(payload: dict, overrides: dict | None = None) -> dict:
+        """Run ONE sweep pass and return its summary. Reads the stored config,
+        letting ``overrides`` (the webapp run-now form) replace budget/action keys
+        for this pass only. Each enabled action selects ready disks oldest first
+        (sparsify/repair_leaks by index, check_integrity by last-checked age),
+        skips those a Started desktop holds, honours the shared max_disks/max_bytes
+        budget (0 == no cap) and enqueues the matching task. Never repairs
+        corruption here (repair_leaks is -r leaks only) and never touches
+        delete_backup."""
+        config = {**StorageService.get_sweep_config(), **(overrides or {})}
+        budget = {
+            "disks": config["max_disks"] or None,
+            "bytes": config["max_bytes"] or None,
+        }
+        summary = {"actions": {}}
+        for action, pending in SWEEP_PENDING_ACTION.items():
+            if config.get(action) and not StorageService._sweep_exhausted(budget):
+                ids = Storage.pending_ids(
+                    pending, status="ready", limit=budget["disks"]
+                )
+                summary["actions"][action] = StorageService._sweep_act(
+                    payload, action, ids, budget
+                )
+        if config.get("check_integrity") and not StorageService._sweep_exhausted(
+            budget
+        ):
+            cutoff = int(time.time()) - int(config["check_max_age_days"]) * 86400
+            ids = Storage.ready_ids_needing_check(cutoff, budget["disks"])
+            summary["actions"]["check_integrity"] = StorageService._sweep_act(
+                payload, "check_integrity", ids, budget
+            )
+        return summary
+
+    @staticmethod
+    def _sweep_exhausted(budget: dict) -> bool:
+        return budget["disks"] is not None and budget["disks"] <= 0
+
+    @staticmethod
+    def _sweep_act(payload: dict, action: str, ids: list, budget: dict) -> dict:
+        """Build candidates for ``ids``, pick within the shared ``budget`` (which
+        this mutates as it spends), enqueue the action's task for each pick, and
+        return that action's counts."""
+        user_id = payload.get("user_id")
+        # A write action never touches a disk with descendants; check_integrity is
+        # read-only, so it may, and never carries the flag.
+        parents_with_children = (
+            StorageService._ids_with_children(ids)
+            if action in ("sparsify", "repair_leaks")
+            else set()
+        )
+        storages, candidates = {}, []
+        for storage_id in ids:
+            try:
+                storage = get_storage(payload, storage_id)
+            except Exception:
+                continue
+            storages[storage_id] = storage
+            info = getattr(storage, "qemu-img-info", None)
+            size = info.get("actual-size") if isinstance(info, dict) else None
+            started = any(
+                getattr(d, "status", None) == "Started" for d in (storage.domains or [])
+            )
+            candidates.append(
+                {
+                    "id": storage_id,
+                    "size_bytes": size or 0,
+                    "started": started,
+                    "has_children": storage_id in parents_with_children,
+                }
+            )
+        picked = select_within_budget(candidates, budget["disks"], budget["bytes"])
+        for storage_id in picked["selected"]:
+            try:
+                StorageService._sweep_enqueue(user_id, action, storages[storage_id])
+            except Exception:
+                notify_admin(
+                    user_id,
+                    "Error in storage sweep",
+                    f"Could not queue {action} for {storage_id}",
+                    type="error",
+                )
+        if budget["disks"] is not None:
+            budget["disks"] = max(0, budget["disks"] - len(picked["selected"]))
+        if budget["bytes"] is not None:
+            budget["bytes"] = max(0, budget["bytes"] - picked["used_bytes"])
+        return {
+            "selected": len(picked["selected"]),
+            "skipped_started": len(picked["skipped_started"]),
+            "skipped_budget": len(picked["skipped_budget"]),
+            "skipped_has_descendants": len(picked["skipped_has_descendants"]),
+        }
+
+    @staticmethod
+    def _ids_with_children(ids: list) -> set:
+        """The subset of ``ids`` that have at least one non-deleted child backing
+        onto them, in ONE indexed query (never one per id) -- the same dependency
+        check ``set_maintenance`` makes for its ``storage_has_children`` guard."""
+        if not ids:
+            return set()
+        return {
+            child.parent for child in Storage.get_children(list(ids)) if child.parent
+        }
+
+    @staticmethod
+    def _sweep_enqueue(user_id, action, storage):
+        if action == "sparsify":
+            storage.sparsify(user_id, priority="default", secondary_priority="high")
+        elif action == "repair_leaks":
+            storage.repair(
+                user_id, "leaks", priority="default", secondary_priority="high"
+            )
+        elif action == "check_integrity":
+            storage.check_integrity(user_id, priority="default")
 
     @staticmethod
     def disconnect(

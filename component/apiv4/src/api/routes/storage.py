@@ -47,6 +47,10 @@ from api.schemas.storage import (
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
     StorageStatusesResponse,
+    StorageSweepConfigRequest,
+    StorageSweepConfigResponse,
+    StorageSweepRunRequest,
+    StorageSweepRunResponse,
     StoragesWithUuidEntry,
     StorageVirtWinRegRequest,
     TaskIdResponse,
@@ -699,8 +703,79 @@ async def repair_storage(request: Request, storage_id: str, what: str):
 )
 async def batch_repair_pending_leaks(request: Request, limit: int | None = None):
     try:
-        queued = await asyncio.to_thread(
+        result = await asyncio.to_thread(
             StorageService.batch_repair_leaks, request.token_payload, limit
+        )
+        return JSONResponse(
+            content=StorageRepairBatchResponse(
+                queued=result["queued"],
+                skipped_has_descendants=result["skipped_has_descendants"],
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch repair pending leaks",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/storage/{storage_id}/check",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Check a storage's integrity",
+    description=(
+        "Enqueues a read-only qemu-img integrity check for one disk outside a "
+        "migration. The result marks the row damaged on corruption, flags "
+        "repair_leaks on leaks, and records last_checked_at either way. Refused "
+        "for a disk a running desktop holds open."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def check_storage(request: Request, storage_id: str):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.check_integrity, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/items/storage/check/{status}",
+    tags=[tag],
+    response_model=StorageRepairBatchResponse,
+    summary="Batch check integrity by status",
+    description="Checks every disk with the given status; returns how many were queued.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def batch_check_storage_by_status(request: Request, status: str):
+    try:
+        queued = await asyncio.to_thread(
+            StorageService.batch_check_integrity_by_status,
+            request.token_payload,
+            status,
         )
         return JSONResponse(
             content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
@@ -712,7 +787,96 @@ async def batch_repair_pending_leaks(request: Request, limit: int | None = None)
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to batch repair pending leaks",
+            "Failed to batch check storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/sweep/config",
+    tags=[tag],
+    response_model=StorageSweepConfigResponse,
+    summary="Get the storage sweep config",
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_storage_sweep_config(request: Request):
+    try:
+        config = await asyncio.to_thread(StorageService.get_sweep_config)
+        return JSONResponse(
+            content=StorageSweepConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get storage sweep config",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/storage/sweep/config",
+    tags=[tag],
+    response_model=StorageSweepConfigResponse,
+    summary="Update the storage sweep config",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def update_storage_sweep_config(
+    request: Request, body: StorageSweepConfigRequest
+):
+    try:
+        config = await asyncio.to_thread(
+            StorageService.set_sweep_config,
+            request.token_payload,
+            body.model_dump(exclude_unset=True),
+        )
+        return JSONResponse(
+            content=StorageSweepConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update storage sweep config",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/sweep/run",
+    tags=[tag],
+    response_model=StorageSweepRunResponse,
+    summary="Run one storage sweep pass now",
+    description=(
+        "Runs a single sweep pass and returns per-action selected/skipped counts. "
+        "Body keys override the stored budget/actions for this pass only."
+    ),
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def run_storage_sweep(request: Request, body: StorageSweepRunRequest):
+    try:
+        summary = await asyncio.to_thread(
+            StorageService.run_sweep_pass,
+            request.token_payload,
+            body.model_dump(exclude_none=True),
+        )
+        return JSONResponse(
+            content=StorageSweepRunResponse(**summary).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to run storage sweep",
             traceback.format_exc(),
         )
 

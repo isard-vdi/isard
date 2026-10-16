@@ -132,10 +132,71 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-md-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-magic"></i> Storage sweep <small> Opt-in nightly pass over disks that carry a pending action</small></h3>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-md-12">
+                        <input id="sweep-enabled" type="checkbox">
+                        <label for="sweep-enabled"><b> Run the sweep every night</b></label>
+                    </div>
+                </div>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-md-3 col-sm-6 col-xs-12">
+                        <label for="sweep-hour">Hour (0-23)</label>
+                        <input class="form-control" id="sweep-hour" type="number" min="0" max="23" value="4">
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-xs-12">
+                        <label for="sweep-minute">Minute (0-59)</label>
+                        <input class="form-control" id="sweep-minute" type="number" min="0" max="59" value="0">
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-xs-12">
+                        <label for="sweep-max-disks">Max disks per pass (0 = no cap)</label>
+                        <input class="form-control" id="sweep-max-disks" type="number" min="0" value="50">
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-xs-12">
+                        <label for="sweep-max-gib">Max GiB per pass (0 = no cap)</label>
+                        <input class="form-control" id="sweep-max-gib" type="number" min="0" value="0">
+                    </div>
+                </div>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-md-3 col-xs-12">
+                        <input id="sweep-sparsify" type="checkbox">
+                        <label for="sweep-sparsify"> Sparsify</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
+                        <input id="sweep-repair-leaks" type="checkbox">
+                        <label for="sweep-repair-leaks"> Repair leaks</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
+                        <input id="sweep-check-integrity" type="checkbox">
+                        <label for="sweep-check-integrity"> Check integrity</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
+                        <label for="sweep-check-age">Check disks unchecked for (days)</label>
+                        <input class="form-control" id="sweep-check-age" type="number" min="1" value="30">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <button class="btn btn-primary" id="sweep-save"><i class="fa fa-save"></i> Save sweep settings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% include '/snippets/alloweds_form.html' %}
 {% include '/admin/pages/recyclebin_config_modals.html' %}
 {% endblock %}
 
 {% block pagescript %}
 <script src="/isard-admin/static/admin/js/recycle_bin_config.js"></script>
+<script src="/isard-admin/static/admin/js/storage_sweep_config.js"></script>
 {% endblock %}
