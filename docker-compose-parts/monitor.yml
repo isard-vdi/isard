@@ -27,7 +27,7 @@ services:
 
   isard-victoriametrics:
     container_name: isard-victoriametrics
-    image: victoriametrics/victoria-metrics:v1.147.0@sha256:40ea45a6d14b6ad9f2f1fff597309d456ff9885d77d8d1da5fd559b251db9987
+    image: victoriametrics/victoria-metrics:v1.154.0@sha256:4bd592341587d669b7f57d54bbb82bd21ac8675f4e24234b7703a7c0f85197d8
     user: root
     volumes:
       - /opt/isard/stats/victoriametrics:/victoria-metrics-data
@@ -50,7 +50,7 @@ services:
 
   isard-vmalert:
     container_name: isard-vmalert
-    image: victoriametrics/vmalert:v1.147.0
+    image: victoriametrics/vmalert:v1.154.0@sha256:f11d77f9ff68dfd63c871d0e59ae7b479f9c3fd0e8a685fef690fb88b794d938
     logging:
       driver: "json-file"
       options:
@@ -77,7 +77,7 @@ services:
 
   isard-loki:
     container_name: isard-loki
-    image: grafana/loki:3.7.3@sha256:70b9f699fc9bb868b62f1cfd4f787dfa50242f1fd92e6089787d5d7daea75fe8
+    image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
     user: root
     volumes:
       - /opt/isard/stats/loki:/data

@@ -329,7 +329,7 @@ unit-test-vmalert:
   stage: unit-test
   needs: []
   image:
-    name: victoriametrics/vmalert-tool:v1.147.0
+    name: victoriametrics/vmalert-tool:v1.154.0
     entrypoint: [""]
   script:
     - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
