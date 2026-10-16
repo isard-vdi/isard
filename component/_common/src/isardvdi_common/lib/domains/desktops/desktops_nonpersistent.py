@@ -25,6 +25,7 @@ import traceback
 import uuid
 from datetime import datetime, timezone
 
+from isardvdi_common.connections.redis_client import socketio_writer
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -47,9 +48,8 @@ from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import Domain, DomainModel
 from isardvdi_common.models.storage import Storage
 from rethinkdb import r
-from socketio import RedisManager
 
-socketio = RedisManager(socketio_url(), write_only=True)
+socketio = socketio_writer(socketio_url())
 
 
 class DesktopsNonpersistentProcessed(RethinkSharedConnection):

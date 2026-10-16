@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from api.services.error import Error
 from cachetools import cached
+from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 from isardvdi_common.connections.redis_urls import RQ_DB
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.task_streams import (
@@ -170,6 +171,7 @@ def _redis_pool() -> ConnectionPool:
                     password=os.environ.get("REDIS_PASSWORD", ""),
                     db=RQ_DB,
                     health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+                    maint_notifications_config=NO_MAINT_NOTIFICATIONS,
                 )
     return _REDIS_POOL
 

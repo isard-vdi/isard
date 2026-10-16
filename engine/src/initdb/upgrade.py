@@ -27,6 +27,7 @@ def strtobool(val):
 
 import humanfriendly as hf
 import rethinkdb as r
+from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from redis import Redis
 
@@ -8676,6 +8677,7 @@ password:s:%s"""
                 port=int(os.environ.get("REDIS_PORT") or 6379),
                 password=os.environ.get("REDIS_PASSWORD", ""),
                 db=0,
+                maint_notifications_config=NO_MAINT_NOTIFICATIONS,
             )
             cap = index_cap(conn)
             chunk_size = 500
@@ -8823,6 +8825,7 @@ password:s:%s"""
                     port=int(os.environ.get("REDIS_PORT") or 6379),
                     password=os.environ.get("REDIS_PASSWORD", ""),
                     db=0,
+                    maint_notifications_config=NO_MAINT_NOTIFICATIONS,
                 )
                 dead_queues = ("core.feedback", "core")
                 statuses = (

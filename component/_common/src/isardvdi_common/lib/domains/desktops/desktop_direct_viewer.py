@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 
 import pytz
 from cachetools import cached
+from isardvdi_common.connections.redis_client import socketio_writer
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -50,9 +51,8 @@ from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.schemas.domains import DesktopStatusEnum, DesktopTypeEnum
 from rethinkdb import r
-from socketio import RedisManager
 
-socketio = RedisManager(socketio_url(), write_only=True)
+socketio = socketio_writer(socketio_url())
 
 isard_viewer = IsardViewer()
 
