@@ -140,3 +140,29 @@ def test_a_remote_node_with_the_password_builds(tmp_path):
     )
 
     assert done.returncode == 0, done.stderr
+
+
+FAKE_DOCKER = """#!/bin/sh
+if [ "$1 $2 $3" = "exec isard-redis printenv" ]; then echo stack-secret; exit 0; fi
+if [ "$1" = run ]; then printf '%s\\n' "REDIS_PASSWORD=${REDIS_PASSWORD-unset} $*" >> "$RUNS"; fi
+"""
+
+
+@pytest.mark.parametrize("target", ["test-integration", "ci-test-integration"])
+def test_the_integration_runner_gets_the_stack_redis_password(tmp_path, target):
+    if shutil.which("make") is None:
+        pytest.skip("needs make")
+    (tmp_path / "docker").write_text(FAKE_DOCKER, encoding="utf-8")
+    (tmp_path / "docker").chmod(0o755)
+    runs = tmp_path / "runs"
+    done = subprocess.run(
+        ["make", "-C", str(BUILD.parent), target],
+        capture_output=True,
+        text=True,
+        env={"PATH": f"{tmp_path}:{os.environ['PATH']}", "RUNS": str(runs), "CI": "1"},
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    [runner] = [r for r in runs.read_text().splitlines() if "testing/integration/" in r]
+    assert runner.startswith("REDIS_PASSWORD=stack-secret ")
+    assert " -e REDIS_PASSWORD " in runner
+    assert "stack-secret" not in done.stdout + done.stderr

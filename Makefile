@@ -249,10 +249,13 @@ seed-test-db:
 .PHONY: test-integration
 # The docker socket and CLI let the XML cross-check exec `virsh dumpxml` in
 # isard-hypervisor through the daemon that runs the stack; without them the
-# test skips.
+# test skips. Some tests read redis in-process: the password is expanded by the
+# shell, not by make, so it never reaches the job log.
+_stack_redis_password := REDIS_PASSWORD="$$(docker exec isard-redis printenv REDIS_PASSWORD 2>/dev/null)"
+
 test-integration: seed-test-db
-	docker run $(_docker_tty) --rm --network=isard-network \
-	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	$(_stack_redis_password) docker run $(_docker_tty) --rm --network=isard-network \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv -e REDIS_PASSWORD \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
@@ -260,8 +263,8 @@ test-integration: seed-test-db
 
 .PHONY: ci-test-integration
 ci-test-integration: seed-test-db
-	docker run $(_docker_tty) --rm --network=isard-network \
-	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	$(_stack_redis_password) docker run $(_docker_tty) --rm --network=isard-network \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv -e REDIS_PASSWORD \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
