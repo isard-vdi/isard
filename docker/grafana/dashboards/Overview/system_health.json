@@ -22,7 +22,7 @@
       "id": 1,
       "type": "stat",
       "title": "Hypervisors",
-      "description": "CRITICAL: no hypervisor Online, or any hypervisor in Error. WARNING: a hypervisor is degraded, or its stats exporter cannot read libvirt. Plus any firing alert with area=hypervisors.",
+      "description": "CRITICAL: no hypervisor Online, or any hypervisor in Error. WARNING: a hypervisor is degraded, its stats exporter cannot read libvirt, or one hypervisor has an I/O or NFS problem the others do not (see Storage & I/O below). Plus any firing alert with area=hypervisors.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -167,7 +167,7 @@
       "id": 2,
       "type": "stat",
       "title": "Storage & NFS",
-      "description": "Filesystems under /opt/isard (local or NFS) over 90% (WARNING) / 95% (CRITICAL) on any host, plus alerts with area=storage (storage workers, PSI).",
+      "description": "Central storage: the NFS server stalled or saturated, or the same I/O problem on most hypervisors at once (scope=central, CRITICAL), storage workers, and filesystems under /opt/isard over 90% / 95%. One hypervisor alone colours Hypervisors instead.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -268,7 +268,7 @@
           "links": [
             {
               "title": "Storage & NFS: details",
-              "url": "/d/K_PGRuiVk?${__url_time_range}",
+              "url": "/d/storage-io?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
             },
@@ -2057,6 +2057,559 @@
         "orientation": "horizontal",
         "wideLayout": true,
         "showPercentChange": false
+      }
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Storage & I/O: central storage (NFS server)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "panels": []
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "Central storage alerts",
+      "description": "Alerts with scope=central firing now: the NFS server itself, or most hypervisors at once. These affect the whole platform.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(ALERTS{alertstate=\"firing\",scope=\"central\"}) or on() (0 * max(isardvdi:vmalert_heartbeat))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "NO DATA",
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#8f3bb8",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "NFS server: I/O in flight on md/dm",
+      "description": "Requests the NFS server holds on its md/dm devices. Held I/O while its disks complete next to nothing is a stalled backend.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "sum by (domain) (node_disk_io_now{device=~\"md.*|dm-.*\"}) and on (domain) isardvdi:nfs_server_host",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "NFS server: iowait and I/O pressure",
+      "description": "iowait and PSI (full) on the NFS server. Central alert: iowait over 60% or full over 30% for 5m.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "avg by (domain) (rate(node_cpu_seconds_total{mode=\"iowait\"}[$__rate_interval])) and on (domain) isardvdi:nfs_server_host",
+          "legendFormat": "iowait {{domain}}",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max by (domain) (rate(node_pressure_io_stalled_seconds_total[$__rate_interval])) and on (domain) isardvdi:nfs_server_host",
+          "legendFormat": "PSI full {{domain}}",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "type": "row",
+      "title": "Storage & I/O: per hypervisor",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "panels": []
+    },
+    {
+      "id": 35,
+      "type": "table",
+      "title": "Hypervisors with an I/O problem",
+      "description": "Hypervisors failing an I/O signal now (iowait, psi, nfs or silent). One alone is that host: put it in only_forced. Most at once is central storage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "source": true
+            },
+            "indexByName": {
+              "domain": 0,
+              "signal": 1,
+              "component": 2
+            },
+            "renameByName": {
+              "domain": "hypervisor"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "None",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "iowait, worst 10 hypervisors",
+      "description": "Share of CPU time idle waiting for I/O. Alert: over 30% for 10m.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 26
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, avg by (domain) (rate(node_cpu_seconds_total{mode=\"iowait\"}[$__rate_interval])) and on (domain) isardvdi:hypervisor_host)",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "I/O pressure (PSI some), worst 10 hypervisors",
+      "description": "Share of time some task waited for I/O. Alert: over 50% for 10m.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, max by (domain) (rate(node_pressure_io_waiting_seconds_total[$__rate_interval])) and on (domain) isardvdi:hypervisor_host)",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 38,
+      "type": "timeseries",
+      "title": "NFS retransmissions per hypervisor",
+      "description": "NFS RPCs resent per second. Alert: over 1/s for 5m.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 26
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, sum by (domain) (rate(node_nfs_rpc_retransmissions_total[$__rate_interval])) and on (domain) isardvdi:hypervisor_host)",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "links": [
+            {
+              "title": "Storage I/O & NFS: per host",
+              "url": "/d/storage-io?${__url_time_range}",
+              "targetBlank": false,
+              "oneClick": true
+            }
+          ],
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     }
   ],
