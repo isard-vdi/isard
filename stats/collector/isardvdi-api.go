@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ type IsardVDIAPI struct {
 	descTemplateNumberCategory       *prometheus.Desc
 	descHypervisorInfo               *prometheus.Desc
 	descDeploymentNumberCategory     *prometheus.Desc
+	descHypervisorDegraded           *prometheus.Desc
 }
 
 func NewIsardVDIAPI(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker) *IsardVDIAPI {
@@ -111,6 +113,12 @@ func NewIsardVDIAPI(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker)
 		[]string{"category"},
 		prometheus.Labels{},
 	)
+	a.descHypervisorDegraded = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "hypervisor_degraded"),
+		"Whether the engine has marked an online hypervisor degraded, with the family of the reason",
+		[]string{"id", "reason"},
+		prometheus.Labels{},
+	)
 
 	return a
 }
@@ -131,6 +139,7 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descTemplateNumberCategory
 	ch <- a.descHypervisorInfo
 	ch <- a.descDeploymentNumberCategory
+	ch <- a.descHypervisorDegraded
 }
 
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
@@ -160,8 +169,10 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		templates float64
 	}
 	type hypervisorMetric struct {
-		id, status string
-		onlyForced bool
+		id, status     string
+		onlyForced     bool
+		degraded       bool
+		degradedReason string
 	}
 	type deploymentMetric struct {
 		category string
@@ -216,7 +227,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		}
 		if desktop, ok := v.Desktop.Get(); ok {
 			for state, number := range desktop {
-				domainStatus = append(domainStatus, domainStatusMetric{typ: "destkop", status: state, number: float64(number)})
+				domainStatus = append(domainStatus, domainStatusMetric{typ: "desktop", status: state, number: float64(number)})
 			}
 		}
 		if template, ok := v.Template.Get(); ok {
@@ -296,7 +307,13 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 		for _, h := range []apiv4.StatsKindHypervisor(*v) {
-			hypervisors = append(hypervisors, hypervisorMetric{id: h.ID, status: h.Status, onlyForced: h.OnlyForced})
+			hypervisors = append(hypervisors, hypervisorMetric{
+				id:             h.ID,
+				status:         h.Status,
+				onlyForced:     h.OnlyForced,
+				degraded:       h.Degraded.Or(false),
+				degradedReason: h.DegradedReason.Or(""),
+			})
 		}
 	})
 
@@ -341,6 +358,16 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 	for _, h := range hypervisors {
 		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, h.id, h.status, strconv.FormatBool(h.onlyForced))
+		if h.status != "Online" {
+			continue
+		}
+		degraded := 0.0
+		reason := ""
+		if h.degraded {
+			degraded = 1
+			reason = degradedFamily(h.degradedReason)
+		}
+		ch <- prometheus.MustNewConstMetric(a.descHypervisorDegraded, prometheus.GaugeValue, degraded, h.id, reason)
 	}
 	for _, d := range deployments {
 		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, d.count, d.category)
@@ -350,4 +377,19 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(a.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
 	ch <- prometheus.MustNewConstMetric(a.descScrapeSuccess, prometheus.GaugeValue, float64(success))
+}
+
+// degradedFamily bounds the reason label: the engine's reason text carries mount paths and errors.
+func degradedFamily(reason string) string {
+	prefix, _, found := strings.Cut(reason, ":")
+	if found {
+		switch p := strings.TrimSpace(prefix); p {
+		case "storage", "health", "libvirt":
+			return p
+		}
+	}
+	if strings.HasPrefix(reason, "timeout during") || reason == "slow_response" {
+		return "libvirt"
+	}
+	return "other"
 }

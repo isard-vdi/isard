@@ -232,7 +232,9 @@ class TestStatsKindPayload:
             monkeypatch, test_client, rows, "/admin/items/stats/hypervisors"
         )
         assert response.status_code == 200
-        assert response.content == _pydantic_bytes(StatsKindHypervisor, rows)
+        assert response.content == _pydantic_bytes(
+            StatsKindHypervisor, rows, exclude_none=True
+        )
 
         response = self._get(
             monkeypatch,
@@ -242,6 +244,43 @@ class TestStatsKindPayload:
         )
         assert response.status_code == 200
         assert response.json() == rows
+
+    def test_hypervisors_carry_the_degraded_state_without_nulls(
+        self, monkeypatch, test_client
+    ):
+        reason = "storage: not responding: /isard/groups"
+        rows = [
+            {
+                "id": "h1",
+                "status": "Online",
+                "only_forced": False,
+                "degraded": {"is_degraded": True, "reason": reason},
+            },
+            {
+                "id": "h2",
+                "status": "Online",
+                "only_forced": False,
+                "degraded": {"is_degraded": False, "reason": None},
+            },
+            {"id": "h3", "status": "Online", "only_forced": False},
+        ]
+        response = self._get(
+            monkeypatch, test_client, rows, "/admin/items/stats/hypervisors"
+        )
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "id": "h1",
+                "status": "Online",
+                "only_forced": False,
+                "degraded": True,
+                "degraded_reason": reason,
+            },
+            {"id": "h2", "status": "Online", "only_forced": False},
+            {"id": "h3", "status": "Online", "only_forced": False},
+        ]
+        assert b"null" not in response.content
+        assert rows[0]["degraded"] == {"is_degraded": True, "reason": reason}
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -44,6 +44,18 @@ log = logging.getLogger(__name__)
 tag = "admin_stats"
 
 
+def _flatten_degraded(rows: list[dict] | None) -> list[dict]:
+    flat = []
+    for row in rows or []:
+        degraded = row.get("degraded")
+        row = {k: v for k, v in row.items() if k != "degraded"}
+        if isinstance(degraded, dict) and degraded.get("is_degraded") is True:
+            row["degraded"] = True
+            row["degraded_reason"] = degraded.get("reason") or "unknown"
+        flat.append(row)
+    return flat
+
+
 def _stats_rows(
     rows: list[dict] | None,
     required: tuple[str, ...],
@@ -287,14 +299,22 @@ async def stats_templates(request: Request):
     tags=[tag],
     response_model=list[StatsKindHypervisor],
     summary="Get hypervisor statistics",
-    description="Returns a list of all hypervisors with their status and only_forced flag.",
+    description=(
+        "Returns a list of all hypervisors with their status and only_forced "
+        "flag; a hypervisor the engine has degraded also carries degraded and "
+        "degraded_reason."
+    ),
     responses={500: {"model": ErrorResponse}},
 )
 async def stats_hypervisors(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "hypervisors")
         return JSONResponse(
-            content=_stats_rows(result, ("id", "status", "only_forced")),
+            content=_stats_rows(
+                _flatten_degraded(result),
+                ("id", "status", "only_forced"),
+                ("degraded", "degraded_reason"),
+            ),
             status_code=200,
         )
     except Error:

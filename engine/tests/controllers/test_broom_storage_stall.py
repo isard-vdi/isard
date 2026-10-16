@@ -170,7 +170,7 @@ class TestEveryPass:
         _pass(b)
 
         assert _degraded(degraded) == {
-            "hyp-2": "libvirt: broom connectivity check failed"
+            "hyp-2": "libvirt: check failed: libvirt connection failed"
         }
 
     def test_a_new_cause_rewrites_the_reason_once(self, b, db, probes, libvirt):
@@ -189,7 +189,7 @@ class TestEveryPass:
             if c.args[0] == "hyp-1" and c.kwargs.get("is_degraded")
         ]
         assert reasons == [
-            "libvirt: broom connectivity check failed",
+            "libvirt: check failed: libvirt connection failed",
             "storage: not responding: /isard/media",
         ]
 

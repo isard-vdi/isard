@@ -86,6 +86,47 @@ def test_healthy_hypervisors_are_never_degraded_by_stuck_ones(fast_broom):
     assert _degraded_true(degraded) == set(HUNG)
 
 
+def test_a_stuck_check_keeps_one_reason_that_says_why(fast_broom):
+    b, degraded, _, _ = fast_broom
+    for _ in range(4):
+        b._check_hypervisors_concurrent(HUNG + HEALTHY, 2, set())
+    reasons = [
+        c.kwargs["reason"]
+        for c in degraded.call_args_list
+        if c.args[0] == HUNG[0] and c.kwargs.get("is_degraded") is True
+    ]
+    assert reasons == ["libvirt: check did not answer within 0.3s"]
+
+
+def test_an_exception_text_reaches_the_reason(fast_broom, monkeypatch):
+    b, degraded, _, _ = fast_broom
+
+    def boom(hyp_id, disk_interval, started_ids):
+        raise RuntimeError("Cannot recv data: Connection reset by peer")
+
+    monkeypatch.setattr(broom, "_check_single_hypervisor", boom)
+    b._check_hypervisors_concurrent(["h-x"], 2, set())
+    degraded.assert_called_once_with(
+        "h-x",
+        is_degraded=True,
+        reason="libvirt: check raised: Cannot recv data: Connection reset by peer",
+    )
+
+
+def test_a_long_error_is_cut_to_a_bounded_reason(fast_broom, monkeypatch):
+    b, degraded, _, _ = fast_broom
+    monkeypatch.setattr(
+        broom,
+        "_check_single_hypervisor",
+        lambda hyp_id, disk_interval, started_ids: {
+            "success": False,
+            "error": "x" * 1000,
+        },
+    )
+    b._check_hypervisors_concurrent(["h-y"], 2, set())
+    assert len(degraded.call_args.kwargs["reason"]) == broom.REASON_MAX_CHARS
+
+
 def test_a_stuck_check_is_not_submitted_again(fast_broom):
     b, _, calls, _ = fast_broom
     for _ in range(6):

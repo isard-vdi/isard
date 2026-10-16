@@ -307,6 +307,12 @@ class TestGetKind:
         assert result[0]["id"] == "h1"
         stub_rdb["mock_table"].assert_any_call("hypervisors")
 
+    def test_hypervisors_pluck_the_degraded_state(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = []
+        stub_rdb["Processed"].get_kind("hypervisors")
+        assert {"degraded": ["is_degraded", "reason"]} in chain.pluck.call_args.args
+
     def test_unknown_kind_raises_bad_request(self, stub_rdb):
         from isardvdi_common.helpers.error_base import ErrorBase
 
