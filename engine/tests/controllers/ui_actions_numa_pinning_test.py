@@ -1,5 +1,6 @@
 """Which desktops the start path pins to a NUMA node."""
 
+import re
 import sys
 from unittest.mock import MagicMock
 
@@ -34,6 +35,7 @@ DOMAIN_XML = (
 )
 
 PINNING = ("<vcpupin", "<emulatorpin", "<iothreadpin", "<numatune")
+GIB = 1048576
 
 
 def _topology():
@@ -82,7 +84,14 @@ def _manager(box, extra_info):
 
 @pytest.fixture
 def start(monkeypatch):
-    def _run(extra_info, protected=None, reservables=None, cputune=""):
+    def _run(
+        extra_info,
+        protected=None,
+        reservables=None,
+        cputune="",
+        memory_gb=4.0,
+        action=False,
+    ):
         box = {}
         monkeypatch.setattr(
             ui,
@@ -100,10 +109,10 @@ def start(monkeypatch):
             "desktop-1",
             pool_id="default",
             reservables=reservables,
-            domain_memory_gb=4.0,
+            domain_memory_gb=memory_gb,
         )
         assert box.get("action") is not None, "nothing was queued -- the start died"
-        return box["action"]["xml"]
+        return box["action"] if action else box["action"]["xml"]
 
     return _run
 
@@ -161,3 +170,84 @@ def test_a_protected_cputune_is_left_as_the_admin_wrote_it(start):
     )
     assert 'cpuset="3"' in xml or "cpuset='3'" in xml
     assert "0-7,64-71" not in xml
+
+
+def _hugepages_extra(pool, free_kb):
+    return {
+        "numa_topology": _topology(),
+        "selected_numa_node": "0",
+        "hugepages": {"mounted": True, **pool},
+        "mem_available_kb": 0,
+        "hugepages_free_kb": free_kb,
+        "min_free_mem_gb": 0,
+    }
+
+
+def _page_size(xml):
+    match = re.search(r"<page size=.(\d+). unit=.([GM]).", xml)
+    return match.group(1) + match.group(2) if match else None
+
+
+def test_half_a_gib_never_gets_1g_pages(start):
+    xml = start(_hugepages_extra({"1G": {"total": 64}}, 64 * GIB), memory_gb=0.5)
+    assert _page_size(xml) is None
+
+
+def test_half_a_gib_falls_back_to_2m_pages(start):
+    pool = {"1G": {"total": 64}, "2M": {"total": 4096}}
+    xml = start(_hugepages_extra(pool, 64 * GIB + 4096 * 2048), memory_gb=0.5)
+    assert _page_size(xml) == "2M"
+
+
+def test_a_whole_gib_multiple_gets_1g_pages(start):
+    pool = {"1G": {"total": 64}, "2M": {"total": 4096}}
+    xml = start(_hugepages_extra(pool, 64 * GIB + 4096 * 2048), memory_gb=4.0)
+    assert _page_size(xml) == "1G"
+    assert "<vcpupin" in xml
+
+
+def test_free_2m_pages_are_not_counted_as_free_1g_pages(start):
+    pool = {"1G": {"total": 4}, "2M": {"total": 4096}}
+    xml = start(_hugepages_extra(pool, 4096 * 2048), memory_gb=4.0)
+    assert _page_size(xml) == "2M"
+
+
+def _gpu_extra(**hugepages):
+    return {
+        "numa_topology": _topology(),
+        "nvidia": True,
+        "gpu_id": "gpu-1",
+        "uid": "uuid-1",
+        "profile": "2Q",
+        "gpu_numa_node": 1,
+        **hugepages,
+    }
+
+
+def test_a_gpu_desktop_with_no_fitting_page_size_takes_the_slow_path(start):
+    action = start(
+        _gpu_extra(
+            hugepages={"mounted": True, "1G": {"total": 64}},
+            hugepages_free_kb=64 * GIB,
+        ),
+        reservables={"vgpus": ["NVIDIA-A16-2Q"]},
+        memory_gb=0.5,
+        action=True,
+    )
+    assert _page_size(action["xml"]) is None
+    assert action.get("expects_slow_createxml") is True
+    assert "<vcpupin" in action["xml"]
+
+
+def test_a_gpu_desktop_on_a_mixed_pool_gets_2m_pages(start):
+    action = start(
+        _gpu_extra(
+            hugepages={"mounted": True, "1G": {"total": 64}, "2M": {"total": 4096}},
+            hugepages_free_kb=64 * GIB + 4096 * 2048,
+        ),
+        reservables={"vgpus": ["NVIDIA-A16-2Q"]},
+        memory_gb=0.5,
+        action=True,
+    )
+    assert _page_size(action["xml"]) == "2M"
+    assert not action.get("expects_slow_createxml")

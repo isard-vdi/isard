@@ -76,6 +76,30 @@ updating_thread_pool = ThreadPoolExecutor(
 )
 
 
+_HUGEPAGE_SIZES = ((("1", "G"), "1G", 1048576), (("2", "M"), "2M", 2048))
+
+
+def pick_hugepage_size(memory_kb, hugepages, free_kb):
+    """Largest mounted hugepage size that divides the memory and has enough free."""
+    memory_kb = round(memory_kb)
+    # absent on hypervisors that predate it: any size with a pool stays eligible
+    usable = hugepages.get("mount_sizes")
+    pool_kb = {
+        label: (hugepages.get(label) or {}).get("total", 0) * page_kb
+        for _, label, page_kb in _HUGEPAGE_SIZES
+    }
+    for page, label, page_kb in _HUGEPAGE_SIZES:
+        if not pool_kb[label] or memory_kb % page_kb:
+            continue
+        if usable is not None and label not in usable:
+            continue
+        # free_kb is summed over all sizes; the other pools bound how much is not ours
+        free_of_size_kb = free_kb - sum(v for k, v in pool_kb.items() if k != label)
+        if free_of_size_kb >= memory_kb:
+            return page
+    return None
+
+
 @cached(cache=_template_cache)
 def get_template_cached(template_id):
     """Get template domain with TTL caching for batch operations."""
@@ -676,20 +700,18 @@ class UiActions(object):
                         hugepages = extra_info.get("hugepages", {})
                         if hugepages.get("mounted"):
                             hp_free_kb = extra_info.get("hugepages_free_kb", 0)
-                            if hp_free_kb >= domain_memory_kb:
-                                if not _allow["memory_backing"]:
-                                    pass  # memory_backing section is admin-locked
-                                elif hugepages.get("1G", {}).get("total", 0) > 0:
-                                    xml = add_memory_backing(xml, "1", "G")
-                                elif hugepages.get("2M", {}).get("total", 0) > 0:
-                                    xml = add_memory_backing(xml, "2", "M")
-                            else:
+                            page = pick_hugepage_size(
+                                domain_memory_kb, hugepages, hp_free_kb
+                            )
+                            if page is None:
                                 log.warning(
-                                    f"GPU desktop {id_domain}: hugepages free "
-                                    f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
+                                    f"GPU desktop {id_domain}: no hugepage size fits "
+                                    f"{domain_memory_kb}KB with {hp_free_kb}KB free, "
                                     f"starting with 4K pages (slower VFIO mapping)"
                                 )
                                 expects_slow_createxml = True
+                            elif _allow["memory_backing"]:
+                                xml = add_memory_backing(xml, *page)
                         else:
                             # GPU start on a host without a mounted hugepages
                             # pool — 4K-page mapping is the only option.
@@ -705,15 +727,15 @@ class UiActions(object):
                             )
                             regular_available_kb = mem_available_kb
 
-                            if regular_available_kb - domain_memory_kb < min_free_kb:
-                                if (
-                                    _allow["memory_backing"]
-                                    and hp_free_kb >= domain_memory_kb
-                                ):
-                                    if hugepages.get("1G", {}).get("total", 0) > 0:
-                                        xml = add_memory_backing(xml, "1", "G")
-                                    elif hugepages.get("2M", {}).get("total", 0) > 0:
-                                        xml = add_memory_backing(xml, "2", "M")
+                            if (
+                                regular_available_kb - domain_memory_kb < min_free_kb
+                                and _allow["memory_backing"]
+                            ):
+                                page = pick_hugepage_size(
+                                    domain_memory_kb, hugepages, hp_free_kb
+                                )
+                                if page is not None:
+                                    xml = add_memory_backing(xml, *page)
 
                     # --- NUMA CPU pinning + IO thread pinning ---
                     # Honor an admin-locked CPU pinning: when the desktop protects
