@@ -67,6 +67,11 @@ def rec(monkeypatch):
         staticmethod(lambda *a, **k: MagicMock(id="pool-1")),
     )
     monkeypatch.setattr(
+        mod.StoragePool,
+        "mountpoint_for_path",
+        staticmethod(lambda *a, **k: None),
+    )
+    monkeypatch.setattr(
         mod, "new_storage_directory_path", staticmethod(lambda *a, **k: "/isard/groups")
     )
     monkeypatch.setattr(

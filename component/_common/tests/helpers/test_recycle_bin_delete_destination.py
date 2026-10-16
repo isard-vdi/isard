@@ -102,6 +102,9 @@ def driven(monkeypatch):
         mod.StoragePool, "get_best_for_action", staticmethod(lambda *a, **k: pool)
     )
     monkeypatch.setattr(
+        mod.StoragePool, "mountpoint_for_path", staticmethod(lambda *a, **k: None)
+    )
+    monkeypatch.setattr(
         mod.queue_tiers, "retier_queue", lambda base, task, cat: f"q:{task}"
     )
 

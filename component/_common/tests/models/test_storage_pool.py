@@ -527,3 +527,39 @@ def test_get_best_for_action_raises_when_only_disabled_pools(monkeypatch):
     with pytest.raises(Exception) as exc:
         StoragePool.get_best_for_action("resize")
     assert exc.value.args[0] == "precondition_required"
+
+
+# --------------------------------------------------------------------------- #
+# mountpoint_for_path  (the root the storage worker checks for a missing disk)
+# --------------------------------------------------------------------------- #
+def test_mountpoint_for_path_returns_the_category_pool(patched_path):
+    patched_path(
+        [
+            {"id": DEFAULT_STORAGE_POOL_ID, "mountpoint": "/isard"},
+            {"id": "pool-a", "mountpoint": CAT_POOL_MP},
+        ]
+    )
+    path = CAT_POOL_MP + "/cat/groups/cat/Main/local/u/x.qcow2"
+    assert StoragePool.mountpoint_for_path(path) == CAT_POOL_MP
+
+
+def test_mountpoint_for_path_returns_the_default_for_its_own_paths(patched_path):
+    patched_path([{"id": DEFAULT_STORAGE_POOL_ID, "mountpoint": "/isard"}])
+    assert StoragePool.mountpoint_for_path("/isard/groups/x.qcow2") == "/isard"
+
+
+def test_mountpoint_for_path_never_falls_back_to_the_default(patched_path):
+    """Unlike get_by_path: a path no mountpoint holds has no known root."""
+    patched_path(
+        [
+            {"id": DEFAULT_STORAGE_POOL_ID, "mountpoint": "/isard"},
+            {"id": "pool-a", "mountpoint": CAT_POOL_MP},
+        ]
+    )
+    assert StoragePool.mountpoint_for_path("/srv/other/x.qcow2") is None
+
+
+def test_mountpoint_for_path_is_none_when_the_pools_cannot_be_read(patched_path):
+    patched_path([])
+    sp_mod.r.table.return_value.pluck.return_value.run.side_effect = RuntimeError
+    assert StoragePool.mountpoint_for_path("/isard/groups/x.qcow2") is None

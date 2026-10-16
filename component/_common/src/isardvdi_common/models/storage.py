@@ -1302,6 +1302,9 @@ class Storage(RethinkCustomBase):
                             "job_kwargs": {
                                 "kwargs": {
                                     "path": origin_path,
+                                    "pool_root": StoragePool.mountpoint_for_path(
+                                        origin_path
+                                    ),
                                 }
                             },
                         }
@@ -1421,6 +1424,7 @@ class Storage(RethinkCustomBase):
             job_kwargs={
                 "kwargs": {
                     "path": self.path,
+                    "pool_root": StoragePool.mountpoint_for_path(self.path),
                 },
             },
             dependents=[
@@ -2279,6 +2283,9 @@ class Storage(RethinkCustomBase):
                                                 "job_kwargs": {
                                                     "kwargs": {
                                                         "path": self.path,
+                                                        "pool_root": StoragePool.mountpoint_for_path(
+                                                            self.path
+                                                        ),
                                                     }
                                                 },
                                                 "dependents": [
@@ -3293,6 +3300,7 @@ class Storage(RethinkCustomBase):
             job_kwargs={
                 "kwargs": {
                     "path": path,
+                    "pool_root": StoragePool.mountpoint_for_path(path),
                 },
             },
             dependents=[

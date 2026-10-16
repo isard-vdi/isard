@@ -181,6 +181,9 @@ class Media(RethinkCustomBase):
                 job_kwargs={
                     "kwargs": {
                         "path": self.path_downloaded,
+                        "pool_root": StoragePool.mountpoint_for_path(
+                            self.path_downloaded
+                        ),
                     },
                 },
                 dependents=[
