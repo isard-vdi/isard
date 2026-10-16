@@ -311,7 +311,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "isardvdi_isardvdi_api_domain_status{status=\"Started\"}",
+          "expr": "sum(isardvdi_isardvdi_api_domain_status{type!=\"template\",status=\"Started\"})",
           "instant": true,
           "query": "",
           "range": false,
@@ -1700,7 +1700,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "isardvdi_isardvdi_api_domain_status{status=\"Started\"}",
+          "expr": "sum(isardvdi_isardvdi_api_domain_status{type!=\"template\",status=\"Started\"})",
           "hide": false,
           "legendFormat": "Desktops (API)",
           "range": true,

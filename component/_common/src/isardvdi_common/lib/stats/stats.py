@@ -275,7 +275,9 @@ class StatsProcessed(RethinkSharedConnection):
         elif kind == "users":
             query = r.table(kind).pluck("id", "role", "category", "group")
         elif kind == "hypervisors":
-            query = r.table(kind).pluck("id", "status", "only_forced")
+            query = r.table(kind).pluck(
+                "id", "status", "only_forced", {"degraded": ["is_degraded", "reason"]}
+            )
         elif kind == "categories":
             query = r.table(kind).pluck("id", "name")
         elif kind == "groups":

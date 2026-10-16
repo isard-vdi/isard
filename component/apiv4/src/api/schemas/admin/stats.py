@@ -53,6 +53,8 @@ class StatsKindHypervisor(BaseModel):
     id: str
     status: str
     only_forced: bool
+    degraded: Optional[bool] = None
+    degraded_reason: Optional[str] = None
 
 
 class StatsKindCategory(BaseModel):
