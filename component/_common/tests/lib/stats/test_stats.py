@@ -5,6 +5,7 @@
 
 """Unit tests for ``StatsProcessed`` top-level summaries."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +13,7 @@ from isardvdi_common.helpers.stale_while_revalidate import (
     KeyedStaleWhileRevalidate,
     StaleWhileRevalidate,
 )
+from rethinkdb.ast import ReQLDecoder
 
 # Which module-global cache backs which method. Used by the wiring tests below
 # so a cache swapped onto the wrong method fails instead of silently
@@ -374,44 +376,214 @@ class TestGetDomainsByCategoryCount:
         assert result[0]["desktops"] == {"Started": 4}
 
 
+def _category_folds(chain, categories, users, desktops=None, templates=None):
+    """Feed ``get_group_by_categories`` its four queries: the category ids, the
+    whole-table users fold, and one fold per kind range of ``kind_category``.
+    Both domain folds share the mocked chain, so the range picks the fold."""
+    chain.pluck.return_value.__getitem__.return_value.run.return_value = categories
+    chain.group.return_value.count.return_value.run.return_value = users
+    folds = {"desktop": desktops or {}, "template": templates or {}}
+
+    def between(lower, upper, index):
+        assert index == "kind_category"
+        selection = MagicMock(name=f"between:{lower[0]}")
+        selection.group.return_value.count.return_value.run.return_value = folds[
+            lower[0]
+        ]
+        return selection
+
+    chain.between.side_effect = between
+
+
+class _Field:
+    """``doc["x"]`` inside a group key. ReQL's ``eq`` compares by type, so
+    ``1`` is not ``true``."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def eq(self, other):
+        return type(self.value) is type(other) and self.value == other
+
+
+class _Row:
+    def __init__(self, doc):
+        self.doc = doc
+
+    def __getitem__(self, field):
+        if field not in self.doc:
+            raise KeyError(field)
+        return _Field(self.doc[field])
+
+
+def _branch(*args):
+    *pairs, default = args
+    for condition, value in zip(pairs[::2], pairs[1::2]):
+        if condition:
+            return value
+    return default
+
+
+def _server_group(docs, keys):
+    """Group ``docs`` as the server does, keys compared as JSON so ``1`` and
+    ``true`` are separate groups, then decode the pairs with the driver's own
+    GROUPED_DATA conversion, which keys them in a dict where they are not."""
+    groups = {}
+    for doc in docs:
+        key = []
+        for k in keys:
+            try:
+                key.append(doc.get(k) if isinstance(k, str) else k(_Row(doc)))
+            except KeyError:  # a non-existence error groups as null
+                key.append(None)
+        groups.setdefault(json.dumps(key), [key, 0])[1] += 1
+    return ReQLDecoder.convert_grouped_data({"data": list(groups.values())})
+
+
+def _category_documents(chain, categories, users, domains):
+    """Like ``_category_folds``, but the folds are computed from documents
+    with the keys the query actually asks for."""
+    chain.pluck.return_value.__getitem__.return_value.run.return_value = categories
+
+    def grouped(docs):
+        def group(*keys):
+            selection = MagicMock(name="group")
+            selection.count.return_value.run.return_value = _server_group(docs, keys)
+            return selection
+
+        return group
+
+    chain.group.side_effect = grouped(users)
+
+    def between(lower, upper, index):
+        assert index == "kind_category"
+        selection = MagicMock(name=f"between:{lower[0]}")
+        selection.group.side_effect = grouped(
+            [d for d in domains if d.get("kind") == lower[0] and "category" in d]
+        )
+        return selection
+
+    chain.between.side_effect = between
+
+
 class TestGetGroupByCategories:
     def test_assembles_per_category_summary(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        # categories list (.pluck("id")["id"].run())
-        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
-        # Every per-category count returns 1; roles return a stub dict.
-        chain.get_all.return_value.count.return_value.run.return_value = 1
-        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
-            1
+        _category_folds(
+            stub_rdb["mock_table"].return_value,
+            ["cat-a", "cat-empty"],
+            {
+                ("cat-a", "admin", True): 1,
+                ("cat-a", "user", True): 2,
+                ("cat-a", "user", False): 1,
+                ("cat-a", "user", None): 1,
+                # Rows of a deleted category, and of none at all.
+                ("cat-gone", "user", True): 5,
+                (None, "user", True): 3,
+            },
+            {
+                ("cat-a", "Started"): 2,
+                ("cat-a", "Stopped"): 3,
+                ("cat-a", "Unknown"): 1,
+                ("cat-a", "Downloading"): 1,
+                ("cat-a", None): 1,
+                ("cat-gone", "Started"): 4,
+            },
+            {
+                ("cat-a", True): 2,
+                ("cat-a", False): 1,
+                ("cat-a", None): 1,
+                ("cat-gone", True): 7,
+            },
         )
-        chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
-            "admin": 1
-        }
         result = stub_rdb["Processed"].get_group_by_categories()
-        assert "cat-a" in result
-        assert result["cat-a"]["users"]["total"] == 1
-        assert result["cat-a"]["users"]["status"] == {"enabled": 1, "disabled": 0}
-        assert result["cat-a"]["desktops"]["total"] == 1
-        assert result["cat-a"]["templates"]["total"] == 1
+        assert result["cat-a"] == {
+            "users": {
+                "total": 5,
+                "status": {"enabled": 3, "disabled": 2},
+                "roles": {"admin": 1, "user": 4},
+            },
+            "desktops": {
+                "total": 8,
+                "status": {
+                    "Started": 2,
+                    "Stopped": 3,
+                    "Failed": 0,
+                    "Unknown": 0,
+                    "Other": 3,
+                },
+            },
+            "templates": {"total": 4, "status": {"enabled": 2, "disabled": 1}},
+        }
+        # The key set is the categories table: an empty category stays,
+        # zero-filled, or its series goes stale; a deleted one never appears.
+        assert set(result) == {"cat-a", "cat-empty"}
+        assert result["cat-empty"] == {
+            "users": {"total": 0, "status": {"enabled": 0, "disabled": 0}, "roles": {}},
+            "desktops": {
+                "total": 0,
+                "status": {
+                    "Started": 0,
+                    "Stopped": 0,
+                    "Failed": 0,
+                    "Unknown": 0,
+                    "Other": 0,
+                },
+            },
+            "templates": {"total": 0, "status": {"enabled": 0, "disabled": 0}},
+        }
 
     def test_drops_none_role_keys(self, stub_rdb):
         # A user with role=None produces a None key from .group("role")
         # which Pydantic's strict StatsCategoriesResponse rejects with
         # `Input should be a valid string`. Reproducer for bug 55: the
         # aggregation dict must not contain None keys.
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
-        chain.get_all.return_value.count.return_value.run.return_value = 2
-        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
-            1
+        _category_folds(
+            stub_rdb["mock_table"].return_value,
+            ["cat-a"],
+            {
+                ("cat-a", "admin", True): 1,
+                ("cat-a", None, True): 1,
+                ("cat-a", "", False): 1,
+            },
         )
-        chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
-            "admin": 1,
-            None: 1,
-        }
         result = stub_rdb["Processed"].get_group_by_categories()
         assert result["cat-a"]["users"]["roles"] == {"admin": 1}
         assert None not in result["cat-a"]["users"]["roles"]
+        # Dropped from the roles, still counted as users.
+        assert result["cat-a"]["users"]["total"] == 3
+        assert result["cat-a"]["users"]["status"] == {"enabled": 2, "disabled": 1}
+
+    def test_numeric_flags_do_not_collapse_their_boolean_group(
+        self, stub_rdb, monkeypatch
+    ):
+        # The driver keys grouped results in a dict, where 1 == True and
+        # 0 == False. Grouped on the raw field, one ``active=1`` user
+        # overwrote its whole (category, role, True) group: a category of
+        # 8 978 users was reported as 1 315.
+        monkeypatch.setattr(stub_rdb["mod"].r, "branch", _branch)
+        users = [
+            {"category": "cat-a", "role": "user", "active": True},
+            {"category": "cat-a", "role": "user", "active": True},
+            {"category": "cat-a", "role": "user", "active": True},
+            {"category": "cat-a", "role": "user", "active": 1},
+        ]
+        templates = [
+            {"kind": "template", "category": "cat-a", "enabled": enabled}
+            for enabled in (True, 1, 0)
+        ]
+        _category_documents(
+            stub_rdb["mock_table"].return_value, ["cat-a"], users, templates
+        )
+        result = stub_rdb["Processed"].get_group_by_categories()
+        # Only a boolean true is enabled, as the per-category filter and the
+        # ``template_enabled_category`` counts always had it.
+        assert result["cat-a"]["users"]["total"] == 4
+        assert result["cat-a"]["users"]["status"] == {"enabled": 3, "disabled": 1}
+        assert result["cat-a"]["users"]["roles"] == {"user": 4}
+        assert result["cat-a"]["templates"] == {
+            "total": 3,
+            "status": {"enabled": 1, "disabled": 0},
+        }
 
 
 def _consistent_domain_counts(chain, fold):
