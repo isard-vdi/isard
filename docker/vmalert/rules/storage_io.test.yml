@@ -320,3 +320,50 @@ tests:
         groupname: storage_io
         alertname: HostIoProblem
         exp_alerts: []
+
+  # Central fires, then resolves while h1 is still bad: the host alert must not fire on the
+  # `for` it built up during the incident, only after a fresh hold once central has been quiet.
+  - name: host_alert_does_not_fire_right_after_a_central_incident
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x70"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x70"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x70"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x70"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x70"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x70"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h1"}'
+        values: "0+120x70"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h2"}'
+        values: "0+120x20 2400x50"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              component: storage-central
+              scope: central
+            exp_annotations:
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
+      - eval_time: 15m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts: []
+      - eval_time: 45m
+        groupname: storage_io
+        alertname: StorageCentralManyHypervisors
+        exp_alerts: []
+      - eval_time: 45m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts: []

@@ -1,7 +1,9 @@
 # Shared storage and host I/O, split by scope:
 #   scope=central  the NFS/storage server itself, or most hypervisors at once: the whole platform;
 #   scope=host     one hypervisor (or a minority) while the rest are fine: that host.
-# The scope label lets a notifier drop every scope=host alert while a scope=central one fires.
+# The scope label lets a notifier drop every scope=host alert while a scope=central one fires, and
+# host rules stay off for 15 minutes after one, so a `for` built up during the incident cannot fire
+# on its own.
 groups:
   - name: storage_io_signals
     rules:
@@ -104,7 +106,9 @@ groups:
 
       # ---- scope host --------------------------------------------------------------------
       - alert: HypervisorIoProblem
-        expr: isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host
+        expr: |
+          (isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host)
+          unless on () (max_over_time(ALERTS{scope="central",alertstate="firing"}[15m]) > 0)
         for: 10m
         labels:
           severity: warning
@@ -115,7 +119,9 @@ groups:
           description: "{{ $labels.domain }} shows {{ $labels.signal }} trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
 
       - alert: HypervisorIoProblem
-        expr: isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host
+        expr: |
+          (isardvdi:host_io_bad and on (domain) isardvdi:hypervisor_host)
+          unless on () (max_over_time(ALERTS{scope="central",alertstate="firing"}[15m]) > 0)
         for: 30m
         labels:
           severity: critical
@@ -126,7 +132,9 @@ groups:
           description: "{{ $labels.domain }} has shown {{ $labels.signal }} trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
 
       - alert: HostIoProblem
-        expr: isardvdi:host_io_bad unless on (domain) (isardvdi:hypervisor_host or isardvdi:nfs_server_host)
+        expr: |
+          (isardvdi:host_io_bad unless on (domain) (isardvdi:hypervisor_host or isardvdi:nfs_server_host))
+          unless on () (max_over_time(ALERTS{scope="central",alertstate="firing"}[15m]) > 0)
         for: 10m
         labels:
           severity: warning
