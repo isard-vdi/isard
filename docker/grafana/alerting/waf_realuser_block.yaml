@@ -56,7 +56,7 @@ contactPoints:
 groups:
   - orgId: 1
     name: waf-security
-    folder: WAF
+    folder: Alerts
     interval: 1m
     rules:
       # ------------------------------------------------------------------

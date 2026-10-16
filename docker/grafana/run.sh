@@ -16,6 +16,7 @@ if [ -d "/custom/dashboards" ]; then
     done
 fi
 
+# Grafana-managed rules, product or custom, all go in the Alerts folder.
 if [ -d "/custom/alerting" ]; then
     cp -RT /custom/alerting/ "$PROV/alerting/"
 fi
