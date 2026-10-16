@@ -31,3 +31,14 @@ def shared_client(url: str, **kwargs: Any) -> redis.Redis:
                 client = redis.from_url(url, **kwargs)
                 _clients[key] = client
     return client
+
+
+def socketio_writer(url: str):
+    """A write-only Socket.IO redis manager whose client does not probe either."""
+    from socketio import RedisManager
+
+    return RedisManager(
+        url,
+        write_only=True,
+        redis_options={"maint_notifications_config": NO_MAINT_NOTIFICATIONS},
+    )

@@ -183,14 +183,14 @@ def _physical_free_space(path):
 
 
 def _redis_connection():
-    """The worker's own redis connection, or a fresh one outside a job."""
+    """The worker's own redis connection, or the process's shared one outside a job."""
     job = get_current_job()
     if job is not None and getattr(job, "connection", None) is not None:
         return job.connection
+    from isardvdi_common.connections.redis_client import shared_client
     from isardvdi_common.connections.redis_urls import rq_url
-    from redis import Redis
 
-    return Redis.from_url(rq_url())
+    return shared_client(rq_url())
 
 
 # Headroom every whole-copy action leaves on the destination filesystem, unless

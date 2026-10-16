@@ -20,10 +20,10 @@
 
 import json
 
+from isardvdi_common.connections.redis_client import socketio_writer
 from isardvdi_common.connections.redis_urls import socketio_url
-from socketio import RedisManager
 
-socketio = RedisManager(socketio_url(), write_only=True)
+socketio = socketio_writer(socketio_url())
 
 
 def notify_custom(event: str, data: dict | list, namespace: str, room: str):

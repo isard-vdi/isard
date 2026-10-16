@@ -25,5 +25,5 @@ COPY notifier/src /isard
 ENV PATH="/.venv/bin:$PATH"
 WORKDIR /isard
 
-CMD ["/bin/sh", "-c", "rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" notifier.default -n notifier:isard-notifier:$(uuidgen) -P /isard/notifier/lib & python3 -u /isard/start.py"]
+CMD ["/bin/sh", "-c", "rq worker --connection-class=isardvdi_common.connections.redis_retry.RedisRetry --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" notifier.default -n notifier:isard-notifier:$(uuidgen) -P /isard/notifier/lib & python3 -u /isard/start.py"]
 USER nobody

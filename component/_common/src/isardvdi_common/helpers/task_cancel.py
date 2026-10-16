@@ -59,6 +59,7 @@ from redis import Redis
 
 from .. import connections  # noqa: F401  (ensures package import side effects)
 from ..connections.redis_base import RedisBase
+from ..connections.redis_client import NO_MAINT_NOTIFICATIONS
 
 log = logging.getLogger(__name__)
 
@@ -136,6 +137,7 @@ class TaskCancelWatcher:
                 port=kw.get("port"),
                 password=kw.get("password"),
                 db=kw.get("db"),
+                maint_notifications_config=NO_MAINT_NOTIFICATIONS,
             )
         self._pubsub = None
 
