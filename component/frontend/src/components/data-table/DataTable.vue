@@ -36,7 +36,11 @@ export interface HeaderCell {
   sortable?: boolean
 
   headerClass?: string
+  /** Merged onto every body cell of this column, after the table-wide `cellClass`. */
+  cellClass?: string
   width?: string
+  /** Pin the column against the table's horizontal scroll. */
+  sticky?: 'left'
 }
 
 export type DataTableDensity = 'comfortable' | 'compact'
@@ -131,6 +135,14 @@ watch(pageSize, (value) => {
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
+
+// `DataTableBackground` already wraps the grid in an `overflow-x-auto`
+// div, and rows are real grid items (`grid-cols-subgrid`) rather than
+// `display: contents`, so a sticky cell resolves against that scroller.
+// It needs an opaque background, which would otherwise swallow the row
+// hover — pass `row-class="group"` to keep the hover working.
+const STICKY_HEAD_CLASSES = 'sticky left-0 z-20 bg-base-white'
+const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gray-warm-50'
 </script>
 
 <template>
@@ -142,7 +154,9 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
         <DataTableHead
           v-for="(header, index) in headers"
           :key="'header-' + index"
-          :class="cn(density.head, header.headerClass)"
+          :class="
+            cn(density.head, header.headerClass, header.sticky === 'left' && STICKY_HEAD_CLASSES)
+          "
           :sortable="header.sortable"
           :sorted="table.getColumn(header.key)?.getIsSorted()"
           @togle-sorting="table.getColumn(header.key)?.toggleSorting()"
@@ -173,7 +187,14 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
             <DataTableCell
               v-for="(header, cellIndex) in headers"
               :key="'cell-' + rowIndex + '-' + cellIndex"
-              :class="cn(density.cell, props.cellClass)"
+              :class="
+                cn(
+                  density.cell,
+                  props.cellClass,
+                  header.cellClass,
+                  header.sticky === 'left' && STICKY_CELL_CLASSES
+                )
+              "
             >
               <slot
                 :name="`cell-${header.key}`"

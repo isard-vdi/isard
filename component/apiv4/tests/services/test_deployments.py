@@ -45,7 +45,13 @@ class TestGetDeployment:
     )
     @patch(
         "api.services.deployments.CommonDeployments.retrieve_deployment",
-        return_value={"id": "d1", "create_dict": [1, 2]},
+        return_value={
+            "id": "d1",
+            "create_dict": [
+                {"tag_desktop_id": "r1", "name": "Ubuntu", "template": "t1"},
+                {"tag_desktop_id": "r2", "name": "Windows", "template": "t2"},
+            ],
+        },
     )
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
     def test_computes_totals(self, _exists, _retrieve, _users, _cache):
@@ -54,6 +60,31 @@ class TestGetDeployment:
         assert info["total_users"] == 2
         assert info["desktops_each_user"] == 2
         assert info["total_desktops"] == 4  # len(create_dict) * total_users
+
+    @patch("api.services.deployments.Caches.get_document", return_value=[])
+    @patch(
+        "api.services.deployments.CommonDeploymentUsers.get_users_info",
+        return_value=[],
+    )
+    @patch(
+        "api.services.deployments.CommonDeployments.retrieve_deployment",
+        return_value={
+            "id": "d1",
+            "create_dict": [
+                {"tag_desktop_id": "r1", "name": "Ubuntu", "template": "t1"},
+                # Pre-release-184 rows carry no tag_desktop_id at all.
+                {"name": "Legacy", "template": "t2"},
+            ],
+        },
+    )
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_exposes_create_dict_as_desktops(self, _exists, _retrieve, _users, _cache):
+        # DeploymentDetail has no create_dict field, so the response model
+        # would drop it; the matrix columns travel as ``desktops`` instead.
+        desktops = DeploymentService.get_deployment("d1")["info"]["desktops"]
+        assert [d["name"] for d in desktops] == ["Ubuntu", "Legacy"]
+        assert desktops[0]["tag_desktop_id"] == "r1"
+        assert desktops[1]["tag_desktop_id"] is None
 
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
     def test_raises_not_found(self, _exists):
@@ -76,7 +107,7 @@ class TestGetDeployment:
     )
     @patch(
         "api.services.deployments.CommonDeployments.retrieve_deployment",
-        return_value={"id": "d1", "create_dict": [1]},
+        return_value={"id": "d1", "create_dict": [{}]},
     )
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
     def test_flags_co_owner(

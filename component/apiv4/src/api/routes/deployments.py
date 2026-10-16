@@ -24,6 +24,7 @@ import traceback
 
 from api import advanced_router, manager_router, token_router
 from api.dependencies.alloweds import (
+    deployment_user_sees_only_visible,
     is_allowed_deployment_id_and_user_id,
     is_allowed_template_ids_body,
     owns_deployment_id,
@@ -65,7 +66,9 @@ from api.schemas.deployments import (
     DeploymentResponse,
     DeploymentStopRequest,
     DeploymentVideowallResponse,
+    DeploymentVisibilityResponse,
     OwnedDeploymentsResponse,
+    SetDeploymentVisibilityRequest,
     SharedDeploymentsResponse,
     ToggleVisibilityRequest,
     UserDeploymentResponse,
@@ -437,6 +440,54 @@ async def toggle_deployment_visibility(
             request,
             "internal_server",
             f"Failed to update deployment visibility",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.put(
+    "/item/deployment/{deployment_id}/visibility",
+    tags=[tag],
+    summary="Set deployment desktop visibility",
+    response_model=DeploymentVisibilityResponse,
+    description=(
+        "Idempotently sets ``tag_visible`` on the deployment's desktops. "
+        "Omit every selector for the whole deployment, pass ``users`` for one "
+        "row, ``tag_desktop_ids`` for one desktop column, both for a single "
+        "cell, or ``desktop_ids`` for an arbitrary set."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_deployment_id())],
+)
+async def set_deployment_visibility(
+    deployment_id: str,
+    body: SetDeploymentVisibilityRequest,
+    request: Request,
+):
+    try:
+        result = await asyncio.to_thread(
+            DeploymentService.set_visibility,
+            deployment_id,
+            body.visible,
+            body.users,
+            body.tag_desktop_ids,
+            body.desktop_ids,
+            body.stop_started_domains,
+        )
+        return JSONResponse(
+            content=DeploymentVisibilityResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to set deployment visibility",
             traceback.format_exc(),
         )
 
@@ -828,12 +879,12 @@ async def get_all_shared_deployments(request: Request):
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
-    dependencies=[Depends(is_allowed_deployment_id_and_user_id)],
 )
 async def get_deployment_user_desktops(
     deployment_id: str,
     user_id: str,
     request: Request,
+    only_visible: bool = Depends(deployment_user_sees_only_visible),
 ):
     """
     Get all desktops in a deployment for a specific user.
@@ -845,6 +896,7 @@ async def get_deployment_user_desktops(
                     DeploymentService.get_deployment_user_desktops,
                     deployment_id,
                     user_id,
+                    only_visible,
                 )
             ).model_dump(mode="json"),
             status_code=200,
@@ -871,12 +923,12 @@ async def get_deployment_user_desktops(
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
-    dependencies=[Depends(is_allowed_deployment_id_and_user_id)],
 )
 async def get_deployment_user_desktops_detail(
     deployment_id: str,
     user_id: str,
     request: Request,
+    only_visible: bool = Depends(deployment_user_sees_only_visible),
 ):
     try:
         return JSONResponse(
@@ -886,6 +938,7 @@ async def get_deployment_user_desktops_detail(
                     DeploymentService.get_deployment_user_desktops_detail,
                     deployment_id,
                     user_id,
+                    only_visible,
                 )
             ],
             status_code=200,

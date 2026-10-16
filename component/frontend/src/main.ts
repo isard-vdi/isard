@@ -61,6 +61,8 @@ app.config.errorHandler = (err, instance, info) => {
 const pinia = createPinia()
 
 app.use(pinia)
+app.use(VueQueryPlugin, vueQueryPluginOptions)
+
 const authStore = useAuthStore()
 authStore.restoreStashedTokenOnBoot()
 authStore.initialize()
@@ -98,17 +100,20 @@ apiv4Client.interceptors.request.use(async (config) => {
 
 const SELF_HANDLED_ERROR_ROUTES = ['/item/user-migration/import-user']
 
-apiv4Client.interceptors.response.use(async (response) => {
+apiv4Client.interceptors.response.use(async (response, request) => {
   if (SELF_HANDLED_ERROR_ROUTES.some((route) => response.url.includes(route))) {
     return response
   }
 
   if (response.status === 401) {
     // Handle unauthorized response, e.g., by logging out the user
-    authStore.logout()
+    void authStore.logout()
   }
   if ([403, 500].includes(response.status)) {
-    router.push({ name: 'error', params: { code: String(response.status) } })
+    // A failed read means the page itself cannot load, so going back to it
+    // would only fail again: the error page takes its place in the history.
+    const navigate = request.method === 'GET' ? router.replace : router.push
+    navigate({ name: 'error', params: { code: String(response.status) } })
   } else if (response.status === 503) {
     router.push({ name: 'maintenance' })
   }
@@ -139,6 +144,5 @@ watch(
 
 app.use(router)
 app.use(i18n)
-app.use(VueQueryPlugin, vueQueryPluginOptions)
 
 app.mount('#app')

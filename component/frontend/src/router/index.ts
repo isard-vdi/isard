@@ -284,6 +284,15 @@ const router = createRouter({
               component: () => import('../views/ViewDeploymentView.vue')
             },
             {
+              path: ':deploymentId/visibility',
+              name: 'deployment-visibility',
+              component: () => import('../views/deployments/DeploymentVisibilityView.vue'),
+              meta: {
+                title: 'router.deployment-visibility.title',
+                subtitle: 'router.deployment-visibility.subtitle'
+              }
+            },
+            {
               path: ':deploymentId/videowall',
               name: 'deployment-videowall',
               component: () => import('../views/deployments/DeploymentVideowallView.vue'),
@@ -552,7 +561,9 @@ router.beforeEach(async (to, from, next) => {
     authStore.claims?.exp &&
     adjustedNow > authStore.claims.exp * 1000
   ) {
-    authStore.logout()
+    if (await authStore.logout()) {
+      return
+    }
     return next({ name: 'login' })
   }
 
@@ -597,7 +608,9 @@ router.beforeEach(async (to, from, next) => {
     } catch (e) {
       console.warn('The session was expired and could not be renewed:', e)
       console.error(e)
-      authStore.logout()
+      if (await authStore.logout()) {
+        return
+      }
       return next(await sessionStore.loginRoute())
     }
   }

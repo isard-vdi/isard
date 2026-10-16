@@ -5,6 +5,7 @@ import { provideFormSchema } from '@/composables/useFormSchema'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
 import { vAutofocus } from '@/directives/autofocus'
@@ -15,12 +16,14 @@ interface Props {
   text?: string
   hideForgotPassword?: boolean
   autofocus?: boolean
+  loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   text: undefined,
   hideForgotPassword: false,
-  autofocus: false
+  autofocus: false,
+  loading: false
 })
 
 const emit = defineEmits<{
@@ -47,6 +50,9 @@ const form = useForm({
     onSubmit: formSchema
   },
   onSubmit: async ({ value }) => {
+    if (props.loading) {
+      return
+    }
     emit('submit', value)
   }
 })
@@ -57,7 +63,7 @@ function isInvalid(field) {
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" @submit.prevent="form.handleSubmit">
+  <form class="flex flex-col gap-5" :aria-busy="props.loading" @submit.prevent="form.handleSubmit">
     <form.Field v-slot="{ field }" name="username">
       <Field :data-invalid="isInvalid(field)">
         <FieldLabel :for="field.name">{{
@@ -107,8 +113,22 @@ function isInvalid(field) {
       >{{ t('components.login.login-provider-form.forgot-password') }}</Button
     >
 
-    <Button type="submit" size="lg" class="w-full">{{
-      props.text || t('components.login.login-provider-form.login')
-    }}</Button>
+    <Button
+      type="submit"
+      size="lg"
+      class="w-full"
+      :aria-disabled="props.loading || undefined"
+      :disabled="props.loading"
+    >
+      <Spinner v-if="props.loading" size="sm" class="text-current" aria-hidden="true" />
+      {{
+        props.loading
+          ? t('components.login.login-provider-form.logging-in')
+          : props.text || t('components.login.login-provider-form.login')
+      }}
+    </Button>
+    <span class="sr-only" aria-live="polite">{{
+      props.loading ? t('components.login.login-provider-form.logging-in') : ''
+    }}</span>
   </form>
 </template>

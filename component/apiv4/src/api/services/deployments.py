@@ -89,6 +89,18 @@ class DeploymentService:
         deployment["desktops_each_user"] = len(deployment["create_dict"])
         co_owners = Caches.get_document("deployments", deployment_id, ["co_owners"])
         deployment["co_owner"] = bool(user_id) and user_id in (co_owners or [])
+        # ``DeploymentDetail`` has no ``create_dict`` field, so the response
+        # model would drop it. Expose the columns of the visibility matrix
+        # under a trimmed ``desktops`` key instead.
+        deployment["desktops"] = [
+            {
+                "tag_desktop_id": entry.get("tag_desktop_id") or None,
+                "name": entry.get("name") or "",
+                "template": entry.get("template"),
+                "image": entry.get("image"),
+            }
+            for entry in (deployment.get("create_dict") or [])
+        ]
         return {"info": deployment, "users": users}
 
     @staticmethod
@@ -135,6 +147,54 @@ class DeploymentService:
         RethinkDeployment(deployment_id).toggle_visible(stop_started_domains)
         deployment_cache.clear()
         return deployment_id
+
+    @staticmethod
+    def set_visibility(
+        deployment_id: str,
+        visible: bool,
+        users: list[str] | None = None,
+        tag_desktop_ids: list[str] | None = None,
+        desktop_ids: list[str] | None = None,
+        stop_started_domains: bool = False,
+    ) -> dict:
+        """Idempotently set desktop visibility over a scoped subset.
+
+        Unlike ``toggle_visibility`` this is a SET, so a retry or a
+        double-click cannot invert the result.
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        # Same helper the add/remove-desktops routes use. Despite living
+        # under dependencies/, ``tag_desktop_ids_belong_to_deployment`` is
+        # a plain function, so call the common helper directly here.
+        if tag_desktop_ids:
+            CommonDeployments.validate_tag_desktop_ids_for_deployment(
+                deployment_id, tag_desktop_ids
+            )
+        if users:
+            allowed_users = set(CommonDeploymentUsers.get_users(deployment_id))
+            unknown = [user for user in users if user not in allowed_users]
+            if unknown:
+                raise Error(
+                    "bad_request",
+                    f"Users not in deployment {deployment_id}: {unknown}",
+                    description_code="user_not_in_deployment",
+                )
+
+        result = CommonDeploymentDesktops.set_desktops_visibility(
+            deployment_id=deployment_id,
+            visible=visible,
+            users=users,
+            tag_desktop_ids=tag_desktop_ids,
+            desktop_ids=desktop_ids,
+            stop_started_domains=stop_started_domains,
+        )
+        deployment_cache.clear()
+        return result
 
     @staticmethod
     def update_deployment(
@@ -326,7 +386,9 @@ class DeploymentService:
         return deployments
 
     @staticmethod
-    def get_deployment_user_desktops(deployment_id: str, user_id: str) -> dict:
+    def get_deployment_user_desktops(
+        deployment_id: str, user_id: str, only_visible: bool = False
+    ) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -346,7 +408,7 @@ class DeploymentService:
         user_deployment = {
             "info": CommonDeployments.retrieve_user_deployment(deployment_id, user_id),
             "desktops": CommonDeploymentDesktops.get_deployment_user_desktops(
-                deployment_id, user_id
+                deployment_id, user_id, only_visible
             ),
         }
         for desktop in user_deployment["desktops"]:
@@ -370,10 +432,10 @@ class DeploymentService:
 
     @staticmethod
     def get_deployment_user_desktops_detail(
-        deployment_id: str, user_id: str
+        deployment_id: str, user_id: str, only_visible: bool = False
     ) -> list[dict]:
         user_desktops = CommonDeploymentDesktops.get_deployment_user_desktops(
-            deployment_id, user_id
+            deployment_id, user_id, only_visible
         )
         return [
             DesktopService.get_desktop_details(desktop["id"])
@@ -469,6 +531,12 @@ class DeploymentService:
                 description_code="not_in_deployment",
             )
         domain.toggle_user_visible()
+        # Flipping a single desktop used to leave ``deployments.tag_visible``
+        # untouched, so hiding the last visible desktop left the deployment
+        # flagged visible. The flag is the OR over its desktops.
+        RethinkDeployment.recompute_tag_visible(domain.tag)
+        Caches.clear_get_cached_deployment_desktops_cache()
+        deployment_cache.clear()
 
     @staticmethod
     def get_deployment_hardware(deployment_id: str) -> dict:

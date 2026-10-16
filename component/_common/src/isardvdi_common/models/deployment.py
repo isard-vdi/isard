@@ -90,6 +90,9 @@ class Deployment(RethinkCustomBase):
                 ).run(self._rdb_connection)
             self.tag_visible = visible
             Caches.invalidate_cache("deployments", self.id)
+            # Feeds ``visible_desktops`` on the deployments LIST view with a
+            # 1s TTL; without this the counter lags a full second behind.
+            Caches.clear_get_cached_deployment_desktops_cache()
         except Exception:
             logger.error(
                 "toggle_visible failed for deployment %s: %s",
@@ -106,6 +109,79 @@ class Deployment(RethinkCustomBase):
                     .run(self._rdb_connection)
                 )
                 DesktopEvents.desktops_stop(desktops_ids, force=True)
+
+    @classmethod
+    def first_tag_desktop_id(cls, deployment_id):
+        """``create_dict[0].tag_desktop_id``, or ``False`` on a legacy row.
+
+        This is the desktop upgrade.py v184/v197 backfilled onto every
+        pre-release-184 domain, so it is also the one a domain still
+        carrying ``tag_desktop_id: False`` belongs to.
+        """
+        with cls._rdb_context():
+            create_dict = (
+                r.table(cls._rdb_table)
+                .get(deployment_id)
+                .get_field("create_dict")
+                .default([])
+                .run(cls._rdb_connection)
+            )
+        if not create_dict:
+            return False
+        return create_dict[0].get("tag_desktop_id", False)
+
+    @classmethod
+    def recompute_tag_visible(cls, deployment_id, fallback=None):
+        """Re-derive the deployment master flag from its desktops.
+
+        ``tag_visible`` is the OR over the tagged domains: True when at least
+        one desktop is visible. AND would make a partially hidden deployment
+        vanish from every user's shared list (lib/deployments/deployments.py
+        ``.filter({"tag_visible": True})``) and 403 them at
+        dependencies/alloweds.py.
+
+        ``fallback`` applies only when the deployment has no desktops yet, so
+        a freshly created one can still be flagged visible for
+        ``create_deployment_desktops`` to seed from.
+        """
+        with cls._rdb_context():
+            counts = (
+                r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .filter({"kind": "desktop"})
+                .map(
+                    lambda domain: {
+                        "existing": 1,
+                        "visible": r.branch(domain["tag_visible"].default(False), 1, 0),
+                    }
+                )
+                .reduce(
+                    lambda a, b: {
+                        "existing": a["existing"].add(b["existing"]),
+                        "visible": a["visible"].add(b["visible"]),
+                    }
+                )
+                .default({"existing": 0, "visible": 0})
+                .run(cls._rdb_connection)
+            )
+
+        existing = counts["existing"]
+        visible_desktops = counts["visible"]
+        tag_visible = visible_desktops > 0
+        if existing == 0 and fallback is not None:
+            tag_visible = bool(fallback)
+
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(deployment_id).update(
+                {"tag_visible": tag_visible}
+            ).run(cls._rdb_connection)
+        Caches.invalidate_cache("deployments", deployment_id)
+
+        return {
+            "tag_visible": tag_visible,
+            "visible_desktops": visible_desktops,
+            "existing_desktops": existing,
+        }
 
     @classmethod
     def get(cls, id):

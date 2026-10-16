@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, HTMLAttributes, onBeforeUnmount } from 'vue'
+import { ref, onMounted, type HTMLAttributes, onBeforeUnmount } from 'vue'
 import RFB from '@novnc/novnc'
 
 interface Props {

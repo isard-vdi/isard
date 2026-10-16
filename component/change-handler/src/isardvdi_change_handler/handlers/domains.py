@@ -209,12 +209,6 @@ class DesktopDomainHandler:
                 namespace="/userspace",
                 room=deployment_owners,
             )
-            await self.emit(
-                "deployments_update",
-                json_dumps(deployment),
-                namespace="/userspace",
-                room=deployment_owners,
-            )
 
     async def on_update(self, old_val, new_val):
         """Emit desktop update events.
@@ -444,24 +438,15 @@ class DesktopDomainHandler:
                 DeploymentDesktopsProcessed._parse_deployment_desktop,
                 new_val.model_dump(exclude_none=True),
             )
+            # One emit over both rooms rather than one per room: a list of
+            # rooms is merged into a dict of sids by
+            # ``BaseManager.get_participants``, so the owner who is also this
+            # desktop's user gets the event once instead of twice.
             await self.emit(
                 "deploymentdesktop_update",
                 json_dumps(deployment_desktop),
                 namespace="/userspace",
-                room=deployment_owners,
-            )
-            await self.emit(
-                "deploymentdesktop_update",
-                json_dumps(deployment_desktop),
-                namespace="/userspace",
-                room=new_val.user,
-            )
-
-            await self.emit(
-                "deployments_update",
-                json_dumps(deployment),
-                namespace="/userspace",
-                room=deployment_owners,
+                room=deployment_owners + [new_val.user],
             )
 
             # Notify the desktop owner (participant) when a desktop starts or stops
@@ -519,12 +504,6 @@ class DesktopDomainHandler:
                         "tag": old_val.tag,
                     }
                 ),
-                namespace="/userspace",
-                room=deployment_owners,
-            )
-            await self.emit(
-                "deployments_update",
-                json_dumps(deployment),
                 namespace="/userspace",
                 room=deployment_owners,
             )

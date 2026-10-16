@@ -391,6 +391,40 @@ class DesktopStatus(BaseModel):
     amount: int = Field(description="Number of desktops with the status")
 
 
+class DeploymentDesktop(BaseModel):
+    """One ``deployments.create_dict`` entry -- a desktop of the deployment.
+
+    Every allowed user gets exactly one instance of each, so this list is
+    the column axis of the visibility matrix.
+    """
+
+    tag_desktop_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Stable id of this desktop within the deployment. Null on legacy "
+            "deployments created before release 184."
+        ),
+    )
+    name: str = Field(description="Name given to this desktop")
+    template: Optional[str] = Field(default=None, description="Source template id")
+    image: Optional[Image] = Field(default=None, description="Desktop image")
+
+
+class DeploymentUserDesktop(BaseModel):
+    """A single (user, desktop) cell of the visibility matrix."""
+
+    tag_desktop_id: Optional[str] = Field(
+        default=None,
+        description="Deployment desktop this instance came from; null on legacy rows",
+    )
+    desktop_id: str = Field(
+        description="Desktop id -- the unit a visibility SET targets"
+    )
+    name: str = Field(description="Desktop name")
+    visible: bool = Field(default=False, description="tag_visible of this desktop")
+    status: Optional[str] = Field(default=None, description="Desktop status")
+
+
 class DeploymentUserDetail(BaseModel):
     """Detailed deployment user model"""
 
@@ -411,6 +445,13 @@ class DeploymentUserDetail(BaseModel):
     )
     last_access: Optional[int] = Field(
         description="Timestamp of the last access of the user", default=None
+    )
+    desktops: list[DeploymentUserDesktop] = Field(
+        default=[],
+        description=(
+            "One entry per deployment desktop this user actually has. Shorter "
+            "than info.desktops when a desktop is missing."
+        ),
     )
 
 
@@ -443,6 +484,18 @@ class DeploymentDetail(BaseModel):
     co_owner: bool = Field(
         default=False,
         description="Indicates if the requesting user is a co-owner of the deployment",
+    )
+    desktops: list[DeploymentDesktop] = Field(
+        default=[],
+        description="The deployment's desktops -- the column axis of the visibility matrix",
+    )
+    existing_desktops: int = Field(
+        default=0,
+        description=(
+            "Desktop rows that actually exist. Differs from total_desktops "
+            "(desktops x users, the expected count) when desktops are missing "
+            "and a recreate is due."
+        ),
     )
 
 
@@ -701,6 +754,69 @@ class ToggleVisibilityRequest(BaseModel):
     """
 
     stop_started_domains: bool = True
+
+
+class SetDeploymentVisibilityRequest(BaseModel):
+    """Idempotent SET of ``tag_visible`` over a selected subset.
+
+    The selectors are ANDed and ``None``/omitted means "all", so one
+    route covers the whole deployment, a desktop column, a user row, a
+    single matrix cell, or an arbitrary set.
+    """
+
+    visible: bool = Field(
+        description="Target visibility. Idempotent: this is a SET, not a toggle."
+    )
+    users: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Restrict to these user ids. null/omitted means every user of "
+            "the deployment."
+        ),
+    )
+    tag_desktop_ids: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Restrict to these deployment desktops "
+            "(create_dict[*].tag_desktop_id). null/omitted means every one."
+        ),
+    )
+    desktop_ids: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Restrict to these exact desktop ids; when present the other two "
+            "selectors are ignored. Ids outside the deployment are dropped. "
+            "Used by the frontend Undo, which has to restore a prior state "
+            "that is not a users x desktops rectangle."
+        ),
+    )
+    stop_started_domains: bool = Field(
+        default=False,
+        description=(
+            "When hiding, also force-stop the affected Started desktops. "
+            "Ignored when visible=true. Defaults to False -- unlike the "
+            "legacy /toggle-visibility, whose apiv3 contract defaults to "
+            "True -- because a matrix cell/row/column edit must never stop a "
+            "desktop implicitly."
+        ),
+    )
+
+
+class DeploymentVisibilityResponse(BaseModel):
+    """Recomputed aggregate, so the caller needs no follow-up GET."""
+
+    id: str = Field(description="Deployment id")
+    tag_visible: bool = Field(description="Recomputed deployment master flag")
+    visible_desktops: int = Field(
+        description="Desktops with tag_visible == True after the write"
+    )
+    existing_desktops: int = Field(
+        description="Desktop rows that actually exist for this deployment"
+    )
+    updated: int = Field(description="Rows whose tag_visible actually changed")
+    stopped: list[str] = Field(
+        default=[], description="Desktop ids that were sent a stop event"
+    )
 
 
 class DeploymentInterface(BaseModel):
