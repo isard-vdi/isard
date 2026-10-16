@@ -63,6 +63,9 @@ def _no_pool(monkeypatch):
     monkeypatch.setattr(
         StoragePool, "get_best_for_action", classmethod(lambda cls, *a, **k: pool)
     )
+    monkeypatch.setattr(
+        StoragePool, "mountpoint_for_path", classmethod(lambda cls, *a, **k: None)
+    )
     monkeypatch.setattr(Task, "exists", staticmethod(lambda task_id: False))
 
 

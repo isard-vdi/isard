@@ -157,16 +157,44 @@ class StoragePool(RethinkCustomBase):
             the default pool is missing)
         :rtype: list
         """
+        pools = cls._pool_rows()
+        if pools is None:
+            return []
+        best = cls._longest_mountpoint_row(path, pools)
+        if best is None:
+            best = next((p for p in pools if p["id"] == DEFAULT_STORAGE_POOL_ID), None)
+            if best is None:
+                return []
+        return [cls(best["id"])]
+
+    @classmethod
+    def mountpoint_for_path(cls, path):
+        """
+        Mountpoint of the pool holding a path, never the default fallback.
+
+        :param path: Path
+        :type path: str
+        :rtype: str or None
+        """
+        best = cls._longest_mountpoint_row(path, cls._pool_rows() or [])
+        return best["mountpoint"] if best else None
+
+    @classmethod
+    def _pool_rows(cls):
+        """The ``id``/``mountpoint``/``enabled`` of every pool, None on error."""
         with cls._rdb_context():
             try:
-                pools = list(
+                return list(
                     r.table(cls._rdb_table)
                     .pluck("id", "mountpoint", "enabled")
                     .run(cls._rdb_connection)
                 )
             except Exception:
-                return []
+                return None
 
+    @staticmethod
+    def _longest_mountpoint_row(path, pools):
+        """The pool row whose mountpoint is the longest prefix of ``path``."""
         best = None
         for pool in pools:
             mountpoint = pool.get("mountpoint")
@@ -195,11 +223,7 @@ class StoragePool(RethinkCustomBase):
                     if cur_key < best_key:
                         best = pool
 
-        if best is None:
-            best = next((p for p in pools if p["id"] == DEFAULT_STORAGE_POOL_ID), None)
-            if best is None:
-                return []
-        return [cls(best["id"])]
+        return best
 
     @classmethod
     def get_by_user_kind(cls, user_id, kind):

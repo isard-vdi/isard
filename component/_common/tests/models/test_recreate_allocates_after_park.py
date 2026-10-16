@@ -69,6 +69,11 @@ def rec(monkeypatch):
         "get_best_for_action",
         staticmethod(lambda *a, **k: MagicMock(id="pool-1")),
     )
+    monkeypatch.setattr(
+        mod.StoragePool,
+        "mountpoint_for_path",
+        staticmethod(lambda *a, **k: None),
+    )
     # recreate resolves the create lane and asks check_shed before parking; stub
     # both so these tests exercise only the park/allocate/task ordering they pin.
     monkeypatch.setattr(

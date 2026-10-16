@@ -2154,6 +2154,9 @@ class RecycleBin(RethinkSharedConnection):
                                 job_kwargs={
                                     "kwargs": {
                                         "path": storage.path,
+                                        "pool_root": StoragePool.mountpoint_for_path(
+                                            storage.path
+                                        ),
                                     },
                                 },
                                 dependents=[

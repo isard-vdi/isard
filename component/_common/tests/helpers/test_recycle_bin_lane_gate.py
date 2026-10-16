@@ -131,6 +131,9 @@ def harness(monkeypatch):
         mod.StoragePool, "get_best_for_action", staticmethod(fake_best_for_action)
     )
     monkeypatch.setattr(
+        mod.StoragePool, "mountpoint_for_path", staticmethod(lambda *a, **k: None)
+    )
+    monkeypatch.setattr(
         mod.queue_tiers,
         "retier_queue",
         lambda base, task, cat=None: f"{base.rsplit('.', 1)[0]}.{cat}.reclaim",
