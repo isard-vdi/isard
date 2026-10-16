@@ -470,7 +470,7 @@ class _FakeMig:
     def _update_cache(self, **fields):
         pass
 
-    def recompute_totals(self):
+    def recompute_totals(self, items=None):
         pass
 
 

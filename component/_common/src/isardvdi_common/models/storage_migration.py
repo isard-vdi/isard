@@ -455,6 +455,40 @@ class StorageMigrationItem(RethinkCustomBase):
             )
 
     @classmethod
+    def ledger_rows(cls, migration_id):
+        """All items of a job without the ever-growing audit and checkpoints."""
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .without("audit", "checkpoints")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def append_audit(cls, item_id, record):
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(item_id).update(
+                lambda row: {"audit": row["audit"].default([]).append(record)}
+            ).run(cls._rdb_connection)
+
+    @classmethod
+    def occurrence_bytes_moved(cls, migration_id, occurrence, results):
+        """Server-side sum of the ``size_bytes`` audited for ``occurrence``."""
+        with cls._rdb_context():
+            return (
+                r.table(cls._rdb_table)
+                .get_all(migration_id, index="migration_id")
+                .concat_map(lambda it: it["audit"].default([]))
+                .filter(
+                    lambda rec: rec["occurrence"].default(None).eq(occurrence)
+                    & r.expr(sorted(results)).contains(rec["result"].default(None))
+                )
+                .sum(lambda rec: rec["size_bytes"].default(0))
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def dicts_by_tree(cls, migration_id, tree_id):
         with cls._rdb_context():
             return list(
@@ -682,12 +716,13 @@ class StorageMigration(RethinkCustomBase):
     def items(self):
         return StorageMigrationItem.by_migration(self.id)
 
-    def recompute_totals(self):
+    def recompute_totals(self, items=None):
         """Re-derive the live aggregate from item states (never incremental).
 
         Returns the new ``totals`` dict and persists it.
         """
-        items = self.item_dicts()
+        if items is None:
+            items = self.item_dicts()
         totals = build_totals(self.totals or {}, items)
         # ledger-0: replace the WHOLE totals via r.literal. A plain update (what
         # __setattr__ does) deep-merges, so an emptied state_counts key (e.g.
