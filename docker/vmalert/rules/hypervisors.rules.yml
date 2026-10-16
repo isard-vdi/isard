@@ -1,0 +1,16 @@
+# IsardVDI hypervisor health alert rules, from the stats-go isardvdi_api collector.
+# Unit tests live in storage_governor.test.yml, the file the CI vmalert job runs.
+
+groups:
+  - name: hypervisor_alerts
+    rules:
+      # Several hypervisors degraded at once points at something they share
+      # (the storage, the network) rather than at one host.
+      - alert: HypervisorsDegraded
+        expr: count(isardvdi_isardvdi_api_hypervisor_degraded == 1) >= 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Several hypervisors are degraded at once"
+          description: "{{ $value }} online hypervisors have been marked degraded by the engine for 1m, so new desktops are not placed on them. Several at once usually means a shared cause such as the storage: check the reason on the hypervisors page and the engine log."

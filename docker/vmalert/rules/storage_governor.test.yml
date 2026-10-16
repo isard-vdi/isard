@@ -1,4 +1,4 @@
-# promtool unit tests for storage_governor.rules.yml
+# promtool unit tests for storage_governor.rules.yml and hypervisors.rules.yml
 #
 # Run: promtool test rules docker/vmalert/rules/storage_governor.test.yml
 #
@@ -26,6 +26,7 @@
 
 rule_files:
   - storage_governor.rules.yml
+  - hypervisors.rules.yml
 
 evaluation_interval: 1m
 
@@ -649,3 +650,55 @@ tests:
         groupname: storage_governor_alerts
         alertname: WorkerRegistrationStale
         exp_alerts: []
+
+  # ===========================================================================
+  # HYPERVISORS (hypervisors.rules.yml)
+  # ===========================================================================
+
+  # One degraded hypervisor is that host's problem, not a shared one.
+  - name: hypervisors_degraded_silent_for_a_single_host
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="libvirt"}'
+        values: "1x10"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason=""}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: hypervisor_alerts
+        alertname: HypervisorsDegraded
+        exp_alerts: []
+
+  # Two degraded for a single scrape is below the 1m hold.
+  - name: hypervisors_degraded_silent_before_its_hold
+    interval: 30s
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "0 0 1"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="storage"}'
+        values: "0 0 1"
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: hypervisor_alerts
+        alertname: HypervisorsDegraded
+        exp_alerts: []
+
+  - name: hypervisors_degraded_fires_for_two_after_1m
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="health"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason=""}'
+        values: "0x5"
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: hypervisor_alerts
+        alertname: HypervisorsDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Several hypervisors are degraded at once"
+              description: "2 online hypervisors have been marked degraded by the engine for 1m, so new desktops are not placed on them. Several at once usually means a shared cause such as the storage: check the reason on the hypervisors page and the engine log."
