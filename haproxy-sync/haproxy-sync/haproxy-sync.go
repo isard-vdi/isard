@@ -103,6 +103,7 @@ type HAProxySyncDomains struct {
 	CrtListPath    string
 	CertsPath      string
 	BaseDomain     string
+	ACMEPath       string
 
 	domains map[string]bool
 }
@@ -124,6 +125,7 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			CrtListPath:    cfg.Domains.CrtListPath,
 			CertsPath:      cfg.Domains.CertsPath,
 			BaseDomain:     cfg.Domains.BaseDomain,
+			ACMEPath:       cfg.Domains.ACMEPath,
 		},
 
 		Bastion: &HAProxySyncBastion{
