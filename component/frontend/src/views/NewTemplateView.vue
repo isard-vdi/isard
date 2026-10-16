@@ -210,8 +210,7 @@ const globalFilter = ref('')
 
 const tableData = computed(
   () =>
-    desktops.value?.desktops.filter((desktop) => desktop.type === 'persistent' && !desktop.tag) ||
-    []
+    desktops.value?.desktops.filter((desktop) => resolveDesktopKind(desktop) === 'persistent') || []
 )
 
 const isFirstRun = computed(

@@ -2233,6 +2233,10 @@
         "cancel": "Torna a les plantilles",
         "go-to-profile": "Comprova la teva quota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancel·la",
+        "new-desktop": "Escriptori nou"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copia l'ID de la plantilla"
