@@ -319,6 +319,10 @@ class DuplicateTemplateRequest(BaseModel):
         default=None,
         description="Image to be used for the duplicate. If None or not provided, the source template's image is inherited.",
     )
+    user_id: str | None = Field(
+        default=None,
+        description="ID of the user who will own the duplicate. If None or not provided, the requesting user owns it.",
+    )
 
 
 class TemplateTreeDomains(BaseModel):

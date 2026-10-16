@@ -370,6 +370,7 @@ def test_duplicate_template(monkeypatch, test_client):
     def fake_duplicate(payload, template_id, data):
         captured["template_id"] = template_id
         captured["name"] = data.get("name")
+        captured["user_id"] = data.get("user_id")
         return "template-copy"
 
     monkeypatch.setattr(
@@ -392,6 +393,7 @@ def test_duplicate_template(monkeypatch, test_client):
                 "description": "Duplicate",
                 "allowed": {"users": False, "groups": False},
                 "enabled": True,
+                "user_id": "user-2",
             },
             jwt=jwt,
         )
@@ -402,7 +404,11 @@ def test_duplicate_template(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json() == {"id": "template-copy"}
-    assert captured == {"template_id": "template-1", "name": "Copy of Template 1"}
+    assert captured == {
+        "template_id": "template-1",
+        "name": "Copy of Template 1",
+        "user_id": "user-2",
+    }
 
 
 def test_delete_template_sends_to_recycle_bin(monkeypatch, test_client):
