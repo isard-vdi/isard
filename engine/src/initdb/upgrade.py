@@ -39,6 +39,7 @@ from .upgrade_helpers import (
     bastion_keys_to_keep,
     check_done,
     del_keys,
+    drop_orphan_task_indexes,
     get_card,
     get_domain_stock_card,
     index_create,
@@ -52,7 +53,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 212
+release_version = 213
+# release 213: drop the Redis task indexes of storage/media rows that no longer exist
 # release 212: give the desktops of pre-apiv4 deployments their create_dict tag_desktop_id;
 #              v197 left it False, so deployment edits missed them
 # release 211: the pending_actions indexes on storage, so "which disks need X"
@@ -8974,6 +8976,24 @@ password:s:%s"""
                 )
             except Exception as e:
                 log.error(f"redis_tasks_cleanup v199 failed (non-fatal): {e}")
+
+        if version == 213:
+            drop_orphan_task_indexes(
+                lambda: Redis(
+                    host=os.environ.get("REDIS_HOST") or "isard-redis",
+                    port=int(os.environ.get("REDIS_PORT") or 6379),
+                    password=os.environ.get("REDIS_PASSWORD", ""),
+                    db=0,
+                    maint_notifications_config=NO_MAINT_NOTIFICATIONS,
+                ),
+                lambda table, ids: {
+                    row["id"]
+                    for row in r.table(table)
+                    .get_all(r.args(ids))
+                    .pluck("id")
+                    .run(self.conn)
+                },
+            )
 
         return True
 
