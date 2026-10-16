@@ -382,7 +382,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(isardvdi_storage_governor_backlog)",
+          "expr": "sum(isardvdi_storage_governor_backlog) or on() (0 * max(isardvdi_storage_governor_scrape_duration_seconds))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -678,7 +678,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "No queued jobs"
         },
         "overrides": []
       },
@@ -777,7 +778,8 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "s",
+          "noValue": "No queued jobs"
         },
         "overrides": []
       },
@@ -872,7 +874,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "No per-category caps (multitenancy off)"
         },
         "overrides": [
           {
@@ -1000,7 +1003,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "noValue": "No failed or stuck jobs"
         },
         "overrides": []
       },
@@ -1081,7 +1085,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "No per-category caps (multitenancy off)"
         },
         "overrides": [
           {
@@ -1306,100 +1311,6 @@
         }
       ],
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Stranded lanes: backlog present but no live consumer (only emitted when coverage is known).",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "bars",
-            "fillOpacity": 60,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 26
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "9.2.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "isardvdi_storage_governor_stranded_lane{pool=~\"$pool\", category=~\"$category\"}",
-          "legendFormat": "{{pool}} / {{category}} / {{tier}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Stranded lanes",
-      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -2456,7 +2367,7 @@
           "mappings": [],
           "max": 1,
           "min": 0,
-          "noValue": "n/a",
+          "noValue": "Redis has no maxmemory set",
           "thresholds": {
             "mode": "absolute",
             "steps": [

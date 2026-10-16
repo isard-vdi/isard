@@ -115,7 +115,8 @@
               }
             ]
           },
-          "unit": "currencyEUR"
+          "unit": "currencyEUR",
+          "noValue": "No cost data: the cloud cost collector is not configured"
         },
         "overrides": [
           {
@@ -219,7 +220,7 @@
           },
           "mappings": [],
           "min": 0,
-          "noValue": "0",
+          "noValue": "No cost data: the cloud cost collector is not configured",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -551,7 +552,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "noValue": "0",
+          "noValue": "No cost data: the cloud cost collector is not configured",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -619,7 +620,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "noValue": "0",
+          "noValue": "No cost data: the cloud cost collector is not configured",
           "thresholds": {
             "mode": "absolute",
             "steps": [
