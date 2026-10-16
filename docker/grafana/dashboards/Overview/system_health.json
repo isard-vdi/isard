@@ -22,7 +22,7 @@
       "id": 1,
       "type": "stat",
       "title": "Hypervisors",
-      "description": "CRITICAL: no hypervisor Online, or any hypervisor in Error. WARNING: a hypervisor's stats exporter cannot read libvirt. Plus any firing alert with area=hypervisors.",
+      "description": "CRITICAL: no hypervisor Online, or any hypervisor in Error. WARNING: a hypervisor is degraded, or its stats exporter cannot read libvirt. Plus any firing alert with area=hypervisors.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -39,7 +39,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hypervisors\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Online\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) == bool 0), \"k\", \"s1\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Error\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) > bool 0), \"k\", \"s2\", \"\", \"\")\n  or label_replace(min(isardvdi_hypervisor_scrape_duration_success) == bool 0, \"k\", \"s3\", \"\", \"\")\n)",
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hypervisors\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hypervisors\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Online\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) == bool 0), \"k\", \"s1\", \"\", \"\")\n  or label_replace(2 * ((count(isardvdi_isardvdi_api_hypervisor_info{status=\"Error\"}) or on() (0 * count(isardvdi_isardvdi_api_hypervisor_info))) > bool 0), \"k\", \"s2\", \"\", \"\")\n  or label_replace(min(isardvdi_hypervisor_scrape_duration_success) == bool 0, \"k\", \"s3\", \"\", \"\")\n  or label_replace(max(isardvdi_isardvdi_api_hypervisor_degraded), \"k\", \"s4\", \"\", \"\")\n)",
           "instant": true,
           "range": false,
           "refId": "A",
@@ -108,6 +108,12 @@
               "url": "/d/Hypers?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
+            },
+            {
+              "title": "All Hypervisors dashboards",
+              "url": "/dashboards?tag=hypervisors",
+              "targetBlank": false,
+              "oneClick": false
             },
             {
               "title": "Firing alerts for hypervisors",
@@ -231,6 +237,12 @@
               "oneClick": true
             },
             {
+              "title": "All Storage & Queues dashboards",
+              "url": "/dashboards?tag=storage",
+              "targetBlank": false,
+              "oneClick": false
+            },
+            {
               "title": "Firing alerts for storage",
               "url": "/d/system-health?${__url_time_range}&var-area=storage&viewPanel=panel-20",
               "targetBlank": false,
@@ -350,6 +362,12 @@
               "url": "/d/isard-storage-governor?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
+            },
+            {
+              "title": "All Storage & Queues dashboards",
+              "url": "/dashboards?tag=storage",
+              "targetBlank": false,
+              "oneClick": false
             },
             {
               "title": "Firing alerts for queues",
@@ -473,6 +491,12 @@
               "oneClick": true
             },
             {
+              "title": "All Storage & Queues dashboards",
+              "url": "/dashboards?tag=storage",
+              "targetBlank": false,
+              "oneClick": false
+            },
+            {
               "title": "Firing alerts for redis",
               "url": "/d/system-health?${__url_time_range}&var-area=redis&viewPanel=panel-20",
               "targetBlank": false,
@@ -592,6 +616,12 @@
               "url": "/d/yQkJsuQZafe?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
+            },
+            {
+              "title": "All Platform dashboards",
+              "url": "/dashboards?tag=platform",
+              "targetBlank": false,
+              "oneClick": false
             },
             {
               "title": "Firing alerts for rethinkdb",
@@ -715,6 +745,12 @@
               "oneClick": true
             },
             {
+              "title": "All Web & Access dashboards",
+              "url": "/dashboards?tag=web",
+              "targetBlank": false,
+              "oneClick": false
+            },
+            {
               "title": "Firing alerts for web",
               "url": "/d/system-health?${__url_time_range}&var-area=web&viewPanel=panel-20",
               "targetBlank": false,
@@ -836,6 +872,12 @@
               "oneClick": true
             },
             {
+              "title": "All Web & Access dashboards",
+              "url": "/dashboards?tag=web",
+              "targetBlank": false,
+              "oneClick": false
+            },
+            {
               "title": "Firing alerts for viewers",
               "url": "/d/system-health?${__url_time_range}&var-area=viewers&viewPanel=panel-20",
               "targetBlank": false,
@@ -952,9 +994,15 @@
           "links": [
             {
               "title": "Hosts: details",
-              "url": "/d/9GQgQli4k?${__url_time_range}",
+              "url": "/d/rYdddlPWk?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
+            },
+            {
+              "title": "All Platform dashboards",
+              "url": "/dashboards?tag=platform",
+              "targetBlank": false,
+              "oneClick": false
             },
             {
               "title": "Firing alerts for hosts",
@@ -1073,9 +1121,15 @@
           "links": [
             {
               "title": "Monitoring: details",
-              "url": "/d/pORx8n2Cs?${__url_time_range}",
+              "url": "/d/monitoring-stack?${__url_time_range}",
               "targetBlank": false,
               "oneClick": true
+            },
+            {
+              "title": "All Platform dashboards",
+              "url": "/dashboards?tag=platform",
+              "targetBlank": false,
+              "oneClick": false
             },
             {
               "title": "Firing alerts for monitoring",

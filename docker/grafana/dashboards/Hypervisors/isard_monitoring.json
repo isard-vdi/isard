@@ -927,7 +927,9 @@
   "refresh": "10s",
   "schemaVersion": 37,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "hypervisors"
+  ],
   "templating": {
     "list": [
       {

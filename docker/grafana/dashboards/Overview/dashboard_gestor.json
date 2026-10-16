@@ -1055,7 +1055,9 @@
   ],
   "schemaVersion": 37,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "overview"
+  ],
   "templating": {
     "list": [
       {

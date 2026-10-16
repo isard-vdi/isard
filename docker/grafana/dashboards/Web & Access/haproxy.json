@@ -13981,7 +13981,8 @@
     "style": "dark",
     "tags": [
         "haproxy",
-        "servers"
+        "servers",
+        "web"
     ],
     "templating": {
         "list": [

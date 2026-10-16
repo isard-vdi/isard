@@ -12479,7 +12479,8 @@
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "linux"
+    "linux",
+    "platform"
   ],
   "templating": {
     "list": [

@@ -649,7 +649,8 @@
   "style": "dark",
   "tags": [
     "cadvisor",
-    "docker"
+    "docker",
+    "platform"
   ],
   "templating": {
     "list": [

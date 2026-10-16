@@ -35,7 +35,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "The broom is the engine's only periodic reconciler for the running half of the domain lifecycle. **It correcting a row means something else failed to converge it** \u2014 seven of its eight corrections are classified `upstream_failure` and logged at WARNING; only a guest ignoring ACPI (`force_stop_after_shutdown_timeout`) is `expected`.\n\nA quiet installation shows **zero** on the first three panels. Anything above zero on *Corrections that mean a defect* is a bug to chase, not routine housekeeping.\n\n---\n\n**Why the queries filter on `\"msg\":`.** The engine emits every log line **three times** \u2014 two text handlers and a JSON one \u2014 so an unfiltered `|= \"BROOM_ACTED\"` counts each correction three times. Selecting the JSON emission gives the real number. Measured on a staging install: 9 unfiltered against 3 real."
+        "content": "The broom is the engine's only periodic reconciler for the running half of the domain lifecycle. **It correcting a row means something else failed to converge it** — seven of its eight corrections are classified `upstream_failure` and logged at WARNING; only a guest ignoring ACPI (`force_stop_after_shutdown_timeout`) is `expected`.\n\nA quiet installation shows **zero** on the first three panels. Anything above zero on *Corrections that mean a defect* is a bug to chase, not routine housekeeping.\n\n---\n\n**Why the queries filter on `\"msg\":`.** The engine emits every log line **three times** — two text handlers and a JSON one — so an unfiltered `|= \"BROOM_ACTED\"` counts each correction three times. Selecting the JSON emission gives the real number. Measured on a staging install: 9 unfiltered against 3 real."
       }
     },
     {
@@ -669,7 +669,8 @@
   "tags": [
     "engine",
     "broom",
-    "logs"
+    "logs",
+    "platform"
   ],
   "templating": {
     "list": [
@@ -710,7 +711,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Engine \u2014 what the broom had to fix",
+  "title": "Engine — what the broom had to fix",
   "uid": "engine-broom",
   "version": 1,
   "weekStart": ""

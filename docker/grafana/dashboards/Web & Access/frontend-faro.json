@@ -9,7 +9,8 @@
     "tags": [
       "isardvdi",
       "frontend",
-      "faro"
+      "faro",
+      "web"
     ],
     "editable": true,
     "cursorSync": "Off",
@@ -257,7 +258,7 @@
         "spec": {
           "id": 101,
           "title": "LCP (p75)",
-          "description": "Largest Contentful Paint \u2014 time until the largest viewport element (usually the main image or heading) appears. Indicates when the page is visually usable. Good: <2.5 s.",
+          "description": "Largest Contentful Paint — time until the largest viewport element (usually the main image or heading) appears. Indicates when the page is visually usable. Good: <2.5 s.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -341,7 +342,7 @@
         "spec": {
           "id": 102,
           "title": "INP (p75)",
-          "description": "Interaction to Next Paint \u2014 worst-case delay between a user interaction (click, tap, keypress) and the next frame the browser paints in response. Measures how sluggish the page feels while being used. Reported only after a real interaction, so an empty panel means nobody interacted, not that the page is fast. Good: <200 ms.",
+          "description": "Interaction to Next Paint — worst-case delay between a user interaction (click, tap, keypress) and the next frame the browser paints in response. Measures how sluggish the page feels while being used. Reported only after a real interaction, so an empty panel means nobody interacted, not that the page is fast. Good: <200 ms.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -425,7 +426,7 @@
         "spec": {
           "id": 103,
           "title": "CLS",
-          "description": "Cumulative Layout Shift \u2014 dimensionless measure of unexpected layout shifts during page load (weighted sum of changes). Good: <0.1. Only Chromium-based browsers implement the Layout Instability API this builds on; Firefox reports no `layout-shift` entries, so the panel stays empty for Firefox-only traffic. That is a browser limitation, not a broken query.",
+          "description": "Cumulative Layout Shift — dimensionless measure of unexpected layout shifts during page load (weighted sum of changes). Good: <0.1. Only Chromium-based browsers implement the Layout Instability API this builds on; Firefox reports no `layout-shift` entries, so the panel stays empty for Firefox-only traffic. That is a browser limitation, not a broken query.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -509,7 +510,7 @@
         "spec": {
           "id": 104,
           "title": "FCP (p75)",
-          "description": "First Contentful Paint \u2014 time until the first visual element (text, image, SVG) appears on screen. Indicates when the user sees the page begin to load. Good: <1.8 s.",
+          "description": "First Contentful Paint — time until the first visual element (text, image, SVG) appears on screen. Indicates when the user sees the page begin to load. Good: <1.8 s.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -593,7 +594,7 @@
         "spec": {
           "id": 105,
           "title": "TTFB (p75)",
-          "description": "Time To First Byte \u2014 time from when the browser sends the request until it receives the first byte from the server. Measures network + server latency. Good: <600 ms.",
+          "description": "Time To First Byte — time from when the browser sends the request until it receives the first byte from the server. Measures network + server latency. Good: <600 ms.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -909,7 +910,7 @@
         "spec": {
           "id": 109,
           "title": "CLS (p75)",
-          "description": "Cumulative Layout Shift \u2014 dimensionless measure of unexpected layout shifts during page load (weighted sum of changes), at p75 over time. Good: <0.1. Only Chromium-based browsers implement the Layout Instability API this builds on; Firefox reports no `layout-shift` entries, so the panel stays empty for Firefox-only traffic. That is a browser limitation, not a broken query.",
+          "description": "Cumulative Layout Shift — dimensionless measure of unexpected layout shifts during page load (weighted sum of changes), at p75 over time. Good: <0.1. Only Chromium-based browsers implement the Layout Instability API this builds on; Firefox reports no `layout-shift` entries, so the panel stays empty for Firefox-only traffic. That is a browser limitation, not a broken query.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -978,7 +979,7 @@
         "spec": {
           "id": 110,
           "title": "Interactivity (p75)",
-          "description": "Interaction to Next Paint \u2014 worst-case delay between a user interaction and the next frame painted in response. Good: <200 ms. Reported only after a real interaction, so an empty panel means nobody interacted, not that interactivity is perfect. The FID series was removed: faro-web-sdk 2.4.0 bundles web-vitals 5, which dropped that metric in favour of INP and never emits it.",
+          "description": "Interaction to Next Paint — worst-case delay between a user interaction and the next frame painted in response. Good: <200 ms. Reported only after a real interaction, so an empty panel means nobody interacted, not that interactivity is perfect. The FID series was removed: faro-web-sdk 2.4.0 bundles web-vitals 5, which dropped that metric in favour of INP and never emits it.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1450,7 +1451,7 @@
         "spec": {
           "id": 112,
           "title": "Navigation phases (p75)",
-          "description": "Per-phase breakdown of navigation timing at p75; stacked, so the bars show where the time goes.\n\n`redirectTime` following redirects \u00b7 `dnsLookupTime` resolving the name \u00b7 `tcpHandshakeTime` opening the connection \u00b7 `tlsNegotiationTime` the TLS handshake \u00b7 `requestTime` sending the request \u00b7 `responseTime` receiving it \u00b7 `documentParsingTime` parsing the HTML \u00b7 `domProcessingTime` parsing and executing scripts until the DOM is interactive \u00b7 `onLoadTime` the window `load` handler, where high values point to expensive load-time JS.\n\nAll nine were confirmed present against a live deployment. The first four legitimately read 0 on a reused connection \u2014 a real measurement, not a missing field.",
+          "description": "Per-phase breakdown of navigation timing at p75; stacked, so the bars show where the time goes.\n\n`redirectTime` following redirects · `dnsLookupTime` resolving the name · `tcpHandshakeTime` opening the connection · `tlsNegotiationTime` the TLS handshake · `requestTime` sending the request · `responseTime` receiving it · `documentParsingTime` parsing the HTML · `domProcessingTime` parsing and executing scripts until the DOM is interactive · `onLoadTime` the window `load` handler, where high values point to expensive load-time JS.\n\nAll nine were confirmed present against a live deployment. The first four legitimately read 0 on a reused connection — a real measurement, not a missing field.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1829,7 +1830,7 @@
         "spec": {
           "id": 67,
           "title": "Slowest resources (top 20, p75 fetch time)",
-          "description": "Default tracking: XHR + fetch only. Full URL retained \u2014 high cardinality is bounded by topk(20).",
+          "description": "Default tracking: XHR + fetch only. Full URL retained — high cardinality is bounded by topk(20).",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -5260,7 +5261,7 @@
         "spec": {
           "id": 50,
           "title": "Requests by endpoint",
-          "description": "`Errors` is blank for endpoints that never failed \u2014 the failure query has nothing to contribute to the join there \u2014 and `Error rate` reads 0.0% for them.",
+          "description": "`Errors` is blank for endpoints that never failed — the failure query has nothing to contribute to the join there — and `Error rate` reads 0.0% for them.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -5847,7 +5848,7 @@
         "spec": {
           "id": 308,
           "title": "Time on page (p75)",
-          "description": "Grouped by `event_data_page_id`, the page being reported \u2014 not the meta `page_id`, which is already the destination by the time `router.afterEach` flushes the event.",
+          "description": "Grouped by `event_data_page_id`, the page being reported — not the meta `page_id`, which is already the destination by the time `router.afterEach` flushes the event.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
