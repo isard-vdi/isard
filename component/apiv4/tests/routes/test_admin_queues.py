@@ -1134,6 +1134,8 @@ class TestBoundedEnumeration:
         data = gov.AdminQueuesService.get_governor()
         assert data["redis"]["up"] is True  # NOT degraded -> forbidden paths unused
         assert data["truncated_lanes"] == 2
+        # every lane is empty, so the cut hides no work
+        assert data["truncated_lanes_with_backlog"] == 0
         assert conn.forbidden_calls == []  # keys()/pubsub_channels() never called
         assert qall_calls == []
         # read-only: a governor poll writes nothing.

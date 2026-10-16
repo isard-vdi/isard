@@ -348,6 +348,8 @@ class GovernorGaugesResponse(BaseModel):
     workers: List[WorkerHealthRow] = []
     warnings: List[GovernorWarning] = []
     truncated_lanes: int = 0
+    #: The truncated lanes that still hold queued/started/deferred/scheduled jobs.
+    truncated_lanes_with_backlog: int = 0
     truncated_inflight: int = 0
     # effective/clamped config the elastic workers enforce (embedded for the
     # governor card; the config panel still binds to the storage_scheduler GET/PUT).
@@ -445,6 +447,8 @@ class StorageLaneHealthResponse(BaseModel):
     #: Lanes past the snapshot cap, so a caller can tell a bounded read from a
     #: complete one instead of reading `healthy` as "all clear".
     truncated_lanes: int = 0
+    #: The truncated lanes that still hold queued/started/deferred/scheduled jobs.
+    truncated_lanes_with_backlog: int = 0
     #: False when redis could not be read: the answer is the fail-open empty
     #: one, not an observation that every pool has a consumer.
     coverage_known: bool = True

@@ -575,10 +575,39 @@ def _safe_registry_count(registry) -> int:
 
 
 def _storage_lane_snapshot(conn) -> tuple:
+    """:func:`_storage_lane_scan` without the backlog split."""
+    lanes, truncated, _with_backlog = _storage_lane_scan(conn)
+    return lanes, truncated
+
+
+_LANE_WORK_REGISTRIES = ("rq:wip:", "rq:deferred:", "rq:scheduled:")
+
+
+def _lanes_with_backlog(conn, lanes) -> int:
+    """Lanes with a queued, started, deferred or scheduled job; fails closed."""
+    if not lanes:
+        return 0
+    try:
+        with conn.pipeline() as pipe:
+            for _, _, _, lane in lanes:
+                pipe.llen(_RQ_QUEUE_PREFIX + lane)
+                for prefix in _LANE_WORK_REGISTRIES:
+                    pipe.zcard(prefix + lane)
+            counts = pipe.execute()
+    except Exception:
+        return len(lanes)
+    per_lane = 1 + len(_LANE_WORK_REGISTRIES)
+    return sum(
+        1 for i in range(len(lanes)) if any(counts[i * per_lane : (i + 1) * per_lane])
+    )
+
+
+def _storage_lane_scan(conn) -> tuple:
     """ONE bounded ``SMEMBERS rq:queues`` snapshot, filtered to ``storage.*``
     lanes via ``parse_storage_queue``, sorted by backlog (LLEN) desc, capped at
     ``MAX_LANES``. Returns ``([(pool, category, tier, lane_name), ...],
-    truncated_lanes)``. ``rq:queues`` members are full ``rq:queue:<name>`` keys.
+    truncated_lanes, truncated_lanes_with_backlog)``. ``rq:queues`` members are
+    full ``rq:queue:<name>`` keys.
     """
     members = conn.smembers(_RQ_QUEUES_KEY)
     lanes = []
@@ -611,7 +640,8 @@ def _storage_lane_snapshot(conn) -> tuple:
     )
     ordered = [lanes[i] for i in order]
     truncated = max(0, len(ordered) - MAX_LANES)
-    return ordered[:MAX_LANES], truncated
+    with_backlog = _lanes_with_backlog(conn, ordered[MAX_LANES:])
+    return ordered[:MAX_LANES], truncated, with_backlog
 
 
 # =============================================================================
@@ -743,7 +773,9 @@ class AdminQueuesService:
         """
         try:
             with _connect_redis() as redis_conn:
-                lanes, truncated = _storage_lane_snapshot(redis_conn)
+                lanes, truncated, truncated_with_backlog = _storage_lane_scan(
+                    redis_conn
+                )
                 with redis_conn.pipeline() as pipe:
                     for _, _, _, lane in lanes:
                         pipe.llen(_RQ_QUEUE_PREFIX + lane)
@@ -755,6 +787,7 @@ class AdminQueuesService:
                 "orphans": [],
                 "healthy": True,
                 "truncated_lanes": 0,
+                "truncated_lanes_with_backlog": 0,
                 "coverage_known": False,
             }
 
@@ -777,6 +810,7 @@ class AdminQueuesService:
             "orphans": orphans,
             "healthy": len(orphans) == 0,
             "truncated_lanes": truncated,
+            "truncated_lanes_with_backlog": truncated_with_backlog,
             "coverage_known": True,
         }
 
@@ -922,6 +956,7 @@ class AdminQueuesService:
             "workers": [],
             "warnings": [],
             "truncated_lanes": 0,
+            "truncated_lanes_with_backlog": 0,
             "truncated_inflight": 0,
             "config": None,
         }
@@ -966,7 +1001,9 @@ class AdminQueuesService:
             redis_health = _redis_health(conn)
             stream_health = _stream_health(conn)
 
-            lanes, truncated_lanes = _storage_lane_snapshot(conn)
+            lanes, truncated_lanes, truncated_lanes_with_backlog = _storage_lane_scan(
+                conn
+            )
             names = AdminQueuesService._category_name_map()
 
             # Per-lane stats, grouped for the pool/category rollup.
@@ -1292,6 +1329,7 @@ class AdminQueuesService:
             "workers": worker_rows,
             "warnings": warnings,
             "truncated_lanes": truncated_lanes,
+            "truncated_lanes_with_backlog": truncated_lanes_with_backlog,
             "truncated_inflight": truncated_inflight,
             "config": effective,
         }

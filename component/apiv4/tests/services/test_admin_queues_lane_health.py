@@ -62,10 +62,15 @@ class _FakeRedis:
                 return False
 
             def llen(self, key):
-                self.calls.append(key)
+                self.calls.append(("llen", key))
+
+            def zcard(self, key):
+                self.calls.append(("zcard", key))
 
             def execute(self):
-                return [outer.llen(key) for key in self.calls]
+                return [
+                    outer.llen(key) if op == "llen" else 0 for op, key in self.calls
+                ]
 
         return _Pipe()
 
@@ -190,7 +195,23 @@ def test_the_lane_cap_is_reported_not_silent(monkeypatch):
     out = SVC.get_storage_lane_health()
 
     assert out["truncated_lanes"] == 3
+    # the three cut lanes are the least busy, but each still holds a job
+    assert out["truncated_lanes_with_backlog"] == 3
     assert len(out["orphan_pools"]) == 2
+
+
+def test_a_cut_of_empty_lanes_hides_nothing(monkeypatch):
+    """RQ never unregisters a drained queue, so the cap can cut lanes with
+    nothing in them. That is reported, but not as hidden work."""
+    monkeypatch.setattr(mod, "MAX_LANES", 2)
+    queues = {f"storage.P{i}.reclaim": 0 for i in range(5)}
+    queues["storage.BUSY.reclaim"] = 4
+    _patch(monkeypatch, queues=queues, covered={})
+
+    out = SVC.get_storage_lane_health()
+
+    assert out["truncated_lanes"] == 4
+    assert out["truncated_lanes_with_backlog"] == 0
 
 
 def test_a_redis_failure_fails_open(monkeypatch):
