@@ -18,12 +18,9 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN:
-      WEBAPP_ADMIN_PWD:
       API_ISARDVDI_SECRET: "${API_ISARDVDI_SECRET}"
       VICTORIAMETRICS_ADDRESS: "${VICTORIAMETRICS_ADDRESS:-${PROMETHEUS_ADDRESS:-http://isard-victoriametrics:8428}}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
-      # This plugin is bundled with grafana, but needs to be activated separately
-      GF_INSTALL_PLUGINS: "grafana-pyroscope-app"
       PYROSCOPE_ADDRESS: "${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}"
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
       GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
