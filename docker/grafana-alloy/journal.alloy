@@ -1,0 +1,53 @@
+// Host journal: kernel and an allow-list of system units (see README)
+
+loki.source.journal "host" {
+	max_age       = "6h"
+	relabel_rules = loki.relabel.journal.rules
+	forward_to    = [loki.process.journal.receiver]
+	labels        = {
+		job    = "journal",
+		domain = sys.env("DOMAIN"),
+	}
+}
+
+loki.relabel "journal" {
+	forward_to = []
+
+	// Login and privilege logs (sshd, sudo, logind) must not leave the host.
+	rule {
+		source_labels = ["__journal__transport", "__journal__systemd_unit"]
+		separator     = ";"
+		regex         = "kernel;.*|[^;]*;(iscsid|multipathd|nfs-server|nfs-mountd|rpc-statd|nfsdcld|pacemaker|corosync|sbd|drbd|libvirtd|virtqemud|docker|containerd|chronyd|systemd-timesyncd|systemd-oomd|smartd|mdmonitor)\\.service"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__journal__systemd_unit"]
+		target_label  = "unit"
+	}
+
+	rule {
+		source_labels = ["__journal_priority_keyword"]
+		target_label  = "level"
+	}
+
+	rule {
+		source_labels = ["__journal__transport"]
+		target_label  = "transport"
+	}
+}
+
+loki.process "journal" {
+	forward_to = [loki.write.monitor.receiver]
+
+	// Firewall per-packet lines carry client IPs.
+	stage.drop {
+		expression = "\\[UFW [A-Z]+\\]|IN=\\S* OUT=\\S* .*SRC="
+	}
+
+	stage.limit {
+		rate  = 20
+		burst = 200
+		drop  = true
+	}
+}

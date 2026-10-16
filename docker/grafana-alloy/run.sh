@@ -4,6 +4,12 @@ cp /usr/local/etc/alloy/config.alloy /etc/alloy/config.alloy
 cp /usr/local/etc/alloy/logs.alloy /etc/alloy/logs.alloy
 cp /usr/local/etc/alloy/metrics.alloy /etc/alloy/metrics.alloy
 
+if [ "$HOST_JOURNAL_LOGS" != "false" ]; then
+	cp /usr/local/etc/alloy/journal.alloy /etc/alloy/journal.alloy
+else
+	rm -f /etc/alloy/journal.alloy
+fi
+
 if [ "$PYROSCOPE_EBPF" = "true" ]; then
 	cp /usr/local/etc/alloy/profiling.alloy /etc/alloy/profiling.alloy
 fi

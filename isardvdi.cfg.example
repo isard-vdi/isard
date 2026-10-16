@@ -1,4 +1,4 @@
-# Isard main config v3.0.13
+# Isard main config v3.0.14
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -876,6 +876,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
 #LOKI_RETENTION_TIME=40d
+
+# ------ Host journal -----------------------------------------------------
+#
+# Ships the host's systemd journal to Loki ({job="journal"}): the kernel plus
+# the system services IsardVDI relies on (iSCSI, NFS server, cluster, libvirt,
+# docker, time sync). Login and privilege logs (sshd, sudo) never leave the
+# host, and firewall per-packet lines are dropped. On by default.
+#HOST_JOURNAL_LOGS=true
 
 # ------ Pyroscope -----------------------------------------------------
 #
