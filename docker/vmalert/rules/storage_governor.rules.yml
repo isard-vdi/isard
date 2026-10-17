@@ -487,13 +487,13 @@ groups:
           description: "The governor payload age has exceeded 60s for 5m even though scrapes succeed (frozen cache / slow Redis). Investigate Redis latency or apiv4 to_thread starvation."
 
       - alert: GovernorLanesTruncated
-        expr: isardvdi_storage_governor_truncated_lanes > 0
+        expr: isardvdi_storage_governor_truncated_lanes_with_backlog > 0
         for: 30m
         labels:
           severity: warning
         annotations:
           summary: "Storage governor lane scan truncated"
-          description: "The bounded lane scan has been hitting its cap for 30m ({{ $value }} lanes truncated); the view is not seeing every lane. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
+          description: "The bounded lane scan has been cutting lanes that hold work for 30m ({{ $value }} with queued, started, deferred or scheduled jobs{{ with query \"isardvdi_storage_governor_truncated_lanes\" }}, {{ . | first | value }} cut in total{{ end }}); the view is not seeing every lane with work. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
 
       # --- Bounded leak scan hit its cap (the leak gauges are partial) -------
       # heavy_leak / category_leak are computed from the members the scan saw,

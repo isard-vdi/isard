@@ -242,3 +242,49 @@ func TestAReservedTierStrandedLaneStillJoins(t *testing.T) {
 	}
 	assert.True(backlogKeys["default|"+poolCategory+"|interactive"])
 }
+
+// gaugeValue returns the value of the single unlabelled gauge called name.
+func gaugeValue(t *testing.T, ms []prometheus.Metric, name string) (float64, bool) {
+	t.Helper()
+	for _, m := range ms {
+		if !strings.Contains(m.Desc().String(), `fqName: "isardvdi_storage_governor_`+name+`"`) {
+			continue
+		}
+		var pb dto.Metric
+		if err := m.Write(&pb); err != nil {
+			t.Fatalf("write metric: %v", err)
+		}
+		return pb.GetGauge().GetValue(), true
+	}
+	return 0, false
+}
+
+// RQ keeps drained lanes registered, so the scan cap can cut hundreds of empty
+// lanes. The exporter must keep that total apart from the part that hides work,
+// which is the only one GovernorLanesTruncated alerts on.
+func TestTruncatedLanesWithBacklogIsExportedApartFromTheTotal(t *testing.T) {
+	assert := assert.New(t)
+	ms := collectAll(t, &apiv4.GovernorGaugesResponse{
+		TruncatedLanes:            apiv4.NewOptInt(5),
+		TruncatedLanesWithBacklog: apiv4.NewOptInt(2),
+	})
+
+	total, ok := gaugeValue(t, ms, "truncated_lanes")
+	assert.True(ok, "truncated_lanes must be exported")
+	assert.Equal(5.0, total)
+
+	withBacklog, ok := gaugeValue(t, ms, "truncated_lanes_with_backlog")
+	assert.True(ok, "truncated_lanes_with_backlog must be exported")
+	assert.Equal(2.0, withBacklog)
+}
+
+// An apiv4 that predates the field must read as nothing hidden, never absent:
+// absence would make the alert's series vanish instead of reading zero.
+func TestTruncatedLanesWithBacklogDefaultsToZero(t *testing.T) {
+	assert := assert.New(t)
+	ms := collectAll(t, &apiv4.GovernorGaugesResponse{TruncatedLanes: apiv4.NewOptInt(5)})
+
+	withBacklog, ok := gaugeValue(t, ms, "truncated_lanes_with_backlog")
+	assert.True(ok)
+	assert.Equal(0.0, withBacklog)
+}

@@ -47,6 +47,7 @@ type StorageGovernor struct {
 	descMultitenancyActive *prometheus.Desc
 	descDataAgeSeconds     *prometheus.Desc
 	descTruncatedLanes     *prometheus.Desc
+	descTruncatedBacklog   *prometheus.Desc
 	descTruncatedInflight  *prometheus.Desc
 
 	descRedisUp              *prometheus.Desc
@@ -111,6 +112,7 @@ func NewStorageGovernor(ctx context.Context, log *zerolog.Logger, cli apiv4.Invo
 	s.descMultitenancyActive = d("multitenancy_active", "Per-category (P2) mode reported by a live worker (1) or flat/P1 (0); absent when unknown")
 	s.descDataAgeSeconds = d("data_age_seconds", "Age of the gauge snapshot the API answered with (frozen-cache honesty)")
 	s.descTruncatedLanes = d("truncated_lanes", "Lanes dropped by the bounded scan cap")
+	s.descTruncatedBacklog = d("truncated_lanes_with_backlog", "Lanes dropped by the bounded scan cap that still hold queued, started, deferred or scheduled work")
 	s.descTruncatedInflight = d("truncated_inflight", "In-flight members dropped by the bounded leak-scan cap")
 
 	s.descRedisUp = d("redis_up", "RQ broker reachable (PING) (1) or down (0)")
@@ -179,6 +181,7 @@ func (s *StorageGovernor) Describe(ch chan<- *prometheus.Desc) {
 	ch <- s.descMultitenancyActive
 	ch <- s.descDataAgeSeconds
 	ch <- s.descTruncatedLanes
+	ch <- s.descTruncatedBacklog
 	ch <- s.descTruncatedInflight
 	ch <- s.descRedisUp
 	ch <- s.descRedisPingMs
@@ -274,6 +277,7 @@ func (s *StorageGovernor) Collect(ch chan<- prometheus.Metric) {
 		gauge(s.descDataAgeSeconds, v)
 	}
 	gauge(s.descTruncatedLanes, float64(gov.TruncatedLanes.Or(0)))
+	gauge(s.descTruncatedBacklog, float64(gov.TruncatedLanesWithBacklog.Or(0)))
 	gauge(s.descTruncatedInflight, float64(gov.TruncatedInflight.Or(0)))
 
 	if rh, ok := gov.Redis.Get(); ok {

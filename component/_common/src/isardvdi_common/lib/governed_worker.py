@@ -61,6 +61,7 @@ import time
 
 from isardvdi_common.lib import governor_counters
 from isardvdi_common.lib import queue_coverage as qcov
+from isardvdi_common.lib import queue_lane_gc
 from isardvdi_common.lib import resource_governor as rg
 from isardvdi_common.lib.queue_tiers import (
     _FAIR_TIERS,
@@ -840,6 +841,7 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         lanes stay in ``rq:queues`` even when drained, so a stranded-but-empty
         lane is still reached (a registry-aware ``rq:queues`` GC — #16 — must
         preserve that invariant)."""
+        queue_lane_gc.collect_empty_lanes(self.connection)
         extra = self._discovered_lane_queues() if self.multitenancy else []
         if not extra:
             return super().clean_registries()

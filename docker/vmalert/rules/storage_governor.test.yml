@@ -23,6 +23,7 @@
 #   * TaskStreamDeadLettering does not fire on a TRIM of the dead stream, the
 #     same anti-shrink guarantee FailedSpike has.
 #   * TaskStreamsUnreadable stays quiet while Redis is down (RedisDown's job).
+#   * GovernorLanesTruncated stays quiet when every lane the scan cut is empty.
 
 rule_files:
   - storage_governor.rules.yml
@@ -320,6 +321,43 @@ tests:
             exp_annotations:
               summary: "Governor in-flight leak scan is truncated"
               description: "12 in-flight members were dropped by the bounded leak-scan cap for 30m, so heavy_leak and category_leak are computed from a partial list. Reduce the in-flight backlog or raise the scan cap before trusting InflightLeak / CategoryInflightLeak."
+
+  # ---------------------------------------------------------------------------
+  # RQ never unregisters a drained queue, so the lane scan can cut hundreds of
+  # EMPTY lanes. That hides nothing and must not page: alert on the cut lanes
+  # that hold work, not on the total. Point the rule back at the total and this
+  # case fails.
+  # ---------------------------------------------------------------------------
+  - name: lanes_truncated_silent_when_every_cut_lane_is_empty
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_truncated_lanes'
+        values: "5x40"
+      - series: 'isardvdi_storage_governor_truncated_lanes_with_backlog'
+        values: "0x40"
+    alert_rule_test:
+      - eval_time: 35m
+        groupname: storage_governor_alerts
+        alertname: GovernorLanesTruncated
+        exp_alerts: []
+
+  - name: lanes_truncated_fires_when_a_cut_lane_holds_work
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_truncated_lanes'
+        values: "5x40"
+      - series: 'isardvdi_storage_governor_truncated_lanes_with_backlog'
+        values: "2x40"
+    alert_rule_test:
+      - eval_time: 35m
+        groupname: storage_governor_alerts
+        alertname: GovernorLanesTruncated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Storage governor lane scan truncated"
+              description: "The bounded lane scan has been cutting lanes that hold work for 30m (2 with queued, started, deferred or scheduled jobs, 5 cut in total); the view is not seeing every lane with work. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
 
   # ---------------------------------------------------------------------------
   # WorkerHeartbeatLost fires within its for: 2m window (up==0 held 3m).
