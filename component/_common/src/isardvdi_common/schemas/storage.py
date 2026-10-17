@@ -50,6 +50,8 @@ class StoragePendingAction(str, Enum):
     remeasure = "remeasure"
     #: a recovery copy beside the disk that nothing needs any more
     delete_backup = "delete_backup"
+    #: qemu-img check timed out or could not open the image: no verdict yet
+    check_inconclusive = "check_inconclusive"
 
 
 class FormatSpecific(BaseModel):

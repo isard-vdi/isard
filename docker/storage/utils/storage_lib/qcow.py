@@ -106,9 +106,20 @@ def qemu_img_info(file_path):
         return None
 
 
+#: qemu-img check exit codes that carry a verdict: 0 clean, 2 corrupt, 3 leaks
+#: only, and 63 for a file it cannot check, which for a qcow2 disk means its
+#: header is gone. Any other code means the check did not complete.
+_CHECK_VERDICT_CODES = (0, 2, 3, 63)
+
+
 def qemu_img_check_report(file_path):
     """``qemu-img check -U`` as a dict: ``ok`` and a one-line ``summary`` that
-    tells a refcount leak (repairable) from a corruption (data loss)."""
+    tells a refcount leak (repairable) from a corruption (data loss).
+
+    ``inconclusive`` is True when qemu-img reached no verdict: it timed out,
+    could not start, or exited without completing the check (it could not open
+    the image or its chain, or an I/O error stopped it). Such a report is never
+    ``ok``, so no gate passes on it, but it says nothing about the disk."""
     try:
         result = subprocess.run(
             ["qemu-img", "check", "-U", "--output=json", str(file_path)],
@@ -118,26 +129,41 @@ def qemu_img_check_report(file_path):
             timeout=120,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
-        return {"ok": False, "summary": f"qemu-img check could not run: {exc}"}
+        return {
+            "ok": False,
+            "inconclusive": True,
+            "summary": f"qemu-img check could not run: {exc}",
+        }
     try:
         data = json.loads(result.stdout or "{}")
     except ValueError:
+        data = {}
+    if not isinstance(data, dict):
         data = {}
     counts = {
         k: int(data.get(k) or 0) for k in ("corruptions", "leaks", "check-errors")
     }
     # leaked clusters waste space and harm no data (qemu-img says so itself):
     # they never make a disk unsound; corruptions and check errors do
-    ok = result.returncode in (0, 3) and not (
-        counts["corruptions"] or counts["check-errors"]
-    )
+    found = counts["corruptions"] or counts["check-errors"]
+    ok = result.returncode in (0, 3) and not found
     parts = [f"{k}={v}" for k, v in counts.items() if v]
     if ok:
-        return {"ok": True, "summary": " ".join(parts) or "no errors", **counts}
+        return {
+            "ok": True,
+            "inconclusive": False,
+            "summary": " ".join(parts) or "no errors",
+            **counts,
+        }
     if not parts:
         tail = (result.stderr or result.stdout or "").strip().splitlines()
         parts = [tail[-1] if tail else f"rc={result.returncode}"]
-    return {"ok": False, "summary": " ".join(parts), **counts}
+    return {
+        "ok": False,
+        "inconclusive": result.returncode not in _CHECK_VERDICT_CODES and not found,
+        "summary": " ".join(parts),
+        **counts,
+    }
 
 
 def qemu_img_check(file_path):

@@ -171,6 +171,89 @@ def test_check_report_fails_on_corruptions(monkeypatch):
     assert report["ok"] is False and report["summary"] == "corruptions=62"
 
 
+def _qemu_img_exits(monkeypatch, returncode, stdout="", stderr=""):
+    result = subprocess.CompletedProcess([], returncode, stdout, stderr)
+    monkeypatch.setattr(qcow.subprocess, "run", lambda *a, **k: result)
+
+
+def test_check_report_says_a_timeout_is_no_verdict(monkeypatch):
+    def _times_out(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="qemu-img", timeout=120)
+
+    monkeypatch.setattr(qcow.subprocess, "run", _times_out)
+    report = qcow.qemu_img_check_report("/any.qcow2")
+    assert report["ok"] is False
+    assert report["inconclusive"] is True
+
+
+def test_check_report_says_an_unfinished_check_is_no_verdict(monkeypatch):
+    """Exit 1 with nothing counted: qemu-img did not get to check the image."""
+    _qemu_img_exits(
+        monkeypatch,
+        1,
+        stderr="qemu-img: Could not open '/any.qcow2': Input/output error\n",
+    )
+    report = qcow.qemu_img_check_report("/any.qcow2")
+    assert report["ok"] is False
+    assert report["inconclusive"] is True
+    assert "Input/output error" in report["summary"]
+
+
+def test_check_report_keeps_check_errors_as_a_verdict(monkeypatch):
+    _qemu_img_exits(monkeypatch, 1, '{"corruptions": 0, "check-errors": 4}')
+    report = qcow.qemu_img_check_report("/any.qcow2")
+    assert report["ok"] is False and report["inconclusive"] is False
+    assert report["summary"] == "check-errors=4"
+
+
+def test_check_report_keeps_a_lost_header_as_a_verdict(monkeypatch):
+    """Exit 63: qemu-img read the file as a format it cannot check."""
+    _qemu_img_exits(
+        monkeypatch, 63, stderr="qemu-img: This image format does not support checks"
+    )
+    report = qcow.qemu_img_check_report("/any.qcow2")
+    assert report["ok"] is False and report["inconclusive"] is False
+
+
+@pytest.mark.parametrize(
+    "returncode, stdout, ok",
+    [
+        (0, '{"corruptions": 0, "leaks": 0, "check-errors": 0}', True),
+        (3, '{"corruptions": 0, "leaks": 593, "check-errors": 0}', True),
+        (2, '{"corruptions": 62, "leaks": 0, "check-errors": 0}', False),
+    ],
+)
+def test_check_report_with_a_verdict_is_conclusive(monkeypatch, returncode, stdout, ok):
+    _qemu_img_exits(monkeypatch, returncode, stdout)
+    report = qcow.qemu_img_check_report("/any.qcow2")
+    assert report["ok"] is ok
+    assert report["inconclusive"] is False
+
+
+def test_verify_does_not_call_a_source_it_could_not_check_damaged(
+    tmp_path, monkeypatch
+):
+    """The copy failed its check and the source check timed out: a failed copy,
+    never a damaged source."""
+    src = tmp_path / "src.qcow2"
+    dst = tmp_path / "dst.qcow2"
+    _create_qcow(src)
+    _create_qcow(dst)
+    reports = {
+        str(dst): {"ok": False, "inconclusive": False, "summary": "corruptions=2"},
+        str(src): {
+            "ok": False,
+            "inconclusive": True,
+            "summary": "qemu-img check could not run: timed out",
+        },
+    }
+    monkeypatch.setattr(qcow, "qemu_img_check_report", lambda path: reports[path])
+    with pytest.raises(RuntimeError) as exc:
+        task.migration_verify_destination(str(dst), src_path=str(src))
+    assert not str(exc.value).startswith(task.DAMAGED_SOURCE_MARK)
+    assert "destination" in str(exc.value)
+
+
 def test_verify_passes_a_destination_with_leaks_only(tmp_path, monkeypatch):
     """The field case: a 419-disk migration blocked at 64 % on a healthy disk
     with 593 leaked clusters, identical on source and copy."""

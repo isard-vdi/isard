@@ -1575,8 +1575,9 @@ def _storage_qcow():
 
 def storage_check(storage_path):
     """Read-only ``qemu-img check -U`` of a qcow2 outside any migration. Returns
-    the report ({ok, summary, corruptions, leaks, ...}); the change-handler
-    records damaged/repair_leaks and last_checked_at from it. Repairs nothing."""
+    the report ({ok, inconclusive, summary, corruptions, leaks, ...}); the
+    change-handler records the verdict from it, or a check_inconclusive mark
+    when qemu-img reached none. Repairs nothing."""
     qcow = _storage_qcow()
     if not isfile(storage_path):
         raise RuntimeError(f"storage_check: {storage_path} does not exist")
@@ -1684,10 +1685,11 @@ def migration_verify_destination(
         log.info("migration: %s passes with %s", dst_path, report["summary"])
     if not report["ok"]:
         # a copy that fails exactly like its source is faithful: the disk is
-        # damaged, which is a state to record, not a copy to retry
+        # damaged, which is a state to record, not a copy to retry. A source
+        # check that reached no verdict proves nothing about the source.
         if src_path:
             source = qcow.qemu_img_check_report(src_path)
-            if not source["ok"]:
+            if not source["ok"] and not source.get("inconclusive"):
                 raise RuntimeError(
                     f"{DAMAGED_SOURCE_MARK} {src_path}: {source['summary']}"
                 )

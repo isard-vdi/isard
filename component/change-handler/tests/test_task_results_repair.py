@@ -146,6 +146,38 @@ async def test_failed_repair_of_a_leaky_ready_disk_goes_back_to_ready():
 
 
 @pytest.mark.asyncio
+async def test_a_post_repair_check_with_no_verdict_restores_the_previous_status():
+    """The post-repair check timed out: that says nothing about the disk, so it
+    goes back to what it was, with a check_inconclusive mark, never damaged."""
+    from isardvdi_change_handler.task_results import storage
+
+    dom = _domain()
+    summary = "qemu-img check could not run: timed out after 120 seconds"
+    after = {"ok": False, "inconclusive": True, "summary": summary}
+    task = _task(dependencies=[_repair_dep(ok=False, after=after)])
+    redis_manager = AsyncMock()
+    with (
+        patch.object(storage, "Storage") as S,
+        patch.object(storage, "send_status_socket", new=AsyncMock()) as send,
+    ):
+        S.exists.return_value = True
+        S.return_value.domains = [dom]
+        await storage.handle_storage_repair_result(
+            redis_manager, task, storage_id="s1", previous_status="ready"
+        )
+
+    S.insert_document.assert_called_once_with(
+        {"id": "s1", "status": "ready"}, conflict="update"
+    )
+    S.flag_pending.assert_called_once_with(
+        "s1", "check_inconclusive", "qemu_img_check_repair", {"summary": summary}
+    )
+    S.clear_pending.assert_not_called()
+    assert dom.status == "Stopped"
+    send.assert_awaited_once_with(redis_manager, "s1", "ready", "u1")
+
+
+@pytest.mark.asyncio
 async def test_repair_result_no_ops_on_a_missing_row():
     from isardvdi_change_handler.task_results import storage
 

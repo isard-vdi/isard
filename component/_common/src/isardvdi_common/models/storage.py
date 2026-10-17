@@ -166,6 +166,10 @@ PENDING_ACTIONS = {
         "flagged_by": ("storage cleanup", "migration release"),
         "cleared_by": "delete",
     },
+    "check_inconclusive": {
+        "flagged_by": ("a qemu-img check or repair that reached no verdict",),
+        "cleared_by": "a qemu-img check that reaches one",
+    },
 }
 
 
@@ -782,7 +786,9 @@ class Storage(RethinkCustomBase):
     def write_reading(cls, reading, observer=False, read_at=None):
         """Write a task's reading of the disk in one operation. Its status is
         dropped, its measurements kept, when the row is in the recycle bin, when
-        an ``observer`` reads a row some chain holds in ``maintenance``, or when
+        the row is ``damaged`` and the reading is not a deletion (only a check
+        verdict, :meth:`write_check`, or a repair clears damage), when an
+        ``observer`` reads a row some chain holds in ``maintenance``, or when
         the row was deleted after the reading started (``read_at``).
         Returns the row's status afterwards, or None when there is no row."""
         data = {k: v for k, v in reading.items() if k != "id"}
@@ -795,6 +801,9 @@ class Storage(RethinkCustomBase):
                 keep = status.eq("recycled")
                 if observer:
                     keep = keep.or_(status.eq("maintenance"))
+                if data["status"] != "deleted":
+                    # qemu-img info opens a corrupt qcow2 that check rejects
+                    keep = keep.or_(status.eq("damaged"))
                 if read_at is not None and data["status"] != "deleted":
                     keep = keep.or_(
                         status.eq("deleted").and_(
@@ -847,6 +856,55 @@ class Storage(RethinkCustomBase):
         if new is None:
             return None
         return new.get("status")
+
+    @classmethod
+    def write_check(cls, storage_id, damage_reason=None):
+        """Write a qemu-img check verdict in one operation, never creating a row.
+        ``last_checked_at`` always; ``damaged`` plus ``damage_reason`` when the
+        check found a corruption; on a sound verdict, ``ready`` for a disk that
+        was ``damaged``, and every other status left as it is. A check that
+        reached no verdict must not come here."""
+        now = time()
+        checked = {"last_checked_at": int(now)}
+
+        def logged(row, status):
+            entry = {"time": int(now), "status": status, "found_by": "check_integrity"}
+            return row["status_logs"].default([]).append(entry)
+
+        if damage_reason:
+
+            def change(row):
+                return r.branch(
+                    row["status"].default(None).eq("damaged"),
+                    {**checked, "damage_reason": damage_reason},
+                    {
+                        **checked,
+                        "status": "damaged",
+                        "status_time": now,
+                        "damage_reason": damage_reason,
+                        "status_logs": logged(row, "damaged"),
+                    },
+                )
+
+        else:
+
+            def change(row):
+                return r.branch(
+                    row["status"].default(None).eq("damaged"),
+                    {
+                        **checked,
+                        "status": "ready",
+                        "status_time": now,
+                        "damage_reason": None,
+                        "status_logs": logged(row, "ready"),
+                    },
+                    checked,
+                )
+
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(storage_id).update(change).run(
+                cls._rdb_connection
+            )
 
     def _refuse_if_recycled(self):
         if self.status == "recycled":
@@ -1862,8 +1920,8 @@ class Storage(RethinkCustomBase):
         """Enqueue a read-only ``qemu-img check`` outside a migration. Same guard
         as repair -- never a disk a running desktop holds open -- but the row
         stays as it is (the check writes nothing); the result handler records
-        ``damaged`` + ``damage_reason`` on corruption, a ``repair_leaks`` mark on
-        leaks, and ``last_checked_at`` either way.
+        the verdict through :meth:`write_check` plus a ``repair_leaks`` mark on
+        leaks, or a ``check_inconclusive`` mark when qemu-img reached none.
 
         :param user_id: user executing the check (auditable).
         :return: Task ID.

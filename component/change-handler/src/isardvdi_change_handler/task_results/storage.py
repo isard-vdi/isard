@@ -549,8 +549,9 @@ async def handle_storage_repair_result(
 ):
     """The SINGLE writer of a disk's ``status`` after a repair: ready when
     the check came back clean, damaged (new reason) when not, ``previous_status``
-    restored on a failed/cancelled task. A direct dependent, so it runs on both
-    the success and the failure event."""
+    restored on a failed/cancelled task or when the post-repair check reached
+    no verdict. A direct dependent, so it runs on both the success and the
+    failure event."""
     if not Storage.exists(storage_id):
         return
     result = None
@@ -559,6 +560,7 @@ async def handle_storage_repair_result(
             result = dependency.result
             break
     finished = task.depending_status == "finished"
+    after = (result or {}).get("after") or {}
 
     if finished and result is not None and result.get("ok"):
         final_status = "ready"
@@ -568,9 +570,8 @@ async def handle_storage_repair_result(
         )
         Storage.clear_pending(storage_id, "repair_leaks")
         Storage.clear_pending(storage_id, "review_damage")
-    elif finished and result is not None:
+    elif finished and result is not None and not after.get("inconclusive"):
         final_status = "damaged"
-        after = result.get("after") or {}
         Storage.insert_document(
             {
                 "id": storage_id,
@@ -580,11 +581,19 @@ async def handle_storage_repair_result(
             conflict="update",
         )
     else:
-        # failed / cancelled / no result payload: leave the disk exactly as it was.
+        # failed / cancelled / no result payload, or a post-repair check that
+        # reached no verdict: leave the disk exactly as it was.
         final_status = previous_status
         Storage.insert_document(
             {"id": storage_id, "status": previous_status}, conflict="update"
         )
+        if finished and after.get("inconclusive"):
+            Storage.flag_pending(
+                storage_id,
+                "check_inconclusive",
+                "qemu_img_check_repair",
+                {"summary": after.get("summary") or "no verdict"},
+            )
 
     _settle_repair_domains(Storage(storage_id), final_status)
     await send_status_socket(redis_manager, storage_id, final_status, task.user_id)
@@ -611,10 +620,13 @@ def handle_storage_repair_size(task, storage_id):
 
 
 def handle_storage_check_result(task, storage_id):
-    """Record a standalone integrity check on the row: damaged + damage_reason on
-    corruption, a repair_leaks mark on leaks, and last_checked_at either way. It
-    repairs nothing and never flips a leaky-but-sound disk out of ready; a check
-    that could not run (file gone -> the task failed) records nothing."""
+    """Record a standalone integrity check on the row (:meth:`Storage.write_check`):
+    damaged + damage_reason on corruption, a repair_leaks mark on leaks, and
+    last_checked_at. A sound verdict brings a damaged disk back to ready; a
+    leaky-but-sound disk never leaves ready. A check that reached no verdict
+    (timed out, or qemu-img could not open the image) changes no status and no
+    last_checked_at, so the rotation picks the disk again, and leaves a
+    check_inconclusive mark. A check whose task failed records nothing."""
     if task.depending_status != "finished":
         return
     if not Storage.exists(storage_id):
@@ -626,17 +638,27 @@ def handle_storage_check_result(task, storage_id):
             break
     if not isinstance(result, dict):
         return
-    update = {"id": storage_id, "last_checked_at": int(time())}
+    if result.get("inconclusive"):
+        Storage.flag_pending(
+            storage_id,
+            "check_inconclusive",
+            "check_integrity",
+            {"summary": result.get("summary") or "no verdict"},
+        )
+        return
+    Storage.clear_pending(storage_id, "check_inconclusive")
     if result.get("ok"):
         leaks = int(result.get("leaks") or 0)
         if leaks:
             Storage.flag_pending(
                 storage_id, "repair_leaks", "check_integrity", {"leaks": leaks}
             )
+        Storage.write_check(storage_id)
     else:
-        update["status"] = "damaged"
-        update["damage_reason"] = result.get("summary") or "integrity check failed"
-    Storage.insert_document(update, conflict="update")
+        Storage.write_check(
+            storage_id,
+            damage_reason=result.get("summary") or "integrity check failed",
+        )
 
 
 def _valid_storage_pool(storage, new_path):
