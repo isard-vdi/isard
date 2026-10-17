@@ -17,7 +17,8 @@ def wrapper_loader(monkeypatch):
     on the AsyncServer constructor, so a test can assert on the kwargs the
     wrapper builds without needing a real redis or ASGI stack.
 
-    Returns loader(*, log_level=None, cors=None) -> captured AsyncServer kwargs.
+    Returns loader(*, log_level=None, cors=None, socketio_debug=None) -> captured
+    AsyncServer kwargs.
     """
     captured = {}
 
@@ -26,7 +27,7 @@ def wrapper_loader(monkeypatch):
         captured.update(kwargs)
         return mock.MagicMock(name="AsyncServer")
 
-    def _loader(*, log_level=None, cors=None):
+    def _loader(*, log_level=None, cors=None, socketio_debug=None):
         monkeypatch.setattr(socketio, "AsyncServer", _spy_async_server)
         monkeypatch.setattr(
             socketio, "AsyncRedisManager", lambda *args, **kwargs: mock.MagicMock()
@@ -42,6 +43,10 @@ def wrapper_loader(monkeypatch):
             monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
         else:
             monkeypatch.setenv("CORS_ALLOWED_ORIGINS", cors)
+        if socketio_debug is None:
+            monkeypatch.delenv("SOCKETIO_DEBUG", raising=False)
+        else:
+            monkeypatch.setenv("SOCKETIO_DEBUG", socketio_debug)
         _reload_clean()
         return captured
 
@@ -56,6 +61,7 @@ def pristine_module(monkeypatch):
     exercising the registered connect/disconnect/event handlers."""
     monkeypatch.delenv("LOG_LEVEL", raising=False)
     monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("SOCKETIO_DEBUG", raising=False)
     module = _reload_clean()
     yield module
     monkeypatch.undo()
