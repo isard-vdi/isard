@@ -53,11 +53,9 @@ groups:
       - record: isardvdi_storage_governor:backlog:delta30m
         expr: delta(isardvdi_storage_governor_backlog[30m])
 
-      # Fleet-wide count of storage workers reporting up. `sum()` over an empty
-      # set yields no series, so NoStorageWorkers cannot false-fire when the
-      # exporter itself is blind (that case is GovernorScrapeFailed's job).
-      # kind!="" excludes the notifier's kindless RQ worker, which would
-      # otherwise hold this sum at 1 through a total storage outage.
+      # Fleet-wide count of storage workers reporting up. kind!="" excludes the
+      # notifier's kindless RQ worker, which would otherwise hold this sum at 1
+      # through a total storage outage.
       - record: isardvdi_storage_governor:worker_up:sum
         expr: sum(isardvdi_storage_governor_worker_up{kind!=""})
 
@@ -350,24 +348,36 @@ groups:
           description: "Worker {{ $labels.worker }} has been deferring under CPU/IO/memory pressure above psi_limit for 15m (held by host stall, not the cap). The worker defers on any of the three axes, so all three are admitted here. Investigate storage-host load; scale the node or raise psi_limit only if the pressure is acceptable."
 
       # --- Worker heartbeat loss --------------------------------------------
-      # GATED ON hash_present. A member of the rq:workers SET outlives its
-      # worker: the rq:worker hash expires at worker_ttl+60, SET membership has
-      # no TTL, and RQ's sweep only reaches a dead key through a queue some LIVE
-      # worker still serves -- so with every storage worker down nothing sweeps
-      # and the row stays for ever. Ungated, this stayed critical and firing for
-      # a worker that no longer exists. Drop the gate and the vmalert unit test
-      # worker_heartbeat_lost_silent_for_a_registration_with_no_worker fails.
+      # A dead worker holds up=0 only briefly: idle, its rq:worker hash expires
+      # 60s after up drops; busy, ~90s after the last heartbeat, before up drops.
+      # The row then loses pool/kind and goes at the next peer sweep. A clean
+      # stop SREMs the row while it still reads up=1 with its hash, so the
+      # second branch pages a worker seen up within 45m whose last report was a
+      # death; 45m outlasts the 38m by which WorkerRegistrationStale takes over
+      # a corpse nobody sweeps.
       - alert: WorkerHeartbeatLost
         expr: |
-          (isardvdi_storage_governor_worker_up == 0)
-          and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
+          (
+            (isardvdi_storage_governor_worker_up == 0)
+            and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
+          )
+          or
+          (
+            (max_over_time(isardvdi_storage_governor_worker_up[45m]) == 1)
+            and on(worker)
+            (
+              (last_over_time(isardvdi_storage_governor_worker_hash_present[10m]) == 0)
+              or (min by (worker) (last_over_time(isardvdi_storage_governor_worker_up{kind!=""}[10m])) == 0)
+            )
+            unless on(worker) (isardvdi_storage_governor_worker_up == 1)
+          )
         for: 2m
         labels:
           severity: critical
           area: storage
         annotations:
           summary: "Storage worker lost its heartbeat"
-          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+          description: "Worker {{ $labels.worker }} (pool {{ $labels.pool }}, kind {{ $labels.kind }}) stopped heartbeating without deregistering, so it was killed, crashed or is hung; a clean stop never reaches this. Restart the worker container if it did not respawn; it may still hold slots until reconcile."
 
       # Long `for:` so an ordinary restart, swept within ~600s by any surviving
       # worker on the same queue, never reaches it.
@@ -381,8 +391,18 @@ groups:
           summary: "Stale worker registration with no worker behind it"
           description: "The rq:workers set has held a member for 30m whose rq:worker hash does not exist, so no worker is behind it. RQ only sweeps it through a queue a live worker still serves, so on a lane with no worker left it stays for ever: start a worker on that lane, or SREM the member. Until then every worker count that reads the set is too high by one."
 
+      # No storage worker series at all (all stopped cleanly, or crash-looping
+      # before registration) sums to nothing, hence absent(); a blind exporter
+      # or a Redis outage is GovernorScrapeFailed's or RedisDown's page.
       - alert: NoStorageWorkers
-        expr: isardvdi_storage_governor:worker_up:sum == 0
+        expr: |
+          (isardvdi_storage_governor:worker_up:sum == 0)
+          or
+          (
+            absent(isardvdi_storage_governor_worker_up{kind!=""})
+            and on() (isardvdi_storage_governor_scrape_duration_success == 1)
+            unless on() (isardvdi_storage_governor_redis_up == 0)
+          )
         for: 2m
         labels:
           severity: critical
