@@ -66,7 +66,7 @@ async def _run(row, task, *, pool_for=None, owner=False):
         patch.object(
             storage,
             "_apply_storage_update",
-            side_effect=lambda payload, **_: payload["status"],
+            side_effect=lambda payload, **_: payload.get("status", row.status),
         ) as mock_apply,
         patch.object(storage, "send_status_socket", new=AsyncMock()) as mock_send,
     ):
@@ -133,6 +133,36 @@ async def test_a_row_whose_every_copy_is_unusable_is_marked_deleted():
     assert applied["storages_with_uuid"] == [
         {"status": "invalid", "path": "/pool/s1.qcow2"}
     ]
+
+
+@pytest.mark.asyncio
+async def test_a_file_at_the_rows_own_path_that_does_not_open_is_not_deleted():
+    """The row keeps its status and the open error goes on to flag it."""
+    error = "qemu-img: Could not open '/pool/s1.qcow2': Permission denied"
+    unreadable = {
+        "path": "/pool/s1.qcow2",
+        "mtime": 100,
+        "storage_data": {"id": "s1", "open_error": error},
+    }
+    applied, emitted = await _run(_row(), _task([unreadable]))
+    assert "status" not in applied
+    assert applied["open_error"] == error
+    assert applied["storages_with_uuid"] == [
+        {"status": "invalid", "path": "/pool/s1.qcow2"}
+    ]
+    assert emitted == "ready"
+
+
+@pytest.mark.asyncio
+async def test_an_open_error_on_another_copy_does_not_save_the_row():
+    """Only the row's own path proves its file is there."""
+    unreadable = {
+        "path": "/other/s1.qcow2",
+        "mtime": 100,
+        "storage_data": {"id": "s1", "open_error": "Permission denied"},
+    }
+    applied, _ = await _run(_row(), _task([unreadable]))
+    assert applied["status"] == "deleted"
 
 
 @pytest.mark.asyncio
