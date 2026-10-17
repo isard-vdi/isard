@@ -180,7 +180,7 @@ class UsersService:
         }
 
         user = RethinkUser.init_document(**user)
-        UserStorage.isard_user_storage_add_user(user)
+        UserStorage.isard_user_storage_add_user(user.id)
         return user
 
     @staticmethod

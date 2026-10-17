@@ -7,7 +7,7 @@ delegate patterns.
 
 import base64
 import struct
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from api.services.error import Error
@@ -193,3 +193,26 @@ class TestDeleteUserBastionSshKey:
     def test_not_found(self, _exists):
         with pytest.raises(Error):
             UsersService.delete_user_bastion_ssh_key("u1")
+
+
+class TestCreate:
+    @patch("api.services.users.UserStorage.isard_user_storage_add_user")
+    @patch("api.services.users.RethinkUser.init_document")
+    @patch("api.services.users.RethinkGroup")
+    @patch("api.services.users.RethinkCategory.exists", return_value=True)
+    @patch("api.services.users.RethinkRole.exists", return_value=True)
+    def test_user_storage_receives_the_new_user_id(
+        self, _role, _category, _group, init_document, add_user
+    ):
+        init_document.return_value = MagicMock(id="new-user-id")
+        user = UsersService.create(
+            provider="saml",
+            category_id="default",
+            uid="uid1",
+            username="user1",
+            name="User One",
+            role_id="user",
+            group_id="default-default",
+        )
+        add_user.assert_called_once_with("new-user-id")
+        assert user is init_document.return_value
