@@ -962,13 +962,32 @@ class UiActions(object):
         else:
             self.stop_domain(id, hyp_id)
 
+    def _queue_on_hypervisor(self, hyp_id, action, priority):
+        worker_queue = self.manager.q.workers.get(hyp_id)
+        if worker_queue is None:
+            detail = (
+                f"hypervisor {hyp_id} has no engine worker: "
+                f"{action['type']} was not sent"
+            )
+            logs.main.error(f"desktop {action['id_domain']}: {detail}")
+            update_domain_status(
+                status="Unknown",
+                id_domain=action["id_domain"],
+                hyp_id=hyp_id,
+                detail=detail,
+            )
+            return False
+        worker_queue.put(action, priority)
+        return True
+
     def shutdown_domain(self, id_domain, hyp_id):
         action = {
             "type": "shutdown_domain",
             "id_domain": id_domain,
         }
 
-        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_SHUTDOWN)
+        if not self._queue_on_hypervisor(hyp_id, action, Q_PRIORITY_SHUTDOWN):
+            return False
         logs.main.debug(
             f"desktop {id_domain} in queue to soft off with shutdown ACPI action in hyp {hyp_id}"
         )
@@ -981,7 +1000,8 @@ class UiActions(object):
             "id_domain": id_domain,
             "not_change_status": not_change_status,
         }
-        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
+        if not self._queue_on_hypervisor(hyp_id, action, Q_PRIORITY_STOP):
+            return False
         logs.main.debug(
             f"desktop {id_domain} in queue to destroy action in hyp {hyp_id}"
         )
@@ -992,7 +1012,8 @@ class UiActions(object):
             "type": "reset_domain",
             "id_domain": id_domain,
         }
-        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
+        if not self._queue_on_hypervisor(hyp_id, action, Q_PRIORITY_STOP):
+            return False
         logs.main.debug(f"desktop {id_domain} added to queue to be reset in {hyp_id}")
         return True
 
