@@ -257,6 +257,12 @@ def cascade(monkeypatch):
         mod.StoragePool, "get_best_for_action", staticmethod(lambda *a, **k: pool)
     )
     monkeypatch.setattr(
+        mod.StoragePool,
+        "mountpoint_for_path",
+        classmethod(lambda cls, *a, **k: None),
+        raising=False,
+    )
+    monkeypatch.setattr(
         mod.queue_tiers, "retier_queue", lambda base, task, cat=None: f"q:{task}"
     )
     monkeypatch.setattr(
