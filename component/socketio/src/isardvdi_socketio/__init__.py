@@ -21,15 +21,40 @@ import asyncio
 import logging
 from os import environ
 
+import isardvdi_common.helpers.log  # noqa: F401  installs the JSON root handler
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.helpers.socketio import SocketIO
 from socketio import ASGIApp, AsyncRedisManager, AsyncServer
 
 log = logging.getLogger(__name__)
 
-async_server_kwargs = {}
-if environ.get("LOG_LEVEL") == "DEBUG":
-    kwargs = {"logger": True, "engineio_logger": True}
+SOCKETIO_DEBUG_MODES = {
+    "app": (),
+    "socketio": ("socketio.server",),
+    "all": ("socketio.server", "engineio.server"),
+}
+
+
+def debug_server_kwargs(mode):
+    mode = (mode or "").strip().lower()
+    if mode not in SOCKETIO_DEBUG_MODES and mode not in ("", "off", "false", "no"):
+        log.warning("SOCKETIO_DEBUG=%r is not app, socketio or all; ignored", mode)
+    enabled = SOCKETIO_DEBUG_MODES.get(mode)
+    log.setLevel(logging.NOTSET if enabled is None else logging.DEBUG)
+    # a Logger, not True: True also adds a plain-text StreamHandler to it
+    kwargs = {}
+    for kwarg, name in (
+        ("logger", "socketio.server"),
+        ("engineio_logger", "engineio.server"),
+    ):
+        library_log = logging.getLogger(name)
+        on = name in (enabled or ())
+        library_log.setLevel(logging.DEBUG if on else logging.ERROR)
+        kwargs[kwarg] = library_log
+    return kwargs
+
+
+async_server_kwargs = debug_server_kwargs(environ.get("SOCKETIO_DEBUG"))
 manager = AsyncRedisManager(socketio_url())
 cors_origins = environ.get("CORS_ALLOWED_ORIGINS", "")
 cors_allowed = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
