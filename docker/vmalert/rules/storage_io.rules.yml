@@ -1,9 +1,9 @@
 # Shared storage and host I/O, split by scope:
 #   scope=central  the NFS/storage server itself, or most hypervisors at once: the whole platform;
 #   scope=host     one hypervisor (or a minority) while the rest are fine: that host.
-# The scope label lets a notifier drop every scope=host alert while a scope=central one fires, and
-# host rules stay off for 15 minutes after one, so a `for` built up during the incident cannot fire
-# on its own.
+# The scope label lets a notifier drop the scope=host I/O alerts while a scope=central one fires,
+# and host rules stay off for 15 minutes after one, so a `for` built up during the incident cannot
+# fire on its own.
 groups:
   - name: storage_io_signals
     rules:
@@ -93,16 +93,25 @@ groups:
           summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors amb el mateix problema d'E/S"
           description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
 
+      # At least two hypervisors, and half of the online ones, newly degraded for storage within
+      # 5m. A host already degraded 5m earlier, for any reason, is left out: the engine rewrites
+      # the reason of a degraded host.
       - alert: StorageCentralDegradedBurst
-        expr: count(max_over_time(isardvdi_isardvdi_api_hypervisor_degraded[5m]) == 1) >= 2
+        expr: |
+          count(
+            group by (id) (max_over_time(isardvdi_isardvdi_api_hypervisor_degraded{reason="storage"}[5m]) == 1)
+            unless on (id) (isardvdi_isardvdi_api_hypervisor_degraded offset 5m == 1)
+          )
+          >= clamp_min((count(group by (id) (isardvdi_isardvdi_api_hypervisor_degraded)) or vector(0)) / 2, 2)
+        for: 1m
         labels:
           severity: critical
           area: storage
           component: storage-central
           scope: central
         annotations:
-          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors degradats en 5 minuts"
-          description: "{{ $value }} hypervisors were marked degraded within 5 minutes, even if not all at the same moment. A burst like this usually has a shared cause such as the storage."
+          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors degradats per l'emmagatzematge en 5 minuts"
+          description: "{{ $value }} hypervisors, at least half of the online ones, were marked degraded for storage within 5 minutes. A burst like this has a shared cause: the NFS server or the network to it. It resolves 5 minutes after the burst; HypervisorsDegraded stays while they remain degraded."
 
       # ---- scope host --------------------------------------------------------------------
       - alert: HypervisorIoProblem

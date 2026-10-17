@@ -140,15 +140,25 @@ tests:
               summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
               description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
 
-  - name: central_degraded_burst
+  # Three of four hypervisors degraded for storage at 1m, 2m and 4m: pending at 2m, firing after
+  # its 1m hold, quiet again once the burst is 5 minutes old although they stay degraded.
+  - name: central_degraded_burst_three_hosts_within_5m
     interval: 1m
     input_series:
       - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
-        values: "1 0 0 0 0 0"
+        values: "0 1x9"
       - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="storage"}'
-        values: "0 0 1 0 0 0"
+        values: "0 0 1x8"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason="storage"}'
+        values: "0 0 0 0 1x6"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h4",reason=""}'
+        values: "0x10"
     alert_rule_test:
-      - eval_time: 3m
+      - eval_time: 2m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+      - eval_time: 4m
         groupname: storage_io
         alertname: StorageCentralDegradedBurst
         exp_alerts:
@@ -158,8 +168,76 @@ tests:
               component: storage-central
               scope: central
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors degradats en 5 minuts"
-              description: "2 hypervisors were marked degraded within 5 minutes, even if not all at the same moment. A burst like this usually has a shared cause such as the storage."
+              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 3 hipervisors degradats per l'emmagatzematge en 5 minuts"
+              description: "3 hypervisors, at least half of the online ones, were marked degraded for storage within 5 minutes. A burst like this has a shared cause: the NFS server or the network to it. It resolves 5 minutes after the burst; HypervisorsDegraded stays while they remain degraded."
+      - eval_time: 8m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+
+  # Two hypervisors degraded for libvirt within 2 minutes: not a storage burst.
+  - name: central_degraded_burst_quiet_for_two_hosts_degraded_for_libvirt
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="libvirt"}'
+        values: "0 1x9"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="libvirt"}'
+        values: "0 0 1x8"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason=""}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+
+  # Three of four degraded for storage, 10 minutes apart: a level that grew, not a burst.
+  - name: central_degraded_burst_quiet_when_degradations_are_spread_out
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "0 1x24"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="storage"}'
+        values: "0x10 1x14"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason="storage"}'
+        values: "0x20 1x4"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h4",reason=""}'
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 13m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+      - eval_time: 23m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+
+  # Two of six degraded for storage together: a minority, so not the whole platform.
+  - name: central_degraded_burst_quiet_for_a_minority_of_hypervisors
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "0 1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason="storage"}'
+        values: "0 1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason=""}'
+        values: "0x6"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h4",reason=""}'
+        values: "0x6"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h5",reason=""}'
+        values: "0x6"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h6",reason=""}'
+        values: "0x6"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
 
   # ---- one host --------------------------------------------------------------------------
   # One of four hypervisors retransmitting: that host, not the central NFS.
@@ -227,6 +305,63 @@ tests:
             exp_annotations:
               summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs) des de fa 30 min; la resta funcionen"
               description: "h1 has shown nfs trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
+
+  # One degraded hypervisor whose reason the engine flips between libvirt and storage is still
+  # one host: no central alert, so its own I/O alert is not held back.
+  - name: one_hypervisor_flipping_degraded_reason_is_local
+    interval: 1m
+    input_series:
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h1"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h2"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h3"}'
+        values: "1x20"
+      - series: 'container_last_seen{name="isard-hypervisor",domain="h4"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h1"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h2"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h3"}'
+        values: "1x20"
+      - series: 'node_boot_time_seconds{domain="h4"}'
+        values: "1x20"
+      - series: 'node_nfs_rpc_retransmissions_total{domain="h1"}'
+        values: "0+120x20"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="libvirt"}'
+        values: "1 1 1 _ _ _ 1 1 1"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h1",reason="storage"}'
+        values: "_ _ _ 1 1 1 _ _ _ 1x11"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason=""}'
+        values: "0x20"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h3",reason=""}'
+        values: "0x20"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="h4",reason=""}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 7m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: storage_io
+        alertname: StorageCentralDegradedBurst
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: storage_io
+        alertname: HypervisorIoProblem
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              component: nfs-client
+              signal: nfs
+              domain: h1
+            exp_annotations:
+              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
 
   - name: one_hypervisor_iowait_is_local_and_other_hosts_are_hosts
     interval: 1m
