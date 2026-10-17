@@ -52,7 +52,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 211
+release_version = 212
+# release 212: give the desktops of pre-apiv4 deployments their create_dict tag_desktop_id;
+#              v197 left it False, so deployment edits missed them
 # release 211: the pending_actions indexes on storage, so "which disks need X"
 #              is an index range and never a table scan
 # release 210: recompute every storage row's perms from the domain that uses it
@@ -4711,6 +4713,43 @@ password:s:%s"""
                 )
             except Exception as e:
                 log.error(f"v203: deployments null viewers cleanup failed: {e}")
+
+        if version == 212:
+            try:
+                tag_desktop_id_by_deployment = {}
+
+                for deployment in (
+                    r.table(table).pluck("id", "create_dict").run(self.conn)
+                ):
+                    create_dict = deployment.get("create_dict")
+                    if not isinstance(create_dict, list) or not create_dict:
+                        continue
+
+                    tag_desktop_id = create_dict[0].get("tag_desktop_id")
+                    if tag_desktop_id:
+                        tag_desktop_id_by_deployment[deployment["id"]] = tag_desktop_id
+
+                deployment_ids = list(tag_desktop_id_by_deployment)
+
+                for i in range(0, len(deployment_ids), 500):
+                    batch = {
+                        deployment_id: tag_desktop_id_by_deployment[deployment_id]
+                        for deployment_id in deployment_ids[i : i + 500]
+                    }
+
+                    r.table("domains").get_all(r.args(list(batch)), index="tag").filter(
+                        lambda desktop: desktop["tag_desktop_id"].default(False).not_()
+                    ).update(
+                        lambda desktop: {
+                            "tag_desktop_id": r.expr(batch)[desktop["tag"]]
+                        }
+                    ).run(
+                        self.conn
+                    )
+
+            except Exception as e:
+                print(e)
+
         return True
 
     """

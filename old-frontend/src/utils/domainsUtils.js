@@ -112,7 +112,7 @@ export class DomainsUtils {
         disks: hardware.disks,
         diskSize: roundToNearestTier(parseFloat(hardware.disk_size), DISK_TIERS, quotaDiskSize),
         floppies: AllowedUtils.parseItems(hardware.floppies),
-        graphics: hardware.graphics ? hardware.graphics : 'default',
+        graphics: hardware.graphics?.length ? hardware.graphics : ['default'],
         interfaces: hardware.interfaces.map(i => i.id),
         interfacesMac: hardware.interfaces.map(i => i.mac),
         isos: AllowedUtils.parseItems(hardware.isos),
