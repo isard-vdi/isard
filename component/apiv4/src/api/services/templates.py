@@ -334,6 +334,18 @@ class TemplateService:
         template = CommonTemplates.get_template(template_id)
         CommonTemplates.check_template_status(None, template)
 
+        user_id = data.get("user_id")
+        if user_id and user_id != payload["user_id"]:
+            Helpers.owns_user_id(payload=payload, user_id=user_id)
+            if not RethinkUser.exists(user_id):
+                raise Error(
+                    "not_found",
+                    f"User with ID {user_id} not found",
+                    description_code="not_found",
+                )
+            Quotas.template_create(user_id)
+            payload = Helpers.gen_payload_from_user(user_id)
+
         Helpers.check_user_duplicated_domain_name(
             name=data["name"],
             user_id=payload["user_id"],

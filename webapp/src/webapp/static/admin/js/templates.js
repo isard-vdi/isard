@@ -733,6 +733,7 @@ $('.btn-duplicate-template').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         setDefaultsTemplate(pk);
         populate_users();
+        $('#modalDuplicateTemplateForm #enabled').iCheck('uncheck').iCheck('update');
         $('#modalDuplicateTemplate').modal({
             backdrop: 'static',
             keyboard: false

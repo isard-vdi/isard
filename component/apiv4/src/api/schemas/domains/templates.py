@@ -32,7 +32,7 @@ from isardvdi_common.schemas.domains import DomainViewerEnum, Image, TemplateSta
 from isardvdi_common.schemas.shared.hardware import GuestProperties, Hardware
 from pydantic import BaseModel, Field
 
-from ..allowed import Allowed, AllowedBase
+from ..allowed import Allowed
 
 
 class UserTemplateFilterParams(BaseModel):
@@ -308,7 +308,7 @@ class DuplicateTemplateRequest(BaseModel):
         max_length=255,
         default="",
     )
-    allowed: AllowedBase = Field(
+    allowed: Allowed = Field(
         description="Permissions for the template.",
     )
     enabled: bool = Field(
@@ -318,6 +318,10 @@ class DuplicateTemplateRequest(BaseModel):
     image: DomainImage | None = Field(
         default=None,
         description="Image to be used for the duplicate. If None or not provided, the source template's image is inherited.",
+    )
+    user_id: str | None = Field(
+        default=None,
+        description="ID of the user who will own the duplicate. If None or not provided, the requesting user owns it.",
     )
 
 

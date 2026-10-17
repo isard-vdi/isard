@@ -370,6 +370,7 @@ def test_duplicate_template(monkeypatch, test_client):
     def fake_duplicate(payload, template_id, data):
         captured["template_id"] = template_id
         captured["name"] = data.get("name")
+        captured["user_id"] = data.get("user_id")
         return "template-copy"
 
     monkeypatch.setattr(
@@ -392,6 +393,7 @@ def test_duplicate_template(monkeypatch, test_client):
                 "description": "Duplicate",
                 "allowed": {"users": False, "groups": False},
                 "enabled": True,
+                "user_id": "user-2",
             },
             jwt=jwt,
         )
@@ -402,7 +404,75 @@ def test_duplicate_template(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json() == {"id": "template-copy"}
-    assert captured == {"template_id": "template-1", "name": "Copy of Template 1"}
+    assert captured == {
+        "template_id": "template-1",
+        "name": "Copy of Template 1",
+        "user_id": "user-2",
+    }
+
+
+@pytest.mark.parametrize(
+    "role_id, expected_allowed",
+    [
+        (
+            "admin",
+            {
+                "roles": ["advanced"],
+                "categories": ["cat-1"],
+                "groups": ["group-1"],
+                "users": False,
+            },
+        ),
+        ("advanced", {"groups": ["group-1"], "users": False}),
+    ],
+)
+def test_duplicate_template_allowed_roles_and_categories(
+    monkeypatch, test_client, role_id, expected_allowed
+):
+    from api import app
+    from api.dependencies.alloweds import is_allowed_template_id
+    from api.dependencies.quotas import can_create_template
+    from api.dependencies.storage_pools import check_create_storage_pool_availability
+
+    captured = {}
+
+    def fake_duplicate(payload, template_id, data):
+        captured["allowed"] = data["allowed"]
+        return "template-copy"
+
+    monkeypatch.setattr(
+        "api.services.templates.TemplateService.duplicate_template",
+        staticmethod(fake_duplicate),
+    )
+
+    async def _noop():
+        return None
+
+    app.dependency_overrides[is_allowed_template_id] = _noop
+    app.dependency_overrides[can_create_template] = _noop
+    app.dependency_overrides[check_create_storage_pool_availability] = _noop
+    try:
+        response = test_client(
+            url="/item/template/template-1/duplicate",
+            method="POST",
+            body={
+                "name": "Copy of Template 1",
+                "allowed": {
+                    "roles": ["advanced"],
+                    "categories": ["cat-1"],
+                    "groups": ["group-1"],
+                    "users": False,
+                },
+            },
+            jwt=MockJWT(role_id=role_id),
+        )
+    finally:
+        app.dependency_overrides.pop(is_allowed_template_id, None)
+        app.dependency_overrides.pop(can_create_template, None)
+        app.dependency_overrides.pop(check_create_storage_pool_availability, None)
+
+    assert response.status_code == 200
+    assert captured["allowed"] == expected_allowed
 
 
 def test_delete_template_sends_to_recycle_bin(monkeypatch, test_client):
