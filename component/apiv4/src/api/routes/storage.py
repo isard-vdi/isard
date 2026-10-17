@@ -731,9 +731,11 @@ async def batch_repair_pending_leaks(request: Request, limit: int | None = None)
     summary="Check a storage's integrity",
     description=(
         "Enqueues a read-only qemu-img integrity check for one disk outside a "
-        "migration. The result marks the row damaged on corruption, flags "
-        "repair_leaks on leaks, and records last_checked_at either way. Refused "
-        "for a disk a running desktop holds open."
+        "migration. The result marks the row damaged on corruption, brings a "
+        "damaged row back to ready on a sound verdict, flags repair_leaks on "
+        "leaks, and records last_checked_at. A check that reaches no verdict "
+        "(timeout, image that cannot be opened) changes no status and flags "
+        "check_inconclusive. Refused for a disk a running desktop holds open."
     ),
     responses={
         400: {"model": ErrorResponse},

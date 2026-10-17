@@ -40,6 +40,9 @@ class _Value:
     def gt(self, other):
         return _Bool(self._value > other)
 
+    def append(self, item):
+        return [*self._value, item]
+
 
 class _Row:
     def __init__(self, doc):
@@ -197,4 +200,93 @@ def test_write_status_for_a_row_that_is_gone_writes_nothing(store):
 def test_a_reading_for_a_row_that_is_gone_writes_nothing(store):
     Storage, rows = store
     assert Storage.write_reading({"id": "s1", "status": "ready"}) is None
+    assert rows == {}
+
+
+def _damaged():
+    return {
+        "id": "s1",
+        "status": "damaged",
+        "status_time": 1,
+        "damage_reason": "corruptions=3",
+        "status_logs": [],
+    }
+
+
+@pytest.mark.parametrize("observer", [False, True])
+@pytest.mark.parametrize("reading", ["ready", "orphan", "broken_chain"])
+def test_no_reading_clears_damage(store, reading, observer):
+    """qemu-img info opens a corrupt qcow2 that qemu-img check rejects, so its
+    ``ready`` is no verdict on a damaged disk."""
+    Storage, rows = store
+    rows["s1"] = _damaged()
+    status = Storage.write_reading(
+        {"id": "s1", "status": reading, "qemu-img-info": {"actual-size": 7}},
+        observer=observer,
+    )
+    assert status == "damaged"
+    assert rows["s1"]["status"] == "damaged"
+    assert rows["s1"]["status_time"] == 1
+    assert rows["s1"]["damage_reason"] == "corruptions=3"
+    assert rows["s1"]["qemu-img-info"] == {"actual-size": 7}
+
+
+def test_a_reading_that_finds_no_file_still_deletes_a_damaged_row(store):
+    Storage, rows = store
+    rows["s1"] = _damaged()
+    assert Storage.write_reading({"id": "s1", "status": "deleted"}) == "deleted"
+
+
+def test_a_sound_check_brings_a_damaged_disk_back_to_ready(store):
+    Storage, rows = store
+    rows["s1"] = _damaged()
+    Storage.write_check("s1")
+    row = rows["s1"]
+    assert row["status"] == "ready"
+    assert row["damage_reason"] is None
+    assert row["status_time"] > 1
+    assert row["last_checked_at"] > 0
+    assert row["status_logs"][-1]["status"] == "ready"
+    assert row["status_logs"][-1]["found_by"] == "check_integrity"
+
+
+@pytest.mark.parametrize("current", ["ready", "maintenance", "recycled", "orphan"])
+def test_a_sound_check_leaves_any_other_status_alone(store, current):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": current, "status_time": 1}
+    Storage.write_check("s1")
+    row = rows["s1"]
+    assert row["status"] == current
+    assert row["status_time"] == 1
+    assert row["last_checked_at"] > 0
+    assert "status_logs" not in row
+
+
+def test_a_corruption_marks_a_ready_disk_damaged(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "ready", "status_time": 1}
+    Storage.write_check("s1", damage_reason="corruptions=62")
+    row = rows["s1"]
+    assert row["status"] == "damaged"
+    assert row["damage_reason"] == "corruptions=62"
+    assert row["status_time"] > 1
+    assert row["last_checked_at"] > 0
+    assert row["status_logs"][-1]["status"] == "damaged"
+
+
+def test_a_corruption_on_a_damaged_disk_only_renews_the_reason(store):
+    Storage, rows = store
+    rows["s1"] = _damaged()
+    Storage.write_check("s1", damage_reason="corruptions=62")
+    row = rows["s1"]
+    assert row["status"] == "damaged"
+    assert row["damage_reason"] == "corruptions=62"
+    assert row["status_time"] == 1
+    assert row["status_logs"] == []
+
+
+def test_a_check_for_a_row_that_is_gone_writes_nothing(store):
+    Storage, rows = store
+    Storage.write_check("s1")
+    Storage.write_check("s1", damage_reason="corruptions=62")
     assert rows == {}
