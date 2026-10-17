@@ -147,7 +147,10 @@ PENDING_ACTIONS = {
         "cleared_by": "qemu-img check -r leaks",
     },
     "review_damage": {
-        "flagged_by": ("migration verify gate",),
+        "flagged_by": (
+            "migration verify gate",
+            "a storage refresh that found the file but could not open it",
+        ),
         "cleared_by": "an admin decision",
     },
     "sparsify": {
@@ -361,29 +364,37 @@ class Storage(RethinkCustomBase):
         return f"{self.directory_path}/{self.id}.{self.type}"
 
     @classmethod
-    def flag_pending(cls, storage_id, action, found_by, detail=None):
+    def flag_pending(cls, storage_id, action, found_by, detail=None, if_absent=False):
         """Mark that ``storage_id`` needs ``action`` done to it. Idempotent: a
-        second flag of the same action keeps the first ``since``."""
+        second flag of the same action keeps the first ``since``. With
+        ``if_absent`` a mark already there is left exactly as it is."""
         if action not in PENDING_ACTIONS:
             raise ValueError(f"unknown pending action {action!r}")
+
+        def mark(row):
+            return {
+                "pending_actions": {
+                    action: {
+                        "since": row["pending_actions"][action]["since"].default(
+                            int(time())
+                        ),
+                        "found_by": found_by,
+                        "detail": detail or {},
+                        "found_at": int(time()),
+                    }
+                }
+            }
+
+        change = mark
+        if if_absent:
+            change = lambda row: r.branch(
+                row["pending_actions"][action].default(None).eq(None), mark(row), {}
+            )
         with cls._rdb_context():
             return (
                 r.table(cls._rdb_table)
                 .get(storage_id)
-                .update(
-                    lambda row: {
-                        "pending_actions": {
-                            action: {
-                                "since": row["pending_actions"][action][
-                                    "since"
-                                ].default(int(time())),
-                                "found_by": found_by,
-                                "detail": detail or {},
-                                "found_at": int(time()),
-                            }
-                        }
-                    }
-                )
+                .update(change)
                 .run(cls._rdb_connection)
             )
 
