@@ -59,7 +59,7 @@ import os
 import threading
 import time
 
-from isardvdi_common.lib import governor_counters
+from isardvdi_common.lib import governor_counters, governor_schedule
 from isardvdi_common.lib import queue_coverage as qcov
 from isardvdi_common.lib import queue_lane_gc
 from isardvdi_common.lib import resource_governor as rg
@@ -277,16 +277,20 @@ def _as_int_map(value):
     return out
 
 
-def _merge_live_config(block, env):
+def _merge_live_config(block, env, now=None):
     """Pure DB->env merge for the governor knobs. ``block`` is the raw
     ``config[1].storage_scheduler`` dict (possibly empty or holding bad values);
     ``env`` is the env/hardcoded fallback dict. Each key falls back
     independently, so a single bad DB value can't disable the whole governor."""
     block = block or {}
+    max_heavy, profile = governor_schedule.effective_max_heavy(
+        block, _as_int(block.get("max_heavy"), env["max_heavy"]), now
+    )
     return {
         "enabled": _as_bool(block.get("enabled"), env["enabled"]),
         "psi_limit": _as_float(block.get("psi_limit"), env["psi_limit"]),
-        "max_heavy": _as_int(block.get("max_heavy"), env["max_heavy"]),
+        "max_heavy": max_heavy,
+        "max_heavy_profile": profile,
         "backoff": _as_int(block.get("backoff"), env["backoff"]),
         # Phase-2 per-category fairness TUNING (only meaningful when the
         # STORAGE_QUEUE_MULTITENANCY structural switch is on; the on/off itself is
@@ -354,6 +358,7 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         self.gov_enabled = self._default_enabled
         self.gov_psi_limit = self._default_psi_limit
         self.gov_max_heavy = self._default_max_heavy
+        self.gov_max_heavy_profile = None
         self.gov_backoff = self._default_backoff
         self.gov_category_weights = {}
         self.gov_category_max_inflight = {}
@@ -438,7 +443,15 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         was_enabled = self.gov_enabled
         self.gov_enabled = eff["enabled"]
         self.gov_psi_limit = eff["psi_limit"]
+        if eff["max_heavy"] != self.gov_max_heavy:
+            log.info(
+                "governor max_heavy %s -> %s (schedule entry %s)",
+                self.gov_max_heavy,
+                eff["max_heavy"],
+                eff["max_heavy_profile"],
+            )
         self.gov_max_heavy = eff["max_heavy"]
+        self.gov_max_heavy_profile = eff["max_heavy_profile"]
         self.gov_backoff = eff["backoff"]
         self.gov_category_weights = eff["category_weights"]
         self.gov_category_max_inflight = eff["category_max_inflight"]
@@ -1100,6 +1113,12 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
             "governing": "1" if self._is_governing() else "0",
             "deferring": "1" if defer_bg else "0",
             "at_cap": "1" if self._heavy_at_cap() else "0",
+            "max_heavy": str(self.gov_max_heavy),
+            "max_heavy_profile": (
+                ""
+                if getattr(self, "gov_max_heavy_profile", None) is None
+                else str(self.gov_max_heavy_profile)
+            ),
             "floor": "1" if self._floor else "0",
             "multitenancy": "1" if self.multitenancy else "0",
             "served_lanes": json.dumps(served),

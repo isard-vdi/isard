@@ -22,7 +22,7 @@ from isardvdi_common.helpers.task_streams import (
     PROGRESS_STREAM,
     RESULT_STREAM,
 )
-from isardvdi_common.lib import governor_counters
+from isardvdi_common.lib import governor_counters, governor_schedule
 from isardvdi_common.lib.governed_worker import (
     _LIVE_STATUSES,
     CATEGORY_RUNNING_PREFIX,
@@ -81,6 +81,8 @@ STORAGE_SCHEDULER_DEFAULTS = {
     "category_weights": {},
     "category_max_inflight": {},
     "category_default_max_inflight": None,
+    "schedule": [],
+    "schedule_tz": governor_schedule.DEFAULT_TZ,
 }
 
 # Redis STRING (JSON) the elastic storage workers read their live config from.
@@ -967,6 +969,10 @@ class AdminQueuesService:
         ``governor:config`` merged over the presentation defaults). Presentation
         only — the worker does its own per-key DB->env->hardcoded merge."""
         block = block or {}
+        max_heavy, profile = governor_schedule.effective_max_heavy(
+            block,
+            int(block.get("max_heavy", STORAGE_SCHEDULER_DEFAULTS["max_heavy"])),
+        )
         return {
             "enabled": bool(
                 block.get("enabled", STORAGE_SCHEDULER_DEFAULTS["enabled"])
@@ -974,9 +980,8 @@ class AdminQueuesService:
             "psi_limit": float(
                 block.get("psi_limit", STORAGE_SCHEDULER_DEFAULTS["psi_limit"])
             ),
-            "max_heavy": int(
-                block.get("max_heavy", STORAGE_SCHEDULER_DEFAULTS["max_heavy"])
-            ),
+            "max_heavy": max_heavy,
+            "max_heavy_profile": profile,
             "backoff": int(block.get("backoff", STORAGE_SCHEDULER_DEFAULTS["backoff"])),
             "category_weights": dict(
                 block.get("category_weights")
@@ -1824,6 +1829,9 @@ class AdminQueuesService:
             value = block.get(key)
             return STORAGE_SCHEDULER_DEFAULTS[key] if value is None else value
 
+        effective_max_heavy, active_profile = governor_schedule.effective_max_heavy(
+            block, int(_defaulted("max_heavy"))
+        )
         return {
             "enabled": bool(_defaulted("enabled")),
             "psi_limit": float(_defaulted("psi_limit")),
@@ -1841,6 +1849,11 @@ class AdminQueuesService:
                 "category_default_max_inflight",
                 STORAGE_SCHEDULER_DEFAULTS["category_default_max_inflight"],
             ),
+            "schedule": list(block.get("schedule") or []),
+            "schedule_tz": block.get("schedule_tz")
+            or STORAGE_SCHEDULER_DEFAULTS["schedule_tz"],
+            "effective_max_heavy": effective_max_heavy,
+            "active_profile": active_profile,
         }
 
     @staticmethod
@@ -1920,6 +1933,27 @@ class AdminQueuesService:
             clean["category_default_max_inflight"] = (
                 None if value <= 0 else min(1000, value)
             )
+        if updates.get("schedule") is not None:
+            raw = updates["schedule"]
+            if not isinstance(raw, list):
+                raise Error("bad_request", "schedule must be a list")
+            if len(raw) > governor_schedule.MAX_PROFILES:
+                raise Error(
+                    "bad_request",
+                    f"schedule accepts at most {governor_schedule.MAX_PROFILES} entries",
+                )
+            profiles = []
+            for index, entry in enumerate(raw):
+                profile = governor_schedule.clean_profile(entry)
+                if isinstance(profile, str):
+                    raise Error("bad_request", f"schedule[{index}]: {profile}")
+                profiles.append(profile)
+            clean["schedule"] = profiles
+        if updates.get("schedule_tz") is not None:
+            tz = updates["schedule_tz"]
+            if not isinstance(tz, str) or governor_schedule.zone(tz) is None:
+                raise Error("bad_request", "schedule_tz must be an IANA time zone")
+            clean["schedule_tz"] = tz
         if not clean:
             raise Error("bad_request", "No valid storage_scheduler fields provided")
         Config.update_storage_scheduler(clean)

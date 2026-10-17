@@ -631,6 +631,133 @@ class TestStorageSchedulerConfig:
                 {"category_max_inflight": {"catA": "big"}}
             )
 
+    def _capture(self, monkeypatch):
+        from api.services.admin.queues import AdminQueuesService
+        from isardvdi_common.models.config import Config
+
+        captured = {}
+        monkeypatch.setattr(
+            Config,
+            "update_storage_scheduler",
+            staticmethod(lambda updates: captured.update(written=updates)),
+        )
+        monkeypatch.setattr(
+            Config,
+            "get_storage_scheduler_config",
+            staticmethod(lambda: captured.get("written", {})),
+        )
+        monkeypatch.setattr(
+            AdminQueuesService,
+            "_publish_governor_config",
+            staticmethod(lambda block: captured.update(published=block)),
+        )
+        return AdminQueuesService, captured
+
+    def test_service_stores_and_mirrors_a_schedule(self, monkeypatch):
+        service, captured = self._capture(monkeypatch)
+        out = service.set_storage_scheduler_config(
+            {
+                "schedule": [
+                    {"start": "22:55", "end": "07:20", "days": [4, 0], "max_heavy": 4}
+                ],
+                "schedule_tz": "Europe/Madrid",
+            }
+        )
+        stored = {
+            "schedule": [
+                {"start": "22:55", "end": "07:20", "days": [0, 4], "max_heavy": 4}
+            ],
+            "schedule_tz": "Europe/Madrid",
+        }
+        assert captured["written"] == stored
+        assert captured["published"] == stored
+        assert out["schedule"] == stored["schedule"]
+        assert out["schedule_tz"] == "Europe/Madrid"
+        assert out["effective_max_heavy"] in (2, 4)
+
+    def test_service_clears_a_schedule_with_an_empty_list(self, monkeypatch):
+        service, captured = self._capture(monkeypatch)
+        service.set_storage_scheduler_config({"schedule": []})
+        assert captured["written"] == {"schedule": []}
+
+    @pytest.mark.parametrize(
+        "updates",
+        [
+            {"schedule": {"start": "22:00"}},
+            {"schedule": [{"start": "22:00", "end": "22:00", "max_heavy": 4}]},
+            {"schedule": [{"start": "22:00", "end": "06:00", "max_heavy": 99}]},
+            {"schedule": [{"start": "22:00", "end": "06:00", "max_heavy": 4}] * 17},
+            {"schedule_tz": "Mars/Olympus"},
+        ],
+    )
+    def test_service_rejects_a_bad_schedule(self, monkeypatch, updates):
+        service, captured = self._capture(monkeypatch)
+        with pytest.raises(Error):
+            service.set_storage_scheduler_config(updates)
+        assert "written" not in captured
+
+    def test_get_reports_the_profile_in_force(self, monkeypatch):
+        service, captured = self._capture(monkeypatch)
+        captured["written"] = {
+            "max_heavy": 2,
+            "schedule": [
+                {"start": "00:00", "end": "12:00", "max_heavy": 5},
+                {"start": "12:00", "end": "00:00", "max_heavy": 5},
+            ],
+        }
+        out = service.get_storage_scheduler_config()
+        # The two halves cover the whole day, so a profile is always in force.
+        assert out["max_heavy"] == 2
+        assert out["effective_max_heavy"] == 5
+        assert out["active_profile"] in (0, 1)
+
+    def test_heavy_gauge_cap_follows_the_schedule(self):
+        from api.services.admin.queues import AdminQueuesService
+
+        eff = AdminQueuesService._effective_config(
+            {
+                "max_heavy": 2,
+                "schedule": [
+                    {"start": "00:00", "end": "12:00", "max_heavy": 6},
+                    {"start": "12:00", "end": "00:00", "max_heavy": 6},
+                ],
+            }
+        )
+        assert eff["max_heavy"] == 6
+        assert AdminQueuesService._effective_config({"max_heavy": 3})["max_heavy"] == 3
+
+    def test_put_schedule_reaches_the_service(self, monkeypatch, test_client):
+        captured = {}
+
+        def fake(updates):
+            captured["updates"] = updates
+            return {"max_heavy": 2, "schedule": updates["schedule"]}
+
+        monkeypatch.setattr(
+            "api.routes.admin.queues.AdminQueuesService.set_storage_scheduler_config",
+            staticmethod(fake),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"schedule": [{"start": "22:55", "end": "07:20", "max_heavy": 4}]},
+        )
+        assert response.status_code == 200
+        assert captured["updates"] == {
+            "schedule": [{"start": "22:55", "end": "07:20", "days": [], "max_heavy": 4}]
+        }
+        assert response.json()["schedule"][0]["max_heavy"] == 4
+
+    def test_bad_schedule_hour_rejected_by_schema(self, test_client):
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"schedule": [{"start": "7:5", "end": "07:20", "max_heavy": 4}]},
+        )
+        assert response.status_code == 400
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  STORAGE-GOVERNOR read layer (P2.4 §7/1) — lying-monitor guards.

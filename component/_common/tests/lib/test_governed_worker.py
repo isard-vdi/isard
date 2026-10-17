@@ -2266,3 +2266,31 @@ def test_every_poll_enqueues_due_lane_retries(tmp_path):
     w._enqueue_due_lane_retries = lambda: polls.append(1)
     assert w.dequeue_job_and_maintain_ttl(10) is None
     assert len(polls) == 2
+
+
+# --- live config: time-of-day max_heavy profiles (governor_schedule) ---------
+
+
+def test_merge_live_config_applies_the_open_schedule_profile():
+    from datetime import datetime, timezone
+
+    block = {
+        "max_heavy": 2,
+        "schedule": [{"start": "22:55", "end": "07:20", "max_heavy": 4}],
+    }
+    night = datetime(2026, 10, 13, 3, 0, tzinfo=timezone.utc)
+    day = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    eff = gw._merge_live_config(block, _ENV, now=night)
+    assert (eff["max_heavy"], eff["max_heavy_profile"]) == (4, 0)
+    eff = gw._merge_live_config(block, _ENV, now=day)
+    assert (eff["max_heavy"], eff["max_heavy_profile"]) == (2, None)
+
+
+def test_merge_live_config_schedule_falls_back_to_env_cap():
+    # No flat max_heavy stored and no open profile: the env cap applies.
+    from datetime import datetime, timezone
+
+    block = {"schedule": [{"start": "22:55", "end": "07:20", "max_heavy": 4}]}
+    day = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    eff = gw._merge_live_config(block, _ENV, now=day)
+    assert eff["max_heavy"] == _ENV["max_heavy"]

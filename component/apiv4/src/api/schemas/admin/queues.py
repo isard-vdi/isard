@@ -121,6 +121,15 @@ class AutoDeleteEnabledResponse(BaseModel):
     enabled: bool
 
 
+class StorageSchedulerProfile(BaseModel):
+    """``max_heavy`` for ``[start, end)`` in ``schedule_tz`` on ``days`` (Mon=0, empty: all)."""
+
+    start: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+    end: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+    days: List[Annotated[int, Field(ge=0, le=6)]] = []
+    max_heavy: int = Field(ge=1, le=64)
+
+
 class StorageSchedulerConfigResponse(BaseModel):
     """Live storage-governor config (``config[1].storage_scheduler``)."""
 
@@ -135,6 +144,11 @@ class StorageSchedulerConfigResponse(BaseModel):
     category_weights: Dict[str, int] = {}
     category_max_inflight: Dict[str, int] = {}
     category_default_max_inflight: Optional[int] = None
+    # the first open entry overrides max_heavy; active_profile is its index
+    schedule: List[StorageSchedulerProfile] = []
+    schedule_tz: str = "UTC"
+    effective_max_heavy: Optional[int] = None
+    active_profile: Optional[int] = None
 
 
 class StorageSchedulerConfigRequest(BaseModel):
@@ -161,6 +175,11 @@ class StorageSchedulerConfigRequest(BaseModel):
     # ``0`` means UNCAPPED and is the only wire value that can clear the cap:
     # an omitted key keeps the stored one.
     category_default_max_inflight: Optional[int] = Field(default=None, ge=0, le=1000)
+    # replaces the stored list; [] clears it
+    schedule: Optional[List[StorageSchedulerProfile]] = Field(
+        default=None, max_length=16
+    )
+    schedule_tz: Optional[str] = Field(default=None, max_length=64)
 
 
 # =============================================================================
