@@ -115,6 +115,9 @@ def harness(monkeypatch):
 
     class FakeStorage:
         exists = staticmethod(lambda sid: True)
+        # delete_storage now consults the storage graph; these entries have no
+        # children, so the lane-gate behaviour under test is unchanged.
+        get_children = staticmethod(lambda ids, include_deleted=False: [])
 
         def __new__(cls, sid):
             return storages[sid]

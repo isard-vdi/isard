@@ -1531,6 +1531,18 @@ def uncovered_storage_children(covered_storage_ids, children):
     )
 
 
+def _entry_uncovered_storage_children(storage_ids, covered_ids):
+    """Live storage-graph children of ``storage_ids`` not covered by this
+    deletion; empty means the purge is safe for the storage graph.
+    ``include_deleted`` so a move-deleted copy that still carries a backing link
+    is still seen."""
+    children = Storage.get_children(list(storage_ids), include_deleted=True)
+    return uncovered_storage_children(
+        covered_ids,
+        [{"id": child.id, "status": child.status} for child in children],
+    )
+
+
 class RecycleBin(RethinkSharedConnection):
     id = None
     status = None
@@ -2058,6 +2070,15 @@ class RecycleBin(RethinkSharedConnection):
                         self.id,
                         len(entries_raw),
                     )
+
+                # Everything this delete removes; a child that is itself covered
+                # is going away too and must not block the purge.
+                covered_ids = {
+                    storage["id"] for entry in entries for storage in entry["storages"]
+                }
+                covered_paths = [
+                    Storage(sid).path for sid in covered_ids if Storage.exists(sid)
+                ]
                 for entry in entries:
                     start = time.time()
                     rb = RecycleBin(entry["id"])
@@ -2092,6 +2113,39 @@ class RecycleBin(RethinkSharedConnection):
                         )
                         deleted_entries.append(rb)
                     else:
+                        # Refuse to purge a base with a live storage-graph child
+                        # outside this deletion: the domain walk above cannot see
+                        # a disk-page child (parent, no domain), and unlinking the
+                        # base breaks it. Leave the entry recycled, with a reason.
+                        uncovered = _entry_uncovered_storage_children(
+                            [storage["id"] for storage in rb.storages],
+                            covered_ids,
+                        )
+                        if uncovered:
+                            log.warning(
+                                "RecycleBin %s delete_storage: refusing purge, "
+                                "%s live dependent disk(s) not in this deletion "
+                                "still depend on it: %s",
+                                rb.id,
+                                len(uncovered),
+                                ", ".join(uncovered),
+                            )
+                            Helpers.update_status(
+                                rb.id,
+                                self.owner_id,
+                                RecycleBinStatusEnum.recycled.value,
+                            )
+                            Helpers.add_log(
+                                "delete_blocked_dependents",
+                                entry["id"],
+                                self.agent_type,
+                                self.agent_id,
+                                self.agent_name,
+                                self.agent_category_id,
+                                self.agent_category_name,
+                                self.agent_role,
+                            )
+                            continue
                         # All or none: an entry only reaches ``deleted`` once every one of its
                         # storages finished, so a partial enqueue strands it in ``deleting``.
                         plans = []
@@ -2215,6 +2269,10 @@ class RecycleBin(RethinkSharedConnection):
                                         "pool_root": StoragePool.mountpoint_for_path(
                                             storage.path
                                         ),
+                                        # Worker's last-line guard: the paths this
+                                        # delete may unlink without stranding a
+                                        # live on-disk child outside the deletion.
+                                        "covered_paths": covered_paths,
                                     },
                                 },
                                 dependents=[

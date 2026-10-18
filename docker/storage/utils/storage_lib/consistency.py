@@ -109,6 +109,40 @@ def deletable_after_live_guard(deletable, disk_files, live_uuids):
     return kept, protected
 
 
+def on_disk_dependents(target_path, backing_index, covered_paths=()):
+    """Paths in ``backing_index`` whose qcow2 backing resolves to
+    ``target_path`` and are not in ``covered_paths`` (nor ``target_path``) --
+    the disks a purge would strand by unlinking the base.
+
+    Matches by the uuid in the filename first (robust to a moved/stale backing
+    pointer) and by exact path otherwise. Pure: ``backing_index`` is
+    :func:`storage_lib.qcow.build_backing_index` output, so the header reads
+    happen in the caller. An unreadable candidate is reported, never treated as
+    safe.
+
+    :return: ``(dependents, unreadable)``, both sorted.
+    :rtype: tuple(list, list)
+    """
+    target_uuid = uuid_from_path(target_path)
+    skip = set(covered_paths or ())
+    skip.add(target_path)
+    dependents, unreadable = [], []
+    for path, info in (backing_index or {}).items():
+        if path in skip:
+            continue
+        if not info.get("readable", True):
+            unreadable.append(path)
+            continue
+        backing_raw = info.get("backing_raw")
+        if not backing_raw:
+            continue
+        if backing_raw == target_path or (
+            target_uuid and info.get("backing_uuid") == target_uuid
+        ):
+            dependents.append(path)
+    return sorted(dependents), sorted(unreadable)
+
+
 def classify_storage_consistency(
     rows, disk_files, check_errors=None, deferred_jobs=None
 ):

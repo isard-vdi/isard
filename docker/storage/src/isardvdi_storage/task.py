@@ -82,6 +82,10 @@ class BackingChainUnknown(Exception):
     """The chain could not be read, which says nothing about whether it is whole."""
 
 
+class BackingInUseError(Exception):
+    """Refused: the disk still backs a live disk on disk."""
+
+
 def _unreadable_chain(storage_id, storage_path, reason):
     """Raise for RQ to retry; a chain step out of retries returns a reading without status."""
     job = get_current_job()
@@ -1535,7 +1539,7 @@ def move(
     )
 
 
-def move_delete(path, pool_root=None):
+def move_delete(path, pool_root=None, covered_paths=None):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
 
@@ -1543,8 +1547,13 @@ def move_delete(path, pool_root=None):
     :type path: str
     :param pool_root: Mountpoint of the disk's storage pool, from the caller
     :type pool_root: str
+    :param covered_paths: see :func:`delete`; a move-delete still strands a
+        child's backing, so it carries the same guard.
+    :type covered_paths: list or None
     :rtype: int
     """
+    if covered_paths is not None:
+        _refuse_if_backs_live_disks(path, covered_paths)
     if isfile(path):
         delete_path = join(dirname(path), "deleted")
         if not isdir(delete_path):
@@ -1571,6 +1580,40 @@ def _storage_qcow():
             sys.path.insert(0, "/utils")
         from storage_lib import qcow
     return qcow
+
+
+def _dependent_candidates():
+    """Every qcow2 under the pools, as a flat path list; a seam so the guard
+    test can inject a fixture instead of scanning ``/isard``."""
+    try:
+        from storage_lib.scanning import scan_isard_dirs
+    except ModuleNotFoundError:
+        import sys
+
+        if "/utils" not in sys.path:
+            sys.path.insert(0, "/utils")
+        from storage_lib.scanning import scan_isard_dirs
+    return [p for p in scan_isard_dirs() if p.endswith(".qcow2")]
+
+
+def _refuse_if_backs_live_disks(path, covered_paths):
+    """Never unlink/move a base that still backs a disk outside this deletion.
+
+    The DB-side purge refuses on a storage-graph child, but a child whose row has
+    no ``parent`` is invisible there and only the on-disk header shows it. Reads
+    headers across the pools and raises when any disk outside ``covered_paths``
+    resolves its backing to ``path`` (failing closed)."""
+    qcow = _storage_qcow()
+    from storage_lib.consistency import on_disk_dependents
+
+    index = qcow.build_backing_index(_dependent_candidates())
+    dependents, unreadable = on_disk_dependents(path, index, covered_paths or [])
+    if dependents:
+        raise BackingInUseError(
+            f"refusing to delete {path}: it still backs "
+            f"{len(dependents)} live disk(s) not part of this deletion "
+            f"(e.g. {dependents[:3]}); {len(unreadable)} candidate(s) unreadable"
+        )
 
 
 def storage_check(storage_path):
@@ -1954,7 +1997,7 @@ def _absent_on_a_live_volume(path, pool_root=None):
         return next(entries, None) is not None
 
 
-def delete(path, pool_root=None):
+def delete(path, pool_root=None, covered_paths=None):
     """
     Delete disk.
 
@@ -1962,7 +2005,14 @@ def delete(path, pool_root=None):
     :type path: str
     :param pool_root: Mountpoint of the disk's storage pool, from the caller
     :type pool_root: str
+    :param covered_paths: When not ``None`` (the recycle-bin purge), the paths
+        this pass is deleting; the worker then refuses (``BackingInUseError``) if
+        ``path`` still backs a live disk outside that set. ``None`` leaves the
+        direct-delete path (already DB-guarded) unchanged and skips the scan.
+    :type covered_paths: list or None
     """
+    if covered_paths is not None:
+        _refuse_if_backs_live_disks(path, covered_paths)
     if isfile(path):
         remove(path)
         return
