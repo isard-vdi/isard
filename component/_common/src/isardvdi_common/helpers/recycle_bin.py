@@ -66,6 +66,62 @@ _get_recycle_bin_cuttoff_time_cache: SynchronizedTTLCache = SynchronizedTTLCache
     maxsize=1, ttl=10
 )
 
+# a purge starts from recycled, and resumes from queued or deleting after a restart
+_PURGEABLE = [
+    RecycleBinStatusEnum.recycled.value,
+    RecycleBinStatusEnum.queued.value,
+    RecycleBinStatusEnum.deleting.value,
+]
+
+
+# the engine is acting on the domain; binning the row loses that action
+ENGINE_TRANSIENT_STATUSES = [
+    "Creating",
+    "CreatingDisk",
+    "CreatingAndStarting",
+    "CreatingTemplate",
+    "CreatingDomain",
+    "CreatingDomainFromDisk",
+    "CreatingDiskFromScratch",
+    "DiskNew",
+    "Starting",
+    "StartingPaused",
+    "StartingDomainDisposable",
+    "Updating",
+]
+
+
+def restored_domain(d):
+    """The domain row a restore inserts, at rest: nothing left for the engine to resume."""
+    return (
+        d.without(
+            "hardware",
+            "xml_to_start",
+            "hardware_from_xml",
+            "force_update",
+            "last_hyp_id",
+        )
+        .merge(
+            r.branch(
+                d.has_fields("parents") & r.type_of(d["parents"]).eq("ARRAY"),
+                {"parents": d["parents"].filter(lambda p: p.ne(None))},
+                {},
+            )
+        )
+        .merge(
+            r.branch(
+                r.expr(["Stopped", "Failed"]).contains(d["status"].default("")),
+                {},
+                {"status": "Stopped"},
+            )
+        )
+    )
+
+
+def _exists_now(table, item_id):
+    """Whether the row exists, read past the process cache."""
+    return Caches.get_document(table, item_id, invalidate=True) is not None
+
 
 class RecycleBinDeleteQueue(RethinkSharedConnection):
     _instance = None
@@ -122,18 +178,16 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             self._task = asyncio.create_task(self._background_worker())
 
     async def enqueue(self, item):
+        """Queue the entry's purge; False when the entry can no longer be purged."""
         recycle_bin_id = item.get("recycle_bin_id")
         if recycle_bin_id not in self.recycle_bin_ids:
             # Both helpers are sync RethinkDB writes. Offload them so
             # callers awaiting ``enqueue`` from inside an asyncio
             # request handler don't block the event loop on every
             # bulk-delete iteration.
-            await asyncio.to_thread(
-                Helpers.update_status,
-                recycle_bin_id,
-                item.get("user_id"),
-                RecycleBinStatusEnum.queued.value,
-            )
+            if not await asyncio.to_thread(Helpers.claim_for_purge, recycle_bin_id):
+                log.info(f"Recycle bin {recycle_bin_id} can no longer be purged")
+                return False
             await asyncio.to_thread(
                 Helpers.add_log,
                 "queued",
@@ -152,6 +206,7 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             log.debug(
                 f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
             )
+        return True
 
     def enqueue_sync(self, item):
         """
@@ -189,6 +244,10 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
         log.debug(f"Performing operation with user_id {user_id}")
         try:
             rb = RecycleBin(id=recycle_bin_id)
+            if rb.status == RecycleBinStatusEnum.deleted.value:
+                # the cascade of another entry in the same pass already deleted it
+                log.debug("Recycle bin %s is already deleted", recycle_bin_id)
+                return
             rb.delete_storage(user_id)
             if rb.item_type in ["user", "group", "category"]:
                 dependants_rb_ids = []
@@ -236,14 +295,20 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                 for d_rb_id in dependants_rb_ids:
                     await self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
         except Exception as e:
+            reason = e.error.get("description") if isinstance(e, Error) else str(e)
             log.error(
-                f"Error processing recycle bin {recycle_bin_id}: {str(e)}",
+                f"Error processing recycle bin {recycle_bin_id}: {reason}",
                 exc_info=True,
             )
-            # Update status back to recycled so it can be retried or manually handled
+            # Give back only the purge's own claim, so it can be retried or manually handled
             try:
-                Helpers.update_status(
-                    recycle_bin_id, user_id, RecycleBinStatusEnum.recycled.value
+                Helpers.claim_status(
+                    recycle_bin_id,
+                    [
+                        RecycleBinStatusEnum.queued.value,
+                        RecycleBinStatusEnum.deleting.value,
+                    ],
+                    RecycleBinStatusEnum.recycled.value,
                 )
             except Exception as status_error:
                 log.error(
@@ -716,18 +781,21 @@ class Helpers(RethinkSharedConnection):
 
     @classmethod
     def claim_status(cls, rb_id, expected, status):
-        """Flip the entry only while it still reads ``expected``.
+        """Flip the entry only while it still reads ``expected`` (one status or several).
 
         Returns False when another writer moved it first, so the caller can
         stop before doing work the entry is no longer entitled to.
         """
+        allowed = [expected] if isinstance(expected, str) else list(expected)
         with cls._rdb_context():
             result = (
                 r.table("recycle_bin")
                 .get(rb_id)
                 .update(
                     lambda doc: r.branch(
-                        doc["status"] == expected, {"status": status}, {}
+                        r.expr(allowed).contains(doc["status"]),
+                        {"status": status},
+                        {},
                     ),
                     return_changes=True,
                 )
@@ -735,11 +803,42 @@ class Helpers(RethinkSharedConnection):
             )
         if not result.get("replaced"):
             return False
+        cls._clear_status_caches()
+        return True
+
+    @staticmethod
+    def purge_claim():
+        """The update that takes an entry for its purge: never a restored or deleted one."""
+        return lambda doc: r.branch(
+            r.expr(_PURGEABLE).contains(doc["status"]),
+            {"status": RecycleBinStatusEnum.queued.value},
+            {},
+        )
+
+    @classmethod
+    def claim_for_purge(cls, rb_id):
+        """Take the entry for its purge; True when it is queued for it afterwards."""
+        with cls._rdb_context():
+            result = (
+                r.table("recycle_bin")
+                .get(rb_id)
+                .update(cls.purge_claim(), return_changes="always")
+                .run(cls._rdb_connection)
+            )
+        new = next(
+            (c["new_val"] for c in result.get("changes") or [] if c.get("new_val")),
+            None,
+        )
+        if result.get("replaced"):
+            cls._clear_status_caches()
+        return bool(new) and new.get("status") == RecycleBinStatusEnum.queued.value
+
+    @classmethod
+    def _clear_status_caches(cls):
         cls.clear_get_item_count_cache()
         cls.clear_get_count_cache()
         cls.clear_get_user_amount_cache()
         cls.clear_get_user_recycle_bin_ids_cache()
-        return True
 
     @classmethod
     def update_status(cls, rb_id, owner_id, status):
@@ -1345,22 +1444,6 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    def delete_dependants_recycle_bin_from_templates(cls, templates):
-        """
-        Permanent delete the recycle bin entries that contain storages that are dependant on a list of templates
-        """
-        dependent_storages = cls.get_template_dependant_recycle_bin_entries(
-            templates, "parents"
-        ) + cls.get_template_dependant_recycle_bin_entries(
-            templates, "duplicate_parent_template"
-        )
-        unique_rcb_templates = list(
-            {rcb["id"]: rcb for rcb in dependent_storages}.values()
-        )
-        for rcb in unique_rcb_templates:
-            RecycleBin(rcb["id"]).delete_storage(rcb["agent_id"])
-
-    @classmethod
     def delete_items_from_migration_exceptions(cls, item_id, kind):
         with cls._rdb_context():
             # Delete exemption for this item
@@ -1688,17 +1771,13 @@ class RecycleBin(RethinkSharedConnection):
         )
         users_in_entry = set([user["id"] for user in self.users])
         for user, username in users_to_check:
-            if user not in users_in_entry:
-                try:
-                    CommonHelpers.itemExists("users", user)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. User "{str(username)}" has been deleted and owns items in this entry.',
-                            description_code="unable_to_restore_user",
-                            params={"user": username},
-                        )
+            if user not in users_in_entry and not _exists_now("users", user):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. User "{str(username)}" has been deleted and owns items in this entry.',
+                    description_code="unable_to_restore_user",
+                    params={"user": username},
+                )
 
         ## Check if any item has associated deleted cateogry
         categories_to_check = set(
@@ -1707,31 +1786,25 @@ class RecycleBin(RethinkSharedConnection):
         )
         categories_in_entry = set([category["id"] for category in self.categories])
         for category in categories_to_check:
-            if category not in categories_in_entry:
-                try:
-                    CommonHelpers.itemExists("categories", category)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. Category "{str(category)}" has been deleted is associated to items in this entry.',
-                            description_code="unable_to_restore_category",
-                        )
+            if category not in categories_in_entry and not _exists_now(
+                "categories", category
+            ):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. Category "{str(category)}" has been deleted is associated to items in this entry.',
+                    description_code="unable_to_restore_category",
+                )
 
         ## Check if any item has associated deleted group
         groups_to_check = set([user["group"] for user in self.users])
         groups_in_entry = set([group["id"] for group in self.groups])
         for group in groups_to_check:
-            if group not in groups_in_entry:
-                try:
-                    CommonHelpers.itemExists("groups", group)
-                except Error as e:
-                    if e.status_code == 404:
-                        raise Error(
-                            "not_found",
-                            f'Can\'t restore. Group "{str(group)}" has been deleted and is associated to items in this entry.',
-                            description_code="unable_to_restore_group",
-                        )
+            if group not in groups_in_entry and not _exists_now("groups", group):
+                raise Error(
+                    "not_found",
+                    f'Can\'t restore. Group "{str(group)}" has been deleted and is associated to items in this entry.',
+                    description_code="unable_to_restore_group",
+                )
 
         if self.item_type not in ["user", "group", "category"]:
             ## Check quotas
@@ -1839,7 +1912,17 @@ class RecycleBin(RethinkSharedConnection):
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
-        # The check above is a snapshot; only the server can see the row move.
+        if self.item_type != "user" and not _exists_now("users", self.owner_id):
+            raise Error(
+                "not_found",
+                f"Can't restore entry. User "
+                + str(self.owner_name)
+                + " has been deleted.",
+                description_code="unable_to_restore_user",
+                params={"user": str(self.owner_name)},
+            )
+        self.check_can_restore()
+        # The status read first is a snapshot; only the server can see the row move.
         if not Helpers.claim_status(
             self.id,
             RecycleBinStatusEnum.recycled.value,
@@ -1849,19 +1932,6 @@ class RecycleBin(RethinkSharedConnection):
                 "precondition_required",
                 "Entry is no longer restorable",
             )
-        if self.item_type != "user":
-            try:
-                CommonHelpers.itemExists("users", self.owner_id)
-            except Exception:
-                raise Error(
-                    "not_found",
-                    f"Can't restore entry. User "
-                    + str(self.owner_name)
-                    + " has been deleted.",
-                    description_code="unable_to_restore_user",
-                    params={"user": str(self.owner_name)},
-                )
-        self.check_can_restore()
 
         with self._rdb_context():
             r.table("users").insert(self.users).run(self._rdb_connection)
@@ -1894,27 +1964,11 @@ class RecycleBin(RethinkSharedConnection):
             self.agent_category_name,
             self.agent_role,
         )
-        # Remove None entries from parents to avoid corrupted domains on restore
         with self._rdb_context():
             docs = self.desktops + self.templates
-            r.table("domains").insert(
-                r.expr(docs).map(
-                    lambda d: d.without(
-                        "hardware",
-                        "xml_to_start",
-                        "hardware_from_xml",
-                        "force_update",
-                        "last_hyp_id",
-                    ).merge(
-                        r.branch(
-                            d.has_fields("parents")
-                            & r.type_of(d["parents"]).eq("ARRAY"),
-                            {"parents": d["parents"].filter(lambda p: p.ne(None))},
-                            {},
-                        )
-                    )
-                )
-            ).run(self._rdb_connection)
+            r.table("domains").insert(r.expr(docs).map(restored_domain)).run(
+                self._rdb_connection
+            )
         with self._rdb_context():
             r.table("targets").insert(self.targets).run(self._rdb_connection)
         with self._rdb_context():
@@ -1951,6 +2005,7 @@ class RecycleBin(RethinkSharedConnection):
 
         start = absolute_start = time.time()
         tasks = []
+        deleted_entries = []
 
         self._update_agent(user_id)
         log.debug(
@@ -1969,6 +2024,7 @@ class RecycleBin(RethinkSharedConnection):
                 self.id,
                 time.time() - start,
             )
+            deleted_entries.append(self)
         else:
             try:
                 start = time.time()
@@ -2034,6 +2090,7 @@ class RecycleBin(RethinkSharedConnection):
                             rb.id,
                             time.time() - start,
                         )
+                        deleted_entries.append(rb)
                     else:
                         # All or none: an entry only reaches ``deleted`` once every one of its
                         # storages finished, so a partial enqueue strands it in ``deleting``.
@@ -2104,6 +2161,7 @@ class RecycleBin(RethinkSharedConnection):
                             rb.id,
                             time.time() - start,
                         )
+                        deleted_entries.append(rb)
                         start = time.time()
                         Helpers.add_log(
                             "deleting",
@@ -2270,31 +2328,36 @@ class RecycleBin(RethinkSharedConnection):
                     traceback.format_exc(),
                 )
 
-        if self.categories:
-            start = time.time()
-            groups = [group["id"] for group in self.groups]
-            UserStorage.isard_user_storage_remove_categories(self.categories, groups)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed categories in %s seconds",
-                self.id,
-                time.time() - start,
-            )
-        elif self.groups:
-            start = time.time()
-            UserStorage.isard_user_storage_remove_groups(self.groups)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed groups in %s seconds",
-                self.id,
-                time.time() - start,
-            )
-        elif self.users:
-            start = time.time()
-            UserStorage.isard_user_storage_remove_users(self.users)
-            log.debug(
-                "RecycleBin %s delete_storage: Removed users in %s seconds",
-                self.id,
-                time.time() - start,
-            )
+        # The guard at the top of this method refuses an adopted dependant for
+        # good, so this loop is the only chance to take its personal unit down.
+        for entry_rb in deleted_entries:
+            if entry_rb.categories:
+                start = time.time()
+                groups = [group["id"] for group in entry_rb.groups]
+                UserStorage.isard_user_storage_remove_categories(
+                    entry_rb.categories, groups
+                )
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed categories in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
+            elif entry_rb.groups:
+                start = time.time()
+                UserStorage.isard_user_storage_remove_groups(entry_rb.groups)
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed groups in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
+            elif entry_rb.users:
+                start = time.time()
+                UserStorage.isard_user_storage_remove_users(entry_rb.users)
+                log.debug(
+                    "RecycleBin %s delete_storage: Removed users in %s seconds",
+                    entry_rb.id,
+                    time.time() - start,
+                )
 
         log.debug(
             "RecycleBin %s delete_storage: Finished in %s seconds",

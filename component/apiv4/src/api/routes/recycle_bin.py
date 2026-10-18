@@ -368,6 +368,7 @@ async def bulk_delete_recycle_bin(request: Request, data: RecycleBinBulkRequest)
     responses={
         202: {"model": DeleteResponse},
         404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
