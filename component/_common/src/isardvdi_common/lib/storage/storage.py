@@ -75,6 +75,145 @@ class StorageProcessed(RethinkSharedConnection):
         return findings
 
     @classmethod
+    def scan_pools(cls, *, priority="interactive", deadline=300, user_id="admin"):
+        """Fan the read-only ``scan_backing_index`` worker out to every enabled
+        pool and merge the header index it returns.
+
+        Returns ``(index, ok, failed)``. ``ok`` is False -- and the on-disk
+        levels must be treated as inconclusive -- when any pool had no live lane
+        consumer, failed, or did not finish within ``deadline`` (fail closed, so
+        an absent file is never read off a half scan).
+        """
+        from time import monotonic, sleep
+
+        from isardvdi_common.lib import queue_coverage, queue_tiers
+        from isardvdi_common.models.storage_pool import StoragePool
+        from isardvdi_common.models.task import Task
+
+        tier = queue_tiers.normalize_tier(priority, "scan_backing_index")
+        pending, failed, merged = {}, [], {}
+        for pool in StoragePool.get_all():
+            if getattr(pool, "enabled", True) is False:
+                continue
+            queue = f"storage.{pool.id}.{tier}"
+            decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+            if decision == "reject":
+                failed.append({"pool": pool.id, "reason": ctx.get("reason")})
+                continue
+            try:
+                pending[pool.id] = Task(
+                    task="scan_backing_index",
+                    queue=queue,
+                    user_id=user_id,
+                    job_kwargs={"kwargs": {"pool_paths": [pool.mountpoint]}},
+                ).id
+            except Exception:
+                failed.append({"pool": pool.id, "reason": "enqueue_failed"})
+        end = monotonic() + deadline
+        while pending and monotonic() < end:
+            for pool_id, task_id in list(pending.items()):
+                if not Task.exists(task_id):
+                    failed.append({"pool": pool_id, "reason": "task_gone"})
+                    pending.pop(pool_id)
+                    continue
+                task = Task(task_id)
+                status = task.job_status
+                if status == "finished":
+                    merged.update((task.result or {}).get("index") or {})
+                    pending.pop(pool_id)
+                elif status in ("failed", "stopped", "canceled"):
+                    failed.append({"pool": pool_id, "reason": "task_" + status})
+                    pending.pop(pool_id)
+            if pending:
+                sleep(0.5)
+        for pool_id in pending:
+            failed.append({"pool": pool_id, "reason": "timeout"})
+        return merged, not failed, failed
+
+    @classmethod
+    def run_integrity_detection(cls, *, flag=True, scan_priority="interactive"):
+        """Full read-only integrity pass: L0 coherence + L1/L2/L3 on-disk.
+
+        Records findings in ``pending_actions`` and opens no file, writes no
+        status and creates no row. The on-disk levels run only when the whole
+        estate scanned (``ok``), so an incomplete scan never flags a file as
+        missing. The L1 check is limited to rows whose file sits under a scanned
+        pool, so a disk in an unscanned pool is never called absent.
+        """
+        from isardvdi_common.lib.storage import integrity
+        from isardvdi_common.lib.storage.dependents import uuid_from_path
+        from isardvdi_common.models.storage_pool import StoragePool
+
+        with cls._rdb_context():
+            raw = list(
+                r.table(cls._rdb_table)
+                .pluck("id", "status", "user_id", "directory_path", "type")
+                .run(cls._rdb_connection)
+            )
+            live_user_ids = set(
+                r.table("users").get_field("id").run(cls._rdb_connection)
+            )
+        rows = [
+            {
+                "id": row["id"],
+                "status": row.get("status"),
+                "user_id": row.get("user_id"),
+                "path": f"{row.get('directory_path')}/{row['id']}.{row.get('type', 'qcow2')}",
+            }
+            for row in raw
+            if row.get("directory_path")
+        ]
+        findings = list(
+            integrity.detect_coherence(
+                rows,
+                live_user_ids=live_user_ids,
+                storages_used_by_live_domains=set(),
+            )
+        )
+        index, ok, failed = cls.scan_pools(priority=scan_priority)
+        if ok:
+            roots = [
+                p.mountpoint
+                for p in StoragePool.get_all()
+                if getattr(p, "enabled", True) is not False
+            ]
+            in_pool = [
+                row
+                for row in rows
+                if any(row["path"].startswith(root) for root in roots)
+            ]
+            present = [row for row in in_pool if row["path"] in index]
+            gone = [
+                (row["id"], row["path"])
+                for row in rows
+                if row["status"] in integrity.GONE_STATUSES
+            ]
+            live_uuids = {
+                uuid_from_path(row["path"])
+                for row in rows
+                if row["status"] not in integrity.GONE_STATUSES
+            }
+            findings += integrity.detect_missing_file(in_pool, index)
+            findings += integrity.detect_broken_chain(present, index)
+            findings += integrity.detect_on_disk_dependents(
+                gone, index, live_uuids=live_uuids
+            )
+        if flag:
+            for storage_id, action, detail in findings:
+                Storage.flag_pending(
+                    storage_id,
+                    action,
+                    found_by="the integrity detection pass",
+                    detail=detail,
+                )
+        return {
+            "findings": findings,
+            "scan_ok": ok,
+            "failed_pools": failed,
+            "scanned": len(index),
+        }
+
+    @classmethod
     def enqueue_running_desktops_size_refresh(cls, statuses=None):
         """Enqueue a qemu-img-info refresh for the disks of running desktops.
 
