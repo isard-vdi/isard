@@ -245,6 +245,11 @@ def cascade(monkeypatch):
 
     class FakeStorage:
         exists = staticmethod(lambda sid: True)
+        # Default: the base has no children in the storage graph. The
+        # dependents-guard tests below override this per test. Having it here
+        # (returning []) keeps every existing cascade test green once
+        # ``delete_storage`` starts consulting the storage graph.
+        get_children = staticmethod(lambda ids, include_deleted=False: [])
 
         def __new__(cls, sid):
             return storages[sid]
@@ -486,3 +491,90 @@ class TestCascadeCarriesTheUserStorageRemoval:
 
         assert exc.value.status_code == 500
         assert _removed_users(events) == []
+
+
+class _Child:
+    """A storage-graph child row, as ``Storage.get_children`` returns it."""
+
+    def __init__(self, cid, status="ready", path=None):
+        self.id = cid
+        self.status = status
+        self.path = path or f"/pool/{cid}.qcow2"
+
+
+def _queued(events):
+    return [e for e in events if e[0] == "task"]
+
+
+class TestDeleteStorageRefusesLiveStorageGraphDependents:
+    """The recycle-bin purge decides what to drag along over the DOMAIN graph
+    (``dependent_storages``) and then unlinks STORAGE files.
+    A disk can have a child in the STORAGE graph with no domain of its own (the
+    disks page posts a parent and no domain), invisible to the domain walk. The
+    purge then unlinks the file that child reads through.
+
+    These drive the REAL ``delete_storage`` over the real cascade — not the
+    isolated ``uncovered_storage_children`` helper, which nothing in production
+    called. Red on ``main``: ``main`` queues the delete regardless of the
+    storage-graph child, so the base's qcow2 is unlinked under a live child.
+    """
+
+    def test_a_live_uncovered_child_defers_the_entry_instead_of_purging(self, cascade):
+        mod, events, rb, tables, lane = cascade
+        tables["recycle_bin"] = []  # single entry, no domain-graph dependents
+        # ``s-self`` (the base being purged) still has a live child that is NOT
+        # itself in this deletion — exactly the derived desktop/disk that keeps
+        # reading through the base.
+        mod.Storage.get_children = staticmethod(
+            lambda ids, include_deleted=False: (
+                [_Child("c-live", "ready")] if "s-self" in ids else []
+            )
+        )
+
+        rb.delete_storage("agent-user")
+
+        # No delete task was ever enqueued: the base file is never targeted.
+        assert _queued(events) == []
+        assert ("deleting", "rb-self") not in events
+        assert ("deleted", "rb-self") not in events
+        # It is left recycled (pending), the state a normal delete re-drives,
+        # with a visible reason — never silently dropped.
+        assert ("recycled", "rb-self") in events
+
+    def test_a_child_that_is_part_of_the_deletion_does_not_block(self, cascade):
+        """The legitimate cascade: the child is itself being deleted (covered),
+        so the purge must proceed — otherwise nothing with derivatives could
+        ever be emptied."""
+        mod, events, rb, tables, lane = cascade
+        tables["recycle_bin"] = []
+        # The only child of the base is ``s-self``'s own deletion set member.
+        mod.Storage.get_children = staticmethod(
+            lambda ids, include_deleted=False: (
+                [_Child("s-self", "ready")] if "s-self" in ids else []
+            )
+        )
+
+        rb.delete_storage("agent-user")
+
+        assert _queued(events) == [("task", "rb-self")]
+        assert ("deleting", "rb-self") in events
+
+    def test_a_deleted_or_recycled_child_does_not_block(self, cascade):
+        """A child already going away (``deleted``/``recycled``) is not a live
+        dependant; it must not deadlock the purge."""
+        mod, events, rb, tables, lane = cascade
+        tables["recycle_bin"] = []
+        mod.Storage.get_children = staticmethod(
+            lambda ids, include_deleted=False: (
+                [
+                    _Child("gone", "deleted"),
+                    _Child("also-going", "recycled"),
+                ]
+                if "s-self" in ids
+                else []
+            )
+        )
+
+        rb.delete_storage("agent-user")
+
+        assert _queued(events) == [("task", "rb-self")]
