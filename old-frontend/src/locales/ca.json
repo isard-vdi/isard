@@ -211,7 +211,8 @@
         "viewer-token-error": "És necessari tornar a obrir el visor per connectar-se correctament",
         "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat",
         "retrying": "Reintent {retry} de {maxRetries}",
-        "rdp-not-running": "El servei RDP a l'escriptori no existeix o no està en execució",
+        "rdp-not-running": "L'escriptori no accepta connexions RDP. Pot ser que encara s'estigui iniciant, o que el seu servei RDP estigui aturat o refusi la connexió. Torna-ho a provar d'aquí a un moment o fes servir un altre visor.",
+        "rdp-auth-failed": "L'escriptori ha refusat les credencials RDP que té desades. Actualitza-les a la configuració de l'escriptori perquè coincideixin amb l'usuari de dins de l'escriptori.",
         "desktop-stopped": "L'escriptori s'ha aturat. Torna'l a iniciar per tornar a connectar."
       },
       "title": {
@@ -220,7 +221,8 @@
         "unstable": "Inestable",
         "error": "Error",
         "retrying": "Esperant a que l'RDP de l'escriptori estigui disponible",
-        "rdp-not-running": "El servei RDP no està en execució",
+        "rdp-not-running": "L'escriptori no accepta l'RDP",
+        "rdp-auth-failed": "Credencials RDP refusades",
         "desktop-stopped": "Escriptori aturat"
       },
       "buttons": {
