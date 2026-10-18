@@ -84,9 +84,13 @@ const dismissTooltip = () => {
 // A refused guest shows a warning, not a spinner: waiting won't fix it.
 const viewerIcon = (viewer: Viewer) => {
   if (viewer.tone === 'error') return 'alert-circle'
+  if (viewer.tone === 'warn') return 'alert-triangle'
   if (viewer.loading) return 'loading-02'
   return ''
 }
+
+// The RDP readiness tone keys the left-to-right background fill.
+const progressTone = (viewer: Viewer) => `viewer-progress--${viewer.tone || 'wait'}`
 
 const selectViewer = (viewer: Viewer) => {
   // A blocked viewer with a status stays tappable so touch screens, where the
@@ -117,7 +121,7 @@ const selectViewer = (viewer: Viewer) => {
         <Button
           :class="
             cn(
-              'min-w-0 overflow-hidden',
+              'relative isolate min-w-0 overflow-hidden',
               props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs',
               selectedViewer.loading && selectedViewer.status && 'opacity-60 cursor-not-allowed'
             )
@@ -126,15 +130,30 @@ const selectViewer = (viewer: Viewer) => {
           :icon="viewerIcon(selectedViewer)"
           :icon-size="props.dense ? 'xs' : undefined"
           :icon-class="
-            selectedViewer.loading && selectedViewer.tone !== 'error'
-              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
-              : ''
+            cn(
+              'relative z-10',
+              selectedViewer.loading &&
+                selectedViewer.tone !== 'error' &&
+                selectedViewer.tone !== 'warn' &&
+                'motion-safe:animate-[spin_2s_linear_infinite]'
+            )
           "
           :disabled="selectedViewer.loading && !selectedViewer.status"
           :aria-disabled="selectedViewer.loading ? 'true' : undefined"
           :data-viewer-status="selectedViewer.status ? selectedViewer.tone || 'info' : undefined"
           @click="selectViewer(selectedViewer)"
-          ><span class="min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
+          ><span
+            v-if="selectedViewer.progress !== undefined"
+            class="viewer-progress"
+            :class="progressTone(selectedViewer)"
+            :style="{ width: selectedViewer.progress + '%' }"
+            role="progressbar"
+            :aria-valuenow="selectedViewer.progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuetext="selectedViewer.status"
+            :aria-label="selectedViewer.status"
+          /><span class="relative z-10 min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
         >
       </TooltipTrigger>
       <TooltipContent
@@ -214,3 +233,28 @@ const selectViewer = (viewer: Viewer) => {
     </template>
   </ButtonGroup>
 </template>
+
+<style scoped>
+/* Left-to-right readiness fill behind the viewer label. Tone colours are
+   translucent so they read on the button's own background in both themes. */
+.viewer-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+.viewer-progress--wait {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+.viewer-progress--warn {
+  background-color: rgba(251, 191, 36, 0.45);
+}
+.viewer-progress--error {
+  background-color: rgba(248, 113, 113, 0.42);
+}
+.viewer-progress--info {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+</style>

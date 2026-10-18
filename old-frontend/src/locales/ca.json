@@ -123,9 +123,10 @@
       "rdp": {
         "pending": "RDP: esperant el servei RDP de l'escriptori",
         "waiting": "RDP: esperant el servei RDP de l'escriptori",
+        "verifying": "RDP: verificant les credencials",
         "refused": "RDP: l'escriptori refusa la connexió: {reason}",
         "auth_failed": "RDP: les credencials desades no són vàlides a l'escriptori. Actualitza-les a la configuració de l'escriptori",
-        "unverified": "RDP: disponible (no s'han pogut verificar les credencials)",
+        "unverified": "RDP: disponible, credencials sense verificar — pots connectar",
         "ready": "RDP: llest",
         "last_failed": "RDP: l'última connexió ha fallat",
         "waiting_ip": "RDP: esperant que l'escriptori tingui IP",

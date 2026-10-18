@@ -1627,9 +1627,10 @@
         "rdp": {
           "pending": "Esperant el servei RDP",
           "waiting": "Esperant el servei RDP",
+          "verifying": "Verificant les credencials RDP",
           "refused": "L'escriptori refusa l'RDP: {reason}",
           "auth_failed": "Les credencials RDP desades no són vàlides a l'escriptori",
-          "unverified": "No s'han pogut verificar les credencials RDP",
+          "unverified": "RDP disponible, credencials sense verificar — pots connectar",
           "last_failed": "L'última connexió RDP ha fallat",
           "waiting_ip": "Esperant que l'escriptori tingui IP",
           "reason": {

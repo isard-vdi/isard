@@ -427,9 +427,10 @@
       "rdp": {
         "pending": "RDP: esperando el servicio RDP del escritorio",
         "waiting": "RDP: esperando el servicio RDP del escritorio",
+        "verifying": "RDP: verificando las credenciales",
         "refused": "RDP: el escritorio rechaza la conexión: {reason}",
         "auth_failed": "RDP: las credenciales guardadas no son válidas en el escritorio. Actualízalas en la configuración del escritorio",
-        "unverified": "RDP: disponible (no se han podido verificar las credenciales)",
+        "unverified": "RDP: disponible, credenciales sin verificar — puedes conectar",
         "ready": "RDP: listo",
         "last_failed": "RDP: la última conexión ha fallado",
         "waiting_ip": "RDP: esperando a que el escritorio tenga IP",

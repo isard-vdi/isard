@@ -163,7 +163,13 @@ export class DesktopUtils {
   // click/tap) instead of adding lines to the card. ``blocked`` mirrors the
   // server: only admins and managers may open an RDP that is not verified.
   static get RDP_STATES () {
-    return ['pending', 'waiting', 'refused', 'auth_failed', 'unverified']
+    return ['pending', 'waiting', 'verifying', 'refused', 'auth_failed', 'unverified']
+  }
+
+  // How far the readiness check has advanced, so the button background fills
+  // left to right. A blocking step stops short; an open viewer is full.
+  static get RDP_PROGRESS () {
+    return { pending: 25, waiting: 50, refused: 50, verifying: 80, auth_failed: 80, unverified: 100, ready: 100 }
   }
 
   // The vpn writes the reason as an internal code: the user gets a translated
@@ -189,10 +195,10 @@ export class DesktopUtils {
   static rdpViewerState (desktop, roleId) {
     const state = ((desktop && desktop.state) || '').toLowerCase()
     if (state === desktopStates.waitingip) {
-      return { blocked: true, error: false, text: i18n.t('components.desktop-cards.rdp.waiting_ip') }
+      return { blocked: true, error: false, warn: false, text: i18n.t('components.desktop-cards.rdp.waiting_ip'), progress: 10 }
     }
     if (state !== desktopStates.started || !desktop.rdp) {
-      return { blocked: false, error: false, text: '' }
+      return { blocked: false, error: false, warn: false, text: '', progress: undefined }
     }
     const rdp = desktop.rdp
     const pending = !DesktopUtils.rdpReady(desktop)
@@ -207,10 +213,15 @@ export class DesktopUtils {
     } else if (rdp.state !== 'ready') {
       text = DesktopUtils.RDP_STATES.includes(rdp.state) ? i18n.t(`components.desktop-cards.rdp.${rdp.state}`, { reason: DesktopUtils.rdpReason(rdp.reason) }) : ''
     }
+    const error = ['refused', 'auth_failed'].includes(rdp.state) || lastFailed
+    // ``unverified`` opens with a warning, never a hard block (a failed probe must not cut service).
+    const warn = !error && rdp.state === 'unverified'
     return {
       blocked: pending && !['admin', 'manager'].includes(roleId),
-      error: ['refused', 'auth_failed'].includes(rdp.state) || lastFailed,
-      text
+      error,
+      warn,
+      text,
+      progress: text ? (DesktopUtils.RDP_PROGRESS[rdp.state] !== undefined ? DesktopUtils.RDP_PROGRESS[rdp.state] : (pending ? 50 : 100)) : undefined
     }
   }
 

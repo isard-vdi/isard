@@ -38,10 +38,31 @@ describe('rdpViewerEntry', () => {
     ).toMatchObject({ loading: true, status: 'auth_failed', tone: 'error' })
   })
 
-  it('opens an unverified RDP with an informative status', () => {
+  it('opens an unverified RDP with a warning, never a block (a failed probe must not cut the service)', () => {
     expect(
       rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'unverified' }, false, t)
-    ).toMatchObject({ loading: false, status: 'unverified', tone: 'info' })
+    ).toMatchObject({ loading: false, status: 'unverified', tone: 'warn', progress: 100 })
+  })
+
+  it('shows "credentials not verified" as a blocking step while the check runs', () => {
+    expect(
+      rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'verifying' }, false, t)
+    ).toMatchObject({ loading: true, status: 'verifying', tone: 'wait', progress: 80 })
+    // an admin/manager may bypass the block but still sees the step
+    expect(rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'verifying' }, true, t)).toMatchObject(
+      { loading: false, status: 'verifying', tone: 'wait', progress: 80 }
+    )
+  })
+
+  it('fills the button background left to right as the check advances', () => {
+    const progress = (ip: string | null, state?: string) =>
+      rdpViewerEntry('file-rdpgw', ip, state ? { state } : null, false, t).progress
+    expect(progress(null)).toBe(10) // waiting for IP
+    expect(progress('10.2.0.5', 'pending')).toBe(25)
+    expect(progress('10.2.0.5', 'waiting')).toBe(50)
+    expect(progress('10.2.0.5', 'verifying')).toBe(80)
+    expect(progress('10.2.0.5', 'ready')).toBeUndefined() // ready: plain active button
+    expect(progress('10.2.0.5', 'unverified')).toBe(100)
   })
 
   it('opens a ready RDP with no status, and flags a failed last connection', () => {

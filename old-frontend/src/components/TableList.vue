@@ -134,7 +134,9 @@
                     :spinner-active="waitingIp"
                     :blocked="viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).blocked && !!rdpView(data.item).text"
                     :tooltip="viewerNeedsIp(data.item.viewers[0]) ? rdpView(data.item).text : ''"
-                    :icon-name="viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).error ? 'exclamation-triangle-fill' : undefined"
+                    :icon-name="viewerNeedsIp(data.item.viewers[0]) ? rdpIcon(data.item) : undefined"
+                    :progress="viewerNeedsIp(data.item.viewers[0]) ? rdpView(data.item).progress : undefined"
+                    :progress-tone="rdpTone(data.item)"
                     @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})"
                     @blockedClicked="notifyRdpStep(data.item)"
                   />
@@ -152,6 +154,9 @@
                     :waiting-ip="(data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip) || rdpView(data.item).blocked"
                     :status-text="rdpView(data.item).text"
                     :status-error="rdpView(data.item).error"
+                    :status-warn="rdpView(data.item).warn"
+                    :status-progress="rdpView(data.item).progress"
+                    :status-tone="rdpTone(data.item)"
                     @dropdownClicked="openDesktop"
                     @notifyWaitingIp="notifyRdpStep(data.item)"
                   />
@@ -577,6 +582,16 @@ export default {
     },
     rdpView (desktop) {
       return DesktopUtils.rdpViewerState(desktop, this.getUser.role_id)
+    },
+    rdpTone (desktop) {
+      const view = this.rdpView(desktop)
+      return view.error ? 'error' : (view.warn ? 'warn' : 'wait')
+    },
+    rdpIcon (desktop) {
+      const view = this.rdpView(desktop)
+      if (view.error) return 'exclamation-triangle-fill'
+      if (view.warn) return 'exclamation-triangle'
+      return undefined
     },
     viewerNeedsIp (viewer) {
       return DesktopUtils.viewerNeedsIp(viewer)

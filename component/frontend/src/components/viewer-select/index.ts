@@ -8,7 +8,9 @@ export interface Viewer {
   // step the desktop is in). Shown as the button tooltip and, on touch, as a
   // toast when the button is tapped, so the card never grows to show it.
   status?: string
-  // 'error' marks a viewer the guest refused: the button shows a warning icon
-  tone?: 'wait' | 'error' | 'info'
+  // 'warn' may be opened with a caveat (RDP unverifiable), 'error' the guest refused.
+  tone?: 'wait' | 'warn' | 'error' | 'info'
+  // 0-100 while a step is shown, so the button fills left to right; absent when ready.
+  progress?: number
   // TODO: should you pass loading for each viewer, or should the component manage it based on a global loading prop?
 }

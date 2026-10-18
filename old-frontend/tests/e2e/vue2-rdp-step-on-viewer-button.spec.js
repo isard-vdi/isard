@@ -46,6 +46,7 @@ test.describe('Vue 2 RDP step on the viewer button', () => {
     for (const [name, rdp] of Object.entries({
       none: null,
       waiting: { state: 'waiting' },
+      verifying: { state: 'verifying' },
       refused: { state: 'refused', reason: 'ssl_not_allowed_by_server' },
       unverified: { state: 'unverified' },
       lastFailed: { state: 'ready', last: { connected: false, result: 'auth_failed' } }
@@ -55,6 +56,36 @@ test.describe('Vue 2 RDP step on the viewer button', () => {
       await page.unroute('**/item/user/desktops')
     }
     expect(new Set(Object.values(heights)).size, JSON.stringify(heights)).toBe(1)
+  })
+
+  test('the button background fills further as the check advances', async ({ page, login }) => {
+    const widthFor = async (rdp) => {
+      const card = await cardFor(page, rdp)
+      const bar = card.locator('.rdp-progress').first()
+      await expect(bar).toBeVisible()
+      const width = await bar.evaluate((el) => el.style.width)
+      await page.unroute('**/item/user/desktops')
+      return parseInt(width, 10)
+    }
+    const waiting = await widthFor({ state: 'waiting' })
+    const verifying = await widthFor({ state: 'verifying' })
+    const unverified = await widthFor({ state: 'unverified' })
+    // IP -> RDP service -> credentials -> open: the fill only grows.
+    expect(waiting).toBeLessThan(verifying)
+    expect(verifying).toBeLessThan(unverified)
+    expect(unverified).toBe(100)
+  })
+
+  test('"credentials not verified" is a blocking step, shown on the button', async ({
+    page,
+    login
+  }) => {
+    const card = await cardFor(page, { state: 'verifying' })
+    // the default RDP button is not clickable while verifying
+    await expect(card.locator('.dropdown-toggle, .b-dropdown').first()).toBeVisible()
+    await card.locator('.dropdown-default-text').hover()
+    await expect(page.locator('.tooltip')).toContainText(/verif/i)
+    await expect(card).not.toContainText(/verif/i)
   })
 
   test('the step is the tooltip of the RDP button', async ({ page, login }) => {

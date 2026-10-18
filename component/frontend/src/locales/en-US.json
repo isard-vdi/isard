@@ -2326,9 +2326,10 @@
         "rdp": {
           "pending": "Waiting for the RDP service",
           "waiting": "Waiting for the RDP service",
+          "verifying": "Verifying the RDP credentials",
           "refused": "The desktop refuses RDP: {reason}",
           "auth_failed": "The stored RDP credentials are not valid in the desktop",
-          "unverified": "RDP credentials not verifiable",
+          "unverified": "RDP available, credentials not verified — you may connect",
           "last_failed": "The last RDP connection failed",
           "waiting_ip": "Waiting for the desktop to get an IP",
           "reason": {

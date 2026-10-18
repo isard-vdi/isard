@@ -295,7 +295,9 @@
               :spinner-active="waitingIp || (singleViewerNeedsIp && rdpBlocked && !rdpFailed)"
               :blocked="singleViewerNeedsIp && !!rdpStepText && (waitingIp || rdpBlocked)"
               :tooltip="singleViewerNeedsIp ? rdpStepText : ''"
-              :icon-name="singleViewerNeedsIp && rdpFailed ? 'exclamation-triangle-fill' : undefined"
+              :icon-name="singleViewerNeedsIp ? rdpIcon : undefined"
+              :progress="singleViewerNeedsIp ? rdpProgress : undefined"
+              :progress-tone="rdpTone"
               @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
               @blockedClicked="notifyRdpStep(rdpStepText)"
             />
@@ -313,6 +315,9 @@
               :waiting-ip="waitingIp || rdpBlocked"
               :status-text="rdpStepText"
               :status-error="rdpFailed"
+              :status-warn="rdpWarn"
+              :status-progress="rdpProgress"
+              :status-tone="rdpTone"
               @dropdownClicked="openDesktop"
               @notifyWaitingIp="waitingIp ? notifyWaitingIp() : notifyRdpStep(rdpStepText)"
             />
@@ -505,8 +510,22 @@ export default {
     rdpFailed () {
       return this.rdpView.error
     },
+    rdpWarn () {
+      return this.rdpView.warn
+    },
     rdpStepText () {
       return this.rdpView.text
+    },
+    rdpProgress () {
+      return this.rdpView.progress
+    },
+    rdpTone () {
+      return this.rdpView.error ? 'error' : (this.rdpView.warn ? 'warn' : 'wait')
+    },
+    rdpIcon () {
+      if (this.rdpView.error) return 'exclamation-triangle-fill'
+      if (this.rdpView.warn) return 'exclamation-triangle'
+      return undefined
     },
     showDropDown () {
       return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)
