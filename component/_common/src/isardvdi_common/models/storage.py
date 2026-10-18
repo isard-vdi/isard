@@ -1101,6 +1101,7 @@ class Storage(RethinkCustomBase):
         retry=3,
         priority="background",
         release_maintenance=False,
+        update_parent=False,
     ):
         """
         Create a task to check the storage.
@@ -1119,6 +1120,8 @@ class Storage(RethinkCustomBase):
         :param release_maintenance: The row's own chain is dead and this check
             is what brings it out of ``maintenance``
         :type release_maintenance: bool
+        :param update_parent: Also set ``parent`` from the backing the check reads
+        :type update_parent: bool
         :return: Task ID
         :rtype: str
         """
@@ -1126,6 +1129,14 @@ class Storage(RethinkCustomBase):
         update = {"queue": "core", "task": "storage_update"}
         if not release_maintenance:
             update["job_kwargs"] = {"kwargs": {"observer": True}}
+        if update_parent:
+            update["dependents"] = [
+                {
+                    "queue": "core",
+                    "task": "storage_update_parent",
+                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                }
+            ]
         return self.create_task(
             blocking=blocking,
             user_id=user_id,
@@ -1598,6 +1609,20 @@ class Storage(RethinkCustomBase):
         :param priority: Priority
         :type priority: str
         """
+        from isardvdi_common.helpers.error_factory import Error
+
+        if "w" not in (self.perms or []):
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} is read-only; not increasing it.",
+                description_code="storage_read_only",
+            )
+        if self.dependents():
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} has dependents; not increasing it.",
+                description_code="storage_has_dependents",
+            )
         resize_queue = f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("resize")

@@ -436,3 +436,49 @@ def test_the_desktop_row_keeps_its_own_tasks_listed():
     s = _bare_storage(id="src-desktop-storage")
     mock_create, _ = _run_template_chain(s, "new-template-storage-99")
     assert mock_create.call_args.kwargs["index_owners"][0] == s.id
+
+
+# ---------------------------------------------------------------------------
+# check_backing_chain: a check can also set the parent from what it read
+# ---------------------------------------------------------------------------
+
+
+def test_a_check_can_set_the_parent_from_the_backing_it_read():
+    """A row adopted from a backing path has neither a size nor a parent. The
+    check that measures it sets the parent only after its reading landed, and
+    still reads as an observer."""
+    s = _bare_storage(id="base")
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.check_backing_chain(user_id="u1", update_parent=True)
+    kwargs = mock_create.call_args.kwargs
+    assert kwargs["task"] == "qemu_img_info_backing_chain"
+    assert kwargs["dependents"] == [
+        {
+            "queue": "core",
+            "task": "storage_update",
+            "job_kwargs": {"kwargs": {"observer": True}},
+            "dependents": [
+                {
+                    "queue": "core",
+                    "task": "storage_update_parent",
+                    "job_kwargs": {"kwargs": {"storage_id": "base"}},
+                }
+            ],
+        }
+    ]
+
+
+def test_a_plain_check_leaves_the_parent_alone():
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.check_backing_chain(user_id="u1")
+    names = list(_collect_task_names(mock_create.call_args.kwargs["dependents"]))
+    assert names == ["storage_update"]
