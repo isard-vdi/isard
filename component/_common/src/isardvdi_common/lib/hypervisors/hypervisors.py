@@ -2720,6 +2720,17 @@ class HypervisorsProcessed(RethinkSharedConnection):
         _get_hyper_started_domains_cache.clear()
 
     @staticmethod
+    def _available_online_hypervisors():
+        # only_forced and degraded hypervisors keep status "Online" but the
+        # balancer places nothing on them, so they are not available.
+        return [
+            hyper
+            for hyper in Caches.get_cached_hypervisors_online()
+            if not hyper.get("only_forced")
+            and not (hyper.get("degraded") or {}).get("is_degraded")
+        ]
+
+    @staticmethod
     @cached(cache=_check_create_storage_pool_availability_cache)
     def check_create_storage_pool_availability(category_id=None):
         """_From api/libv2/api_hypervisors.py check_create_storage_pool_availability()_"""
@@ -2731,7 +2742,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
 
         # Hypervisors online
         ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
-        for hyper in Caches.get_cached_hypervisors_online():
+        for hyper in HypervisorsProcessed._available_online_hypervisors():
             if storage_pool_id in hyper.get(
                 "enabled_storage_pools", hyper.get("storage_pools", [])
             ):
@@ -2757,7 +2768,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
         # Is that pool available in any hypervisor?
         ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
         ##       storage_pools default is just for backward compatibility, can be removed in future
-        for hyper in Caches.get_cached_hypervisors_online():
+        for hyper in HypervisorsProcessed._available_online_hypervisors():
             if virt_pool_id in hyper.get(
                 "enabled_virt_pools", hyper.get("storage_pools", [])
             ):
