@@ -259,10 +259,24 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
     """
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
-    grew = _sparsify_growth(storage_dict)
-    status = Storage.write_reading(storage_dict, observer=observer, read_at=read_at)
+    open_error = storage_dict.get("open_error")
+    reading = {k: v for k, v in storage_dict.items() if k != "open_error"}
+    grew = _sparsify_growth(reading)
+    status = Storage.write_reading(reading, observer=observer, read_at=read_at)
     if status is None:
         return None
+    if open_error and not (observer and status == "maintenance"):
+        # a chain holding the row may be writing the file right now
+        Storage.flag_pending(
+            storage_dict["id"],
+            "review_damage",
+            found_by="storage refresh",
+            detail={
+                "reason": "the file is present but could not be opened",
+                "error": open_error,
+            },
+            if_absent=True,
+        )
     if grew:
         Storage.flag_pending(
             storage_dict["id"],
@@ -794,6 +808,24 @@ async def handle_storage_update_pool(redis_manager, task, storage_id, owner=Fals
                     "status": found_status,
                     "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
                     "storages_with_uuid": _uuid_list_from([]),
+                },
+                observer=not owner,
+                read_at=read_at,
+            )
+            if status is not None:
+                await send_status_socket(
+                    redis_manager, storage_id, status, task.user_id
+                )
+            return
+
+        own_copy = next((s for s in invalid_storages if s["path"] == storage.path), {})
+        open_error = (own_copy.get("storage_data") or {}).get("open_error")
+        if open_error:
+            status = _apply_storage_update(
+                {
+                    "id": storage_id,
+                    "storages_with_uuid": _uuid_list_from([]),
+                    "open_error": open_error,
                 },
                 observer=not owner,
                 read_at=read_at,

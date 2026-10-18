@@ -64,7 +64,7 @@ QEMU_IMG_TIMEOUT = 30  # seconds; read-only `qemu-img info` probes, guards an NF
 QEMU_IMG_WRITE_MARGIN = 30  # seconds a writing call expires before its RQ budget
 
 
-# glibc and musl strerror() texts, which differ for EIO and ETIMEDOUT
+# glibc and musl strerror() texts, which differ for EIO, ETIMEDOUT and EMFILE
 _TRANSIENT_IO_MARKERS = (
     b"Input/output error",
     b"I/O error",
@@ -75,7 +75,13 @@ _TRANSIENT_IO_MARKERS = (
     b"EIO",
     b"ESTALE",
     b"EAGAIN",
+    b"Too many open files",
+    b"No file descriptors available",
 )
+
+_FILE_NOT_FOUND = b"No such file or directory"
+
+OPEN_ERROR_MAX_CHARS = 500
 
 
 class BackingChainUnknown(Exception):
@@ -103,6 +109,29 @@ def _unreadable_chain(storage_id, storage_path, reason):
         raise BackingChainUnknown(f"{storage_path}: {reason}")
     # the steps after it have to run: the file operation before it already happened
     return {"id": storage_id}
+
+
+def _file_is_gone(path):
+    """Only ENOENT from lstat proves it; any other lstat error does not."""
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return False
+
+
+def _unopenable(storage_id, storage_path, stderr):
+    """A reading without status for a file that is there but does not open."""
+    error = stderr.decode(errors="replace").strip()[:OPEN_ERROR_MAX_CHARS]
+    log.warning(
+        "qemu_img_info_backing_chain: %s is present but could not be opened (%s); "
+        "storage status left unchanged",
+        storage_path,
+        error,
+    )
+    return {"id": storage_id, "open_error": error}
 
 
 def _qemu_img_write_timeout(action):
@@ -882,9 +911,7 @@ def qemu_img_info_backing_chain(
     the caller has to say which format it is: every disk IsardVDI creates is
     qcow2, hence the default, but ``convert`` exists precisely to write
     something else, and measuring a vmdk as qcow2 fails with
-    ``Could not open '<the file itself>'`` -- which this function then reads as
-    "the file is gone" and reports ``deleted``, orphaning a disk that is
-    perfectly fine.
+    ``Could not open '<the file itself>'``.
 
     :param storage_id: Storage ID
     :type storage_id: str
@@ -902,7 +929,8 @@ def qemu_img_info_backing_chain(
         also enqueued from paths that write nothing (chain checks, find/touch,
         engine re-measure), which pass ``None``.
     :type qcow2_geometry: dict | None
-    :return: Storage data to update
+    :return: Storage data to update; ``deleted`` only for ENOENT with nothing
+        at the path, ``{"id", "open_error"}`` when the file does not open
     :rtype: dict
     :raises BackingChainUnknown: Timeout, transient I/O error, or any error
         that is not a ``Could not open '<path>'`` proof, unless the job is a
@@ -948,6 +976,8 @@ def qemu_img_info_backing_chain(
         else:
             path = match.group(1).decode()
             if path == storage_path:
+                if _FILE_NOT_FOUND not in stderr or not _file_is_gone(storage_path):
+                    return _unopenable(storage_id, storage_path, stderr)
                 storage_data["status"] = "deleted"
             else:
                 try:
@@ -2108,7 +2138,7 @@ def find(storage_id, storage_path, full_walk=False):
                 }
             )
             if storage_data:
-                status = storage_data["status"]
+                status = storage_data.get("status")
             return {
                 "id": storage_id,
                 "status": status,
@@ -2145,7 +2175,7 @@ def find(storage_id, storage_path, full_walk=False):
                             }
                         )
                         if storage_path == file_path and storage_data:
-                            status = storage_data["status"]
+                            status = storage_data.get("status")
             return {
                 "id": storage_id,
                 "status": status,

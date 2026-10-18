@@ -6,7 +6,7 @@ When the file exists at its expected path (default, no full walk), find
 returns O(1). What it does with that hit is the decision pinned here:
 
 * a real ``.qcow2`` is inspected (qemu backing chain) and its status is
-  reported;
+  reported, or none when the file is there but does not open;
 * a non-qcow2 file gets no storage_data and the default ``deleted`` status;
 * a hidden ``.qcow2`` (dotfile) is treated like a non-qcow2 — no inspection.
 
@@ -30,6 +30,15 @@ class TestFindFastPath:
         result = task.find("st-1", "/isard/g/st-1.qcow2")
         assert result["status"] == "ready"
         assert result["matching_files"][0]["storage_data"] == {"status": "ready"}
+
+    def test_a_file_that_does_not_open_is_reported_without_a_status(self, monkeypatch):
+        from isardvdi_storage import task
+
+        reading = {"id": "st-1", "open_error": "Permission denied"}
+        _fast(monkeypatch, task, chain=reading)
+        result = task.find("st-1", "/isard/g/st-1.qcow2")
+        assert result["status"] is None
+        assert result["matching_files"][0]["storage_data"] == reading
 
     def test_non_qcow2_has_no_storage_data(self, monkeypatch):
         from isardvdi_storage import task
