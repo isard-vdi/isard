@@ -1982,13 +1982,19 @@ def scan_backing_index(pool_paths):
 
     started = time()
     files = []
+    temps = []
     for root in pool_paths:
         for dirpath, _dirnames, filenames in walk(root):
             for name in filenames:
                 if name.endswith(".qcow2") and not name.startswith("."):
                     files.append(join(dirpath, name))
+                elif ".qcow2" in name:
+                    # a .qcow2 carrying trailing junk, or a dot-prefixed copy:
+                    # rsync leaves ``.<name>.qcow2.XXXXXX`` while streaming
+                    temps.append(join(dirpath, name))
     return {
         "index": build_backing_index(files),
+        "temps": temps,
         "scanned": len(files),
         "elapsed_ms": round((time() - started) * 1000, 3),
     }

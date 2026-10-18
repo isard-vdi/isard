@@ -91,7 +91,7 @@ class StorageProcessed(RethinkSharedConnection):
         from isardvdi_common.models.task import Task
 
         tier = queue_tiers.normalize_tier(priority, "scan_backing_index")
-        pending, failed, merged = {}, [], {}
+        pending, failed, merged, temps = {}, [], {}, []
         for pool in StoragePool.get_all():
             if getattr(pool, "enabled", True) is False:
                 continue
@@ -119,7 +119,9 @@ class StorageProcessed(RethinkSharedConnection):
                 task = Task(task_id)
                 status = task.job_status
                 if status == "finished":
-                    merged.update((task.result or {}).get("index") or {})
+                    result = task.result or {}
+                    merged.update(result.get("index") or {})
+                    temps.extend(result.get("temps") or [])
                     pending.pop(pool_id)
                 elif status in ("failed", "stopped", "canceled"):
                     failed.append({"pool": pool_id, "reason": "task_" + status})
@@ -128,7 +130,7 @@ class StorageProcessed(RethinkSharedConnection):
                 sleep(0.5)
         for pool_id in pending:
             failed.append({"pool": pool_id, "reason": "timeout"})
-        return merged, not failed, failed
+        return merged, temps, not failed, failed
 
     @classmethod
     def run_integrity_detection(cls, *, flag=True, scan_priority="interactive"):
@@ -170,7 +172,8 @@ class StorageProcessed(RethinkSharedConnection):
                 storages_used_by_live_domains=set(),
             )
         )
-        index, ok, failed = cls.scan_pools(priority=scan_priority)
+        index, temps, ok, failed = cls.scan_pools(priority=scan_priority)
+        report = {"orphan_files": [], "rsync_temps": []}
         if ok:
             roots = [
                 p.mountpoint
@@ -198,6 +201,15 @@ class StorageProcessed(RethinkSharedConnection):
             findings += integrity.detect_on_disk_dependents(
                 gone, index, live_uuids=live_uuids
             )
+            # L5 census: files with no row and rsync debris carry no row to flag,
+            # so they are reported, never marked and never turned into a row (D6).
+            known_ids = {row["id"] for row in rows}
+            report = {
+                "orphan_files": sorted(
+                    p for p in index if uuid_from_path(p) not in known_ids
+                ),
+                "rsync_temps": sorted(temps),
+            }
         if flag:
             for storage_id, action, detail in findings:
                 Storage.flag_pending(
@@ -211,6 +223,7 @@ class StorageProcessed(RethinkSharedConnection):
             "scan_ok": ok,
             "failed_pools": failed,
             "scanned": len(index),
+            "report": report,
         }
 
     @classmethod
