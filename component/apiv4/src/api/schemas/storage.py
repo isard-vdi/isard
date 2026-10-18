@@ -123,6 +123,7 @@ class StorageSweepConfigResponse(BaseModel):
     sparsify: bool
     repair_leaks: bool
     check_integrity: bool
+    detect: bool
     check_max_age_days: int
 
 
@@ -137,6 +138,7 @@ class StorageSweepConfigRequest(BaseModel):
     sparsify: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    detect: Optional[bool] = None
     check_max_age_days: Optional[int] = None
 
 
@@ -148,6 +150,7 @@ class StorageSweepRunRequest(BaseModel):
     sparsify: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    detect: Optional[bool] = None
 
 
 class StorageSweepRunResponse(BaseModel):
