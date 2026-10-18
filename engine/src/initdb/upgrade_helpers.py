@@ -806,6 +806,44 @@ def bastion_keys_to_keep(stored, profile_keys):
     return keep
 
 
+def drop_orphan_task_indexes(connect_redis, existing_ids, chunk_size=500):
+    """``(seen, dropped)`` after unlinking orphan task indexes; ``None`` on failure."""
+    seen = dropped = 0
+    try:
+        conn = connect_redis()
+        for table in ("storage", "media"):
+            pending = {}
+
+            def _flush():
+                nonlocal dropped
+                if not pending:
+                    return
+                alive = existing_ids(table, list(pending))
+                orphans = [key for owner, key in pending.items() if owner not in alive]
+                if orphans:
+                    conn.unlink(*orphans)
+                    dropped += len(orphans)
+                pending.clear()
+
+            for key in conn.scan_iter(match=f"{table}:*:tasks", count=10000):
+                name = key.decode() if isinstance(key, bytes) else key
+                owner = name[len(table) + 1 : -len(":tasks")]
+                if not owner or ":" in owner:
+                    continue
+                seen += 1
+                pending[owner] = key
+                if len(pending) >= chunk_size:
+                    _flush()
+            _flush()
+    except Exception as e:
+        if log is not None:
+            log.error(f"v213: dropping orphan task indexes failed (non-fatal): {e}")
+        return None
+    if log is not None:
+        log.info(f"v213: checked {seen} task indexes, dropped {dropped} orphans")
+    return seen, dropped
+
+
 """
 System upgrades
 """
