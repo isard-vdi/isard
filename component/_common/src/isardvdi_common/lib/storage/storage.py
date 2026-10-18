@@ -45,6 +45,36 @@ class StorageProcessed(RethinkSharedConnection):
     RUNNING_DESKTOP_STATUSES = ["Started"]
 
     @classmethod
+    def run_integrity_coherence(cls, *, flag=True):
+        """L0 integrity (read-only): flag review_coherence on a row whose owner no longer exists."""
+        # the gone-disk-still-in-use reason needs the domain storage_ids multi index; left to the dependents pass
+        from isardvdi_common.lib.storage import integrity
+
+        with cls._rdb_context():
+            rows = list(
+                r.table(cls._rdb_table)
+                .pluck("id", "status", "user_id")
+                .run(cls._rdb_connection)
+            )
+            live_user_ids = set(
+                r.table("users").get_field("id").run(cls._rdb_connection)
+            )
+        findings = integrity.detect_coherence(
+            rows,
+            live_user_ids=live_user_ids,
+            storages_used_by_live_domains=set(),
+        )
+        if flag:
+            for storage_id, action, detail in findings:
+                Storage.flag_pending(
+                    storage_id,
+                    action,
+                    found_by="the integrity coherence pass",
+                    detail=detail,
+                )
+        return findings
+
+    @classmethod
     def enqueue_running_desktops_size_refresh(cls, statuses=None):
         """Enqueue a qemu-img-info refresh for the disks of running desktops.
 
