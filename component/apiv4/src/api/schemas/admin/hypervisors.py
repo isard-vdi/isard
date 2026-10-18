@@ -108,7 +108,9 @@ class AdminHypervisorRdpStateData(BaseModel):
 
     domain_id: str
     ip: str
-    state: Literal["waiting", "refused", "unverified", "auth_failed", "ready"]
+    state: Literal[
+        "waiting", "verifying", "refused", "unverified", "auth_failed", "ready"
+    ]
     protocol: Optional[str] = None
     reason: Optional[str] = None
 

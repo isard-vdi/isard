@@ -21,6 +21,8 @@ PROBE_TIMEOUT = 3.0
 AUTH_TIMEOUT_MS = 8000
 BACKOFF = (2, 4, 8, 16, 30)
 REFUSED_RETRY = 30
+# Failed credential-check *runs* (not refusals) before settling to open "unverified".
+VERIFY_ATTEMPTS = 3
 
 # TPKT + X.224 Connection Request + RDP_NEG_REQ asking for TLS, CredSSP and CredSSP with Early User Auth
 NEG_REQUEST = bytes.fromhex("030000130ee00000000000010008000b000000")
@@ -130,11 +132,14 @@ def verdict(
     probe=probe,
     authenticate=authenticate,
     still_current=lambda: True,
+    on_verifying=None,
 ):
     """One check: (state, protocol, reason, retry_in) with retry_in None for a settled state.
 
     ``still_current`` is asked right before the credentials leave: if the address no longer belongs to
-    this desktop they are not sent.
+    this desktop they are not sent. ``on_verifying`` is called once the guest offers NLA and the
+    credential check is about to run, so the caller can surface the "verifying" step before the
+    (slower) authentication attempt.
     """
     answer, detail = probe(ip)
     if answer == "waiting":
@@ -146,6 +151,8 @@ def verdict(
         return "unverified", protocol, None if user else "no_credentials", None
     if not still_current():
         return "waiting", protocol, "ip_changed", True
+    if on_verifying:
+        on_verifying()
     result = authenticate(ip, user, password).get("result")
     if result == "ok":
         return "ready", protocol, None, None
@@ -155,7 +162,8 @@ def verdict(
         return "unverified", protocol, None, None
     if result == "security_refused":
         return "refused", protocol, result, REFUSED_RETRY
-    return "waiting", protocol, "unreachable", True
+    # Check could not run (helper error, guest briefly unreachable): stay "verifying" and retry.
+    return "verifying", protocol, None, True
 
 
 def post_rdp_state(domain_id, ip, state):
@@ -202,6 +210,7 @@ class RdpChecks:
                 "user": user,
                 "password": password,
                 "attempt": 0,
+                "verify_attempts": 0,
                 "reported": None,
             }
             self._schedule(domain_id, 0)
@@ -222,30 +231,16 @@ class RdpChecks:
         heapq.heappush(self._queue, (time.monotonic() + delay, domain_id))
         self._wake.notify()
 
-    def _run_one(self, domain_id):
-        with self._lock:
-            entry = self._desktops.get(domain_id)
-            if not entry:
-                return
-            ip, fingerprint = entry["ip"], entry["fingerprint"]
-            user, password = entry["user"], entry["password"]
-        state, protocol, reason, retry = self._check(
-            ip,
-            user,
-            password,
-            still_current=lambda: self._still_current(domain_id, fingerprint),
-        )
-        report = {"state": state, "protocol": protocol, "reason": reason}
+    def _report_state(self, domain_id, ip, fingerprint, report):
+        """Post one state for a still-current desktop, deduplicating repeats.
+
+        Drops the desktop on 404 (no longer running with that IP) and reschedules
+        a retry if the post itself fails or is rejected.
+        """
         with self._lock:
             entry = self._desktops.get(domain_id)
             if not entry or entry["fingerprint"] != fingerprint:
                 return
-            if retry is True:
-                delay = BACKOFF[min(entry["attempt"], len(BACKOFF) - 1)]
-                entry["attempt"] += 1
-                self._schedule(domain_id, delay)
-            elif retry:
-                self._schedule(domain_id, retry)
             if entry["reported"] == report:
                 return
         try:
@@ -263,6 +258,53 @@ class RdpChecks:
                 entry["reported"] = report
             elif entry:
                 self._schedule(domain_id, BACKOFF[-1])
+
+    def _run_one(self, domain_id):
+        with self._lock:
+            entry = self._desktops.get(domain_id)
+            if not entry:
+                return
+            ip, fingerprint = entry["ip"], entry["fingerprint"]
+            user, password = entry["user"], entry["password"]
+
+        # Surface "verifying" before the (slower) credential check, so the user
+        # sees the credentials step rather than staying on "waiting".
+        def on_verifying():
+            self._report_state(
+                domain_id,
+                ip,
+                fingerprint,
+                {"state": "verifying", "protocol": "nla", "reason": None},
+            )
+
+        state, protocol, reason, retry = self._check(
+            ip,
+            user,
+            password,
+            still_current=lambda: self._still_current(domain_id, fingerprint),
+            on_verifying=on_verifying,
+        )
+        with self._lock:
+            entry = self._desktops.get(domain_id)
+            if not entry or entry["fingerprint"] != fingerprint:
+                return
+            # A check that never runs must not block forever: open "unverified" after the bound.
+            if state == "verifying" and retry:
+                entry["verify_attempts"] += 1
+                if entry["verify_attempts"] > VERIFY_ATTEMPTS:
+                    state, reason, retry = "unverified", "unreachable", None
+            if retry is True:
+                delay = BACKOFF[min(entry["attempt"], len(BACKOFF) - 1)]
+                entry["attempt"] += 1
+                self._schedule(domain_id, delay)
+            elif retry:
+                self._schedule(domain_id, retry)
+        self._report_state(
+            domain_id,
+            ip,
+            fingerprint,
+            {"state": state, "protocol": protocol, "reason": reason},
+        )
 
     def _loop(self):
         while True:

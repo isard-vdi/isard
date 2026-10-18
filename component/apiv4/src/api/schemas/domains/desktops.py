@@ -350,7 +350,7 @@ class DesktopRdpState(BaseModel):
     state: str = Field(
         description=(
             "How far the RDP service of the guest has been verified: waiting, "
-            "refused, unverified, auth_failed or ready."
+            "verifying, refused, unverified, auth_failed or ready."
         ),
     )
     protocol: Optional[str] = Field(

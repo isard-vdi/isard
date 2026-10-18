@@ -73,6 +73,13 @@ def test_a_desktop_not_running_with_that_ip_gets_nothing(report, desktop):
     assert "rdp" not in rows["desktop-1"]["viewer"]
 
 
+def test_the_verifying_state_is_accepted(report):
+    response, rows = report([_desktop()], _body(state="verifying", protocol="nla"))
+
+    assert response.status_code == 204
+    assert rows["desktop-1"]["viewer"]["rdp"]["state"] == "verifying"
+
+
 def test_an_unknown_state_is_rejected(report):
     response, _ = report([_desktop()], _body(state="maybe"))
 

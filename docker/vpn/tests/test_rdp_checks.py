@@ -155,13 +155,62 @@ def test_waiting_and_refused_are_retried():
     )
 
 
+def test_a_credential_check_that_cannot_run_shows_verifying_and_is_retried():
+    # Not a guest refusal (auth_failed/refused): the check itself could not run,
+    # so the desktop stays in the "verifying" step and is retried.
+    assert _verdict(("answers", "nla"), {"result": "unreachable"})[0] == (
+        "verifying",
+        "nla",
+        None,
+        True,
+    )
+
+
+def test_the_verifying_step_is_surfaced_before_the_credential_check():
+    order = []
+
+    def authenticate(ip, u, p):
+        order.append("auth")
+        return {"result": "ok"}
+
+    result = rdp_checks.verdict(
+        "192.0.2.5",
+        "isard",
+        "pw",
+        probe=lambda ip: ("answers", "nla"),
+        authenticate=authenticate,
+        on_verifying=lambda: order.append("verifying"),
+    )
+    assert result == ("ready", "nla", None, None)
+    assert order == ["verifying", "auth"]
+
+
+def test_a_guest_without_nla_never_announces_a_verifying_step():
+    order = []
+    rdp_checks.verdict(
+        "192.0.2.5",
+        "isard",
+        "pw",
+        probe=lambda ip: ("answers", "tls"),
+        authenticate=lambda *a: {"result": "ok"},
+        on_verifying=lambda: order.append("verifying"),
+    )
+    assert order == []
+
+
 def _checks(results, statuses=None):
     reports = []
     results = list(results)
     statuses = list(statuses or [])
 
-    def check(ip, user, password, still_current=None):
-        return results.pop(0)
+    def check(ip, user, password, still_current=None, on_verifying=None):
+        result = results.pop(0)
+        # A real verdict calls on_verifying right before the credential check;
+        # let a canned result ask for it by prefixing the tuple with "verify".
+        if on_verifying and result and result[0] == "verify":
+            on_verifying()
+            result = result[1:]
+        return result
 
     def report(domain_id, ip, state):
         reports.append((domain_id, ip, state))
@@ -183,6 +232,27 @@ def test_a_state_is_reported_once_until_it_changes():
     for _ in range(3):
         checks._run_one("d1")
     assert [r[2]["state"] for r in reports] == ["waiting", "ready"]
+
+
+def test_the_verifying_step_is_reported_before_the_terminal_state():
+    checks, reports = _checks([("verify", "ready", "nla", None, None)])
+    checks.observe(_domain())
+    checks._run_one("d1")
+    assert [r[2]["state"] for r in reports] == ["verifying", "ready"]
+
+
+def test_a_check_that_keeps_failing_opens_an_unverified_viewer_with_a_warning():
+    # Never runs: after VERIFY_ATTEMPTS it settles to open "unverified", not blocked forever.
+    failing = [("verifying", "nla", None, True)] * (rdp_checks.VERIFY_ATTEMPTS + 1)
+    checks, reports = _checks(failing)
+    checks.observe(_domain())
+    for _ in range(rdp_checks.VERIFY_ATTEMPTS + 1):
+        checks._run_one("d1")
+    states = [r[2]["state"] for r in reports]
+    assert states[-1] == "unverified"
+    assert reports[-1][2]["reason"] == "unreachable"
+    # while retrying it stayed in the (blocking) verifying step, never ready
+    assert "ready" not in states
 
 
 def test_the_desktop_reporting_its_own_state_back_does_not_trigger_a_check():

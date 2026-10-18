@@ -30,7 +30,7 @@ def test_a_verified_desktop_is_open_to_everyone_who_owns_it(state):
 
 
 @pytest.mark.parametrize(
-    "state", [None, "pending", "waiting", "refused", "auth_failed"]
+    "state", [None, "pending", "waiting", "verifying", "refused", "auth_failed"]
 )
 def test_a_user_cannot_open_an_unverified_desktop(state):
     with pytest.raises(ErrorBase):
