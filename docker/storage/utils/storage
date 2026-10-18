@@ -3213,8 +3213,7 @@ def cmd_verify(args):
             dom = s.get("domains", 0)
             dom_str = f"  domains={dom}" if dom else ""
             print(f"  {s['id']}{dom_str}")
-        if args.fix:
-            print(f"  -> Triggering find tasks to mark as deleted...")
+        print("  -> report-only: resolve via the storage model or the integrity pass")
 
     if ready_path_mismatch:
         all_ok = False
@@ -3232,8 +3231,7 @@ def cmd_verify(args):
         for s in deleted_ghost:
             size = fs_lookup[s["path"]].st_size
             print(f"  {s['id']}  {format_size(size)}  {s['path']}")
-        if args.fix:
-            print(f"  -> Triggering find tasks to re-evaluate...")
+        print("  -> report-only: resolve via the storage model or the integrity pass")
 
     if all_ok:
         print("\nAll DB records consistent with filesystem.")
@@ -3264,25 +3262,7 @@ def cmd_verify(args):
         except Exception as e:
             log(f"  FAILED to update path for {sid}: {e}")
 
-    # Fix ready-missing: trigger find to mark as deleted
-    for s in ready_missing:
-        sid = s["id"]
-        try:
-            task_id = trigger_find(sid)
-            task_map[sid] = task_id
-            actions[sid] = "find: ready but file missing"
-        except Exception as e:
-            log(f"  FAILED to trigger find for {sid}: {e}")
-
-    # Fix deleted-ghost: trigger find to re-evaluate
-    for s in deleted_ghost:
-        sid = s["id"]
-        try:
-            task_id = trigger_find(sid)
-            task_map[sid] = task_id
-            actions[sid] = "find: deleted but file on disk"
-        except Exception as e:
-            log(f"  FAILED to trigger find for {sid}: {e}")
+    # ready-missing and deleted-ghost are report-only: the model or integrity pass fixes them, not a find task
 
     if not task_map:
         log("No tasks to run.")
@@ -5069,7 +5049,7 @@ def build_parser():
     p_verify.add_argument(
         "--fix",
         action="store_true",
-        help="Fix issues: update DB paths for mismatched files, trigger find for missing/ghost",
+        help="Update DB paths for mismatched files (missing/ghost are report-only)",
     )
     p_verify.set_defaults(func=cmd_verify)
 
