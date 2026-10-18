@@ -99,6 +99,9 @@ type SAMLConfig struct {
 	KeyFile         string      `rethinkdb:"key_file"`
 	CertFile        string      `rethinkdb:"cert_file"`
 	MaxIssueDelay   db.Duration `rethinkdb:"max_issue_delay"`
+	// How long an outstanding AuthnRequest stays tracked, bounding time spent at
+	// the IdP. Independent of MaxIssueDelay, which bounds assertion age.
+	RequestTrackerMaxAge db.Duration `rethinkdb:"request_tracker_max_age"`
 
 	FieldUID      string `rethinkdb:"field_uid"`
 	RegexUID      string `rethinkdb:"regex_uid"`

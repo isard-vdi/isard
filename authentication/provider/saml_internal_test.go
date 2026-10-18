@@ -29,6 +29,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1416,4 +1417,68 @@ func TestSAMLHealthcheck(t *testing.T) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// TestSAMLRequestTrackerMaxAge checks the request-tracker lifetime is decoupled
+// from the assertion-age limit (saml.MaxIssueDelay). Not parallel: it reads that
+// package global.
+func TestSAMLRequestTrackerMaxAge(t *testing.T) {
+	nopLog := zerolog.Nop()
+
+	cases := map[string]struct {
+		MaxIssueDelay        time.Duration
+		RequestTrackerMaxAge time.Duration
+		Want                 time.Duration
+	}{
+		"explicit tracker age is independent of the assertion-age limit": {
+			MaxIssueDelay:        90 * time.Second,
+			RequestTrackerMaxAge: 15 * time.Minute,
+			Want:                 15 * time.Minute,
+		},
+		"unset tracker age falls back to the default, not MaxIssueDelay": {
+			MaxIssueDelay:        90 * time.Second,
+			RequestTrackerMaxAge: 0,
+			Want:                 defaultSAMLRequestTrackerMaxAge,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			assert := assert.New(t)
+			certPath, keyPath, metadataPath := prepareSAMLFiles(t)
+
+			s := &SAML{
+				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+				host:          "sp.example.com",
+				log:           &nopLog,
+				validateURL:   validateMetadataURL,
+				brandingHosts: map[string]string{},
+			}
+
+			require.NoError(t, s.LoadConfig(context.Background(), model.SAMLConfig{
+				MetadataFile:         metadataPath,
+				KeyFile:              keyPath,
+				CertFile:             certPath,
+				MaxIssueDelay:        db.Duration(tc.MaxIssueDelay),
+				RequestTrackerMaxAge: db.Duration(tc.RequestTrackerMaxAge),
+				RegexUID:             ".*",
+				RegexUsername:        ".*",
+				RegexName:            ".*",
+				RegexEmail:           ".*",
+				RegexPhoto:           ".*",
+			}))
+
+			cfg := s.cfg.Cfg()
+			require.NotNil(t, cfg.Middleware)
+			tracker, ok := cfg.Middleware.RequestTracker.(samlsp.CookieRequestTracker)
+			require.True(t, ok, "expected a CookieRequestTracker")
+			codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec)
+			require.True(t, ok, "expected a JWTTrackedRequestCodec")
+
+			assert.Equal(tc.Want, tracker.MaxAge)
+			assert.Equal(tc.Want, codec.MaxAge)
+			// The assertion-age limit must stay as configured, unchanged by the fix.
+			assert.Equal(tc.MaxIssueDelay, saml.MaxIssueDelay)
+		})
+	}
 }
