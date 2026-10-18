@@ -29,7 +29,9 @@ RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable --no-install-
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable
 
-# RDP plugin with the GUACAMOLE-2221 busy-loop fix; drop once Alpine ships guacamole-server 1.6.1
+# RDP plugin rebuilt with guacd-patches/. 0001 (GUACAMOLE-2221) and 0002 (GUACAMOLE-2255) are
+# upstream in 1.6.1; 0003-0005 are ours and are not, so moving to 1.6.1 drops 0001-0002 and
+# keeps rebuilding the plugin with the rest.
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS guacd-rdp-build
 ARG GUACAMOLE_SERVER_VERSION=1.6.0
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
@@ -43,7 +45,7 @@ COPY docker/vpn/guacd-patches /build/patches
 WORKDIR /build
 RUN tar xzf guacamole-server-${GUACAMOLE_SERVER_VERSION}.tar.gz
 WORKDIR /build/guacamole-server-${GUACAMOLE_SERVER_VERSION}
-RUN for p in /build/patches/*.patch; do patch -p1 < "$p"; done
+RUN for p in /build/patches/*.patch; do patch -p1 --forward -F0 < "$p" || exit 1; done
 RUN CFLAGS="-Wno-error" ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
     --disable-static --with-ssl --with-pango --with-terminal --with-rdp --with-ssh --with-webp \
     --without-vnc --without-telnet --without-websockets --without-winsock
@@ -66,7 +68,7 @@ RUN apk add --no-cache \
     openvswitch wireguard-tools
 
 RUN apk info -v | grep -qx 'guacamole-server-rdp-1\.6\.0-r[0-9]*' \
-    || { echo "guacamole-server-rdp is no longer 1.6.0: re-check GUACAMOLE-2221" >&2; exit 1; }
+    || { echo "guacamole-server-rdp is no longer 1.6.0: re-check guacd-patches/" >&2; exit 1; }
 COPY --from=guacd-rdp-build /build/guacamole-server-1.6.0/src/protocols/rdp/.libs/libguac-client-rdp.so.0.0.0 /usr/lib/
 COPY --from=guacd-rdp-build /build/rdp-auth-check/rdp-auth-check /usr/local/bin/
 
