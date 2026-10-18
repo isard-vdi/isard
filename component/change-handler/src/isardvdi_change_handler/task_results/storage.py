@@ -33,6 +33,7 @@ constructing its own so unit tests can pass an ``AsyncMock``.
 import contextvars
 import json
 import logging as log
+import re
 from contextlib import contextmanager
 from datetime import timezone
 from time import time
@@ -385,8 +386,9 @@ def handle_storage_update_parent(task, storage_id):
     was just measured with a chain that did not open, so it is left orphan and
     flagged ``pending_actions.review_damage``, never trusted back to ready on
     the parent's row alone -- a ready row can still be one whose file is gone.
-    The ready cascade recovers it once the parent's own file refreshes. Every
-    write is DB-only and lands on this disk, never the parent.
+    The ready cascade recovers it once the parent's own file refreshes. A
+    backing file with no row is adopted only when it validates (see
+    :func:`_adopt_or_review_backing`); every write is DB-only.
     """
     if task.depending_status != "finished":
         return
@@ -416,7 +418,60 @@ def handle_storage_update_parent(task, storage_id):
                 storage, found_by="storage_update_parent", detail=detail
             )
     elif storage.status != "orphan":
-        storage.parent = Storage.create_from_path(backing_file, user_id=task.user_id).id
+        _adopt_or_review_backing(
+            storage, backing_file, qemu_img_info.get("backing-realpath")
+        )
+
+
+#: a backing row adopted from a path belongs to the system, not the child owner
+ADOPTED_BACKING_OWNER = "local-default-admin-admin"
+_UUID_QCOW2 = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.qcow2\Z"
+)
+
+
+def _backing_adoption_refusal(realpath):
+    """Why ``realpath`` cannot be adopted automatically, or None when it can: its
+    name must be ``<uuid>.qcow2`` and its real location inside an enabled pool
+    (qemu-img already read it -- the child's chain opened to reach here)."""
+    if not _UUID_QCOW2.match(realpath.rsplit("/", 1)[-1]):
+        return "backing name is not <uuid>.qcow2"
+    if StoragePool.mountpoint_for_path(realpath) is None:
+        return "backing is outside every storage pool"
+    pool = StoragePool.get_by_path(realpath)
+    if not pool or not pool[0].enabled:
+        return "backing pool is disabled"
+    return None
+
+
+def _adopt_or_review_backing(storage, backing_file, backing_realpath):
+    """A backing file with no row: adopt it only when it validates, as an
+    admin-owned read-only row flagged for review; otherwise create nothing and
+    flag the child. The whole chain is covered hop by hop -- the adopted row's
+    own measurement re-enters here for its backing."""
+    realpath = backing_realpath or backing_file
+    refusal = _backing_adoption_refusal(realpath)
+    if refusal:
+        _flag_review_damage(
+            storage,
+            found_by="storage_update_parent",
+            detail=f"backing {backing_file} not adopted: {refusal}",
+        )
+        return
+    adopted = Storage.create_from_path(realpath, user_id=ADOPTED_BACKING_OWNER)
+    _flag_review_damage(
+        adopted,
+        found_by="storage_update_parent",
+        detail=f"adopted from backing path {realpath}; verify before trusting",
+    )
+    storage.parent = adopted.id
+    try:
+        adopted.check_backing_chain(user_id=ADOPTED_BACKING_OWNER, update_parent=True)
+    except Exception:
+        log.warning(
+            "task_results.storage: adopted %s but could not queue its measure",
+            adopted.id,
+        )
 
 
 def handle_clear_pending_action(task, storage_id, action):

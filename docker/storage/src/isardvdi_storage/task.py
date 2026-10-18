@@ -962,6 +962,11 @@ def qemu_img_info_backing_chain(
         qemu_img_info_data[0].setdefault("backing-filename")
         qemu_img_info_data[0].setdefault("backing-filename-format")
         qemu_img_info_data[0].setdefault("full-backing-filename")
+        backing = qemu_img_info_data[0]["full-backing-filename"]
+        if backing:
+            # resolved here because the change-handler has no filesystem: lets
+            # adoption judge the real location, not a symlink or a ``..`` path
+            qemu_img_info_data[0]["backing-realpath"] = os.path.realpath(backing)
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
         # Only stamp on success: a failed measure must not record a geometry the disk may not have.
         if qcow2_geometry:
