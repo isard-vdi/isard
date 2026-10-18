@@ -3,7 +3,9 @@
 """Integrity detection levels: each returns findings and touches nothing."""
 
 from isardvdi_common.lib.storage.integrity import (
+    detect_broken_chain,
     detect_coherence,
+    detect_missing_file,
     detect_on_disk_dependents,
 )
 
@@ -67,6 +69,72 @@ def test_l0_does_not_flag_a_gone_disk_nobody_uses():
         live_user_ids={"alice"},
         storages_used_by_live_domains=set(),
     )
+    assert findings == []
+
+
+# --- L1 missing file -------------------------------------------------------
+
+
+def test_l1_flags_a_live_row_whose_file_is_absent():
+    findings = detect_missing_file(
+        [{"id": "s1", "status": "ready", "path": _p(CHILD)}], {}
+    )
+    assert findings[0][0] == "s1"
+    assert findings[0][1] == "review_coherence"
+
+
+def test_l1_leaves_a_live_row_whose_file_is_present():
+    index = {_p(CHILD): _entry(CHILD)}
+    findings = detect_missing_file(
+        [{"id": "s1", "status": "ready", "path": _p(CHILD)}], index
+    )
+    assert findings == []
+
+
+def test_l1_does_not_chase_a_gone_row():
+    findings = detect_missing_file(
+        [{"id": "s1", "status": "deleted", "path": _p(CHILD)}], {}
+    )
+    assert findings == []
+
+
+# --- L2 broken chain -------------------------------------------------------
+
+
+def test_l2_flags_a_moved_parent_as_rebase_backing():
+    index = {_p(CHILD): _entry(CHILD, backing=BASE)}  # BASE itself absent
+    findings = detect_broken_chain([{"id": "s1", "path": _p(CHILD)}], index)
+    assert findings == [
+        (
+            "s1",
+            "rebase_backing",
+            {"reason": "backing file not found in any pool", "backing": _p(BASE)},
+        )
+    ]
+
+
+def test_l2_leaves_a_resolvable_chain_alone():
+    index = {_p(CHILD): _entry(CHILD, backing=BASE), _p(BASE): _entry(BASE)}
+    findings = detect_broken_chain([{"id": "s1", "path": _p(CHILD)}], index)
+    assert findings == []
+
+
+def test_l2_flags_an_unresolvable_reference_as_review_coherence():
+    entry = {
+        "uuid": CHILD,
+        "size": 10,
+        "readable": True,
+        "backing_raw": "/weird/no-uuid.img",
+        "backing_uuid": None,
+    }
+    index = {_p(CHILD): entry}
+    findings = detect_broken_chain([{"id": "s1", "path": _p(CHILD)}], index)
+    assert findings[0][1] == "review_coherence"
+
+
+def test_l2_leaves_a_base_with_no_backing_alone():
+    index = {_p(BASE): _entry(BASE)}
+    findings = detect_broken_chain([{"id": "s1", "path": _p(BASE)}], index)
     assert findings == []
 
 

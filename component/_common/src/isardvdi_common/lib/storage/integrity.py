@@ -40,6 +40,68 @@ def detect_coherence(rows, *, live_user_ids, storages_used_by_live_domains):
     return findings
 
 
+def detect_missing_file(rows, backing_index):
+    """L1 - a live-status row whose file the scan did not find.
+
+    ``rows`` is ``[{id, status, path}]`` whose ``path`` is inside a pool the
+    scan covered, so the caller guarantees an absence here is real and not a
+    disk that simply lives in an unscanned pool. Flags ``review_coherence``.
+    """
+    findings = []
+    for row in rows:
+        if row.get("status") in GONE_STATUSES:
+            continue
+        if row["path"] not in backing_index:
+            findings.append(
+                (
+                    row["id"],
+                    "review_coherence",
+                    {
+                        "reason": "the row's file is not in its pool",
+                        "path": row["path"],
+                    },
+                )
+            )
+    return findings
+
+
+def detect_broken_chain(rows, backing_index):
+    """L2 - a present disk whose backing file the scan cannot find.
+
+    ``backing_index`` must span every enabled pool (a chain can cross pools),
+    so a backing absent from it is genuinely gone. Flags ``rebase_backing``
+    when the backing's uuid is known (the parent most likely moved) and
+    ``review_coherence`` when the reference cannot be resolved at all.
+    """
+    present_paths = set(backing_index)
+    present_uuids = {e["uuid"] for e in backing_index.values() if e.get("uuid")}
+    findings = []
+    for row in rows:
+        entry = backing_index.get(row["path"])
+        if not entry or not entry.get("readable"):
+            continue
+        backing_raw = entry.get("backing_raw")
+        if not backing_raw:
+            continue
+        backing_uuid = entry.get("backing_uuid")
+        if backing_raw in present_paths or (
+            backing_uuid and backing_uuid in present_uuids
+        ):
+            continue
+        action = "rebase_backing" if backing_uuid else "review_coherence"
+        findings.append(
+            (
+                row["id"],
+                action,
+                {
+                    "reason": "backing file not found in any pool",
+                    "backing": backing_raw,
+                },
+            )
+        )
+    return findings
+
+
 def detect_on_disk_dependents(gone_disks, backing_index, *, live_uuids):
     """L3 - a disk the database treats as gone that on-disk disks still back onto.
 
