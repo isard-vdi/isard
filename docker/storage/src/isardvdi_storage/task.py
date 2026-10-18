@@ -82,6 +82,10 @@ class BackingChainUnknown(Exception):
     """The chain could not be read, which says nothing about whether it is whole."""
 
 
+class BackingInUseError(Exception):
+    """Refused: the disk still backs a live disk on disk."""
+
+
 def _unreadable_chain(storage_id, storage_path, reason):
     """Raise for RQ to retry; a chain step out of retries returns a reading without status."""
     job = get_current_job()
@@ -1535,7 +1539,7 @@ def move(
     )
 
 
-def move_delete(path, pool_root=None):
+def move_delete(path, pool_root=None, covered_paths=None):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
 
@@ -1543,8 +1547,13 @@ def move_delete(path, pool_root=None):
     :type path: str
     :param pool_root: Mountpoint of the disk's storage pool, from the caller
     :type pool_root: str
+    :param covered_paths: see :func:`delete`; a move-delete still strands a
+        child's backing, so it carries the same guard.
+    :type covered_paths: list or None
     :rtype: int
     """
+    if covered_paths is not None:
+        _refuse_if_backs_live_disks(path, covered_paths)
     if isfile(path):
         delete_path = join(dirname(path), "deleted")
         if not isdir(delete_path):
@@ -1571,6 +1580,113 @@ def _storage_qcow():
             sys.path.insert(0, "/utils")
         from storage_lib import qcow
     return qcow
+
+
+def _dependent_candidates():
+    """Every qcow2 under the pools (a seam for the guard test)."""
+    try:
+        from storage_lib.scanning import scan_isard_dirs
+    except ModuleNotFoundError:
+        import sys
+
+        if "/utils" not in sys.path:
+            sys.path.insert(0, "/utils")
+        from storage_lib.scanning import scan_isard_dirs
+    return [p for p in scan_isard_dirs() if p.endswith(".qcow2")]
+
+
+# Workers fork per job and several drain the delete lane, so the pool scan is
+# shared through Redis (not an in-process cache) once per short window.
+_PURGE_BIDX_BUCKET_S = 60
+_PURGE_BIDX_TTL_S = 150
+_PURGE_BIDX_PREFIX = "storage:purge_backing_rev:"
+
+
+def _on_disk_dependents(path, covered_paths):
+    """``(dependents, unknown)`` for ``path`` via the shared per-window index;
+    direct scan when Redis is down or the target name has no uuid to key on."""
+    import json
+    from time import time as _now
+
+    qcow = _storage_qcow()  # puts /utils on sys.path before importing storage_lib
+    from storage_lib.consistency import (
+        build_reverse_dependents,
+        dependents_from_reverse,
+        on_disk_dependents,
+    )
+    from storage_lib.qcow import uuid_from_path
+
+    try:
+        redis = _redis_connection()
+    except Exception:
+        redis = None
+
+    if redis is None or not uuid_from_path(path):
+        index = qcow.build_backing_index(_dependent_candidates())
+        return on_disk_dependents(path, index, covered_paths)
+
+    key = _PURGE_BIDX_PREFIX + str(int(_now() // _PURGE_BIDX_BUCKET_S))
+    try:
+        built = bool(redis.hexists(key, "__built__"))
+    except Exception:
+        built = False
+
+    if not built:
+        reverse = build_reverse_dependents(
+            qcow.build_backing_index(_dependent_candidates())
+        )
+        mapping = {
+            "__built__": "1",
+            "__unreadable__": json.dumps(reverse["unreadable"]),
+        }
+        for uuid, paths in reverse["by_uuid"].items():
+            mapping["u:" + uuid] = json.dumps(paths)
+        for backing_path, paths in reverse["by_path"].items():
+            mapping["p:" + backing_path] = json.dumps(paths)
+        try:
+            redis.hset(key, mapping=mapping)
+            redis.expire(key, _PURGE_BIDX_TTL_S)
+        except Exception:
+            pass
+        return dependents_from_reverse(path, reverse, covered_paths)
+
+    def _field(field):
+        value = redis.hget(key, field)
+        if value is None:
+            return []
+        if isinstance(value, bytes):
+            value = value.decode()
+        return json.loads(value)
+
+    target_uuid = uuid_from_path(path)
+    reverse = {
+        "by_uuid": {target_uuid: _field("u:" + target_uuid)},
+        "by_path": {path: _field("p:" + path)},
+        "unreadable": _field("__unreadable__"),
+    }
+    return dependents_from_reverse(path, reverse, covered_paths)
+
+
+def _refuse_if_backs_live_disks(path, covered_paths):
+    """Refuse to unlink/move a base that still backs a live disk outside this
+    deletion: the child the DB graph cannot see (row with no ``parent``). A live
+    child is always a readable qcow2, so an unreadable candidate cannot be one;
+    it is logged, not blocked -- blocking on every transiently unreadable pool
+    file (a disk mid-creation, a placeholder) would strand every purge."""
+    dependents, unknown = _on_disk_dependents(path, covered_paths or [])
+    if unknown:
+        log.warning(
+            "delete %s: %d candidate(s) could not be read to check backing "
+            "(not blocking): %s",
+            path,
+            len(unknown),
+            unknown[:3],
+        )
+    if dependents:
+        raise BackingInUseError(
+            f"refusing to delete {path}: it still backs {len(dependents)} live "
+            f"disk(s) not part of this deletion (e.g. {dependents[:3]})"
+        )
 
 
 def storage_check(storage_path):
@@ -1954,7 +2070,7 @@ def _absent_on_a_live_volume(path, pool_root=None):
         return next(entries, None) is not None
 
 
-def delete(path, pool_root=None):
+def delete(path, pool_root=None, covered_paths=None):
     """
     Delete disk.
 
@@ -1962,7 +2078,14 @@ def delete(path, pool_root=None):
     :type path: str
     :param pool_root: Mountpoint of the disk's storage pool, from the caller
     :type pool_root: str
+    :param covered_paths: When not ``None`` (the recycle-bin purge), the paths
+        this pass is deleting; the worker then refuses (``BackingInUseError``) if
+        ``path`` still backs a live disk outside that set. ``None`` leaves the
+        direct-delete path (already DB-guarded) unchanged and skips the scan.
+    :type covered_paths: list or None
     """
+    if covered_paths is not None:
+        _refuse_if_backs_live_disks(path, covered_paths)
     if isfile(path):
         remove(path)
         return

@@ -109,6 +109,57 @@ def deletable_after_live_guard(deletable, disk_files, live_uuids):
     return kept, protected
 
 
+def build_reverse_dependents(backing_index):
+    """Invert ``build_backing_index`` into children keyed by the uuid and the
+    exact path they back, plus the unreadable candidates: a per-window index a
+    purge guard can query in O(1).
+
+    :return: ``{"by_uuid", "by_path", "unreadable"}``.
+    :rtype: dict
+    """
+    by_uuid, by_path, unreadable = {}, {}, []
+    for path, info in (backing_index or {}).items():
+        if not info.get("readable", True):
+            unreadable.append(path)
+            continue
+        backing_raw = info.get("backing_raw")
+        if not backing_raw:
+            continue
+        backing_uuid = info.get("backing_uuid")
+        if backing_uuid:
+            by_uuid.setdefault(backing_uuid, []).append(path)
+        by_path.setdefault(backing_raw, []).append(path)
+    return {
+        "by_uuid": {k: sorted(v) for k, v in by_uuid.items()},
+        "by_path": {k: sorted(v) for k, v in by_path.items()},
+        "unreadable": sorted(unreadable),
+    }
+
+
+def dependents_from_reverse(target_path, reverse, covered_paths=()):
+    """``(dependents, unknown)`` for ``target_path`` from a
+    :func:`build_reverse_dependents` map, excluding ``covered_paths`` and the
+    target. ``unknown`` are unreadable candidates the caller must fail closed on.
+    """
+    skip = set(covered_paths or ())
+    skip.add(target_path)
+    target_uuid = uuid_from_path(target_path)
+    found = set(reverse.get("by_path", {}).get(target_path, []) or [])
+    if target_uuid:
+        found |= set(reverse.get("by_uuid", {}).get(target_uuid, []) or [])
+    dependents = sorted(p for p in found if p not in skip)
+    unknown = sorted(p for p in (reverse.get("unreadable") or []) if p not in skip)
+    return dependents, unknown
+
+
+def on_disk_dependents(target_path, backing_index, covered_paths=()):
+    """``(dependents, unknown)`` for ``target_path`` over a full
+    :func:`build_backing_index` map (build-then-query in one call)."""
+    return dependents_from_reverse(
+        target_path, build_reverse_dependents(backing_index), covered_paths
+    )
+
+
 def classify_storage_consistency(
     rows, disk_files, check_errors=None, deferred_jobs=None
 ):
