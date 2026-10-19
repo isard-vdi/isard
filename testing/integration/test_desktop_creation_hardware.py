@@ -132,13 +132,13 @@ from .helpers.responses import created_id, expect
 # constants — all overridable via env so CI can substitute different mirrors
 # ---------------------------------------------------------------------------
 
-# User-recommended small ISO that survives the download_url task end-to-end.
+# In-repo test media (testing/media) so the tests do not depend on an external mirror.
 DEFAULT_MEDIA_URL = os.environ.get(
     "E2E_HW_MEDIA_URL",
-    "https://distro.ibiblio.org/damnsmall/dsl-n/current/dsl-n-01RC4.iso",
+    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso",
 )
 
-# Engine timeouts: download is generous (small ISO, but flaky archive),
+# Engine timeouts: download is generous,
 # disk creation is fast (qcow2 on an already-present parent), template
 # creation includes a second qcow2 op.
 DOWNLOAD_TIMEOUT = int(os.environ.get("E2E_DOWNLOAD_TIMEOUT", "300"))

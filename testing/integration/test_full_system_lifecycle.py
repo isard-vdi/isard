@@ -116,7 +116,7 @@ from .helpers.sockets import SocketIOListener
 REGISTRY_IMAGE = os.environ.get("E2E_FULL_REGISTRY_IMAGE", "Slax 9.3.0")
 DEFAULT_MEDIA_URL = os.environ.get(
     "E2E_FULL_MEDIA_URL",
-    "https://distro.ibiblio.org/damnsmall/dsl-n/current/dsl-n-01RC4.iso",
+    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso",
 )
 OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
 

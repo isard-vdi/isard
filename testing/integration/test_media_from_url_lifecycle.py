@@ -58,7 +58,7 @@ from .helpers.sockets import SocketIOListener
 
 DEFAULT_MEDIA_URL = os.environ.get(
     "E2E_MEDIA_URL",
-    "https://archive.org/download/ms-dos-6.22_dvd/MS-DOS%206.22.iso",
+    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso",
 )
 
 # TCG emulation budgets — generous enough for CI, not idle.
