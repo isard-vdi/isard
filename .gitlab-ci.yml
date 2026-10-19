@@ -425,7 +425,14 @@ docker-image:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - git submodule update --init --recursive
+    # A job cancelled mid-clone leaves a half-cloned module in the reused /builds volume
+    - |
+      git submodule sync --recursive
+      if ! git submodule update --init --recursive; then
+        git submodule deinit --all --force
+        rm -rf .git/modules
+        git submodule update --init --recursive
+      fi
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
