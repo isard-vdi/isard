@@ -4,39 +4,36 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Give back the zeros of disk files that nobody writes, without changing a byte.
+"""Give back the zeros of stopped desktops' disks, without changing a byte.
 
 Dry run by default: lists the eligible disks and what each would give back.
 
-    dig-holes                                  # template disks, report only
+    dig-holes                                  # report only
     dig-holes --apply --limit 1 --min-reclaim 1G --report /isard/dig-holes.jsonl
     dig-holes --apply --ids <storage-id> ...   # just these
-    dig-holes --include-stopped-desktops       # desktop disks too, only while stopped
 
-Run it from isard-storage at low I/O priority:
+Run it from isard-storage, where the files are visible:
 
-    docker exec -it isard-storage ionice -c3 nice -n19 dig-holes ...
+    docker exec -it isard-storage dig-holes ...
 
-Each disk is parked in maintenance through apiv4 while it is dug, and released
-and measured again afterwards. Each file is hashed (sha256) before and after; a
-difference stops the run (``--no-verify`` skips the hashes).
+--apply asks the product to dig each disk (PUT /item/storage/{id}/dig-holes)
+and waits for its task; the disk is parked while it is dug. The product only
+digs a stopped desktop's own leaf disk and says why it refuses any other. It
+hashes the file before and after; a disk that reads differently is left
+damaged and the run stops.
 See storage_lib/holes.py for why a disk is or is not eligible.
 """
 
 import argparse
 import json
+import os
 import sys
 import time
 
 from storage_lib import api
-from storage_lib.holes import (
-    DEFAULT_SETTLE_SECONDS,
-    DigHolesMismatch,
-    as_report_row,
-    classify,
-    dig,
-    measure,
-)
+from storage_lib.holes import DEFAULT_SETTLE_SECONDS, as_report_row, classify, measure
+
+TERMINAL = ("finished", "failed", "canceled")
 
 
 def size(text):
@@ -53,37 +50,31 @@ def gib(n):
     return f"{n / (1 << 30):.1f} GiB"
 
 
-class ReleaseFailed(RuntimeError):
-    """The disk stays in maintenance: release it by hand before anything else."""
+class DigFailed(RuntimeError):
+    """The product's dig did not finish; the disk says how it was left."""
 
 
-def dig_locked(c, verify=True, action="dig_holes"):
-    """Lock the disk through apiv4, dig it, release it and measure it again."""
-    api.lock_storage(c.storage_id, action)
-    try:
-        record = dig(c.path, verify=verify)
-    except DigHolesMismatch:
-        # left in maintenance on purpose: nobody may start a disk that reads differently
-        raise
-    except BaseException:
-        _release(c.storage_id)
-        raise
-    _release(c.storage_id)
-    try:
-        api.remeasure_storage(c.storage_id)
-    except Exception as exc:
-        record["remeasure_error"] = str(exc)
-    return record
-
-
-def _release(storage_id):
-    try:
-        api.release_storage(storage_id)
-    except Exception as exc:
-        raise ReleaseFailed(
-            f"{storage_id} is still in maintenance: PUT "
-            f"/api/v4/item/storage/{storage_id}/status/ready ({exc})"
-        ) from exc
+def dig_through_product(c, poll=5.0, sleep=time.sleep):
+    """Queue the product's dig_holes for one disk and wait until its task and the disk settle."""
+    before = os.stat(c.path).st_blocks * 512
+    task_id = api.dig_holes_storage(c.storage_id)
+    while (api.poll_task(task_id) or {}).get("status") not in TERMINAL:
+        sleep(poll)
+    row = api.storage_row(c.storage_id)
+    while row.get("status") == "maintenance":
+        sleep(poll)
+        row = api.storage_row(c.storage_id)
+    status = (api.poll_task(task_id) or {}).get("status")
+    if status != "finished":
+        raise DigFailed(f"task {task_id} {status}; disk left {row.get('status')}")
+    after = os.stat(c.path).st_blocks * 512
+    return {
+        "task_id": task_id,
+        "path": c.path,
+        "allocated_before": before,
+        "allocated_after": after,
+        "reclaimed": before - after,
+    }
 
 
 def main(argv=None):
@@ -94,13 +85,11 @@ def main(argv=None):
         "--apply", action="store_true", help="dig the holes (default: report only)"
     )
     p.add_argument("--ids", nargs="+", help="only these storage ids")
-    p.add_argument("--include-stopped-desktops", action="store_true")
     p.add_argument("--min-reclaim", type=size, default=size("1g"))
     p.add_argument(
         "--limit", type=int, default=0, help="stop after N files (0: no limit)"
     )
     p.add_argument("--settle", type=int, default=DEFAULT_SETTLE_SECONDS)
-    p.add_argument("--no-verify", action="store_true")
     p.add_argument("--report", help="append one JSON line per file here")
     args = p.parse_args(argv)
 
@@ -112,9 +101,7 @@ def main(argv=None):
     else:
         storages_scope = storages
     # Children are computed over every storage, not only the requested ones.
-    candidates = classify(
-        storages, domains, time.time(), args.include_stopped_desktops, args.settle
-    )
+    candidates = classify(storages, domains, time.time(), args.settle)
     scope = {s["id"] for s in storages_scope}
     candidates = [c for c in candidates if c.storage_id in scope]
 
@@ -158,31 +145,23 @@ def main(argv=None):
             continue
         print("  digging", line, flush=True)
         try:
-            record = dig_locked(c, verify=not args.no_verify)
+            record = dig_through_product(c)
         except api.StorageLockRefused as exc:
-            print(f"  skip {c.storage_id}: apiv4 would not lock it ({exc})")
+            print(f"  skip {c.storage_id}: apiv4 refused it ({exc})")
             continue
-        except DigHolesMismatch as exc:
-            print(
-                f"STOP: {c.path} reads differently after the dig and stays in "
-                f"maintenance: {exc}",
-                file=sys.stderr,
-            )
+        except DigFailed as exc:
+            damaged = "disk left damaged" in str(exc)
+            print(f"{'STOP' if damaged else '  failed'} {c.storage_id}: {exc}", file=sys.stderr)
             if report:
-                report.write(
-                    json.dumps({"error": "mismatch", "detail": str(exc)}) + "\n"
-                )
-            return 2
-        except ReleaseFailed as exc:
-            print(f"STOP: {exc}", file=sys.stderr)
-            return 3
+                report.write(json.dumps({"error": "failed", "detail": str(exc)}) + "\n")
+            if damaged:
+                return 2
+            continue
         record.update(storage_id=c.storage_id, role=c.role, ts=time.time())
         if report:
             report.write(json.dumps(record) + "\n")
             report.flush()
-        print(
-            f"    gave back {gib(record['reclaimed'])}, sha256 identical: {record['verified']}"
-        )
+        print(f"    gave back {gib(record['reclaimed'])}")
         done += 1
     return 0
 

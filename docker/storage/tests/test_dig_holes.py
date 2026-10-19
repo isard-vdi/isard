@@ -3,8 +3,6 @@
 """``dig-holes``: which disks may be dug, and that digging changes no byte."""
 
 import json
-import os
-import shutil
 import subprocess
 
 import pytest
@@ -16,7 +14,12 @@ MIB = 1 << 20
 
 
 def _storage(
-    sid, status="ready", parent=None, status_time=OLD, directory="/isard/templates"
+    sid,
+    status="ready",
+    parent=None,
+    status_time=OLD,
+    directory="/isard/groups",
+    perms=("r", "w"),
 ):
     return {
         "id": sid,
@@ -25,6 +28,7 @@ def _storage(
         "status_time": status_time,
         "directory_path": directory,
         "parent": parent,
+        "perms": list(perms),
     }
 
 
@@ -42,27 +46,57 @@ def _by_id(cands):
 
 
 class TestWhoIsEligible:
-    def test_a_template_disk_is_eligible(self):
-        c = _by_id(
-            holes.classify(
-                [_storage("t")], [_domain("T", "template", "Stopped", "t")], NOW
-            )
-        )
-        assert c["t"].role == "template" and c["t"].reason is None
+    """The same disks the product's dig_holes admits, so --apply is not refused."""
 
-    def test_a_disk_with_descendants_is_left_out(self):
-        """apiv4 cannot park a backing file, so nothing locks it while it is dug."""
+    def test_a_stopped_desktops_leaf_disk_is_eligible(self):
+        c = holes.classify(
+            [_storage("d")], [_domain("D", "desktop", "Stopped", "d")], NOW
+        )
+        assert c[0].role == "desktop" and c[0].reason is None
+
+    def test_a_failed_desktop_counts_as_stopped(self):
+        c = holes.classify(
+            [_storage("d")], [_domain("D", "desktop", "Failed", "d")], NOW
+        )
+        assert c[0].reason is None
+
+    def test_a_template_disk_is_left_out(self):
+        c = holes.classify(
+            [_storage("t", perms=("r",))],
+            [_domain("T", "template", "Stopped", "t")],
+            NOW,
+        )
+        assert c[0].reason == "read-only disk"
+        c = holes.classify(
+            [_storage("t")], [_domain("T", "template", "Stopped", "t")], NOW
+        )
+        assert c[0].reason == "a template uses it"
+
+    def test_a_disk_no_domain_uses_is_left_out(self):
+        assert holes.classify([_storage("x")], [], NOW)[0].reason == "no domain uses it"
+
+    def test_a_base_with_descendants_is_left_out(self):
+        storages = [_storage("base"), _storage("child", parent="base")]
+        domains = [
+            _domain("D", "desktop", "Stopped", "base"),
+            _domain("E", "desktop", "Stopped", "child"),
+        ]
+        c = _by_id(holes.classify(storages, domains, NOW))
+        assert c["base"].role == "backing"
+        assert c["base"].reason == "has descendants"
+        assert c["child"].reason is None
+
+    def test_a_deleted_child_still_keeps_its_base_out(self):
+        """A deleted row's file may still be on disk, backed on the base."""
         storages = [
             _storage("base"),
-            _storage("child", parent="base", directory="/isard/groups"),
+            _storage("gone", status="deleted", parent="base"),
         ]
-        domains = [_domain("D", "desktop", "Stopped", "child")]
-        c = _by_id(
-            holes.classify(storages, domains, NOW, include_stopped_desktops=True)
+        domains = [_domain("D", "desktop", "Stopped", "base")]
+        assert (
+            _by_id(holes.classify(storages, domains, NOW))["base"].reason
+            == "has descendants"
         )
-        assert c["base"].role == "backing"
-        assert c["base"].reason == "has descendants; the product cannot lock it"
-        assert c["child"].reason is None
 
     def test_a_disk_with_children_that_a_running_desktop_uses_is_refused(self):
         """An incoherent row must not make a written disk look like a read-only parent."""
@@ -73,94 +107,37 @@ class TestWhoIsEligible:
             == "a desktop using it is not stopped"
         )
 
-    def test_desktop_disks_only_on_request_and_only_stopped(self):
-        storages = [_storage("d1"), _storage("d2"), _storage("d3")]
-        domains = [
-            _domain("A", "desktop", "Stopped", "d1"),
-            _domain("B", "desktop", "Paused", "d2"),
-        ]
-        default = _by_id(holes.classify(storages, domains, NOW))
-        assert default["d1"].reason.startswith("desktop disk")
-        asked = _by_id(
-            holes.classify(storages, domains, NOW, include_stopped_desktops=True)
-        )
-        assert asked["d1"].reason is None
-        assert asked["d2"].reason == "a desktop using it is not stopped"
-        assert asked["d3"].reason.startswith("desktop disk with no domain")
+    @pytest.mark.parametrize("status", ["Started", "Paused", "Shutting-down"])
+    def test_a_desktop_not_stopped_is_left_out(self, status):
+        c = holes.classify([_storage("d")], [_domain("D", "desktop", status, "d")], NOW)
+        assert c[0].reason == "a desktop using it is not stopped"
 
     @pytest.mark.parametrize(
         "status", ["maintenance", "recycled", "deleted", "creating"]
     )
     def test_only_ready_disks(self, status):
         c = holes.classify(
-            [_storage("t", status=status)],
-            [_domain("T", "template", "Stopped", "t")],
+            [_storage("d", status=status)],
+            [_domain("D", "desktop", "Stopped", "d")],
             NOW,
         )
         assert c[0].reason == f"status {status}"
 
     def test_a_disk_that_just_changed_status_waits(self):
         c = holes.classify(
-            [_storage("t", status_time=NOW - 60)],
-            [_domain("T", "template", "Stopped", "t")],
+            [_storage("d", status_time=NOW - 60)],
+            [_domain("D", "desktop", "Stopped", "d")],
             NOW,
         )
         assert "settle" in c[0].reason
 
     def test_files_parked_in_deleted_are_never_touched(self):
         c = holes.classify(
-            [_storage("t", directory="/isard/templates/deleted")],
-            [_domain("T", "template", "Stopped", "t")],
+            [_storage("d", directory="/isard/groups/deleted")],
+            [_domain("D", "desktop", "Stopped", "d")],
             NOW,
         )
         assert c[0].reason == "parked in deleted/"
-
-
-def _fallocate_digs_holes():
-    if shutil.which("fallocate") is None:
-        return False
-    help_text = subprocess.run(["fallocate", "--help"], capture_output=True, text=True)
-    return "dig-holes" in help_text.stdout + help_text.stderr
-
-
-needs_fallocate = pytest.mark.skipif(
-    not _fallocate_digs_holes(), reason="needs util-linux fallocate (--dig-holes)"
-)
-
-
-def _inflated(path, apparent=32 * MIB, data=1 * MIB):
-    with open(path, "wb") as f:
-        f.write(os.urandom(data))
-        f.write(b"\0" * (apparent - data))
-        f.flush()
-        os.fsync(f.fileno())
-    return str(path)
-
-
-@needs_fallocate
-class TestDigChangesNoByte:
-    def test_it_gives_the_zeros_back_and_reads_the_same(self, tmp_path):
-        path = _inflated(tmp_path / "t.qcow2")
-        before = holes.file_sha256(path)
-
-        record = holes.dig(path)
-
-        assert record["sha256"] == before
-        assert os.stat(path).st_size == 32 * MIB
-        assert record["allocated_after"] < 4 * MIB < record["allocated_before"]
-        assert record["reclaimed"] > 24 * MIB
-
-
-class TestTheCheckCanFail:
-    def test_a_file_that_reads_differently_stops_the_run(self, tmp_path, monkeypatch):
-        """The check must be able to fail: a changed hash raises instead of reporting success."""
-        path = _inflated(tmp_path / "t.qcow2")
-        hashes = iter(["before", "after"])
-        monkeypatch.setattr(holes, "file_sha256", lambda p: next(hashes))
-        monkeypatch.setattr(holes.subprocess, "run", lambda *a, **k: None)
-
-        with pytest.raises(holes.DigHolesMismatch):
-            holes.dig(path)
 
 
 def _cli():
@@ -177,77 +154,46 @@ def _cli():
     return module
 
 
-class TestTheDiskIsLockedWhileItIsDug:
+class TestTheProductDigsIt:
     @pytest.fixture
-    def cli(self, monkeypatch):
+    def cli(self, monkeypatch, tmp_path):
         cli = _cli()
-        calls = []
+        disk = tmp_path / "t.qcow2"
+        disk.write_bytes(b"x")
+        cli.disk = str(disk)
+        cli.calls = []
+        cli.task_status = iter(["queued", "started", "finished", "finished"])
+        cli.rows = iter([{"status": "maintenance"}, {"status": "ready"}])
+
+        def queue(sid):
+            cli.calls.append(("queue", sid))
+            return "task-1"
+
+        monkeypatch.setattr(cli.api, "dig_holes_storage", queue)
         monkeypatch.setattr(
-            cli.api, "lock_storage", lambda sid, a: calls.append(("lock", sid, a))
+            cli.api, "poll_task", lambda tid: {"status": next(cli.task_status)}
         )
-        monkeypatch.setattr(
-            cli.api, "release_storage", lambda sid: calls.append(("release", sid))
-        )
-        monkeypatch.setattr(
-            cli.api, "remeasure_storage", lambda sid: calls.append(("remeasure", sid))
-        )
-        cli.calls = calls
+        monkeypatch.setattr(cli.api, "storage_row", lambda sid: next(cli.rows))
         return cli
 
-    def _candidate(self):
-        return holes.Candidate(
-            storage_id="t", path="/isard/templates/t.qcow2", role="template"
-        )
+    def _candidate(self, cli):
+        return holes.Candidate(storage_id="t", path=cli.disk, role="desktop")
 
-    def test_locked_dug_released_and_measured_in_that_order(self, cli, monkeypatch):
-        monkeypatch.setattr(
-            cli,
-            "dig",
-            lambda path, verify: cli.calls.append(("dig", path)) or {"reclaimed": 1},
-        )
-        cli.dig_locked(self._candidate())
-        assert [c[0] for c in cli.calls] == ["lock", "dig", "release", "remeasure"]
-        assert cli.calls[0] == ("lock", "t", "dig_holes")
+    def test_it_queues_the_product_dig_and_waits_for_the_release(self, cli):
+        record = cli.dig_through_product(self._candidate(cli), sleep=lambda s: None)
+        assert cli.calls == [("queue", "t")]
+        assert record["task_id"] == "task-1"
+        assert list(cli.rows) == []
 
-    def test_a_refused_lock_digs_nothing(self, cli, monkeypatch):
-        def refuse(sid, action):
-            raise cli.api.StorageLockRefused("428 storage_has_children")
+    def test_a_disk_left_damaged_is_reported_as_such(self, cli):
+        cli.task_status = iter(["failed", "failed"])
+        cli.rows = iter([{"status": "damaged"}])
+        with pytest.raises(cli.DigFailed, match="disk left damaged"):
+            cli.dig_through_product(self._candidate(cli), sleep=lambda s: None)
 
-        monkeypatch.setattr(cli.api, "lock_storage", refuse)
-        monkeypatch.setattr(
-            cli, "dig", lambda *a, **k: pytest.fail("dug an unlocked disk")
-        )
-        with pytest.raises(cli.api.StorageLockRefused):
-            cli.dig_locked(self._candidate())
-        assert cli.calls == []
-
-    def test_a_failed_dig_still_releases(self, cli, monkeypatch):
-        def boom(path, verify):
-            raise OSError("fallocate failed")
-
-        monkeypatch.setattr(cli, "dig", boom)
-        with pytest.raises(OSError):
-            cli.dig_locked(self._candidate())
-        assert [c[0] for c in cli.calls] == ["lock", "release"]
-
-    def test_a_disk_that_reads_differently_stays_locked(self, cli, monkeypatch):
-        def mismatch(path, verify):
-            raise holes.DigHolesMismatch("sha256 differs")
-
-        monkeypatch.setattr(cli, "dig", mismatch)
-        with pytest.raises(holes.DigHolesMismatch):
-            cli.dig_locked(self._candidate())
-        assert [c[0] for c in cli.calls] == ["lock"]
-
-    def test_a_release_that_fails_stops_the_run(self, cli, monkeypatch):
-        monkeypatch.setattr(cli, "dig", lambda path, verify: {"reclaimed": 1})
-
-        def down(sid):
-            raise RuntimeError("apiv4 down")
-
-        monkeypatch.setattr(cli.api, "release_storage", down)
-        with pytest.raises(cli.ReleaseFailed, match="still in maintenance"):
-            cli.dig_locked(self._candidate())
+    def test_the_tool_never_digs_a_file_itself(self):
+        cli = _cli()
+        assert not hasattr(cli, "dig") and not hasattr(holes, "dig")
 
 
 def test_an_empty_ids_list_is_refused_not_read_as_every_disk(monkeypatch):

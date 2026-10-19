@@ -546,7 +546,15 @@ def fetch_storages_for_holes():
     """The storage columns ``dig-holes`` decides on, read with an explicit pluck."""
     return _fetch_table(
         "storage",
-        pluck=["id", "type", "status", "status_time", "directory_path", "parent"],
+        pluck=[
+            "id",
+            "type",
+            "status",
+            "status_time",
+            "directory_path",
+            "parent",
+            "perms",
+        ],
     )
 
 
@@ -559,37 +567,29 @@ def fetch_domains_for_holes():
 
 
 class StorageLockRefused(RuntimeError):
-    """apiv4 would not park the disk: it is busy, not ready, or has descendants."""
+    """apiv4 refused the action, and its answer says why."""
 
 
-def lock_storage(storage_id, action):
-    """Park a disk and its domains in maintenance, the way every product operation does."""
+def dig_holes_storage(storage_id, priority="low"):
+    """Queue the product's dig_holes for one disk; returns its task id."""
     with _client(timeout=60.0) as client:
         resp = client.get_httpx_client().put(
-            f"/api/v4/item/storage/{storage_id}/status/maintenance",
-            json={"action": action},
+            f"/api/v4/item/storage/{storage_id}/dig-holes/priority/{priority}"
         )
     if resp.status_code in (404, 409, 428):
         raise StorageLockRefused(f"{resp.status_code} {resp.text[:300]}")
     resp.raise_for_status()
+    return resp.json()["task_id"]
 
 
-def release_storage(storage_id):
-    """Return a parked disk to ready and its domains to Stopped."""
-    with _client(timeout=60.0) as client:
-        resp = client.get_httpx_client().put(
-            f"/api/v4/item/storage/{storage_id}/status/ready"
+def storage_row(storage_id):
+    """The raw storage row."""
+    with _client(timeout=30.0) as client:
+        resp = client.get_httpx_client().get(
+            f"/api/v4/admin/item/storage/info/{storage_id}"
         )
     resp.raise_for_status()
-
-
-def remeasure_storage(storage_id):
-    """Queue the product's own qemu-img measurement of one disk."""
-    with _client(timeout=60.0) as client:
-        resp = client.get_httpx_client().put(
-            f"/api/v4/item/storage/{storage_id}/check-backing-chain"
-        )
-    resp.raise_for_status()
+    return resp.json()
 
 
 def fetch_consistency_rows():
