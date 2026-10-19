@@ -1867,6 +1867,17 @@ class Storage(RethinkCustomBase):
                         }
                     ],
                 },
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": Storage._maintenance_release_statuses(
+                                self.id, [domain.id for domain in self.domains]
+                            ),
+                        }
+                    },
+                },
             ],
         )
 

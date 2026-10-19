@@ -242,6 +242,7 @@ def test_sparsify_chain_clears_the_pending_action_after_the_refresh():
     with (
         patch.object(Storage, "create_task") as mock_create,
         patch.object(Storage, "set_maintenance"),
+        patch.object(Storage, "domains", new=[]),
         patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
     ):
         mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
@@ -260,6 +261,26 @@ def test_sparsify_chain_clears_the_pending_action_after_the_refresh():
         if dep["task"] == "clear_pending_action"
     )
     assert clear["job_kwargs"]["kwargs"] == {"storage_id": s.id, "action": "sparsify"}
+
+
+def test_a_failed_sparsify_releases_the_disk_and_its_domains():
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(Storage, "domains", new=[MagicMock(id="d1")]),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.sparsify(user_id="u1")
+    dependents = mock_create.call_args.kwargs["dependents"]
+    release = next(d for d in dependents if d["task"] == "update_status")
+    assert release["queue"] == "core"
+    statuses = release["job_kwargs"]["kwargs"]["statuses"]
+    for outcome in ("failed", "canceled"):
+        assert statuses[outcome]["ready"] == {"storage": [s.id]}
+        assert statuses[outcome]["Stopped"] == {"domain": ["d1"]}
+    assert "finished" not in statuses
 
 
 # ---------------------------------------------------------------------------
