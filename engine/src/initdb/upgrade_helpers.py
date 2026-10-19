@@ -923,3 +923,41 @@ def v210_perms_follow_the_domain(upgrade):
         f"v210: storage perms recomputed from the domains: {len(to_ro)} rows to "
         f"read-only, {len(to_rw)} rows to read-write"
     )
+
+
+# Given to stored limits that lack it: the 999 release 128 gave the quotas, so
+# no group or category ends up stricter than it was.
+V215_VOLATILE_LIMIT = 999
+
+
+def limits_missing_volatile(limits):
+    """True for a limits object stored before Limits accepted ``volatile``."""
+    return isinstance(limits, dict) and "volatile" not in limits
+
+
+def v215_limits_volatile(upgrade, table):
+    """Add ``volatile`` to every ``limits`` of ``table`` stored without it.
+
+    Idempotent: limits that already carry it, and rows without limits, are not
+    written. A failing batch is logged and the next one still runs.
+    """
+    conn = upgrade.conn
+    ids = [
+        row["id"]
+        for row in r.table(table).pluck("id", "limits").run(conn)
+        if limits_missing_volatile(row.get("limits"))
+    ]
+    added = 0
+    for i in range(0, len(ids), 500):
+        batch = ids[i : i + 500]
+        try:
+            r.table(table).get_all(r.args(batch)).update(
+                {"limits": {"volatile": V215_VOLATILE_LIMIT}}
+            ).run(conn)
+            added += len(batch)
+        except Exception as e:
+            log.error(
+                f"v215: adding the volatile limit to {len(batch)} {table} "
+                f"limits failed: {e}"
+            )
+    log.info(f"v215: volatile limit added to {added} of {len(ids)} {table} limits")

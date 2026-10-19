@@ -48,12 +48,14 @@ from .upgrade_helpers import (
     v189_canonicalize_vgpu_ids,
     v189_prune_non_full_use_gpu_profiles,
     v210_perms_follow_the_domain,
+    v215_limits_volatile,
 )
 
 """
 Update to new database release version when new code version release
 """
-release_version = 214
+release_version = 215
+# release 215: add the volatile limit to group and category limits stored without it
 # release 214: store users.active and domains.enabled as booleans
 # release 213: drop the Redis task indexes of storage/media rows that no longer exist
 # release 212: give the desktops of pre-apiv4 deployments their create_dict tag_desktop_id;
@@ -5232,6 +5234,11 @@ password:s:%s"""
                     f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
+        if version == 215:
+            try:
+                v215_limits_volatile(self, table)
+            except Exception as e:
+                log.error(f"v215: {table} volatile limit upgrade failed: {e}")
         return True
 
     """
@@ -7340,6 +7347,11 @@ password:s:%s"""
                     f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
+        if version == 215:
+            try:
+                v215_limits_volatile(self, table)
+            except Exception as e:
+                log.error(f"v215: {table} volatile limit upgrade failed: {e}")
         return True
 
     def qos_net(self, version):
