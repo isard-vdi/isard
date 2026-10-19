@@ -16,14 +16,23 @@ def _domains(*statuses):
 
 
 def _self(*domain_statuses):
-    return SimpleNamespace(
+    fake = SimpleNamespace(
         id="s1",
         type="qcow2",
+        status="ready",
         directory_path="/pool/cat/groups",
         path="/pool/cat/groups/s1.qcow2",
         domains=_domains(*domain_statuses),
         create_task=MagicMock(return_value="t1"),
     )
+
+    def guard(action, **kw):
+        with patch.object(Storage, "get", return_value={"status": "ready"}):
+            return Storage.guard(fake, action, **kw)
+
+    fake.guard = guard
+    fake._refusal = lambda *a, **kw: Storage._refusal(fake, *a, **kw)
+    return fake
 
 
 def test_refuses_a_disk_a_started_desktop_holds_open():

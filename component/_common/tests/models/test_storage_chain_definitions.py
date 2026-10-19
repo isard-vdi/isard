@@ -399,6 +399,7 @@ def _run_template_chain(s, template_storage_id):
         # admission is pinned in its own suite.
         patch.object(Storage, "_preflight_lane"),
         patch.object(Storage, "exists", return_value=True),
+        patch.object(Storage, "get", return_value={"status": "ready"}),
         patch.object(
             Storage,
             "pool",

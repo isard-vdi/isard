@@ -24,6 +24,7 @@ from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
+from isardvdi_common.lib.storage import actions as disk_actions
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.lib.storage.sweep import (
     SWEEP_DEFAULTS,
@@ -208,6 +209,14 @@ class StorageService:
     @staticmethod
     def set_maintenance(payload: dict, storage_id: str, action: str) -> str:
         """Set a storage to maintenance status."""
+        if disk_actions.spec(action).statuses is None and (
+            disk_actions.spec(action).access is disk_actions.Access.CREATE
+        ):
+            raise Error(
+                "bad_request",
+                f"{action} parks a disk being created, not an existing one",
+                description_code="storage_invalid_maintenance_action",
+            )
         storage = get_storage(payload, storage_id)
         storage.set_maintenance(action)
         return storage.id

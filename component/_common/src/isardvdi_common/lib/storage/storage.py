@@ -27,6 +27,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.storage import actions as disk_actions
 from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
@@ -411,6 +412,46 @@ class StorageProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         return cls.parse_disks([disk])[0]
+
+    @classmethod
+    def add_allowed_actions(cls, rows):
+        """Stamp each row with the disk actions the registry admits on it, in one query."""
+        ids = [row["id"] for row in rows if row.get("id")]
+        if not ids:
+            return rows
+        with cls._rdb_context():
+            facts = {
+                fact["id"]: fact
+                for fact in r.expr(ids)
+                .map(
+                    lambda sid: {
+                        "id": sid,
+                        "perms": r.table("storage").get(sid)["perms"].default(None),
+                        "domains": r.table("domains")
+                        .get_all(sid, index="storage_ids")
+                        .pluck("kind", "status")
+                        .coerce_to("array"),
+                        "children": r.table("storage")
+                        .get_all(sid, index="parent")
+                        .map(lambda s: s["status"].default(None))
+                        .coerce_to("array"),
+                    }
+                )
+                .run(cls._rdb_connection)
+            }
+        for row in rows:
+            fact = facts.get(row.get("id")) or {}
+            children = fact.get("children") or []
+            row["allowed_actions"] = disk_actions.allowed_actions(
+                status=row.get("status"),
+                domains=[
+                    (d.get("kind"), d.get("status")) for d in fact.get("domains") or []
+                ],
+                has_children=any(c != "deleted" for c in children),
+                has_deleted_children=any(c == "deleted" for c in children),
+                perms=fact.get("perms"),
+            )
+        return rows
 
     @classmethod
     def get_storage_info(cls, storage_id):

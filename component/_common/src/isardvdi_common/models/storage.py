@@ -30,6 +30,7 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.lib import queue_coverage, queue_tiers
+from isardvdi_common.lib.storage import actions as disk_actions
 from isardvdi_common.lib.storage.storage_pools.paths import build_category_pool_dir
 from isardvdi_common.lib.task_index import current_task_id, drop_index
 from isardvdi_common.models.storage_pool import StoragePool
@@ -1153,13 +1154,48 @@ class Storage(RethinkCustomBase):
             dependents=[update],
         )
 
+    def _refusal(self, action, status, exclude_domains=None):
+        """The registry's ``(description_code, message)`` for ``action`` on this disk, or None."""
+        entry = disk_actions.spec(action)
+        excluded = set(exclude_domains or [])
+        domains = (
+            [d for d in self.domains if d.id not in excluded]
+            if disk_actions.needs_domains(action)
+            else []
+        )
+        return disk_actions.refusal(
+            action,
+            status=status,
+            domains=[(getattr(d, "kind", None), d.status) for d in domains],
+            has_children=lambda: disk_actions.has_dependents(
+                self, include_deleted=entry.children_include_deleted
+            ),
+            perms=self.perms if entry.refuse_read_only else None,
+            storage_id=self.id,
+        )
+
+    def guard(self, action, exclude_domains=None):
+        """Raise the refusal the disk action registry gives ``action`` on this disk."""
+        from isardvdi_common.helpers.error_factory import Error
+
+        row = Storage.get(self.id)
+        if row is None:
+            raise Error(
+                "not_found",
+                f"Storage {self.id} not found",
+                description_code="storage_not_found",
+            )
+        refused = self._refusal(action, row.get("status"), exclude_domains)
+        if refused:
+            raise Error(
+                "precondition_required", refused[1], description_code=refused[0]
+            )
+
     def set_maintenance(self, action="system maintenance", exclude_domains=None):
         """
         Set storage and it's domains to maintenance status.
 
-        :param storage: Storage object
-        :type storage: isardvdi_common.models.storage.Storage
-        :param action: Action
+        :param action: Action, looked up in the disk action registry
         :type action: str
         :param exclude_domains: Domain ids the "all stopped" precondition must
             not consider. The caller passes the domain the operation is FOR --
@@ -1167,94 +1203,42 @@ class Storage(RethinkCustomBase):
             stopped, since the engine stops it without writing the status.
         :type exclude_domains: list
         """
-        # Typed ``Error`` so apiv4's exception mapper answers 428 with the
-        # reason, instead of a generic 500 from a plain ``Exception``: every
-        # caller of this method used to surface its preconditions that way.
-        # Import inside the function to avoid the snapshot-bind race
-        # documented in ``reference_apiv4_error_factory_race.md``.
+        # Imported here: the apiv4 error-factory snapshot-bind race.
         from isardvdi_common.helpers.error_factory import Error
 
+        entry = disk_actions.spec(action)
         excluded = set(exclude_domains or [])
-        # The statuses this action may be claimed FROM; None where it has no
-        # status precondition and so nothing to carry into the write.
-        claimable = None
-        refusal = None
-        if action == "move":
-            claimable = ["ready", "recycled"]
-            refusal = (
-                f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
-                "storage_invalid_status_for_move",
+        fresh = entry.access is disk_actions.Access.CREATE and entry.statuses is None
+        if not fresh and (
+            entry.access is not disk_actions.Access.WRITE or entry.domains is None
+        ):
+            raise Error(
+                "bad_request",
+                f"{action} does not park a disk in maintenance",
+                description_code="storage_invalid_maintenance_action",
             )
-            if self.status not in claimable:
+        if not fresh:
+            refused = self._refusal(action, self.status, exclude_domains)
+            if refused:
                 raise Error(
-                    "precondition_required",
-                    refusal[0],
-                    description_code=refusal[1],
-                )
-        elif action == "repair":
-            claimable = ["ready", "damaged"]
-            refusal = (
-                f"Storage {self.id} can only be repaired from 'ready' or 'damaged' status. Current status is '{self.status}'",
-                "storage_invalid_status_for_repair",
-            )
-            if self.status not in claimable:
-                raise Error(
-                    "precondition_required",
-                    refusal[0],
-                    description_code=refusal[1],
-                )
-        elif action not in ("create", "delete", "download"):
-            claimable = ["ready"]
-            refusal = (
-                f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                "storage_not_ready",
-            )
-            if self.status != "ready":
-                raise Error(
-                    "precondition_required",
-                    refusal[0],
-                    description_code=refusal[1],
-                )
-        # "create" / "download" are fresh-storage actions — the domain
-        # being wired in is the whole point, and by construction it is
-        # not yet Stopped (it is in a Creating* / DownloadStarting
-        # state) and the storage has no children. Skip the two
-        # invariants that only apply to pre-existing storage.
-        if action not in ("create", "download"):
-            domains = [domain for domain in self.domains if domain.id not in excluded]
-            # A repair may proceed over a Failed domain too: a damaged disk often
-            # left its desktop Failed, and that desktop is exactly the one to fix.
-            allowed_domain_statuses = (
-                ("Stopped", "Failed") if action == "repair" else ("Stopped",)
-            )
-            if any(domain.status not in allowed_domain_statuses for domain in domains):
-                raise Error(
-                    "precondition_required",
-                    f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                    description_code="desktops_not_stopped",
-                )
-            if len(self.children) > 0:
-                raise Error(
-                    "precondition_required",
-                    f"Storage {self.id} has children storages that depend on it as backing file",
-                    description_code="storage_has_children",
+                    "precondition_required", refused[1], description_code=refused[0]
                 )
         was = self.status
-        if claimable is None:
+        if entry.statuses is None:
             self.status = "maintenance"
         elif Storage.update_document_if(
-            self.id, {"status": "maintenance"}, field="status", values=claimable
+            self.id, {"status": "maintenance"}, field="status", values=entry.statuses
         ):
             # The write carries the test the checks above made, so of two callers
             # that both read a claimable status exactly one parks the row.
             self._update_cache(status="maintenance")
         else:
-            raise Error(
-                "precondition_required",
-                refusal[0],
-                description_code=refusal[1],
+            row = Storage.get(self.id) or {}
+            code, message = disk_actions.status_refusal(
+                action, self.id, row.get("status")
             )
-        if action not in ("create", "download"):
+            raise Error("precondition_required", message, description_code=code)
+        if not fresh:
             # a domain may have moved on before the storage row closed: flip only while its status is still allowed
             flipped = []
             for item in self.domains:
@@ -1267,7 +1251,7 @@ class Storage(RethinkCustomBase):
                     item.id,
                     {"status": "Maintenance", "current_action": action},
                     field="status",
-                    values=allowed_domain_statuses,
+                    values=entry.domains,
                     validate=False,
                 ):
                     flipped.append((item, prior))
@@ -1998,20 +1982,7 @@ class Storage(RethinkCustomBase):
         :param user_id: user executing the check (auditable).
         :return: Task ID.
         """
-        from isardvdi_common.helpers.error_factory import Error
-
-        held = [
-            d.id
-            for d in (self.domains or [])
-            if getattr(d, "status", None)
-            in ("Started", "Starting", "Shutting-down", "Stopping", "Paused")
-        ]
-        if held:
-            raise Error(
-                "precondition_required",
-                f"Storage {self.id} is open by a running desktop; not checking it.",
-                description_code="storage_open_not_checkable",
-            )
+        self.guard("check_integrity")
         if priority in (None, "default"):
             # route by measured cost — a small disk checks in ~2 s so it
             # rides the reserved interactive lane; a big one goes to standard.
@@ -2521,7 +2492,7 @@ class Storage(RethinkCustomBase):
                     description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(parent_id)
-            if storage_parent.status != "ready":
+            if disk_actions.refusal("derive", status=storage_parent.status):
                 raise Error(
                     "precondition_required",
                     "Parent storage is not ready",
@@ -2711,7 +2682,7 @@ class Storage(RethinkCustomBase):
                     description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(self.parent)
-            if storage_parent.status != "ready":
+            if disk_actions.refusal("derive", status=storage_parent.status):
                 raise Error(
                     "precondition_required",
                     f"Parent storage {self.parent} is not ready "
@@ -2946,6 +2917,7 @@ class Storage(RethinkCustomBase):
                 f"Template storage {template_storage_id} not found",
                 description_code="template_storage_not_found",
             )
+        self.guard("template_from_desktop")
         template_storage = Storage(template_storage_id)
         dst_pool = template_storage.pool
         src_pool = self.pool

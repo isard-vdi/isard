@@ -83,3 +83,9 @@ class AdminStorageInfo(BaseModel):
     """
 
     model_config = {"extra": "allow"}
+
+    allowed_actions: Optional[list[str]] = Field(
+        default=None,
+        description="Disk actions the disk action registry admits on this disk now "
+        "(search-info only).",
+    )

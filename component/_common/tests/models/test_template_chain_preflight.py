@@ -82,6 +82,7 @@ def _bare_desktop_storage():
     object.__setattr__(storage, "user_id", "u1")
     object.__setattr__(storage, "parent", None)
     object.__setattr__(storage, "task", None)
+    object.__setattr__(storage, "status", "ready")
     return storage
 
 
@@ -145,6 +146,7 @@ def _chain(unserved_pool=None):
         ),
     ):
         storage_global.exists.return_value = True
+        storage_global.get.return_value = {"status": "ready"}
         storage_global.return_value = parked
         task_cls._redis = MagicMock()
 

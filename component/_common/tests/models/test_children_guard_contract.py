@@ -170,3 +170,49 @@ def test_a_fresh_disk_creation_is_not_blocked_by_children(action, monkeypatch):
     storage.set_maintenance(action)
 
     assert storage.status == "maintenance"
+
+
+# Every label the model parks with is declared in the registry.
+
+
+def test_every_label_the_model_parks_with_is_in_the_registry():
+    from isardvdi_common.lib.storage.actions import DISK_ACTIONS
+
+    labels = set()
+    for src in ACTIONS.values():
+        labels |= _maintenance_actions(src)
+    assert labels and labels <= set(DISK_ACTIONS), labels - set(DISK_ACTIONS)
+
+
+@pytest.mark.parametrize(
+    "method, decides",
+    [
+        ("set_maintenance", "self._refusal("),
+        ("guard", "self._refusal("),
+        ("_refusal", "disk_actions.refusal("),
+    ],
+)
+def test_the_model_guards_decide_through_the_registry(method, decides):
+    src = ast.get_source_segment(
+        _SOURCE.read_text(),
+        next(
+            n
+            for n in _storage_class().body
+            if isinstance(n, ast.FunctionDef) and n.name == method
+        ),
+    )
+    assert decides in src
+
+
+def test_a_file_writing_action_is_in_the_registry_or_parks_through_it():
+    from isardvdi_common.lib.storage.actions import DISK_ACTIONS
+
+    unguarded = [
+        action
+        for action in _WRITES_FILE
+        if action not in _NO_LOCK_EXEMPT
+        and not _maintenance_actions(ACTIONS[action])
+        and ".guard(" not in ACTIONS[action]
+        and action not in DISK_ACTIONS
+    ]
+    assert not unguarded, unguarded
