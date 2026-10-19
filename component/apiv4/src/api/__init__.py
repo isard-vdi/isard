@@ -66,6 +66,12 @@ def _sync_haproxy_maps():
     Bastion.sync_category_branding_domains()
 
 
+def _initialize_state_at_boot():
+    Maintenance.initialization()
+    Cards.seed_stock_cards()
+    Cards.cleanup_missing()
+
+
 def _wire_grpc_providers():
     """Register concrete gRPC stubs as providers for the shared
     ``isardvdi_common`` modules.
@@ -170,10 +176,6 @@ async def lifespan(app: FastAPI):
     _report_qcow2_geometry_at_boot()
     _validate_storage_min_free_at_boot()
 
-    Maintenance.initialization()
-    Cards.seed_stock_cards()
-    Cards.cleanup_missing()
-
     # Default-executor sizing must match RETHINKDB_POOL_SIZE: each
     # `await asyncio.to_thread(...)` parks a thread that then calls
     # `with cls._rdb_context()`. If the executor is wider than the
@@ -217,6 +219,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.warning("Pool warm-up at lifespan startup failed (continuing)")
 
+    await asyncio.to_thread(_initialize_state_at_boot)
+
     # Background pool-headroom sampler. Polls _pool_stats_extra() every
     # POOL_SAMPLE_INTERVAL_S seconds and tracks the peak in_use seen.
     # At shutdown we emit a single summary line so a load-test pass
@@ -245,7 +249,7 @@ async def lifespan(app: FastAPI):
         log.warning("Pool-headroom sampler failed to start (telemetry only, non-fatal)")
 
     try:
-        _sync_haproxy_maps()
+        await asyncio.to_thread(_sync_haproxy_maps)
     except Exception:
         log.warning("Bastion haproxy map update failed (bastion may be disabled)")
 

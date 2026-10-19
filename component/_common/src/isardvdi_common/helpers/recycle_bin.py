@@ -155,14 +155,7 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             self._task = None
             self._initialized = True
 
-            # Add all recycle bin that are in status queued to the queue to be processed
-            with self._rdb_context():
-                recycle_bins = list(
-                    r.table("recycle_bin")
-                    .get_all(RecycleBinStatusEnum.queued.value, index="status")
-                    .pluck("id", "agent_id")
-                    .run(self._rdb_connection)
-                )
+            recycle_bins = await asyncio.to_thread(self._queued_entries)
 
             for recycle_bin in recycle_bins:
                 await self.enqueue(
@@ -171,6 +164,15 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                         "user_id": recycle_bin["agent_id"],
                     }
                 )
+
+    def _queued_entries(self):
+        with self._rdb_context():
+            return list(
+                r.table("recycle_bin")
+                .get_all(RecycleBinStatusEnum.queued.value, index="status")
+                .pluck("id", "agent_id")
+                .run(self._rdb_connection)
+            )
 
     async def start(self):
         """Start the background worker - call during startup"""
@@ -239,61 +241,67 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
         except asyncio.TimeoutError:
             return None
 
-    async def perform_operation(self, recycle_bin_id, user_id):
-        # Example operation using user_id
-        log.debug(f"Performing operation with user_id {user_id}")
-        try:
-            rb = RecycleBin(id=recycle_bin_id)
-            if rb.status == RecycleBinStatusEnum.deleted.value:
-                # the cascade of another entry in the same pass already deleted it
-                log.debug("Recycle bin %s is already deleted", recycle_bin_id)
-                return
-            rb.delete_storage(user_id)
-            if rb.item_type in ["user", "group", "category"]:
-                dependants_rb_ids = []
-                for user in rb.users:
+    def _purge(self, recycle_bin_id, user_id):
+        """Delete the entry's storage and return the dependant entries to purge after it."""
+        rb = RecycleBin(id=recycle_bin_id)
+        if rb.status == RecycleBinStatusEnum.deleted.value:
+            # the cascade of another entry in the same pass already deleted it
+            log.debug("Recycle bin %s is already deleted", recycle_bin_id)
+            return []
+        rb.delete_storage(user_id)
+        dependants_rb_ids = []
+        if rb.item_type in ["user", "group", "category"]:
+            for user in rb.users:
+                with self._rdb_context():
+                    dependants_rb_ids += set(
+                        r.table("recycle_bin")
+                        .get_all(
+                            [user["id"], RecycleBinStatusEnum.recycled.value],
+                            index=f"owner_status",
+                        )
+                        .filter(lambda rb: rb["id"] != recycle_bin_id)
+                        .pluck("id")["id"]
+                        .run(self._rdb_connection)
+                    )
+            if rb.item_type == "group":
+                for group in rb.groups:
                     with self._rdb_context():
                         dependants_rb_ids += set(
                             r.table("recycle_bin")
                             .get_all(
-                                [user["id"], RecycleBinStatusEnum.recycled.value],
-                                index=f"owner_status",
+                                [group["id"], RecycleBinStatusEnum.recycled.value],
+                                index=f"owner_group_status",
                             )
                             .filter(lambda rb: rb["id"] != recycle_bin_id)
                             .pluck("id")["id"]
                             .run(self._rdb_connection)
                         )
-                if rb.item_type == "group":
-                    for group in rb.groups:
-                        with self._rdb_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [group["id"], RecycleBinStatusEnum.recycled.value],
-                                    index=f"owner_group_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(self._rdb_connection)
+            elif rb.item_type == "category":
+                for category in rb.categories:
+                    with self._rdb_context():
+                        dependants_rb_ids += set(
+                            r.table("recycle_bin")
+                            .get_all(
+                                [
+                                    category["id"],
+                                    RecycleBinStatusEnum.recycled.value,
+                                ],
+                                index=f"owner_category_status",
                             )
-                elif rb.item_type == "category":
-                    for category in rb.categories:
-                        with self._rdb_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [
-                                        category["id"],
-                                        RecycleBinStatusEnum.recycled.value,
-                                    ],
-                                    index=f"owner_category_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(self._rdb_connection)
-                            )
-                for d_rb_id in dependants_rb_ids:
-                    await self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
+                            .filter(lambda rb: rb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(self._rdb_connection)
+                        )
+        return dependants_rb_ids
+
+    async def perform_operation(self, recycle_bin_id, user_id):
+        log.debug(f"Performing operation with user_id {user_id}")
+        try:
+            dependants_rb_ids = await asyncio.to_thread(
+                self._purge, recycle_bin_id, user_id
+            )
+            for d_rb_id in dependants_rb_ids:
+                await self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
         except Exception as e:
             reason = e.error.get("description") if isinstance(e, Error) else str(e)
             log.error(
@@ -302,7 +310,8 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
             )
             # Give back only the purge's own claim, so it can be retried or manually handled
             try:
-                Helpers.claim_status(
+                await asyncio.to_thread(
+                    Helpers.claim_status,
                     recycle_bin_id,
                     [
                         RecycleBinStatusEnum.queued.value,
