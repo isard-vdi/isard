@@ -235,6 +235,17 @@ class DesktopsProcessed(RethinkSharedConnection):
     MIN_AUTOBOOKING_TIME = 30
     MAX_BOOKING_TIME = 12 * 60  # 12h
 
+    @classmethod
+    def record_rdp_outcome(cls, guest_ip, outcome):
+        with cls._rdb_context():
+            r.table("domains").get_all(guest_ip, index="guest_ip").filter(
+                {"status": "Started"}
+            ).update(
+                {"viewer": {"rdp_last": r.literal({**outcome, "at": int(time.time())})}}
+            ).run(
+                cls._rdb_connection
+            )
+
     @staticmethod
     def parse_frontend_desktop_status(desktop):
         # TODO(separate-common-classes): move this to a desktop helpers class
@@ -304,6 +315,12 @@ class DesktopsProcessed(RethinkSharedConnection):
                 i["id"] for i in desktop["create_dict"]["hardware"]["interfaces"]
             ]:
                 desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
+                rdp = desktop.get("viewer", {}).get("rdp")
+                if not rdp and desktop["ip"] and has_rdp_viewer(gp.get("viewers")):
+                    rdp = {"state": "pending"}
+                if rdp and desktop.get("viewer", {}).get("rdp_last"):
+                    rdp = {**rdp, "last": desktop["viewer"]["rdp_last"]}
+                desktop["rdp"] = rdp
             else:
                 desktop["viewers"] = [
                     v
@@ -352,6 +369,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             "image": desktop["image"],
             "description": desktop["description"],
             "ip": desktop.get("ip"),
+            "rdp": desktop.get("rdp"),
             "progress": progress,
             "editable": editable,
             "scheduled": desktop.get("scheduled", {"shutdown": False}),
@@ -1239,7 +1257,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                         "guest_properties",
                         "tag",
                         "tag_visible",
-                        {"viewer": {"guest_ip", "passwd"}},
+                        {"viewer": {"guest_ip", "passwd", "rdp", "rdp_last"}},
                         {
                             "create_dict": {
                                 "hardware": ["interfaces", "videos", "disks"],
@@ -1355,7 +1373,12 @@ class DesktopsProcessed(RethinkSharedConnection):
                             },
                             "reservables": True,
                         },
-                        "viewer": {"guest_ip": True, "passwd": True},
+                        "viewer": {
+                            "guest_ip": True,
+                            "passwd": True,
+                            "rdp": True,
+                            "rdp_last": True,
+                        },
                         "guest_properties": {
                             "fullscreen": True,
                             "viewers": True,

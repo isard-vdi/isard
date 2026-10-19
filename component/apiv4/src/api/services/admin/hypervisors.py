@@ -246,6 +246,17 @@ class AdminHypervisorsService:
         )
         return {"domain_id": domain_id}
 
+    @staticmethod
+    def update_rdp_state(
+        domain_id: str, ip: str, state: str, protocol: str, reason: str
+    ) -> None:
+        """Store the RDP verification state of a running desktop."""
+        HypervisorsProcessed.update_rdp_state(
+            domain_id,
+            ip,
+            {"state": state, "protocol": protocol, "reason": reason},
+        )
+
     # ── Media / Disks Discovery ──────────────────────────────────────────
 
     @staticmethod

@@ -102,6 +102,10 @@ function setViewerButtonData(desktop_id,data){
         }
     }
 
+    // RDP step of the guest, shown on the RDP buttons as an icon + tooltip.
+    // Admins and managers may open an unverified RDP, so nothing is disabled.
+    const rdpStatus = rdpViewerStatus(data)
+
     html=""
     $.each(offer, function(idx,disp){
             prehtml='<div class="row"><div class="col-12 text-center">'
@@ -125,7 +129,16 @@ function setViewerButtonData(desktop_id,data){
             type=['rdp', 'vnc'].includes(disp['type'])? '<i class="fa fa-html5"></i>' : '<i class="fa fa-download"></i>'
             btntext=disp['text']
             client=['rdp', 'vnc'].includes(disp['type'])? 'browser' : 'file'
-            html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
+            isRdp=['rdp', 'rdpgw', 'rdpvpn'].includes(disp['type'])
+            rdpIcon=(isRdp && rdpStatus) ? ' <i class="fa '+rdpStatus.icon+'"></i>' : ''
+            rdpTitle=(isRdp && rdpStatus) ? ' title="'+rdpStatus.text+'" data-rdp-status="'+rdpStatus.tone+'"' : ''
+            // Left-to-right readiness fill behind the label (same language as the
+            // Vue frontends). Only fixed/computed values go into the HTML.
+            rdpFill=(isRdp && rdpStatus && rdpStatus.progress !== undefined)
+                ? '<span role="progressbar" aria-valuenow="'+rdpStatus.progress+'" aria-valuemin="0" aria-valuemax="100" aria-label="'+rdpStatus.text+'" style="position:absolute;top:0;bottom:0;left:0;z-index:0;pointer-events:none;width:'+rdpStatus.progress+'%;background-color:'+rdpStatus.fill+';"></span>'
+                : ''
+            btnStyle=(isRdp && rdpFill) ? 'width:'+w+'%;position:relative;overflow:hidden' : 'width:'+w+'%'
+            html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="'+btnStyle+'"'+rdpTitle+'>'+rdpFill+'<span style="position:relative;z-index:1">'+lock+' '+type+' '+btntext+rdpIcon+'</span></button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
         if('viewer' in data && 'guest_ip' in data['viewer'] && data['viewer']['guest_ip']){
@@ -169,6 +182,45 @@ function setViewerButtonData(desktop_id,data){
         })
         $("#modalOpenViewer").modal('hide');
     });
+}
+
+// Translucent fill colour by tone, used for the left-to-right readiness bar.
+const RDP_FILL = {
+    wait: 'rgba(56,189,248,0.40)',
+    warn: 'rgba(251,191,36,0.45)',
+    error: 'rgba(248,113,113,0.42)'
+}
+// How far the readiness check has advanced, so the button fills left to right.
+const RDP_PROGRESS = { pending: 25, waiting: 50, verifying: 80, refused: 50, auth_failed: 80, unverified: 100 }
+
+function rdpViewerStatus(data){
+    const viewer = data.viewer || {}
+    const rdp = viewer.rdp
+    if (!viewer.guest_ip || !rdp) return null
+    const last = viewer.rdp_last
+    // Fixed texts picked by key: nothing that comes from the API is shown,
+    // because the result is concatenated into the button HTML.
+    const texts = {
+        pending: 'Waiting for the desktop RDP service',
+        waiting: 'Waiting for the desktop RDP service',
+        verifying: 'Verifying the RDP credentials',
+        refused: 'The desktop refuses RDP',
+        auth_failed: 'The stored RDP credentials are not valid in the desktop',
+        unverified: 'RDP available, credentials not verified'
+    }
+    if (rdp.state === 'ready' && last && !last.connected) {
+        return { tone: 'error', icon: 'fa-exclamation-triangle', progress: 100, fill: RDP_FILL.error, text: last.result === 'auth_failed' ? texts.auth_failed : 'The last RDP connection failed' }
+    }
+    if (rdp.state === 'ready' || !Object.prototype.hasOwnProperty.call(texts, rdp.state)) return null
+    // Admins also get the internal code, only when it is one of the plain
+    // words the vpn writes, so it is safe inside the HTML attribute.
+    const code = (typeof rdp.reason === 'string' && /^[a-z0-9_]{1,40}$/.test(rdp.reason)) ? ' [' + rdp.reason + ']' : ''
+    const progress = RDP_PROGRESS[rdp.state]
+    if (['refused', 'auth_failed'].includes(rdp.state)) return { tone: 'error', icon: 'fa-exclamation-triangle', progress: progress, fill: RDP_FILL.error, text: texts[rdp.state] + code }
+    // A probe that could not verify (no NLA, no credentials, or a failed check)
+    // does not block: the admin may connect, with a warning.
+    if (rdp.state === 'unverified') return { tone: 'warn', icon: 'fa-exclamation-triangle', progress: progress, fill: RDP_FILL.warn, text: texts.unverified }
+    return { tone: 'wait', icon: 'fa-spinner fa-pulse', progress: progress, fill: RDP_FILL.wait, text: texts[rdp.state] }
 }
 
 function viewerButtonsIP(id,ip){

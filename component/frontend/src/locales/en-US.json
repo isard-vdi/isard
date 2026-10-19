@@ -2322,6 +2322,29 @@
         },
         "debug-options": {
           "copy-id": "Copy Desktop ID"
+        },
+        "rdp": {
+          "pending": "Waiting for the RDP service",
+          "waiting": "Waiting for the RDP service",
+          "verifying": "Verifying the RDP credentials",
+          "refused": "The desktop refuses RDP: {reason}",
+          "auth_failed": "The stored RDP credentials are not valid in the desktop",
+          "unverified": "RDP available, credentials not verified — you may connect",
+          "last_failed": "The last RDP connection failed",
+          "waiting_ip": "Waiting for the desktop to get an IP",
+          "reason": {
+            "port_closed": "the desktop RDP service is not listening yet",
+            "unreachable": "the desktop does not answer on the network",
+            "not_rdp": "the desktop RDP port does not answer with the RDP protocol",
+            "tls_required": "the desktop only accepts TLS-encrypted connections; check the guest RDP settings",
+            "tls_not_allowed": "the desktop does not accept TLS-encrypted connections; check the guest RDP settings",
+            "nla_required": "the desktop requires Network Level Authentication (NLA); check the guest RDP settings",
+            "certificate": "the desktop has no valid RDP certificate; check the guest RDP settings",
+            "security_refused": "the desktop refused the connection security; check the guest RDP settings",
+            "account_blocked": "the desktop account is locked or expired",
+            "no_credentials": "the desktop has no stored RDP credentials",
+            "other": "the RDP negotiation with the desktop failed; check the guest RDP settings"
+          }
         }
       },
       "advanced-options-modal": {

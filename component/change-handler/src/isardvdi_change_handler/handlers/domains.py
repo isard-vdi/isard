@@ -384,6 +384,7 @@ class DesktopDomainHandler:
             and (
                 old_viewer.get("passwd") != new_viewer.get("passwd")
                 or old_viewer.get("guest_ip") != new_viewer.get("guest_ip")
+                or old_viewer.get("rdp") != new_viewer.get("rdp")
             )
         )
 

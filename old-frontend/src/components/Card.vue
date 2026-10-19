@@ -288,27 +288,38 @@
           <div>
             <DesktopButton
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
-              :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
+              :active="(desktopState === desktopStates.started && !(singleViewerNeedsIp && rdpBlocked)) || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
               :button-class="!singleViewerNeedsIp ? 'btn-green' : buttViewerCssColor"
               :butt-text="getViewerText"
               variant="primary"
-              :spinner-active="waitingIp"
+              :spinner-active="waitingIp || (singleViewerNeedsIp && rdpBlocked && !rdpFailed)"
+              :blocked="singleViewerNeedsIp && !!rdpStepText && (waitingIp || rdpBlocked)"
+              :tooltip="singleViewerNeedsIp ? rdpStepText : ''"
+              :icon-name="singleViewerNeedsIp ? rdpIcon : undefined"
+              :progress="singleViewerNeedsIp ? rdpProgress : undefined"
+              :progress-tone="rdpTone"
               @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
+              @blockedClicked="notifyRdpStep(rdpStepText)"
             />
             <isard-dropdown
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
               :dd-disabled="!showDropDown"
               css-class="viewers-dropdown m-0"
-              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp) }"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp || rdpBlocked), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp && !rdpBlocked) }"
               variant="light"
               :viewers="filterViewerFromList"
               :desktop="desktop"
               :viewer-text="getViewerText.substring(0, MAX_VIEWER_TEXT_SIZE)"
               :full-viewer-text="getViewerText"
               :default-viewer="getDefaultViewer"
-              :waiting-ip="waitingIp"
+              :waiting-ip="waitingIp || rdpBlocked"
+              :status-text="rdpStepText"
+              :status-error="rdpFailed"
+              :status-warn="rdpWarn"
+              :status-progress="rdpProgress"
+              :status-tone="rdpTone"
               @dropdownClicked="openDesktop"
-              @notifyWaitingIp="notifyWaitingIp"
+              @notifyWaitingIp="waitingIp ? notifyWaitingIp() : notifyRdpStep(rdpStepText)"
             />
           </div>
         </div>
@@ -371,6 +382,9 @@ export default {
     const notifyWaitingIp = () => {
       $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
     }
+    const notifyRdpStep = (message) => {
+      $store.dispatch('showNotification', { message })
+    }
     const copyToClipboard = (text) => {
       navigator.clipboard.writeText(text)
       $store.dispatch('showNotification', { message: i18n.t('forms.domain.bastion.copied') })
@@ -380,6 +394,7 @@ export default {
       changeDesktopStatus,
       onClickBookingDesktop,
       notifyWaitingIp,
+      notifyRdpStep,
       copyToClipboard
     }
   },
@@ -485,6 +500,32 @@ export default {
     },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip
+    },
+    rdpView () {
+      return DesktopUtils.rdpViewerState(this.desktop, this.getUser.role_id)
+    },
+    rdpBlocked () {
+      return this.desktopState === desktopStates.started && this.rdpView.blocked
+    },
+    rdpFailed () {
+      return this.rdpView.error
+    },
+    rdpWarn () {
+      return this.rdpView.warn
+    },
+    rdpStepText () {
+      return this.rdpView.text
+    },
+    rdpProgress () {
+      return this.rdpView.progress
+    },
+    rdpTone () {
+      return this.rdpView.error ? 'error' : (this.rdpView.warn ? 'warn' : 'wait')
+    },
+    rdpIcon () {
+      if (this.rdpView.error) return 'exclamation-triangle-fill'
+      if (this.rdpView.warn) return 'exclamation-triangle'
+      return undefined
     },
     showDropDown () {
       return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)

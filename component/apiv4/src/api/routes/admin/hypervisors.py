@@ -44,6 +44,7 @@ from api.schemas.admin.hypervisors import (
     AdminHypervisorMediaFoundData,
     AdminHypervisorMediaFoundResponse,
     AdminHypervisorMountpoint,
+    AdminHypervisorRdpStateData,
     AdminHypervisorStartedDomain,
     AdminHypervisorStatusResponse,
     AdminHypervisorVirtPool,
@@ -437,6 +438,47 @@ async def admin_hypervisor_wg_addr(
             request,
             "internal_server",
             "Failed to update wireguard address",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/item/hypervisor/vm/rdp_state",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update the RDP state of a running desktop",
+    description=(
+        "Store how far the RDP service of a running desktop has been verified: "
+        "whether it answers and whether it accepts the stored credentials. Only "
+        "applies while the desktop is started with that guest IP."
+    ),
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_hypervisor_rdp_state(
+    request: Request,
+    data: AdminHypervisorRdpStateData,
+):
+    try:
+        await asyncio.to_thread(
+            AdminHypervisorsService.update_rdp_state,
+            data.domain_id,
+            data.ip,
+            data.state,
+            data.protocol,
+            data.reason,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update the RDP state",
             traceback.format_exc(),
         )
 

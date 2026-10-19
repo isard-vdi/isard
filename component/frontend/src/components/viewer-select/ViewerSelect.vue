@@ -15,6 +15,7 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toast'
 import { type Viewer, ViewerSelectDropdownItem } from '.'
 
 const { t } = useI18n()
@@ -80,10 +81,24 @@ const dismissTooltip = () => {
   viewerTooltipDismissed.value = true
 }
 
+// A refused guest shows a warning, not a spinner: waiting won't fix it.
+const viewerIcon = (viewer: Viewer) => {
+  if (viewer.tone === 'error') return 'alert-circle'
+  if (viewer.tone === 'warn') return 'alert-triangle'
+  if (viewer.loading) return 'loading-02'
+  return ''
+}
+
+// The RDP readiness tone keys the left-to-right background fill.
+const progressTone = (viewer: Viewer) => `viewer-progress--${viewer.tone || 'wait'}`
+
 const selectViewer = (viewer: Viewer) => {
-  // if (viewer.loading) {
-  //   return
-  // }
+  // A blocked viewer with a status stays tappable so touch screens, where the
+  // tooltip never opens, still get told why it can't be opened yet.
+  if (viewer.loading) {
+    if (viewer.status) toast.info(viewer.status)
+    return
+  }
 
   if (viewer.id !== selectedViewerId.value) {
     selectedViewerId.value = viewer.id
@@ -99,24 +114,55 @@ const selectViewer = (viewer: Viewer) => {
     <Tooltip
       v-if="props.size !== 'compact'"
       :open="tooltipOpen"
-      :disabled="viewerTooltipDismissed"
+      :disabled="viewerTooltipDismissed && !selectedViewer.status"
       @update:open="tooltipOpen = $event"
     >
       <TooltipTrigger as-child>
         <Button
           :class="
-            cn('min-w-0 overflow-hidden', props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs')
+            cn(
+              'relative isolate min-w-0 overflow-hidden',
+              props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs',
+              selectedViewer.loading && selectedViewer.status && 'opacity-60 cursor-not-allowed'
+            )
           "
           :size="props.buttonSize"
-          :icon="selectedViewer.loading ? 'loading-02' : ''"
+          :icon="viewerIcon(selectedViewer)"
           :icon-size="props.dense ? 'xs' : undefined"
-          icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-          :disabled="selectedViewer.loading"
+          :icon-class="
+            cn(
+              'relative z-10',
+              selectedViewer.loading &&
+                selectedViewer.tone !== 'error' &&
+                selectedViewer.tone !== 'warn' &&
+                'motion-safe:animate-[spin_2s_linear_infinite]'
+            )
+          "
+          :disabled="selectedViewer.loading && !selectedViewer.status"
+          :aria-disabled="selectedViewer.loading ? 'true' : undefined"
+          :data-viewer-status="selectedViewer.status ? selectedViewer.tone || 'info' : undefined"
           @click="selectViewer(selectedViewer)"
-          ><span class="min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
+          ><span
+            v-if="selectedViewer.progress !== undefined"
+            class="viewer-progress"
+            :class="progressTone(selectedViewer)"
+            :style="{ width: selectedViewer.progress + '%' }"
+            role="progressbar"
+            :aria-valuenow="selectedViewer.progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuetext="selectedViewer.status"
+            :aria-label="selectedViewer.status"
+          /><span class="relative z-10 min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
         >
       </TooltipTrigger>
       <TooltipContent
+        v-if="selectedViewer.status"
+        :title="selectedViewer.status"
+        data-testid="viewer-status-tooltip"
+      />
+      <TooltipContent
+        v-else
         :title="selectedViewerTooltipTitle"
         :subtitle="selectedViewerTooltipDescription"
         :dismiss-label="t('viewers.tooltip-dismiss')"
@@ -187,3 +233,28 @@ const selectViewer = (viewer: Viewer) => {
     </template>
   </ButtonGroup>
 </template>
+
+<style scoped>
+/* Left-to-right readiness fill behind the viewer label. Tone colours are
+   translucent so they read on the button's own background in both themes. */
+.viewer-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+.viewer-progress--wait {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+.viewer-progress--warn {
+  background-color: rgba(251, 191, 36, 0.45);
+}
+.viewer-progress--error {
+  background-color: rgba(248, 113, 113, 0.42);
+}
+.viewer-progress--info {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+</style>

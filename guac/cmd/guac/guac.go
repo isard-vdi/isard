@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"gitlab.com/isard/isardvdi/guac"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
@@ -229,6 +231,7 @@ func main() {
 	sessions := guac.NewMemorySessionStore()
 	wsServer.OnConnect = sessions.Add
 	wsServer.OnDisconnect = sessions.Delete
+	wsServer.OnOutcome = reportOutcome
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/tunnel", isAuthenticated(servlet))
@@ -367,4 +370,30 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	}
 	logrus.Debug("Socket configured")
 	return guac.NewSimpleTunnel(stream), nil
+}
+
+// reportOutcome stores on the desktop how this browser RDP connection ended up, with the caller's own token.
+func reportOutcome(r *http.Request, o guac.Outcome) {
+	tkn := r.URL.Query().Get("session")
+	req := &apiv4.UserRdpOutcomeRequest{
+		IP:        r.URL.Query().Get("hostname"),
+		Via:       apiv4.UserRdpOutcomeRequestViaBrowser,
+		Connected: o.Connected,
+	}
+	if !o.Connected {
+		msg := o.Message
+		if len(msg) > 200 {
+			msg = msg[:200]
+		}
+		req.Code = apiv4.NewOptNilInt(o.Code)
+		req.Message = apiv4.NewOptNilString(msg)
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if _, err := apiCli.UserRdpOutcome(ogenclient.ContextWithAPIv4Token(ctx, tkn), req); err != nil {
+			logrus.Warnf("report the rdp outcome of %s: %v", req.IP, err)
+		}
+	}()
 }

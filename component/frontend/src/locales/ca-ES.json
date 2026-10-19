@@ -1623,6 +1623,29 @@
             "copy-url": "Copia l'URL: {url}",
             "copy-ssh": "Copia la connexió SSH: {command}"
           }
+        },
+        "rdp": {
+          "pending": "Esperant el servei RDP",
+          "waiting": "Esperant el servei RDP",
+          "verifying": "Verificant les credencials RDP",
+          "refused": "L'escriptori refusa l'RDP: {reason}",
+          "auth_failed": "Les credencials RDP desades no són vàlides a l'escriptori",
+          "unverified": "RDP disponible, credencials sense verificar — pots connectar",
+          "last_failed": "L'última connexió RDP ha fallat",
+          "waiting_ip": "Esperant que l'escriptori tingui IP",
+          "reason": {
+            "port_closed": "el servei RDP de l'escriptori encara no escolta",
+            "unreachable": "l'escriptori no respon a la xarxa",
+            "not_rdp": "el port RDP de l'escriptori no respon amb el protocol RDP",
+            "tls_required": "l'escriptori només accepta connexions xifrades amb TLS; revisa la configuració RDP del convidat",
+            "tls_not_allowed": "l'escriptori no accepta connexions xifrades amb TLS; revisa la configuració RDP del convidat",
+            "nla_required": "l'escriptori exigeix autenticació a nivell de xarxa (NLA); revisa la configuració RDP del convidat",
+            "certificate": "l'escriptori no té un certificat RDP vàlid; revisa la configuració RDP del convidat",
+            "security_refused": "l'escriptori ha refusat la seguretat de la connexió; revisa la configuració RDP del convidat",
+            "account_blocked": "el compte de l'escriptori està bloquejat o caducat",
+            "no_credentials": "l'escriptori no té credencials RDP desades",
+            "other": "la negociació RDP amb l'escriptori ha fallat; revisa la configuració RDP del convidat"
+          }
         }
       },
       "advanced-options-modal": {

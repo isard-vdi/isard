@@ -25,7 +25,7 @@ log.basicConfig(
 
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from isardvdi_common.redis_stream import RedisStreamConsumer
-from isardvdi_vpn import dhcp_reports, tunnel_monitor
+from isardvdi_vpn import dhcp_reports, rdp_checks, tunnel_monitor
 from isardvdi_vpn.db import vpn_rethink_conn
 from isardvdi_vpn.wg_monitor import start_monitoring_vpn_status
 from isardvdi_vpn.wgtools import Wg
@@ -111,7 +111,7 @@ def _change_kind(old_val, new_val):
     return "update"
 
 
-def _process_vpn_change(change, wg_users, wg_hypers):
+def _process_vpn_change(change, wg_users, wg_hypers, rdp=None):
     # Bound before the try so the handler below can still name the change even
     # when the failure is the model_dump itself.
     new_val = old_val = None
@@ -141,6 +141,8 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                     )
             elif old_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
+                if rdp is not None:
+                    rdp.forget(old_val["id"])
 
         elif old_val is None:
             ### New
@@ -169,6 +171,8 @@ def _process_vpn_change(change, wg_users, wg_hypers):
                     )
             elif new_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
+                if rdp is not None:
+                    rdp.observe(new_val)
 
         else:
             ### Update
@@ -239,6 +243,8 @@ def _process_vpn_change(change, wg_users, wg_hypers):
 
             elif old_val["table"] == "domains":
                 wg_users.desktop_iptables({"old_val": old_val, "new_val": new_val})
+                if rdp is not None:
+                    rdp.observe(new_val)
 
     except Exception:
         # Still swallowed so one bad change cannot stop the ones behind it, but
@@ -260,6 +266,7 @@ def main():
     start_monitoring_vpn_status()
     tunnel_monitor.start()
     dhcp_reports.start()
+    rdp = rdp_checks.RdpChecks().start()
 
     log.info("Starting isard-vpn...")
 
@@ -314,6 +321,9 @@ def main():
                 reset_client_certs=False,
             )
 
+            for domain in rdp_checks.load_started(vpn_rethink_conn):
+                rdp.observe(domain)
+
             log.info(
                 "Config regenerated from database...\nStarting to monitor changes via Redis Streams..."
             )
@@ -334,7 +344,7 @@ def main():
                 if subscriber is None:
                     return
                 envelope = subscriber.parse_dict(msg)
-                _process_vpn_change(envelope.change, wg_users, wg_hypers)
+                _process_vpn_change(envelope.change, wg_users, wg_hypers, rdp)
 
             _failures = 0
             consumer.run(handle_change)

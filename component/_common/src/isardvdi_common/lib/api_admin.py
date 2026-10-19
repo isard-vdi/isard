@@ -743,7 +743,13 @@ class ApiAdmin(RethinkSharedConnection):
                     if k != "hardware"
                 },
             },
-            "viewer": {"guest_ip": (desktop.get("viewer") or {}).get("guest_ip")},
+            "viewer": {
+                "guest_ip": (desktop.get("viewer") or {}).get("guest_ip"),
+                # RDP verification state and how the last RDP connection ended:
+                # fixed words only, no credentials (see the vpn rdp checks).
+                "rdp": (desktop.get("viewer") or {}).get("rdp"),
+                "rdp_last": (desktop.get("viewer") or {}).get("rdp_last"),
+            },
         }
 
     @classmethod

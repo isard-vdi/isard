@@ -31,7 +31,12 @@ from isardvdi_common.lib.domains.desktops import desktop_direct_viewer as mod
 DDV = mod.DesktopDirectViewer
 
 OTHER = {"user": "u-other", "category": "c-other", "tag": None}
-OWN = {"user": "u-1", "category": "c-1", "tag": None}
+OWN = {
+    "user": "u-1",
+    "category": "c-1",
+    "tag": None,
+    "viewer": {"rdp": {"state": "ready"}},
+}
 
 
 @pytest.fixture
@@ -104,3 +109,26 @@ def test_admin_is_allowed_on_any_desktop(lookup, check):
     lookup.domains = [OTHER]
 
     assert check(role_id="admin") is True
+
+
+def test_the_owner_cannot_reach_an_rdp_service_not_verified_yet(lookup):
+    lookup.domains = [{**OWN, "viewer": {"rdp": {"state": "waiting"}}}]
+
+    with pytest.raises(Error) as exc:
+        by_ip()
+    assert exc.value.status_code == 409
+
+
+def test_reporting_an_outcome_does_not_need_a_verified_rdp(lookup):
+    lookup.domains = [{**OWN, "viewer": {"rdp": {"state": "waiting"}}}]
+
+    assert (
+        DDV.owns_desktop_viewer_by_ip(
+            user_id="u-1",
+            category_id="c-1",
+            role_id="user",
+            guess_ip="192.0.2.5",
+            require_rdp_ready=False,
+        )
+        is True
+    )

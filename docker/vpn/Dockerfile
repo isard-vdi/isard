@@ -48,6 +48,9 @@ RUN CFLAGS="-Wno-error" ./configure --prefix=/usr --sysconfdir=/etc --localstate
     --disable-static --with-ssl --with-pango --with-terminal --with-rdp --with-ssh --with-webp \
     --without-vnc --without-telnet --without-websockets --without-winsock
 RUN make -j"$(nproc)"
+COPY docker/vpn/rdp-auth-check /build/rdp-auth-check
+RUN gcc -O2 -Wall -Werror -o /build/rdp-auth-check/rdp-auth-check /build/rdp-auth-check/rdp-auth-check.c \
+    $(pkg-config --cflags --libs freerdp2 freerdp-client2 winpr2)
 
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -65,6 +68,7 @@ RUN apk add --no-cache \
 RUN apk info -v | grep -qx 'guacamole-server-rdp-1\.6\.0-r[0-9]*' \
     || { echo "guacamole-server-rdp is no longer 1.6.0: re-check GUACAMOLE-2221" >&2; exit 1; }
 COPY --from=guacd-rdp-build /build/guacamole-server-1.6.0/src/protocols/rdp/.libs/libguac-client-rdp.so.0.0.0 /usr/lib/
+COPY --from=guacd-rdp-build /build/rdp-auth-check/rdp-auth-check /usr/local/bin/
 
 # The host AppArmor profile attaches to /usr/bin/wg-quick and Docker does not
 # namespace AppArmor, so we call a copy the profile does not match.

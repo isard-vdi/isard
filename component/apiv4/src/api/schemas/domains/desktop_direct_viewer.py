@@ -151,6 +151,10 @@ class DesktopViewerResponse(BaseModel):
         default=None,
         description="IP address of the desktop. None until the guest reports it.",
     )
+    rdp: Optional[dict] = Field(
+        default=None,
+        description="RDP verification state of the desktop, if it has an RDP viewer.",
+    )
     type: DesktopTypeEnum = Field(
         description="Type of the desktop.",
     )

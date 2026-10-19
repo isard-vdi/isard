@@ -2302,6 +2302,25 @@ class HypervisorsProcessed(RethinkSharedConnection):
         return domain_id
 
     @classmethod
+    def update_rdp_state(cls, domain_id, ip, rdp):
+        with cls._rdb_context():
+            result = (
+                r.table("domains")
+                .get_all(domain_id)
+                .filter(
+                    lambda domain: (domain["status"] == "Started")
+                    & (domain["viewer"]["guest_ip"].default(None) == ip)
+                )
+                .update({"viewer": {"rdp": r.literal({**rdp, "at": int(time.time())})}})
+                .run(cls._rdb_connection)
+            )
+        if not result.get("replaced") and not result.get("unchanged"):
+            raise Error(
+                "not_found",
+                "Desktop " + domain_id + " is not running with guest ip " + ip,
+            )
+
+    @classmethod
     def get_hypervisor_vpn(cls, hyper_id):
         return IsardVpn.vpn_data("hypers", "config", "", hyper_id)
 
