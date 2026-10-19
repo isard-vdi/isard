@@ -19,6 +19,7 @@
 
 from typing import Any, Optional
 
+from api.schemas.allowed import Allowed
 from pydantic import BaseModel, Field
 
 
@@ -29,13 +30,13 @@ class StoragePoolCreateRequest(BaseModel):
     name: str
     description: str
     mountpoint: str
-    enabled: bool
+    enabled: bool = False
     categories: list[str] = []
     paths: Optional[dict[str, list[dict[str, Any]]]] = None
-    allowed: Optional[dict[str, Any]] = None
-    read: Optional[bool] = None
-    write: Optional[bool] = None
-    startable: Optional[bool] = None
+    allowed: Optional[Allowed] = None
+    read: bool = True
+    write: bool = True
+    startable: bool = True
     unused_desktops_cutoff_time: Optional[int] = None
     qos_disk_id: Optional[str] = None
 
@@ -51,7 +52,7 @@ class StoragePoolUpdateRequest(BaseModel):
     enabled_virt: Optional[bool] = None
     categories: Optional[list[str]] = None
     paths: Optional[dict[str, list[dict[str, Any]]]] = None
-    allowed: Optional[dict[str, Any]] = None
+    allowed: Optional[Allowed] = None
     read: Optional[bool] = None
     write: Optional[bool] = None
     startable: Optional[bool] = None
@@ -70,7 +71,7 @@ class StoragePoolResponse(BaseModel):
     enabled_virt: Optional[bool] = None
     categories: Optional[list[str]] = None
     paths: Optional[dict[str, Any]] = None
-    allowed: Optional[dict[str, Any]] = None
+    allowed: Optional[Allowed] = None
     read: Optional[bool] = None
     write: Optional[bool] = None
     startable: Optional[bool] = None
