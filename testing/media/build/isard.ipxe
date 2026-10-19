@@ -1,0 +1,26 @@
+#!ipxe
+# IsardVDI minimal test media: DHCP on every NIC (net0..net3), then show the leases on the console.
+echo IsardVDI test media (iPXE ${version})
+set i:int32 0
+:nic
+isset ${net${i}/mac} || goto shown
+:retry
+dhcp net${i} && goto next
+echo net${i}: DHCP failed, retrying in 5 s
+sleep 5
+goto retry
+:next
+inc i
+iseq ${i} 4 || goto nic
+:shown
+echo
+echo ==================================================
+echo   IsardVDI test media is UP
+isset ${net0/ip} && echo   net0 ${net0/ip}  mac ${net0/mac} ||
+isset ${net1/ip} && echo   net1 ${net1/ip}  mac ${net1/mac} ||
+isset ${net2/ip} && echo   net2 ${net2/ip}  mac ${net2/mac} ||
+echo ==================================================
+:loop
+sleep 60
+echo still up: ${net0/ip} ${net1/ip}
+goto loop
