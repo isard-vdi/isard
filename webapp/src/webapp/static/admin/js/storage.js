@@ -379,7 +379,7 @@ $(document).ready(function () {
       rowId: 'id',
       deferRender: true,
       createdRow: function (row, data, dataIndex) {
-        if (status = "maintenance") {
+        if (data.status === "maintenance") {
           $(row).attr('data-task', data.last_task_id);
         }
       },
@@ -1934,7 +1934,7 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
     rowId: 'id',
     deferRender: true,
     createdRow: function (row, data, dataIndex) {
-      if (status = "maintenance") {
+      if (data.status === "maintenance") {
         $(row).attr('data-task', data.last_task_id);
       }
     },
