@@ -283,6 +283,63 @@ def test_a_failed_sparsify_releases_the_disk_and_its_domains():
     assert "finished" not in statuses
 
 
+# dig_holes: parked through set_maintenance, released whatever the outcome
+
+
+def _dig(domains, refused=None):
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task", return_value="t1") as mock_create,
+        patch.object(Storage, "set_maintenance", side_effect=refused) as mock_park,
+        patch.object(Storage, "domains", new=domains),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        try:
+            result = s.dig_holes(user_id="u1", priority="low")
+        except Exception as exc:
+            result = exc
+    return s, result, mock_create, mock_park
+
+
+def _desktop(status="Stopped"):
+    return MagicMock(id="d1", kind="desktop", status=status)
+
+
+def test_dig_holes_parks_a_desktop_disk_and_releases_it_on_failure():
+    s, task_id, create, park = _dig([_desktop()])
+    assert task_id == "t1"
+    park.assert_called_once_with("dig_holes")
+    kwargs = create.call_args.kwargs
+    assert kwargs["task"] == "dig_holes"
+    assert kwargs["queue"] == "storage.poolA.low"
+    assert kwargs["job_kwargs"]["kwargs"] == {"storage_path": s.path, "verify": False}
+    parents = {
+        dep["task"]: parent for parent, dep in _walk_with_parents(kwargs["dependents"])
+    }
+    assert parents["storage_update"] == "qemu_img_info_backing_chain"
+    release = next(d for d in kwargs["dependents"] if d["task"] == "update_status")
+    statuses = release["job_kwargs"]["kwargs"]["statuses"]
+    for outcome in ("failed", "canceled"):
+        assert statuses[outcome]["ready"] == {"storage": [s.id]}
+        assert statuses[outcome]["Stopped"] == {"domain": ["d1"]}
+    verdict = kwargs["dependents"][-1]
+    assert verdict["task"] == "dig_holes_result" and verdict["queue"] == "core"
+    assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id}
+
+
+def test_a_dig_the_registry_refuses_queues_nothing():
+    from isardvdi_common.helpers.error_factory import Error
+
+    refused = Error(
+        "precondition_required", "template", description_code="storage_used_by_template"
+    )
+    _, result, create, park = _dig([_desktop()], refused=refused)
+    assert result is refused
+    park.assert_called_once_with("dig_holes")
+    create.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # rsync / mv: storage_domains_force_update must not be present
 # ---------------------------------------------------------------------------

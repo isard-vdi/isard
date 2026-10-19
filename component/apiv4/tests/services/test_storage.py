@@ -398,6 +398,55 @@ class TestConvertKeepsTheDiskKind:
         assert storage_cls.init_document.call_args.kwargs["perms"] == perms
 
 
+class TestDigHoles:
+    @patch("api.services.storage.get_storage")
+    def test_forwards_the_priority_and_returns_the_task(self, mock_get):
+        storage = MagicMock()
+        storage.dig_holes.return_value = "task-1"
+        mock_get.return_value = storage
+        assert StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low") == "task-1"
+        assert storage.dig_holes.call_args.kwargs["priority"] == "low"
+        assert storage.dig_holes.call_args.kwargs["verify"] is False
+
+    @patch("api.services.storage.get_storage")
+    def test_forwards_verify_when_asked(self, mock_get):
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low", verify=True)
+        assert storage.dig_holes.call_args.kwargs["verify"] is True
+
+    def test_rejects_an_unknown_priority(self):
+        with pytest.raises(Error):
+            StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "urgent")
+
+    @patch("api.services.storage.get_storage")
+    def test_a_batch_says_per_id_what_it_queued_or_why_not(self, mock_get):
+        def storage_for(payload, storage_id):
+            storage = MagicMock()
+            storage.dig_holes.return_value = f"task-{storage_id}"
+            if storage_id == "parent":
+                storage.dig_holes.side_effect = Error(
+                    "precondition_required",
+                    "Storage parent has children",
+                    description_code="storage_has_children",
+                )
+            if storage_id == "broken":
+                storage.dig_holes.side_effect = RuntimeError("boom")
+            return storage
+
+        mock_get.side_effect = storage_for
+        result = StorageService.batch_dig_holes(
+            JWT_PAYLOAD_ADMIN, ["leaf", "parent", "broken", "leaf"]
+        )
+        assert result["queued"] == 1
+        by_id = {r["storage_id"]: r for r in result["results"]}
+        assert list(by_id) == ["leaf", "parent", "broken"]
+        assert by_id["leaf"] == {"storage_id": "leaf", "task_id": "task-leaf"}
+        assert by_id["parent"]["description_code"] == "storage_has_children"
+        assert by_id["parent"]["message"] == "Storage parent has children"
+        assert by_id["broken"]["description_code"] == "internal_server"
+
+
 class TestRepair:
     @patch("api.services.storage.get_storage")
     def test_forwards_what_and_returns_task_id(self, mock_get):

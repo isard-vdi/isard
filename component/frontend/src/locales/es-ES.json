@@ -1495,7 +1495,8 @@
             "resize": "El tamaño de disco de este escritorio está siendo incrementado",
             "virt_win_reg": "Se está editando el registro",
             "move": "El disco de este escritorio se está moviendo",
-            "sparsify": "El disco de este escritorio está siendo optimizado"
+            "sparsify": "El disco de este escritorio está siendo optimizado",
+            "dig_holes": "El disco de este escritorio está devolviendo sus bloques de ceros"
           }
         },
         "status": {

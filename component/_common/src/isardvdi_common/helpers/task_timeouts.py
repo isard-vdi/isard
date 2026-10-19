@@ -55,6 +55,7 @@ LONG_ACTIONS = frozenset(
         "download_url_for_domain",
         "convert",
         "sparsify",
+        "dig_holes",
         "move",
         "create",
         "disconnect",

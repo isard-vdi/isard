@@ -37,6 +37,8 @@ from api.schemas.storage import (
     StorageCreateResponse,
     StorageDerivativesResponse,
     StorageDetailResponse,
+    StorageDigHolesBatchRequest,
+    StorageDigHolesBatchResponse,
     StorageItem,
     StorageMaintenanceRequest,
     StorageMoveByPathRequest,
@@ -646,6 +648,92 @@ async def batch_sparsify_storages_by_status(request: Request, status: str):
             request,
             "internal_server",
             "Failed to batch sparsify storages by status",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/item/storage/{storage_id}/dig-holes/priority/{priority}",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Give back the zero blocks of a storage",
+    description=(
+        "Creates a task that punches holes where whole blocks of the disk file are "
+        "zeros (fallocate --dig-holes). The content does not change. With "
+        "verify=true the task also compares a sha256 of the content before and "
+        "after, reading the file twice, and a disk that reads back differently is "
+        "left damaged for review. Only a stopped desktop's own "
+        "leaf disk is dug; it is parked in maintenance for the task. Refused with "
+        "428 and the reason: not ready (storage_not_ready), read-only "
+        "(storage_read_only), used by no domain (storage_not_used_by_any_domain), "
+        "used by a template (storage_used_by_template), open by a running desktop "
+        "(storage_open_by_running_desktop), desktops not stopped "
+        "(desktops_not_stopped), or any disk, deleted ones included, backed on it "
+        "(storage_has_children). The task re-checks when it runs."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def dig_holes_storage(
+    request: Request, storage_id: str, priority: str, verify: bool = False
+):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.dig_holes,
+            request.token_payload,
+            storage_id,
+            priority,
+            verify=verify,
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to give back the zero blocks of the storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/items/storage/dig-holes",
+    tags=[tag],
+    response_model=StorageDigHolesBatchResponse,
+    summary="Batch give back zero blocks",
+    description=(
+        "dig_holes on the given storages, at most 50. Each id gets its task, or the "
+        "description_code and message of the refusal that kept it out."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def batch_dig_holes_storages(request: Request, body: StorageDigHolesBatchRequest):
+    try:
+        result = await asyncio.to_thread(
+            StorageService.batch_dig_holes, request.token_payload, body.ids
+        )
+        return JSONResponse(
+            content=StorageDigHolesBatchResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch give back zero blocks",
             traceback.format_exc(),
         )
 

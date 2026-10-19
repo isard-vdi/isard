@@ -126,6 +126,9 @@ class DiskEffect(str, Enum):
     PATH = "path"
 
 
+#: What the dig_holes task raises when the file reads back differently after the dig.
+DIG_HOLES_MISMATCH = "reads differently after the dig"
+
 #: The reconcile retries exactly these and the engine decides ``Stopped``
 #: against ``Failed`` from them: one list, or the two drift.
 RECOVERABLE_STATUSES = ("maintenance", "creating")
@@ -151,6 +154,7 @@ PENDING_ACTIONS = {
         "flagged_by": (
             "migration verify gate",
             "a storage refresh that found the file but could not open it",
+            "a dig_holes that read back differently",
         ),
         "cleared_by": "an admin decision",
     },
@@ -195,6 +199,7 @@ DISK_EFFECTS = {
     "increase_size": DiskEffect.SIZE,
     "virt_win_reg": DiskEffect.SIZE,
     "sparsify": DiskEffect.SIZE,
+    "dig_holes": DiskEffect.SIZE,
     "repair": DiskEffect.SIZE,
     "disconnect_chain": DiskEffect.CHAIN,
     "convert": DiskEffect.CHAIN,
@@ -1862,6 +1867,72 @@ class Storage(RethinkCustomBase):
                         }
                     },
                 },
+            ],
+        )
+
+    def dig_holes(
+        self,
+        user_id,
+        priority="default",
+        secondary_priority="default",
+        retry: int = 0,
+        timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
+        verify=False,
+    ):
+        """Give back the all-zero blocks of a stopped desktop's own leaf disk."""
+        queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
+        # Use a different queue to avoid having to wait when launching in bulk
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
+        measure = {
+            "queue": queue_backing_chain,
+            "task": "qemu_img_info_backing_chain",
+            "job_kwargs": {
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": self.path,
+                }
+            },
+            "dependents": [
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        }
+        task = {
+            "user_id": user_id,
+            "queue": queue_dig_holes,
+            "task": "dig_holes",
+            "retry": retry,
+            "retry_intervals": 15,
+            "job_kwargs": {
+                "kwargs": {
+                    "storage_path": self.path,
+                    "verify": verify,
+                },
+                "timeout": timeout,
+            },
+        }
+        verdict = {
+            "queue": "core",
+            "task": "dig_holes_result",
+            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+        }
+        domains = self.domains
+        self.set_maintenance("dig_holes")
+        release = Storage._maintenance_release_statuses(
+            self.id, [d.id for d in domains]
+        )
+        return self.create_task(
+            **task,
+            dependents=[
+                measure,
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {"kwargs": {"statuses": release}},
+                },
+                verdict,
             ],
         )
 

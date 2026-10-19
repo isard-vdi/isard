@@ -39,7 +39,12 @@ from datetime import timezone
 from time import time
 
 from isardvdi_common.models.domain import Domain
-from isardvdi_common.models.storage import SPARSIFY_GROWTH_BYTES, Storage, StoragePool
+from isardvdi_common.models.storage import (
+    DIG_HOLES_MISMATCH,
+    SPARSIFY_GROWTH_BYTES,
+    Storage,
+    StoragePool,
+)
 from isardvdi_common.models.user import category_of
 from rethinkdb import r
 
@@ -481,6 +486,29 @@ def handle_clear_pending_action(task, storage_id, action):
     if not Storage.exists(storage_id):
         return
     Storage.clear_pending(storage_id, action)
+
+
+def handle_dig_holes_result(task, storage_id):
+    """A dig whose file read back differently leaves the disk damaged and for review."""
+    if task.depending_status != "failed" or not Storage.exists(storage_id):
+        return
+    for dependency in task.dependencies:
+        if dependency.task != "dig_holes":
+            continue
+        if DIG_HOLES_MISMATCH not in str(dependency.exc_info or ""):
+            return
+        if Storage.write_status(storage_id, "damaged") == "damaged":
+            Storage.update_document(
+                storage_id,
+                {
+                    "damage_reason": "dig_holes: the file reads differently after the dig"
+                },
+                validate=False,
+            )
+        Storage.flag_pending(
+            storage_id, "review_damage", "dig_holes", {"task_id": dependency.id}
+        )
+        return
 
 
 async def handle_storage_update(redis_manager, task, observer=False, **storage_dict):
