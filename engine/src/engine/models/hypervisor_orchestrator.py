@@ -23,16 +23,14 @@ from engine.config import CONFIG_DICT
 from engine.models.pool_hypervisors import move_actions_to_others_hypers
 from engine.services.db import (
     cleanup_hypervisor_gpus,
-    close_rethink_connection,
     delete_table_item,
     get_domains_flag_autostart_to_starting,
     get_shared_storage_stall,
-    new_rethink_connection,
     update_domain_status,
     update_domains_in_deleted_hyper,
     update_domains_started_in_hyp_to_unknown,
 )
-from engine.services.db.db import new_rethink_connection
+from engine.services.db.db import rethink_conn
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     get_hyp_hostname_user_port_from_id,
@@ -118,24 +116,27 @@ def add_hyper_to_db(
         },
     }
 
-    r_conn = new_rethink_connection()
-    if cap_disk:
-        for hp in hypervisor["hypervisors_pools"]:
-            paths = r.table("hypervisors_pools").get(hp).run(r_conn)["paths"]
-            for p in paths:
-                p = shlex.quote(p)
-                for i, path_data in enumerate(paths[p]):
-                    if hyp_id not in path_data["disk_operations"]:
-                        path_data["disk_operations"].append(hyp_id)
-                        paths[p][i]["disk_operations"] = path_data["disk_operations"]
-            result = (
-                r.table("hypervisors_pools")
-                .get(hp)
-                .update({"paths": paths, "enabled": False})
-                .run(r_conn)
-            )
-    result = r.table("hypervisors").insert(hypervisor, conflict="update").run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        if cap_disk:
+            for hp in hypervisor["hypervisors_pools"]:
+                paths = r.table("hypervisors_pools").get(hp).run(r_conn)["paths"]
+                for p in paths:
+                    p = shlex.quote(p)
+                    for i, path_data in enumerate(paths[p]):
+                        if hyp_id not in path_data["disk_operations"]:
+                            path_data["disk_operations"].append(hyp_id)
+                            paths[p][i]["disk_operations"] = path_data[
+                                "disk_operations"
+                            ]
+                result = (
+                    r.table("hypervisors_pools")
+                    .get(hp)
+                    .update({"paths": paths, "enabled": False})
+                    .run(r_conn)
+                )
+        result = (
+            r.table("hypervisors").insert(hypervisor, conflict="update").run(r_conn)
+        )
 
     return result
 

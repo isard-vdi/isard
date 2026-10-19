@@ -60,19 +60,22 @@ class loadConfig:
                 )
                 time.sleep(2)
         ready = False
-        while not ready:
-            try:
-                tables = list(r.db("isard").table_list().run(conn))
-            except:
-                print("  No tables yet in database")
-                time.sleep(1)
-                continue
-            if "config" in tables:
-                ready = True
-            else:
-                print("Waiting for database to be populated with all tables...")
-                print("   " + str(len(tables)) + " populated")
-                time.sleep(2)
+        try:
+            while not ready:
+                try:
+                    tables = list(r.db("isard").table_list().run(conn))
+                except:
+                    print("  No tables yet in database")
+                    time.sleep(1)
+                    continue
+                if "config" in tables:
+                    ready = True
+                else:
+                    print("Waiting for database to be populated with all tables...")
+                    print("   " + str(len(tables)) + " populated")
+                    time.sleep(2)
+        finally:
+            conn.close()
 
         # Load locales for QMP
         files = Path("./scheduler/locales").glob("*.json")

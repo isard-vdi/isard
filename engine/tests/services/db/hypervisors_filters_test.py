@@ -118,9 +118,7 @@ class TestFilterOutOfGPUMemHypers:
         memory it has. Two hypers, so the single-hyper early return does not fire.
         """
         # The pass branch only touches the DB when the row is already gpu_only.
-        monkeypatch.setattr(
-            mod, "new_rethink_connection", lambda: pytest.fail("must not write")
-        )
+        monkeypatch.setattr(mod, "rethink_conn", lambda: pytest.fail("must not write"))
         hugepages = _hyper(
             "hugepages",
             1133,

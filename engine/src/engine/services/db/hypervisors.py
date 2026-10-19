@@ -66,20 +66,18 @@ def get_cluster_guest_mtu():
     hypervisor publishes it (older/mixed-version cluster, fresh install,
     or DB error) — callers must then emit unchanged XML (no regression).
     """
-    r_conn = new_rethink_connection()
-    try:
-        out = list(
-            r.table("hypervisors")
-            .filter({"status": "Online"})
-            .filter(lambda h: h["vpn"]["guest_mtu"].default(False).ne(False))
-            .pluck({"vpn": "guest_mtu"})
-            .limit(1)
-            .run(r_conn)
-        )
-    except Exception:
-        close_rethink_connection(r_conn)
-        return None
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        try:
+            out = list(
+                r.table("hypervisors")
+                .filter({"status": "Online"})
+                .filter(lambda h: h["vpn"]["guest_mtu"].default(False).ne(False))
+                .pluck({"vpn": "guest_mtu"})
+                .limit(1)
+                .run(r_conn)
+            )
+        except Exception:
+            return None
     try:
         return int(out[0]["vpn"]["guest_mtu"])
     except (IndexError, KeyError, TypeError, ValueError):
@@ -94,15 +92,13 @@ def _set_hyp_thread_type_status(hyp_id, thread_type, status):
 
 
 def get_hypervisor(hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    try:
-        out = rtable.get(hyp_id).run(r_conn)
-    except:
-        close_rethink_connection(r_conn)
-        return None
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        try:
+            out = rtable.get(hyp_id).run(r_conn)
+        except:
+            return None
 
-    close_rethink_connection(r_conn)
     return out
 
 
@@ -427,10 +423,9 @@ def update_hyp_libvirt_warning(hyp_id, slow_count=None, avg_ms=None, clear=False
 
 
 def get_id_hyp_from_uri(uri):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    l = list(rtable.filter({"uri": uri}).pluck("id").run(r_conn))
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        l = list(rtable.filter({"uri": uri}).pluck("id").run(r_conn))
     if len(l) > 0:
         return l[0]["id"]
     else:
@@ -442,14 +437,13 @@ def get_id_hyp_from_uri(uri):
 
 
 def get_hyp_hostnames_online():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    l = list(
-        rtable.filter({"enabled": True, "status": "Online"})
-        .pluck("id", "hostname")
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        l = list(
+            rtable.filter({"enabled": True, "status": "Online"})
+            .pluck("id", "hostname")
+            .run(r_conn)
+        )
     log.debug(l)
     if len(l) > 0:
         hyps_hostnames = {d["id"]: d["hostname"] for d in l}
@@ -460,10 +454,9 @@ def get_hyp_hostnames_online():
 
 
 def update_uri_hyp(hyp_id, uri):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    out = rtable.get(hyp_id).update({"uri": uri}).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        out = rtable.get(hyp_id).update({"uri": uri}).run(r_conn)
     return out
 
 
@@ -492,15 +485,13 @@ def get_hyp_machine_types(hyp_id):
 
 
 def get_hyp_info(hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    try:
-        out = rtable.get(hyp_id).pluck("info", "min_free_mem_gb").run(r_conn)
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return False
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        try:
+            out = rtable.get(hyp_id).pluck("info", "min_free_mem_gb").run(r_conn)
+        except ReqlNonExistenceError:
+            return False
 
-    close_rethink_connection(r_conn)
     min_free_mem_gb = out.get("min_free_mem_gb", 0)
     if min_free_mem_gb is None or min_free_mem_gb is False:
         min_free_mem_gb = 0
@@ -513,39 +504,35 @@ def get_hyp_info(hyp_id):
 
 
 def get_hyp_status(hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    try:
-        out = rtable.get(hyp_id).pluck("status").run(r_conn)
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return False
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        try:
+            out = rtable.get(hyp_id).pluck("status").run(r_conn)
+        except ReqlNonExistenceError:
+            return False
 
-    close_rethink_connection(r_conn)
     return out["status"]
 
 
 def get_hyp_system_info():
-    r_conn = new_rethink_connection()
-    try:
-        hypers = list(
-            r.table("hypervisors")
-            .pluck(
-                "id",
-                "status",
-                "capabilities",
-                "only_forced",
-                "stats",
-                "min_free_mem_gb",
-                "gpu_only",
+    with rethink_conn() as r_conn:
+        try:
+            hypers = list(
+                r.table("hypervisors")
+                .pluck(
+                    "id",
+                    "status",
+                    "capabilities",
+                    "only_forced",
+                    "stats",
+                    "min_free_mem_gb",
+                    "gpu_only",
+                )
+                .run(r_conn)
             )
-            .run(r_conn)
-        )
-    except:
-        close_rethink_connection(r_conn)
-        return []
+        except:
+            return []
 
-    close_rethink_connection(r_conn)
     return hypers
 
 
@@ -591,10 +578,9 @@ def get_hyp_hostname_from_id(id):
 
 
 def get_hypers_ids_with_status(status):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    l = list(rtable.filter({"status": status}).pluck("id").run(r_conn))
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
+        l = list(rtable.filter({"status": status}).pluck("id").run(r_conn))
     if len(l) > 0:
         hypers = [d["id"] for d in l]
     else:
@@ -604,16 +590,15 @@ def get_hypers_ids_with_status(status):
 
 
 def get_hypers_enabled_with_capabilities_status():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
 
-    hypers = list(
-        rtable.filter({"enabled": True})
-        .pluck("capabilities", "status", "id")
-        .run(r_conn)
-    )
+        hypers = list(
+            rtable.filter({"enabled": True})
+            .pluck("capabilities", "status", "id")
+            .run(r_conn)
+        )
 
-    close_rethink_connection(r_conn)
     # thread_status lives in engine-process RAM, not the DB — merge it in here
     # so callers that expect d_hyp["thread_status"] keep working unchanged.
     for h in hypers:
@@ -622,16 +607,15 @@ def get_hypers_enabled_with_capabilities_status():
 
 
 def get_hyp_hostname_user_port_from_id(id):
-    r_conn = new_rethink_connection()
-    # default({}) returns the documented False for a missing row; real errors still raise
-    l = (
-        r.table("hypervisors")
-        .get(id)
-        .pluck("hostname", "user", "port")
-        .default({})
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        # default({}) returns the documented False for a missing row; real errors still raise
+        l = (
+            r.table("hypervisors")
+            .get(id)
+            .pluck("hostname", "user", "port")
+            .default({})
+            .run(r_conn)
+        )
 
     if len(l) > 0:
         if l.__contains__("user") and l.__contains__("port"):
@@ -653,31 +637,29 @@ def update_all_hyps_status(reset_status="Offline"):
     disk_operations threads running in this process yet". The DB update only
     touches fields that ARE persisted.
     """
-    r_conn = new_rethink_connection()
-    results = (
-        r.table("hypervisors")
-        .update(
-            {
-                "status": reset_status,
-                "degraded": {"is_degraded": False, "reason": None, "since": None},
-                "libvirt_warning": None,
-            }
+    with rethink_conn() as r_conn:
+        results = (
+            r.table("hypervisors")
+            .update(
+                {
+                    "status": reset_status,
+                    "degraded": {"is_degraded": False, "reason": None, "since": None},
+                    "libvirt_warning": None,
+                }
+            )
+            .run(r_conn)
         )
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
     with _thread_status_lock:
         _thread_status_ram.clear()
     return results
 
 
 def get_pool_hypers_conf(id_pool="default"):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors_pools")
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors_pools")
 
-    result = rtable.get(id_pool).run(r_conn)
+        result = rtable.get(id_pool).run(r_conn)
 
-    close_rethink_connection(r_conn)
     return result
 
 
@@ -687,35 +669,34 @@ def get_hypers_online(
     favourite_hyp=None,
     storage_pool_id=None,
 ):
-    r_conn = new_rethink_connection()
-    hypers_online = list(
-        r.table("hypervisors")
-        .filter({"status": "Online", "capabilities": {"hypervisor": True}})
-        .filter(r.row["hypervisors_pools"].contains(id_pool))
-        .pluck(
-            "id",
-            "only_forced",
-            "gpu_only",
-            "storage_pools",
-            "enabled_storage_pools",
-            "virt_pools",
-            "enabled_virt_pools",
-            "info",
-            "stats",
-            "mountpoints",
-            "min_free_mem_gb",
-            "min_free_gpu_mem_gb",
-            "hugepages_info",
-            "pci_devices",  # sysfs-keyed map used to look up gpu_numa_node
-            "numa_topology",  # libvirt-validated cells (set by enable_hyper)
-            "libvirt_warning",  # Include warning state for balancer
-            "degraded",  # Include degraded state for webapp display
-            "cap_status",  # Include cap_status for balancer operation
-            "gpu_warnings",  # GPU configuration issues for admin display
+    with rethink_conn() as r_conn:
+        hypers_online = list(
+            r.table("hypervisors")
+            .filter({"status": "Online", "capabilities": {"hypervisor": True}})
+            .filter(r.row["hypervisors_pools"].contains(id_pool))
+            .pluck(
+                "id",
+                "only_forced",
+                "gpu_only",
+                "storage_pools",
+                "enabled_storage_pools",
+                "virt_pools",
+                "enabled_virt_pools",
+                "info",
+                "stats",
+                "mountpoints",
+                "min_free_mem_gb",
+                "min_free_gpu_mem_gb",
+                "hugepages_info",
+                "pci_devices",  # sysfs-keyed map used to look up gpu_numa_node
+                "numa_topology",  # libvirt-validated cells (set by enable_hyper)
+                "libvirt_warning",  # Include warning state for balancer
+                "degraded",  # Include degraded state for webapp display
+                "cap_status",  # Include cap_status for balancer operation
+                "gpu_warnings",  # GPU configuration issues for admin display
+            )
+            .run(r_conn)
         )
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
 
     # exclude gpu_only as this function is for non gpu desktops
     hypers_online = [h for h in hypers_online if not h.get("gpu_only")]
@@ -851,10 +832,9 @@ def filter_outofGPUmem_hypers(hypers_online):
         if int(hyper.get("min_free_gpu_mem_gb", 0)) != 0 and hyper.get(
             "gpu_only", False
         ):
-            r_conn = new_rethink_connection()
-            rtable = r.table("hypervisors")
-            rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
-            close_rethink_connection(r_conn)
+            with rethink_conn() as r_conn:
+                rtable = r.table("hypervisors")
+                rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
         return hypers_online
 
     # Now we are sure that there are at least two hypers
@@ -872,17 +852,15 @@ def filter_outofGPUmem_hypers(hypers_online):
             # Hypervisor has enough memory for gpu guests and normal guests. only_gpu = False
             hypers_with_ram.append(hyper)
             if hyper.get("gpu_only", False):
-                r_conn = new_rethink_connection()
-                rtable = r.table("hypervisors")
-                rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
-                close_rethink_connection(r_conn)
+                with rethink_conn() as r_conn:
+                    rtable = r.table("hypervisors")
+                    rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
         else:
             # Hypervisor has not enough memory for gpu guests. only_gpu = True
             if not hyper.get("gpu_only", False):
-                r_conn = new_rethink_connection()
-                rtable = r.table("hypervisors")
-                rtable.get(hyper["id"]).update({"gpu_only": True}).run(r_conn)
-                close_rethink_connection(r_conn)
+                with rethink_conn() as r_conn:
+                    rtable = r.table("hypervisors")
+                    rtable.get(hyper["id"]).update({"gpu_only": True}).run(r_conn)
     return hypers_with_ram
 
 
@@ -1055,32 +1033,31 @@ def get_hypers_gpu_online(
     prefer_numa_node=None,
     coplacement_profiles=None,
 ):
-    r_conn = new_rethink_connection()
-    hypers_online = list(
-        r.table("hypervisors")
-        .filter({"status": "Online"})
-        .filter(r.row["hypervisors_pools"].contains(id_pool))
-        .pluck(
-            "id",
-            "only_forced",
-            "gpu_only",
-            "storage_pools",
-            "enabled_storage_pools",
-            "virt_pools",
-            "enabled_virt_pools",
-            "info",
-            "stats",
-            "mountpoints",
-            "min_free_mem_gb",
-            "min_free_gpu_mem_gb",
-            "hugepages_info",
-            "pci_devices",
-            "numa_topology",
-            "degraded",
+    with rethink_conn() as r_conn:
+        hypers_online = list(
+            r.table("hypervisors")
+            .filter({"status": "Online"})
+            .filter(r.row["hypervisors_pools"].contains(id_pool))
+            .pluck(
+                "id",
+                "only_forced",
+                "gpu_only",
+                "storage_pools",
+                "enabled_storage_pools",
+                "virt_pools",
+                "enabled_virt_pools",
+                "info",
+                "stats",
+                "mountpoints",
+                "min_free_mem_gb",
+                "min_free_gpu_mem_gb",
+                "hugepages_info",
+                "pci_devices",
+                "numa_topology",
+                "degraded",
+            )
+            .run(r_conn)
         )
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
 
     hypers_online = [
         hyp
@@ -1424,43 +1401,41 @@ def get_hypers_in_pool(
     exclude_hyp_only_forced=False,
     exclude_hyp_gpu_only=False,
 ):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
 
-    l_forced = []
-    l_gpu_only = []
-    d_filter = {}
-    if only_online:
-        d_filter["status"] = "Online"
+        l_forced = []
+        l_gpu_only = []
+        d_filter = {}
+        if only_online:
+            d_filter["status"] = "Online"
 
-    if exclude_hyp_only_forced is True:
-        d_filter_only_forced = d_filter.copy()
-        d_filter_only_forced["only_forced"] = True
-        l_forced = list(
+        if exclude_hyp_only_forced is True:
+            d_filter_only_forced = d_filter.copy()
+            d_filter_only_forced["only_forced"] = True
+            l_forced = list(
+                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+                .filter(d_filter_only_forced)
+                .pluck("id")
+                .run(r_conn)
+            )
+
+        if exclude_hyp_gpu_only is True:
+            d_filter_gpu_only = d_filter.copy()
+            d_filter_gpu_only["gpu_only"] = True
+            l_gpu_only = list(
+                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+                .filter(d_filter_gpu_only)
+                .pluck("id")
+                .run(r_conn)
+            )
+
+        l = list(
             rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter(d_filter_only_forced)
+            .filter(d_filter)
             .pluck("id")
             .run(r_conn)
         )
-
-    if exclude_hyp_gpu_only is True:
-        d_filter_gpu_only = d_filter.copy()
-        d_filter_gpu_only["gpu_only"] = True
-        l_gpu_only = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter(d_filter_gpu_only)
-            .pluck("id")
-            .run(r_conn)
-        )
-
-    l = list(
-        rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-        .filter(d_filter)
-        .pluck("id")
-        .run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
 
     hyps_gpu_only = [a["id"] for a in l_gpu_only]
     hyps_only_forced = [a["id"] for a in l_forced]
@@ -1473,11 +1448,10 @@ def get_hypers_in_pool(
 
 
 def update_db_hyp_info(id, hyp_info):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
+    with rethink_conn() as r_conn:
+        rtable = r.table("hypervisors")
 
-    rtable.filter({"id": id}).update({"info": hyp_info}).run(r_conn)
-    close_rethink_connection(r_conn)
+        rtable.filter({"id": id}).update({"info": hyp_info}).run(r_conn)
 
 
 def get_gpu_card_models(hyper_id):
@@ -1494,8 +1468,8 @@ def get_gpu_card_models(hyper_id):
     mapping to the card's stored model string.  Cards without a model are
     skipped.
     """
-    r_conn = new_rethink_connection()
     prefix = f"auto-{hyper_id}-"
+    r_conn = new_rethink_connection()
     try:
         rows = list(
             r.table("gpus")
@@ -1517,61 +1491,58 @@ def get_gpu_card_models(hyper_id):
 
 
 def get_vgpu_model_profile_change(vgpu_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    try:
-        d = (
-            rtable.get(vgpu_id)
-            .pluck("model", "vgpu_profile", "changing_to_profile", "last_apply_error")
-            .run(r_conn)
-        )
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return False
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        try:
+            d = (
+                rtable.get(vgpu_id)
+                .pluck(
+                    "model", "vgpu_profile", "changing_to_profile", "last_apply_error"
+                )
+                .run(r_conn)
+            )
+        except ReqlNonExistenceError:
+            return False
     return d
 
 
 def get_vgpu_info(vgpu_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    out = False
-    try:
-        out = rtable.get(vgpu_id).pluck("hyp_id", "info").run(r_conn)
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return False
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        out = False
+        try:
+            out = rtable.get(vgpu_id).pluck("hyp_id", "info").run(r_conn)
+        except ReqlNonExistenceError:
+            return False
     return out
 
 
 def get_domains_started_in_vgpu(vgpu_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
 
-    profile = rtable.get(vgpu_id).pluck("vgpu_profile").run(r_conn)["vgpu_profile"]
-    mdevs = (
-        rtable.get(vgpu_id)
-        .pluck({"mdevs": [profile]})
-        .run(r_conn)["mdevs"]
-        .get(profile, {})
-    )
-    l_domains = [
-        i["domain_started"]
-        for i in mdevs.values()
-        if type(i.get("domain_started", False)) is str and len(i["domain_started"]) > 0
-    ]
+        profile = rtable.get(vgpu_id).pluck("vgpu_profile").run(r_conn)["vgpu_profile"]
+        mdevs = (
+            rtable.get(vgpu_id)
+            .pluck({"mdevs": [profile]})
+            .run(r_conn)["mdevs"]
+            .get(profile, {})
+        )
+        l_domains = [
+            i["domain_started"]
+            for i in mdevs.values()
+            if type(i.get("domain_started", False)) is str
+            and len(i["domain_started"]) > 0
+        ]
 
-    close_rethink_connection(r_conn)
     return l_domains
 
 
 def update_vgpu_uuids(vgpu_id, d_uuids):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
 
-    rtable.filter({"id": vgpu_id}).update({"mdevs": d_uuids}).run(r_conn)
-    close_rethink_connection(r_conn)
+        rtable.filter({"id": vgpu_id}).update({"mdevs": d_uuids}).run(r_conn)
 
 
 def replace_vgpu_profile_mdevs(vgpu_id, profile, mdevs_for_profile):
@@ -1583,11 +1554,10 @@ def replace_vgpu_profile_mdevs(vgpu_id, profile, mdevs_for_profile):
     ``r.literal`` replaces the target sub-dict verbatim without
     touching sibling profiles.
     """
-    r_conn = new_rethink_connection()
-    r.table("vgpus").get(vgpu_id).update(
-        {"mdevs": {profile: r.literal(mdevs_for_profile)}}
-    ).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        r.table("vgpus").get(vgpu_id).update(
+            {"mdevs": {profile: r.literal(mdevs_for_profile)}}
+        ).run(r_conn)
 
 
 def ingest_applied_state(vgpu_id, patch):
@@ -1598,20 +1568,18 @@ def ingest_applied_state(vgpu_id, patch):
     runtime apply the engine drives over SSH and the registration apply write
     byte-identical rows.
     """
-    r_conn = new_rethink_connection()
-    if "mdevs" in patch:
-        patch = {**patch, "mdevs": r.literal(patch["mdevs"])}
-    r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        if "mdevs" in patch:
+            patch = {**patch, "mdevs": r.literal(patch["mdevs"])}
+        r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
 
 
 def get_vgpu_full(vgpu_id):
-    r_conn = new_rethink_connection()
-    try:
-        out = r.table("vgpus").get(vgpu_id).run(r_conn)
-    except ReqlNonExistenceError:
-        out = None
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        try:
+            out = r.table("vgpus").get(vgpu_id).run(r_conn)
+        except ReqlNonExistenceError:
+            out = None
     return out
 
 
@@ -1671,52 +1639,48 @@ def add_vgpu_uuids(
     """
     if not additions and sub_paths is None and mdevs_last_synced_at is None:
         return
-    r_conn = new_rethink_connection()
-    patch = {}
-    if replace_mdevs:
-        patch["mdevs"] = r.literal(additions or {})
-    elif additions:
-        patch["mdevs"] = additions
-    if sub_paths is not None:
-        patch["info"] = {"sub_paths": list(sub_paths)}
-    if mdevs_last_synced_at is not None:
-        patch["mdevs_last_synced_at"] = mdevs_last_synced_at
-    r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        patch = {}
+        if replace_mdevs:
+            patch["mdevs"] = r.literal(additions or {})
+        elif additions:
+            patch["mdevs"] = additions
+        if sub_paths is not None:
+            patch["info"] = {"sub_paths": list(sub_paths)}
+        if mdevs_last_synced_at is not None:
+            patch["mdevs_last_synced_at"] = mdevs_last_synced_at
+        r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
 
 
 def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    vgpu_id = "-".join([hyp_id, pci_id])
-    rtable.filter({"id": vgpu_id}).update(
-        {"mdevs": {profile: {mdev_uuid: {"domain_started": domain_id}}}}
-    ).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        vgpu_id = "-".join([hyp_id, pci_id])
+        rtable.filter({"id": vgpu_id}).update(
+            {"mdevs": {profile: {mdev_uuid: {"domain_started": domain_id}}}}
+        ).run(r_conn)
 
 
 def update_vgpu_uuid_reserved_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    vgpu_id = "-".join([hyp_id, pci_id])
-    rtable.filter({"id": vgpu_id}).update(
-        {"mdevs": {profile: {mdev_uuid: {"domain_reserved": domain_id}}}}
-    ).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        vgpu_id = "-".join([hyp_id, pci_id])
+        rtable.filter({"id": vgpu_id}).update(
+            {"mdevs": {profile: {mdev_uuid: {"domain_reserved": domain_id}}}}
+        ).run(r_conn)
 
 
 def reset_vgpu_created_started(hyp_id, pci_id, d_mdevs_running):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    vgpu_id = "-".join([hyp_id, pci_id])
-    out = rtable.get(vgpu_id).run(r_conn)
-    for profile, d in out["mdevs"].items():
-        for uuid64, d_uid in d.items():
-            d_uid["created"] = True if uuid64 in d_mdevs_running.keys() else False
-            d_uid["domain_started"] = False
-            d_uid["domain_reserved"] = False
-    rtable.filter({"id": vgpu_id}).update({"mdevs": out["mdevs"]}).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        vgpu_id = "-".join([hyp_id, pci_id])
+        out = rtable.get(vgpu_id).run(r_conn)
+        for profile, d in out["mdevs"].items():
+            for uuid64, d_uid in d.items():
+                d_uid["created"] = True if uuid64 in d_mdevs_running.keys() else False
+                d_uid["domain_started"] = False
+                d_uid["domain_reserved"] = False
+        rtable.filter({"id": vgpu_id}).update({"mdevs": out["mdevs"]}).run(r_conn)
 
 
 def update_vgpu_profile(vgpu_id, vgpu_profile):
@@ -1725,11 +1689,12 @@ def update_vgpu_profile(vgpu_id, vgpu_profile):
     Engine writes this after a successful driver transition; reconcile must
     never write this directly without going through change_vgpu_profile.
     """
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
 
-    rtable.filter({"id": vgpu_id}).update({"vgpu_profile": vgpu_profile}).run(r_conn)
-    close_rethink_connection(r_conn)
+        rtable.filter({"id": vgpu_id}).update({"vgpu_profile": vgpu_profile}).run(
+            r_conn
+        )
 
 
 def _mirror_operator_intent_to_catalog(vgpu_id, fields):
@@ -1763,11 +1728,10 @@ def update_requested_profile(vgpu_id, requested_profile):
     Reconcile/discovery code paths must NEVER call this — that conflation is
     the bug we are fixing.
     """
-    r_conn = new_rethink_connection()
-    r.table("vgpus").filter({"id": vgpu_id}).update(
-        {"requested_profile": requested_profile}
-    ).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        r.table("vgpus").filter({"id": vgpu_id}).update(
+            {"requested_profile": requested_profile}
+        ).run(r_conn)
     # Durable mirror so the intent survives a hypervisor restart (see helper).
     _mirror_operator_intent_to_catalog(
         vgpu_id, {"operator_requested_profile": requested_profile}
@@ -1784,228 +1748,225 @@ def update_operator_passthrough(vgpu_id, flag):
     ``vgpu_profile == "passthrough"`` (which could have been written by
     the legacy buggy reconcile path).
     """
-    r_conn = new_rethink_connection()
-    r.table("vgpus").filter({"id": vgpu_id}).update(
-        {"operator_passthrough": bool(flag)}
-    ).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        r.table("vgpus").filter({"id": vgpu_id}).update(
+            {"operator_passthrough": bool(flag)}
+        ).run(r_conn)
     # Durable mirror so the intent survives a hypervisor restart (see helper).
     _mirror_operator_intent_to_catalog(vgpu_id, {"operator_passthrough": bool(flag)})
 
 
 def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    # Per-card map vgpu_id -> applied_by_hypervisor, returned so the caller can
-    # skip its own UUID/profile seeding for cards the hypervisor already applied.
-    applied_flags = {}
-    for pci_bus, d_vgpu in d_info_nvidia.items():
-        vgpu_id = "-".join([hyp_id, pci_bus])
-        # Read existing operator-intent fields BEFORE delete so they survive
-        # the re-insert. The delete+insert pattern wipes the row entirely;
-        # without this preservation step, every fresh discovery erases the
-        # operator's profile choice — which is one of the defects this
-        # redesign fixes.
-        preserved = {
-            "requested_profile": None,
-            "operator_passthrough": False,
-            "force_selected_profile": False,
-            # Hypervisor-applied state. The hypervisor applies the profile itself
-            # at registration and the API records the applied profile + mdev pool
-            # here. The engine relies on what the hypervisor set at boot, so this
-            # delete+insert must NOT wipe it — otherwise the next reconcile
-            # re-derives passthrough and re-applies over SSH, defeating the
-            # hypervisor-owns-GPU handoff.
-            "vgpu_profile": None,
-            "mdevs": {},
-            "mdevs_reset_at": None,
-            "mdevs_last_synced_at": None,
-            "applied_by_hypervisor": False,
-        }
-        try:
-            existing = rtable.get(vgpu_id).run(r_conn)
-        except ReqlNonExistenceError:
-            existing = None
-        if existing:
-            preserved["requested_profile"] = existing.get("requested_profile")
-            preserved["operator_passthrough"] = bool(
-                existing.get("operator_passthrough", False)
-            )
-            preserved["force_selected_profile"] = bool(
-                existing.get("force_selected_profile", False)
-            )
-            preserved["vgpu_profile"] = existing.get("vgpu_profile")
-            preserved["mdevs"] = existing.get("mdevs") or {}
-            preserved["mdevs_reset_at"] = existing.get("mdevs_reset_at")
-            preserved["mdevs_last_synced_at"] = existing.get("mdevs_last_synced_at")
-            preserved["applied_by_hypervisor"] = bool(
-                existing.get("applied_by_hypervisor", False)
-            )
-        try:
-            rtable.get(vgpu_id).delete().run(r_conn)
-        except ReqlNonExistenceError:
-            pass
-        d = {}
-        d["id"] = vgpu_id
-        d["hyp_id"] = hyp_id
-        d["force_selected_profile"] = preserved["force_selected_profile"]
-        d["changing_to_profile"] = False
-        d["requested_profile"] = preserved["requested_profile"]
-        d["operator_passthrough"] = preserved["operator_passthrough"]
-        d["nvidia_uids"] = {}
-        d["info"] = d_vgpu
-        d["model"] = d_vgpu["model"]
-        d["brand"] = "NVIDIA"
-        # Carry the hypervisor-applied state across the re-insert (see preserve
-        # comment above). Only emit keys we actually have, so a never-applied
-        # card stays clean for the engine's own seeding below.
-        d["applied_by_hypervisor"] = preserved["applied_by_hypervisor"]
-        if preserved["applied_by_hypervisor"]:
-            d["vgpu_profile"] = preserved["vgpu_profile"]
-            d["mdevs"] = preserved["mdevs"]
-            if preserved["mdevs_reset_at"] is not None:
-                d["mdevs_reset_at"] = preserved["mdevs_reset_at"]
-            if preserved["mdevs_last_synced_at"] is not None:
-                d["mdevs_last_synced_at"] = preserved["mdevs_last_synced_at"]
-        rtable.insert(d).run(r_conn)
-        applied_flags[vgpu_id] = preserved["applied_by_hypervisor"]
-
-        # Check if a GPU card already has this physical_device assigned
-        already_assigned = list(
-            r.table("gpus")
-            .filter({"physical_device": vgpu_id})
-            .pluck("id", "model")
-            .run(r_conn)
-        )
-        if len(already_assigned) > 0:
-            # Card already bound to this device — leave it alone.  The
-            # card's model is immutable once set by the apiv4 hypervisor
-            # registration flow at first sight; never overwrite from
-            # engine-side fresh discovery, otherwise gpu_profiles and
-            # reservables_vgpus drift away from existing desktops on
-            # driver updates or normalization-rule changes.
-            pass
-        else:
-            # No card has this device yet — find an unassigned one
-            gpus = list(
-                r.table("gpus")
-                .filter(
-                    {
-                        "brand": d["brand"],
-                        "model": d["model"],
-                        "physical_device": None,
-                    }
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        # Per-card map vgpu_id -> applied_by_hypervisor, returned so the caller can
+        # skip its own UUID/profile seeding for cards the hypervisor already applied.
+        applied_flags = {}
+        for pci_bus, d_vgpu in d_info_nvidia.items():
+            vgpu_id = "-".join([hyp_id, pci_bus])
+            # Read existing operator-intent fields BEFORE delete so they survive
+            # the re-insert. The delete+insert pattern wipes the row entirely;
+            # without this preservation step, every fresh discovery erases the
+            # operator's profile choice — which is one of the defects this
+            # redesign fixes.
+            preserved = {
+                "requested_profile": None,
+                "operator_passthrough": False,
+                "force_selected_profile": False,
+                # Hypervisor-applied state. The hypervisor applies the profile itself
+                # at registration and the API records the applied profile + mdev pool
+                # here. The engine relies on what the hypervisor set at boot, so this
+                # delete+insert must NOT wipe it — otherwise the next reconcile
+                # re-derives passthrough and re-applies over SSH, defeating the
+                # hypervisor-owns-GPU handoff.
+                "vgpu_profile": None,
+                "mdevs": {},
+                "mdevs_reset_at": None,
+                "mdevs_last_synced_at": None,
+                "applied_by_hypervisor": False,
+            }
+            try:
+                existing = rtable.get(vgpu_id).run(r_conn)
+            except ReqlNonExistenceError:
+                existing = None
+            if existing:
+                preserved["requested_profile"] = existing.get("requested_profile")
+                preserved["operator_passthrough"] = bool(
+                    existing.get("operator_passthrough", False)
                 )
-                .pluck("id", "profiles_enabled")
+                preserved["force_selected_profile"] = bool(
+                    existing.get("force_selected_profile", False)
+                )
+                preserved["vgpu_profile"] = existing.get("vgpu_profile")
+                preserved["mdevs"] = existing.get("mdevs") or {}
+                preserved["mdevs_reset_at"] = existing.get("mdevs_reset_at")
+                preserved["mdevs_last_synced_at"] = existing.get("mdevs_last_synced_at")
+                preserved["applied_by_hypervisor"] = bool(
+                    existing.get("applied_by_hypervisor", False)
+                )
+            try:
+                rtable.get(vgpu_id).delete().run(r_conn)
+            except ReqlNonExistenceError:
+                pass
+            d = {}
+            d["id"] = vgpu_id
+            d["hyp_id"] = hyp_id
+            d["force_selected_profile"] = preserved["force_selected_profile"]
+            d["changing_to_profile"] = False
+            d["requested_profile"] = preserved["requested_profile"]
+            d["operator_passthrough"] = preserved["operator_passthrough"]
+            d["nvidia_uids"] = {}
+            d["info"] = d_vgpu
+            d["model"] = d_vgpu["model"]
+            d["brand"] = "NVIDIA"
+            # Carry the hypervisor-applied state across the re-insert (see preserve
+            # comment above). Only emit keys we actually have, so a never-applied
+            # card stays clean for the engine's own seeding below.
+            d["applied_by_hypervisor"] = preserved["applied_by_hypervisor"]
+            if preserved["applied_by_hypervisor"]:
+                d["vgpu_profile"] = preserved["vgpu_profile"]
+                d["mdevs"] = preserved["mdevs"]
+                if preserved["mdevs_reset_at"] is not None:
+                    d["mdevs_reset_at"] = preserved["mdevs_reset_at"]
+                if preserved["mdevs_last_synced_at"] is not None:
+                    d["mdevs_last_synced_at"] = preserved["mdevs_last_synced_at"]
+            rtable.insert(d).run(r_conn)
+            applied_flags[vgpu_id] = preserved["applied_by_hypervisor"]
+
+            # Check if a GPU card already has this physical_device assigned
+            already_assigned = list(
+                r.table("gpus")
+                .filter({"physical_device": vgpu_id})
+                .pluck("id", "model")
                 .run(r_conn)
             )
-            if len(gpus) == 0:
-                logs.workers.error(
-                    "A new GPU has been added to Isard, but there are no GPUs defined to accomodate it! Manual PCI assignation required for "
-                    + vgpu_id
-                )
+            if len(already_assigned) > 0:
+                # Card already bound to this device — leave it alone.  The
+                # card's model is immutable once set by the apiv4 hypervisor
+                # registration flow at first sight; never overwrite from
+                # engine-side fresh discovery, otherwise gpu_profiles and
+                # reservables_vgpus drift away from existing desktops on
+                # driver updates or normalization-rule changes.
+                pass
             else:
-                r.table("gpus").get(gpus[0]["id"]).update(
-                    {"physical_device": vgpu_id}
-                ).run(r_conn)
-                # Capacity restore: the card was detached (physical_device None)
-                # and is now re-bound, so recompute total_units for its enabled
-                # profiles -- symmetric to cleanup_hypervisor_gpus' detach drop,
-                # else a detach+reattach permanently zeroes vGPU capacity. Count
-                # only cards that still have a physical_device.
-                for reservable_id in gpus[0].get("profiles_enabled") or []:
-                    surv = r.table("reservables_vgpus").get(reservable_id).run(r_conn)
-                    if not surv:
-                        continue
-                    cards = (
-                        r.table("gpus")
-                        .filter(
-                            lambda g: g["profiles_enabled"].contains(reservable_id)
-                            & g["physical_device"].default(None).ne(None)
-                        )
-                        .count()
-                        .run(r_conn)
+                # No card has this device yet — find an unassigned one
+                gpus = list(
+                    r.table("gpus")
+                    .filter(
+                        {
+                            "brand": d["brand"],
+                            "model": d["model"],
+                            "physical_device": None,
+                        }
                     )
-                    r.table("reservables_vgpus").get(reservable_id).update(
-                        {"total_units": cards * (surv.get("units") or 0)}
+                    .pluck("id", "profiles_enabled")
+                    .run(r_conn)
+                )
+                if len(gpus) == 0:
+                    logs.workers.error(
+                        "A new GPU has been added to Isard, but there are no GPUs defined to accomodate it! Manual PCI assignation required for "
+                        + vgpu_id
+                    )
+                else:
+                    r.table("gpus").get(gpus[0]["id"]).update(
+                        {"physical_device": vgpu_id}
                     ).run(r_conn)
+                    # Capacity restore: the card was detached (physical_device None)
+                    # and is now re-bound, so recompute total_units for its enabled
+                    # profiles -- symmetric to cleanup_hypervisor_gpus' detach drop,
+                    # else a detach+reattach permanently zeroes vGPU capacity. Count
+                    # only cards that still have a physical_device.
+                    for reservable_id in gpus[0].get("profiles_enabled") or []:
+                        surv = (
+                            r.table("reservables_vgpus").get(reservable_id).run(r_conn)
+                        )
+                        if not surv:
+                            continue
+                        cards = (
+                            r.table("gpus")
+                            .filter(
+                                lambda g: g["profiles_enabled"].contains(reservable_id)
+                                & g["physical_device"].default(None).ne(None)
+                            )
+                            .count()
+                            .run(r_conn)
+                        )
+                        r.table("reservables_vgpus").get(reservable_id).update(
+                            {"total_units": cards * (surv.get("units") or 0)}
+                        ).run(r_conn)
 
-    close_rethink_connection(r_conn)
     return applied_flags
 
 
 def update_vgpu_created(vgpu_id, profile, uuid64, created=True):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    result = (
-        rtable.get(vgpu_id)
-        .update({"mdevs": {profile: {uuid64: {"created": created}}}})
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
+        result = (
+            rtable.get(vgpu_id)
+            .update({"mdevs": {profile: {uuid64: {"created": created}}}})
+            .run(r_conn)
+        )
     return result
 
 
 def get_vgpu(vgpu_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
+    with rethink_conn() as r_conn:
+        rtable = r.table("vgpus")
 
-    try:
-        out = rtable.get(vgpu_id).run(r_conn)
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return False
-    close_rethink_connection(r_conn)
+        try:
+            out = rtable.get(vgpu_id).run(r_conn)
+        except ReqlNonExistenceError:
+            return False
     return out
 
 
 def get_vgpu_actual_profile(vgpu_id):
     start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
 
-    r_conn = new_rethink_connection()
+    with rethink_conn() as r_conn:
 
-    try:
-        gpu = list(r.table("gpus").filter({"physical_device": vgpu_id}).run(r_conn))[0]
-    except:
-        logs.workers.error(
-            "The gpu " + vgpu_id + " has no entry in gpus table right now!"
-        )
-        close_rethink_connection(r_conn)
-        return None
+        try:
+            gpu = list(
+                r.table("gpus").filter({"physical_device": vgpu_id}).run(r_conn)
+            )[0]
+        except:
+            logs.workers.error(
+                "The gpu " + vgpu_id + " has no entry in gpus table right now!"
+            )
+            return None
 
-    try:
-        data = list(
-            r.table("resource_planner")
-            .get_all(gpu["id"], index="item_id")
-            .filter(
-                r.row["start"]
-                <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        try:
+            data = list(
+                r.table("resource_planner")
+                .get_all(gpu["id"], index="item_id")
+                .filter(
+                    r.row["start"]
+                    <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                )
+                .filter(
+                    r.row["end"]
+                    >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                )
+                .run(r_conn)
+            )[0]
+            logs.workers.info("==================================")
+            logs.workers.info(
+                "GPU "
+                + vgpu_id
+                + " has a planning for profile "
+                + data["subitem_id"]
+                + " now!",
             )
-            .filter(
-                r.row["end"]
-                >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            logs.workers.info("==================================")
+        except:
+            data = []
+            logs.workers.info("==================================")
+            logs.workers.error(
+                "FAIL AT GETTING GPU PLAN: GPU "
+                + vgpu_id
+                + " has no running plan for any profile now!",
             )
-            .run(r_conn)
-        )[0]
-        logs.workers.info("==================================")
-        logs.workers.info(
-            "GPU "
-            + vgpu_id
-            + " has a planning for profile "
-            + data["subitem_id"]
-            + " now!",
-        )
-        logs.workers.info("==================================")
-    except:
-        data = []
-        logs.workers.info("==================================")
-        logs.workers.error(
-            "FAIL AT GETTING GPU PLAN: GPU "
-            + vgpu_id
-            + " has no running plan for any profile now!",
-        )
-        logs.workers.info("==================================")
-    close_rethink_connection(r_conn)
+            logs.workers.info("==================================")
     if len(data):
         # Canonicalize the planned subitem_id to its bare profile suffix the same
         # way the API's get_vgpu_scheduled_profile_now does, so the runtime
