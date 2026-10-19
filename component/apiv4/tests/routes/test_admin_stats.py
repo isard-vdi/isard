@@ -120,6 +120,23 @@ class TestStatsKind:
         assert response.status_code == 200
         assert captured["kind"] == "hypervisors"
 
+    def test_unavailable_cache_is_a_503(self, monkeypatch, test_client):
+        """A wedged refresh past max_stale is unavailable data, not a 500."""
+        from isardvdi_common.helpers.stale_while_revalidate import CacheUnavailable
+
+        def wedged():
+            raise CacheUnavailable("refresh has not answered")
+
+        monkeypatch.setattr(
+            "api.routes.admin.stats.AdminStatsService.get_domains_status",
+            staticmethod(wedged),
+        )
+        response = test_client(
+            url="/admin/item/stats/domains/status", jwt=MockJWT(role_id="admin")
+        )
+        assert response.status_code == 503
+        assert response.json()["error"] == "service_unavailable"
+
     def test_unknown_kind_propagates_400(self, monkeypatch, test_client):
         def reject(kind):
             raise Error("bad_request", f"Unknown kind: {kind}")

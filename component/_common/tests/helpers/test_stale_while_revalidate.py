@@ -15,6 +15,7 @@ import threading
 import pytest
 from isardvdi_common.helpers import stale_while_revalidate as mod
 from isardvdi_common.helpers.stale_while_revalidate import (
+    CacheUnavailable,
     KeyedStaleWhileRevalidate,
     StaleWhileRevalidate,
 )
@@ -633,7 +634,7 @@ class TestMaxStaleCeiling:
             "_submit_refresh",
             lambda job: (submitted.append(job), real_submit(job))[1],
         )
-        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100, refresh_deadline=1000)
         fetch = _Counter("old")
         cache.get(fetch)
 
@@ -681,3 +682,75 @@ class TestMaxStaleCeiling:
         clock.advance(5)
         assert cache.get(fetch) == "recovered"  # served instantly again
         assert fetch.calls == 3
+
+    def test_a_database_failing_fast_does_not_keep_the_value_alive(self, clock):
+        """Backing off after a failure must not make the value look younger."""
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        fetch.raises = RuntimeError("connection refused")
+        for _ in range(20):
+            clock.advance(mod.MIN_RETRY_INTERVAL_S + 3)
+            try:
+                cache.get(fetch)
+            except RuntimeError:
+                break
+            _wait_for_refresh()
+        else:
+            pytest.fail("the old value was served past max_stale")
+        assert clock.now - 1000.0 < 100 + mod.MIN_RETRY_INTERVAL_S + 3
+
+
+class TestRefreshDeadline:
+    """A refresh that hangs instead of failing must still surface."""
+
+    def _hang_a_refresh(self, clock, cache):
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(11)
+        fetch.gate = threading.Event()
+        fetch.entered.clear()
+        fetch.value = "fresh"
+        assert cache.get(fetch) == "old"
+        assert fetch.entered.wait(timeout=5), "the refresh never started"
+        return fetch
+
+    def test_past_the_ceiling_a_wedged_refresh_fails_fast(self, clock):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100, refresh_deadline=30)
+        fetch = self._hang_a_refresh(clock, cache)
+        clock.advance(100)
+        try:
+            with pytest.raises(CacheUnavailable):
+                cache.get(fetch)
+            assert fetch.calls == 2, "a second query was started"
+        finally:
+            fetch.gate.set()
+        _wait_for_refresh()
+        assert cache.get(fetch) == "fresh"  # recovers on the hung query's answer
+
+    def test_cache_unavailable_is_a_timeout(self):
+        assert issubclass(CacheUnavailable, TimeoutError)
+
+    def test_an_overdue_refresh_is_logged_once(self, clock, caplog):
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100, refresh_deadline=30)
+        fetch = self._hang_a_refresh(clock, cache)
+        try:
+            clock.advance(29)
+            cache.get(fetch)
+            assert "swr_refresh_overdue" not in caplog.text
+            clock.advance(2)
+            for _ in range(3):
+                assert cache.get(fetch) == "old"  # still inside max_stale
+            assert caplog.text.count("swr_refresh_overdue") == 1
+        finally:
+            fetch.gate.set()
+        _wait_for_refresh()
+
+    def test_past_the_ceiling_after_idling_it_waits_for_a_healthy_query(self, clock):
+        """Nobody polled for a while: that is not an outage, just old data."""
+        cache = StaleWhileRevalidate(ttl=10, max_stale=100, refresh_deadline=30)
+        fetch = _Counter("old")
+        cache.get(fetch)
+        clock.advance(500)
+        fetch.value = "fresh"
+        assert cache.get(fetch) == "fresh"

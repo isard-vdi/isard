@@ -252,20 +252,19 @@ class TestCacheWiring:
             ("_domains_by_category_cache", "_ADMIN_PANEL_POLL_S"),
         ],
     )
-    def test_ttl_is_no_longer_than_its_caller_s_interval(
+    def test_ttl_is_below_its_caller_s_interval(
         self, stub_rdb, cache_name, driver_attr
     ):
         """Serve data as fresh as the caller's cadence allows, and no older.
 
-        A TTL longer than the interval does not make the refreshes cheaper —
-        while it is at or below the period there is one refresh per poll either
-        way — it only hands out older numbers. Parallel consumers are absorbed
-        by the single-flight refresh, not by a long TTL.
+        Strictly below it: an entry ages from the end of its fetch, so a TTL
+        equal to the interval refreshes only on every other poll. Parallel
+        consumers are absorbed by the single-flight refresh, not by a long TTL.
         """
         mod = stub_rdb["mod"]
         cache = getattr(mod, cache_name)
         interval = getattr(mod, driver_attr)
-        assert cache.ttl <= interval, (
+        assert cache.ttl < interval, (
             f"{cache_name} ttl={cache.ttl}s exceeds its caller's {interval}s "
             "interval, so it serves data older than it needs to"
         )

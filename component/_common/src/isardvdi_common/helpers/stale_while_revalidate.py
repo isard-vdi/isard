@@ -43,6 +43,8 @@ caller waits for fresh data and receives the real error if that fails, so a
 database that stays unreachable shows up as a failure rather than as a dashboard
 quietly frozen in the past. Recovery needs no special state — the first
 successful fetch makes the entry fresh again.
+``refresh_deadline`` bounds that wait: a longer refresh is logged as overdue,
+and past ``max_stale`` callers get :class:`CacheUnavailable` instead of hanging.
 
 **Do not use this for a decision.** Serving a stale value is the whole point,
 and a stale admission decision over-provisions or authorises after a
@@ -63,6 +65,11 @@ from typing import Any, Callable, Optional
 
 log = logging.getLogger(__name__)
 
+
+class CacheUnavailable(TimeoutError):
+    """No servable value, and the refresh that would produce one is not answering."""
+
+
 # A failed background refresh keeps serving the stale value; retrying on the
 # very next request would hammer a database that is already struggling, so the
 # entry is only allowed to go stale again after this many seconds.
@@ -74,6 +81,9 @@ MIN_RETRY_INTERVAL_S = 2.0
 # a wedged query would pin every waiting request thread for the life of the
 # process. Generous enough that a merely slow aggregate is not cut short.
 FETCH_WAIT_TIMEOUT_S = 60.0
+
+# The driver has no query timeout, so a refresh this old is treated as wedged.
+REFRESH_DEADLINE_S = 30.0
 
 _refresh_queue: "Queue[Callable[[], None]]" = Queue()
 _refresh_worker: Optional[threading.Thread] = None
@@ -145,7 +155,17 @@ if hasattr(os, "register_at_fork"):  # not available on every platform
 class _Entry:
     """One cached value plus the state machine that guards its refresh."""
 
-    __slots__ = ("value", "has_value", "fetched_at", "refreshing", "ready", "error")
+    __slots__ = (
+        "value",
+        "has_value",
+        "fetched_at",
+        "refreshing",
+        "refresh_started",
+        "overdue_logged",
+        "retry_at",
+        "ready",
+        "error",
+    )
 
     def __init__(self) -> None:
         self.value: Any = None
@@ -154,6 +174,10 @@ class _Entry:
         self.has_value = False
         self.fetched_at = 0.0
         self.refreshing = False
+        self.refresh_started = 0.0
+        self.overdue_logged = False
+        # Apart from fetched_at: backing off must not make the value look younger.
+        self.retry_at = 0.0
         self.ready = threading.Event()
         self.error: Optional[BaseException] = None
 
@@ -166,8 +190,10 @@ class _StaleWhileRevalidateBase:
         ttl: float,
         name: Optional[str] = None,
         max_stale: Optional[float] = None,
+        refresh_deadline: float = REFRESH_DEADLINE_S,
     ) -> None:
         self.ttl = ttl
+        self.refresh_deadline = refresh_deadline
         # Beyond this age the value stops being served and callers wait for a
         # fresh one, so a database that stays unreachable surfaces as an error
         # instead of as a dashboard quietly frozen in the past. ``None`` keeps
@@ -182,7 +208,7 @@ class _StaleWhileRevalidateBase:
         self._lock = threading.Lock()
         self.clear()
 
-    def _servable(self, entry: _Entry) -> bool:
+    def _servable(self, entry: _Entry, now: float) -> bool:
         """Whether the held value may still be handed to a caller.
 
         Past ``max_stale`` it may not: the caller waits for fresh data and gets
@@ -193,52 +219,98 @@ class _StaleWhileRevalidateBase:
             return False
         if self.max_stale is None:
             return True
-        return (time.monotonic() - entry.fetched_at) < self.max_stale
+        return (now - entry.fetched_at) < self.max_stale
+
+    def _start_refresh(self, entry: _Entry, fetch: Callable[[], Any], now: float):
+        """Schedule a background refresh of ``entry``; the caller holds the lock."""
+        entry.refreshing = True
+        entry.refresh_started = now
+        entry.overdue_logged = False
+        entry.ready = threading.Event()
+        try:
+            _submit_refresh(self._refresh_job(entry, fetch))
+        except BaseException:
+            # An unscheduled refresh must not leave the entry frozen for good.
+            entry.refreshing = False
+            raise
+
+    def _claim_overdue(self, entry: _Entry, now: float) -> Optional[float]:
+        """How long the refresh has run, the first time it passes the deadline."""
+        if not entry.refreshing or entry.overdue_logged:
+            return None
+        running = now - entry.refresh_started
+        if running < self.refresh_deadline:
+            return None
+        entry.overdue_logged = True
+        return running
 
     def _read(self, entry_of: Callable[[], _Entry], fetch: Callable[[], Any]) -> Any:
         while True:
             entry = entry_of()
             with self._lock:
-                if self._servable(entry):
-                    stale = (time.monotonic() - entry.fetched_at) >= self.ttl
-                    if stale and not entry.refreshing:
-                        entry.refreshing = True
-                        entry.ready = threading.Event()
-                        try:
-                            _submit_refresh(self._refresh_job(entry, fetch))
-                        except BaseException:
-                            # A refresh that was never scheduled must not leave
-                            # the flag set: the entry would then be frozen for
-                            # the life of the process, silently.
-                            entry.refreshing = False
-                            raise
-                    return entry.value
-                if entry.refreshing:
-                    # Includes the past-``max_stale`` case: join whatever is
-                    # already running rather than starting a second copy of it.
+                now = time.monotonic()
+                age = now - entry.fetched_at
+                overdue = self._claim_overdue(entry, now)
+                if self._servable(entry, now):
+                    if (
+                        age >= self.ttl
+                        and not entry.refreshing
+                        and now >= entry.retry_at
+                    ):
+                        self._start_refresh(entry, fetch, now)
+                    value = entry.value
+                    mode = "serve"
+                elif entry.has_value:
+                    # Past max_stale: join or start one refresh, up to its deadline.
+                    if not entry.refreshing:
+                        self._start_refresh(entry, fetch, now)
                     ready = entry.ready
-                    owner = False
+                    remaining = self.refresh_deadline - (now - entry.refresh_started)
+                    mode = "expired"
+                elif entry.refreshing:
+                    ready = entry.ready
+                    mode = "join"
                 else:
                     entry.refreshing = True
+                    entry.refresh_started = now
                     entry.ready = ready = threading.Event()
                     entry.error = None
-                    owner = True
+                    mode = "own"
 
-            if not owner:
+            if overdue is not None:
+                log.error(
+                    "swr_refresh_overdue name=%s running_for=%.0fs "
+                    "serving_value_age=%.0fs",
+                    self.name,
+                    overdue,
+                    age,
+                )
+
+            if mode == "serve":
+                return value
+
+            if mode == "expired":
+                if remaining <= 0 or not ready.wait(timeout=remaining):
+                    raise CacheUnavailable(
+                        f"{self.name}: value is {age:.0f}s old, past max_stale "
+                        f"{self.max_stale:.0f}s, and its refresh has not answered "
+                        f"in {self.refresh_deadline:.0f}s"
+                    )
+            elif mode == "join":
                 if not ready.wait(timeout=FETCH_WAIT_TIMEOUT_S):
-                    raise TimeoutError(
+                    raise CacheUnavailable(
                         f"{self.name}: waited {FETCH_WAIT_TIMEOUT_S:.0f}s for an "
                         "in-flight refresh that never finished"
                     )
+
+            if mode in ("expired", "join"):
                 with self._lock:
-                    if self._servable(entry):
+                    if self._servable(entry, time.monotonic()):
                         return entry.value
                     error = entry.error
                 if error is not None:
                     raise error
-                # The refresh we joined finished without leaving a servable
-                # value (invalidated mid-flight, or still past max_stale):
-                # start over rather than return something we just rejected.
+                # Invalidated mid-flight: start over rather than return it.
                 continue
 
             try:
@@ -275,9 +347,7 @@ class _StaleWhileRevalidateBase:
                 )
                 with self._lock:
                     # Keep serving what we have, but hold off before retrying.
-                    entry.fetched_at = (
-                        time.monotonic() - self.ttl + MIN_RETRY_INTERVAL_S
-                    )
+                    entry.retry_at = time.monotonic() + MIN_RETRY_INTERVAL_S
                     entry.refreshing = False
                     entry.error = exc
                     ready = entry.ready
@@ -288,6 +358,7 @@ class _StaleWhileRevalidateBase:
                 entry.has_value = True
                 entry.fetched_at = time.monotonic()
                 entry.refreshing = False
+                entry.retry_at = 0.0
                 entry.error = None
                 ready = entry.ready
             ready.set()
@@ -303,8 +374,9 @@ class StaleWhileRevalidate(_StaleWhileRevalidateBase):
         ttl: float,
         name: Optional[str] = None,
         max_stale: Optional[float] = None,
+        refresh_deadline: float = REFRESH_DEADLINE_S,
     ) -> None:
-        super().__init__(ttl, name, max_stale)
+        super().__init__(ttl, name, max_stale, refresh_deadline)
         self._entry = _Entry()
 
     @property
@@ -341,8 +413,9 @@ class KeyedStaleWhileRevalidate(_StaleWhileRevalidateBase):
         maxsize: int = 10,
         name: Optional[str] = None,
         max_stale: Optional[float] = None,
+        refresh_deadline: float = REFRESH_DEADLINE_S,
     ) -> None:
-        super().__init__(ttl, name, max_stale)
+        super().__init__(ttl, name, max_stale, refresh_deadline)
         self.maxsize = maxsize
         self._entries: "OrderedDict[Any, _Entry]" = OrderedDict()
 

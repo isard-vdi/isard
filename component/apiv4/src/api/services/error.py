@@ -21,6 +21,7 @@ import sys
 
 from fastapi import Request
 from isardvdi_common.helpers.error_base import ErrorBase
+from isardvdi_common.helpers.stale_while_revalidate import CacheUnavailable
 from rethinkdb.connection_pool import PoolClosedError, PoolExhaustedError
 
 
@@ -43,6 +44,14 @@ class Error(ErrorBase):
             exc_value, (PoolExhaustedError, PoolClosedError)
         ):
             raise exc_value
+        # Unavailable cached data, not a server bug: 503.
+        if exc_value is not None and isinstance(exc_value, CacheUnavailable):
+            return cls(
+                "service_unavailable",
+                str(exc_value),
+                custom_request=request,
+                request_body=await request.body(),
+            )
         return cls(
             *args, custom_request=request, request_body=await request.body(), **kwargs
         )
