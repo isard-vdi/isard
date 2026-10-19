@@ -225,30 +225,123 @@ is_official_build(){
 	fi
 }
 
+flavour_parts(){
+	case $1 in
+		$ALLINONE_KEY)
+			echo "$ALLINONE_PARTS"
+			;;
+		$HYPERVISOR_KEY)
+			echo "$HYPERVISOR_PARTS"
+			;;
+		$HYPERVISOR_STANDALONE_KEY)
+			echo "$HYPERVISOR_STANDALONE_PARTS"
+			;;
+		$VIDEO_STANDALONE_KEY)
+			echo "$VIDEO_STANDALONE_PARTS"
+			;;
+		$STORAGE_KEY)
+			echo "$STORAGE_PARTS"
+			;;
+		$WEB_KEY)
+			echo "$WEB_PARTS"
+			;;
+		$WEB_STORAGE_KEY)
+			echo "$WEB_STORAGE_PARTS"
+			;;
+		$WEB_STORAGE_VIDEO_KEY)
+			echo "$WEB_STORAGE_VIDEO_PARTS"
+			;;
+		$WEB_STORAGE_MONITOR_KEY)
+			echo "$WEB_STORAGE_MONITOR_PARTS"
+			;;
+		$WEB_STORAGE_VIDEO_MONITOR_KEY)
+			echo "$WEB_STORAGE_VIDEO_MONITOR_PARTS"
+			;;
+		$MONITOR_STANDALONE_KEY)
+			echo "$MONITOR_STANDALONE_PARTS"
+			;;
+		$WEB_MONITOR_KEY)
+			echo "$WEB_MONITOR_PARTS"
+			;;
+		$BACKUPNINJA_STANDALONE_KEY)
+			echo "$BACKUPNINJA_STANDALONE_PARTS"
+			;;
+		$CHECK_STANDALONE_KEY)
+			echo "$CHECK_STANDALONE_PARTS"
+			;;
+		$HAPROXY_BUILD_KEY)
+			echo "$HAPROXY_BUILD_PARTS"
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+SECRET_NAMES="API_ISARDVDI_SECRET API_HYPERVISORS_SECRET"
+
+default_secret(){
+	# Anchored: the example also names the secrets in comments
+	grep -E "^$1=" isardvdi.cfg.example | head -1 | cut -d= -f2- | tr -d "\"'"
+}
+
+has_part(){
+	case " $(echo $2) " in
+		*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
 generate_secrets(){
 	config_file="$1"
+	# Read the way create_env reads it, so both see the same flavour
+	flavour="$(FLAVOUR=""; . "./$config_file" >/dev/null 2>&1; echo "$FLAVOUR")"
+	# An unknown flavour is reported by create_docker_compose_file
+	parts="$(flavour_parts "${flavour:-$ALLINONE_KEY}")" || return 0
+	# The node with apiv4 is the one that owns the secrets; the others get them from it
+	has_part apiv4 "$parts" || return 0
 
-	for secret_name in "API_ISARDVDI_SECRET" "API_HYPERVISORS_SECRET"
+	for secret_name in $SECRET_NAMES
 	do
-		# Anchor to the assignment line: the example also names these in
-		# comments, and an unanchored grep would read those and never match.
-		default_secret="$(grep -E "^${secret_name}=" isardvdi.cfg.example | head -1 | cut -d= -f2-)"
-		current_secret="$(grep -E "^${secret_name}=" "$config_file" | head -1 | cut -d= -f2-)"
+		current_secret="$(. "./$config_file" >/dev/null 2>&1; eval "echo \"\${$secret_name:-}\"")"
+		[ -n "$current_secret" ] && [ "$current_secret" != "$(default_secret "$secret_name")" ] && continue
 
-		[ -z "$current_secret" ] && continue
-		[ "$current_secret" != "$default_secret" ] && continue
-
-		if ! command -v openssl >/dev/null 2>&1
+		new_secret="$(head -c 32 /dev/urandom | base64)"
+		if grep -qE "^${secret_name}=" "$config_file"
 		then
-			echo "WARNING: $config_file still uses the default $secret_name. THIS IS INSECURE. Install openssl or set your own value." >&2
-			continue
+			# '|' is not in the base64 alphabet, so it is a safe sed delimiter.
+			sed -i "s|^${secret_name}=.*|${secret_name}=${new_secret}|" "$config_file"
+		else
+			echo "${secret_name}=${new_secret}" >> "$config_file"
 		fi
-
-		new_secret="$(openssl rand -base64 32)"
-		# '|' is not in the base64 alphabet, so it is a safe sed delimiter.
-		sed -i "s|^${secret_name}=.*|${secret_name}=${new_secret}|" "$config_file"
-		echo "WARNING: $config_file used the default $secret_name; generated a new one." >&2
+		echo "WARNING: $config_file had no own $secret_name; generated a new one. Set the same value on every other host of the installation." >&2
 	done
+}
+
+require_secrets(){
+	config_file="$1"
+	shift
+	missing=""
+	for secret_name in $SECRET_NAMES
+	do
+		used=""
+		for part in "$@"
+		do
+			grep -qs "$secret_name" "$PARTS_PATH/$part.yml" "$PARTS_PATH/$part".*.yml && used=1 && break
+		done
+		[ -z "$used" ] && continue
+		eval "value=\${$secret_name:-}"
+		[ -n "$value" ] && [ "$value" != "$(default_secret "$secret_name")" ] && continue
+		missing="$missing $secret_name"
+	done
+	[ -z "$missing" ] && return 0
+	if has_part apiv4 "$*"
+	then
+		echo "ERROR: $config_file has no own$missing. Set your own value (head -c 32 /dev/urandom | base64)." >&2
+	else
+		echo "ERROR: flavour $FLAVOUR needs$missing in $config_file. Copy the value from the main node (the one running apiv4)." >&2
+	fi
+	exit 1
 }
 
 create_env(){
@@ -516,57 +609,10 @@ create_docker_compose_file(){
 	then
 		FLAVOUR="all-in-one"
 	fi
-	case $FLAVOUR in
-		$ALLINONE_KEY)
-			parts=$ALLINONE_PARTS
-			;;
-		$HYPERVISOR_KEY)
-		  parts=$HYPERVISOR_PARTS
-			;;
-		$HYPERVISOR_STANDALONE_KEY)
-			parts=$HYPERVISOR_STANDALONE_PARTS
-			;;
-		$VIDEO_STANDALONE_KEY)
-			parts=$VIDEO_STANDALONE_PARTS
-			;;
-		$STORAGE_KEY)
-			parts=$STORAGE_PARTS
-			;;
-		$WEB_KEY)
-			parts=$WEB_PARTS
-			;;
-		$WEB_STORAGE_KEY)
-			parts=$WEB_STORAGE_PARTS
-			;;
-		$WEB_STORAGE_VIDEO_KEY)
-			parts=$WEB_STORAGE_VIDEO_PARTS
-			;;
-		$WEB_STORAGE_MONITOR_KEY)
-			parts=$WEB_STORAGE_MONITOR_PARTS
-			;;
-		$WEB_STORAGE_VIDEO_MONITOR_KEY)
-			parts=$WEB_STORAGE_VIDEO_MONITOR_PARTS
-			;;
-		$MONITOR_STANDALONE_KEY)
-			parts=$MONITOR_STANDALONE_PARTS
-			;;
-		$WEB_MONITOR_KEY)
-			parts=$WEB_MONITOR_PARTS
-			;;
-		$BACKUPNINJA_STANDALONE_KEY)
-			parts=$BACKUPNINJA_STANDALONE_PARTS
-			;;
-		$CHECK_STANDALONE_KEY)
-			parts=$CHECK_STANDALONE_PARTS
-			;;
-		$HAPROXY_BUILD_KEY)
-			parts=$HAPROXY_BUILD_PARTS
-			;;
-		*)
-			echo "Error: Flavour $FLAVOUR of $config_file not found"
-			exit 1
-			;;
-	esac
+	parts="$(flavour_parts "$FLAVOUR")" || {
+		echo "Error: Flavour $FLAVOUR of $config_file not found"
+		exit 1
+	}
 
 	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]; then
                 parts=$(echo $parts | remove_part "monitor" | remove_part  "db-stats" | remove_part "stats")
@@ -712,6 +758,9 @@ create_docker_compose_file(){
 		echo "Adding Pyroscope"
 		parts="$parts monitor-pyroscope"
 	fi
+
+	# Images carry no secrets, so building them needs none
+	[ "$USAGE" = "build" ] || require_secrets "$config_file" $parts
 
 	# Build the docker-compose.yml
 	flavour "$config_name" $parts
