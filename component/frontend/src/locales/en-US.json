@@ -1603,7 +1603,25 @@
           "unavailable": "No vGPU available for your user",
           "hint": "Maximum of {max} vGPU profiles per desktop.",
           "numaSameSocket": "Same NUMA socket possible (node {node}): the cards can share a socket, best memory bandwidth.",
-          "numaDiffSocket": "Different NUMA sockets: the desktop still starts, but cross-socket memory access is slower."
+          "numaDiffSocket": "Different NUMA sockets: the desktop still starts, but cross-socket memory access is slower.",
+          "booking": {
+            "end-time": {
+              "label": "End time",
+              "placeholder": "Select until when it will be used",
+              "hint": "The GPU is booked from now on. Latest end: {time}.",
+              "too-late": "This end time is no longer available. Pick an earlier one."
+            },
+            "unavailable-now": "Not available right now",
+            "selected-unavailable": "{names} is not available right now. Remove it or pick another profile. | {names} are not available right now. Remove them or pick other profiles.",
+            "none-available": {
+              "title": "No GPU is available right now",
+              "description": "No GPU profile has a free slot at the moment. Remove the GPU to create the desktop without it, or create a persistent desktop and book it for later."
+            },
+            "failed": {
+              "title": "Couldn't check GPU availability",
+              "description": "Try again in a moment, or remove the GPU to create the desktop without it."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -3064,10 +3082,6 @@
           "title": "No storage pool available",
           "description": "There is no storage pool available to create the desktop. Please contact an administrator or try again later."
         },
-        "temporal_new_reservable": {
-          "title": "Temporal desktops cannot have reservables",
-          "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Desktop start quota exceeded",
           "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to create this one."
@@ -3087,6 +3101,22 @@
         "template_storage_not_ready": {
           "title": "Template disk not ready",
           "description": "This template's disk is not ready, so no desktop can be created from it. Please contact the administrator."
+        },
+        "booking_does_not_fit_date": {
+          "title": "The GPU booking no longer fits",
+          "description": "The availability changed while you were choosing. Try again and pick an earlier end time."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Maximum bookings reached",
+          "description": "You have reached the maximum number of bookings. Delete a booking before creating a desktop with a GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "The GPU needs an end time",
+          "description": "A temporary desktop with a GPU is booked when it is created. Try again and select until when it will be used."
+        },
+        "booking_exceeds_max_time": {
+          "title": "The GPU booking is too long",
+          "description": "The end time exceeds the maximum time you may book the GPU for. Pick an earlier one."
         }
       }
     },
@@ -3235,7 +3265,8 @@
         "booking_max_items_exceeded": "You've exceeded the user maximum bookings",
         "booking_desktop_delete_stop": "The desktop must be stopped to delete this booking",
         "booking_deployment_delete_stop": "The deployment must be stopped to delete this booking",
-        "not_found": "Booking not found"
+        "not_found": "Booking not found",
+        "booking_exceeds_max_time": "You can't book the GPU for that long. Pick an earlier end time."
       }
     },
     "planning": {

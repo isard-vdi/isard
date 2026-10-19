@@ -7,6 +7,7 @@ import {
   checkQuotaNewDesktopOptions,
   checkQuotaNewVolatileDesktopOptions,
   checkStoragePoolCreationAvailabilityOptions,
+  getBookingReservablesAvailableQueryKey,
   getUserDesktopsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
@@ -174,6 +175,8 @@ const {
   onError: (error) => {
     creationError.value = 'description_code' in error ? error.description_code : 'generic'
     currentStep.value = 2
+    // A refused vGPU booking means the availability moved under the form.
+    queryClient.invalidateQueries({ queryKey: getBookingReservablesAvailableQueryKey() })
   }
 })
 
@@ -191,7 +194,8 @@ const handleStep2Submit = (data: DomainConfigurationPanelData) => {
       hardware: toDomainHardware(data.hardware),
       reservables: toReservables(data.hardware),
       image: toImageInput(data.image),
-      bastion_target: toBastionTarget(data.access?.bastion)
+      bastion_target: toBastionTarget(data.access?.bastion),
+      booking_end: data.hardware?.bookingEnd ?? null
     }
   })
 }

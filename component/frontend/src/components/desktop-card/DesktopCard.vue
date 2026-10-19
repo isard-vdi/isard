@@ -11,6 +11,7 @@ import {
   desktopActionsData,
   DesktopActionsEnum,
   desktopNotificationText,
+  desktopHasReservables,
   desktopNeedsBooking as checkDesktopNeedsBooking
 } from '@/lib/desktops'
 
@@ -115,7 +116,8 @@ const mainButtonData = computed(() => {
     props.desktop.status,
     desktopNeedsBooking.value,
     false,
-    props.desktop.type !== 'nonpersistent'
+    props.desktop.type !== 'nonpersistent',
+    desktopHasReservables(props.desktop)
   )
 })
 

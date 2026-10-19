@@ -2396,7 +2396,25 @@
           "unavailable": "No hi ha cap vGPU disponible per al teu usuari",
           "hint": "Màxim {max} perfils de vGPU per escriptori.",
           "numaSameSocket": "Mateix sòcol NUMA possible (node {node}): les targetes poden compartir sòcol, millor ample de banda de memòria.",
-          "numaDiffSocket": "Sòcols NUMA diferents: l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent."
+          "numaDiffSocket": "Sòcols NUMA diferents: l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent.",
+          "booking": {
+            "end-time": {
+              "label": "Hora de finalització",
+              "placeholder": "Selecciona fins quan es farà servir",
+              "hint": "La GPU es reserva des d'ara. Fi màxima: {time}.",
+              "too-late": "Aquesta hora de fi ja no està disponible. Tria'n una d'anterior."
+            },
+            "unavailable-now": "No disponible ara",
+            "selected-unavailable": "{names} no està disponible ara. Treu-lo o tria un altre perfil. | {names} no estan disponibles ara. Treu-los o tria altres perfils.",
+            "none-available": {
+              "title": "No hi ha cap GPU disponible ara",
+              "description": "Cap perfil de GPU té places lliures en aquest moment. Treu la GPU per crear l'escriptori sense, o crea un escriptori persistent i reserva'l per a més tard."
+            },
+            "failed": {
+              "title": "No s'ha pogut comprovar la disponibilitat de GPU",
+              "description": "Torna-ho a provar d'aquí a una estona, o treu la GPU per crear l'escriptori sense."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Maquinari",
@@ -3062,10 +3080,6 @@
           "title": "No hi ha emmagatzematge disponible",
           "description": "No hi ha emmagatzematge disponible per crear l'escriptori. Contacta amb un administrador o torna-ho a provar més tard."
         },
-        "temporal_new_reservable": {
-          "title": "Els escriptoris temporals no poden tenir reservables",
-          "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Quota d'inici d'escriptoris superada",
           "description": "Has arribat al nombre màxim d'escriptoris en marxa. N'has d'aturar un per poder crear aquest."
@@ -3085,6 +3099,22 @@
         "template_storage_not_ready": {
           "title": "El disc de la plantilla no està a punt",
           "description": "El disc d'aquesta plantilla no està a punt i, per tant, no se'n pot crear cap escriptori. Si us plau, contacta amb l'administrador."
+        },
+        "booking_does_not_fit_date": {
+          "title": "La reserva de GPU ja no hi cap",
+          "description": "La disponibilitat ha canviat mentre triaves. Torna-ho a provar i selecciona una hora de fi anterior."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Has arribat al màxim de reserves",
+          "description": "Has arribat al nombre màxim de reserves. Esborra una reserva abans de crear un escriptori amb GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "La GPU necessita una hora de fi",
+          "description": "Un escriptori temporal amb GPU es reserva en crear-lo. Torna-ho a provar i selecciona fins quan es farà servir."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU és massa llarga",
+          "description": "L'hora de fi supera el temps màxim que pots reservar la GPU. Tria'n una d'anterior."
         }
       }
     },
@@ -3165,7 +3195,8 @@
         "booking_max_items_exceeded": "Has superat el màxim de reserves de l'usuari",
         "conflict": "La reserva no encaixa en la data sol·licitada",
         "generic": "S'ha produït un error",
-        "not_found": "Reserva no trobada"
+        "not_found": "Reserva no trobada",
+        "booking_exceeds_max_time": "No pots reservar la GPU durant tant de temps. Tria una hora de fi anterior."
       }
     },
     "loading": "S'està carregant...",

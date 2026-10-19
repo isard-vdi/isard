@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
@@ -187,16 +187,25 @@ function stickyHeadersHeight(): number {
   }, 0)
 }
 
-const open = async () => {
+const reveal = async (target: () => HTMLElement | null | undefined) => {
   showConfiguration.value = true
 
   await nextTick()
-  const target = disclosureRef.value
-  if (!target) return
+  const element = target()
+  if (!element) return
   const top =
-    target.getBoundingClientRect().top + window.scrollY - stickyHeadersHeight() - SCROLL_GAP
+    element.getBoundingClientRect().top + window.scrollY - stickyHeadersHeight() - SCROLL_GAP
   window.scrollTo({ top, behavior: scrollBehavior() })
 }
+
+const open = () => reveal(() => disclosureRef.value)
+
+watch(
+  () => hardwareFormRef.value?.needsBooking,
+  (needsBooking) => {
+    if (needsBooking && !isOpen.value) reveal(() => hardwareFormRef.value?.vgpuSectionEl)
+  }
+)
 
 const isValid = computed(
   () => (hardwareFormRef.value?.isValid ?? true) && (accessFormRef.value?.isValid ?? true)
@@ -424,6 +433,7 @@ defineExpose({
               :interfaces="defaults?.hardware?.interfaces"
               :required-interfaces="requiredInterfaces"
               :reservables="defaults?.hardware?.reservables"
+              :book-vgpu-now="kind === 'nonpersistent'"
               class="p-6"
             />
           </div>

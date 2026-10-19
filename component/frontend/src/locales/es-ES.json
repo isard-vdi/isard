@@ -2408,7 +2408,25 @@
           "unavailable": "No hay ninguna vGPU disponible para tu usuario",
           "hint": "Máximo {max} perfiles de vGPU por escritorio.",
           "numaSameSocket": "Mismo socket NUMA posible (nodo {node}): las tarjetas pueden compartir socket, mejor ancho de banda de memoria.",
-          "numaDiffSocket": "Sockets NUMA distintos: el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento."
+          "numaDiffSocket": "Sockets NUMA distintos: el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento.",
+          "booking": {
+            "end-time": {
+              "label": "Hora de finalización",
+              "placeholder": "Selecciona hasta cuándo se usará",
+              "hint": "La GPU se reserva desde ahora. Fin máximo: {time}.",
+              "too-late": "Esta hora de fin ya no está disponible. Elige una anterior."
+            },
+            "unavailable-now": "No disponible ahora",
+            "selected-unavailable": "{names} no está disponible ahora. Quítalo o elige otro perfil. | {names} no están disponibles ahora. Quítalos o elige otros perfiles.",
+            "none-available": {
+              "title": "No hay ninguna GPU disponible ahora",
+              "description": "Ningún perfil de GPU tiene plazas libres en este momento. Quita la GPU para crear el escritorio sin ella, o crea un escritorio persistente y resérvalo para más tarde."
+            },
+            "failed": {
+              "title": "No se ha podido comprobar la disponibilidad de GPU",
+              "description": "Vuelve a intentarlo en un momento, o quita la GPU para crear el escritorio sin ella."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -3062,10 +3080,6 @@
           "title": "No hay almacenamiento disponible",
           "description": "No hay almacenamiento disponible para crear el escritorio. Contacta con un administrador o inténtalo más tarde."
         },
-        "temporal_new_reservable": {
-          "title": "Los escritorios temporales no pueden tener reservables",
-          "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Cuota de inicio de escritorios superada",
           "description": "Has alcanzado el número máximo de escritorios en marcha. Debes detener uno para poder crear este."
@@ -3085,6 +3099,22 @@
         "template_storage_not_ready": {
           "title": "El disco de la plantilla no está listo",
           "description": "El disco de esta plantilla no está listo, por lo que no se puede crear ningún escritorio a partir de ella. Por favor, contacta con el administrador."
+        },
+        "booking_does_not_fit_date": {
+          "title": "La reserva de GPU ya no cabe",
+          "description": "La disponibilidad ha cambiado mientras elegías. Inténtalo de nuevo y selecciona una hora de fin anterior."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Has alcanzado el máximo de reservas",
+          "description": "Has alcanzado el número máximo de reservas. Elimina una reserva antes de crear un escritorio con GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "La GPU necesita una hora de fin",
+          "description": "Un escritorio temporal con GPU se reserva al crearlo. Inténtalo de nuevo y selecciona hasta cuándo se usará."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU es demasiado larga",
+          "description": "La hora de fin supera el tiempo máximo que puedes reservar la GPU. Elige una anterior."
         }
       }
     },
@@ -3233,7 +3263,8 @@
         "booking_max_items_exceeded": "Has superado el máximo de reservas del usuario",
         "conflict": "La reserva no encaja en la fecha solicitada",
         "generic": "Se ha producido un error",
-        "not_found": "Reserva no encontrada"
+        "not_found": "Reserva no encontrada",
+        "booking_exceeds_max_time": "No puedes reservar la GPU durante tanto tiempo. Elige una hora de fin anterior."
       }
     },
     "loading": "Cargando...",
