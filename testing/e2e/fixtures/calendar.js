@@ -13,10 +13,14 @@ export function weeksAhead(startMs, nowMs = Date.now()) {
 }
 
 /** Click forward until the week holding `startMs` is the one on screen. */
-export async function showWeekOf(page, startMs) {
+export async function showWeekOf(
+  page,
+  startMs,
+  refetchRe = /\/api\/v4\/item\/reservables-planner\/by-item\//,
+) {
   for (let i = 0; i < weeksAhead(startMs); i++) {
     const refetch = page.waitForResponse(
-      (r) => /\/api\/v4\/item\/reservables-planner\/by-item\//.test(r.url()),
+      (r) => refetchRe.test(r.url()),
       { timeout: 15000 },
     )
     await page.locator('#vuecal .vuecal__arrow--next').first().click()
