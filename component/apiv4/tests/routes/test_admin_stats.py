@@ -328,3 +328,33 @@ class TestAdminDomainsStartedCount:
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
         assert response.status_code == 403
+
+
+class TestStatsKindOffLoop:
+    def test_inventory_is_encoded_in_the_reading_thread(self, monkeypatch, test_client):
+        import threading
+
+        import api.routes.admin.stats as stats_routes
+
+        seen = {}
+        real_to_json = stats_routes.to_json
+
+        def get_kind(kind):
+            seen["read"] = threading.get_ident()
+            return [{"id": "t1"}]
+
+        def to_json(value):
+            seen["encode"] = threading.get_ident()
+            return real_to_json(value)
+
+        monkeypatch.setattr(
+            "api.routes.admin.stats.AdminStatsService.get_kind",
+            staticmethod(get_kind),
+        )
+        monkeypatch.setattr("api.routes.admin.stats.to_json", to_json)
+        response = test_client(
+            url="/admin/items/stats/templates", jwt=MockJWT(role_id="admin")
+        )
+        assert response.status_code == 200
+        assert response.json() == [{"id": "t1"}]
+        assert seen["encode"] == seen["read"]
