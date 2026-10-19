@@ -65,6 +65,11 @@ _user_quota_sync_throttle: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=600, ttl=60
 )
 
+# The seeded default admin must always be able to log in as an admin, so it
+# can't be deleted, deactivated, demoted or have its login identity changed.
+DEFAULT_ADMIN_ID = "local-default-admin-admin"
+_DEFAULT_ADMIN_IDENTITY_FIELDS = ("uid", "provider", "username", "category", "group")
+
 
 class UsersProcessed(RethinkSharedConnection):
 
@@ -1288,6 +1293,9 @@ class UsersProcessed(RethinkSharedConnection):
         if not batch_id:
             batch_id = str(uuid.uuid4())
 
+        if DEFAULT_ADMIN_ID in user_ids:
+            cls.check_default_admin_update(DEFAULT_ADMIN_ID, data)
+
         if (
             "local-default-admin-admin" in user_ids
             and data.get("group") != "default-default"
@@ -1465,8 +1473,52 @@ class UsersProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def check_default_admin_update(cls, user_id: str, data: dict) -> None:
+        """Refuse a change that would deactivate or demote the default admin,
+        or change the identity it logs in with.
+        """
+        if user_id != DEFAULT_ADMIN_ID:
+            return
+
+        if "active" in data and not data["active"]:
+            raise Error(
+                "forbidden",
+                "Can not deactivate default admin",
+                description_code="default_admin_protected",
+            )
+        if "role" in data and data["role"] != "admin":
+            raise Error(
+                "forbidden",
+                "Can not change the default admin role",
+                description_code="default_admin_protected",
+            )
+
+        changed_fields = [
+            field for field in _DEFAULT_ADMIN_IDENTITY_FIELDS if field in data
+        ]
+        if not changed_fields:
+            return
+        with cls._rdb_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .default({})
+                .pluck(*changed_fields)
+                .run(cls._rdb_connection)
+            )
+        for field in changed_fields:
+            if data[field] != user.get(field):
+                raise Error(
+                    "forbidden",
+                    f"Can not change the default admin {field}",
+                    description_code="default_admin_protected",
+                )
+
+    @classmethod
     def update_user(cls, user_id, data, revoke=True, force_email_verification=False):
         """_From api/libv2/api_users.py ApiUsers.update_user()_"""
+        cls.check_default_admin_update(user_id, data)
+
         if (
             data.get("group")
             and user_id == "local-default-admin-admin"
@@ -1579,6 +1631,12 @@ class UsersProcessed(RethinkSharedConnection):
     @classmethod
     def delete_user(cls, user_id, agent_id, delete_user):
         """_From api/libv2/api_users.py ApiUsers.Delete()_"""
+        if user_id == DEFAULT_ADMIN_ID:
+            raise Error(
+                "forbidden",
+                "Can not delete default admin",
+                description_code="default_admin_protected",
+            )
         cls.get_user(user_id)
 
         with cls._rdb_context():

@@ -121,6 +121,16 @@ class CategoriesProcessed(RethinkSharedConnection):
     @classmethod
     def delete_category(cls, category_id, agent_id):
         """_From api/libv2/api_users.py ApiUsers.CategoryDelete()_"""
+        from isardvdi_common.helpers.error_factory import Error
+
+        # Deleting it would also delete the default admin.
+        if category_id == "default":
+            raise Error(
+                "forbidden",
+                "Can not delete the default category",
+                description_code="default_admin_protected",
+            )
+
         with cls._rdb_context():
             category_media_ids = list(
                 r.table("media")

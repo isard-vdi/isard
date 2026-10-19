@@ -333,6 +333,7 @@ class AdminUsersService:
             user = Caches.get_document("users", u_id)
             if "active" in data:
                 CommonMigrations.enable_users_check(data["active"], payload, user=user)
+            CommonUsers.check_default_admin_update(u_id, data)
             AdminUsersService.owns_user_id(payload, u_id)
             AdminUsersService.owns_category_id(payload, user["category"])
 
@@ -520,6 +521,7 @@ class AdminUsersService:
             "uid",
             "username",
         }
+        update_payloads = []
         for user_data in data["users"]:
             AdminUsersService.owns_user_id(payload, user_data["id"])
             if user_data.get("password"):
@@ -527,7 +529,12 @@ class AdminUsersService:
             update_payload = {
                 k: v for k, v in user_data.items() if k not in immutable_keys
             }
-            CommonUsers.update_user(user_data["id"], update_payload)
+            # Validate every row before writing any, so a refused row doesn't
+            # leave the CSV half applied.
+            CommonUsers.check_default_admin_update(user_data["id"], update_payload)
+            update_payloads.append((user_data["id"], update_payload))
+        for user_id, update_payload in update_payloads:
+            CommonUsers.update_user(user_id, update_payload)
 
     # ── Secondary Groups ────────────────────────────────────────────────
 

@@ -365,6 +365,10 @@ class ApiAdmin(RethinkSharedConnection):
         present and for any sanitization.
         """
         cls._validate_table(table)
+        if table == "users":
+            from isardvdi_common.lib.users.users.user import UsersProcessed
+
+            UsersProcessed.check_default_admin_update(data["id"], data)
         with cls._rdb_context():
             r.table(table).get(data["id"]).update(data).run(cls._rdb_connection)
         cls.clear_admin_table_list_cache(table)
@@ -379,8 +383,20 @@ class ApiAdmin(RethinkSharedConnection):
         unassigning the resource from desktops/deployments).
         """
         from isardvdi_common.helpers.error_factory import Error
+        from isardvdi_common.lib.users.users.user import DEFAULT_ADMIN_ID
 
         cls._validate_table(table)
+        # The default admin, and the category and group it belongs to.
+        if (table, item_id) in (
+            ("users", DEFAULT_ADMIN_ID),
+            ("categories", "default"),
+            ("groups", "default-default"),
+        ):
+            raise Error(
+                "forbidden",
+                "Can not delete " + str(item_id) + " from " + table,
+                description_code="default_admin_protected",
+            )
         with cls._rdb_context():
             item = r.table(table).get(item_id).run(cls._rdb_connection)
             if not item:

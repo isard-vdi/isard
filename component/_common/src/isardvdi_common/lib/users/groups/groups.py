@@ -167,6 +167,14 @@ class GroupsProcessed(RethinkSharedConnection):
     @classmethod
     def delete_group(cls, group_id, agent_id):
         """_From api/libv2/api_users.py ApiUsers.GroupDelete()_"""
+        # Deleting it would also delete the default admin.
+        if group_id == "default-default":
+            raise Error(
+                "forbidden",
+                "Can not delete the default group",
+                description_code="default_admin_protected",
+            )
+
         # Check the group exists
         if not Group.exists(group_id):
             raise Error(

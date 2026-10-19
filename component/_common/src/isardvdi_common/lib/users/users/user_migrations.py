@@ -34,7 +34,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.recycle_bin import RecycleBinDeleteQueue
-from isardvdi_common.lib.users.users.user import UsersProcessed
+from isardvdi_common.lib.users.users.user import DEFAULT_ADMIN_ID, UsersProcessed
 from isardvdi_common.models.config import Config
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -511,7 +511,14 @@ class UserMigrationsProcessed(RethinkSharedConnection):
                 action_after_migrate = provider_migration_config.get(
                     "migration", {}
                 ).get("action_after_migrate", "")
-                if action_after_migrate == "delete":
+                if action_after_migrate and user_id == DEFAULT_ADMIN_ID:
+                    # The migration is already done; the default admin is
+                    # never deleted or disabled, so skip the action.
+                    logger.warning(
+                        f"Skipping '{action_after_migrate}' after migrate for "
+                        "the default admin"
+                    )
+                elif action_after_migrate == "delete":
                     UsersProcessed.delete_user(user_id, user_id, True)
                 elif action_after_migrate == "disable":
                     UsersProcessed.update_user(user_id, {"active": False})
