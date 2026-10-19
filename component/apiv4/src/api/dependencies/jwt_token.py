@@ -22,6 +22,7 @@
 import asyncio
 import logging as log
 import os
+import time
 import traceback
 from typing import Literal, TypedDict
 
@@ -42,6 +43,7 @@ from isardvdi_common.lib.users.users.user import UsersProcessed
 from isardvdi_common.models.deployment import Deployment
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.user import User
+from rethinkdb.errors import ReqlAvailabilityError, ReqlDriverError
 
 
 ### Helpers
@@ -133,18 +135,57 @@ class TokenFastAPI(Token):
             super().log_user(payload, user_request=user_request)
             return
 
+        user_id = payload.get("data", {}).get("user_id")
+        if (
+            user_id in _LOG_USER_IN_FLIGHT
+            or time.monotonic() < _LogUserFailures.retry_at
+        ):
+            return
         request_ip, request_user_agent = cls.request_identity(user_request)
         task = loop.create_task(
             asyncio.to_thread(LogsUsers, payload, request_ip, request_user_agent)
         )
         _LOG_USER_TASKS.add(task)
-        task.add_done_callback(_LOG_USER_TASKS.discard)
+        if user_id:
+            _LOG_USER_IN_FLIGHT.add(user_id)
+        task.add_done_callback(lambda t: _log_user_done(t, user_id))
 
 
 # Strong references for `TokenFastAPI.log_user` background tasks. The
 # event loop only keeps weak references; an un-referenced task may be
 # GC'd before completion. See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
 _LOG_USER_TASKS: set[asyncio.Task] = set()
+_LOG_USER_IN_FLIGHT: set[str] = set()
+
+# After a failed write no new one starts before this: it would fail the same way
+# and hold an executor thread until the connect times out.
+LOG_USER_RETRY_S = 10.0
+
+
+class _LogUserFailures:
+    retry_at = 0.0
+    reported_at = float("-inf")
+    unreported = 0
+
+
+def _log_user_done(task, user_id):
+    _LOG_USER_TASKS.discard(task)
+    _LOG_USER_IN_FLIGHT.discard(user_id)
+    if task.cancelled() or task.exception() is None:
+        return
+    now = time.monotonic()
+    # Only an unreachable database pauses everyone's writes; a bad row must not.
+    if isinstance(task.exception(), (ReqlDriverError, ReqlAvailabilityError, OSError)):
+        _LogUserFailures.retry_at = now + LOG_USER_RETRY_S
+    _LogUserFailures.unreported += 1
+    if now - _LogUserFailures.reported_at >= LOG_USER_RETRY_S:
+        log.warning(
+            "Unable to update user logs (%d failed writes): %r",
+            _LogUserFailures.unreported,
+            task.exception(),
+        )
+        _LogUserFailures.reported_at = now
+        _LogUserFailures.unreported = 0
 
 
 class TokenPayload(TypedDict):
