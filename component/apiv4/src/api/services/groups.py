@@ -17,9 +17,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import re
+
+from api.services.error import Error
 from isardvdi_common.lib.users.groups.groups import GroupsProcessed
 
 from ..schemas.allowed import AvailableUser
+
+_REGISTER_CODE = re.compile(r"[0-9a-z]{6}")
 
 
 class GroupsService:
@@ -28,8 +33,15 @@ class GroupsService:
     """
 
     @staticmethod
-    def code_search(code: str | None) -> dict:
-        return GroupsProcessed.code_search(code)
+    def code_search(code: str, category_id: str) -> dict:
+        if not _REGISTER_CODE.fullmatch(code):
+            raise Error(
+                "bad_request",
+                "Invalid register code.",
+                description_code="bad_request",
+            )
+
+        return GroupsProcessed.code_search(code, category_id)
 
     @staticmethod
     def get_users_in_group(

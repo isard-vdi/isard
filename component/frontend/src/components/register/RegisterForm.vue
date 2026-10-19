@@ -47,7 +47,10 @@ const onCancel = () => {
 }
 
 const formSchema = z.object({
-  code: z.string().nonempty({ error: t('forms.validation.required') })
+  code: z
+    .string()
+    .nonempty({ error: t('forms.validation.required') })
+    .regex(/^[0-9a-z]{6}$/, { error: t('forms.validation.register-code') })
 })
 
 provideFormSchema(formSchema)

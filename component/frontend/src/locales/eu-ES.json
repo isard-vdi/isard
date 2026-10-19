@@ -1828,7 +1828,8 @@
   },
   "forms": {
     "validation": {
-      "required": "Eremu hau derrigorrezkoa da"
+      "required": "Eremu hau derrigorrezkoa da",
+      "register-code": "Kodeak 6 letra xehe edo digitu izan behar ditu"
     },
     "common": {
       "cancel": "Utzi"

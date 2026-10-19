@@ -20,8 +20,11 @@
 
 
 import os
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import pytest
+from api.dependencies.rate_limiting import register_ip_limiter, register_user_limiter
 from api.schemas.users import UserDetailsResponse, UserListItem, UserResponse
 from tests.routes.factories import make_category, make_group, make_user
 from tests.routes.helpers import MockJWT
@@ -643,7 +646,7 @@ def test_re_register_user(monkeypatch, test_client):
     monkeypatch.setattr(
         "api.services.groups.GroupsService.code_search",
         staticmethod(
-            lambda code: {
+            lambda code, category_id: {
                 "role_id": "manager",
                 "category_id": "default",
                 "group_id": "default-default",
@@ -690,38 +693,40 @@ def test_re_register_user(monkeypatch, test_client):
     }
 
 
-def test_re_register_code_from_another_category(monkeypatch, test_client):
-    monkeypatch.setattr(
-        "api.services.groups.GroupsService.code_search",
-        staticmethod(
-            lambda code: {
-                "role_id": "manager",
-                "category_id": "other-category",
-                "group_id": "other-group",
-            }
-        ),
-    )
+@pytest.mark.parametrize(
+    "method,token_type", [("POST", "register"), ("PUT", "re-register")]
+)
+def test_register_code_is_searched_in_the_token_category(
+    monkeypatch, test_client, method, token_type
+):
+    from api.services.error import Error
 
-    jwt = MockJWT(
-        provider="saml",
-        user_id="nefix-uid",
-        role_id="user",
-        token_type="re-register",
-    )
+    lookups = []
+
+    def code_search(code, category_id):
+        lookups.append((code, category_id))
+        raise Error("not_found", f"Group with code {code} not found.")
+
+    monkeypatch.setattr("api.services.groups.GroupsProcessed.code_search", code_search)
+
+    jwt = MockJWT(category_id="other-category", role_id="user", token_type=token_type)
     response = test_client(
         url="/item/user/register",
-        method="PUT",
-        body={"code": "a-register-code"},
+        method=method,
+        body={"code": "abc123"},
         jwt=jwt,
+        db_tables_data={"categories": [{"id": "default"}, {"id": "other-category"}]},
     )
 
     assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert lookups == [("abc123", "other-category")]
 
 
 def test_re_register_code_not_found(monkeypatch, test_client):
     from api.services.error import Error
 
-    def raise_not_found(code):
+    def raise_not_found(code, category_id):
         raise Error("not_found", f"Group with code {code} not found.")
 
     monkeypatch.setattr(
@@ -767,6 +772,112 @@ def test_register_rejects_re_register_token(test_client):
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "method,token_type", [("POST", "register"), ("PUT", "re-register")]
+)
+@pytest.mark.parametrize("code", ["ABC123", "abc12", "abc1234", "abc-12", "abc123\n"])
+def test_register_malformed_code_is_not_found(
+    monkeypatch, test_client, method, token_type, code
+):
+    lookups = []
+    monkeypatch.setattr(
+        "api.services.groups.GroupsProcessed.code_search",
+        lambda code, category_id: lookups.append(code),
+    )
+
+    jwt = MockJWT(role_id="user", token_type=token_type)
+    response = test_client(
+        url="/item/user/register",
+        method=method,
+        body={"code": code},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert lookups == []
+
+
+@pytest.fixture
+def code_lookups(monkeypatch):
+    from api.services.error import Error
+
+    lookups = []
+
+    def code_search(code, category_id):
+        lookups.append(code)
+        raise Error("not_found", f"Group with code {code} not found.")
+
+    monkeypatch.setattr("api.services.groups.GroupsProcessed.code_search", code_search)
+    return lookups
+
+
+def _register(test_client, user_id="register-uid", token_type="register", **kwargs):
+    return test_client(
+        url="/item/user/register",
+        method="POST" if token_type == "register" else "PUT",
+        body={"code": "abc123"},
+        jwt=MockJWT(
+            provider="saml", user_id=user_id, role_id="user", token_type=token_type
+        ),
+        **kwargs,
+    )
+
+
+def test_register_rate_limited_per_user(monkeypatch, test_client, code_lookups):
+    monkeypatch.setattr(register_user_limiter, "max_requests", 2)
+
+    assert [_register(test_client).status_code for _ in range(2)] == [404, 404]
+    response = _register(test_client)
+
+    assert response.status_code == 429
+    assert response.json()["error"] == "too_many_requests"
+    retry_at = parsedate_to_datetime(response.headers["retry-after"])
+    assert retry_at > datetime.now(timezone.utc)
+    assert len(code_lookups) == 2
+
+
+def test_register_and_re_register_share_the_user_limit(
+    monkeypatch, test_client, code_lookups
+):
+    monkeypatch.setattr(register_user_limiter, "max_requests", 1)
+
+    assert _register(test_client, token_type="register").status_code == 404
+    assert _register(test_client, token_type="re-register").status_code == 429
+
+
+def test_register_rate_limit_is_per_user(monkeypatch, test_client, code_lookups):
+    monkeypatch.setattr(register_user_limiter, "max_requests", 1)
+
+    assert _register(test_client, user_id="uid-a").status_code == 404
+    assert _register(test_client, user_id="uid-a").status_code == 429
+    assert _register(test_client, user_id="uid-b").status_code == 404
+
+
+def test_register_rate_limited_per_ip(monkeypatch, test_client, code_lookups):
+    monkeypatch.setattr(register_ip_limiter, "max_requests", 2)
+
+    statuses = [
+        _register(test_client, user_id=f"uid-{i}").status_code for i in range(3)
+    ]
+    assert statuses == [404, 404, 429]
+
+    other_ip = {"X-Forwarded-For": "203.0.113.7"}
+    assert _register(test_client, user_id="uid-3", headers=other_ip).status_code == 404
+
+
+def test_register_user_over_its_limit_does_not_consume_the_ip_limit(
+    monkeypatch, test_client, code_lookups
+):
+    monkeypatch.setattr(register_user_limiter, "max_requests", 1)
+    monkeypatch.setattr(register_ip_limiter, "max_requests", 2)
+
+    statuses = [_register(test_client, user_id="uid-a").status_code for _ in range(3)]
+    assert statuses == [404, 429, 429]
+
+    assert _register(test_client, user_id="uid-b").status_code == 404
 
 
 def test_re_register_blocked_during_maintenance(monkeypatch, test_client):

@@ -127,6 +127,20 @@ def _mock_log_user(monkeypatch):
     monkeypatch.setattr("api.dependencies.jwt_token.TokenFastAPI.log_user", noop)
 
 
+@pytest.fixture(autouse=True)
+def _reset_register_rate_limits():
+    """The register limiters are process-wide singletons: without a reset,
+    every register test sharing the default MockJWT user eats into the same
+    budget and later tests start getting 429."""
+    from api.dependencies.rate_limiting import (
+        register_ip_limiter,
+        register_user_limiter,
+    )
+
+    register_user_limiter._requests.clear()
+    register_ip_limiter._requests.clear()
+
+
 @pytest.fixture()
 def client():
     """

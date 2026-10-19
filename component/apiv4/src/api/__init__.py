@@ -42,6 +42,7 @@ from api.dependencies.jwt_token import (
     is_not_user,
 )
 from api.dependencies.log_config import RequestContextMiddleware
+from api.dependencies.rate_limiting import register_rate_limit
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -485,15 +486,21 @@ maintenance_router = APIRouter(
 register_router = APIRouter(
     tags=["register"],
     prefix="/api/v4",
-    dependencies=[Depends(has_token_register)],
-    responses={401: {"model": ErrorResponse}},
+    dependencies=[
+        Depends(has_token_register),
+        Depends(register_rate_limit(has_token_register)),
+    ],
+    responses={401: {"model": ErrorResponse}, 429: {"model": ErrorResponse}},
 )
 
 re_register_router = APIRouter(
     tags=["register"],
     prefix="/api/v4",
-    dependencies=[Depends(has_token_re_register)],
-    responses={401: {"model": ErrorResponse}},
+    dependencies=[
+        Depends(has_token_re_register),
+        Depends(register_rate_limit(has_token_re_register)),
+    ],
+    responses={401: {"model": ErrorResponse}, 429: {"model": ErrorResponse}},
 )
 
 password_reset_router = APIRouter(
@@ -639,6 +646,7 @@ async def error_handler(request: Request, exception: Error):
     return JSONResponse(
         status_code=exception.status_code,
         content=safe_error,
+        headers=getattr(exception, "headers", None),
     )
 
 

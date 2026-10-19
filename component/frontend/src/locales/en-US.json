@@ -3286,7 +3286,8 @@
   },
   "forms": {
     "validation": {
-      "required": "This field is required"
+      "required": "This field is required",
+      "register-code": "The code must be 6 lowercase letters or digits"
     },
     "common": {
       "cancel": "Cancel"
