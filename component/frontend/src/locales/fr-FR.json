@@ -91,6 +91,7 @@
         "invalid_credentials": "Nom d'utilisateur ou mot de passe incorrect",
         "user_disabled": "L'utilisateur est désactivé",
         "user_disallowed": "L'utilisateur ne peut pas utiliser IsardVDI",
+        "provider_disabled": "La connexion par nom d'utilisateur et mot de passe est désactivée",
         "rate_limit_date": "Trop de tentatives de connexion. Réessayez dans {time}",
         "rate_limit": "Trop de tentatives de connexion. Réessayez plus tard"
       }

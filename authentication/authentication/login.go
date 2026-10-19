@@ -604,6 +604,6 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 
 func isDefaultAdmin(u *model.User) bool {
 	return u.Provider == types.ProviderLocal &&
-		u.Category == "default" &&
-		u.UID == "admin"
+		u.Category == types.DefaultAdminCategory &&
+		u.UID == types.DefaultAdminUID
 }
