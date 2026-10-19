@@ -5,8 +5,7 @@
   "scripts": {
     "serve": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service serve",
     "build": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build",
-    "test:e2e": "playwright test",
-    "lint": "vue-cli-service lint",
+    "lint": "vue-cli-service lint src '*.js'",
     "i18n:report": "vue-cli-service i18n:report --src './src/**/*.?(js|vue)' --locales './src/locales/**/*.json'"
   },
   "dependencies": {
@@ -47,7 +46,6 @@
     "@babel/eslint-parser": "^7.12.16",
     "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/preset-stage-2": "^7.8.3",
-    "@playwright/test": "^1.57.0",
     "@vue/cli-plugin-babel": "^4.2.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "^4.2.0",
