@@ -60,7 +60,9 @@ func InitProviderManager(cfg cfg.Authentication, log *zerolog.Logger, db r.Query
 
 func initProvidersMap(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) map[string]provider.Provider {
 	form := provider.InitForm(cfg, log, nil, nil)
-	form.EnableRecovery(provider.InitLocal(db))
+	if cfg.DefaultAdminRecovery {
+		form.EnableRecovery(provider.InitLocal(db))
+	}
 
 	return map[string]provider.Provider{
 		types.ProviderUnknown:  &provider.Unknown{},

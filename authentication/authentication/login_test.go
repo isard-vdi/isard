@@ -38,6 +38,8 @@ func TestLogin(t *testing.T) {
 		PrepareAPI      func(*apiv4.MockInvoker)
 		PrepareSessions func(*grpcmock.Server)
 
+		DefaultAdminRecovery bool
+
 		RemoteAddr  string
 		Provider    string
 		CategoryID  string
@@ -924,9 +926,10 @@ func TestLogin(t *testing.T) {
 					},
 				})
 			},
-			RemoteAddr: "127.0.0.1",
-			Provider:   "form",
-			CategoryID: "default",
+			DefaultAdminRecovery: true,
+			RemoteAddr:           "127.0.0.1",
+			Provider:             "form",
+			CategoryID:           "default",
 			PrepareArgs: func() provider.LoginArgs {
 				username := "admin"
 				password := "f0kt3Rf$"
@@ -939,7 +942,9 @@ func TestLogin(t *testing.T) {
 			},
 			CheckToken: func(ss string) {
 				claims, err := token.ParseLoginToken("", ss)
-				assert.NoError(err)
+				if !assert.NoError(err) {
+					return
+				}
 
 				assert.Equal(token.LoginClaimsData{
 					Provider:   "local",
@@ -1019,6 +1024,27 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 			ExpectedErr:      fmt.Errorf("login: %w: local: invalid password", provider.ErrInvalidCredentials).Error(),
+		},
+		"should return an error if local is disabled and the default admin recovery isn't enabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "admin"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      fmt.Errorf("login: %w: no active provider was found for the form login", provider.ErrUnknownIDP).Error(),
 		},
 		"should return an error if local is disabled and the user isn't the default admin": {
 			PrepareDB: func(m *r.Mock) {
@@ -1990,6 +2016,8 @@ func TestLogin(t *testing.T) {
 			defer cancel()
 
 			cfg := cfg.New()
+			cfg.Authentication.DefaultAdminRecovery = tc.DefaultAdminRecovery
+
 			log := log.New("authentication-test", "debug")
 
 			dbMock := r.NewMock()
