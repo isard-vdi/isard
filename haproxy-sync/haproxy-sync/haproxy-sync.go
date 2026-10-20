@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
@@ -117,6 +118,10 @@ type HAProxySyncBastion struct {
 }
 
 func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme acme.Interface) *HAproxySync {
+	if !filepath.IsAbs(cfg.Domains.ACMEPath) {
+		log.Warn().Str("acme_path", cfg.Domains.ACMEPath).Msg("the acme.sh directory is not an absolute path, every domain will get a new ACME certificate instead of reusing the one on disk")
+	}
+
 	return &HAproxySync{
 		log: log,
 

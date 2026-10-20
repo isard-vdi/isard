@@ -1,16 +1,20 @@
 package haproxysync
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/idna"
@@ -43,14 +47,18 @@ func validateDomain(d string) error {
 // certReuseMinValidity leaves acme-cron time to renew a certificate before it is reused.
 const certReuseMinValidity = 7 * 24 * time.Hour
 
-// reusableACMECert returns the certificate on disk only when acme.sh manages the domain and the
-// file is a valid, matching, not soon expiring certificate with its key.
+// reusableACMECert returns the certificate on disk only when it is the one acme.sh issued for d.
 func (h *HAproxySync) reusableACMECert(d, certPath string) ([]byte, bool) {
-	if _, err := os.Stat(filepath.Join(h.Domains.ACMEPath, d+"_ecc", d+".cer")); err != nil {
+	if !filepath.IsAbs(h.Domains.ACMEPath) {
 		return nil, false
 	}
 
-	pemData, err := os.ReadFile(certPath)
+	acmeCert, err := readFileNoFollow(filepath.Join(h.Domains.ACMEPath, d+"_ecc", d+".cer"))
+	if err != nil {
+		return nil, false
+	}
+
+	pemData, err := readFileNoFollow(certPath)
 	if err != nil {
 		return nil, false
 	}
@@ -58,6 +66,11 @@ func (h *HAproxySync) reusableACMECert(d, certPath string) ([]byte, bool) {
 	pair, err := tls.X509KeyPair(pemData, pemData)
 	if err != nil {
 		h.log.Warn().Err(err).Str("domain", d).Msg("certificate on disk has no matching key, issuing a new one")
+		return nil, false
+	}
+
+	if block, _ := pem.Decode(acmeCert); block == nil || block.Type != "CERTIFICATE" || !bytes.Equal(block.Bytes, pair.Certificate[0]) {
+		h.log.Warn().Str("domain", d).Msg("certificate on disk is not the one acme.sh issued, issuing a new one")
 		return nil, false
 	}
 
@@ -138,9 +151,33 @@ func (h *HAproxySync) removeCertFile(d, certPath string) {
 	}
 }
 
+func readFileNoFollow(p string) ([]byte, error) {
+	f, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return io.ReadAll(f)
+}
+
+func writeFileNoFollow(p string, data []byte) error {
+	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o600)
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+
+	return f.Close()
+}
+
 // certFor checks that the file at p holds a certificate for d, with its matching key.
 func certFor(p, d string) error {
-	data, err := os.ReadFile(p)
+	data, err := readFileNoFollow(p)
 	if err != nil {
 		return err
 	}
@@ -326,7 +363,7 @@ func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) 
 
 	var pemData []byte
 	if len(certData) > 0 {
-		if err := os.WriteFile(certPath, certData, 0600); err != nil {
+		if err := writeFileNoFollow(certPath, certData); err != nil {
 			return fmt.Errorf("write provided certificate: %w", err)
 		}
 		pemData = certData
@@ -342,7 +379,7 @@ func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) 
 			return fmt.Errorf("issued certificate path: %w", err)
 		}
 
-		pemData, err = os.ReadFile(certPath)
+		pemData, err = readFileNoFollow(certPath)
 		if err != nil {
 			return fmt.Errorf("read certificate file: %w", err)
 		}

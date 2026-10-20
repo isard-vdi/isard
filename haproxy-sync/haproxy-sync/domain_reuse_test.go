@@ -55,19 +55,41 @@ func certPEM(t *testing.T, dnsName string, notAfter time.Time, mismatchedKey boo
 
 const brand = "brand.example.com"
 
+// leaf returns the first certificate of a PEM bundle, the way acme.sh keeps it in <domain>.cer.
+func leaf(t *testing.T, bundle []byte) []byte {
+	t.Helper()
+
+	block, _ := pem.Decode(bundle)
+	require.NotNil(t, block)
+
+	return pem.EncodeToMemory(block)
+}
+
+type brandFiles struct {
+	// OnDisk is the certificate file HAProxy loaded before the resync
+	OnDisk []byte
+	// ACMECer is acme.sh's <domain>.cer, nil when acme.sh does not manage the domain
+	ACMECer []byte
+	// ACMEPath replaces the acme.sh directory, which is otherwise a temporary one
+	ACMEPath *string
+}
+
 // syncBrand runs a DomainSync for brand with the given files on disk and returns what was served.
-func syncBrand(t *testing.T, onDisk []byte, acmeManaged bool, provided []byte, expectACME bool) []byte {
+func syncBrand(t *testing.T, files brandFiles, provided []byte, expectACME bool) []byte {
 	t.Helper()
 	require := require.New(t)
 
 	dir, acmeDir := t.TempDir(), t.TempDir()
 	certPath := filepath.Join(dir, brand+".pem")
-	if onDisk != nil {
-		require.NoError(os.WriteFile(certPath, onDisk, 0o600))
+	if files.OnDisk != nil {
+		require.NoError(os.WriteFile(certPath, files.OnDisk, 0o600))
 	}
-	if acmeManaged {
+	if files.ACMECer != nil {
 		require.NoError(os.MkdirAll(filepath.Join(acmeDir, brand+"_ecc"), 0o700))
-		require.NoError(os.WriteFile(filepath.Join(acmeDir, brand+"_ecc", brand+".cer"), []byte("x"), 0o600))
+		require.NoError(os.WriteFile(filepath.Join(acmeDir, brand+"_ecc", brand+".cer"), files.ACMECer, 0o600))
+	}
+	if files.ACMEPath != nil {
+		acmeDir = *files.ACMEPath
 	}
 
 	var served []byte
@@ -101,7 +123,7 @@ func syncBrand(t *testing.T, onDisk []byte, acmeManaged bool, provided []byte, e
 
 func TestAResyncReusesAValidACMECertificateOnDisk(t *testing.T) {
 	valid := certPEM(t, brand, time.Now().Add(60*24*time.Hour), false)
-	assert.Equal(t, valid, syncBrand(t, valid, true, nil, false))
+	assert.Equal(t, valid, syncBrand(t, brandFiles{OnDisk: valid, ACMECer: leaf(t, valid)}, nil, false))
 }
 
 func TestACertificateOnDiskIsNotReusedWhenItCannotBeTrusted(t *testing.T) {
@@ -121,8 +143,41 @@ func TestACertificateOnDiskIsNotReusedWhenItCannotBeTrusted(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			old := tc.OnDisk(t)
-			served := syncBrand(t, old, tc.ACMEManaged, nil, true)
+			files := brandFiles{OnDisk: old}
+			if tc.ACMEManaged {
+				files.ACMECer = leaf(t, old)
+			}
+			served := syncBrand(t, files, nil, true)
 			assert.NotEqual(t, old, served, "the untrusted certificate on disk was served")
+		})
+	}
+}
+
+// A domain that goes from ACME to a custom certificate and back keeps the acme.sh files of its
+// first certificate, while the file on disk still holds the custom one.
+func TestACustomCertificateIsNotReusedWhenTheDomainGoesBackToACME(t *testing.T) {
+	acmeIssued := certPEM(t, brand, time.Now().Add(60*24*time.Hour), false)
+	custom := certPEM(t, brand, time.Now().Add(300*24*time.Hour), false)
+
+	served := syncBrand(t, brandFiles{OnDisk: custom, ACMECer: leaf(t, acmeIssued)}, nil, true)
+	assert.NotEqual(t, custom, served, "the custom certificate was served for an ACME domain")
+}
+
+// Without an absolute acme.sh directory, the lookup would depend on the working directory.
+func TestNoCertificateIsReusedWithoutAnAbsoluteACMEPath(t *testing.T) {
+	valid := certPEM(t, brand, time.Now().Add(60*24*time.Hour), false)
+
+	for _, acmePath := range []string{"", "acme"} {
+		t.Run(acmePath, func(t *testing.T) {
+			cwd := t.TempDir()
+			t.Chdir(cwd)
+			for _, dir := range []string{cwd, filepath.Join(cwd, "acme")} {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, brand+"_ecc"), 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, brand+"_ecc", brand+".cer"), leaf(t, valid), 0o600))
+			}
+
+			served := syncBrand(t, brandFiles{OnDisk: valid, ACMEPath: &acmePath}, nil, true)
+			assert.NotEqual(t, valid, served)
 		})
 	}
 }
@@ -131,7 +186,7 @@ func TestAProvidedCertificateAlwaysWinsOverTheOneOnDisk(t *testing.T) {
 	onDisk := certPEM(t, brand, time.Now().Add(60*24*time.Hour), false)
 	custom := certPEM(t, brand, time.Now().Add(300*24*time.Hour), false)
 
-	assert.Equal(t, custom, syncBrand(t, onDisk, true, custom, false))
+	assert.Equal(t, custom, syncBrand(t, brandFiles{OnDisk: onDisk, ACMECer: leaf(t, onDisk)}, custom, false))
 }
 
 func TestRemovingADomainDeletesItsCertificateFile(t *testing.T) {
