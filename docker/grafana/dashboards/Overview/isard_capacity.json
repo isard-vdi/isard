@@ -151,8 +151,8 @@
     {
       "type": "timeseries",
       "id": 3,
-      "title": "RAM available % per host",
-      "description": "MemAvailable over MemTotal. Below 15% the host starts to swap or refuse desktops.",
+      "title": "Memory available to desktops % per host",
+      "description": "MemAvailable plus the free reserved hugepages, over MemTotal. Free hugepages are memory desktops can still use, so they count as available, as the platform counts them. Below 15% the host starts to swap or refuse desktops.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -163,7 +163,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "100 * node_memory_MemAvailable_bytes{domain=~\"$domain\"} / node_memory_MemTotal_bytes{domain=~\"$domain\"}",
+          "expr": "100 * (node_memory_MemAvailable_bytes{domain=~\"$domain\"} + node_memory_HugePages_Free{domain=~\"$domain\"} * node_memory_Hugepagesize_bytes{domain=~\"$domain\"}) / node_memory_MemTotal_bytes{domain=~\"$domain\"}",
           "refId": "A",
           "editorMode": "code",
           "legendFormat": "{{domain}}",

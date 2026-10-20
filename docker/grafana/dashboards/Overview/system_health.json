@@ -1037,7 +1037,7 @@
       "id": 8,
       "type": "stat",
       "title": "Hosts",
-      "description": "Every host running grafana-alloy: available memory under 10% (WARNING) / 5% (CRITICAL), root filesystem over 90% / 95%.",
+      "description": "Every host running grafana-alloy: memory available to desktops (MemAvailable plus free reserved hugepages) under 10% (WARNING) / 5% (CRITICAL), root filesystem over 90% / 95%.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -1054,7 +1054,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hosts\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(max(((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < bool 0.10) + ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < bool 0.05)), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max(((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.90) + ((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.95)), \"k\", \"s2\", \"\", \"\")\n)",
+          "expr": "max(\n  label_replace(max(2 * ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"critical\"} or ALERTS{alertstate=\"firing\",area=\"hosts\",severity=\"warning\"} or 0 * ALERTS{alertstate=\"firing\",area=\"hosts\"}), \"k\", \"s0\", \"\", \"\")\n  or label_replace(max((((node_memory_MemAvailable_bytes + node_memory_HugePages_Free * node_memory_Hugepagesize_bytes) / node_memory_MemTotal_bytes) < bool 0.10) + (((node_memory_MemAvailable_bytes + node_memory_HugePages_Free * node_memory_Hugepagesize_bytes) / node_memory_MemTotal_bytes) < bool 0.05)), \"k\", \"s1\", \"\", \"\")\n  or label_replace(max(((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.90) + ((1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) > bool 0.95)), \"k\", \"s2\", \"\", \"\")\n)",
           "instant": true,
           "range": false,
           "refId": "A",
