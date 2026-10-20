@@ -89,6 +89,9 @@ def driven(monkeypatch):
 
     class FakeStorage:
         exists = staticmethod(lambda sid: True)
+        # delete_storage now consults the storage graph; this single-disk entry
+        # has no children, so the destination behaviour under test is unchanged.
+        get_children = staticmethod(lambda ids, include_deleted=False: [])
 
         def __new__(cls, sid):
             return storage

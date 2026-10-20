@@ -1531,6 +1531,16 @@ def uncovered_storage_children(covered_storage_ids, children):
     )
 
 
+def _entry_uncovered_storage_children(storage_ids, covered_ids):
+    """Live storage-graph children of ``storage_ids`` not in ``covered_ids``
+    (``include_deleted`` keeps a move-deleted copy that still backs a child)."""
+    children = Storage.get_children(list(storage_ids), include_deleted=True)
+    return uncovered_storage_children(
+        covered_ids,
+        [{"id": child.id, "status": child.status} for child in children],
+    )
+
+
 class RecycleBin(RethinkSharedConnection):
     id = None
     status = None
@@ -2058,6 +2068,14 @@ class RecycleBin(RethinkSharedConnection):
                         self.id,
                         len(entries_raw),
                     )
+
+                # A child that is itself part of this deletion must not block it.
+                covered_ids = {
+                    storage["id"] for entry in entries for storage in entry["storages"]
+                }
+                covered_paths = [
+                    Storage(sid).path for sid in covered_ids if Storage.exists(sid)
+                ]
                 for entry in entries:
                     start = time.time()
                     rb = RecycleBin(entry["id"])
@@ -2092,6 +2110,37 @@ class RecycleBin(RethinkSharedConnection):
                         )
                         deleted_entries.append(rb)
                     else:
+                        # A storage-graph child with no domain is invisible to
+                        # the domain walk above; refuse rather than strand it.
+                        uncovered = _entry_uncovered_storage_children(
+                            [storage["id"] for storage in rb.storages],
+                            covered_ids,
+                        )
+                        if uncovered:
+                            log.warning(
+                                "RecycleBin %s delete_storage: refusing purge, "
+                                "%s live dependent disk(s) not in this deletion "
+                                "still depend on it: %s",
+                                rb.id,
+                                len(uncovered),
+                                ", ".join(uncovered),
+                            )
+                            Helpers.update_status(
+                                rb.id,
+                                self.owner_id,
+                                RecycleBinStatusEnum.recycled.value,
+                            )
+                            Helpers.add_log(
+                                "delete_blocked_dependents",
+                                entry["id"],
+                                self.agent_type,
+                                self.agent_id,
+                                self.agent_name,
+                                self.agent_category_id,
+                                self.agent_category_name,
+                                self.agent_role,
+                            )
+                            continue
                         # All or none: an entry only reaches ``deleted`` once every one of its
                         # storages finished, so a partial enqueue strands it in ``deleting``.
                         plans = []
@@ -2215,6 +2264,9 @@ class RecycleBin(RethinkSharedConnection):
                                         "pool_root": StoragePool.mountpoint_for_path(
                                             storage.path
                                         ),
+                                        # Disks going away in this pass, so the
+                                        # worker's on-disk guard does not count them.
+                                        "covered_paths": covered_paths,
                                     },
                                 },
                                 dependents=[
