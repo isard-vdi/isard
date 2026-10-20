@@ -981,7 +981,6 @@
         }
       },
       "filter-placeholder": "Filtrar por usuario o escritorio",
-      "back-to-deployment": "Volver al despliegue",
       "view": {
         "cards": "Vista de tarjetas",
         "table": "Vista de tabla"

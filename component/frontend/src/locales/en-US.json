@@ -989,7 +989,6 @@
         }
       },
       "filter-placeholder": "Filter by user or desktop",
-      "back-to-deployment": "Back to deployment",
       "view": {
         "cards": "Card view",
         "table": "Table view"

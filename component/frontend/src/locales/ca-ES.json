@@ -981,7 +981,6 @@
         }
       },
       "filter-placeholder": "Filtra per usuari o escriptori",
-      "back-to-deployment": "Torna al desplegament",
       "view": {
         "cards": "Vista de targetes",
         "table": "Vista de taula"
