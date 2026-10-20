@@ -91,3 +91,23 @@ class TestPlacement:
         assert mod.filter_available_hypers([warned, _hyper("bad", degraded=True)]) == [
             warned
         ]
+
+
+class TestWhichDegradationsAPassingCheckMayClear:
+    def test_a_check_may_clear_a_timeout_or_storage_degradation(self):
+        assert mod.any_check_may_clear({"is_degraded": True, "reason": "x"})
+        assert mod.any_check_may_clear(
+            {"is_degraded": True, "reason": "x", "source": None}
+        )
+
+    def test_a_host_error_degradation_is_left_to_its_worker(self):
+        degraded = {
+            "is_degraded": True,
+            "reason": "host error during libvirt createXML: Read-only file system",
+            "source": mod.DEGRADED_BY_HOST_ERRORS,
+        }
+        assert not mod.any_check_may_clear(degraded)
+
+    def test_nothing_to_clear_when_not_degraded(self):
+        assert not mod.any_check_may_clear({"is_degraded": False})
+        assert not mod.any_check_may_clear(None)

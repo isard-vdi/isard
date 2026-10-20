@@ -20,6 +20,8 @@ Hardcoded thresholds (edit and restart engine to change):
 - SLOW_DETECTION_WINDOW: Slow responses to trigger degradation (5)
 - RECOVERY_WINDOW: Normal responses to trigger recovery (10)
 - DEGRADED_RECOVERY_SECONDS: Min time before recovery check (300s)
+- HOST_ERROR_THRESHOLD: Host errors within the window to trigger degradation (3)
+- HOST_ERROR_WINDOW_SECONDS: Window the host errors are counted in (120s)
 """
 
 import atexit
@@ -66,6 +68,38 @@ DEGRADED_RECOVERY_SECONDS = 300
 
 # Time (seconds) after which counters start decaying if no issues occur
 COUNTER_DECAY_SECONDS = 300
+
+# Host errors (see is_host_error) within the window that trigger degradation
+HOST_ERROR_THRESHOLD = 3
+HOST_ERROR_WINDOW_SECONDS = 120
+
+# Longest degraded reason written to the hypervisor row
+DEGRADED_REASON_MAX_CHARS = 200
+
+# libvirt's VIR_ERR_SYSTEM_ERROR: libvirtd itself failed a system call
+VIR_ERR_SYSTEM_ERROR = 38
+
+# strerror() of EROFS, ENOSPC, EIO and EUCLEAN
+HOST_ERROR_MARKERS = (
+    "Read-only file system",
+    "No space left on device",
+    "Input/output error",
+    "Structure needs cleaning",
+)
+
+
+def is_host_error(error) -> bool:
+    """Whether libvirtd itself failed on the host's filesystem, not the domain."""
+    get_code = getattr(error, "get_error_code", None)
+    if not callable(get_code):
+        return False
+    try:
+        if get_code() != VIR_ERR_SYSTEM_ERROR:
+            return False
+    except Exception:
+        return False
+    message = str(error)
+    return any(marker in message for marker in HOST_ERROR_MARKERS)
 
 
 class LibvirtTimeoutError(Exception):
@@ -115,6 +149,8 @@ class LibvirtOperationStats:
     normal_response_count: int = 0
     # Timestamp of last slow response or timeout (for counter decay)
     last_issue_time: Optional[float] = None
+    # When each recent host error happened (see is_host_error)
+    host_error_times: deque = field(default_factory=deque)
     # Lock for thread-safe updates
     _lock: Lock = field(default_factory=Lock)
 
@@ -175,16 +211,35 @@ class LibvirtOperationStats:
                 self.timeout_count = 0
                 self.last_issue_time = None
 
+    def record_host_error(self, now: Optional[float] = None) -> int:
+        """Record a host error and return how many fall within the window."""
+        with self._lock:
+            now = time.time() if now is None else now
+            self.host_error_times.append(now)
+            self.normal_response_count = 0
+            self.last_issue_time = now
+            return self._prune_host_errors(now)
+
+    def _prune_host_errors(self, now: float) -> int:
+        """Forget host errors older than the window. Called with lock held."""
+        while (
+            self.host_error_times
+            and now - self.host_error_times[0] > HOST_ERROR_WINDOW_SECONDS
+        ):
+            self.host_error_times.popleft()
+        return len(self.host_error_times)
+
     def should_degrade(self) -> bool:
         """Check if hypervisor should be marked as degraded.
 
         Returns:
-            True if timeout or slow response thresholds exceeded
+            True if timeout, slow response or host error thresholds exceeded
         """
         with self._lock:
             return (
                 self.timeout_count >= DEGRADED_TIMEOUT_THRESHOLD
                 or self.slow_response_count >= SLOW_DETECTION_WINDOW
+                or self._prune_host_errors(time.time()) >= HOST_ERROR_THRESHOLD
             )
 
     def should_recover(self, degraded_since: Optional[float]) -> bool:
@@ -227,6 +282,7 @@ class LibvirtOperationStats:
             self.normal_response_count = 0
             self.recent_times_ms.clear()
             self.last_issue_time = None
+            self.host_error_times.clear()
 
 
 # =============================================================================

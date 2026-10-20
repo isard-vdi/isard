@@ -42,6 +42,7 @@ from engine.services.db import (
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.hypervisors import (
+    DEGRADED_BY_HOST_ERRORS,
     get_hypervisor,
     update_hyp_degraded_status,
     update_hyp_libvirt_warning,
@@ -56,12 +57,16 @@ from engine.services.lib.functions import (
     update_status_db_from_running_domains,
 )
 from engine.services.lib.libvirt_timeout import (
+    DEGRADED_REASON_MAX_CHARS,
+    HOST_ERROR_THRESHOLD,
+    HOST_ERROR_WINDOW_SECONDS,
     LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW,
     LIBVIRT_OPERATION_TIMEOUT,
     LIBVIRT_OPERATION_WARNING,
     LibvirtOperationStats,
     LibvirtTimeoutError,
     execute_with_timeout,
+    is_host_error,
     register_hypervisor_executor,
     unregister_hypervisor_executor,
 )
@@ -733,6 +738,42 @@ class HypWorkerThread(threading.Thread):
 
             raise
 
+        except libvirtError as e:
+            self._note_host_error(e, operation_name)
+            raise
+
+    def _note_host_error(self, error, operation_name):
+        """Count a host error and degrade the hypervisor on too many."""
+        if not is_host_error(error):
+            return
+        count = self.libvirt_stats.record_host_error()
+        message = str(error)
+        logs.workers.warning(
+            f"[{self.hyp_id}] Host error during {operation_name} "
+            f"(count: {count}/{HOST_ERROR_THRESHOLD} in {HOST_ERROR_WINDOW_SECONDS}s): "
+            f"{message}"
+        )
+        if not self.libvirt_stats.should_degrade():
+            return
+        reason = f"host error during {operation_name}: {message}"[
+            :DEGRADED_REASON_MAX_CHARS
+        ]
+        if self.degraded:
+            # someone may have cleared the row meanwhile; since is kept
+            try:
+                update_hyp_degraded_status(
+                    self.hyp_id,
+                    is_degraded=True,
+                    reason=reason,
+                    source=DEGRADED_BY_HOST_ERRORS,
+                )
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.hyp_id}] Failed to update degraded status: {e}"
+                )
+            return
+        self._mark_degraded(reason, source=DEGRADED_BY_HOST_ERRORS)
+
     def _update_warning_state(self, duration_ms):
         """Update the libvirt_warning field in database for webapp display.
 
@@ -763,7 +804,7 @@ class HypWorkerThread(threading.Thread):
                     f"[{self.hyp_id}] Failed to clear libvirt_warning: {e}"
                 )
 
-    def _mark_degraded(self, reason):
+    def _mark_degraded(self, reason, source=None):
         """Mark hypervisor as degraded due to slow responses or timeouts.
 
         Sets cap_status to false to exclude from balancer, notifies
@@ -771,6 +812,7 @@ class HypWorkerThread(threading.Thread):
 
         Args:
             reason: Human-readable reason for degradation
+            source: Who alone may clear it (see update_hyp_degraded_status)
         """
         if self.degraded:
             return  # Already degraded
@@ -784,7 +826,9 @@ class HypWorkerThread(threading.Thread):
 
         try:
             # Update database to exclude from balancer and show in webapp
-            update_hyp_degraded_status(self.hyp_id, is_degraded=True, reason=reason)
+            update_hyp_degraded_status(
+                self.hyp_id, is_degraded=True, reason=reason, source=source
+            )
 
             # Notify orchestrator to migrate queued actions
             self.queue_master.put(
