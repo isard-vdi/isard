@@ -27,6 +27,7 @@ export const VUE3_TO_VUE2: Record<string, string> = {
   deployments: '/deployments',
   'shared-deployments': '/deployments',
   deployment: '/deployment/:deploymentId',
+  'deployment-videowall': '/deployment/:deploymentId/videowall',
   media: '/media',
   'recycle-bin': '/recycleBins',
   'recycle-bin-entry': '/recyclebin/:recycleBinId',
