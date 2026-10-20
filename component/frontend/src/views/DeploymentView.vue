@@ -822,9 +822,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
             </Button>
           </div>
           <div class="flex items-center justify-end w-fit h-full gap-6">
-            <Tooltip>
+            <!-- Hidden until the videowall can filter by user: it opens the whole deployment. -->
+            <Tooltip v-if="false">
               <TooltipTrigger as-child>
-                <!-- Button is active if at least one desktop status is STARTED, STOPPING, or SHUTTING_DOWN -->
                 <Button
                   hierarchy="secondary-gray"
                   icon="tv-03"
