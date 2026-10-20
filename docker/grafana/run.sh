@@ -4,14 +4,17 @@ PROV=/etc/grafana/provisioning
 mkdir -p "$PROV/custom_dashboards"
 
 # A custom file named like a product dashboard replaces it in place; any other
-# lands in the Custom folder.
+# lands in the Custom folder, keeping its subdirectory so two custom files with
+# the same name in different subdirectories do not overwrite each other.
 if [ -d "/custom/dashboards" ]; then
     find /custom/dashboards -type f -name '*.json' | while read -r f; do
         product=$(find "$PROV/dashboards" -type f -name "$(basename "$f")" | head -1)
         if [ -n "$product" ]; then
             cp "$f" "$product"
         else
-            cp "$f" "$PROV/custom_dashboards/"
+            rel=${f#/custom/dashboards/}
+            mkdir -p "$PROV/custom_dashboards/$(dirname "$rel")"
+            cp "$f" "$PROV/custom_dashboards/$rel"
         fi
     done
 fi
