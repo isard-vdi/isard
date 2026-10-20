@@ -18,8 +18,8 @@ const (
 	reloadWaitTimeout  = 10 * time.Second
 	reloadPollInterval = 100 * time.Millisecond
 
-	// a resync can issue ACME certificates, so the answer may take minutes
-	resyncAckTimeout = 5 * time.Minute
+	// above apiv4's DomainSync deadline, which leaves acme.sh ten minutes
+	resyncAckTimeout = 15 * time.Minute
 	resyncMinBackoff = time.Second
 	resyncMaxBackoff = time.Minute
 )
@@ -29,9 +29,15 @@ type ResyncRequest struct {
 	Reason string
 }
 
-type resyncAttempt struct {
-	id   uint64
-	done chan string
+type resyncAck struct {
+	id      uint64
+	syncErr string
+}
+
+// resyncCycle lasts until a request it sent, any id from firstID on, is answered with success.
+type resyncCycle struct {
+	firstID uint64
+	done    chan resyncAck
 }
 
 type resyncHub struct {
@@ -41,8 +47,9 @@ type resyncHub struct {
 	workerPid int
 
 	lastID  uint64
-	attempt *resyncAttempt
+	cycle   *resyncCycle
 	stop    context.CancelFunc
+	running int
 
 	ackTimeout time.Duration
 	minBackoff time.Duration
@@ -96,13 +103,19 @@ func (h *HAproxySync) AckResync(id uint64, syncErr string) {
 	h.resync.mux.Lock()
 	defer h.resync.mux.Unlock()
 
-	if h.resync.attempt == nil || h.resync.attempt.id != id {
-		h.log.Debug().Uint64("id", id).Str("error", syncErr).Msg("ignoring the answer to a superseded resync request")
+	c := h.resync.cycle
+	if c == nil || id < c.firstID || id > h.resync.lastID {
+		h.log.Debug().Uint64("id", id).Str("error", syncErr).Msg("ignoring the answer to a request of a superseded resync")
+		return
+	}
+
+	if syncErr != "" && id != h.resync.lastID {
+		h.log.Debug().Uint64("id", id).Str("error", syncErr).Msg("ignoring a failure already being retried")
 		return
 	}
 
 	select {
-	case h.resync.attempt.done <- syncErr:
+	case c.done <- resyncAck{id: id, syncErr: syncErr}:
 	default:
 	}
 }
@@ -115,18 +128,33 @@ func (h *HAproxySync) startResyncLocked(reason string) {
 
 	ctx, stop := context.WithCancel(context.Background())
 	h.resync.stop = stop
-	h.resync.attempt = nil
+	c := &resyncCycle{firstID: h.resync.lastID + 1, done: make(chan resyncAck, 4)}
+	h.resync.cycle = c
+	h.resync.running++
 
-	go h.resyncUntilAcked(ctx, reason)
+	go func() {
+		defer func() {
+			h.resync.mux.Lock()
+			h.resync.running--
+			h.resync.mux.Unlock()
+		}()
+
+		h.resyncUntilAcked(ctx, c, reason)
+	}()
 }
 
-func (h *HAproxySync) resyncUntilAcked(ctx context.Context, reason string) {
+func (h *HAproxySync) resyncUntilAcked(ctx context.Context, c *resyncCycle, reason string) {
 	h.resync.mux.Lock()
 	backoff, maxBackoff, ackTimeout := h.resync.minBackoff, h.resync.maxBackoff, h.resync.ackTimeout
 	h.resync.mux.Unlock()
 
+	// the worker answering when each request was sent
+	workers := map[uint64]int{}
+
 	for attempt := 1; ; attempt++ {
-		id, done, watchers, ok := h.broadcastResync(ctx, reason, attempt)
+		pid, pidErr := h.haproxy.ShowPid()
+
+		id, watchers, ok := h.broadcastResync(ctx, reason, attempt)
 		if !ok {
 			return
 		}
@@ -134,18 +162,31 @@ func (h *HAproxySync) resyncUntilAcked(ctx context.Context, reason string) {
 			h.log.Warn().Str("reason", reason).Int("attempt", attempt).Msg("no resync watcher connected, the next one to connect gets a resync")
 			return
 		}
+		if pidErr == nil {
+			workers[id] = pid
+		}
 
 		var failure error
 		select {
 		case <-ctx.Done():
 			return
 
-		case syncErr := <-done:
-			if syncErr == "" {
-				h.log.Info().Str("reason", reason).Uint64("id", id).Int("attempt", attempt).Msg("resync done")
+		case ack := <-c.done:
+			if ack.syncErr != "" {
+				failure = errors.New(ack.syncErr)
+				break
+			}
+
+			now, err := h.sameWorker(workers, ack.id)
+			if err == nil {
+				h.resync.mux.Lock()
+				h.resync.workerPid = now
+				h.resync.mux.Unlock()
+
+				h.log.Info().Str("reason", reason).Uint64("id", ack.id).Int("attempt", attempt).Int("pid", now).Msg("resync done")
 				return
 			}
-			failure = errors.New(syncErr)
+			failure = err
 
 		case <-time.After(ackTimeout):
 			failure = fmt.Errorf("no answer after %s", ackTimeout)
@@ -162,20 +203,36 @@ func (h *HAproxySync) resyncUntilAcked(ctx context.Context, reason string) {
 	}
 }
 
+// sameWorker fails when the worker changed since request id: the push went to the old one.
+func (h *HAproxySync) sameWorker(workers map[uint64]int, id uint64) (int, error) {
+	before, ok := workers[id]
+	if !ok {
+		return 0, errors.New("the HAProxy worker was unknown when the request was sent")
+	}
+
+	now, err := h.haproxy.ShowPid()
+	if err != nil {
+		return 0, fmt.Errorf("read the HAProxy worker after the resync: %w", err)
+	}
+
+	if now != before {
+		return 0, fmt.Errorf("the HAProxy worker changed from %d to %d during the resync", before, now)
+	}
+
+	return now, nil
+}
+
 // broadcastResync sends a new request to every watcher, unless ctx was superseded meanwhile.
-func (h *HAproxySync) broadcastResync(ctx context.Context, reason string, attempt int) (uint64, <-chan string, int, bool) {
+func (h *HAproxySync) broadcastResync(ctx context.Context, reason string, attempt int) (uint64, int, bool) {
 	h.resync.mux.Lock()
 	defer h.resync.mux.Unlock()
 
 	if ctx.Err() != nil {
-		return 0, nil, 0, false
+		return 0, 0, false
 	}
 
 	h.resync.lastID++
-	a := &resyncAttempt{id: h.resync.lastID, done: make(chan string, 1)}
-	h.resync.attempt = a
-
-	r := ResyncRequest{ID: a.id, Reason: reason}
+	r := ResyncRequest{ID: h.resync.lastID, Reason: reason}
 	for ch := range h.resync.subs {
 		// a request still unread is stale: keep only the newest
 		select {
@@ -185,9 +242,9 @@ func (h *HAproxySync) broadcastResync(ctx context.Context, reason string, attemp
 		ch <- r
 	}
 
-	h.log.Info().Str("reason", reason).Uint64("id", a.id).Int("attempt", attempt).Int("watchers", len(h.resync.subs)).Msg("resync requested")
+	h.log.Info().Str("reason", reason).Uint64("id", r.ID).Int("attempt", attempt).Int("watchers", len(h.resync.subs)).Msg("resync requested")
 
-	return a.id, a.done, len(h.resync.subs), true
+	return r.ID, len(h.resync.subs), true
 }
 
 // RecordWorkerPid remembers the worker currently answering, so NotifyReload can tell when it changes.
