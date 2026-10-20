@@ -50,6 +50,5 @@ def test_startup_database_work_runs_off_the_loop_before_serving(monkeypatch):
         "maintenance",
         "seed_cards",
         "cleanup_cards",
-        "haproxy_maps",
     ]
     assert all(t != loop_thread for _, t in serving), serving

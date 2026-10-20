@@ -163,3 +163,32 @@ def test_a_failed_report_does_not_stop_the_stream(monkeypatch):
 
     assert stub.WatchResync.call_count == 1
     assert on_resync.call_count == 2
+
+
+def test_the_lifespan_leaves_the_startup_sync_to_the_watcher():
+    """haproxy-sync answers a new watch with a resync request, so a direct
+    call at startup would push every map and domain twice."""
+    import ast
+    import inspect
+    import textwrap
+
+    import api
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(api.lifespan)))
+    calls = [
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    ]
+    passed = [
+        arg.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "async_watch_resync"
+        for arg in node.args
+        if isinstance(arg, ast.Name)
+    ]
+
+    assert "_sync_haproxy_maps" not in calls
+    assert "_sync_haproxy_maps" in passed

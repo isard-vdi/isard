@@ -60,7 +60,7 @@ from pydantic import ValidationError
 from .schemas.common import ErrorResponse
 
 
-def _sync_haproxy_maps(reason="apiv4 startup"):
+def _sync_haproxy_maps(reason):
     """Sync bastion maps and category branding domains to HAProxy (blocking)."""
     log.info(f"Syncing HAProxy maps and domains (reason: {reason})")
     Bastion.update_bastion_haproxy_map()
@@ -249,12 +249,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.warning("Pool-headroom sampler failed to start (telemetry only, non-fatal)")
 
-    try:
-        await asyncio.to_thread(_sync_haproxy_maps)
-    except Exception:
-        log.warning("Bastion haproxy map update failed (bastion may be disabled)")
-
-    # haproxy-sync asks for a full resync when it starts and after every HAProxy reload
+    # haproxy-sync asks for a resync on connect (the startup sync) and after every reload
     resync_task = None
     haproxy_resync_channel = None
     try:
