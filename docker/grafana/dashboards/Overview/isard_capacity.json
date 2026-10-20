@@ -875,8 +875,8 @@
     {
       "type": "table",
       "id": 14,
-      "title": "Writing sustained (MB/s, 24 h average)",
-      "description": "Top 10 desktops by average write rate over 24 h. A desktop here is writing all day, not in a burst.",
+      "title": "Writing sustained (MB/s, average over the range)",
+      "description": "Top 10 desktops by average write rate over the selected time range (24 h by default). A desktop here is writing all the time, not in a burst. Read from the 5-minute per-desktop recording rule, so it starts filling once vmalert has run for the range.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -887,7 +887,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "topk(10, sum by (desktop, category_id, user_id) (rate(isardvdi_domain_block_wr_bytes{domain=~\"$domain\"}[24h])) / 1048576)",
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (sum_over_time(isardvdi:desktop_block_wr_bytes:rate5m{domain=~\"$domain\"}[$__range])) * 300 / $__range_s) / 1048576",
           "refId": "A",
           "editorMode": "code",
           "instant": true,
@@ -1057,8 +1057,8 @@
     {
       "type": "table",
       "id": 16,
-      "title": "Reading sustained (MB/s, 24 h average)",
-      "description": "Top 10 desktops by average read rate over 24 h.",
+      "title": "Reading sustained (MB/s, average over the range)",
+      "description": "Top 10 desktops by average read rate over the selected time range (24 h by default). Read from the 5-minute per-desktop recording rule, so it starts filling once vmalert has run for the range.",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -1069,7 +1069,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "topk(10, sum by (desktop, category_id, user_id) (rate(isardvdi_domain_block_rd_bytes{domain=~\"$domain\"}[24h])) / 1048576)",
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (sum_over_time(isardvdi:desktop_block_rd_bytes:rate5m{domain=~\"$domain\"}[$__range])) * 300 / $__range_s) / 1048576",
           "refId": "A",
           "editorMode": "code",
           "instant": true,

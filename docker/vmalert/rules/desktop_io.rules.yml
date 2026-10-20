@@ -1,0 +1,17 @@
+# Per-desktop disk throughput, pre-aggregated for the Capacity dashboard.
+#
+# The raw isardvdi_domain_block_{rd,wr}_bytes counters carry one series per
+# disk of every desktop that ran, scraped every 30s. Averaging them over a day
+# at query time reads every raw sample of every one of those series each time
+# the panel loads. These rules sum them per desktop every 5m, so the "sustained"
+# panels average a few hundred points per desktop instead. Those panels turn
+# sum_over_time() back into bytes with "* 300", this group's interval: change
+# both together.
+groups:
+  - name: desktop_io
+    interval: 5m
+    rules:
+      - record: isardvdi:desktop_block_wr_bytes:rate5m
+        expr: sum by (domain, desktop, category_id, user_id) (rate(isardvdi_domain_block_wr_bytes[5m]))
+      - record: isardvdi:desktop_block_rd_bytes:rate5m
+        expr: sum by (domain, desktop, category_id, user_id) (rate(isardvdi_domain_block_rd_bytes[5m]))
