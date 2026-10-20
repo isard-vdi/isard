@@ -60,15 +60,15 @@ const { streaming, vncValues, connectionKey, connecting, failed, onConnect, onDi
           :quality-level="0"
           :compression-level="9"
           background="transparent"
-          @connect="onConnect"
+          @first-frame="onConnect"
           @disconnect="onDisconnect"
         />
-        <!-- Brand tint: on screen, not unavailable. -->
+        <!-- Deployment tint: on screen, not unavailable. -->
         <span
           v-if="props.onScreen"
-          class="absolute inset-0 flex items-center justify-center gap-1.5 bg-brand-100 px-2 text-center text-xs font-semibold text-brand-700"
+          class="absolute inset-0 flex items-center justify-center gap-1.5 bg-secondary-2-100 px-2 text-center text-xs font-semibold text-secondary-2-600"
         >
-          <Icon name="eye" size="sm" stroke-color="brand-700" class="shrink-0" />
+          <Icon name="eye" size="sm" stroke-color="secondary-2-600" class="shrink-0" />
           {{ t('views.deployment-videowall.viewer.pinned.on-screen') }}
         </span>
         <span

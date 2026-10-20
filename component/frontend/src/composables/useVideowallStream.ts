@@ -11,7 +11,10 @@ const RETRY_DELAY_MS = 1000
 // A handshake that neither connects nor fails would spin forever.
 const CONNECT_TIMEOUT_MS = 15000
 
-/** A noVNC feed of a videowall desktop, live only while `active` holds. */
+/**
+ * A noVNC feed of a videowall desktop, live only while `active` holds.
+ * Connected means painted: wire `onConnect` to NoVNC's `first-frame`, not `connect`.
+ */
 export function useVideowallStream(
   desktop: MaybeRefOrGetter<VideowallDesktop | null>,
   active: MaybeRefOrGetter<boolean>
@@ -102,6 +105,7 @@ export function useVideowallStream(
     clearTimeout(retryTimer)
     failures = 0
     attempt.value = 0
+    connection.value = null
   })
 
   onScopeDispose(() => {

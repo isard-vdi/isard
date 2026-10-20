@@ -64,7 +64,7 @@ const waiting = computed(
       height="100%"
       :view-only="props.viewOnly"
       class="absolute inset-0"
-      @connect="onConnect"
+      @first-frame="onConnect"
       @disconnect="onDisconnect"
     />
     <!-- Mode switch feedback; never blocks the desktop's input. -->

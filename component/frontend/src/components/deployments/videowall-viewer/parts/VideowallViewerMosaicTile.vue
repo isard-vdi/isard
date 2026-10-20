@@ -58,7 +58,7 @@ const { vncValues, connectionKey, connecting, failed, onConnect, onDisconnect } 
       :compression-level="9"
       background="transparent"
       class="absolute inset-0"
-      @connect="onConnect"
+      @first-frame="onConnect"
       @disconnect="onDisconnect"
     />
     <span
