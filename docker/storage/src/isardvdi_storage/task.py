@@ -1104,6 +1104,50 @@ def _curl_header_config(headers):
     return config
 
 
+# change-handler matches this class name in the failed job's exc_info.
+class DownloadInvalidFormatError(CalledProcessError):
+    def __str__(self):
+        return self.stderr
+
+
+_MEDIA_SIGNATURES = {
+    "iso": (32769, (b"CD001", b"BEA01")),
+    "floppy": (510, (b"\x55\xaa",)),
+    "qcow2": (0, (b"QFI\xfb",)),
+}
+
+
+def _looks_like_html(path):
+    try:
+        with open(path, "rb") as downloaded:
+            head = downloaded.read(512)
+    except OSError:
+        return False
+    return head.lstrip().lower().startswith((b"<!doctype html", b"<html"))
+
+
+def _has_media_signature(path, kind):
+    if kind not in _MEDIA_SIGNATURES:
+        return True
+    offset, signatures = _MEDIA_SIGNATURES[kind]
+    try:
+        with open(path, "rb") as downloaded:
+            downloaded.seek(offset)
+            head = downloaded.read(max(len(s) for s in signatures))
+    except OSError:
+        return False
+    return head.startswith(signatures)
+
+
+def _reject_download(path, cmd, reason):
+    log.error("download failed: %s", reason)
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+    raise DownloadInvalidFormatError(returncode=1, cmd=cmd, stderr=reason)
+
+
 def _run_curl_download(
     *,
     url,
@@ -1260,6 +1304,11 @@ def _run_curl_download(
             returncode=process.returncode, cmd=curl_cmd, stderr=stderr
         )
 
+    if _looks_like_html(dest_path):
+        _reject_download(
+            dest_path, curl_cmd, "the URL returned an HTML page, not a file"
+        )
+
     # The loop only reads while curl is running and throttles its writes, so
     # the last line it printed is never persisted: a finished download was left
     # showing whatever fraction the previous tick caught (89-99% observed). The
@@ -1294,6 +1343,7 @@ def download_url(
     headers=None,
     insecure_ssl=False,
     google_drive_cookie=None,
+    kind=None,
 ):
     """Download a URL to ``dest_path`` reporting progress on the media row.
 
@@ -1316,6 +1366,7 @@ def download_url(
         Google Drive sharing link (requires the upstream to issue a
         confirmation cookie). Optional; the regular curl branch handles
         ordinary URLs.
+    :param kind: Media kind; the file must carry its signature or it is removed
     :raises CalledProcessError: when curl exits non-zero (RQ marks the
         job FAILED → dependent ``update_status`` task flips media to
         ``DownloadFailed``)
@@ -1334,6 +1385,12 @@ def download_url(
         flush_progress=_flush,
         is_aborting=_job_canceled,
     )
+    if not _has_media_signature(dest_path, kind):
+        _reject_download(
+            dest_path,
+            "download_url",
+            f"the downloaded file is not a valid {kind} image",
+        )
 
     return {
         "id": media_id,

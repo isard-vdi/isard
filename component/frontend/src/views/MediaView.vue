@@ -645,7 +645,8 @@ const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
               v-if="
                 activeTab === 'user' &&
                 (row.status === MediaStatusEnum.DOWNLOADED ||
-                  row.status === MediaStatusEnum.DOWNLOAD_FAILED)
+                  row.status === MediaStatusEnum.DOWNLOAD_FAILED ||
+                  row.status === MediaStatusEnum.DOWNLOAD_FAILED_INVALID_FORMAT)
               "
             >
               <TooltipTrigger as-child>

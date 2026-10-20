@@ -612,7 +612,7 @@
           }
         },
         "unavailable": "Contingut multimedia no disponible. Si us plau, torna-ho a provar més tard.",
-        "invalid-format": "El fitxer descarregat no és una imatge ISO/disquet vàlida. Elimina aquesta entrada i prova una altra URL."
+        "invalid-format": "El fitxer descarregat no és una imatge ISO/disquet vàlida. L'enllaç ha de descarregar el fitxer directament (per exemple, un enllaç acabat en .iso) i no obrir una pàgina web. Elimina aquesta entrada i prova amb un enllaç de descàrrega directa."
       },
       "delete-confirmation-modal": {
         "title": "Esborrar el mitjà '{name}'",

@@ -168,7 +168,8 @@ class Media(RethinkCustomBase):
         finished_status = previous_status if keep_status else "deleted"
         recovery_status = (
             previous_status
-            if previous_status in ("Downloaded", "DownloadFailed")
+            if previous_status
+            in ("Downloaded", "DownloadFailed", "DownloadFailedInvalidFormat")
             else "Downloaded"
         )
         self.status = "maintenance"
@@ -298,6 +299,7 @@ class Media(RethinkCustomBase):
             "headers": list(headers or []),
             "insecure_ssl": bool(insecure_ssl),
             "google_drive_cookie": google_drive_cookie,
+            "kind": self.kind,
         }
 
         return self.create_task(

@@ -620,7 +620,7 @@
           }
         },
         "unavailable": "The media is currently unavailable. Please try again later.",
-        "invalid-format": "The downloaded file is not a valid ISO/floppy image. Delete this entry and try a different URL."
+        "invalid-format": "The downloaded file is not a valid ISO/floppy image. The link must download the file directly (for example, a link ending in .iso), not open a web page. Delete this entry and try a direct download link."
       },
       "delete-confirmation-modal": {
         "title": "Delete media '{name}'",

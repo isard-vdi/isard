@@ -1711,7 +1711,7 @@
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
         "template_storage_not_ready": "This template's disk is not ready, so it can't be used yet, please contact the administrator",
-        "media_invalid": "The downloaded file is not a valid media format. It should be deleted since it can't be used",
+        "media_invalid": "The downloaded file is not a valid media file. The link must download the file directly (for example, a link ending in .iso), not open a web page. It should be deleted since it can't be used",
         "desktop_storage_not_ready": "Desktop storage is not ready",
         "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
         "password_character_length": "Password must be at least {num} character(s) long",

@@ -449,7 +449,7 @@
           }
         },
         "unavailable": "Euskarria ez dago erabilgarri une honetan. Mesedez, saiatu berriro geroago.",
-        "invalid-format": "Deskargatutako fitxategia ez da baliozko ISO/disketeko irudia. Ezabatu sarrera hau eta saiatu beste URL batekin."
+        "invalid-format": "Deskargatutako fitxategia ez da baliozko ISO/disketeko irudia. Estekak fitxategia zuzenean deskargatu behar du (adibidez, .iso-z amaitzen den esteka bat), ez web-orri bat ireki. Ezabatu sarrera hau eta saiatu zuzeneko deskarga-esteka batekin."
       },
       "action-error-modal": {
         "abort": "Ezin izan da deskarga bertan behera utzi.",

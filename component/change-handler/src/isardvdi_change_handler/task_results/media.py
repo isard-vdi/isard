@@ -79,6 +79,16 @@ def handle_media_update(task, **media_dict):
                 _update_media(result)
 
 
+def _download_had_an_invalid_format(task):
+    pending = list(task.dependencies)
+    while pending:
+        dependency = pending.pop()
+        if "DownloadInvalidFormatError" in (dependency.exc_info or ""):
+            return True
+        pending.extend(dependency.dependencies)
+    return False
+
+
 def handle_media_download_update_status(task, media_id):
     """Set media status after a download task chain completes."""
     if task.depending_status == "finished" and Media.update_document_if(
@@ -91,7 +101,13 @@ def handle_media_download_update_status(task, media_id):
     # an abort in this window wins: curl was killed and the partial file deleted
     Media.update_document_if(
         media_id,
-        {"status": "DownloadFailed"},
+        {
+            "status": (
+                "DownloadFailedInvalidFormat"
+                if _download_had_an_invalid_format(task)
+                else "DownloadFailed"
+            )
+        },
         field="status",
         values=_DOWNLOAD_IN_FLIGHT_STATUSES + ("DownloadAborting",),
     )
