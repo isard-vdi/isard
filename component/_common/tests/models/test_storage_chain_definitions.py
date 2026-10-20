@@ -577,13 +577,13 @@ def _find(dep_list, task_name):
     return None
 
 
-def test_the_root_move_carries_the_refused_copy_step():
+def test_the_root_move_carries_the_move_failed_step():
     """It hangs off the root: the only member whose failure leaves the file untouched."""
     s = _bare_storage(id="src-desktop-storage")
     mock_create, _ = _run_template_chain(s, "new-template-storage-99")
     assert mock_create.call_args.kwargs["task"] == "move"
     direct = mock_create.call_args.kwargs["dependents"]
-    step = next(d for d in direct if d["task"] == "template_copy_refused")
+    step = next(d for d in direct if d["task"] == "template_move_failed")
     assert step["queue"] == "core"
     assert step["job_kwargs"]["kwargs"] == {
         "desktop_id": "desktop-1",
@@ -595,7 +595,7 @@ def test_the_root_move_carries_the_refused_copy_step():
     assert any(d["task"] == "create" for d in direct)
 
 
-def test_the_refused_copy_step_carries_what_the_caller_parked():
+def test_the_move_failed_step_carries_what_the_caller_parked():
     s = _bare_storage(id="src-desktop-storage")
     tpl = _ParkedRow("new-template-storage-99")
     real_new = Storage.__new__
@@ -609,6 +609,7 @@ def test_the_refused_copy_step_carries_what_the_caller_parked():
         patch.object(Storage, "create_task") as mock_create,
         patch.object(Storage, "_preflight_lane"),
         patch.object(Storage, "exists", return_value=True),
+        patch.object(Storage, "get", return_value={"status": "ready"}),
         patch.object(
             Storage,
             "pool",
@@ -623,7 +624,7 @@ def test_the_refused_copy_step_carries_what_the_caller_parked():
             template_storage_id=tpl.id,
             desktop_restore={"parents": ["base-1"]},
         )
-    step = _find(mock_create.call_args.kwargs["dependents"], "template_copy_refused")
+    step = _find(mock_create.call_args.kwargs["dependents"], "template_move_failed")
     assert step["job_kwargs"]["kwargs"]["desktop_restore"] == {"parents": ["base-1"]}
 
 

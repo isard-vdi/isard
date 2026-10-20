@@ -143,8 +143,9 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     )
 
 
-#: must match the storage worker's own copy in ``isardvdi_storage.task``
+#: must match the storage worker's own copies in ``isardvdi_storage.task``
 SOURCE_UNTOUCHED_META_KEY = "source_untouched"
+COPY_COMPLETE_META_KEY = "copy_complete"
 
 TEMPLATE_COPY_REFUSED_DETAIL = (
     "The template could not be created: the disk copy was refused before it "
@@ -152,20 +153,36 @@ TEMPLATE_COPY_REFUSED_DETAIL = (
     "was left as it was."
 )
 
+TEMPLATE_SOURCE_KEPT_DETAIL = (
+    "The template could not be created: the disk copy finished but removing "
+    "the source disk failed or did not answer. The source desktop keeps its "
+    "disk and the copy was kept too; nothing was deleted."
+)
 
-def _source_untouched(task):
+
+def _move_meta(task):
+    merged = {}
     for dependency in getattr(task, "dependencies", None) or []:
-        meta = getattr(getattr(dependency, "job", None), "meta", None) or {}
-        if meta.get(SOURCE_UNTOUCHED_META_KEY):
-            return True
-    return False
+        merged.update(getattr(getattr(dependency, "job", None), "meta", None) or {})
+    return merged
 
 
-def handle_template_copy_refused(
+def handle_template_move_failed(
     task, desktop_id, template_id, template_storage_id, desktop_restore=None
 ):
-    """Hand the source desktop back when the worker refused the copy untouched."""
-    if task.depending_status != "failed" or not _source_untouched(task):
+    """Hand the desktop back when the root ``move`` failed with its file whole.
+
+    A refused copy deletes the never written template disk row; a finished copy
+    whose source unlink failed keeps both files and deletes nothing.
+    """
+    if task.depending_status != "failed":
+        return
+    meta = _move_meta(task)
+    if meta.get(SOURCE_UNTOUCHED_META_KEY):
+        detail, template_storage_status = TEMPLATE_COPY_REFUSED_DETAIL, "deleted"
+    elif meta.get(COPY_COMPLETE_META_KEY):
+        detail, template_storage_status = TEMPLATE_SOURCE_KEPT_DETAIL, "Failed"
+    else:
         return
     Domain.update_document_if(
         desktop_id,
@@ -176,9 +193,9 @@ def handle_template_copy_refused(
     )
     Domain.update_document_if(
         template_id,
-        {"status": "Failed", "detail": TEMPLATE_COPY_REFUSED_DETAIL},
+        {"status": "Failed", "detail": detail},
         field="status",
         values=("CreatingTemplate",),
         validate=False,
     )
-    Storage.write_status(template_storage_id, "deleted")
+    Storage.write_status(template_storage_id, template_storage_status)

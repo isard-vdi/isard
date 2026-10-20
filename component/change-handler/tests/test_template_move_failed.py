@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""A template whose disk copy the worker refused hands its desktop back."""
+"""A template whose root ``move`` failed with the desktop's file whole hands it back."""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,7 +30,7 @@ def test_a_refused_copy_hands_the_desktop_back():
         patch.object(domain, "Domain") as dom,
         patch.object(domain, "Storage") as sto,
     ):
-        domain.handle_template_copy_refused(
+        domain.handle_template_move_failed(
             _step(meta={domain.SOURCE_UNTOUCHED_META_KEY: True}), **KW
         )
 
@@ -47,25 +47,77 @@ def test_a_refused_copy_hands_the_desktop_back():
     sto.write_status.assert_called_once_with("ts1", "deleted")
 
 
+def test_a_finished_copy_whose_source_unlink_failed_hands_the_desktop_back():
+    """The copy is whole and the source may still be there: nothing is deleted.
+
+    The worker states ``copy_complete`` before the unlink, so the meta is the
+    same whether the unlink raised (EIO, ESTALE) or hung until the job timeout.
+    """
+    from isardvdi_change_handler.task_results import domain
+
+    step = _step(meta={domain.COPY_COMPLETE_META_KEY: True, "progress": 1})
+    with (
+        patch.object(domain, "Domain") as dom,
+        patch.object(domain, "Storage") as sto,
+    ):
+        domain.handle_template_move_failed(step, **KW)
+
+    calls = {c.args[0]: c for c in dom.update_document_if.call_args_list}
+    assert calls["d1"].args[1] == {"status": "Stopped", "parents": ["base-1"]}
+    assert tuple(calls["d1"].kwargs["values"]) == ("CreatingTemplate",)
+    assert calls["t1"].args[1] == {
+        "status": "Failed",
+        "detail": domain.TEMPLATE_SOURCE_KEPT_DETAIL,
+    }
+    assert tuple(calls["t1"].kwargs["values"]) == ("CreatingTemplate",)
+    # the copy is kept: the template disk row fails and is never marked deleted;
+    # the desktop's own disk row is not touched at all
+    sto.write_status.assert_called_once_with("ts1", "Failed")
+
+
+def test_a_refusal_wins_over_a_copy_flag():
+    """One run cannot state both; if it did, only the refused copy is known to
+    have never written the template disk, so only it may mark it deleted."""
+    from isardvdi_change_handler.task_results import domain
+
+    step = _step(
+        meta={
+            domain.SOURCE_UNTOUCHED_META_KEY: True,
+            domain.COPY_COMPLETE_META_KEY: True,
+        }
+    )
+    with (
+        patch.object(domain, "Domain"),
+        patch.object(domain, "Storage") as sto,
+    ):
+        domain.handle_template_move_failed(step, **KW)
+    sto.write_status.assert_called_once_with("ts1", "deleted")
+
+
 @pytest.mark.parametrize(
     "step",
     [
-        # the copy ran (or got past the refusal) and failed: the file may be gone
+        # the copy ran and failed before it ended: the worker said nothing
         _step(meta={}),
+        _step(meta={"progress": 0.4}),
+        # a finished move: nothing to hand back
+        _step(depending_status="finished", meta={"copy_complete": True}),
+        # a cancel stops rsync mid-copy: not a finished copy
+        _step(depending_status="canceled", meta={"copy_complete": True}),
         # the move succeeded: nothing to hand back
         _step(depending_status="finished", meta={"source_untouched": True}),
         # a cancel is not a refusal: the worker may have finished the copy
         _step(depending_status="canceled", meta={"source_untouched": True}),
     ],
 )
-def test_nothing_is_handed_back_unless_the_worker_refused(step):
+def test_nothing_is_handed_back_unless_the_worker_said_the_file_is_whole(step):
     from isardvdi_change_handler.task_results import domain
 
     with (
         patch.object(domain, "Domain") as dom,
         patch.object(domain, "Storage") as sto,
     ):
-        domain.handle_template_copy_refused(step, **KW)
+        domain.handle_template_move_failed(step, **KW)
     dom.update_document_if.assert_not_called()
     sto.write_status.assert_not_called()
 
@@ -73,8 +125,8 @@ def test_nothing_is_handed_back_unless_the_worker_refused(step):
 def test_the_step_is_registered():
     from isardvdi_change_handler.task_results import domain, registry
 
-    handler, is_async = registry.HANDLERS["template_copy_refused"]
-    assert handler is domain.handle_template_copy_refused
+    handler, is_async = registry.HANDLERS["template_move_failed"]
+    assert handler is domain.handle_template_move_failed
     assert is_async is registry.SYNC
 
 

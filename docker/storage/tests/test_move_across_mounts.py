@@ -83,7 +83,10 @@ class TestExdevDegradesToAGuardedCopy:
 
         (argv, _kwargs) = calls["rsync"][0]
         assert argv[0] == "rsync"
-        assert "--remove-source-files" in argv
+        # move drops the source itself once the copy is whole, not rsync, so an
+        # unlink that fails afterwards is told apart from a copy that did not end
+        assert "--remove-source-files" not in argv
+        assert not src.exists()
         # Without it every hole of the qcow2 is written as zeros at the destination.
         assert "--sparse" in argv
         assert argv[-2:] == [str(src), str(dst)]

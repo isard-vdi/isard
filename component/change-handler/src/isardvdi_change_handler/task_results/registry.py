@@ -61,5 +61,5 @@ HANDLERS = {
     # domain
     "domain_creating_disk": (domain.handle_domain_creating_disk, SYNC),
     "domain_change_storage": (domain.handle_domain_change_storage, SYNC),
-    "template_copy_refused": (domain.handle_template_copy_refused, SYNC),
+    "template_move_failed": (domain.handle_template_move_failed, SYNC),
 }

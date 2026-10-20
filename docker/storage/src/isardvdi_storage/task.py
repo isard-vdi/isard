@@ -1101,12 +1101,31 @@ def _state_progress(progress):
 SOURCE_UNTOUCHED_META_KEY = "source_untouched"
 
 
-def _state_source_untouched():
+#: Job metadata key that says a ``move`` finished its copy before removing the source.
+COPY_COMPLETE_META_KEY = "copy_complete"
+
+
+def _state_move_meta(key):
     job = get_current_job()
     if job is None:
         return
-    job.meta[SOURCE_UNTOUCHED_META_KEY] = True
+    job.meta[key] = True
     job.save_meta()
+
+
+def _state_source_untouched():
+    _state_move_meta(SOURCE_UNTOUCHED_META_KEY)
+
+
+def _remove_copied_source(origin_path):
+    """Flag the copy whole before the unlink, which may raise or hang on a share."""
+    _state_move_meta(COPY_COMPLETE_META_KEY)
+    try:
+        remove(origin_path)
+    except FileNotFoundError:
+        # an NFS client replaying an unlink the server already did gets ENOENT
+        log.warning("move: source %s was already gone after the copy", origin_path)
+    return 0
 
 
 def _job_canceled():
@@ -1608,7 +1627,7 @@ def move(
         and _same_file(origin_path, destination_path)
     ):
         if remove_source_file:
-            return remove(origin_path)
+            return _remove_copied_source(origin_path)
         return 0
 
     if not isdir(dirname(destination_path)):
@@ -1669,7 +1688,8 @@ def move(
         _state_source_untouched()
         raise
 
-    return run_with_progress(
+    # not --remove-source-files: a failed unlink must be told apart from a failed copy
+    returncode = run_with_progress(
         [
             "rsync",
             "-a",
@@ -1677,13 +1697,15 @@ def move(
             "--sparse",
             "--info=progress,flist0",
             *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
-            *(["--remove-source-files"] if remove_source_file else []),
             origin_path,
             destination_path,
         ],
         extract_progress_from_rsync_output,
         on_progress=on_progress,
     )
+    if returncode != 0 or not remove_source_file:
+        return returncode
+    return _remove_copied_source(origin_path)
 
 
 def move_delete(path, pool_root=None, covered_paths=None):
