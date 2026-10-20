@@ -33,6 +33,7 @@ class _Mig:
         self.current_window = None
         self.last_occurrence = None
         self.throughput_ewma = {}
+        self.pause_reason = None
 
     def __setattr__(self, name, value):
         # an unguarded write must show on the live row, or nothing is proven
@@ -42,6 +43,12 @@ class _Mig:
 
     def _update_cache(self, **fields):
         pass
+
+    def fresh_status(self):
+        for name in ("status", "pause_reason"):
+            if name in self.live:
+                object.__setattr__(self, name, self.live[name])
+        return self.status, self.pause_reason
 
     def recompute_totals(self, items=None):
         pass
@@ -479,8 +486,10 @@ def test_load_policy_leaves_a_space_pause_to_the_tick(monkeypatch):
     m = _space_paused({"min_free_pct": 10})
     r = _runner(monkeypatch, items, m, now=NOW)
     assert r._apply_load_policy() is False
+    # a manual pause is not parked by the loop either: the tick holds it, so the
+    # trees already moving still finish
     m.pause_reason = "manual"
-    assert r._apply_load_policy() is True
+    assert r._apply_load_policy() is False
 
 
 class _Lock:
@@ -512,6 +521,12 @@ def test_advance_drives_only_self_resuming_pauses(monkeypatch, reason, outcome):
             return job
 
     monkeypatch.setattr(mr, "StorageMigration", _SM)
+    # nothing moving: a manual/failure pause has nothing left to finish
+    monkeypatch.setattr(
+        mr.StorageMigrationItem,
+        "state_counts",
+        classmethod(lambda cls, mid: {"pending": 2}),
+    )
     monkeypatch.setattr(mr, "shared_client", lambda *a, **k: _Conn())
     assert mr.advance("m") == outcome
 
@@ -595,13 +610,143 @@ def test_a_disk_moves_at_most_once_per_occurrence(monkeypatch):
 def test_an_admin_cancel_landing_mid_tick_is_not_overwritten(monkeypatch):
     """The advance lease excludes other drivers, not apiv4's unlocked set_action."""
     items = [_item("r", "released")]
-    m = _Mig(
-        "running",
-        {"recurring": True, "window": WINDOW},
-        live_status=MigrationStatus.FINISHING_TREE.value,
-    )
+    m = _Mig("running", {"recurring": True, "window": WINDOW})
     r = _runner(monkeypatch, items, m, now=NOW)
+    real_items = r._items
+
+    def _items_then_admin_cancels():
+        # after the tick read the status, before it writes one
+        m.live["status"] = MigrationStatus.FINISHING_TREE.value
+        return real_items()
+
+    r._items = _items_then_admin_cancels
 
     r.tick()
 
     assert m.live["status"] == MigrationStatus.FINISHING_TREE.value
+
+
+# --- an admin pause finishes what is moving and starts nothing new ---
+@pytest.mark.parametrize("reason", ["manual", "failure"])
+def test_a_paused_job_finishes_the_trees_in_flight_and_starts_none(monkeypatch, reason):
+    # tree "a" is mid-move (its copy just finished); tree "b" has not started
+    items = [
+        _item("a", "moving", tree="a", move_task_id="mt"),
+        _item("b", "pending", tree="b"),
+    ]
+    m = _Mig("paused", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"})
+    m.pause_reason = reason
+    m.last_occurrence = "2026-07-01"
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "finished")
+    results = r.tick()
+    assert items[0]["state"] != "moving"  # the in-flight disk advanced
+    assert items[1]["state"] == "pending"  # nothing new admitted
+    assert ("b", None, "deferred") in results
+    assert m.status == MigrationStatus.PAUSED.value  # still waiting for the admin
+    assert m.pause_reason == reason
+
+
+def test_a_paused_job_is_not_rescanned(monkeypatch):
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    planned = [_item("a", "moving", tree="a"), _item("n", "pending", tree="n")]
+    m = _Mig("paused", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"})
+    m.pause_reason = "manual"
+    m.last_occurrence = "2026-06-30"  # an edge: would re-scan if not held
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    assert [it["storage_id"] for it in items] == ["a"]  # no new disk inserted
+    assert m.last_occurrence == "2026-06-30"
+
+
+def test_a_held_pause_is_not_turned_into_a_space_pause(monkeypatch):
+    """A space breach while an admin holds the job must not make it self-resuming."""
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _Mig("paused", {"recurring": True, "window": WINDOW, "min_free_pct": 10})
+    m.pause_reason = "manual"
+    m.last_occurrence = "2026-07-01"
+    r = _runner(monkeypatch, items, m, now=NOW)
+    r._space_floor_breached = lambda: True
+    r.tick()
+    assert m.status == MigrationStatus.PAUSED.value
+    assert m.pause_reason == "manual"
+
+
+def test_the_tick_reads_the_status_afresh(monkeypatch):
+    # the runner is reused for a whole drain: a pause written between two ticks
+    # must be honoured by the next one, not by the next drain
+    items = [_item("b", "pending", tree="b")]
+    m = _Mig("running", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"})
+    m.last_occurrence = "2026-07-01"
+    r = _runner(monkeypatch, items, m, now=NOW)
+    m.live.update(status=MigrationStatus.PAUSED.value, pause_reason="manual")
+    results = r.tick()
+    assert items[0]["state"] == "pending"
+    assert ("b", None, "deferred") in results
+
+
+# --- a tree that no longer matches the selection is not moved ---
+def test_an_unstarted_tree_that_left_the_selection_is_skipped(monkeypatch):
+    # planned when cold; used since, so the re-plan at the window edge drops it
+    items = [_item("hot", "pending", tree="hot"), _item("cold", "pending", tree="cold")]
+    planned = [_item("cold", "pending", tree="cold")]
+    m = _Mig(
+        "scheduled", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"}
+    )
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    hot = next(it for it in items if it["storage_id"] == "hot")
+    assert hot["state"] == "skipped"
+    assert hot["error"] == "no longer matches the selection"
+    cold = next(it for it in items if it["storage_id"] == "cold")
+    assert cold["state"] != "skipped"
+
+
+def test_a_tree_in_flight_is_never_skipped_by_a_replan(monkeypatch):
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _Mig("running", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"})
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=[])
+    r.tick()
+    assert items[0]["state"] != "skipped"
+
+
+def test_a_busy_disk_absent_from_the_replan_waits_instead(monkeypatch):
+    # the selection only offers ready disks: one busy with another task is not
+    # out of the selection, it keeps its place
+    items = [_item("busy", "pending", tree="busy")]
+    m = _Mig(
+        "scheduled", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"}
+    )
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=[])
+
+    class _Busy:
+        def __init__(self, sid):
+            self.status = "maintenance"
+
+        @staticmethod
+        def exists(sid):
+            return True
+
+        @classmethod
+        def update_document(cls, sid, fields, validate=True):
+            pass
+
+    monkeypatch.setattr(mr, "Storage", _Busy)
+    r._admit_tree = lambda *a, **k: False  # only the re-plan acts this tick
+    r.tick()
+    assert items[0]["state"] == "pending"
+
+
+def test_a_skipped_stale_tree_comes_back_when_it_matches_again(monkeypatch):
+    items = [_item("t", "skipped", tree="t", error="no longer matches the selection")]
+    planned = [_item("t", "pending", tree="t")]
+    m = _Mig(
+        "scheduled", {"recurring": True, "window": WINDOW, "rescan_cadence": "edge"}
+    )
+    m.last_occurrence = "2026-06-30"
+    r = _runner(monkeypatch, items, m, now=NOW, planned=planned)
+    r.tick()
+    assert items[0]["state"] != "skipped"
+    assert items[0]["occurrence_failures"] == 0  # a skip is not a failure

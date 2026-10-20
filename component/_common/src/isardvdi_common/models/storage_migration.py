@@ -714,6 +714,19 @@ class StorageMigration(RethinkCustomBase):
                 .run(cls._rdb_connection)
             )
 
+    def fresh_status(self):
+        """``(status, pause_reason)`` from the table, bypassing the attribute cache."""
+        with self._rdb_context():
+            row = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .pluck("status", "pause_reason")
+                .run(self._rdb_connection)
+            )
+        status, reason = row.get("status"), row.get("pause_reason")
+        self._update_cache(status=status, pause_reason=reason)
+        return status, reason
+
     def item_dicts(self):
         return StorageMigrationItem.dicts_by_migration(self.id)
 

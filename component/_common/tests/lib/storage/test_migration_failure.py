@@ -459,6 +459,7 @@ class _FakeMig:
         self.live = {"status": live_status if live_status is not None else status}
         self.current_window = None
         self.last_occurrence = None
+        self.pause_reason = None
 
     def __setattr__(self, name, value):
         # The unguarded write must be VISIBLE on the live row, or a test that
@@ -469,6 +470,12 @@ class _FakeMig:
 
     def _update_cache(self, **fields):
         pass
+
+    def fresh_status(self):
+        for name in ("status", "pause_reason"):
+            if name in self.live:
+                object.__setattr__(self, name, self.live[name])
+        return self.status, self.pause_reason
 
     def recompute_totals(self, items=None):
         pass
