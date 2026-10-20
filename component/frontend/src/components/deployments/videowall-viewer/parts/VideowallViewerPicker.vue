@@ -87,7 +87,7 @@ const pick = (id: string) => {
           v-for="option in pickable"
           :key="option.id"
           :value="option.id"
-          class="p-2 data-highlighted:cursor-pointer data-highlighted:bg-brand-100"
+          class="p-2 data-highlighted:cursor-pointer data-highlighted:bg-secondary-2-100"
         >
           <AvatarLabel
             :src="option.user_photo"

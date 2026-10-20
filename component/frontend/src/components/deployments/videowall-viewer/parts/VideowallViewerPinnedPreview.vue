@@ -32,12 +32,13 @@ const { streaming, vncValues, connectionKey, connecting, failed, onConnect, onDi
 
 <template>
   <div class="group relative">
+    <!-- On screen: held in its hover shade. -->
     <button
       type="button"
       :class="
         cn(
-          'flex w-full cursor-pointer flex-col gap-1.5 rounded-md p-1.5 text-left outline-hidden hover:bg-gray-warm-100 focus-visible:ring-3 focus-visible:ring-gray',
-          props.onScreen && 'bg-gray-warm-100'
+          'flex w-full bg-secondary-2-300 cursor-pointer flex-col gap-1.5 rounded-md p-1.5 text-left outline-hidden hover:bg-secondary-2-500 focus-visible:ring-3 focus-visible:ring-gray',
+          props.onScreen && 'cursor-default bg-secondary-2-500'
         )
       "
       :disabled="props.onScreen"
@@ -46,8 +47,8 @@ const { streaming, vncValues, connectionKey, connecting, failed, onConnect, onDi
       <div
         :class="
           cn(
-            'relative aspect-video w-full overflow-hidden rounded-sm bg-gray-warm-800 ring-1 ring-gray-warm-200',
-            props.onScreen && 'ring-2 ring-brand'
+            'relative aspect-video w-full overflow-hidden rounded-sm bg-gray-warm-800',
+            props.onScreen && 'ring-2 ring-secondary-2-500'
           )
         "
       >
@@ -93,8 +94,8 @@ const { streaming, vncValues, connectionKey, connecting, failed, onConnect, onDi
           :title="props.desktop.user_name"
           class="block text-xs font-semibold text-gray-warm-900"
         />
-        <span class="flex min-w-0 items-center gap-1 text-xs text-gray-warm-500">
-          <Icon name="monitor" size="xs" stroke-color="gray-warm-500" class="shrink-0" />
+        <span class="flex min-w-0 items-center gap-1 text-xs text-gray-warm-900">
+          <Icon name="monitor-02" size="xs" stroke-color="gray-warm-900" class="shrink-0" />
           <TruncatedText as="span" :title="props.desktop.name" />
         </span>
       </span>
@@ -103,7 +104,7 @@ const { streaming, vncValues, connectionKey, connecting, failed, onConnect, onDi
       <TooltipTrigger as-child>
         <button
           type="button"
-          class="absolute right-3 top-3 flex size-7 cursor-pointer items-center justify-center rounded-md bg-gray-warm-900/80 opacity-0 outline-hidden group-hover:opacity-100 hover:bg-gray-warm-700 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-brand"
+          class="absolute right-3 top-3 flex size-7 cursor-pointer items-center justify-center rounded-md bg-gray-warm-900/80 opacity-0 outline-hidden group-hover:opacity-100 hover:bg-gray-warm-700 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-secondary-2-500"
           :aria-label="t('views.deployment-videowall.viewer.pinned.unpin')"
           @click="emit('unpin')"
         >

@@ -105,7 +105,7 @@ const layoutSwitch = computed(() =>
         label: t('views.deployment-videowall.viewer.layout.to-mosaic')
       }
     : {
-        icon: 'monitor-01',
+        icon: 'monitor-02',
         text: t('views.deployment-videowall.viewer.layout.single'),
         label: t('views.deployment-videowall.viewer.layout.to-single')
       }
@@ -250,13 +250,13 @@ const close = () => {
               </template>
               <template #sub>
                 <span class="flex min-w-0 items-center gap-1.5 text-gray-warm-500">
-                  <Icon name="monitor" size="sm" stroke-color="gray-warm-500" class="shrink-0" />
+                  <Icon name="monitor-02" size="sm" stroke-color="gray-warm-500" class="shrink-0" />
                   <TruncatedText as="span" :title="desktop.name" />
                   <span
                     v-if="isPinned"
-                    class="flex shrink-0 items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
+                    class="flex shrink-0 items-center gap-1 rounded-full bg-secondary-2-100 px-2 py-0.5 text-xs font-medium text-secondary-2-600"
                   >
-                    <Icon name="pin-02" size="xs" stroke-color="brand-700" />
+                    <Icon name="pin-02" size="xs" stroke-color="secondary-2-600" />
                     {{ t('views.deployment-videowall.viewer.pinned.badge') }}
                   </span>
                 </span>
@@ -351,7 +351,9 @@ const close = () => {
         </span>
         <template v-if="props.filterSummary">
           <span v-if="layout === 'single'" class="h-4 w-px shrink-0 bg-gray-warm-300" />
-          <div class="flex gap-1.5 items-center bg-brand-100 rounded-md px-1.5 py-1">
+          <div
+            class="flex gap-1.5 items-center bg-brand-100 rounded-md px-1.5 py-1 border border-brand-200"
+          >
             <Icon name="filter-funnel-02" size="sm" stroke-color="brand-700" class="shrink-0" />
             <span class="shrink-0 font-semibold text-brand-700">
               {{ t('views.deployment-videowall.viewer.filtered.label') }}

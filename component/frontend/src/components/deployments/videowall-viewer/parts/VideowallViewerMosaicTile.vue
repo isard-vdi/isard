@@ -40,7 +40,7 @@ const { vncValues, connectionKey, connecting, failed, onConnect, onDisconnect } 
       cn(
         'group relative aspect-video w-full overflow-hidden rounded-md bg-gray-warm-800 text-left outline-hidden ring-1 ring-gray-warm-700',
         viewable
-          ? 'cursor-pointer transition-shadow hover:ring-4 hover:ring-brand-400 focus-visible:ring-4 focus-visible:ring-brand-400'
+          ? 'cursor-pointer transition-shadow hover:ring-4 hover:ring-secondary-2-500 focus-visible:ring-4 focus-visible:ring-secondary-2-500'
           : 'cursor-default'
       )
     "
@@ -83,7 +83,7 @@ const { vncValues, connectionKey, connecting, failed, onConnect, onDisconnect } 
         :title="props.desktop.user_name"
         class="font-semibold text-base-white"
       />
-      <Icon name="monitor" size="xs" stroke-color="gray-warm-500" class="shrink-0" />
+      <Icon name="monitor-02" size="xs" stroke-color="gray-warm-500" class="shrink-0" />
       <TruncatedText as="span" :title="props.desktop.name" class="text-gray-warm-300" />
     </span>
   </button>

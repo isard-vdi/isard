@@ -68,7 +68,7 @@ const stepControls = computed(() => ({
         <Icon
           name="pin-02"
           size="lg"
-          :stroke-color="props.pinned ? 'brand-600' : 'gray-warm-600'"
+          :stroke-color="props.pinned ? 'secondary-2-600' : 'gray-warm-600'"
         />
       </button>
     </TooltipTrigger>

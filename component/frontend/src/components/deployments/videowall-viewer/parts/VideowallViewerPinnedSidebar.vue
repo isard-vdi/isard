@@ -68,7 +68,7 @@ const { t } = useI18n()
       </Tooltip>
     </div>
     <!-- Hidden, not unmounted, when collapsed: pinned ones keep streaming. -->
-    <div v-show="open" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
+    <div v-show="open" class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-1.5">
       <VideowallViewerPinnedPreview
         v-for="entry in props.pinned"
         :key="entry.id"

@@ -34,7 +34,7 @@ const NOTICES = {
   },
   pinned: {
     icon: Pin,
-    iconClass: 'text-brand-300',
+    iconClass: 'text-secondary-2-300',
     text: 'views.deployment-videowall.viewer.pinned.notice'
   }
 } as const
