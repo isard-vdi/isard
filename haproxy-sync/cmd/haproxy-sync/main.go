@@ -17,6 +17,10 @@ import (
 )
 
 func main() {
+	// haproxy-reload may send SIGHUP while this is starting, and unhandled it kills the process
+	reloads := make(chan os.Signal, 1)
+	signal.Notify(reloads, syscall.SIGHUP)
+
 	cfg := cfg.New()
 
 	log := log.New("haproxy-sync", cfg.Log.Level)
@@ -35,9 +39,6 @@ func main() {
 	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy, acme)
 	haproxysync.RecordWorkerPid()
 
-	// haproxy-reload sends SIGHUP after a successful reload
-	reloads := make(chan os.Signal, 1)
-	signal.Notify(reloads, syscall.SIGHUP)
 	go func() {
 		for {
 			select {
