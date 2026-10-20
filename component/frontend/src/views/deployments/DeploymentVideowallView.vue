@@ -222,13 +222,9 @@ const cardOverlays = ref<Record<string, OverlayKind | null>>({})
 
 const cardGridRef = ref<HTMLElement | null>(null)
 const { width: cardGridWidth } = useElementSize(cardGridRef)
-// Past four columns the previews get too small to read.
-const MAX_CARD_COLUMNS = 4
+// As many columns as fit, like the desktops view: wide windows add cards, not width.
 const cardColumns = computed(() =>
-  Math.min(
-    MAX_CARD_COLUMNS,
-    Math.max(1, Math.floor((cardGridWidth.value + CARD_GAP) / (cardMinWidth.value + CARD_GAP)))
-  )
+  Math.max(1, Math.floor((cardGridWidth.value + CARD_GAP) / (cardMinWidth.value + CARD_GAP)))
 )
 
 // A table per user would hold one or two rows each: one table, ordered by user.
