@@ -13,7 +13,10 @@ domain walk cannot see it. Recycling the parent then unlinks the file that
 child reads through, and nothing reports it.
 """
 
-from isardvdi_common.helpers.recycle_bin import uncovered_storage_children
+from isardvdi_common.helpers.recycle_bin import (
+    blocked_storage_entries,
+    uncovered_storage_children,
+)
 
 
 class TestUncoveredStorageChildren:
@@ -88,3 +91,33 @@ class TestUncoveredStorageChildren:
     def test_no_children_at_all_is_no_objection(self):
         assert uncovered_storage_children({"tpl-disk"}, []) == []
         assert uncovered_storage_children({"tpl-disk"}, None) == []
+
+
+class TestBlockedStorageEntries:
+    def test_a_refused_entry_refuses_its_whole_chain(self):
+        blocked = blocked_storage_entries(
+            {"a": ["sa"], "b": ["sb"], "c": ["sc"]},
+            {"sa", "sb", "sc"},
+            {
+                "a": [{"id": "sb", "status": "recycled"}],
+                "b": [{"id": "sc", "status": "recycled"}],
+                "c": [{"id": "live", "status": "ready"}],
+            },
+        )
+        assert blocked == {"a": ["sb"], "b": ["sc"], "c": ["live"]}
+
+    def test_an_entry_whose_children_all_go_is_not_refused(self):
+        blocked = blocked_storage_entries(
+            {"a": ["sa"], "b": ["sb"]},
+            {"sa", "sb"},
+            {"a": [{"id": "sb", "status": "recycled"}], "b": []},
+        )
+        assert blocked == {}
+
+    def test_an_unrelated_entry_is_not_refused(self):
+        blocked = blocked_storage_entries(
+            {"a": ["sa"], "b": ["sb"]},
+            {"sa", "sb"},
+            {"a": [], "b": [{"id": "live", "status": "ready"}]},
+        )
+        assert blocked == {"b": ["live"]}
