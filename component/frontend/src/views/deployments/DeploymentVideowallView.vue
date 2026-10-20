@@ -100,9 +100,14 @@ const allDesktops = computed(() => (deployment.value?.desktops ?? []).map(toVide
 
 // The whole deployment, filters aside: "stop all" acts on every desktop.
 const stopCounts = computed(() => {
-  const count = (status: string) => allDesktops.value.filter((d) => d.status === status).length
+  const count = (...statuses: string[]) =>
+    allDesktops.value.filter((d) => statuses.includes(d.status)).length
   return {
-    started: count(DesktopStatusEnum.STARTED),
+    started: count(
+      DesktopStatusEnum.STARTING,
+      DesktopStatusEnum.STARTED,
+      DesktopStatusEnum.WAITING_IP
+    ),
     shuttingDown: count(DesktopStatusEnum.SHUTTING_DOWN),
     stopping: count(DesktopStatusEnum.STOPPING)
   }
