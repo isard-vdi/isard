@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   getDesktopDetailsOptions,
   getDeploymentVideowallOptions,
+  getDeploymentVideowallQueryKey,
   startDesktopMutation,
   stopDesktopMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -52,7 +53,8 @@ import { TruncatedText } from '@/components/truncated-text'
 import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
 import { useStopAllDesktops } from '@/composables/useStopAllDesktops'
 import { StopAllDesktopsModal } from '@/components/modal'
-import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import { DesktopStatusEnum, type UserDeploymentDesktop } from '@/gen/oas/apiv4'
+import { withOptimisticItemStatus } from '@/lib/optimistic'
 import {
   canViewInBrowser,
   countVideowallStatuses,
@@ -64,9 +66,11 @@ import {
   type VideowallGroupBy
 } from '@/lib/videowall'
 import { cn } from '@/lib/utils'
+import { describeApiError } from '@/lib/api-errors'
+import { toast } from '@/components/ui/toast'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, te } = useI18n()
 const queryClient = useQueryClient()
 
 const deploymentId = computed(() => route.params.deploymentId as string)
@@ -229,8 +233,42 @@ const tableGroups = computed(() =>
     : groups.value
 )
 
-const { mutate: startDesktop } = useMutation(startDesktopMutation())
-const { mutate: stopDesktop } = useMutation(stopDesktopMutation())
+const videowallKey = getDeploymentVideowallQueryKey({
+  path: { deployment_id: deploymentId.value }
+})
+
+const { mutate: startDesktop } = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDeploymentDesktop, 'desktops'>({
+    queryClient,
+    queryKey: videowallKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STARTING,
+    // Only Stopped/Failed accept a start, as in DesktopEvents.desktop_start.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
+    baseMutation: startDesktopMutation(),
+    // A wall starts many desktops in a row: a toast, not a modal per failure.
+    onError: (error) => toast.error(describeApiError(error, { t, te }, 'start-desktop'))
+  })
+)
+const { mutate: stopDesktop } = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDeploymentDesktop, 'desktops'>({
+    queryClient,
+    queryKey: videowallKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STOPPING,
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STARTED ||
+      current === DesktopStatusEnum.WAITING_IP ||
+      current === DesktopStatusEnum.SHUTTING_DOWN ||
+      current === DesktopStatusEnum.PAUSED ||
+      current === DesktopStatusEnum.SUSPENDED,
+    baseMutation: stopDesktopMutation(),
+    onError: (error) => toast.error(describeApiError(error, { t, te }, 'stop-desktop'))
+  })
+)
 const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
 const showDesktopInfoModal = ref(false)

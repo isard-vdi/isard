@@ -3297,7 +3297,17 @@
         "service_temporarily_unavailable": "The service is temporarily unavailable. Please try again in a few minutes.",
         "generic": "The desktop could not be started. Please try again.",
         "desktop_storage_not_ready": "The desktop's disk is not ready yet. Wait a few minutes and try again.",
-        "storage_not_found": "The desktop's disk could not be found. Contact your administrator."
+        "storage_not_found": "The desktop's disk could not be found. Contact your administrator.",
+        "deployment_start_user_quota_exceeded": "The deployment has reached its maximum of running desktops. Stop one to start another.",
+        "desktop_start_group_limit_exceeded": "The group has reached its limit of running desktops.",
+        "desktop_start_group_memory_limit_exceeded": "The group has reached its running memory limit.",
+        "desktop_start_group_vcpu_limit_exceeded": "The group has reached its running vCPU limit.",
+        "no_storage_pool_available": "System resources are not available right now. Please try again later."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "The desktop could not be stopped. Please try again."
       }
     },
     "extend-desktop": {

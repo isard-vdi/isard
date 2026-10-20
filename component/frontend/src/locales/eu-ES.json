@@ -1782,7 +1782,17 @@
       "errors": {
         "generic": "Ezin izan da mahaigaina abiarazi. Saiatu berriro.",
         "desktop_storage_not_ready": "Mahaigainaren diskoa ez dago prest oraindik. Itxaron minutu batzuk eta saiatu berriro.",
-        "storage_not_found": "Ez da aurkitu mahaigainaren diskoa. Jarri harremanetan administratzailearekin."
+        "storage_not_found": "Ez da aurkitu mahaigainaren diskoa. Jarri harremanetan administratzailearekin.",
+        "deployment_start_user_quota_exceeded": "Hedapenak exekuzioan dauden mahaigainen gehienezko kopurua lortu du. Gelditu bat beste bat abiarazteko.",
+        "desktop_start_group_limit_exceeded": "Taldeak exekuzioan dauden mahaigainen muga lortu du.",
+        "desktop_start_group_memory_limit_exceeded": "Taldeak exekuzioko memoriaren muga lortu du.",
+        "desktop_start_group_vcpu_limit_exceeded": "Taldeak exekuzioko vCPU muga lortu du.",
+        "no_storage_pool_available": "Sistemaren baliabideak ez daude erabilgarri une honetan. Saiatu berriro geroago."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "Ezin izan da mahaigaina gelditu. Saiatu berriro."
       }
     },
     "delete-deployment": {

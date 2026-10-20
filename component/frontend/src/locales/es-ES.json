@@ -3310,7 +3310,17 @@
         "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
         "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo.",
         "desktop_storage_not_ready": "El disco del escritorio todavía no está listo. Espera unos minutos y vuelve a intentarlo.",
-        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador."
+        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador.",
+        "deployment_start_user_quota_exceeded": "Se ha alcanzado el máximo de escritorios en ejecución del despliegue. Detén alguno para iniciar otro.",
+        "desktop_start_group_limit_exceeded": "El grupo ha alcanzado su límite de escritorios en ejecución.",
+        "desktop_start_group_memory_limit_exceeded": "El grupo ha alcanzado su límite de memoria en ejecución.",
+        "desktop_start_group_vcpu_limit_exceeded": "El grupo ha alcanzado su límite de vCPU en ejecución.",
+        "no_storage_pool_available": "Los recursos del sistema no están disponibles. Inténtalo más tarde."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "No se ha podido parar el escritorio. Inténtalo de nuevo."
       }
     },
     "extend-desktop": {

@@ -3338,7 +3338,17 @@
         "service_temporarily_unavailable": "El servei no està disponible temporalment. Torna-ho a provar d'aquí a uns minuts.",
         "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar.",
         "desktop_storage_not_ready": "El disc de l'escriptori encara no està a punt. Espera uns minuts i torna-ho a provar.",
-        "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador."
+        "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador.",
+        "deployment_start_user_quota_exceeded": "S'ha arribat al màxim d'escriptoris en execució del desplegament. Atura'n algun per iniciar-ne un altre.",
+        "desktop_start_group_limit_exceeded": "El grup ha arribat al seu límit d'escriptoris en execució.",
+        "desktop_start_group_memory_limit_exceeded": "El grup ha arribat al seu límit de memòria en execució.",
+        "desktop_start_group_vcpu_limit_exceeded": "El grup ha arribat al seu límit de vCPU en execució.",
+        "no_storage_pool_available": "Els recursos del sistema no estan disponibles. Torna-ho a provar més tard."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut aturar l'escriptori. Torna-ho a provar."
       }
     },
     "extend-desktop": {
