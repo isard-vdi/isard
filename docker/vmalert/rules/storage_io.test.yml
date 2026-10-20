@@ -28,7 +28,7 @@ tests:
               scope: central
               domain: nfs
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. E/S encallada a nfs"
+              summary: "Central storage / NFS, affects the whole platform: I/O stalled on nfs"
               description: "The NFS server nfs holds I/O on its md/dm devices (or is fully stalled on I/O) while the disks under them completed fewer than 100 operations per second for 2m. Every hypervisor waits on it. Check the storage path under the server: kernel log, NIC, iSCSI sessions, array."
 
   - name: central_quiet_when_disks_keep_up_or_host_serves_no_nfs
@@ -71,7 +71,7 @@ tests:
               scope: central
               domain: nfs
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. nfs saturat d'E/S"
+              summary: "Central storage / NFS, affects the whole platform: nfs saturated on I/O"
               description: "The NFS server nfs has spent most of the last 5m waiting for its disks (iowait over 60% or every task stalled on I/O over 30% of the time). All hypervisors read and write through it."
 
   # Two of three hypervisors retransmitting: shared, so central.
@@ -107,7 +107,7 @@ tests:
               component: storage-central
               scope: central
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              summary: "Central storage / NFS, affects the whole platform: 2 hypervisors with the same I/O problem"
               description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
 
   # Two of three hypervisors hung on NFS: host collector silent, container collector alive.
@@ -137,7 +137,7 @@ tests:
               component: storage-central
               scope: central
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              summary: "Central storage / NFS, affects the whole platform: 2 hypervisors with the same I/O problem"
               description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
 
   # Three of four hypervisors degraded for storage at 1m, 2m and 4m: pending at 2m, firing after
@@ -168,7 +168,7 @@ tests:
               component: storage-central
               scope: central
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 3 hipervisors degradats per l'emmagatzematge en 5 minuts"
+              summary: "Central storage / NFS, affects the whole platform: 3 hypervisors degraded for storage within 5 minutes"
               description: "3 hypervisors, at least half of the online ones, were marked degraded for storage within 5 minutes. A burst like this has a shared cause: the NFS server or the network to it. It resolves 5 minutes after the burst; HypervisorsDegraded stays while they remain degraded."
       - eval_time: 8m
         groupname: storage_io
@@ -279,7 +279,7 @@ tests:
               signal: nfs
               domain: h1
             exp_annotations:
-              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              summary: "I/O or NFS problem on hypervisor h1 (nfs); the others are fine"
               description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
       - eval_time: 38m
         groupname: storage_io
@@ -293,7 +293,7 @@ tests:
               signal: nfs
               domain: h1
             exp_annotations:
-              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              summary: "I/O or NFS problem on hypervisor h1 (nfs); the others are fine"
               description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
           - exp_labels:
               severity: critical
@@ -303,7 +303,7 @@ tests:
               signal: nfs
               domain: h1
             exp_annotations:
-              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs) des de fa 30 min; la resta funcionen"
+              summary: "I/O or NFS problem on hypervisor h1 (nfs) for 30m; the others are fine"
               description: "h1 has shown nfs trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
 
   # One degraded hypervisor whose reason the engine flips between libvirt and storage is still
@@ -360,7 +360,7 @@ tests:
               signal: nfs
               domain: h1
             exp_annotations:
-              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (nfs); la resta funcionen"
+              summary: "I/O or NFS problem on hypervisor h1 (nfs); the others are fine"
               description: "h1 shows nfs trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
 
   - name: one_hypervisor_iowait_is_local_and_other_hosts_are_hosts
@@ -399,7 +399,7 @@ tests:
               signal: iowait
               domain: h1
             exp_annotations:
-              summary: "Problema d'E/S o d'NFS a l'hipervisor h1 (iowait); la resta funcionen"
+              summary: "I/O or NFS problem on hypervisor h1 (iowait); the others are fine"
               description: "h1 shows iowait trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
       - eval_time: 17m
         groupname: storage_io
@@ -488,7 +488,7 @@ tests:
               component: storage-central
               scope: central
             exp_annotations:
-              summary: "Emmagatzematge central / NFS: afecta tota la plataforma. 2 hipervisors amb el mateix problema d'E/S"
+              summary: "Central storage / NFS, affects the whole platform: 2 hypervisors with the same I/O problem"
               description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
       - eval_time: 15m
         groupname: storage_io

@@ -56,7 +56,7 @@ groups:
           component: nfs-server
           scope: central
         annotations:
-          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. E/S encallada a {{ $labels.domain }}"
+          summary: "Central storage / NFS, affects the whole platform: I/O stalled on {{ $labels.domain }}"
           description: "The NFS server {{ $labels.domain }} holds I/O on its md/dm devices (or is fully stalled on I/O) while the disks under them completed fewer than 100 operations per second for 2m. Every hypervisor waits on it. Check the storage path under the server: kernel log, NIC, iSCSI sessions, array."
 
       - alert: StorageCentralServerOverloaded
@@ -73,7 +73,7 @@ groups:
           component: nfs-server
           scope: central
         annotations:
-          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $labels.domain }} saturat d'E/S"
+          summary: "Central storage / NFS, affects the whole platform: {{ $labels.domain }} saturated on I/O"
           description: "The NFS server {{ $labels.domain }} has spent most of the last 5m waiting for its disks (iowait over 60% or every task stalled on I/O over 30% of the time). All hypervisors read and write through it."
 
       # The same I/O symptom on at least two hypervisors that are also at least half of them.
@@ -90,7 +90,7 @@ groups:
           component: storage-central
           scope: central
         annotations:
-          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors amb el mateix problema d'E/S"
+          summary: "Central storage / NFS, affects the whole platform: {{ $value }} hypervisors with the same I/O problem"
           description: "At least half of the hypervisors show NFS retransmissions or slow NFS operations, high iowait or I/O pressure, or a host collector blocked while the container collector goes on. A symptom this shared points at the NFS server or the network to it, not at the hypervisors."
 
       # At least two hypervisors, and half of the online ones, newly degraded for storage within
@@ -110,7 +110,7 @@ groups:
           component: storage-central
           scope: central
         annotations:
-          summary: "Emmagatzematge central / NFS: afecta tota la plataforma. {{ $value }} hipervisors degradats per l'emmagatzematge en 5 minuts"
+          summary: "Central storage / NFS, affects the whole platform: {{ $value }} hypervisors degraded for storage within 5 minutes"
           description: "{{ $value }} hypervisors, at least half of the online ones, were marked degraded for storage within 5 minutes. A burst like this has a shared cause: the NFS server or the network to it. It resolves 5 minutes after the burst; HypervisorsDegraded stays while they remain degraded."
 
       # ---- scope host --------------------------------------------------------------------
@@ -124,7 +124,7 @@ groups:
           area: hypervisors
           scope: host
         annotations:
-          summary: "Problema d'E/S o d'NFS a l'hipervisor {{ $labels.domain }} ({{ $labels.signal }}); la resta funcionen"
+          summary: "I/O or NFS problem on hypervisor {{ $labels.domain }} ({{ $labels.signal }}); the others are fine"
           description: "{{ $labels.domain }} shows {{ $labels.signal }} trouble while most hypervisors do not, so it is this host and not the central NFS. Put it in only_forced so no new desktop lands on it, then check its disks, NIC and NFS mounts."
 
       - alert: HypervisorIoProblem
@@ -137,7 +137,7 @@ groups:
           area: hypervisors
           scope: host
         annotations:
-          summary: "Problema d'E/S o d'NFS a l'hipervisor {{ $labels.domain }} ({{ $labels.signal }}) des de fa 30 min; la resta funcionen"
+          summary: "I/O or NFS problem on hypervisor {{ $labels.domain }} ({{ $labels.signal }}) for 30m; the others are fine"
           description: "{{ $labels.domain }} has shown {{ $labels.signal }} trouble for 30m while most hypervisors do not. Put it in only_forced if it is not already, then check its disks, NIC and NFS mounts."
 
       - alert: HostIoProblem
