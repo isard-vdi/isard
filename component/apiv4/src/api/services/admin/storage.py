@@ -151,7 +151,7 @@ class AdminStorageService:
         StorageProcessed.check_storage(payload, storage_id)
         storage = StorageProcessed.get_storage_info(storage_id)
         storage["owner_data"] = Caches.get_cached_user_with_names(storage["user_id"])
-        return storage
+        return StorageProcessed.add_allowed_actions([storage])[0]
 
     @staticmethod
     def get_storages_by_role(role: str) -> list:

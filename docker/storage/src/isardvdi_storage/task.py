@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import errno
+import hashlib
 import logging
 import os
 import shlex
@@ -902,6 +903,33 @@ def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
     return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
+
+
+def _reclaimable_zeros(storage_path, actual_size):
+    """Bytes the file allocates beyond the data its own qcow2 layer holds, or None."""
+    if actual_size is None:
+        return None
+    try:
+        completed = run(
+            ["qemu-img", "map", "-U", "-f", "qcow2", "--output=json", storage_path],
+            capture_output=True,
+            timeout=QEMU_IMG_TIMEOUT,
+        )
+    except TimeoutExpired:
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        data = sum(
+            extent["length"]
+            for extent in loads(completed.stdout)
+            if extent.get("data")
+            and not extent.get("zero")
+            and extent.get("depth", 0) == 0
+        )
+    except (ValueError, KeyError, TypeError):
+        return None
+    return max(0, int(actual_size) - data)
 
 
 def qemu_img_info_backing_chain(
@@ -2494,6 +2522,48 @@ def sparsify(storage_path):
         "saved_space": saved,
         "old_size": old_size,
         "new_size": new_size,
+    }
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def dig_holes(storage_path, verify=False):
+    """Punch holes where whole blocks are zeros; the file reads back unchanged."""
+    if not isfile(storage_path):
+        raise RuntimeError(f"dig_holes: {storage_path} does not exist")
+    # the product parked the disk when it queued this; a guest may have opened
+    # the file since by a path the product does not see, so ask the file itself
+    in_use, lock_err = _storage_qcow().is_file_in_use(storage_path)
+    if in_use:
+        raise RuntimeError(
+            f"dig_holes refused: {storage_path} is in use by a hypervisor: {lock_err}"
+        )
+    before = os_stat(storage_path).st_blocks * 512
+    with task_heartbeat("dig_holes", storage_path=storage_path):
+        digest = _sha256(storage_path) if verify else None
+        _run_cancellable(["fallocate", "--dig-holes", storage_path])
+        if verify and _sha256(storage_path) != digest:
+            raise RuntimeError(
+                f"dig_holes: {storage_path} reads differently after the dig"
+            )
+    after = os_stat(storage_path).st_blocks * 512
+    log.info(
+        "dig_holes complete: %s | before: %s | after: %s",
+        storage_path,
+        _format_size(before // 1024),
+        _format_size(after // 1024),
+    )
+    return {
+        "before": before,
+        "after": after,
+        "reclaimed": before - after,
+        "verified": bool(verify),
     }
 
 

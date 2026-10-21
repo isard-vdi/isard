@@ -115,6 +115,7 @@ _RECLAIM_ACTIONS = frozenset({"delete", "move_delete"})
 _MAINTENANCE_ACTIONS = frozenset(
     {
         "sparsify",
+        "dig_holes",
         "convert",
         "disconnect",
         "virt_win_reg",

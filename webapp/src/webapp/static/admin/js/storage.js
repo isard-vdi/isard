@@ -184,11 +184,30 @@ $(document).ready(function () {
     let tableId = '#' + $(this).attr('selectedTableId')
     let appliedFilter = $(tableId).DataTable().search();
 
+    if (action === 'dig-holes' && !appliedFilter) {
+      $('.mactionsStorage option[value="none"]').prop("selected", true);
+      new PNotify({
+        title: 'Filter the table first',
+        text: `'${actionText}' runs on the disks a filter selects, at most ${DIG_HOLES_BATCH_MAX} at once.`,
+        type: 'info', hide: true, delay: 5000, opacity: 1
+      });
+      return;
+    }
+
     if (appliedFilter) {
       let ids = []
       $(tableId).DataTable().rows({ filter: 'applied' }).every(function () {
         ids.push(this.data().id);
       })
+      if (action === 'dig-holes' && ids.length > DIG_HOLES_BATCH_MAX) {
+        $('.mactionsStorage option[value="none"]').prop("selected", true);
+        new PNotify({
+          title: 'Too many disks',
+          text: `The filter selects ${ids.length} disks; '${actionText}' takes at most ${DIG_HOLES_BATCH_MAX} at once. Narrow the filter.`,
+          type: 'info', hide: true, delay: 5000, opacity: 1
+        });
+        return;
+      }
       new PNotify({
         title: "Confirmation Needed",
         text: "The action '" + actionText + "' will be performed in " + ids.length + " storages. Are you sure?",
@@ -221,15 +240,27 @@ $(document).ready(function () {
             document.body.classList.remove('loading-cursor')
             $('.mactionsStorage option[value="none"]').prop("selected", true);
             $('thead #select-all').prop("checked", false);
-            notify.update({
-              title: `Action queued: ${action}`,
-              text: `Queued ${action} on ${ids.length} storage(s). Rows will refresh as the operation progresses.`,
-              type: 'success',
-              hide: true,
-              delay: 4000,
-              icon: 'fa fa-success',
-              opacity: 1
-            });
+            if (data && Array.isArray(data.results)) {
+              const report = storageBatchReport(data);
+              notify.update({
+                title: `Action queued: ${action}`,
+                text: report.text,
+                type: report.refused ? 'info' : 'success',
+                hide: !report.refused,
+                delay: 4000,
+                opacity: 1
+              });
+            } else {
+              notify.update({
+                title: `Action queued: ${action}`,
+                text: `Queued ${action} on ${ids.length} storage(s). Rows will refresh as the operation progresses.`,
+                type: 'success',
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1
+              });
+            }
             storage_ready.ajax.reload(null, false);
           },
           error: function (xhr) {
@@ -379,7 +410,7 @@ $(document).ready(function () {
       rowId: 'id',
       deferRender: true,
       createdRow: function (row, data, dataIndex) {
-        if (status = "maintenance") {
+        if (data.status === "maintenance") {
           $(row).attr('data-task', data.last_task_id);
         }
       },
@@ -961,12 +992,9 @@ function initStorageSearchModal() {
             $(modal + " .admin-only-actions").hide();
           }
 
-          // Disable actions if storage status is not "ready"
-          if (data.status !== "ready") {
-            $(modal + " #storage-action-buttons button").not(".btn-modal-find, .btn-modal-delete").prop("disabled", true);
-          } else {
-            $(modal + " #storage-action-buttons button").prop("disabled", false);
-          }
+          $(modal + " #storage-action-buttons button").each(function () {
+            $(this).prop("disabled", !storageModalButtonAllowed(data, this.className));
+          });
         })
         .fail(function (xhr) {
           var storageId = $(modal + " #storage-id").val().trim();
@@ -1047,6 +1075,12 @@ $(document).on("click", ".btn-modal-sparsify", function() {
   var storageId = $(this).data("id");
   $("#modalSearchStorage").modal("hide");
   triggerStorageAction("sparsify", storageId);
+});
+
+$(document).on("click", ".btn-modal-dig-holes", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("dig-holes-now", storageId);
 });
 
 $(document).on("click", ".btn-modal-disconnect", function() {
@@ -1611,6 +1645,30 @@ $(document).on('click', '.btn-sparsify-now', function () {
   }).on('pnotify.cancel', function () { });
 });
 
+// row action: give back the zero blocks of a disk (fallocate --dig-holes)
+$(document).on('click', '.btn-dig-holes-now', function () {
+  const id = $(this).data('id');
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Give back the zero blocks of disk ${id}? Its content does not change; the disk and its desktop are in maintenance while it is dug.<br><label><input type="checkbox" class="dig-holes-verify"> Verify the content (reads the disk twice, about 10 minutes per 100 GiB)</label>`,
+    hide: false, opacity: 0.9, confirm: { confirm: true },
+    buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    const verify = $(this).find('.dig-holes-verify').is(':checked');
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v4/item/storage/${id}/dig-holes/priority/low?verify=${verify}`,
+      contentType: 'application/json',
+      success: function () {
+        new PNotify({ title: 'Queued', text: `Giving back zero blocks of ${id}.`, type: 'success', hide: true, delay: 2500, opacity: 1 });
+      },
+      error: function (xhr) {
+        new PNotify({ title: 'ERROR giving back zero blocks', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+      }
+    });
+  }).on('pnotify.cancel', function () { });
+});
+
 // batch: run one storage-sweep pass now with the enabled actions and the
 // budget from the form (calls the same endpoint the nightly cron uses)
 $(document).on('click', '#btn-run-sweep-now', function () {
@@ -1934,7 +1992,7 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
     rowId: 'id',
     deferRender: true,
     createdRow: function (row, data, dataIndex) {
-      if (status = "maintenance") {
+      if (data.status === "maintenance") {
         $(row).attr('data-task', data.last_task_id);
       }
     },
@@ -2078,25 +2136,7 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
         width: '105px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          let buttons = [
-            `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search"></i></button>`,
-          ];
-          if (data.status === "ready") {
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-check-integrity" title="Check integrity (qemu-img check)"><i class="fa fa-stethoscope"></i></button>`);
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk"><i class="fa fa-compress"></i></button>`);
-          }
-          if (row.last_task_id) {
-            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.last_task_id}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
-          }
-          if (data.status === "orphan") {
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-orphan" title="Delete orphan storage"><i class="fa fa-trash"></i></button>`);
-          }
-          if (data.status === "damaged") {
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-repair-all" title="Repair all (qemu-img check -r all)"><i class="fa fa-wrench"></i></button>`);
-          }
-          return buttons.join(' ');
+          return storageRowActions(row).join(' ');
         }
       }
     ],
@@ -2705,3 +2745,72 @@ function removeFilter(name) {
 
 
 
+
+
+// How many disks one bulk dig_holes may name: the API refuses more.
+const DIG_HOLES_BATCH_MAX = 50;
+
+// UI action -> the disk action name search-info serves in allowed_actions
+function storageRegistryAction (uiAction) {
+  const names = {
+    'dig-holes': 'dig_holes',
+    'check-integrity': 'check_integrity',
+    increase: 'resize',
+    create: 'derive'
+  };
+  return names[uiAction] || uiAction;
+}
+
+// Only search-info carries allowed_actions; without them the API refuses anyway.
+function storageActionAllowed (row, uiAction) {
+  if (!row || !Array.isArray(row.allowed_actions)) {
+    return true;
+  }
+  return row.allowed_actions.includes(storageRegistryAction(uiAction));
+}
+
+function storageModalButtonAllowed (row, className) {
+  const match = /btn-modal-([a-z_-]+)/.exec(className || '');
+  if (!match) {
+    return true;
+  }
+  if (!Array.isArray(row.allowed_actions)) {
+    return row.status === 'ready' || match[1] === 'find' || match[1] === 'delete';
+  }
+  return storageActionAllowed(row, match[1]);
+}
+
+// One line per refused disk: the API says why each one was left out.
+function storageBatchReport (data) {
+  const refused = data.results.filter(r => !r.task_id);
+  const lines = [`Queued on ${data.queued} of ${data.results.length} disk(s).`];
+  refused.forEach(r => lines.push(`${r.storage_id}: ${r.message || r.description_code}`));
+  return { refused: refused.length, text: lines.join('\n') };
+}
+
+// A row offers what its own fields allow; anything else is the API's to refuse.
+function storageRowActions (row) {
+  const id = row.id;
+  const buttons = [
+    `<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search"></i></button>`,
+  ];
+  if (row.status === 'ready') {
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-check-integrity" title="Check integrity (qemu-img check)"><i class="fa fa-stethoscope"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk"><i class="fa fa-compress"></i></button>`);
+    if (!Array.isArray(row.perms) || row.perms.includes('w')) {
+      buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-dig-holes-now" title="Give back zero blocks of a stopped desktop's disk (the content does not change)"><i class="fa fa-eraser"></i></button>`);
+    }
+  }
+  if (row.last_task_id) {
+    buttons.push(`<button type="button" data-id="${id}" data-task="${row.last_task_id}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
+  }
+  if (row.status === 'orphan') {
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-orphan" title="Delete orphan storage"><i class="fa fa-trash"></i></button>`);
+  }
+  if (row.status === 'damaged') {
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-repair-all" title="Repair all (qemu-img check -r all)"><i class="fa fa-wrench"></i></button>`);
+  }
+  return buttons;
+}

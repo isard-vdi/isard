@@ -39,6 +39,7 @@ def row(monkeypatch):
         Storage, "update_document_if", staticmethod(_update_document_if)
     )
     monkeypatch.setattr(Storage, "_update_cache", lambda self, **kw: None)
+    monkeypatch.setattr(Storage, "get", staticmethod(lambda *a, **kw: dict(shared)))
     monkeypatch.setattr(Storage, "children", [])
     monkeypatch.setattr(Storage, "domains", [])
 

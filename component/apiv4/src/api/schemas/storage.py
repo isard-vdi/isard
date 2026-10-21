@@ -74,6 +74,36 @@ class TaskIdResponse(BaseModel):
     task_id: str
 
 
+#: How many disks one batch dig_holes may name.
+DIG_HOLES_BATCH_MAX = 50
+
+
+class StorageDigHolesBatchRequest(BaseModel):
+    """The disks a batch dig_holes is asked for."""
+
+    ids: list[str] = Field(
+        min_length=1,
+        max_length=DIG_HOLES_BATCH_MAX,
+        description=f"Storage IDs, at most {DIG_HOLES_BATCH_MAX}",
+    )
+
+
+class StorageDigHolesBatchResult(BaseModel):
+    """What a batch dig_holes did with one disk: its task, or why it was refused."""
+
+    storage_id: str
+    task_id: Optional[str] = None
+    description_code: Optional[str] = None
+    message: Optional[str] = None
+
+
+class StorageDigHolesBatchResponse(BaseModel):
+    """How many disks a batch dig_holes queued, and the outcome of each."""
+
+    queued: int
+    results: list[StorageDigHolesBatchResult]
+
+
 class StorageRepairBatchResponse(BaseModel):
     """How many disks a batch repair queued, and how many it skipped because they
     have descendants (never repaired automatically)."""

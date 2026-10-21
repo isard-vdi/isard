@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import pytest
 from tests.routes.helpers import MockJWT
 
 
@@ -195,6 +196,84 @@ def test_batch_sparsify_storages_by_status(monkeypatch, test_client):
     assert response.status_code == 204
     assert response.content == b""
     assert captured == {"status": "ready"}
+
+
+def test_dig_holes_storage(monkeypatch, test_client):
+    captured = {}
+
+    def fake(payload, storage_id, priority, verify=False):
+        captured.update(storage_id=storage_id, priority=priority, verify=verify)
+        return "task-dig-1"
+
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.dig_holes", staticmethod(fake)
+    )
+    response = test_client(
+        url="/item/storage/stor-1/dig-holes/priority/low", method="PUT", jwt=MockJWT()
+    )
+    assert response.status_code == 200
+    assert response.json() == {"task_id": "task-dig-1"}
+    assert captured == {"storage_id": "stor-1", "priority": "low", "verify": False}
+    test_client(
+        url="/item/storage/stor-1/dig-holes/priority/low?verify=true",
+        method="PUT",
+        jwt=MockJWT(),
+    )
+    assert captured["verify"] is True
+
+
+def test_batch_dig_holes_answers_each_id(monkeypatch, test_client):
+    results = [
+        {"storage_id": "a", "task_id": "t-a"},
+        {
+            "storage_id": "b",
+            "description_code": "storage_used_by_template",
+            "message": "Storage b is a template's disk",
+        },
+    ]
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_dig_holes",
+        staticmethod(lambda payload, ids: {"queued": 1, "results": results}),
+    )
+    response = test_client(
+        url="/items/storage/dig-holes",
+        method="PUT",
+        jwt=MockJWT(),
+        body={"ids": ["a", "b"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["queued"] == 1
+    assert body["results"][0] == {
+        "storage_id": "a",
+        "task_id": "t-a",
+        "description_code": None,
+        "message": None,
+    }
+    assert body["results"][1]["description_code"] == "storage_used_by_template"
+
+
+@pytest.mark.parametrize("count", [0, 51])
+def test_batch_dig_holes_takes_one_to_fifty_ids(monkeypatch, test_client, count):
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_dig_holes",
+        staticmethod(lambda payload, ids: pytest.fail("reached the service")),
+    )
+    response = test_client(
+        url="/items/storage/dig-holes",
+        method="PUT",
+        jwt=MockJWT(),
+        body={"ids": [f"s{i}" for i in range(count)]},
+    )
+    # apiv4 answers a body that fails validation with 400
+    assert response.status_code == 400
+
+
+def test_there_is_no_dig_holes_by_status(test_client):
+    response = test_client(
+        url="/items/storage/dig-holes/ready", method="PUT", jwt=MockJWT()
+    )
+    assert response.status_code in (404, 405)
 
 
 def test_repair_storage(monkeypatch, test_client):

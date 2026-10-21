@@ -24,6 +24,7 @@ from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib import queue_coverage, queue_tiers
+from isardvdi_common.lib.storage import actions as disk_actions
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.lib.storage.sweep import (
     SWEEP_DEFAULTS,
@@ -208,6 +209,14 @@ class StorageService:
     @staticmethod
     def set_maintenance(payload: dict, storage_id: str, action: str) -> str:
         """Set a storage to maintenance status."""
+        if disk_actions.spec(action).statuses is None and (
+            disk_actions.spec(action).access is disk_actions.Access.CREATE
+        ):
+            raise Error(
+                "bad_request",
+                f"{action} parks a disk being created, not an existing one",
+                description_code="storage_invalid_maintenance_action",
+            )
         storage = get_storage(payload, storage_id)
         storage.set_maintenance(action)
         return storage.id
@@ -568,6 +577,57 @@ class StorageService:
                     f"There was an error creating a task for {storage_id}",
                     type="error",
                 )
+
+    @staticmethod
+    def dig_holes(
+        payload: dict,
+        storage_id: str,
+        priority: str,
+        retry: int = 0,
+        verify: bool = False,
+    ) -> str:
+        """Give back the zero blocks of a storage's file."""
+        if priority not in ["low", "default", "high"]:
+            raise Error("bad_request", "Priority must be low, default or high")
+        retry = check_task_retry(payload, retry)
+        storage = get_storage(payload, storage_id)
+        try:
+            return storage.dig_holes(
+                payload.get("user_id"),
+                priority=priority,
+                secondary_priority="high",
+                retry=retry,
+                verify=verify,
+            )
+        except Error:
+            raise
+        except Exception as e:
+            raise Error(*e.args)
+
+    @staticmethod
+    def batch_dig_holes(payload: dict, storage_ids: list[str]) -> dict:
+        """Queue dig_holes on each storage; say per id what was queued or why not."""
+        results = []
+        for storage_id in dict.fromkeys(storage_ids):
+            result = {"storage_id": storage_id}
+            try:
+                result["task_id"] = get_storage(payload, storage_id).dig_holes(
+                    payload.get("user_id"),
+                    priority="low",
+                    secondary_priority="high",
+                )
+            except Error as e:
+                error = getattr(e, "error", None) or {}
+                result["description_code"] = error.get("description_code")
+                result["message"] = error.get("description")
+            except Exception:
+                result["description_code"] = "internal_server"
+                result["message"] = f"Could not queue a task for {storage_id}"
+            results.append(result)
+        return {
+            "queued": sum(1 for result in results if result.get("task_id")),
+            "results": results,
+        }
 
     @staticmethod
     def repair(

@@ -2175,7 +2175,8 @@
             "resize": "This desktop's disk is being increased",
             "virt_win_reg": "The registry is being edited",
             "move": "This desktop's disk is being moved",
-            "sparsify": "This desktop's disk is being sparsified"
+            "sparsify": "This desktop's disk is being sparsified",
+            "dig_holes": "This desktop's disk is giving back its zero blocks"
           }
         },
         "ip-address": "IP Address: {ip}",

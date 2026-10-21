@@ -64,11 +64,19 @@ def _guarded(store):
     """Honour the guarded write against ``store``, which is the live row."""
 
     def _update_document_if(
-        doc_id, update_data, *, field, values=None, excluding=None, validate=True
+        doc_id,
+        update_data,
+        *,
+        field=None,
+        values=None,
+        excluding=None,
+        validate=True,
     ):
-        held = store.get(doc_id, {}).get(field)
-        if (values is not None and held not in values) or (
-            excluding is not None and held in excluding
+        row = store.get(doc_id, {})
+        held = row.get(field)
+        if field is not None and (
+            (values is not None and held not in values)
+            or (excluding is not None and held in excluding)
         ):
             return False
         store.setdefault(doc_id, {}).update(update_data)
@@ -77,7 +85,13 @@ def _guarded(store):
     return _update_document_if
 
 
-def _run(domain_statuses, exclude_domains=None, live_statuses=None, store=None):
+def _run(
+    domain_statuses,
+    exclude_domains=None,
+    live_statuses=None,
+    store=None,
+    action="delete",
+):
     """Run set_maintenance; ``live_statuses`` is what the rows hold when the writes land."""
     store = {} if store is None else store
     store["storage-1"] = {"status": "ready"}
@@ -107,8 +121,10 @@ def _run(domain_statuses, exclude_domains=None, live_statuses=None, store=None):
         Storage, "update_document_if", staticmethod(_guarded(store))
     ), patch.object(
         domain_module.Domain, "update_document_if", staticmethod(_guarded(store))
+    ), patch.object(
+        Storage, "_update_cache"
     ):
-        storage.set_maintenance("delete", exclude_domains=exclude_domains)
+        storage.set_maintenance(action, exclude_domains=exclude_domains)
     return domains, store
 
 
@@ -175,3 +191,26 @@ def test_without_the_exclusion_a_running_desktop_still_blocks_it():
     with pytest.raises(Exception) as raised:
         _run({"desktop-1": "Started"})
     assert _code(raised) == "desktops_not_stopped"
+
+
+def test_an_action_without_a_domain_precondition_never_parks_a_running_desktop():
+    store = {}
+    with pytest.raises(Exception) as raised:
+        _run({"desktop-1": "Started"}, store=store, action="migrate")
+    assert _code(raised) == "storage_invalid_maintenance_action"
+    assert store["desktop-1"]["status"] == "Started"
+    assert store["storage-1"]["status"] == "ready"
+
+
+def test_a_refused_flip_puts_each_desktop_back_to_the_status_it_had():
+    store = {}
+    with pytest.raises(Exception) as raised:
+        _run(
+            {"desktop-1": "Failed", "desktop-2": "Stopped"},
+            live_statuses={"desktop-2": "Starting"},
+            store=store,
+            action="repair",
+        )
+    assert _code(raised) == "desktops_not_stopped"
+    assert store["desktop-1"]["status"] == "Failed"
+    assert store["storage-1"]["status"] == "ready"

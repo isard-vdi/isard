@@ -138,6 +138,10 @@ def template_chain_kwargs():
         # fleet; admission has its own tests.
         patch.object(Storage, "_preflight_lane"),
         patch.object(Storage, "exists", return_value=True),
+        # The guard reads the row; the desktop's disk is ready.
+        patch.object(
+            Storage, "get", return_value={"id": DESKTOP_STORAGE_ID, "status": "ready"}
+        ),
         patch.object(
             Storage,
             "pool",

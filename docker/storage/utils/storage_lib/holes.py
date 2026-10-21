@@ -3,9 +3,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Punch the zero blocks of disk files nobody writes (``fallocate --dig-holes``)."""
+"""Which disk files may give back their zero blocks (``fallocate --dig-holes``)."""
 
-import hashlib
 import json
 import os
 import subprocess
@@ -16,11 +15,6 @@ DELETED_DIR = "/deleted/"
 # A disk that changed status this recently may still be part of an operation.
 DEFAULT_SETTLE_SECONDS = 3600
 STOPPED_DESKTOP_STATUSES = frozenset({"Stopped", "Failed"})
-HASH_CHUNK = 8 << 20
-
-
-class DigHolesMismatch(RuntimeError):
-    """The file read back differently after the dig: stop everything."""
 
 
 @dataclass
@@ -63,19 +57,14 @@ def disk_owners(domains: Iterable[dict]) -> Dict[str, List[dict]]:
 
 
 def parents_with_children(storages: Iterable[dict]) -> set:
-    """Ids of the storages some other live storage reads through."""
-    return {
-        s["parent"]
-        for s in storages or []
-        if s.get("parent") and s.get("status") not in ("deleted",)
-    }
+    """Ids of the storages some other storage reads through, deleted ones too."""
+    return {s["parent"] for s in storages or [] if s.get("parent")}
 
 
 def classify(
     storages: Iterable[dict],
     domains: Iterable[dict],
     now: float,
-    include_stopped_desktops: bool = False,
     settle_seconds: int = DEFAULT_SETTLE_SECONDS,
 ) -> List[Candidate]:
     """Every storage with a file path, eligible or not; ``reason`` says why not."""
@@ -108,19 +97,20 @@ def classify(
         ]
         if s.get("status") != "ready":
             c.reason = f"status {s.get('status')}"
+        elif "w" not in (s.get("perms") or ["w"]):
+            c.reason = "read-only disk"
+        elif not doms:
+            c.reason = "no domain uses it"
+        elif role == "template":
+            c.reason = "a template uses it"
         elif live_desktops:
             c.reason = "a desktop using it is not stopped"
+        elif role == "backing":
+            c.reason = "has descendants"
         elif DELETED_DIR in path:
             c.reason = "parked in deleted/"
         elif now - float(s.get("status_time") or 0) < settle_seconds:
             c.reason = "changed status less than the settle time ago"
-        elif role == "backing":
-            c.reason = "has descendants; the product cannot lock it"
-        elif role == "desktop":
-            if not include_stopped_desktops:
-                c.reason = "desktop disk (written while running); not requested"
-            elif not doms:
-                c.reason = "desktop disk with no domain to prove it is stopped"
         out.append(c)
     return out
 
@@ -146,35 +136,6 @@ def measure(candidate: Candidate, qemu_img: str = "qemu-img") -> Candidate:
     except (subprocess.SubprocessError, ValueError, KeyError, OSError):
         candidate.data = None
     return candidate
-
-
-def file_sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(HASH_CHUNK), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def dig(path: str, verify: bool = True, fallocate: str = "fallocate") -> dict:
-    """Punch the zero blocks of one file; raise DigHolesMismatch if a byte changed."""
-    before_alloc = os.stat(path).st_blocks * 512
-    before = file_sha256(path) if verify else None
-    subprocess.run([fallocate, "--dig-holes", path], check=True, timeout=None)
-    after = file_sha256(path) if verify else None
-    after_alloc = os.stat(path).st_blocks * 512
-    record = {
-        "path": path,
-        "allocated_before": before_alloc,
-        "allocated_after": after_alloc,
-        "reclaimed": before_alloc - after_alloc,
-        "sha256": after,
-        "verified": verify,
-    }
-    if verify and before != after:
-        record["sha256_before"] = before
-        raise DigHolesMismatch(json.dumps(record))
-    return record
 
 
 def as_report_row(candidate: Candidate) -> dict:

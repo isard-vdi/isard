@@ -1575,7 +1575,7 @@ test.describe('Admin Storage — webapp', () => {
   // -------------------------------------------------------------------
   // Scenario 24 — Move / WinReg / Increase blocked when storage has derivatives
   // -------------------------------------------------------------------
-  test('S24: move/winreg/increase are blocked when the storage has derivatives', async ({
+  test('S24: move/winreg/increase are not offered when the storage has derivatives', async ({
     authenticatedPage: page,
     apiv4Admin,
   }, testInfo) => {
@@ -1604,37 +1604,11 @@ test.describe('Admin Storage — webapp', () => {
 
     await gotoStorage(page)
 
-    // Each action triggers GET has-derivatives (not stubbed). With derivatives > 1
-    // the webapp must surface the block PNotify and keep the action modal closed.
-    const cases = [
-      { btn: '.btn-modal-move', modal: '#modalMoveStorage', text: /this storage has derivatives/i },
-      { btn: '.btn-modal-virt_win_reg', modal: '#modalVirtWinReg', text: /this storage has derivatives/i },
-      {
-        btn: '.btn-modal-increase',
-        modal: '#modalIncreaseStorage',
-        text: /size of disks with derivatives cannot be modified/i,
-      },
-    ]
-    for (const c of cases) {
-      // Clear any prior block PNotify so each assertion targets a fresh one.
-      await page.evaluate(() => document.querySelectorAll('.ui-pnotify').forEach((e) => e.remove()))
-      const modal = await openSearchModalFor(page, parentId)
-      const derivResp = page.waitForResponse(
-        (r) =>
-          r.url().includes(`/api/v4/item/storage/${parentId}/has-derivatives`) &&
-          r.request().method() === 'GET',
-        { timeout: 15000 },
-      )
-      await modal.locator(c.btn).click()
-      await derivResp
-      // md Then 2: the block error PNotify appears…
-      await page
-        .locator('.ui-pnotify')
-        .filter({ hasText: c.text })
-        .first()
-        .waitFor({ state: 'visible', timeout: 5000 })
-      // md Then 3: …and the action modal does NOT open.
-      await expect(page.locator(c.modal)).not.toBeVisible()
+    // The disk action registry refuses these writers on a disk with descendants, and
+    // search-info says so: the search modal brings the buttons up disabled.
+    const modal = await openSearchModalFor(page, parentId)
+    for (const btn of ['.btn-modal-move', '.btn-modal-virt_win_reg', '.btn-modal-increase']) {
+      await expect(modal.locator(btn)).toBeDisabled()
     }
   })
 
