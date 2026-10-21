@@ -1,0 +1,41 @@
+# Free space of the filesystems that hold the storage pools, measured by the
+# node exporter on the host that serves them. NFS clients (the hypervisors)
+# are left out: the server reports the same filesystem once. A host with no
+# /opt/isard mount (an all-in-one) keeps its pools on the root filesystem.
+
+groups:
+  - name: storage_capacity
+    rules:
+      - alert: StoragePoolSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint=~"/opt/isard(/.*)?",fstype!~"nfs.*|tmpfs|overlay"}
+              / node_filesystem_size_bytes{mountpoint=~"/opt/isard(/.*)?",fstype!~"nfs.*|tmpfs|overlay"}
+            or
+            (node_filesystem_avail_bytes{mountpoint="/",fstype!~"nfs.*|tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"nfs.*|tmpfs|overlay"})
+              unless on (domain) node_filesystem_size_bytes{mountpoint=~"/opt/isard(/.*)?"}
+          ) < 0.10
+        for: 15m
+        labels:
+          severity: warning
+          area: storage
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.domain }} has {{ $value | humanizePercentage }} free"
+          description: "The storage under {{ $labels.mountpoint }} is below 10% free for 15m. Find what grew (new templates, media, desktops of a big deployment), empty the recycle bin or move disks to another pool before it reaches 5%, where new desktops and disk writes start to fail."
+
+      - alert: StoragePoolSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint=~"/opt/isard(/.*)?",fstype!~"nfs.*|tmpfs|overlay"}
+              / node_filesystem_size_bytes{mountpoint=~"/opt/isard(/.*)?",fstype!~"nfs.*|tmpfs|overlay"}
+            or
+            (node_filesystem_avail_bytes{mountpoint="/",fstype!~"nfs.*|tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"nfs.*|tmpfs|overlay"})
+              unless on (domain) node_filesystem_size_bytes{mountpoint=~"/opt/isard(/.*)?"}
+          ) < 0.05
+        for: 5m
+        labels:
+          severity: critical
+          area: storage
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.domain }} has only {{ $value | humanizePercentage }} free"
+          description: "The storage under {{ $labels.mountpoint }} is below 5% free: running desktops can pause on a full disk and new ones fail. Free space now (recycle bin, unused media and templates) or move disks to another pool, and stop new deployments on it until it is back above 10%."

@@ -40,6 +40,15 @@ groups:
           summary: "Grafana has reported no metrics for 10m"
           description: "Either isard-grafana is down or its metrics endpoint is no longer scraped."
 
+      - alert: GrafanaRulesFailing
+        expr: sum by (domain) (increase(grafana_alerting_rule_evaluation_failures_total[15m])) > 0
+        labels:
+          severity: warning
+          area: monitoring
+        annotations:
+          summary: "Grafana alert rules are failing to evaluate"
+          description: "{{ $value | printf \"%.0f\" }} Grafana rule evaluations failed in 15m, and a rule that cannot be evaluated can never fire. Open Alerting, Alert rules in Grafana to see which ones are in error and why (a datasource timeout, often Loki under load)."
+
       - alert: AlertRulesFailing
         expr: sum by (group) (increase(vmalert_execution_errors_total[15m])) > 0
         for: 15m

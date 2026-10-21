@@ -1,0 +1,24 @@
+# Changes of who can administer the installation, from the per-user series of
+# the stats-go isardvdi_api collector.
+
+groups:
+  - name: access
+    rules:
+      # A user id that is admin or manager now and was not one hour ago: a
+      # role change, a registration with a manager code or a new privileged
+      # account. The guard keeps it quiet when the hour-old series are missing
+      # (collector or scrape gap, fresh install), where everyone would look new.
+      - alert: NewPrivilegedRole
+        expr: |
+          count by (category, role) (
+            isardvdi_isardvdi_api_user_info{role=~"admin|manager"}
+              unless on (id, role)
+            isardvdi_isardvdi_api_user_info{role=~"admin|manager"} offset 1h
+          )
+          and on () (count(isardvdi_isardvdi_api_user_info offset 1h) > 0)
+        labels:
+          severity: warning
+          area: web
+        annotations:
+          summary: "{{ $value }} new {{ $labels.role }} user(s) in category {{ $labels.category }}"
+          description: "In the last hour {{ $value }} user(s) of category {{ $labels.category }} became {{ $labels.role }}. Check in Administration, Users (role and category filters) that each one is expected; if not, take the role away and find out how it was given (a role change, a registration code or another manager)."

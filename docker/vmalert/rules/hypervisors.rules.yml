@@ -1,5 +1,6 @@
 # IsardVDI hypervisor health alert rules, from the stats-go isardvdi_api collector.
-# Unit tests live in storage_governor.test.yml, the file the CI vmalert job runs.
+# HypervisorsDegraded is tested in storage_governor.test.yml, the rest in
+# hypervisors.test.yml.
 
 groups:
   - name: hypervisor_alerts
@@ -15,3 +16,39 @@ groups:
         annotations:
           summary: "Several hypervisors are degraded at once"
           description: "{{ $value }} online hypervisors have been marked degraded by the engine for 1m, so new desktops are not placed on them. Several at once usually means a shared cause such as the storage: check the reason on the hypervisors page and the engine log."
+
+      - alert: HypervisorDegraded
+        expr: max by (id, reason) (isardvdi_isardvdi_api_hypervisor_degraded) == 1
+        for: 1m
+        labels:
+          severity: warning
+          area: hypervisors
+        annotations:
+          summary: "Hypervisor {{ $labels.id }} is degraded ({{ $labels.reason }})"
+          description: "The engine keeps new desktops off {{ $labels.id }}. Read the full reason on the hypervisors page or in GET /api/v4/admin/item/system-status, then fix that cause on the host; if it does not clear by itself, set the hypervisor to only forced while you work on it."
+
+      # A hypervisor in Error is one the engine cannot reach any more. The
+      # desktops that ran on it stay Started in the database and nothing frees
+      # them on its own.
+      - alert: HypervisorInError
+        expr: max by (id) (isardvdi_isardvdi_api_hypervisor_info{status="Error"}) > 0
+        for: 2m
+        labels:
+          severity: critical
+          area: hypervisors
+        annotations:
+          summary: "Hypervisor {{ $labels.id }} is in Error"
+          description: "The engine has lost {{ $labels.id }} for 2m. Check whether the host is powered on and reachable and bring it back. Do not delete the hypervisor yet: that does not free its desktops, which stay Started in the database until they are stopped."
+
+      # Starting a desktop takes seconds and the engine forces a stop after 90s
+      # in Shutting-down, so ten of them held in one of these states for 15m
+      # means the orders are not finishing.
+      - alert: DesktopsStuckInTransition
+        expr: sum by (status) (isardvdi_isardvdi_api_domain_status{type!="template",status=~"Starting|StartingPaused|CreatingDomain|Stopping|Shutting-down"}) >= 10
+        for: 15m
+        labels:
+          severity: warning
+          area: hypervisors
+        annotations:
+          summary: "{{ $value }} desktops have been {{ $labels.status }} for 15m"
+          description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."

@@ -77,6 +77,30 @@ tests:
               summary: "Grafana has reported no metrics for 10m"
               description: "Either isard-grafana is down or its metrics endpoint is no longer scraped."
 
+  - name: grafana_rule_failures_fire_and_flat_counters_do_not
+    interval: 1m
+    input_series:
+      - series: 'grafana_alerting_rule_evaluation_failures_total{domain="a",org="1"}'
+        values: "0x20 3 3 3"
+      - series: 'grafana_alerting_rule_evaluation_failures_total{domain="b",org="1"}'
+        values: "7x23"
+    alert_rule_test:
+      - eval_time: 19m
+        groupname: monitoring_stack
+        alertname: GrafanaRulesFailing
+        exp_alerts: []
+      - eval_time: 22m
+        groupname: monitoring_stack
+        alertname: GrafanaRulesFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              domain: a
+            exp_annotations:
+              summary: "Grafana alert rules are failing to evaluate"
+              description: "3 Grafana rule evaluations failed in 15m, and a rule that cannot be evaluated can never fire. Open Alerting, Alert rules in Grafana to see which ones are in error and why (a datasource timeout, often Loki under load)."
+
   - name: heartbeat_is_recorded_every_evaluation
     interval: 1m
     metricsql_expr_test:

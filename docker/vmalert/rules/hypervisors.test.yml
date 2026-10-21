@@ -1,0 +1,109 @@
+rule_files:
+  - hypervisors.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: one_degraded_hypervisor_is_a_warning_not_a_crisis
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-1",reason="storage"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-2",reason=""}'
+        values: "0x5"
+    alert_rule_test:
+      - eval_time: 0m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts: []
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              id: hyp-1
+              reason: storage
+            exp_annotations:
+              summary: "Hypervisor hyp-1 is degraded (storage)"
+              description: "The engine keeps new desktops off hyp-1. Read the full reason on the hypervisors page or in GET /api/v4/admin/item/system-status, then fix that cause on the host; if it does not clear by itself, set the hypervisor to only forced while you work on it."
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorsDegraded
+        exp_alerts: []
+
+  - name: a_short_degradation_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-1",reason="libvirt"}'
+        values: "1 0 0 0"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts: []
+
+  - name: hypervisor_in_error_fires_after_two_minutes_and_online_does_not
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_info{id="hyp-1",status="Error",only_forced="false"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_info{id="hyp-2",status="Online",only_forced="false"}'
+        values: "1x5"
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: hypervisor_alerts
+        alertname: HypervisorInError
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: hypervisor_alerts
+        alertname: HypervisorInError
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              id: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 is in Error"
+              description: "The engine has lost hyp-1 for 2m. Check whether the host is powered on and reachable and bring it back. Do not delete the hypervisor yet: that does not free its desktops, which stay Started in the database until they are stopped."
+
+  - name: desktops_held_in_a_transition_fire_per_status
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Starting"}'
+        values: "12x20"
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Started"}'
+        values: "500x20"
+      # templates are not desktops, even in a transition state
+      - series: 'isardvdi_isardvdi_api_domain_status{type="template",status="Stopping"}'
+        values: "40x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              status: Starting
+            exp_annotations:
+              summary: "12 desktops have been Starting for 15m"
+              description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."
+
+  - name: a_burst_of_starts_that_drains_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Starting"}'
+        values: "30x5 4x20"
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Shutting-down"}'
+        values: "9x25"
+    alert_rule_test:
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts: []
