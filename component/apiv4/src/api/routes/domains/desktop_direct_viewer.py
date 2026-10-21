@@ -367,7 +367,9 @@ async def get_desktop_networks_from_token(
         log.warning("Direct viewer rate limit exceeded for networks request")
         return await _timed_not_found(start_time)
     try:
-        networks = DesktopService.get_desktop_networks_from_token(token)
+        networks = await asyncio.to_thread(
+            DesktopService.get_desktop_networks_from_token, token
+        )
         return JSONResponse(
             content=DesktopNetworksResponse(networks=networks).model_dump(mode="json"),
             status_code=200,
@@ -455,7 +457,9 @@ async def start_desktop(
         log.warning("Direct viewer rate limit exceeded for start request")
         return await _timed_not_found(start_time)
     try:
-        desktop_id = DesktopService.start_desktop_from_token(token, request)
+        desktop_id = await asyncio.to_thread(
+            DesktopService.start_desktop_from_token, token, request
+        )
         return JSONResponse(
             content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
             status_code=200,

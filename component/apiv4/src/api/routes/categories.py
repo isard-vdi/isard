@@ -115,8 +115,9 @@ async def get_available_groups_for_category(
     try:
         return JSONResponse(
             content=GroupsInCategoryResponse(
-                available_groups=CategoryService.get_available_groups_in_category(
-                    request.token_payload["category_id"]
+                available_groups=await asyncio.to_thread(
+                    CategoryService.get_available_groups_in_category,
+                    request.token_payload["category_id"],
                 )
             ).model_dump(mode="json"),
             status_code=200,

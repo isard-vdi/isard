@@ -130,7 +130,7 @@ async def get_media_installs(request: Request):
     try:
         return JSONResponse(
             content=VirtInstallListResponse(
-                installs=MediaService.get_media_installs(),
+                installs=await asyncio.to_thread(MediaService.get_media_installs),
             ).model_dump(mode="json"),
             status_code=200,
         )
