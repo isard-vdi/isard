@@ -44,6 +44,8 @@ class Quota(BaseModel):
 
 class Limits(BaseModel):
     desktops: int = Field(..., ge=0)
+    # optional: limits stored before it was accepted do not carry it
+    volatile: Optional[int] = Field(default=None, ge=0)
     desktops_disk_size: int = Field(..., ge=0)
     isos: int = Field(..., ge=0)
     vcpus: int = Field(..., ge=0)
