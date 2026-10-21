@@ -53,7 +53,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 213
+release_version = 214
+# release 214: store users.active and domains.enabled as booleans
 # release 213: drop the Redis task indexes of storage/media rows that no longer exist
 # release 212: give the desktops of pre-apiv4 deployments their create_dict tag_desktop_id;
 #              v197 left it False, so deployment edits missed them
@@ -4173,6 +4174,20 @@ password:s:%s"""
                     )
             except Exception as e:
                 log.error(f"v209: domains missing-field backfill failed: {e}")
+
+        if version == 214:
+            try:
+                result = (
+                    r.table(table)
+                    .filter(lambda d: d["enabled"].default(None).type_of().eq("NUMBER"))
+                    .update(lambda d: {"enabled": d["enabled"].ne(0)})
+                    .run(self.conn)
+                )
+                log.info(
+                    f"--- Domains enabled to boolean: {result.get('replaced', 0)} rows ---"
+                )
+            except Exception as e:
+                log.error(f"v214: domains enabled to boolean failed: {e}")
         return True
 
     """
@@ -5895,6 +5910,20 @@ password:s:%s"""
                     f"v197 cutover: {table} deployment_users quota/limits "
                     f"split failed: {e}"
                 )
+
+        if version == 214:
+            try:
+                result = (
+                    r.table(table)
+                    .filter(lambda u: u["active"].default(None).type_of().eq("NUMBER"))
+                    .update(lambda u: {"active": u["active"].ne(0)})
+                    .run(self.conn)
+                )
+                log.info(
+                    f"--- Users active to boolean: {result.get('replaced', 0)} rows ---"
+                )
+            except Exception as e:
+                log.error(f"v214: users active to boolean failed: {e}")
         return True
 
     """

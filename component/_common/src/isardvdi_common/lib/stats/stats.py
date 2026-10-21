@@ -364,18 +364,52 @@ class StatsProcessed(RethinkSharedConnection):
     def get_group_by_categories(cls) -> dict:
         """Return per-category users + desktops + templates summary.
 
-        Iterates every category and runs three sub-aggregations:
+        Three grouped passes, folded per category:
 
         * users (total, enabled/disabled split, per-role counts);
         * desktops (total + ``Started``/``Stopped``/``Failed``/``Other``);
         * templates (total + enabled/disabled).
-
-        Wraps each per-category block in a single ``_rdb_context`` so the
-        connection is reused across the inner loop's queries.
         """
         with cls._rdb_context():
             categories = list(
                 r.table("categories").pluck("id")["id"].run(cls._rdb_connection)
+            )
+            users = (
+                r.table("users")
+                .group("category", "role", lambda user: user["active"].eq(True))
+                .count()
+                .run(cls._rdb_connection)
+            )
+            desktops = (
+                r.table("domains")
+                .between(
+                    ["desktop", r.minval],
+                    ["desktop", r.maxval],
+                    index="kind_category",
+                )
+                .group("category", "status")
+                .count()
+                .run(cls._rdb_connection)
+            )
+            templates = (
+                r.table("domains")
+                .between(
+                    ["template", r.minval],
+                    ["template", r.maxval],
+                    index="kind_category",
+                )
+                .group(
+                    "category",
+                    lambda template: r.branch(
+                        template["enabled"].eq(True),
+                        True,
+                        template["enabled"].eq(False),
+                        False,
+                        None,
+                    ),
+                )
+                .count()
+                .run(cls._rdb_connection)
             )
 
         result: dict = {}
@@ -384,12 +418,7 @@ class StatsProcessed(RethinkSharedConnection):
                 "users": {
                     "total": 0,
                     "status": {"enabled": 0, "disabled": 0},
-                    "roles": {
-                        "admin": 0,
-                        "manager": 0,
-                        "advanced": 0,
-                        "user": 0,
-                    },
+                    "roles": {},
                 },
                 "desktops": {
                     "total": 0,
@@ -407,92 +436,35 @@ class StatsProcessed(RethinkSharedConnection):
                 },
             }
 
-        with cls._rdb_context():
-            for category in categories:
-                result[category]["users"]["total"] = (
-                    r.table("users")
-                    .get_all(category, index="category")
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                result[category]["users"]["status"]["enabled"] = (
-                    r.table("users")
-                    .get_all(category, index="category")
-                    .filter({"active": True})
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                result[category]["users"]["status"]["disabled"] = (
-                    result[category]["users"]["total"]
-                    - result[category]["users"]["status"]["enabled"]
-                )
-                roles_raw = (
-                    r.table("users")
-                    .get_all(category, index="category")
-                    .group("role")
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                result[category]["users"]["roles"] = {
-                    role: cnt for role, cnt in roles_raw.items() if role
-                }
+        for (category, role, active), count in users.items():
+            if category not in result:
+                continue
+            summary = result[category]["users"]
+            summary["total"] += count
+            summary["status"]["enabled" if active is True else "disabled"] += count
+            # A missing role groups as ``None``, a key the response schema's
+            # ``dict[str, int]`` rejects; an empty one was always dropped too.
+            if role:
+                summary["roles"][role] = summary["roles"].get(role, 0) + count
 
-        with cls._rdb_context():
-            for category in categories:
-                result[category]["desktops"]["total"] = (
-                    r.table("domains")
-                    .get_all(["desktop", category], index="kind_category")
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                for status in STABLE_STATUS:
-                    result[category]["desktops"]["status"][status] = (
-                        r.table("domains")
-                        .get_all(
-                            ["desktop", status, category],
-                            index="kind_status_category",
-                        )
-                        .count()
-                        .run(cls._rdb_connection)
-                    )
-                result[category]["desktops"]["status"]["Other"] = (
-                    r.table("domains")
-                    .get_all(["desktop", category], index="kind_category")
-                    .filter(
-                        lambda desktop: r.not_(
-                            r.expr(STABLE_STATUS).contains(desktop["status"])
-                        )
-                    )
-                    .count()
-                    .run(cls._rdb_connection)
-                )
+        for (category, status), count in desktops.items():
+            if category not in result:
+                continue
+            summary = result[category]["desktops"]
+            summary["total"] += count
+            summary["status"][status if status in STABLE_STATUS else "Other"] += count
 
-        with cls._rdb_context():
-            for category in categories:
-                result[category]["templates"]["total"] = (
-                    r.table("domains")
-                    .get_all(["template", category], index="kind_category")
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                result[category]["templates"]["status"]["enabled"] = (
-                    r.table("domains")
-                    .get_all(
-                        ["template", True, category],
-                        index="template_enabled_category",
-                    )
-                    .count()
-                    .run(cls._rdb_connection)
-                )
-                result[category]["templates"]["status"]["disabled"] = (
-                    r.table("domains")
-                    .get_all(
-                        ["template", False, category],
-                        index="template_enabled_category",
-                    )
-                    .count()
-                    .run(cls._rdb_connection)
-                )
+        for (category, enabled), count in templates.items():
+            if category not in result:
+                continue
+            summary = result[category]["templates"]
+            summary["total"] += count
+            # A template missing ``enabled`` is in the total but in neither
+            # bucket, like the ``template_enabled_category`` counts were.
+            if enabled is True:
+                summary["status"]["enabled"] += count
+            elif enabled is False:
+                summary["status"]["disabled"] += count
 
         return result
 
