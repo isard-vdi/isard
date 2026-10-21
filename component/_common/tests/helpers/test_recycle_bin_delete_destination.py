@@ -147,14 +147,18 @@ def driven(monkeypatch):
 
 
 class TestDeleteStorageDestination:
-    def test_move_config_queues_a_move_delete_task(self, driven):
+    def test_move_config_queues_a_move_delete_task(self, driven, monkeypatch):
         mod, captured, rb = driven
-        mod.Helpers.get_delete_action = staticmethod(lambda: "move")
+        monkeypatch.setattr(
+            mod.Helpers, "get_delete_action", staticmethod(lambda: "move")
+        )
         rb.delete_storage("agent-user")
         assert captured["task_name"] == "move_delete"
 
-    def test_delete_config_queues_a_hard_delete_task(self, driven):
+    def test_delete_config_queues_a_hard_delete_task(self, driven, monkeypatch):
         mod, captured, rb = driven
-        mod.Helpers.get_delete_action = staticmethod(lambda: "delete")
+        monkeypatch.setattr(
+            mod.Helpers, "get_delete_action", staticmethod(lambda: "delete")
+        )
         rb.delete_storage("agent-user")
         assert captured["task_name"] == "delete"
