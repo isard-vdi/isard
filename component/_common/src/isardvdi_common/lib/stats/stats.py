@@ -36,16 +36,21 @@ from isardvdi_common.helpers.stale_while_revalidate import (
 )
 from rethinkdb import r
 
+# An entry ages from the end of its fetch: a TTL equal to the period refreshes
+# only on every other poll.
+_TTL_FRACTION_OF_PERIOD = 2 / 3
 
-def _ttl(default: float) -> float:
+
+def _ttl(period: float) -> float:
     override = environ.get("STATS_CACHE_TTL_S")
-    return default if override is None else float(override)
+    if override is not None:
+        return float(override)
+    return period * _TTL_FRACTION_OF_PERIOD
 
 
 # TTL rule: the value must be as fresh as its caller's cadence allows, so the
-# TTL is that cadence and no more. A longer one does not make refreshes cheaper
-# in any way that matters — while the TTL is at or below the poll period there is
-# exactly one refresh per poll either way — it only serves older data. What keeps
+# TTL sits just below that cadence. A longer one does not make refreshes cheaper
+# in any way that matters, it only serves older data. What keeps
 # parallel consumers from multiplying the work is not the TTL, it is that a stale
 # value is served immediately and only ONE refresh runs however many callers
 # arrive inside the interval.
@@ -63,7 +68,7 @@ _ADMIN_PANEL_MIN_POLL_S = 1
 # beyond it an operator could decide something on numbers old enough to be
 # wrong, so the endpoint fails instead and the collector's own scrape failure
 # becomes the signal. The first successful refresh clears it by itself.
-_COLLECTOR_MAX_STALE_S = 300
+_COLLECTOR_MAX_STALE_S = 3 * _COLLECTOR_SCRAPE_S
 _PANEL_MAX_STALE_S = 120
 
 # Live admin panel. Both sit on the same screen and share one operator-chosen
