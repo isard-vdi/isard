@@ -43,9 +43,10 @@ class ResultJob(Job):
             "queue": self.origin,
             "job_status": job_status,
         }
-        migration_id = (self.meta or {}).get("migration_id")
-        if migration_id is not None:
-            fields["migration_id"] = str(migration_id)
+        meta = self.meta or {}
+        for key in ("migration_id", "migration_tree_id"):
+            if meta.get(key) is not None:
+                fields[key] = str(meta[key])
         pipeline.xadd(
             RESULT_STREAM,
             fields,

@@ -620,10 +620,16 @@ def _record_service_time(task):
         return
 
 
-async def _wake_migration(migration_id):
-    """Drive this migration now that one of its tasks finished."""
+async def _wake_migration(migration_id, tree_id=None):
+    """Drive this migration's tree now that one of its tasks finished, or every
+    tree in flight when the event names none."""
     try:
-        return await asyncio.to_thread(advance, migration_id, check_abandon=False)
+        return await asyncio.to_thread(
+            advance,
+            migration_id,
+            check_abandon=False,
+            tree_ids=[tree_id] if tree_id else None,
+        )
     except Exception:
         log.exception(
             "task_results: could not wake the reconciler of migration %s",
@@ -657,6 +663,8 @@ async def _process_entry(redis_manager, fields):
     # reconciler XADDs them so the admin storage-pools view live-updates.
     if kind == "migration":
         if migration_id:
+            if fields.get("wake") or fields.get(b"wake"):
+                await _wake_migration(migration_id)
             await send_migration_socket(redis_manager, migration_id)
         else:
             log.warning(
@@ -747,7 +755,10 @@ async def _process_entry(redis_manager, fields):
 
     # After the status write above: advance() reads it to pick the next step.
     if migration_id:
-        await _wake_migration(migration_id)
+        tree_id = fields.get("migration_tree_id") or fields.get(b"migration_tree_id")
+        if isinstance(tree_id, bytes):
+            tree_id = tree_id.decode()
+        await _wake_migration(migration_id, tree_id)
 
     # The status the chain died with, or None while it is still succeeding.
     dead_chain = None

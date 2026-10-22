@@ -37,9 +37,10 @@ def test_rescan_edge_on_drain():
     assert mig.should_rescan("edge_on_drain", "k2", "k1", False, True) is True
 
 
-def test_rescan_continuous_every_tick_in_window():
-    assert mig.should_rescan("continuous", "k1", "k1", False, True) is True
+def test_retired_continuous_rescans_like_edge_on_drain():
+    assert mig.should_rescan("continuous", "k1", "k1", False, True) is False
     assert mig.should_rescan("continuous", "k1", "k1", True, True) is True
+    assert mig.should_rescan("continuous", "k2", "k1", False, True) is True
 
 
 # --------------------------------------------------------------------------- #

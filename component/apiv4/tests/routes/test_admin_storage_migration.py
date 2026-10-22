@@ -625,6 +625,12 @@ class TestConfig:
         missing = set(MigrationConfigData.model_fields) - set(mig.CONFIG_FIELD_POLICY)
         assert not missing, f"fields without a live-change policy: {missing}"
 
+    def test_retired_continuous_cadence_is_stored_as_edge_on_drain(self):
+        from api.schemas.admin.storage_migration import MigrationConfigData
+
+        config = MigrationConfigData(rescan_cadence="continuous")
+        assert config.rescan_cadence == "edge_on_drain"
+
     def test_partial_update_on_a_legacy_job_does_not_backfill_new_fields(
         self, test_client
     ):

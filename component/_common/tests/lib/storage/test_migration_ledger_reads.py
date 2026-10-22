@@ -6,7 +6,7 @@ from isardvdi_common.lib.storage import migration as mig
 from isardvdi_common.lib.storage import migration_run as mr
 from isardvdi_common.models.storage_migration import build_totals
 
-from .test_migration_recurring_drive import NOW, _item, _Mig, _runner
+from .test_migration_recurring_drive import NOW, _FakeRedis, _item, _Mig, _runner
 
 N = 500
 
@@ -22,7 +22,7 @@ class _Lock:
         pass
 
 
-class _Conn:
+class _Conn(_FakeRedis):
     def lock(self, *a, **k):
         return _Lock()
 

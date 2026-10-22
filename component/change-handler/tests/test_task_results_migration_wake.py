@@ -19,7 +19,15 @@ async def test_wake_calls_advance_without_abandon_detection():
     advance = MagicMock(return_value="done")
     with patch.object(mod, "advance", advance):
         assert await mod._wake_migration("mig-1") == "done"
-    advance.assert_called_once_with("mig-1", check_abandon=False)
+    advance.assert_called_once_with("mig-1", check_abandon=False, tree_ids=None)
+
+
+@pytest.mark.asyncio
+async def test_wake_drives_only_the_tree_of_the_result():
+    advance = MagicMock(return_value="done")
+    with patch.object(mod, "advance", advance):
+        await mod._wake_migration("mig-1", "tree-3")
+    advance.assert_called_once_with("mig-1", check_abandon=False, tree_ids=["tree-3"])
 
 
 @pytest.mark.asyncio
@@ -86,7 +94,47 @@ async def test_result_entry_with_migration_id_wakes_that_migration():
     finally:
         for p in patches:
             p.stop()
-    wake.assert_awaited_once_with("mig-7")
+    wake.assert_awaited_once_with("mig-7", None)
+
+
+@pytest.mark.asyncio
+async def test_result_entry_passes_its_tree_to_the_wake():
+    wake = AsyncMock()
+    patches = _quiet_dispatch()
+    for p in patches:
+        p.start()
+    try:
+        with patch.object(mod, "_wake_migration", wake):
+            await mod._process_entry(
+                AsyncMock(),
+                {
+                    "kind": "result",
+                    "task_id": "t1",
+                    "job_status": "finished",
+                    "migration_id": "mig-7",
+                    "migration_tree_id": "tree-3",
+                },
+            )
+    finally:
+        for p in patches:
+            p.stop()
+    wake.assert_awaited_once_with("mig-7", "tree-3")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wakes", [True, False])
+async def test_only_an_admin_action_event_wakes_the_migration(wakes):
+    """The runner's own progress events must not wake it again."""
+    wake = AsyncMock()
+    entry = {"kind": "migration", "migration_id": "mig-7"}
+    if wakes:
+        entry["wake"] = "1"
+    with (
+        patch.object(mod, "send_migration_socket", new=AsyncMock()),
+        patch.object(mod, "_wake_migration", wake),
+    ):
+        assert await mod._process_entry(AsyncMock(), entry) is True
+    assert wake.await_count == (1 if wakes else 0)
 
 
 @pytest.mark.asyncio
@@ -129,7 +177,7 @@ async def test_failed_task_wakes_too():
     finally:
         for p in patches:
             p.stop()
-    wake.assert_awaited_once_with("mig-7")
+    wake.assert_awaited_once_with("mig-7", None)
 
 
 @pytest.mark.asyncio
