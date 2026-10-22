@@ -126,6 +126,14 @@ class _FakeRedis:
     def llen(self, key):
         return len(self.lists.get(key) or [])
 
+    def lrange(self, key, start, end):
+        values = self.lists.get(key) or []
+        return list(values[start : None if end == -1 else end + 1])
+
+    def blpop(self, key, timeout=0):
+        value = self.lpop(key)
+        return None if value is None else (key, value)
+
     def pipeline(self):
         return _Pipe(self)
 

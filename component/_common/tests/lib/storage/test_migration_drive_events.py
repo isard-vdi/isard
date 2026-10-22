@@ -448,3 +448,46 @@ def test_a_desktop_free_everywhere_gets_its_autostart_back(monkeypatch):
     r.reactivate([{"id": "m--s1", "autostart_domains": [{"id": "d1", "was_on": True}]}])
 
     assert activated == [["d1"]]
+
+
+# -- the scheduler's driver: the result-stream consumer only queues the wake
+def _driver_redis(monkeypatch):
+    redis = _FakeRedis()
+    monkeypatch.setattr(mr, "shared_client", lambda *a, **k: redis)
+    monkeypatch.setattr(mr, "rq_url", lambda: "redis://x")
+    return redis
+
+
+def test_a_drive_request_records_the_tree_and_queues_the_migration(monkeypatch):
+    redis = _driver_redis(monkeypatch)
+    advance = []
+    monkeypatch.setattr(mr, "advance", lambda *a, **k: advance.append(a))
+    mr.request_drive("m", tree_ids=["t1"])
+    mr.request_drive("m")
+    assert redis.sets["migration:wake:m"] == {"t1", "*"}
+    assert redis.lists[mr.DRIVE_REQUESTS_KEY] == ["m", "m"]
+    assert advance == []
+
+
+def test_the_driver_takes_every_queued_request_once(monkeypatch):
+    redis = _driver_redis(monkeypatch)
+    redis.rpush(mr.DRIVE_REQUESTS_KEY, "m1", "m2", "m1", "m2")
+    assert mr._take_drive_requests(redis, 5) == ["m1", "m2"]
+    assert not redis.llen(mr.DRIVE_REQUESTS_KEY)
+    assert mr._take_drive_requests(redis, 5) == []
+
+
+def test_the_driver_drives_each_woken_migration_and_survives_a_failure(monkeypatch):
+    redis = _driver_redis(monkeypatch)
+    redis.rpush(mr.DRIVE_REQUESTS_KEY, "bad", "m")
+    driven = []
+
+    def _advance(mid, *, check_abandon=True, tree_ids=None):
+        driven.append((mid, check_abandon))
+        if mid == "bad":
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(mr, "advance", _advance)
+    passes = iter([False, True])
+    mr.serve_drive_requests(block_s=0, stop=lambda: next(passes))
+    assert driven == [("bad", False), ("m", False)]

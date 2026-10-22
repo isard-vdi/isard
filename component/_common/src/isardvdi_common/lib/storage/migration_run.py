@@ -36,7 +36,7 @@ import logging
 from datetime import datetime, timezone
 from functools import partial
 from os.path import basename, dirname, join
-from time import time
+from time import sleep, time
 from uuid import uuid4
 
 try:  # py3.9+ stdlib; always present on our 3.13 images
@@ -2849,7 +2849,7 @@ def advance(migration_id, *, check_abandon=True, tree_ids=None):
         return "not_drivable"
     # the socket timeout makes a stalled redis raise instead of hanging past the lease TTL
     conn = shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
-    wake_key = f"migration:wake:{migration_id}"
+    wake_key = _wake_key(migration_id)
     conn.sadd(wake_key, *(tree_ids or [_ALL_TREES]))
     jf = partial(job_status, check_abandon=check_abandon)
     outcome = "busy"
@@ -2881,6 +2881,54 @@ def advance(migration_id, *, check_abandon=True, tree_ids=None):
 
 #: the wake-set member that means "every tree in flight"
 _ALL_TREES = "*"
+#: migrations with a recorded wake, waiting for the driver
+DRIVE_REQUESTS_KEY = "migration:drive_requests"
+
+
+def _wake_key(migration_id):
+    return f"migration:wake:{migration_id}"
+
+
+def request_drive(migration_id, tree_ids=None):
+    """Record a wake for the migration driver without running the reconciler."""
+    conn = shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
+    pipe = conn.pipeline()
+    pipe.sadd(_wake_key(migration_id), *(tree_ids or [_ALL_TREES]))
+    pipe.rpush(DRIVE_REQUESTS_KEY, migration_id)
+    pipe.execute()
+
+
+def _take_drive_requests(conn, block_s):
+    """Block for the next request, then take every queued one, deduplicated."""
+    popped = conn.blpop(DRIVE_REQUESTS_KEY, timeout=block_s)
+    if not popped:
+        return []
+    pipe = conn.pipeline()
+    pipe.lrange(DRIVE_REQUESTS_KEY, 0, -1)
+    pipe.delete(DRIVE_REQUESTS_KEY)
+    rest, _deleted = pipe.execute()
+    ids = [popped[1], *(rest or ())]
+    return list(dict.fromkeys(i.decode() if isinstance(i, bytes) else i for i in ids))
+
+
+def serve_drive_requests(block_s=5, stop=None):
+    """Drive each migration a task result woke, until ``stop()`` is true.
+
+    Runs in the scheduler so a full pass never holds the result-stream consumer;
+    a request lost to a crash is picked up by the periodic backstop."""
+    conn = shared_client(rq_url(), socket_timeout=block_s + 5, socket_connect_timeout=5)
+    while not (stop and stop()):
+        try:
+            migration_ids = _take_drive_requests(conn, block_s)
+        except RedisError:
+            log.exception("migration: could not read the drive requests")
+            sleep(1)
+            continue
+        for migration_id in migration_ids:
+            try:
+                advance(migration_id, check_abandon=False)
+            except Exception:
+                log.exception("migration: driving %s failed", migration_id)
 
 
 def _take_wakes(conn, wake_key):

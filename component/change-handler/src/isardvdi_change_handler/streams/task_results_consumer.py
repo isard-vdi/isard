@@ -60,7 +60,7 @@ from isardvdi_common.connections.redis_client import shared_client
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.helpers.task_streams import CANCELED_KIND, DEAD_STREAM
 from isardvdi_common.lib import queue_coverage
-from isardvdi_common.lib.storage.migration_run import advance
+from isardvdi_common.lib.storage.migration_run import request_drive
 from isardvdi_common.models.task import (
     _TERMINAL_STATUSES,
     CoreStep,
@@ -621,13 +621,12 @@ def _record_service_time(task):
 
 
 async def _wake_migration(migration_id, tree_id=None):
-    """Drive this migration's tree now that one of its tasks finished, or every
-    tree in flight when the event names none."""
+    """Hand the scheduler's migration driver this tree (every tree in flight
+    when the event names none); the reconciler never runs on this consumer."""
     try:
         return await asyncio.to_thread(
-            advance,
+            request_drive,
             migration_id,
-            check_abandon=False,
             tree_ids=[tree_id] if tree_id else None,
         )
     except Exception:
@@ -753,7 +752,7 @@ async def _process_entry(redis_manager, fields):
         if root_status == JobStatus.FINISHED:
             await asyncio.to_thread(_record_service_time, task)
 
-    # After the status write above: advance() reads it to pick the next step.
+    # After the status write above: the driver reads it to pick the next step.
     if migration_id:
         tree_id = fields.get("migration_tree_id") or fields.get(b"migration_tree_id")
         if isinstance(tree_id, bytes):
