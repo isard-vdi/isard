@@ -41,8 +41,9 @@ const (
 	minMetrics   = 50
 )
 
-// labels a scrape target adds, which no collector declares.
-var infraLabels = map[string]bool{"job": true, "instance": true, "__name__": true}
+// labels a scrape target adds, which no collector declares. domain is the host
+// label the alloy scrape puts on every series it ships.
+var infraLabels = map[string]bool{"job": true, "instance": true, "domain": true, "__name__": true}
 
 type metricDef struct {
 	labels      map[string]bool

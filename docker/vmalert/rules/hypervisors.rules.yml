@@ -81,3 +81,18 @@ groups:
         annotations:
           summary: "Hypervisor {{ $labels.domain }} CPU is saturated ({{ $value | humanizePercentage }})"
           description: "The CPU of {{ $labels.domain }} has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."
+
+      # isard-stats-go is scraped through container discovery, so when it dies its
+      # target just disappears: no up == 0, and every rule fed by it reads no data.
+      - alert: HypervisorStatsMissing
+        expr: |
+          group by (domain) (container_last_seen{name="isard-hypervisor"})
+          unless on (domain) group by (domain) (isardvdi_hypervisor_scrape_duration_success)
+        for: 10m
+        labels:
+          severity: warning
+          area: monitoring
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} is sending no isard-stats-go metrics"
+          description: "{{ $labels.domain }} runs isard-hypervisor but isard-stats-go has reported nothing for 10m, so its desktop and hypervisor panels and the rules that read them are blind. Check the isard-stats-go container on that host and its log for a panic."
