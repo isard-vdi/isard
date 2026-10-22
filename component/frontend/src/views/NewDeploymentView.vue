@@ -669,6 +669,8 @@ const updateHardware = (
 
       <TemplatesList
         v-model:active-template-tab="templateTab"
+        inline-tabs
+        class="pt-1"
         selectable
         :page-size="5"
         :pagination-page-sizes="[5, 10, 20, 30, 40, 50]"
