@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import hmac
 import logging as logger
 import os
 import time
@@ -1992,6 +1993,21 @@ class UsersProcessed(RethinkSharedConnection):
             "exists": False,
             "expires": 0,
         }
+
+    @classmethod
+    def is_current_api_key(cls, user_id, api_key):
+        """Whether `api_key` is the user's live key"""
+        if not user_id or not api_key:
+            return False
+        with cls._rdb_context():
+            stored = (
+                r.table("users")
+                .get(user_id)
+                .pluck("api_key")
+                .default({})
+                .run(cls._rdb_connection)
+            ).get("api_key")
+        return bool(stored) and hmac.compare_digest(stored, api_key)
 
     @classmethod
     def delete_api_key(cls, user_id):

@@ -35,6 +35,7 @@ from isardvdi_common.lib.task_index import index_task
 from rq import Queue, Retry
 from rq.exceptions import InvalidJobOperation, NoSuchJobError
 from rq.job import Job, JobStatus
+from rq.utils import get_call_string
 from rq.utils import now as rq_now
 from rq.utils import utcformat
 
@@ -332,6 +333,25 @@ def _closure_roots(closure):
             if dependency_id in closure
         ]
     ]
+
+
+_SECRET_TASK_KWARGS = ("headers", "google_drive_cookie")
+
+
+def redact_task_kwargs(kwargs):
+    """``kwargs`` with the credentials a download task carries masked."""
+    if not isinstance(kwargs, dict) or not any(
+        kwargs.get(name) for name in _SECRET_TASK_KWARGS
+    ):
+        return kwargs
+    redacted = dict(kwargs)
+    if redacted.get("headers"):
+        redacted["headers"] = [
+            f"{str(header).split(':', 1)[0]}: ***" for header in redacted["headers"]
+        ]
+    if redacted.get("google_drive_cookie"):
+        redacted["google_drive_cookie"] = "***"
+    return redacted
 
 
 def register_dependencies(job_kwargs, dependencies):
@@ -776,7 +796,7 @@ class CoreStep:
             "queue": self.queue,
             "position": self.position,
             "task": self.task,
-            "kwargs": self.kwargs,
+            "kwargs": redact_task_kwargs(self.kwargs),
             "result": self.result,
             "exc_info": self.exc_info,
             "depending_status": self.depending_status,
@@ -931,6 +951,18 @@ class Task(RedisBase):
                 task = Task(**dependency)
                 dependencies.append(task)
             register_dependencies(kwargs["job_kwargs"], dependencies)
+            call_kwargs = kwargs["job_kwargs"].get("kwargs") or {}
+            if redact_task_kwargs(call_kwargs) is not call_kwargs:
+                # rq logs the description on start and completion
+                kwargs["job_kwargs"].setdefault(
+                    "description",
+                    get_call_string(
+                        f"task.{kwargs.get('task')}",
+                        kwargs.get("job_args", []),
+                        redact_task_kwargs(call_kwargs),
+                        max_length=200,
+                    ),
+                )
             self.job = Job.create(
                 f"task.{kwargs.get('task')}",
                 *kwargs.get("job_args", []),
@@ -1398,6 +1430,7 @@ class Task(RedisBase):
         filter.append(self.id)
         return {
             **{name: getattr(self, name) for name in _TO_DICT_PROPERTIES},
+            "kwargs": redact_task_kwargs(self.kwargs),
             "args": [
                 arg.to_dict() if hasattr(arg, "to_dict") else arg for arg in self.args
             ],

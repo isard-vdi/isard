@@ -67,6 +67,12 @@ class SocketIO(RethinkSharedConnection):
             await self.quit_users_rooms(auth.get("jwt"), namespace)
             return False
 
+        if namespace == "/administrators" and payload.get("role_id") not in (
+            "admin",
+            "manager",
+        ):
+            return False
+
         if payload.get("desktop_id"):
             # The rdb check is sync (blocking driver). Running it
             # directly inside ``async def users_connect`` froze the

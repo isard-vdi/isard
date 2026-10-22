@@ -214,9 +214,9 @@ class TestUsersConnectRoleRouting:
     @patch(
         "isardvdi_common.helpers.socketio.Token.get_token_payload",
         return_value={
-            "user_id": "u1",
-            "category_id": "default",
-            "role_id": "user",
+            "user_id": "u-mgr",
+            "category_id": "cat-mgr",
+            "role_id": "manager",
         },
     )
     async def test_namespace_is_forwarded_verbatim(self, _mock):
@@ -224,6 +224,38 @@ class TestUsersConnectRoleRouting:
         await h.users_connect({"jwt": "ok"}, "/administrators")
         kwargs = h.socketio.enter_room.call_args.kwargs
         assert kwargs["namespace"] == "/administrators"
+
+
+class TestUsersConnectAdministratorsNamespace:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"user_id": "u1", "category_id": "default", "role_id": "user"},
+            {"user_id": "u1", "category_id": "default", "role_id": "advanced"},
+            {"desktop_id": "d1"},
+        ],
+    )
+    async def test_non_admin_tokens_are_rejected(self, payload):
+        h = _make()
+        with patch(
+            "isardvdi_common.helpers.socketio.Token.get_token_payload",
+            return_value=payload,
+        ):
+            result = await h.users_connect({"jwt": "ok"}, "/administrators")
+        assert result is False
+        h.socketio.enter_room.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("role_id", ["admin", "manager"])
+    async def test_admin_and_manager_are_accepted(self, role_id):
+        h = _make()
+        with patch(
+            "isardvdi_common.helpers.socketio.Token.get_token_payload",
+            return_value={"user_id": "u1", "category_id": "c1", "role_id": role_id},
+        ):
+            result = await h.users_connect({"jwt": "ok"}, "/administrators")
+        assert result is True
 
 
 # -------------------------------------------------------------------------
