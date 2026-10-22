@@ -30,6 +30,7 @@ fi
 if [ -z "$GRAFANA_TELEGRAM_TOKEN" ] || [ -z "$GRAFANA_TELEGRAM_CHAT_ID" ]; then
     rm -f "$PROV/alerting/storage_governor.yaml"
     rm -f "$PROV/alerting/waf_realuser_block.yaml"
+    rm -f "$PROV/alerting/orchestrator_scale_up.yaml"
 else
     # ${VAR} interpolation turns an all-digit chat id into a number and the
     # Telegram chatid field only accepts a string.

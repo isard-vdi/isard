@@ -1,0 +1,157 @@
+apiVersion: 1
+
+# The orchestrator only reports a failed scale-up in its log, so these rules read Loki.
+# Telegram is opt-in: docker/grafana/run.sh removes this file without a bot token.
+# An install overrides it with a file of the same name in /custom/alerting.
+
+contactPoints:
+  - orgId: 1
+    name: orchestrator-telegram
+    receivers:
+      - uid: orchestrator-telegram
+        type: telegram
+        settings:
+          bottoken: ${GRAFANA_TELEGRAM_TOKEN}
+          chatid: ${GRAFANA_TELEGRAM_CHAT_ID}
+          parse_mode: None
+        disableResolveMessage: false
+
+groups:
+  - orgId: 1
+    name: orchestrator-scale-up
+    folder: Alerts
+    interval: 1m
+    rules:
+      - uid: orchestrator-hypervisor-creation-failed
+        title: OrchestratorHypervisorCreationFailed
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+          service: isard-orchestrator
+          area: hypervisors
+        annotations:
+          summary: The orchestrator started a hypervisor that did not come online
+          description: >-
+            A hypervisor creation failed in the last 5m. The capacity the
+            orchestrator expected is not there, and the desktops go to the
+            hypervisors that are already running. Find the hypervisor id in Loki
+            {service_name="isard-orchestrator"} |= "hypervisor creations failed"
+            and check why it did not register (docker, network, storage).
+        notification_settings:
+          receiver: orchestrator-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              editorMode: code
+              queryType: instant
+              expr: 'sum(count_over_time({service_name="isard-orchestrator"} |= `hypervisor creations failed` [5m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      - uid: orchestrator-cannot-scale-up
+        title: OrchestratorCannotScaleUp
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+          service: isard-orchestrator
+          area: hypervisors
+        annotations:
+          summary: The orchestrator needs more hypervisors and cannot start any
+          description: >-
+            The orchestrator wants to scale up but finds no hypervisor it can
+            start. New desktops keep landing on the running hypervisors until they
+            run out of memory. Start a hypervisor by hand or free capacity now, and
+            check in Loki {service_name="isard-orchestrator"} which creations
+            failed and which hypervisors are not eligible.
+        notification_settings:
+          receiver: orchestrator-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              editorMode: code
+              queryType: instant
+              expr: 'sum(count_over_time({service_name="isard-orchestrator"} |= `no hypervisor with the required resources` [5m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [2]
