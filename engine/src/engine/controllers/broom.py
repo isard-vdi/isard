@@ -15,7 +15,7 @@ from tabulate import tabulate
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
 from engine.services.db import (
-    get_degraded_hyp_ids,
+    get_degraded_hyp_ids_any_check_may_clear,
     get_domain_status,
     get_domains_with_status_in_list,
     get_domains_with_transitional_status,
@@ -674,7 +674,7 @@ class ThreadBroom(threading.Thread):
         # Also recover hyps degraded by other components (e.g. worker thread
         # from a previous session) that now pass the connectivity check
         try:
-            db_degraded = get_degraded_hyp_ids()
+            db_degraded = get_degraded_hyp_ids_any_check_may_clear()
             stale_degraded = (db_degraded & succeeded_hyps) - set(
                 self._broom_degraded_hyps
             )

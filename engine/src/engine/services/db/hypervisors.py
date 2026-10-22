@@ -283,7 +283,7 @@ def update_hyp_status(id, status, detail="", uri=""):
         return False
 
 
-def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
+def update_hyp_degraded_status(hyp_id, is_degraded, reason=None, source=None):
     """Update hypervisor degraded state.
 
     When degraded:
@@ -299,6 +299,8 @@ def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
         hyp_id: Hypervisor ID
         is_degraded: True to mark as degraded, False to recover
         reason: Reason for degradation (e.g., "slow_response", "timeout")
+        source: Who alone may tell the degradation is over (e.g.
+            DEGRADED_BY_HOST_ERRORS), or None when any check that passes may
     """
     with rethink_conn() as conn:
         if is_degraded:
@@ -312,6 +314,7 @@ def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
                     "is_degraded": True,
                     "reason": reason or "unknown",
                     "since": int(time.time()),
+                    "source": source,
                 },
             }
             logs.workers.warning(f"[{hyp_id}] Hypervisor marked as DEGRADED: {reason}")
@@ -339,6 +342,7 @@ def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
                     "is_degraded": False,
                     "reason": None,
                     "since": None,
+                    "source": None,
                 },
             }
             logs.workers.info(f"[{hyp_id}] Hypervisor recovered from degraded state")
@@ -355,6 +359,34 @@ def get_degraded_hyp_ids():
             .get_field("id")
             .run(conn)
         )
+
+
+# libvirt keeps answering a host whose filesystem fails: only its worker can clear it
+DEGRADED_BY_HOST_ERRORS = "host_errors"
+
+
+def any_check_may_clear(degraded):
+    """Whether a passing check may clear this ``degraded`` field."""
+    degraded = degraded or {}
+    return (
+        degraded.get("is_degraded") is True
+        and degraded.get("source") != DEGRADED_BY_HOST_ERRORS
+    )
+
+
+def get_degraded_hyp_ids_any_check_may_clear():
+    """Degraded hypervisor IDs whose degradation a passing check may clear.
+
+    Leaves out the ones degraded for host errors (DEGRADED_BY_HOST_ERRORS).
+    """
+    with rethink_conn() as conn:
+        rows = list(
+            r.table("hypervisors")
+            .filter({"degraded": {"is_degraded": True}})
+            .pluck("id", "degraded")
+            .run(conn)
+        )
+    return {row["id"] for row in rows if any_check_may_clear(row.get("degraded"))}
 
 
 def get_hyps_health(hyp_ids):

@@ -21,7 +21,9 @@ def quiet(monkeypatch):
     monkeypatch.setattr(broom, "domain_guard", MagicMock())
     monkeypatch.setattr(broom, "get_shared_storage_stall", lambda: None)
     monkeypatch.setattr(broom, "update_hyp_libvirt_warning", MagicMock())
-    monkeypatch.setattr(broom, "get_degraded_hyp_ids", lambda: set())
+    monkeypatch.setattr(
+        broom, "get_degraded_hyp_ids_any_check_may_clear", lambda: set()
+    )
     monkeypatch.setattr(broom, "get_hyps_health", lambda hyp_ids: {})
 
 

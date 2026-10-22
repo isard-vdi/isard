@@ -64,7 +64,9 @@ def fast_broom(monkeypatch):
     monkeypatch.setattr(broom, "_check_single_hypervisor", fake_check)
     monkeypatch.setattr(broom, "update_hyp_degraded_status", degraded)
     monkeypatch.setattr(broom, "update_hyp_libvirt_warning", MagicMock())
-    monkeypatch.setattr(broom, "get_degraded_hyp_ids", lambda: set())
+    monkeypatch.setattr(
+        broom, "get_degraded_hyp_ids_any_check_may_clear", lambda: set()
+    )
     b = broom.ThreadBroom("broom-test", 1, MagicMock())
     yield b, degraded, calls, release
     release.set()
