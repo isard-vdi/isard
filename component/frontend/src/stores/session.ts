@@ -323,7 +323,7 @@ export const useSessionStore = defineStore('session', () => {
       if (newToken && oldToken && newToken !== oldToken) {
         console.debug('🔄 Token renewed, resetting timeouts')
         // Refetch the user condig to retrieve the new max renew time
-        await userStore.getUserConfig()
+        await userStore.getUserConfig({ refresh: true })
         initialize()
       }
     }

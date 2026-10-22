@@ -4,7 +4,7 @@ import { MainLayout } from '@/layouts/main'
 import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
-import { getUserConfig } from '@/gen/oas/apiv4'
+import { useUserStore } from '@/stores/user'
 import {
   resolveVue2Path,
   clearPreferredFrontend,
@@ -507,11 +507,7 @@ let cachedFrontendMode: FrontendMode | null = null
 async function getFrontendMode(): Promise<FrontendMode> {
   if (cachedFrontendMode) return cachedFrontendMode
   try {
-    const { data } = await getUserConfig()
-    if (!data) {
-      cachedFrontendMode = 'deprecated'
-      return cachedFrontendMode
-    }
+    const data = await useUserStore().getUserConfig()
     if (data.faro) {
       // Fire-and-forget: Faro init must not block navigation.
       void ensureFaroInitialized(data.faro)
