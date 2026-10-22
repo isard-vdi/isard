@@ -11,7 +11,7 @@ import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
 
 import { Icon } from '@/components/icon'
-import { CopyIcon } from '@/components/icon'
+import { CopyValue } from '@/components/copy-value'
 import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -93,7 +93,7 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
 </script>
 
 <template>
-  <div v-if="networksIsPending" class="grid grid-cols-2 gap-x-3 gap-y-1.5">
+  <div v-if="networksIsPending" class="grid grid-cols-2 gap-x-3 gap-y-3">
     <Skeleton class="bg-base-white/20 h-9" />
     <Skeleton class="bg-base-white/20 h-9" />
     <Skeleton v-if="props.fullHeight" class="bg-base-white/20 h-9" />
@@ -114,8 +114,12 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
   </div>
 
   <div v-else class="flex gap-3 text-start text-base-white">
-    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 min-w-0">
-      <div v-for="network in visibleNetworks" :key="network.id" class="flex flex-col min-w-0">
+    <div class="grid grid-cols-2 gap-x-3 gap-y-3 flex-1 min-w-0">
+      <div
+        v-for="network in visibleNetworks"
+        :key="network.id"
+        class="flex flex-col gap-1.5 min-w-0"
+      >
         <TruncatedText
           :title="network.name"
           class="font-semibold"
@@ -125,32 +129,32 @@ defineExpose({ hasOverflow: computed(() => overflowCount.value > 0) })
           class="text-base-white/80 flex items-center gap-1.5 font-mono min-w-0"
           :class="cardOverlayDetailVariants({ size })"
         >
-          <TruncatedText :title="network.mac" class="min-w-0" />
-          <CopyIcon :value="network.mac" class="opacity-80" size="xs" stroke-color="base-white" />
+          <CopyValue
+            :value="network.mac"
+            stroke-color="base-white"
+            class="hover:bg-base-white/15"
+          />
         </div>
         <!-- Wireguard-only: IP attached as a sub-row so it's clearly the IP
              you reach this interface on — not a free-floating top-of-card
              field that's easy to miss. -->
         <div
           v-if="network.id === 'wireguard'"
-          class="text-base-white/80 truncate flex items-center gap-1.5 font-mono"
+          class="text-base-white/80 flex items-center gap-1.5 font-mono min-w-0"
           :class="cardOverlayDetailVariants({ size })"
         >
           <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
             <Icon name="loading-02" size="xs" class="animate-spin" stroke-color="base-white" />
-            <span class="italic">
+            <span class="italic truncate">
               {{ t('components.desktops.desktop-card.status.waitingip.text') }}
             </span>
           </template>
-          <template v-else-if="props.desktopIp">
-            {{ props.desktopIp }}
-            <CopyIcon
-              :value="props.desktopIp"
-              class="opacity-80"
-              size="xs"
-              stroke-color="base-white"
-            />
-          </template>
+          <CopyValue
+            v-else-if="props.desktopIp"
+            :value="props.desktopIp"
+            stroke-color="base-white"
+            class="hover:bg-base-white/15"
+          />
           <span v-else class="italic text-base-white/50">—</span>
         </div>
       </div>
