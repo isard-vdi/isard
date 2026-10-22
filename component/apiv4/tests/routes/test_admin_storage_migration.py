@@ -14,6 +14,7 @@ from time import time
 import pytest
 from isardvdi_common.models.storage_migration import StorageMigration
 from rethinkdb import r
+from rethinkdb_mock import MockThink
 from tests.routes.helpers import MockJWT
 
 ADMIN = MockJWT(role_id="admin")
@@ -503,6 +504,38 @@ class TestControl:
         )
         assert resp.status_code == 200
         assert resp.json()["pause_reason"] == "failure"
+
+    @pytest.mark.parametrize("reason", ["load", "space"])
+    def test_cancel_of_an_auto_paused_job_survives_the_runner_resume(
+        self, reason, test_client_with_conn
+    ):
+        tables = {
+            "config": [{"id": 1, "maintenance": False}],
+            "categories": [{"id": "default"}],
+            "storage_migration": [_migration(status="paused", pause_reason=reason)],
+        }
+        with MockThink(
+            {"dbs": {"isard": {"tables": tables}}, "default": "isard"}
+        ).connect() as conn:
+            resp = test_client_with_conn(
+                db_tables_data=tables,
+                conn=conn,
+                url="/admin/storage/migrations/mig-1/cancel",
+                method="POST",
+                jwt=ADMIN,
+            )
+            assert resp.status_code == 200
+            assert resp.json()["pause_reason"] is None
+            # the runner's _claim_resume compare-and-set
+            assert not StorageMigration.update_document_if(
+                "mig-1",
+                {"status": "running", "pause_reason": None},
+                field="pause_reason",
+                values=("load", "space"),
+                validate=False,
+            )
+            row = r.table("storage_migration").get("mig-1").run(conn)
+        assert row["status"] == "finishing_tree"
 
     def test_a_lost_cas_race_is_a_conflict(self, monkeypatch, test_client):
         # the reconciler moved the row between set_action's read and its write
