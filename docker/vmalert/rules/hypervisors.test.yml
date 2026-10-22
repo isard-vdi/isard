@@ -218,6 +218,80 @@ tests:
               summary: "Hypervisor hyp-1 is sending no isard-stats-go metrics"
               description: "hyp-1 runs isard-hypervisor but isard-stats-go has reported nothing for 10m, so its desktop and hypervisor panels and the rules that read them are blind. Check the isard-stats-go container on that host and its log for a panic."
 
+  - name: a_hypervisor_out_of_memory_fires
+    interval: 1m
+    input_series:
+      - series: 'node_memory_MemTotal_bytes{domain="hyp-1"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="hyp-1"}'
+        values: "40x4 3x15"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x20"
+      - series: 'node_memory_MemTotal_bytes{domain="hyp-2"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="hyp-2"}'
+        values: "8x20"
+      - series: 'container_last_seen{domain="hyp-2",name="isard-hypervisor"}'
+        values: "1x20"
+      # the same pressure on a host without isard-hypervisor is not a hypervisor
+      - series: 'node_memory_MemTotal_bytes{domain="web-1"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="web-1"}'
+        values: "3x20"
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: hypervisor_alerts
+        alertname: HypervisorMemoryLow
+        exp_alerts: []
+      - eval_time: 8m
+        groupname: hypervisor_alerts
+        alertname: HypervisorMemoryLow
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 has only 3% of its memory available"
+              description: "hyp-1 is about to run out of memory and the kernel will start killing guests. Set it to only forced so no more desktops go to it, and check whether a burst of starts landed on it."
+
+  - name: an_oom_kill_on_a_hypervisor_fires_at_once
+    interval: 1m
+    input_series:
+      - series: 'node_vmstat_oom_kill{domain="hyp-1"}'
+        values: "0x5 9x20"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x25"
+      # hyp-2 had kills before it was first scraped: not new ones
+      - series: 'node_vmstat_oom_kill{domain="hyp-2"}'
+        values: "2x25"
+      - series: 'container_last_seen{domain="hyp-2",name="isard-hypervisor"}'
+        values: "1x25"
+      - series: 'node_vmstat_oom_kill{domain="web-1"}'
+        values: "0x5 4x20"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 has killed processes for lack of memory"
+              description: "The kernel OOM killer ran on hyp-1 in the last 5m, which usually kills a desktop. Set it to only forced, check which desktops stopped, and look at how many desktops it was given."
+      - eval_time: 20m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts: []
+
   - name: a_burst_of_starts_that_drains_does_not_fire
     interval: 1m
     input_series:

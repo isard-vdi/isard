@@ -82,6 +82,34 @@ groups:
           summary: "Hypervisor {{ $labels.domain }} CPU is saturated ({{ $value | humanizePercentage }})"
           description: "The CPU of {{ $labels.domain }} has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."
 
+      - alert: HypervisorMemoryLow
+        expr: |
+          (max by (domain) (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.05)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 2m
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} has only {{ $value | humanizePercentage }} of its memory available"
+          description: "{{ $labels.domain }} is about to run out of memory and the kernel will start killing guests. Set it to only forced so no more desktops go to it, and check whether a burst of starts landed on it."
+
+      # increase() counts a series that first appears with a non-zero counter as new kills;
+      # the offset term keeps a new host or a restarted scrape from firing on old ones.
+      - alert: HypervisorOomKills
+        expr: |
+          (sum by (domain) (increase(node_vmstat_oom_kill[5m])) > 0)
+          and on (domain) group by (domain) (node_vmstat_oom_kill offset 5m)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} has killed processes for lack of memory"
+          description: "The kernel OOM killer ran on {{ $labels.domain }} in the last 5m, which usually kills a desktop. Set it to only forced, check which desktops stopped, and look at how many desktops it was given."
+
       # isard-stats-go is scraped through container discovery, so when it dies its
       # target just disappears: no up == 0, and every rule fed by it reads no data.
       - alert: HypervisorStatsMissing
