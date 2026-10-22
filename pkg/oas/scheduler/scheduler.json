@@ -78,28 +78,6 @@
         }
       }
     },
-    "/scheduler/recycle_bin_delete/max_time": {
-      "get": {
-        "tags": [
-          "RecycleBin"
-        ],
-        "summary": "Get recycle-bin retention limits.",
-        "description": "Return the current recycle-bin retention (scoped to caller category unless admin) and the admin-configured max.",
-        "operationId": "get_scheduler_recycle_bin_delete_max_time",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SchedulerMaxTimeResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/scheduler": {
       "get": {
         "tags": [
@@ -1092,39 +1070,6 @@
         "additionalProperties": true,
         "title": "SchedulerActionKwargs",
         "description": "Kwargs schema for a specific scheduler action. Shape depends on the action."
-      },
-      "SchedulerMaxTimeResponse": {
-        "properties": {
-          "time": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Time"
-          },
-          "max_time": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Time"
-          }
-        },
-        "type": "object",
-        "required": [
-          "time",
-          "max_time"
-        ],
-        "title": "SchedulerMaxTimeResponse",
-        "description": "Current and admin-configured recycle-bin delete retention time (in days)."
       },
       "SchedulerError": {
         "properties": {
