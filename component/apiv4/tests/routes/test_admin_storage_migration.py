@@ -1911,3 +1911,65 @@ class TestPreflightCheck:
         body = resp.json()
         assert body["check_census"] == {"checked": 2, "leaks": 1, "corruptions": 1}
         assert body["not_moving_disks"] == [{"id": "sa", "reason": "corruptions=2"}]
+
+
+class TestWindowValidation:
+    """The API rejects a malformed maintenance window up front, so a typo cannot
+    silently widen a night job to 24h (an unparseable time, an out-of-range
+    weekday or an unknown timezone otherwise falls through to 'always open')."""
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            {"start": "25:99", "end": "02:00"},
+            {"start": "7a:00", "end": "02:00"},
+            {"start": "02:00", "end": "24:00"},
+            {"start": "08:00", "end": "08:00"},
+            {"days": [7]},
+            {"days": [0, -1]},
+            {"tz": "Not/AZone"},
+        ],
+    )
+    def test_config_rejects_a_malformed_window(self, test_client, window):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"window": window},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+    def test_config_accepts_a_valid_overnight_window(self, test_client):
+        window = {
+            "start": "22:00",
+            "end": "06:00",
+            "days": [0, 1, 2, 3, 4],
+            "tz": "Europe/Madrid",
+        }
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"window": window},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["window"] == window
+
+    def test_create_rejects_a_malformed_window(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"window": {"tz": "Not/AZone"}},
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400

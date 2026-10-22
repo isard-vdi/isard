@@ -21,8 +21,9 @@
 """Pydantic models for the admin storage-disk migration endpoints."""
 
 from typing import Literal, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # --------------------------------------------------------------------------- #
@@ -34,6 +35,52 @@ class MigrationWindowData(BaseModel):
     tz: str = "UTC"
     #: weekdays the window is active, Mon=0 … Sun=6. Empty == every day.
     days: list[int] = Field(default_factory=list)
+
+    @field_validator("start", "end")
+    @classmethod
+    def _valid_hhmm(cls, v):
+        if not v:
+            return v
+        try:
+            h, m = str(v).split(":")
+            h, m = int(h), int(m)
+        except (ValueError, AttributeError):
+            raise ValueError("time must be HH:MM")
+        if not (0 <= h < 24 and 0 <= m < 60):
+            raise ValueError("time must be within 00:00..23:59")
+        return v
+
+    @field_validator("days")
+    @classmethod
+    def _valid_days(cls, v):
+        if any(not (0 <= d <= 6) for d in v):
+            raise ValueError("days must be 0 (Mon)..6 (Sun)")
+        return v
+
+    @field_validator("tz")
+    @classmethod
+    def _valid_tz(cls, v):
+        try:
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError:
+            try:
+                ZoneInfo("UTC")
+            except ZoneInfoNotFoundError:
+                # No IANA db here: fall open like the runner's tz handling does.
+                return v
+            raise ValueError(f"unknown timezone {v!r}")
+        except Exception:
+            raise ValueError(f"invalid timezone {v!r}")
+        return v
+
+    @model_validator(mode="after")
+    def _start_differs_from_end(self):
+        # equal bounds read as a zero-width (always-open) window, defeating the
+        # schedule the admin asked for, so reject it rather than silently running
+        # the job all day.
+        if self.start and self.end and self.start == self.end:
+            raise ValueError("window start and end must differ")
+        return self
 
 
 class MigrationSelectionData(BaseModel):
