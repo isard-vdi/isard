@@ -34,7 +34,9 @@ def _work(connection, worker_class=SimpleWorker):
 
 def test_a_finished_job_publishes_once_with_its_result_saved(scratch_redis):
     job = _queue(scratch_redis).enqueue(
-        "builtins.len", [1, 2, 3], meta={"migration_id": "m1"}
+        "builtins.len",
+        [1, 2, 3],
+        meta={"migration_id": "m1", "migration_tree_id": "t1"},
     )
 
     _work(scratch_redis)
@@ -44,6 +46,7 @@ def test_a_finished_job_publishes_once_with_its_result_saved(scratch_redis):
     assert event["kind"] == "result"
     assert event["queue"] == LANE
     assert event["migration_id"] == "m1"
+    assert event["migration_tree_id"] == "t1"
     job = ResultJob.fetch(job.id, connection=scratch_redis)
     assert job.get_status() == JobStatus.FINISHED
     assert job.return_value() == 3

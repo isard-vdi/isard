@@ -1464,15 +1464,14 @@ def budget_allows_new_tree(bytes_moved, max_bytes):
 def should_rescan(cadence, occurrence_key, last_occurrence, is_drained, window_open):
     """Whether a recurring job re-scans this tick, per its cadence. Never outside
     the window. ``edge`` only at the occurrence edge (new key); ``edge_on_drain``
-    also once the current batch has drained; ``continuous`` every tick in-window.
-    (An occurrence-edge re-scan additionally re-arms failed/skipped disks — see
-    ``plan_tree_rearm``; between edges only new disks are inserted.)"""
+    also once the current batch has drained. The retired ``continuous`` reads as
+    ``edge_on_drain``: re-resolving the selection every tick cost a full scan per
+    tick. (An occurrence-edge re-scan additionally re-arms failed/skipped disks —
+    see ``plan_tree_rearm``; between edges only new disks are inserted.)"""
     if not window_open:
         return False
     is_edge = occurrence_key != last_occurrence
-    if cadence == "continuous":
-        return True
-    if cadence == "edge_on_drain":
+    if cadence in ("edge_on_drain", "continuous"):
         return is_edge or is_drained
     return is_edge  # "edge" (default fallback)
 

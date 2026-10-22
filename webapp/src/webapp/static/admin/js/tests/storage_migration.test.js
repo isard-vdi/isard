@@ -134,7 +134,7 @@ a = api({
   vals: {
     "#mig_bwlimit": "100", "#mig_parallel": "2",
     "#mig_win_start": "22:00", "#mig_win_end": "06:00",
-    "#mig_rescan_cadence": "continuous", "#mig_failure_policy": "pause",
+    "#mig_rescan_cadence": "edge", "#mig_failure_policy": "pause",
     "#mig_quarantine_after": "5"
   },
   checks: { "#mig_verify": true, "#mig_recurring": true, "#mig_force_stop": false },
@@ -145,7 +145,7 @@ assert.strictEqual(cfg.recurring, true, "recurring must ride into config");
 assert.strictEqual(cfg.bwlimit_kbs, 100);
 assert.strictEqual(cfg.parallelism, 2);
 assert.deepStrictEqual(cfg.window, { tz: "UTC", start: "22:00", end: "06:00", days: [5, 6] });
-assert.strictEqual(cfg.rescan_cadence, "continuous");
+assert.strictEqual(cfg.rescan_cadence, "edge");
 assert.strictEqual(cfg.failure_policy, "pause");
 assert.strictEqual(cfg.quarantine_after, 5);
 

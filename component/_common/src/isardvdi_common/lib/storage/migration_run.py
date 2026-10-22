@@ -36,7 +36,7 @@ import logging
 from datetime import datetime, timezone
 from functools import partial
 from os.path import basename, dirname, join
-from time import time
+from time import sleep, time
 from uuid import uuid4
 
 try:  # py3.9+ stdlib; always present on our 3.13 images
@@ -61,6 +61,7 @@ from isardvdi_common.models.storage_migration import (
     StorageMigration,
     StorageMigrationItem,
     StorageMigrationItemModel,
+    totals_delta,
 )
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
@@ -99,17 +100,34 @@ ABANDON_GRACE_S = 30
 #: safety net, so the first abandonment always RESUMES.
 MAX_ABANDON_RESTARTS = 10
 
+#: a disk in one of these no longer needs its desktops' autostart held off
+_SETTLED_FOR_AUTOSTART = frozenset(
+    str(s)
+    for s in (
+        MigrationItemState.RELEASED,
+        MigrationItemState.SKIPPED,
+        MigrationItemState.FAILED,
+        MigrationItemState.QUARANTINED,
+    )
+)
+#: steps one event may take on its tree before handing back
+TREE_MAX_STEPS = 50
+
 #: throttle migration progress XADDs to one per migration per this many seconds;
 #: a status change or a pause/park forces one through so the admin never waits.
 PROGRESS_THROTTLE_S = 5
 
 
-def _xadd_migration_event(conn, migration_id):
+def _xadd_migration_event(conn, migration_id, wake=False):
     # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared result
     # stream for every producer, so ask task_streams for the sanctioned value.
+    fields = {"kind": "migration", "migration_id": migration_id}
+    if wake:
+        # the runner's own progress events must not wake it again
+        fields["wake"] = "1"
     conn.xadd(
         task_streams.RESULT_STREAM,
-        {"kind": "migration", "migration_id": migration_id},
+        fields,
         maxlen=task_streams.maxlen_for_stream(task_streams.RESULT_STREAM),
         approximate=True,
     )
@@ -121,7 +139,7 @@ def publish_migration_event(migration_id):
     for the API to call after an admin action, whose effect would otherwise wait
     for the periodic backstop and leave other admins' tabs stale. Never raises."""
     try:
-        _xadd_migration_event(shared_client(rq_url()), migration_id)
+        _xadd_migration_event(shared_client(rq_url()), migration_id, wake=True)
     except Exception:
         log.exception("migration: could not publish event for %s", migration_id)
 
@@ -236,6 +254,12 @@ def _job_abandoned(task):
 class MigrationRunner:
     #: the ledger as read once per tick, kept in step by every write the runner makes
     _snapshot = None
+    #: per-event driving: keep the job totals by delta instead of a full recompute
+    _incremental = False
+    #: the tree being driven, echoed on its tasks' result events
+    _driving_tree = None
+    #: items whose autostart this tick already restored
+    _restored = frozenset()
 
     def __init__(
         self,
@@ -279,10 +303,16 @@ class MigrationRunner:
         state_changed = "state" in fields and str(fields["state"]) != str(
             item.get("state")
         )
+        old_state = item.get("state")
         StorageMigrationItem.update_document(item["id"], fields, validate=False)
         item.update(fields)
         if state_changed:
-            self._touch()
+            if self._incremental:
+                self.migration.record_activity(
+                    totals_delta(old_state, fields["state"], item.get("size_bytes"))
+                )
+            else:
+                self._touch()
 
     def _touch(self):
         """Stamp job-level last activity. ``updated_at`` is written only by API
@@ -353,7 +383,10 @@ class MigrationRunner:
         # and an edge-triggered consumer can route a wake to advance(this
         # migration). Task.__init__ setdefaults + persists meta, so a pre-existing
         # meta dict is preserved; harmless when edge-triggering is off.
-        job_kwargs = {"kwargs": kwargs, "meta": {"migration_id": self.migration_id}}
+        meta = {"migration_id": self.migration_id}
+        if self._driving_tree:
+            meta["migration_tree_id"] = self._driving_tree
+        job_kwargs = {"kwargs": kwargs, "meta": meta}
         if timeout:
             job_kwargs["timeout"] = timeout
         return Task(
@@ -392,41 +425,81 @@ class MigrationRunner:
             log.exception("migration: could not read domains of %s", storage_id)
             return []
 
-    def prepare(self):
-        """Deactivate autostart for EVERY desktop in the migration up front
-        (the mandatory livelock guard — the ~10s autostart loop must never beat
-        the move window). The prior ``server_autostart`` of each domain is
-        recorded in the ledger so re-activation is crash-safe (driven from the
-        ledger on resume).
+    def prepare(self, items=None):
+        """Deactivate autostart for the desktops of ``items`` (the whole ledger
+        by default) before their tree moves: the ~10s autostart loop must never
+        beat the move. The prior ``server_autostart`` of each domain is recorded
+        in the ledger so re-activation is crash-safe.
 
         Crash-safe ordering (qcow-2): persist the ledger records FIRST (was_on =
         the current live value), and only THEN deactivate. Deactivating before
         persisting would let a crash in between re-read the now-False field and
-        record was_on=False -> permanent autostart loss; persisting first keeps
-        the pre-suppression value durable for reactivate. The deactivation set is
-        re-derived from the full ledger every prepare (so a crash between persist
-        and deactivate re-suppresses on resume) but filtered to the still-live
-        domains, so deactivate_autostart neither re-fires/re-notifies every tick
-        nor misses a crash-interrupted suppression.
+        record was_on=False -> permanent autostart loss. A recorded domain that is
+        still on is suppressed again, so a crash between persist and deactivate
+        re-suppresses on resume without re-firing for domains already off.
         """
         writes, to_deactivate = mig.plan_autostart_deactivation(
-            self._items(), self._domains
+            self._items() if items is None else items, self._domains
         )
         for item, records in writes:
             self._set(item, autostart_domains=records)
         if to_deactivate:
             DesktopEvents.deactivate_autostart(to_deactivate)
 
-    def reactivate(self):
-        """Re-activate autostart for the domains we turned off (those recorded
-        ``was_on``). Crash-safe + idempotent: re-derived from the ledger."""
+    def reactivate(self, items=None):
+        """Re-activate autostart for the domains recorded ``was_on`` in ``items``
+        (the whole ledger by default). Crash-safe + idempotent: re-derived from
+        the ledger. A domain with a disk still moving elsewhere is handed over."""
+        if items is None:
+            # a tree that settled this tick already got its autostart back
+            items = [it for it in self._items() if it["id"] not in self._restored]
+        else:
+            self._restored = {*self._restored, *(it["id"] for it in items)}
         to_activate = []
-        for item in self._items():
+        for item in items:
             for rec in item.get("autostart_domains") or []:
-                if rec.get("was_on"):
+                if rec.get("was_on") and rec["id"] not in to_activate:
                     to_activate.append(rec["id"])
+        mine = {it["id"] for it in items}
+        to_activate = [d for d in to_activate if not self._hand_over(d, mine)]
         if to_activate:
             DesktopEvents.activate_autostart(to_activate)
+
+    def _hand_over(self, domain_id, mine):
+        """Whether another tree still moving one of ``domain_id``'s disks now owns
+        its autostart restore; that tree's record is marked ``was_on``."""
+        try:
+            disks = (Domain(domain_id).create_dict or {}).get("hardware", {})
+            storage_ids = [
+                d["storage_id"] for d in disks.get("disks") or [] if "storage_id" in d
+            ]
+        except Exception:
+            log.exception("migration: could not read the disks of %s", domain_id)
+            return False
+        for sid in storage_ids:
+            for other in StorageMigrationItem.dicts_by_storage(sid):
+                records = other.get("autostart_domains")
+                if (
+                    other["id"] in mine
+                    or records is None
+                    or str(other.get("state")) in _SETTLED_FOR_AUTOSTART
+                ):
+                    continue
+                StorageMigrationItem.update_document(
+                    other["id"],
+                    {
+                        "autostart_domains": [
+                            {
+                                **rec,
+                                "was_on": rec.get("was_on") or rec["id"] == domain_id,
+                            }
+                            for rec in records
+                        ]
+                    },
+                    validate=False,
+                )
+                return True
+        return False
 
     # -- window / EWMA-ETA admission (P2.2) -------------------------------- #
     def _now(self, tz):
@@ -476,7 +549,7 @@ class MigrationRunner:
 
         Fires per the job's ``rescan_cadence`` (``mig.should_rescan``): ``edge``
         only at the occurrence edge, ``edge_on_drain`` also once the batch has
-        drained, ``continuous`` every tick in-window. An OCCURRENCE-EDGE re-scan
+        drained. An OCCURRENCE-EDGE re-scan
         additionally re-arms failed/skipped in-scope disks (and quarantines per
         the failure policy — see ``_rearm_for_occurrence``); a between-edges
         re-scan only inserts newly-matching disks (never disturbs in-flight)."""
@@ -502,7 +575,7 @@ class MigrationRunner:
             self._rearm_for_occurrence(key)
             self.migration.last_occurrence = key
         else:
-            # Same occurrence (continuous / on-drain): pick up new disks only.
+            # Same occurrence, batch drained: pick up new disks only.
             self._rescan_insert_new()
         return True
 
@@ -664,6 +737,12 @@ class MigrationRunner:
         record = mig.build_audit_record(item, result, occurrence, time())
         StorageMigrationItem.append_audit(item["id"], record)
         item["audit"] = [*(item.get("audit") or []), record]
+        if (
+            self._incremental
+            and result in mig._BUDGET_SPENDING_RESULTS
+            and int(self.config.get("max_bytes_per_occurrence") or 0)
+        ):
+            self.migration.add_budget_spent(occurrence, record.get("size_bytes") or 0)
 
     def _failure_reason(self, item):
         """What the disk's failing task actually said, or None.
@@ -1998,11 +2077,63 @@ class MigrationRunner:
         self.migration.load_state = load_state
         return str(self.migration.status) == MigrationStatus.PAUSED.value
 
+    @staticmethod
+    def _tree_settled(tree_items):
+        return mig.tree_phase([it["state"] for it in tree_items]) == "done"
+
+    def _step_tree(self, tree_id, tree_items, finishing, results):
+        """Advance one tree by one step; appends its ``(tree, item, action)`` to
+        ``results`` and returns ``(failed, space_deferred)``."""
+        if not self._gate_tree(tree_items):
+            results.append((tree_id, None, "gated"))
+            return False, False
+        item, action = mig.tree_next(tree_items, self.job_status_fn)
+        # R2 cancel-aware skip: under cancel (finishing_tree), never START or
+        # RESUME an un-started — possibly large — move/rebase/verify on a tree
+        # that has committed no disk yet. Discard the in-progress work and
+        # skip the tree cleanly (sources retained byte-identical, storage
+        # status restored), driving the job to canceled. A tree that already
+        # committed a disk still finishes normally.
+        if mig.cancel_skips_tree(tree_items, action, finishing):
+            self._cancel_skip_tree(tree_items, "canceled before tree committed")
+            results.append((tree_id, None, "canceled"))
+            return False, False
+        results.append((tree_id, item["id"] if item else None, action))
+        handler = self._ACTIONS.get(action)
+        if handler is None:
+            return False, False
+        failed = False
+        deferred_before = self._space_deferred
+        self._driving_tree = tree_id
+        try:
+            handler(self, item)
+        except Exception:
+            log.exception(
+                "migration: action %s failed on item %s",
+                action,
+                item.get("id") if item else None,
+            )
+            if item:
+                self._set(
+                    item,
+                    state=MigrationItemState.FAILED.value,
+                    error=f"action {action} raised",
+                )
+                failed = True
+        finally:
+            self._driving_tree = None
+        if self._space_deferred and not deferred_before:
+            results[-1] = (tree_id, results[-1][1], "space_deferred")
+            return failed, True
+        return failed, False
+
     # -- tick -------------------------------------------------------------- #
     def tick(self):
         """Advance every tree by at most one step. Returns a list of
         ``(tree_id, item_id|None, action)`` describing what happened."""
+        self._incremental = False
         self._snapshot = None
+        self._restored = set()
         self.migration.fresh_status()
         # re-read config so a mid-drain update_config edit is honoured this tick
         self.config = self.migration.fresh_config()
@@ -2052,12 +2183,6 @@ class MigrationRunner:
         if not finishing and not space_paused and not held:
             self._maybe_rescan_occurrence()
 
-        # Mandatory autostart guard: deactivate autostart for the whole job before
-        # any disk is touched (idempotent — only un-prepared items). Only while the
-        # window is open (when trees may actually start): between occurrences a
-        # recurring job must NOT re-suppress autostart it already restored.
-        if not finishing and win_open and not held:
-            self.prepare()
         items = self._items()
         trees = {}
         for it in items:
@@ -2141,42 +2266,15 @@ class MigrationRunner:
                     results.append((tree_id, None, "deferred"))
                     continue
                 slots -= 1  # this tree starts now, consuming a slot
-            if not self._gate_tree(tree_items):
-                results.append((tree_id, None, "gated"))
-                continue
-            item, action = mig.tree_next(tree_items, self.job_status_fn)
-            # R2 cancel-aware skip: under cancel (finishing_tree), never START or
-            # RESUME an un-started — possibly large — move/rebase/verify on a tree
-            # that has committed no disk yet. Discard the in-progress work and
-            # skip the tree cleanly (sources retained byte-identical, storage
-            # status restored), driving the job to canceled. A tree that already
-            # committed a disk still finishes normally.
-            if mig.cancel_skips_tree(tree_items, action, finishing):
-                self._cancel_skip_tree(tree_items, "canceled before tree committed")
-                results.append((tree_id, None, "canceled"))
-                continue
-            results.append((tree_id, item["id"] if item else None, action))
-            handler = self._ACTIONS.get(action)
-            if handler is not None:
-                deferred_before = self._space_deferred
-                try:
-                    handler(self, item)
-                except Exception:
-                    log.exception(
-                        "migration: action %s failed on item %s",
-                        action,
-                        item.get("id") if item else None,
-                    )
-                    if item:
-                        self._set(
-                            item,
-                            state=MigrationItemState.FAILED.value,
-                            error=f"action {action} raised",
-                        )
-                        failed_this_tick = True
-                if self._space_deferred and not deferred_before:
-                    results[-1] = (tree_id, results[-1][1], "space_deferred")
-                    space_paused = True
+            # Autostart guard: only while trees may start, so a recurring job never
+            # re-suppresses between occurrences what it already restored.
+            if phases[tree_id] != "done" and not finishing and win_open and not held:
+                self.prepare(tree_items)
+            failed, deferred = self._step_tree(tree_id, tree_items, finishing, results)
+            failed_this_tick = failed_this_tick or failed
+            space_paused = space_paused or deferred
+            if phases[tree_id] != "done" and self._tree_settled(tree_items):
+                self.reactivate(tree_items)
         if self._space_deferred and not finishing:
             self._log(
                 "paused_min_free",
@@ -2342,6 +2440,9 @@ class MigrationRunner:
 
     def is_complete(self):
         """True when every item is terminal (released/skipped/failed/quarantined)."""
+        if self._incremental:
+            # per-event driving never reads the ledger; the full pass decides
+            return False
         items = self._items()
         return all(
             str(it["state"])
@@ -2353,6 +2454,301 @@ class MigrationRunner:
             )
             for it in items
         )
+
+    # -- per-event driving: a result drives its own tree; tick() only on the edges
+    def _order_key(self):
+        return f"migration:order:{self.migration_id}"
+
+    @staticmethod
+    def _redis():
+        return shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
+
+    def _occurrence_now(self):
+        """The occurrence key while a recurring job's window is open, else None."""
+        if not bool(self.config.get("recurring")):
+            return None
+        window = (self.config or {}).get("window") or {}
+        start = mig.parse_hhmm(window.get("start"))
+        end = mig.parse_hhmm(window.get("end"))
+        now = self._now(window.get("tz") or "UTC")
+        now_min = now.hour * 60 + now.minute
+        if not mig.window_is_open_days(
+            start, end, window.get("days") or [], now.weekday(), now_min
+        ):
+            return None
+        return mig.occurrence_key(now, start, end)
+
+    def needs_full_pass(self):
+        """Whether the next drive must read the whole ledger."""
+        drive = self.migration.fresh_drive()
+        self.config = self.migration.config or {}
+        if drive is None:
+            return True
+        status = str(self.migration.status)
+        if status == MigrationStatus.FINISHING_TREE.value and not drive.get(
+            "finishing"
+        ):
+            return True
+        _has_window, win_open, _remaining = self._window_state()
+        if win_open and not drive.get("window_open"):
+            return True
+        occurrence = self._occurrence_now()
+        if occurrence is not None and occurrence != drive.get("occurrence"):
+            return True
+        if drive.get("active") or drive.get("drained"):
+            return False
+        try:
+            return not self._redis().llen(self._order_key())
+        except RedisError:
+            return True
+
+    def save_drive(self):
+        """Persist what a full pass leaves: the trees in flight and, in a redis
+        list, the not-started trees in the order the plan froze."""
+        self._incremental = False
+        trees = {}
+        for it in self._items():
+            trees.setdefault(it["tree_id"], []).append(it)
+        order = mig.sort_tree_ids(
+            {tid: tis[0].get("tree_order_key") for tid, tis in trees.items()},
+            self.config.get("order"),
+        )
+        active, waiting = [], []
+        for tid in order:
+            phase = mig.tree_phase([it["state"] for it in trees[tid]])
+            # a tree waiting for its desktops to stop already holds a slot
+            gated = any(int(it.get("attempts") or 0) for it in trees[tid])
+            if phase == "in_flight" or (phase == "not_started" and gated):
+                active.append(tid)
+            elif phase == "not_started":
+                waiting.append(tid)
+        pipe = self._redis().pipeline()
+        pipe.delete(self._order_key())
+        for i in range(0, len(waiting), 1000):
+            pipe.rpush(self._order_key(), *waiting[i : i + 1000])
+        pipe.execute()
+        _has_window, win_open, _remaining = self._window_state()
+        self.migration.set_drive(
+            {
+                "active": active,
+                "window_open": win_open,
+                "finishing": str(self.migration.status)
+                == MigrationStatus.FINISHING_TREE.value,
+                "drained": not active and not waiting,
+                "occurrence": self._occurrence_now(),
+            }
+        )
+        if int(self.config.get("max_bytes_per_occurrence") or 0):
+            occurrence = self.migration.last_occurrence or "initial"
+            self.migration.set_budget_spent(
+                occurrence,
+                int(
+                    StorageMigrationItem.occurrence_bytes_moved(
+                        self.migration_id, occurrence, mig._BUDGET_SPENDING_RESULTS
+                    )
+                    or 0
+                ),
+            )
+
+    def _budget_spent_now(self):
+        spent = getattr(self.migration, "budget_spent", None) or {}
+        if spent.get("occurrence") != (self.migration.last_occurrence or "initial"):
+            return 0
+        return int(spent.get("bytes") or 0)
+
+    def _drive_tree(self, tree_id, tree_items, finishing, results):
+        """Step one tree until it waits on a task; a settled tree gets its
+        desktops' autostart back and leaves the active set."""
+        failed = deferred = False
+        for _ in range(TREE_MAX_STEPS):
+            failed, deferred = self._step_tree(tree_id, tree_items, finishing, results)
+            if failed or deferred or results[-1][2] not in mig.PROGRESS_ACTIONS:
+                break
+        self._touched.extend(tree_items)
+        if not tree_items or self._tree_settled(tree_items):
+            self.reactivate(tree_items)
+            self.migration.drive_active(remove=[tree_id])
+        return failed, deferred
+
+    def _admit(self, win_open, remaining_s, results):
+        """Start not-started trees, in the frozen order, into the free slots."""
+        budget = int(self.config.get("max_bytes_per_occurrence") or 0)
+        conn = self._redis()
+        while True:
+            active = (self.migration.drive or {}).get("active") or []
+            if len(active) >= max(1, int(self.config.get("parallelism") or 1)):
+                return
+            if budget and not mig.budget_allows_new_tree(
+                self._budget_spent_now(), budget
+            ):
+                return
+            tree_id = conn.lpop(self._order_key())
+            if tree_id is None:
+                return
+            if isinstance(tree_id, bytes):
+                tree_id = tree_id.decode()
+            tree_items = StorageMigrationItem.tree_rows(self.migration_id, tree_id)
+            if (
+                mig.tree_phase([it["state"] for it in tree_items]) != "not_started"
+                # one that does not fit the window waits for its next opening
+                or not self._admit_tree(tree_items, win_open, remaining_s)
+            ):
+                continue
+            if self._space_floor_state(admitting=True) is True:
+                conn.lpush(self._order_key(), tree_id)
+                self._pause_for_space()
+                results.append(("__space__", None, "paused_min_free"))
+                return
+            self.migration.drive_active(add=[tree_id])
+            self.prepare(tree_items)
+            _failed, deferred = self._drive_tree(tree_id, tree_items, False, results)
+            if deferred:
+                return
+
+    def drive_trees(self, tree_ids=None):
+        """Drive the trees whose task just finished (every tree in flight when
+        ``tree_ids`` is None), then admit trees into the freed slots. Reads the
+        job row and those trees, never the whole ledger."""
+        self._incremental = True
+        self._space_deferred = False
+        self._touched = []
+        periodic = tree_ids is None
+        if periodic and mig.load_policy_is_adaptive(self.config):
+            if self._apply_load_policy():
+                self._record_job_rate(False)
+                self._publish_progress(force=True)
+                return []
+        finishing = str(self.migration.status) == MigrationStatus.FINISHING_TREE.value
+        held = self._held()
+        has_window, win_open, remaining_s = self._window_state()
+        space_paused = self._paused_for_space()
+        if periodic and not finishing and win_open and not held:
+            if space_paused:
+                if self._space_floor_state() is False:
+                    if self._resume_after_space():
+                        space_paused = False
+                    else:
+                        held = self._held()
+            elif self._space_floor_breached():
+                self._pause_for_space()
+                self._publish_progress(force=True)
+                return [("__space__", None, "paused_min_free")]
+
+        results = []
+        failed_any = False
+        active = (self.migration.drive or {}).get("active") or []
+        for tree_id in active if periodic else [t for t in tree_ids if t in active]:
+            tree_items = StorageMigrationItem.tree_rows(self.migration_id, tree_id)
+            failed, deferred = self._drive_tree(tree_id, tree_items, finishing, results)
+            failed_any = failed_any or failed
+            if deferred:
+                space_paused = True
+                break
+        if not (finishing or held or space_paused) and win_open:
+            self._admit(win_open, remaining_s, results)
+        return self._settle_drive(
+            results,
+            failed_any,
+            finishing,
+            held,
+            space_paused,
+            (has_window, win_open, remaining_s),
+            periodic,
+        )
+
+    def _settle_drive(
+        self, results, failed_any, finishing, held, space_paused, window, periodic
+    ):
+        """The job status after a per-event drive. Completion is left to the full
+        pass that follows once nothing is in flight or waiting."""
+        has_window, win_open, remaining_s = window
+        cur = str(self.migration.status)
+        if self._space_deferred and not finishing:
+            self._log(
+                "paused_min_free",
+                "the storage worker refused a copy below the destination's "
+                "free-space floor; pausing, the disk stays pending",
+            )
+            self._claim_status(cur, MigrationStatus.PAUSED.value, pause_reason="space")
+            self._publish_progress(force=True)
+            return results
+        touched = {i for (_t, i, _a) in results if i}
+        damaged = any(it.get("damaged") and it["id"] in touched for it in self._touched)
+        failed = failed_any or any(
+            action in ("fail", "blocked", "destination_exists")
+            for (_t, _i, action) in results
+        )
+        policy = self.config.get("failure_policy") or "retry_quarantine"
+        on_damaged = self.config.get("on_damaged") or "pause"
+        pause_now = not finishing and (
+            (damaged and on_damaged != "continue")
+            or (policy == "pause" and failed and not damaged)
+        )
+        drive = dict(self.migration.drive or {})
+        in_flight = bool(drive.get("active"))
+        if held:
+            pass
+        elif pause_now:
+            if cur != MigrationStatus.PAUSED.value or space_paused:
+                self._claim_status(
+                    cur, MigrationStatus.PAUSED.value, pause_reason="failure"
+                )
+        elif not space_paused:
+            target = mig.recurring_status_target(
+                False,
+                in_flight,
+                win_open,
+                finishing,
+                False,
+                bool(self.config.get("recurring")),
+            )
+            if target is None and cur in (
+                MigrationStatus.RUNNING.value,
+                MigrationStatus.WINDOW_CLOSED.value,
+                MigrationStatus.BUDGET_REACHED.value,
+            ):
+                target = (
+                    MigrationStatus.WINDOW_CLOSED.value
+                    if (has_window and not win_open)
+                    else MigrationStatus.RUNNING.value
+                )
+            budget = int(self.config.get("max_bytes_per_occurrence") or 0)
+            if (
+                budget
+                and not in_flight
+                and not finishing
+                and not mig.budget_allows_new_tree(self._budget_spent_now(), budget)
+                and target
+                in (MigrationStatus.RUNNING.value, MigrationStatus.SCHEDULED.value)
+            ):
+                target = MigrationStatus.BUDGET_REACHED.value
+            if target is not None and cur != target:
+                if (
+                    cur == MigrationStatus.PAUSED.value
+                    and target == MigrationStatus.RUNNING.value
+                ):
+                    self._claim_resume()
+                else:
+                    self._claim_status(cur, target)
+        if bool(drive.get("window_open")) != win_open:
+            drive["window_open"] = win_open
+            self.migration.set_drive(drive)
+        if periodic:
+            # the admin's window and rate readings refresh once a minute, not per result
+            self._record_job_rate(in_flight)
+            self.migration.current_window = {
+                "has_window": has_window,
+                "open": win_open,
+                "remaining_seconds": (
+                    None if remaining_s == float("inf") else int(remaining_s)
+                ),
+                "next_run_seconds": self._next_run_seconds(),
+            }
+        changed = str(self.migration.status) != cur
+        if changed:
+            self._touch()
+        self._publish_progress(force=changed)
+        return results
 
 
 # --------------------------------------------------------------------------- #
@@ -2384,7 +2780,9 @@ ADVANCE_LOCK_TTL = 90
 ADVANCE_MAX_ITERATIONS = 500
 
 
-def _has_in_flight(migration_id):
+def _has_in_flight(migration_id, drive=None):
+    if drive is not None:
+        return bool(drive.get("active"))
     counts = StorageMigrationItem.state_counts(migration_id) or {}
     settled = {
         MigrationItemState.PENDING.value,
@@ -2396,7 +2794,7 @@ def _has_in_flight(migration_id):
     return any(n for state, n in counts.items() if str(state) not in settled)
 
 
-def advance(migration_id, *, check_abandon=True):
+def advance(migration_id, *, check_abandon=True, tree_ids=None):
     """Drive ONE migration forward through a single, serialized drain.
 
     The ONLY entry point that runs the reconciler: the scheduler backstop calls
@@ -2430,6 +2828,10 @@ def advance(migration_id, *, check_abandon=True):
     ``check_abandon`` gates the dead-worker resume detection: the periodic
     backstop passes True; an edge-triggered caller passes False so a still-STARTED
     job is not sampled as GONE on every sibling's completion event.
+
+    ``tree_ids`` names the trees whose task just finished; None drives every tree
+    in flight. A caller that finds the lease taken leaves its trees in a wake set
+    that the holder drains before letting go, so no result is lost to ``busy``.
     """
     if not StorageMigration.exists(migration_id):
         return "gone"
@@ -2439,51 +2841,134 @@ def advance(migration_id, *, check_abandon=True):
     # resume it; a manual/failure pause only while its trees in flight finish.
     if status not in _DRIVABLE_STATUSES and not (
         status == MigrationStatus.PAUSED.value
-        and (m.pause_reason in ("load", "space") or _has_in_flight(migration_id))
+        and (
+            m.pause_reason in ("load", "space")
+            or _has_in_flight(migration_id, getattr(m, "drive", None))
+        )
     ):
         return "not_drivable"
     # the socket timeout makes a stalled redis raise instead of hanging past the lease TTL
     conn = shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
-    lock = conn.lock(
-        f"lock:migration:advance:{migration_id}",
-        timeout=ADVANCE_LOCK_TTL,
-        blocking_timeout=0,  # never spin on contention — skip this pass instead
-        thread_local=True,  # token is greenlet-local; acquire+release same greenlet
-    )
-    if not lock.acquire():
-        return "busy"  # another driver is already draining this migration
+    wake_key = _wake_key(migration_id)
+    conn.sadd(wake_key, *(tree_ids or [_ALL_TREES]))
     jf = partial(job_status, check_abandon=check_abandon)
-    aborted = False
-    try:
-        runner = MigrationRunner(migration_id, job_status_fn=jf)
-        for _ in range(ADVANCE_MAX_ITERATIONS):
-            # Watchdog at the TOP of the loop: renew the lease BEFORE doing work,
-            # so the exclusion guarantee is per-tick. If we can no longer renew --
-            # lease lost/re-taken (LockError) OR a stalled redis (Timeout/
-            # ConnectionError, both RedisError) -- abort at once (do not keep
-            # mutating the ledger unlocked); the backstop resumes from the ledger.
-            try:
-                lock.reacquire()
-            except RedisError as exc:
-                log.warning(
-                    "migration: advance could not renew its lease mid-drain for "
-                    "%s (%s); aborting (backstop will resume)",
-                    migration_id,
-                    type(exc).__name__,
-                )
-                aborted = True
-                break
-            results = runner.tick()
-            if runner.is_complete() or not mig.tick_made_progress(results):
-                break
-    finally:
-        # Runs on GreenletExit too. Owner-guarded release: release() raises
-        # LockNotOwnedError if our lease lapsed and was re-taken; a stalled redis
-        # raises TimeoutError. Swallow BOTH (RedisError) -- the lease expires via
-        # its TTL regardless -- so teardown never leaks an exception out of
-        # advance().
+    outcome = "busy"
+    for _ in range(ADVANCE_MAX_ITERATIONS):
+        lock = conn.lock(
+            f"lock:migration:advance:{migration_id}",
+            timeout=ADVANCE_LOCK_TTL,
+            blocking_timeout=0,  # never spin on contention — the holder drains our wake
+            thread_local=True,  # token is greenlet-local; acquire+release same greenlet
+        )
+        if not lock.acquire():
+            return outcome
         try:
-            lock.release()
+            outcome = _drain(lock, conn, wake_key, migration_id, jf)
+        finally:
+            # Runs on GreenletExit too. Owner-guarded release: release() raises
+            # LockNotOwnedError if our lease lapsed and was re-taken; a stalled
+            # redis raises TimeoutError. Swallow BOTH (RedisError) -- the lease
+            # expires via its TTL regardless.
+            try:
+                lock.release()
+            except RedisError:
+                pass
+        # a wake that landed between the last drain and the release
+        if outcome == "aborted" or not conn.exists(wake_key):
+            break
+    return outcome
+
+
+#: the wake-set member that means "every tree in flight"
+_ALL_TREES = "*"
+#: migrations with a recorded wake, waiting for the driver
+DRIVE_REQUESTS_KEY = "migration:drive_requests"
+
+
+def _wake_key(migration_id):
+    return f"migration:wake:{migration_id}"
+
+
+def request_drive(migration_id, tree_ids=None):
+    """Record a wake for the migration driver without running the reconciler."""
+    conn = shared_client(rq_url(), socket_timeout=5, socket_connect_timeout=5)
+    pipe = conn.pipeline()
+    pipe.sadd(_wake_key(migration_id), *(tree_ids or [_ALL_TREES]))
+    pipe.rpush(DRIVE_REQUESTS_KEY, migration_id)
+    pipe.execute()
+
+
+def _take_drive_requests(conn, block_s):
+    """Block for the next request, then take every queued one, deduplicated."""
+    popped = conn.blpop(DRIVE_REQUESTS_KEY, timeout=block_s)
+    if not popped:
+        return []
+    pipe = conn.pipeline()
+    pipe.lrange(DRIVE_REQUESTS_KEY, 0, -1)
+    pipe.delete(DRIVE_REQUESTS_KEY)
+    rest, _deleted = pipe.execute()
+    ids = [popped[1], *(rest or ())]
+    return list(dict.fromkeys(i.decode() if isinstance(i, bytes) else i for i in ids))
+
+
+def serve_drive_requests(block_s=5, stop=None):
+    """Drive each migration a task result woke, until ``stop()`` is true.
+
+    Runs in the scheduler so a full pass never holds the result-stream consumer;
+    a request lost to a crash is picked up by the periodic backstop."""
+    conn = shared_client(rq_url(), socket_timeout=block_s + 5, socket_connect_timeout=5)
+    while not (stop and stop()):
+        try:
+            migration_ids = _take_drive_requests(conn, block_s)
         except RedisError:
-            pass
-    return "aborted" if aborted else "done"
+            log.exception("migration: could not read the drive requests")
+            sleep(1)
+            continue
+        for migration_id in migration_ids:
+            try:
+                advance(migration_id, check_abandon=False)
+            except Exception:
+                log.exception("migration: driving %s failed", migration_id)
+
+
+def _take_wakes(conn, wake_key):
+    pipe = conn.pipeline()
+    pipe.smembers(wake_key)
+    pipe.delete(wake_key)
+    members, _deleted = pipe.execute()
+    return {m.decode() if isinstance(m, bytes) else m for m in members or ()}
+
+
+def _drain(lock, conn, wake_key, migration_id, job_status_fn):
+    """Run full passes or per-tree drives until nothing is left to do."""
+    runner = MigrationRunner(migration_id, job_status_fn=job_status_fn)
+    planned = False
+    for _ in range(ADVANCE_MAX_ITERATIONS):
+        # Watchdog at the TOP of the loop: renew the lease BEFORE doing work, so
+        # the exclusion guarantee is per-step. If we can no longer renew -- lease
+        # lost/re-taken (LockError) OR a stalled redis (Timeout/ConnectionError,
+        # both RedisError) -- abort at once; the backstop resumes from the ledger.
+        try:
+            lock.reacquire()
+        except RedisError as exc:
+            log.warning(
+                "migration: advance could not renew its lease mid-drain for "
+                "%s (%s); aborting (backstop will resume)",
+                migration_id,
+                type(exc).__name__,
+            )
+            return "aborted"
+        # a full pass repeats only after a per-tree drive, never back to back
+        if not planned and runner.needs_full_pass():
+            _take_wakes(conn, wake_key)
+            results = runner.tick()
+            if not runner.is_complete() and mig.tick_made_progress(results):
+                continue
+            runner.save_drive()
+            planned = True
+        wakes = _take_wakes(conn, wake_key)
+        if not wakes:
+            break
+        runner.drive_trees(None if _ALL_TREES in wakes else sorted(wakes))
+        planned = False
+    return "done"

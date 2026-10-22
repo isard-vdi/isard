@@ -723,10 +723,10 @@ class AdminStorageMigrationService:
             "last_activity_at": now,
         }
         # An admin pause is manual, so the adaptive loop never auto-resumes it;
-        # starting clears the reason so a later load pause is recognised as such.
+        # start and cancel clear it, or the runner's resume would overwrite the status.
         if action == "pause":
             update["pause_reason"] = "manual"
-        elif action == "start":
+        elif action in ("start", "cancel"):
             update["pause_reason"] = None
         # Compare-and-set on the gated status; pause accepts the whole
         # running<->paused load flap between read and write so it never 428s.

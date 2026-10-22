@@ -7,6 +7,8 @@ never auto-resumed, and advance() drives a load-paused job but not a manual one.
 import isardvdi_common.lib.storage.migration_run as mr
 import pytest
 
+from .test_migration_recurring_drive import _FakeRedis
+
 N = mr.mig.LOAD_RAISE_AFTER_CLEAN_TICKS
 PAUSED = mr.MigrationStatus.PAUSED.value
 RUNNING = mr.MigrationStatus.RUNNING.value
@@ -250,7 +252,7 @@ def _busy_conn():
         def acquire(self):
             return False  # someone else holds it -> advance returns "busy"
 
-    class _Conn:
+    class _Conn(_FakeRedis):
         def lock(self, *a, **k):
             return _Lock()
 

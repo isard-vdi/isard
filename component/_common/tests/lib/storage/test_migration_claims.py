@@ -22,6 +22,8 @@ from isardvdi_common.models.storage_migration import (
     StorageMigrationItem,
 )
 
+from .test_migration_recurring_drive import _FakeRedis
+
 
 def _runner():
     return object.__new__(mr.MigrationRunner)
@@ -392,7 +394,7 @@ def _fake_lock(events, *, acquire=True, reacquire=None):
         def release(self):
             events.append("release")
 
-    class _Conn:
+    class _Conn(_FakeRedis):
         def lock(self, *a, **k):
             return _Lock()
 
@@ -419,16 +421,22 @@ def test_advance_drains_and_releases(monkeypatch):
         def __init__(self, mid, *, job_status_fn):
             pass
 
+        def needs_full_pass(self):
+            return True
+
         def tick(self):
             return []  # no progress -> drain breaks after one iteration
 
         def is_complete(self):
             return False
 
+        def save_drive(self):
+            events.append("save_drive")
+
     monkeypatch.setattr(mr, "MigrationRunner", _Runner)
     assert mr.advance("m") == "done"
     # reacquire (watchdog) runs at the TOP of the loop, release in finally
-    assert events == ["acquire", "reacquire", "release"]
+    assert events == ["acquire", "reacquire", "save_drive", "release"]
 
 
 def test_claim_rejects_empty_when():

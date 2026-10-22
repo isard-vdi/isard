@@ -135,7 +135,8 @@ class MigrationConfigData(BaseModel):
     force_stop_desktops: bool = False
     #: one-shot (False) vs recurring re-scan (True). Recurring requires a window.
     recurring: bool = False
-    #: recurring re-scan cadence (edge | edge_on_drain | continuous).
+    #: recurring re-scan cadence (edge | edge_on_drain); the retired
+    #: ``continuous`` is still accepted and stored as ``edge_on_drain``.
     rescan_cadence: Literal["edge", "edge_on_drain", "continuous"] = "edge_on_drain"
     #: disk-failure policy (retry_quarantine | pause | retry_forever).
     failure_policy: Literal["retry_quarantine", "pause", "retry_forever"] = (
@@ -193,6 +194,11 @@ class MigrationConfigData(BaseModel):
                 "(stop at recently-used) or 'newest_first' (stop at long-unused)"
             )
         return self
+
+    @field_validator("rescan_cadence")
+    @classmethod
+    def _retire_continuous(cls, v):
+        return "edge_on_drain" if v == "continuous" else v
 
 
 class MigrationConfigUpdateData(MigrationConfigData):

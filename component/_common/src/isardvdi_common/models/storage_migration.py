@@ -201,6 +201,28 @@ def compute_bytes_copied(items: Iterable) -> int:
     return sum(_size_of(it) for it in items if item_is_migrated(_state_of(it)))
 
 
+def totals_delta(old_state, new_state, size) -> dict:
+    """Signed change to the ``totals`` counters when one disk moves state."""
+    old_state, new_state, size = str(old_state), str(new_state), int(size or 0)
+    delta = {"state_counts": {old_state: -1, new_state: 1}}
+    released = MigrationItemState.RELEASED.value
+    for field, before, after, by in (
+        ("done", item_is_done(old_state), item_is_done(new_state), 1),
+        ("migrated", item_is_migrated(old_state), item_is_migrated(new_state), 1),
+        ("completed", old_state == released, new_state == released, 1),
+        ("bytes_done", old_state == released, new_state == released, size),
+        (
+            "bytes_copied",
+            item_is_migrated(old_state),
+            item_is_migrated(new_state),
+            size,
+        ),
+    ):
+        if before != after:
+            delta[field] = by if after else -by
+    return delta
+
+
 def build_totals(current: dict, items: list) -> dict:
     """Re-derive the live aggregate from item states (pure, never incremental).
 
@@ -291,8 +313,8 @@ class MigrationConfig(BaseModel):
     recurring: bool = False
     #: when a recurring job re-scans (all via insert-new-only, never disturbing
     #: in-flight): ``edge`` only at the occurrence edge; ``edge_on_drain`` also
-    #: once the current batch has drained and the window is still open;
-    #: ``continuous`` every tick while the window is open.
+    #: once the current batch has drained and the window is still open.
+    #: ``continuous`` is retired and read as ``edge_on_drain``.
     rescan_cadence: Literal["edge", "edge_on_drain", "continuous"] = "edge_on_drain"
     #: how a disk failure is handled: ``retry_quarantine`` keeps the job alive and
     #: quarantines a disk that fails ``quarantine_after`` consecutive occurrences;
@@ -359,6 +381,10 @@ class StorageMigrationModel(BaseModel):
     #: last progress; the executor stamps it on any disk/job state change (unlike
     #: ``updated_at``, which is API-only). Absent on jobs created before this field.
     last_activity_at: float | None = None
+    #: per-event driving state, written by each full pass; None before the first
+    drive: dict | None = None
+    #: ``{"occurrence": key, "bytes": n}`` committed this occurrence, for the budget
+    budget_spent: dict | None = None
 
 
 class StorageMigrationItemModel(BaseModel):
@@ -465,6 +491,29 @@ class StorageMigrationItem(RethinkCustomBase):
             return list(
                 r.table(cls._rdb_table)
                 .get_all(migration_id, index="migration_id")
+                .without("audit", "checkpoints")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def tree_rows(cls, migration_id, tree_id):
+        """One tree's items, as ``ledger_rows`` reads them, in topo order."""
+        with cls._rdb_context():
+            rows = list(
+                r.table(cls._rdb_table)
+                .get_all([migration_id, tree_id], index="migration_tree")
+                .without("audit", "checkpoints")
+                .run(cls._rdb_connection)
+            )
+        return sorted(rows, key=lambda it: it.get("topo_index", 0))
+
+    @classmethod
+    def dicts_by_storage(cls, storage_id):
+        """Every migration's item for one disk, without audit and checkpoints."""
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(storage_id, index="storage_id")
                 .without("audit", "checkpoints")
                 .run(cls._rdb_connection)
             )
@@ -765,3 +814,130 @@ class StorageMigration(RethinkCustomBase):
             ).run(self._rdb_connection)
         self._update_cache(totals=totals)
         return totals
+
+    def record_activity(self, delta=None):
+        """Stamp ``last_activity_at`` and add ``delta`` (see ``totals_delta``) to
+        the totals, in one atomic update."""
+        now = time()
+
+        def update(row):
+            data = {"last_activity_at": now}
+            if delta:
+                totals = row["totals"].default({})
+                counts = totals["state_counts"].default({})
+                data["totals"] = {
+                    "state_counts": {
+                        state: counts[state].default(0).add(by)
+                        for state, by in delta["state_counts"].items()
+                    },
+                    **{
+                        field: totals[field].default(0).add(by)
+                        for field, by in delta.items()
+                        if field != "state_counts"
+                    },
+                }
+            return data
+
+        with self._rdb_context():
+            r.table(self._rdb_table).get(self.id).update(update).run(
+                self._rdb_connection
+            )
+        cache = {"last_activity_at": now}
+        if delta:
+            totals = dict(self.totals or {})
+            counts = dict(totals.get("state_counts") or {})
+            for state, by in delta["state_counts"].items():
+                counts[state] = counts.get(state, 0) + by
+            totals["state_counts"] = counts
+            for field, by in delta.items():
+                if field != "state_counts":
+                    totals[field] = totals.get(field, 0) + by
+            cache["totals"] = totals
+        self._update_cache(**cache)
+
+    #: what a per-event drive needs from the job row, re-read under its lease
+    _DRIVE_FIELDS = (
+        "status",
+        "pause_reason",
+        "config",
+        "drive",
+        "last_occurrence",
+        "budget_spent",
+    )
+
+    def fresh_drive(self):
+        """Re-read the driving fields of the job row in one query; returns ``drive``."""
+        with self._rdb_context():
+            row = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .pluck(*self._DRIVE_FIELDS)
+                .run(self._rdb_connection)
+            )
+        row = row or {}
+        self._update_cache(**{field: row.get(field) for field in self._DRIVE_FIELDS})
+        return row.get("drive")
+
+    def set_drive(self, drive):
+        """Replace the whole ``drive`` state."""
+        with self._rdb_context():
+            r.table(self._rdb_table).get(self.id).update(
+                {"drive": r.literal(drive)}
+            ).run(self._rdb_connection)
+        self._update_cache(drive=drive)
+
+    def drive_active(self, add=(), remove=()):
+        """Atomically add/remove tree ids in ``drive.active``; returns the new list."""
+        with self._rdb_context():
+            res = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .update(
+                    lambda row: {
+                        "drive": {
+                            "active": row["drive"]["active"]
+                            .default([])
+                            .set_difference(list(remove))
+                            .set_union(list(add))
+                        }
+                    },
+                    return_changes="always",
+                )
+                .run(self._rdb_connection)
+            )
+        changes = res.get("changes") or [{}]
+        drive = (changes[0].get("new_val") or {}).get("drive") or {}
+        self._update_cache(drive=drive)
+        return list(drive.get("active") or [])
+
+    def add_budget_spent(self, occurrence, size):
+        """Add ``size`` to this occurrence's committed bytes; returns the new total."""
+        with self._rdb_context():
+            res = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .update(
+                    lambda row: {
+                        "budget_spent": r.branch(
+                            row["budget_spent"]["occurrence"]
+                            .default(None)
+                            .eq(occurrence),
+                            {"bytes": row["budget_spent"]["bytes"].add(int(size))},
+                            r.literal({"occurrence": occurrence, "bytes": int(size)}),
+                        )
+                    },
+                    return_changes="always",
+                )
+                .run(self._rdb_connection)
+            )
+        changes = res.get("changes") or [{}]
+        spent = (changes[0].get("new_val") or {}).get("budget_spent") or {}
+        self._update_cache(budget_spent=spent)
+        return int(spent.get("bytes") or 0)
+
+    def set_budget_spent(self, occurrence, size):
+        with self._rdb_context():
+            r.table(self._rdb_table).get(self.id).update(
+                {"budget_spent": r.literal({"occurrence": occurrence, "bytes": size})}
+            ).run(self._rdb_connection)
+        self._update_cache(budget_spent={"occurrence": occurrence, "bytes": size})

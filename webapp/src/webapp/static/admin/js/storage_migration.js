@@ -44,7 +44,7 @@ const MIG_STATUS = {
 
 // friendly labels for the enum <select>s (values stay the raw enum)
 const MIG_CADENCE_LABELS = {
-  edge_on_drain: "Edge + on-drain", edge: "Edge only", continuous: "Continuous"
+  edge_on_drain: "Edge + on-drain", edge: "Edge only"
 };
 const MIG_LOAD_MODE_LABELS = { static: "Static", adaptive: "Adaptive" };
 // statuses in which the job may already have moved a disk: the server then
@@ -500,7 +500,7 @@ function migConfigControls (m) {
       </span>
       <label style="margin-left:8px;" title="How often to look for newly-matching disks." data-toggle="tooltip">Re-scan
         <select class="form-control input-sm cfg-cadence" ${dis}>
-          ${migOpt(["edge_on_drain", "edge", "continuous"], c.rescan_cadence || "edge_on_drain", MIG_CADENCE_LABELS)}
+          ${migOpt(["edge_on_drain", "edge"], c.rescan_cadence === "edge" ? "edge" : "edge_on_drain", MIG_CADENCE_LABELS)}
         </select>
       </label>
       <label style="margin-left:8px;" title="What to do when a disk fails to copy or verify." data-toggle="tooltip">On&nbsp;fail

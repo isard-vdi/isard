@@ -184,8 +184,8 @@ def _tick_runner(monkeypatch, items, mig_obj):
     r.job_status_fn = lambda t: "started"
     r._now = lambda tz: NOW
     r._domains = lambda sid: []
-    r.prepare = lambda: None
-    r.reactivate = lambda: None
+    r.prepare = lambda *a: None
+    r.reactivate = lambda *a: None
     r._gate_tree = lambda tree_items: True
     r._admit_tree = lambda *a, **k: True
     forces = []
@@ -211,7 +211,7 @@ def test_publish_migration_event_xadds_unconditionally(monkeypatch):
     monkeypatch.setattr(mr, "rq_url", lambda: "redis://x")
     monkeypatch.setattr(mr.task_streams, "maxlen_for_stream", lambda s: 1000)
     mr.publish_migration_event("mig-7")
-    assert conn.xadds == [{"kind": "migration", "migration_id": "mig-7"}]
+    assert conn.xadds == [{"kind": "migration", "migration_id": "mig-7", "wake": "1"}]
     assert conn.sets == []  # a discrete admin action wake never consults a throttle
 
 

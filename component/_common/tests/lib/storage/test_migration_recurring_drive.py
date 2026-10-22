@@ -65,6 +65,78 @@ class _Mig:
     def recompute_totals(self, items=None):
         pass
 
+    drive = None
+    budget_spent = None
+
+    def fresh_drive(self):
+        self.fresh_status()
+        return self.drive
+
+    def set_drive(self, drive):
+        self.drive = drive
+
+    def drive_active(self, add=(), remove=()):
+        active = [t for t in (self.drive or {}).get("active") or [] if t not in remove]
+        self.drive = {**(self.drive or {}), "active": active + list(add)}
+        return self.drive["active"]
+
+    def set_budget_spent(self, occurrence, size):
+        self.budget_spent = {"occurrence": occurrence, "bytes": size}
+
+
+class _Pipe:
+    def __init__(self, conn):
+        self.conn, self.ops = conn, []
+
+    def __getattr__(self, name):
+        return lambda *a: self.ops.append((name, a))
+
+    def execute(self):
+        return [getattr(self.conn, name)(*a) for name, a in self.ops]
+
+
+class _FakeRedis:
+    """The few redis calls advance() and the per-event drive make."""
+
+    def __init__(self):
+        self.sets, self.lists = {}, {}
+
+    def sadd(self, key, *members):
+        self.sets.setdefault(key, set()).update(members)
+
+    def smembers(self, key):
+        return set(self.sets.get(key, ()))
+
+    def exists(self, key):
+        return int(bool(self.sets.get(key) or self.lists.get(key)))
+
+    def delete(self, key):
+        return int(bool(self.sets.pop(key, None) or self.lists.pop(key, None)))
+
+    def rpush(self, key, *values):
+        self.lists.setdefault(key, []).extend(values)
+
+    def lpush(self, key, value):
+        self.lists.setdefault(key, []).insert(0, value)
+
+    def lpop(self, key):
+        values = self.lists.get(key) or []
+        return values.pop(0) if values else None
+
+    def llen(self, key):
+        return len(self.lists.get(key) or [])
+
+    def lrange(self, key, start, end):
+        values = self.lists.get(key) or []
+        return list(values[start : None if end == -1 else end + 1])
+
+    def blpop(self, key, timeout=0):
+        value = self.lpop(key)
+        return None if value is None else (key, value)
+
+    def pipeline(self):
+        return _Pipe(self)
+
 
 def _patch_status_claim(monkeypatch, mig_obj):
     """Honour ``update_document_if`` against the live row of ``mig_obj``."""
@@ -185,8 +257,8 @@ def _runner(
     r._now = lambda tz: now
     r._domains = lambda sid: []
     r._publish_progress = lambda *a, **k: None
-    r.prepare = lambda: None
-    r.reactivate = lambda: None
+    r.prepare = lambda *a: None
+    r.reactivate = lambda *a: None
     r._enqueue = lambda *a, **k: "tid"
     r._pool_queue = lambda p, action: "q"
     r._move_queue = lambda p: "q"
@@ -509,7 +581,7 @@ class _Lock:
         return False
 
 
-class _Conn:
+class _Conn(_FakeRedis):
     def lock(self, *a, **k):
         return _Lock()
 
@@ -837,7 +909,7 @@ def test_cancel_of_a_parked_job_drains_and_reactivates_once(monkeypatch, recurri
     m.logs = []
     r = _runner(monkeypatch, items, m, now=NOW)
     calls = {"n": 0}
-    r.reactivate = lambda: calls.__setitem__("n", calls["n"] + 1)
+    r.reactivate = lambda *a: calls.__setitem__("n", calls["n"] + 1)
     r.tick()
     assert items[0]["state"] == "skipped"  # pending tree canceled, never started
     assert m.live["status"] == "canceled"
@@ -920,8 +992,8 @@ def test_cancel_one_parked_migration_does_not_touch_another(monkeypatch):
     r._now = lambda tz: NOW
     r._domains = lambda sid: []
     r._publish_progress = lambda *a, **k: None
-    r.prepare = lambda: None
-    r.reactivate = lambda: None
+    r.prepare = lambda *a: None
+    r.reactivate = lambda *a: None
     r._enqueue = lambda *a, **k: "tid"
     r._pool_queue = lambda p, action: "q"
     r._move_queue = lambda p: "q"

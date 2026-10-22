@@ -22,7 +22,9 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+import gevent
 import pytz
+from isardvdi_common.lib.storage.migration_run import serve_drive_requests
 from rethinkdb import RethinkDB
 
 from scheduler import app
@@ -171,6 +173,8 @@ class Scheduler:
                 "1",
                 id="system.storage_migration_tick",
             )
+        # drives each migration a task result woke, off the result-stream consumer
+        gevent.spawn(serve_drive_requests)
 
         ## DEFAULT LOG RETENTION JOBS
         ## If admin has configured log retention, ensure the scheduler jobs exist
