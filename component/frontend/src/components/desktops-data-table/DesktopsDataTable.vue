@@ -9,7 +9,7 @@ import {
   desktopHasMenuActions,
   desktopNotificationText
 } from '@/lib/desktops'
-import { copyToClipboard } from '@/lib/utils'
+import { copyToClipboard, formatRelativeTime } from '@/lib/utils'
 
 import {
   DesktopCellImage,
@@ -35,7 +35,7 @@ interface Props {
   preferedViewers: Record<string, string>
 }
 
-const { t, d } = useI18n()
+const { t, d, locale } = useI18n()
 
 const props = withDefaults(defineProps<Props>(), {})
 
@@ -100,6 +100,12 @@ const headers = [
     width: 'minmax(112px, 0.9fr)'
   },
   {
+    name: t('components.desktops.data-table.headers.accessed'),
+    key: 'accessed',
+    sortable: true,
+    width: 'minmax(112px, max-content)'
+  },
+  {
     name: t('components.desktops.data-table.headers.actions'),
     key: 'mainActions',
     width: 'minmax(168px, max-content)'
@@ -115,6 +121,8 @@ const headers = [
     width: 'min-content'
   }
 ]
+
+const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
 
 <template>
@@ -126,6 +134,7 @@ const headers = [
     density="compact"
     cell-class="h-auto min-h-13"
     row-class="odd:bg-gray-warm-100/30 hover:bg-gray-warm-100"
+    :default-sort="DESKTOPS_DEFAULT_SORT"
   >
     <template #cell-image="{ row }">
       <DesktopCellImage
@@ -158,6 +167,20 @@ const headers = [
 
     <template #cell-status="{ row }">
       <DesktopCellStatus v-for="desktop in [asDesktop(row)]" :key="desktop.id" :desktop="desktop" />
+    </template>
+
+    <template #cell-accessed="{ row }">
+      <template v-for="desktop in [asDesktop(row)]" :key="desktop.id">
+        <Tooltip v-if="desktop.accessed">
+          <TooltipTrigger as-child>
+            <span class="text-xs text-gray-warm-600 pr-6">
+              {{ d(desktop.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :title="formatRelativeTime(desktop.accessed, locale)" />
+        </Tooltip>
+        <span v-else class="text-xs text-gray-warm-600 pr-6">—</span>
+      </template>
     </template>
 
     <template #cell-mainActions="{ row }">
