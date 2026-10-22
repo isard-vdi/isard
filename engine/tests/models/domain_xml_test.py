@@ -18,6 +18,7 @@ from engine.models.domain_xml import (
     numa_opts_allowed,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
+    recreate_xml_if_start_paused,
     recreate_xml_to_start_raw,
     remove_memory_backing,
     resolve_qos_disk_iotune,
@@ -2106,3 +2107,52 @@ class TestHardwareWithoutAVideo:
         assert result, "the start was refused"
         tree = _parse(result[0])
         assert tree.xpath("/domain/devices/video/model/@type") == ["none"]
+
+
+_EMULATOR_XML = (
+    '<domain type="qemu">'
+    "<name>vm</name>"
+    "<memory unit='KiB'>1048576</memory>"
+    "<vcpu>2</vcpu>"
+    "<devices>{}<disk type='file' device='disk'/></devices>"
+    "</domain>"
+)
+
+
+def test_set_domain_type_and_emulator_inserts_missing_emulator():
+    x = DomainXML(_EMULATOR_XML.format(""))
+    x.set_domain_type_and_emulator()
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/@type") == ["kvm"]
+    devices = tree.xpath("/domain/devices")[0]
+    assert devices[0].tag == "emulator"
+    assert devices[0].text == "/usr/bin/qemu-kvm"
+    assert len(devices.findall("emulator")) == 1
+
+
+def test_set_domain_type_and_emulator_keeps_existing_emulator():
+    xml = _EMULATOR_XML.format("<emulator>/usr/bin/qemu-kvm</emulator>").replace(
+        'type="qemu"', 'type="kvm"'
+    )
+    before = DomainXML(xml).return_xml()
+    x = DomainXML(xml)
+    x.set_domain_type_and_emulator()
+    assert x.return_xml() == before
+
+
+def test_set_domain_type_and_emulator_rewrites_existing_emulator_path():
+    x = DomainXML(
+        _EMULATOR_XML.format("<emulator>/usr/bin/qemu-system-x86_64</emulator>")
+    )
+    x.set_domain_type_and_emulator()
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/@type") == ["kvm"]
+    assert tree.xpath("/domain/devices/emulator/text()") == ["/usr/bin/qemu-kvm"]
+
+
+def test_recreate_xml_if_start_paused_inserts_missing_emulator():
+    tree = _parse(recreate_xml_if_start_paused(_EMULATOR_XML.format("")))
+    assert tree.xpath("/domain/@type") == ["kvm"]
+    devices = tree.xpath("/domain/devices")[0]
+    assert devices[0].tag == "emulator"
+    assert devices[0].text == "/usr/bin/qemu-kvm"

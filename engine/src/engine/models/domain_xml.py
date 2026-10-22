@@ -314,6 +314,23 @@ def normalize_lab_opts(lab_opts):
     return {key: src.get(key) is True for key in LAB_OPT_ATTRS}
 
 
+def set_domain_type_and_emulator(tree, type="kvm", emulator="/usr/bin/qemu-kvm"):
+    # the hypervisor's qemu-kvm wrapper sets the qemu environment; libvirt's default emulator skips it
+    try:
+        domain = tree.xpath("/domain")[0]
+        domain.attrib.pop("type", None)
+        domain.set("type", type)
+        found = tree.xpath("/domain/devices/emulator")
+        if found:
+            found[0].text = emulator
+        else:
+            element = etree.Element("emulator")
+            element.text = emulator
+            tree.xpath("/domain/devices")[0].insert(0, element)
+    except Exception as e:
+        log.error("Exception when setting domain type and emulator: {}".format(e))
+
+
 class DomainXML(object):
     def __init__(self, xml, id_domain=None):
         # self.tree = etree.parse(StringIO(xml))
@@ -1362,18 +1379,7 @@ class DomainXML(object):
                 #     log.error('domain {} has not spice graphics and can not change password of spice connection'.format(self.vm_dict['name']))
 
     def set_domain_type_and_emulator(self, type="kvm", emulator="/usr/bin/qemu-kvm"):
-        try:
-            # change type qemu that is the default in some xmls from virt-install
-            self.tree.xpath("/domain")[0].attrib.pop("type")
-            self.tree.xpath("/domain")[0].set("type", type)
-
-            # change <emulator>/usr/bin/qemu-system-x86_64</emulator>
-            # to     <emulator>/usr/bin/qemu-kvm</emulator>
-            # that set audio in spice previus to call qemu-system-x86_64
-            self.tree.xpath("/domain/devices/emulator")[0].text = emulator
-
-        except Exception as e:
-            log.error("Exception when setting domain type and emulator: {}".format(e))
+        set_domain_type_and_emulator(self.tree, type, emulator)
 
     def remove_devices_beyond(self, xpath, keep):
         """Remove the devices matching ``xpath`` past the first ``keep``.
@@ -2432,20 +2438,7 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     for mac2net in tree.xpath("//isard:mac2network", namespaces=isard_nsmap):
         mac2net.getparent().remove(mac2net)
 
-    try:
-        type = "kvm"
-        emulator = "/usr/bin/qemu-kvm"
-        # change type qemu that is the default in some xmls from virt-install
-        tree.xpath("/domain")[0].attrib.pop("type")
-        tree.xpath("/domain")[0].set("type", type)
-
-        # change <emulator>/usr/bin/qemu-system-x86_64</emulator>
-        # to     <emulator>/usr/bin/qemu-kvm</emulator>
-        # that set audio in spice previus to call qemu-system-x86_64
-        tree.xpath("/domain/devices/emulator")[0].text = emulator
-
-    except Exception as e:
-        log.error("Exception when setting domain type and emulator: {}".format(e))
+    set_domain_type_and_emulator(tree)
 
     for tag in ["memory", "currentMemory", "maxMemory"]:
         if tree.xpath(f"/domain/{tag}"):
