@@ -52,3 +52,32 @@ groups:
         annotations:
           summary: "{{ $value }} desktops have been {{ $labels.status }} for 15m"
           description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."
+
+      # CPU time not spent idle or waiting for I/O on a host that runs isard-hypervisor: the
+      # guests themselves. I/O wait is left to HypervisorIoProblem.
+      # Divided by the cpu count: an avg over both modes counts each cpu twice.
+      - alert: HypervisorCpuElevated
+        expr: |
+          (1 - sum by (domain) (rate(node_cpu_seconds_total{mode=~"idle|iowait"}[5m])) / count by (domain) (node_cpu_seconds_total{mode="idle"}) > 0.85)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 15m
+        labels:
+          severity: warning
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} CPU is {{ $value | humanizePercentage }} busy"
+          description: "The guests on {{ $labels.domain }} have kept its CPU over 85% busy for 15m, so their desktops slow down. Check whether new desktops still land on it and whether the orchestrator should start another hypervisor."
+
+      - alert: HypervisorCpuHigh
+        expr: |
+          (1 - sum by (domain) (rate(node_cpu_seconds_total{mode=~"idle|iowait"}[5m])) / count by (domain) (node_cpu_seconds_total{mode="idle"}) > 0.95)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 10m
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} CPU is saturated ({{ $value | humanizePercentage }})"
+          description: "The CPU of {{ $labels.domain }} has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."

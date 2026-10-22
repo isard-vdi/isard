@@ -95,6 +95,97 @@ tests:
               summary: "12 desktops have been Starting for 15m"
               description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."
 
+  - name: a_busy_hypervisor_cpu_is_a_warning_then_critical
+    interval: 1m
+    input_series:
+      # 3% idle: 97% busy. node_exporter also exports iowait and system for every cpu,
+      # and they must not change the share
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+1.8x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="system"}'
+        values: "0+6x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+52.2x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+      # the same load on a host without isard-hypervisor is not a hypervisor
+      - series: 'node_cpu_seconds_total{domain="web-1",cpu="0",mode="idle"}'
+        values: "0+1.8x40"
+      - series: 'node_cpu_seconds_total{domain="web-1",cpu="0",mode="user"}'
+        values: "0+58.2x40"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 CPU is 97% busy"
+              description: "The guests on hyp-1 have kept its CPU over 85% busy for 15m, so their desktops slow down. Check whether new desktops still land on it and whether the orchestrator should start another hypervisor."
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuHigh
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 CPU is saturated (97%)"
+              description: "The CPU of hyp-1 has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."
+
+  - name: a_hypervisor_at_75_percent_is_not_busy
+    interval: 1m
+    input_series:
+      # two cpus, each 25% idle, with their iowait series at zero: 75% busy
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+15x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+45x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="idle"}'
+        values: "0+15x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="user"}'
+        values: "0+45x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+
+  - name: iowait_is_not_cpu_load
+    interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+6x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0+48x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+6x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+
   - name: a_burst_of_starts_that_drains_does_not_fire
     interval: 1m
     input_series:
