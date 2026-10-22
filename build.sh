@@ -318,6 +318,23 @@ generate_secrets(){
 	done
 }
 
+# The part's yml passes the secret on, but this node runs nothing that reads it
+secret_unused_by_part(){
+	case "$1:$2" in
+		API_ISARDVDI_SECRET:storage)
+			[ "${REDIS_WORKERS:-1}" = "0" ]
+			;;
+		API_ISARDVDI_SECRET:stats)
+			case "${STATS_FLAVOUR:-$FLAVOUR}" in
+				all-in-one | web | web+*) return 1 ;;
+			esac
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
 require_secrets(){
 	config_file="$1"
 	shift
@@ -327,6 +344,7 @@ require_secrets(){
 		used=""
 		for part in "$@"
 		do
+			secret_unused_by_part "$secret_name" "$part" && continue
 			grep -qs "$secret_name" "$PARTS_PATH/$part.yml" "$PARTS_PATH/$part".*.yml && used=1 && break
 		done
 		[ -z "$used" ] && continue
