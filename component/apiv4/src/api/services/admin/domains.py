@@ -316,6 +316,7 @@ class AdminDomainsService:
     @staticmethod
     def get_template_tree_list(payload: dict, template_id: str) -> list[dict]:
         """Get template tree list."""
+        AdminDomainsService.owns_domain_id(payload, template_id)
         return ApiAdmin.get_template_tree_list(template_id, payload["user_id"])
 
     @staticmethod

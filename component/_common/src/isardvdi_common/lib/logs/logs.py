@@ -16,6 +16,7 @@ Tables touched:
 * ``categories`` — read id+name map for ``category_grouping`` view.
 """
 
+import re
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -52,6 +53,23 @@ _USER_GROUP_FIELDS = (
     "owner_category_id",
     "started_time",
 )
+
+
+_FIELD_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.]*$")
+
+
+def _safe_field(name):
+    """The client-supplied field name, or None if it is not one."""
+    return name if isinstance(name, str) and _FIELD_NAME.match(name) else None
+
+
+# Bind by closure: the driver maps every callable argument to a ReQL parameter.
+def _field_matches(field, pattern):
+    return lambda doc: doc[field].match(pattern)
+
+
+def _field_equals(field, value):
+    return lambda doc: doc[field] == value
 
 
 class LogsProcessed(RethinkSharedConnection):
@@ -166,17 +184,18 @@ class LogsProcessed(RethinkSharedConnection):
                     column.get("data", "") != ""
                     and column.get("search", {}).get("value", "") != ""
                 ):
-                    col_data = column["data"]
-                    search_val = column["search"]["value"]
-                    query = query.filter(
-                        lambda doc, cd=col_data, sv=search_val: doc[cd].match(sv)
-                    )
+                    col_data = _safe_field(column["data"])
+                    if col_data is None:
+                        continue
+                    search_val = re.escape(str(column["search"]["value"]))
+                    query = query.filter(_field_matches(col_data, search_val))
 
         # Add single-field filter (e.g. filter by desktop_id)
         if parsed.get("filter_field") and parsed.get("filter_value"):
-            ff = parsed["filter_field"]
+            ff = _safe_field(parsed["filter_field"])
             fv = parsed["filter_value"]
-            query = query.filter(lambda doc: doc[ff] == fv)
+            if ff is not None:
+                query = query.filter(_field_equals(ff, fv))
 
         if order_field is not None and not indexed_order:
             orders = parsed["order"]

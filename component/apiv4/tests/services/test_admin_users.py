@@ -26,6 +26,24 @@ class TestOwnership:
         AdminUsersService.owns_category_id(JWT_PAYLOAD, "cat1")
         mock_owns.assert_called_once_with(JWT_PAYLOAD, "cat1")
 
+    @patch("api.services.admin.users.Quotas.get_applied_quota")
+    @patch(
+        "api.services.admin.users.Helpers.owns_user_id",
+        side_effect=Error("forbidden", "foreign category"),
+    )
+    def test_applied_quota_refuses_a_foreign_user(self, mock_owns, mock_quota):
+        manager = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+        with pytest.raises(Error):
+            AdminUsersService.get_user_applied_quota(manager, "u-foreign")
+        mock_owns.assert_called_once_with(manager, "u-foreign")
+        mock_quota.assert_not_called()
+
+    @patch("api.services.admin.users.Quotas.get_applied_quota", return_value={"q": 1})
+    @patch("api.services.admin.users.Helpers.owns_user_id")
+    def test_applied_quota_still_serves_an_owned_user(self, mock_owns, mock_quota):
+        assert AdminUsersService.get_user_applied_quota(JWT_PAYLOAD, "u1") == {"q": 1}
+        mock_quota.assert_called_once_with("u1")
+
 
 class TestRoleElevation:
     """Regression tests for ``_check_role_elevation``."""

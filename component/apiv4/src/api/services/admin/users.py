@@ -1128,6 +1128,7 @@ class AdminUsersService:
     @staticmethod
     def get_user_applied_quota(payload: dict, user_id: str) -> dict:
         """Get applied quota for a specific user."""
+        AdminUsersService.owns_user_id(payload, user_id)
         return Quotas.get_applied_quota(user_id)
 
     @staticmethod

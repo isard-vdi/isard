@@ -36,7 +36,7 @@ default:
   retry: 1
 
 include:
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/security@v1.17.4
     inputs:
       max-scan-depth: -1
       include-dev-dependencies: false
@@ -51,48 +51,48 @@ include:
       secret-detection-excluded-paths: ".go-mod-cache,.go-build-cache,.codegen-go,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
       enable-static-reachability: true
       stage: unit-test
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.17.2
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@v1.17.4
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@v1.17.4
     inputs:
       extra-command: 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.17.2
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.17.2
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/alloy@v1.17.4
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/python@v1.17.4
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@v1.17.4
     inputs:
       unit-test: false
       dependencies: "libvirt-dev"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/protobuf@v1.17.4
     inputs:
       allow-failure: $[[ inputs.allow-protobuf-lint-failure ]]
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.4
     inputs:
       job-prefix: "old-frontend:"
       project-directory: "old-frontend"
       bun-script: "lint --no-fix --max-warnings 0"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.4
     inputs:
       job-prefix: "frontend:lint-"
       project-directory: "component/frontend"
       bun-script: "lint --format gitlab"
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.4
     inputs:
       job-prefix: "frontend:format-"
       project-directory: "component/frontend"
       bun-script: "format --write=false --check"
   # TODO: Enable this pipeline again
-  # - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  # - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.4
   #   inputs:
   #     job-prefix: "frontend:type-check-"
   #     project-directory: "component/frontend"
   #     bun-script: "type-check"
   #     allow-failure: true
   # Included only for the bun cache mixin that test-e2e extends.
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/javascript@v1.17.4
     inputs:
       job-prefix: "e2e:"
       project-directory: "testing/e2e"
       lint: false
-  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.17.2
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/docker@v1.17.4
     inputs:
       job-prefix: "build-codegen:"
       build-stage: build-codegen
@@ -311,7 +311,7 @@ unit-test-go:
   extends: .go-cache
   stage: unit-test
   needs: ["codegen"]
-  image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
+  image: golang:1.26.10@sha256:5c3f3f28a273c9b61698b2d34f18375929790ab1f1d3835d032d21e2b31eae0c
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
   script:
@@ -563,6 +563,7 @@ check-version-stamp:
     # Build the docker-compose file
     - CODEGEN=false ./build.sh
     # Start the instance
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker-compose -f docker-compose.e2e.yml pull --quiet
     - docker-compose -f docker-compose.e2e.yml up -d
   # The runner wipes /certs-root between `script` and `after_script`, so a

@@ -170,18 +170,25 @@ class DeploymentUsers(RethinkSharedConnection):
                 .filter(lambda user: user["active"].eq(True))
                 .pluck("id", "username", "category", "group")
             )
+            query_secondary_groups_users = (
+                r.table("users")
+                .get_all(r.args(selected["groups"]), index="secondary_groups")
+                .filter(lambda user: user["active"].eq(True))
+                .pluck("id", "username", "category", "group")
+            )
             if payload["role_id"] != "admin":
-                query_group_users.filter({"category": payload["category_id"]})
+                query_group_users = query_group_users.filter(
+                    {"category": payload["category_id"]}
+                )
+                query_secondary_groups_users = query_secondary_groups_users.filter(
+                    {"category": payload["category_id"]}
+                )
             with cls._rdb_context():
                 group_users = list(query_group_users.run(cls._rdb_connection))
 
             with cls._rdb_context():
                 secondary_groups_users = list(
-                    r.table("users")
-                    .get_all(r.args(selected["groups"]), index="secondary_groups")
-                    .filter(lambda user: user["active"].eq(True))
-                    .pluck("id", "username", "category", "group")
-                    .run(cls._rdb_connection)
+                    query_secondary_groups_users.run(cls._rdb_connection)
                 )
 
         user_users = []
@@ -194,7 +201,9 @@ class DeploymentUsers(RethinkSharedConnection):
                     .pluck("id", "username", "category", "group")
                 )
             if payload["role_id"] != "admin":
-                query_user_users.filter({"category": payload["category_id"]})
+                query_user_users = query_user_users.filter(
+                    {"category": payload["category_id"]}
+                )
             with cls._rdb_context():
                 user_users = list(query_user_users.run(cls._rdb_connection))
 

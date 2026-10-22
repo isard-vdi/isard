@@ -1,6 +1,6 @@
 services:
   isard-bastion:
-    image: ${GOLANG_BUILD_IMAGE:-golang:1.25.8-alpine3.22@sha256:6b7607461f105ccaa0615b6f7932dfd5b36c5d827a0770b5578e565107cc3adb}
+    image: ${GOLANG_BUILD_IMAGE:-golang:1.26.10-alpine3.24@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca}
     build: !reset null
     command:
       - ash

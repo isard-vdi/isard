@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.20
 
-ARG GOLANG_BUILD_IMAGE=golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587
+ARG GOLANG_BUILD_IMAGE=golang:1.26.10-alpine3.24@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca
 
 FROM ${GOLANG_BUILD_IMAGE} AS rdpgw-build
 WORKDIR /build

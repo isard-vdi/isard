@@ -38,6 +38,7 @@ from isardvdi_common.helpers.maintenance import Maintenance
 from isardvdi_common.helpers.token import Token
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
+from isardvdi_common.lib.users.users.user import UsersProcessed
 from isardvdi_common.models.deployment import Deployment
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.user import User
@@ -46,6 +47,28 @@ from isardvdi_common.models.user import User
 ### Helpers
 def get_remote_addr(request):
     return request.headers.get("x-forwarded-for", request.client.host).split(",")[0]
+
+
+async def check_session(jwt_payload, token, request):
+    """Validate the session_id in the JWT payload against the sessions service."""
+    session_id = jwt_payload.get("session_id", "")
+
+    match session_id:
+        case "isardvdi-service":
+            return
+        case "api-key":
+            user_id = (jwt_payload.get("data") or {}).get("user_id")
+            if not await asyncio.to_thread(
+                UsersProcessed.is_current_api_key, user_id, token
+            ):
+                raise Error(
+                    "unauthorized",
+                    "API key revoked",
+                    description_code="api_key_revoked",
+                )
+            return
+
+    api_sessions.get(session_id, get_remote_addr(request))
 
 
 def maintenance(payload):
@@ -159,10 +182,7 @@ async def has_token(
             payload["role_id"] = "admin"
             payload["category_id"] = "*"
     else:
-        try:
-            api_sessions.get(session_id, get_remote_addr(request))
-        except Error as e:
-            raise e
+        await check_session(jwt_payload, token, request)
 
     maintenance(payload)
 
@@ -220,12 +240,7 @@ async def has_token_maintenance(
         )
 
     jwt_payload = TokenFastAPI.get_jwt_payload(token)
-    session_id = jwt_payload.get("session_id", "")
-    if session_id != "isardvdi-service":
-        try:
-            api_sessions.get(session_id, get_remote_addr(request))
-        except Error as e:
-            raise e
+    await check_session(jwt_payload, token, request)
 
     request.token_payload = payload
 
@@ -288,12 +303,7 @@ async def has_token_password_reset_login(
 
     if token_type in ("login", ""):
         jwt_payload = TokenFastAPI.get_jwt_payload(token)
-        session_id = jwt_payload.get("session_id", "")
-        if session_id != "isardvdi-service":
-            try:
-                api_sessions.get(session_id, get_remote_addr(request))
-            except Error as e:
-                raise e
+        await check_session(jwt_payload, token, request)
 
     request.token_payload = payload
 
@@ -332,12 +342,7 @@ async def has_token_direct_viewer(
 
     if token_type == "login":
         jwt_payload = TokenFastAPI.get_jwt_payload(token)
-        session_id = jwt_payload.get("session_id", "")
-        if session_id != "isardvdi-service":
-            try:
-                api_sessions.get(session_id, get_remote_addr(request))
-            except Error as e:
-                raise e
+        await check_session(jwt_payload, token, request)
 
     request.token_payload = payload
 
@@ -359,12 +364,7 @@ async def has_migration_required_or_login_token(
     jwt_payload = TokenFastAPI.get_jwt_payload(token)
 
     if payload.get("type", "") != "user-migration-required":
-        session_id = jwt_payload.get("session_id", "")
-        if session_id != "isardvdi-service":
-            try:
-                api_sessions.get(session_id, get_remote_addr(request))
-            except Error as e:
-                raise e
+        await check_session(jwt_payload, token, request)
 
     maintenance(payload)
 
@@ -389,12 +389,7 @@ async def has_email_verification_required_or_login_token(
 
     if token_type != "email-verification-required":
         jwt_payload = TokenFastAPI.get_jwt_payload(token)
-        session_id = jwt_payload.get("session_id", "")
-        if session_id != "isardvdi-service":
-            try:
-                api_sessions.get(session_id, get_remote_addr(request))
-            except Error as e:
-                raise e
+        await check_session(jwt_payload, token, request)
 
     maintenance(payload)
 
