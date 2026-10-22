@@ -41,7 +41,8 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
-					r.Ne(r.Row.Field("email_verified"), nil),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
 				))).Return([]interface{}{
 					map[string]interface{}{
 						"id":    "néfix imagine this is an UUID",
@@ -72,7 +73,8 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
-					r.Ne(r.Row.Field("email_verified"), nil),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
 				))).Return([]interface{}{}, nil)
 			},
 			CategoryID:  "default",
