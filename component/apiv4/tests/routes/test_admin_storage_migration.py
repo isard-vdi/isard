@@ -699,6 +699,23 @@ class TestConfig:
         )
         assert resp.json()["config"]["on_damaged"] == "continue"
 
+    def test_config_preserves_a_field_it_did_not_change(self, test_client):
+        # R3: a partial update persists ONLY the fields sent, so a parallelism the
+        # adaptive loop wrote (or any other untouched field) is not dropped.
+        job = _migration(status="planned")
+        job["config"]["parallelism"] = 8
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 100},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 8
+        assert cfg["bwlimit_kbs"] == 100
+
     def test_config_rejects_an_unknown_on_damaged(self, test_client):
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",

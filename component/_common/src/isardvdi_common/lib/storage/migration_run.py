@@ -1936,9 +1936,14 @@ class MigrationRunner:
         decision = mig.decide(sample, state, self.config.get("load_policy"))
         now = time()
         if decision.action in ("lower", "raise"):
-            merged = {**self.config, "parallelism": decision.parallelism}
-            self.migration.config = merged
-            self.config = merged
+            # write ONLY parallelism (rethinkdb deep-merges nested objects) so a
+            # concurrent update_config of another field is not clobbered here
+            self.migration.update_document(
+                self.migration.id,
+                {"config": {"parallelism": decision.parallelism}},
+                validate=False,
+            )
+            self.config["parallelism"] = decision.parallelism
             self._append_load_log(
                 decision.action, decision.reason, decision.parallelism, sample, now
             )
@@ -1971,6 +1976,8 @@ class MigrationRunner:
         ``(tree_id, item_id|None, action)`` describing what happened."""
         self._snapshot = None
         self.migration.fresh_status()
+        # re-read config so a mid-drain update_config edit is honoured this tick
+        self.config = self.migration.fresh_config()
         # Adaptive load policy runs BEFORE the tree-driving reads parallelism; a
         # job parked by load drives no trees and resumes on a later clean tick.
         if mig.load_policy_is_adaptive(self.config):

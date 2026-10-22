@@ -727,6 +727,20 @@ class StorageMigration(RethinkCustomBase):
         self._update_cache(status=status, pause_reason=reason)
         return status, reason
 
+    def fresh_config(self):
+        """The job ``config`` from the table, bypassing the attribute cache, so a
+        drain picks up a mid-run update_config edit."""
+        with self._rdb_context():
+            row = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .pluck("config")
+                .run(self._rdb_connection)
+            )
+        config = (row or {}).get("config") or {}
+        self._update_cache(config=config)
+        return config
+
     def item_dicts(self):
         return StorageMigrationItem.dicts_by_migration(self.id)
 

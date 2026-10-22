@@ -39,6 +39,17 @@ class _Mig:
     def fresh_status(self):
         return self.status, self.pause_reason
 
+    def fresh_config(self):
+        return self.config
+
+    def update_document(self, _doc_id, update_data, *, validate=True):
+        # model rethinkdb's nested deep-merge for a partial config write
+        for key, value in update_data.items():
+            if isinstance(value, dict) and isinstance(getattr(self, key, None), dict):
+                getattr(self, key).update(value)
+            else:
+                setattr(self, key, value)
+
 
 _CLAIMED = {}
 
