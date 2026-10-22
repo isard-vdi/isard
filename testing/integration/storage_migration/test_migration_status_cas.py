@@ -88,6 +88,69 @@ def test_fresh_status_bypasses_the_attribute_cache(conn, job):
     assert m.fresh_status() == ("paused", "manual")
 
 
+def test_set_action_write_shape_applies_and_blocks(conn, job):
+    """apiv4 set_action writes status + pause_reason + timestamps in one
+    update_document_if, CAS-guarded on the status it read. It must apply when the
+    row still reads that status and block (row intact) when it changed meanwhile.
+    This gates the real CAS the apiv4 route suite can only emulate."""
+    from isardvdi_common.models.storage_migration import StorageMigration
+
+    now = 1234.0
+    applied = StorageMigration.update_document_if(
+        job,
+        {
+            "status": "finishing_tree",
+            "pause_reason": None,
+            "status_time": now,
+            "updated_at": now,
+            "last_activity_at": now,
+        },
+        field="status",
+        values=("running",),
+        validate=False,
+    )
+    assert applied is True
+    row = r.table("storage_migration").get(job).run(conn)
+    assert row["status"] == "finishing_tree" and row.get("status_time")
+    # the admin's read is now stale: another writer moved it on first
+    r.table("storage_migration").get(job).update({"status": "canceled"}).run(conn)
+    blocked = StorageMigration.update_document_if(
+        job,
+        {"status": "paused", "pause_reason": "manual"},
+        field="status",
+        values=("finishing_tree",),
+        validate=False,
+    )
+    assert blocked is False
+    assert _status(conn, job) == "canceled"
+
+
+def test_pause_cas_wins_over_a_load_resume_racing_in(conn, job):
+    """apiv4 set_action's pause keys the CAS on status in
+    {running, window_closed, paused}, so a load resume that flips the row
+    paused->running between the admin's read and the write does NOT block the
+    pause: it still lands as paused/manual (the original bug's core)."""
+    from isardvdi_common.models.storage_migration import StorageMigration
+
+    r.table("storage_migration").get(job).update(
+        {"status": "paused", "pause_reason": "load"}
+    ).run(conn)
+    # admin read paused/load; before the write the reconciler resumes (load cleared)
+    r.table("storage_migration").get(job).update(
+        {"status": "running", "pause_reason": None}
+    ).run(conn)
+    applied = StorageMigration.update_document_if(
+        job,
+        {"status": "paused", "pause_reason": "manual", "status_time": 1.0},
+        field="status",
+        values=("running", "window_closed", "paused"),
+        validate=False,
+    )
+    assert applied is True
+    row = r.table("storage_migration").get(job).run(conn)
+    assert row["status"] == "paused" and row["pause_reason"] == "manual"
+
+
 @pytest.mark.parametrize(
     "states, moving",
     [

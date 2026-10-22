@@ -354,3 +354,26 @@ assert(delBtn.includes("mig-delete"), "delete button has the mig-delete hook");
 assert(delBtn.includes('data-status="completed"'), "carries the status for confirm");
 assert(delBtn.includes('data-items="7"'), "carries the disk count for confirm");
 console.log("migDeleteButton: PASS");
+
+// --------------------------------------------------------------------------- //
+// migActionEnabled — the admin action matrix (mirrors the apiv4 gate)
+// --------------------------------------------------------------------------- //
+const migActionEnabled = new Function(
+  'const MIG_TERMINAL = ["completed","completed_with_skips","failed","canceled"];\n' +
+  extract("migActionEnabled") + "\nreturn migActionEnabled;"
+)();
+// start: not from running / finishing_tree
+assert(migActionEnabled("planned", "start"), "start allowed from planned");
+assert(!migActionEnabled("running", "start"), "start refused while running");
+assert(!migActionEnabled("finishing_tree", "start"), "start refused while finishing_tree");
+// pause: running / window_closed, and a load/space auto-pause (converted to manual)
+assert(migActionEnabled("running", "pause"), "pause allowed while running");
+assert(migActionEnabled("paused", "pause", "load"), "pause allowed on a load auto-pause");
+assert(migActionEnabled("paused", "pause", "space"), "pause allowed on a space auto-pause");
+assert(!migActionEnabled("paused", "pause", "manual"), "pause disabled on a manual pause");
+assert(!migActionEnabled("paused", "pause", "failure"), "pause disabled on a failure pause");
+assert(!migActionEnabled("planned", "pause"), "pause refused from planned");
+// cancel: any non-terminal; nothing on a terminal
+assert(migActionEnabled("running", "cancel"), "cancel allowed on a running job");
+assert(!migActionEnabled("completed", "cancel"), "no action on a terminal job");
+console.log("migActionEnabled: PASS");

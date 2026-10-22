@@ -1348,6 +1348,32 @@ def cancel_target(status):
     )
 
 
+#: terminal job statuses — no admin action applies.
+TERMINAL_STATUSES = frozenset(
+    {"completed", "completed_with_skips", "failed", "canceled"}
+)
+
+
+def admin_action_allowed(status, action, pause_reason=None):
+    """Whether an admin ``start``/``pause``/``cancel`` is valid from ``status``,
+    mirroring the webapp's ``migActionEnabled`` so the API enforces what the UI
+    already shows (``waiting`` is a UI-only label with no job status). Pause is
+    also allowed on a load/space auto-pause, to convert it into a manual one the
+    adaptive loop will not resume."""
+    status = str(status)
+    if status in TERMINAL_STATUSES:
+        return False
+    if action == "start":
+        return status not in ("running", "finishing_tree")
+    if action == "pause":
+        if status in ("running", "waiting", "window_closed"):
+            return True
+        return status == "paused" and pause_reason in ("load", "space")
+    if action == "cancel":
+        return True
+    return False
+
+
 def recurring_status_target(
     is_complete,
     any_in_flight,

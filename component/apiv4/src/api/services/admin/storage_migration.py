@@ -692,29 +692,33 @@ class AdminStorageMigrationService:
         if not StorageMigration.exists(migration_id):
             raise Error("not_found", f"Migration {migration_id} not found")
         m = StorageMigration(migration_id)
-        if m.status in _TERMINAL:
+        # Authoritative status + reason (bypass the per-process 5s attr cache): the
+        # gate and the write must both act on what the row says now, not a stale read.
+        cur, cur_reason = m.fresh_status()
+        # Pause on a job already held by a manual/failure pause is a no-op, not an
+        # error: the UI disables the button, but a racing double-click must not 428.
+        if (
+            action == "pause"
+            and cur == MigrationStatus.PAUSED.value
+            and cur_reason not in ("load", "space")
+        ):
+            return cls.get(migration_id)
+        if not mig.admin_action_allowed(cur, action, cur_reason):
             raise Error(
                 "precondition_required",
-                f"Migration {migration_id} is {m.status} and can no longer be {action}ed",
+                f"Migration {migration_id} is {cur}; cannot {action} from that state",
             )
         # Start (incl. resuming a paused job): refuse if the destination is below
-        # the free-space floor, rather than starting a job that would only fail or
-        # pause on its first tick.
+        # the free-space floor, rather than starting a job that only pauses again.
         if action == "start":
             cls._assert_min_free_pct(m)
-        # Cancel = finish-current-tree: a started job drains its in-flight tree
-        # (and restores autostart) via finishing_tree before becoming canceled;
-        # the reconciler performs that transition. See mig.cancel_target.
-        # One atomic update: a torn (status, pause_reason) pair would let a
-        # half-written manual pause read as a load pause and be auto-resumed.
         now = time()
+        target = (
+            mig.cancel_target(cur) if action == "cancel" else _ACTION_TARGET[action]
+        )
         update = {
-            "status": (
-                mig.cancel_target(m.status)
-                if action == "cancel"
-                else _ACTION_TARGET[action]
-            ),
-            "status_time": now,  # __setattr__ stamps this on a status write; match it
+            "status": target,
+            "status_time": now,
             "updated_at": now,
             "last_activity_at": now,
         }
@@ -724,8 +728,17 @@ class AdminStorageMigrationService:
             update["pause_reason"] = "manual"
         elif action == "start":
             update["pause_reason"] = None
-        StorageMigration.update_document(migration_id, update, validate=False)
-        m._update_cache(**update)  # keep the per-id attr cache coherent for get()
+        # Compare-and-set on the gated status; pause accepts the whole
+        # running<->paused load flap between read and write so it never 428s.
+        values = ("running", "window_closed", "paused") if action == "pause" else (cur,)
+        if not StorageMigration.update_document_if(
+            migration_id, update, field="status", values=values, validate=False
+        ):
+            raise Error(
+                "conflict",
+                f"Migration {migration_id} changed state concurrently; retry {action}",
+            )
+        m._update_cache(**update)
         return cls.get(migration_id)
 
     @classmethod
