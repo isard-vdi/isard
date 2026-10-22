@@ -4,10 +4,7 @@ import logging as log
 import os
 import traceback
 
-from flask import Blueprint, current_app, jsonify, request
-
-api = Blueprint("api", __name__)
-app = current_app
+from flask import jsonify, request
 
 content_type = {"Content-Type": "application/json"}
 ex = {
@@ -136,9 +133,13 @@ class Error(Exception):
         )
 
 
-@api.errorhandler(Error)
 def handle_user_error(ex):
-    response = jsonify(ex.error)
+    response = jsonify(
+        {
+            key: ex.error[key]
+            for key in ("error", "msg", "description")
+            if key in ex.error
+        }
+    )
     response.status_code = ex.status_code
-    response.headers = {"content-type": content_type}
     return response
