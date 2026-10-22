@@ -617,7 +617,7 @@ def _tick_runner(monkeypatch, items, status, job_status_fn, live_status=None):
     r._pool_queue = lambda path, action: "q"
     r._move_queue = lambda path: "q"
     r._domains = lambda sid: []
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
     r.prepare = lambda: None
     return r, caps
 

@@ -97,7 +97,7 @@ def test_tick_refreshes_config_from_the_row():
         },
         sample={"desktops_started": 999},  # stays load-parked -> tick returns []
     )
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
 
     def _boom():
         raise AssertionError("tick drove trees while load-parked")

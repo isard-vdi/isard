@@ -99,6 +99,10 @@ ABANDON_GRACE_S = 30
 #: safety net, so the first abandonment always RESUMES.
 MAX_ABANDON_RESTARTS = 10
 
+#: throttle migration progress XADDs to one per migration per this many seconds;
+#: a status change or a pause/park forces one through so the admin never waits.
+PROGRESS_THROTTLE_S = 5
+
 
 def job_status(task_id, *, check_abandon=True):
     """Failure-aware RQ status of a migration task id, or ``None`` if absent.
@@ -838,12 +842,24 @@ class MigrationRunner:
         entry.update({k: v for k, v in data.items() if v is not None})
         self.migration.logs = list(self.migration.logs or []) + [entry]
 
-    def _publish_progress(self):
+    def _publish_progress(self, force=False):
         """Best-effort XADD of a migration progress event so the change-handler
         emits the aggregate ``storage:migration`` SocketIO event. Never fails
-        the tick — the ledger (not the socket) is the source of truth."""
+        the tick — the ledger (not the socket) is the source of truth.
+
+        Throttled per migration to one event per ``PROGRESS_THROTTLE_S`` so a
+        burst of settling disks coalesces into one socket refresh; ``force``
+        bypasses it for a status change or a pause/park, which the admin must see
+        at once."""
         try:
             conn = shared_client(rq_url())
+            if not force and not conn.set(
+                f"migration:progress:{self.migration_id}",
+                1,
+                nx=True,
+                ex=PROGRESS_THROTTLE_S,
+            ):
+                return
             # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared
             # result stream for every producer. The floor in task_streams exists
             # because the old tight cap discarded UNREAD kind=result entries under
@@ -1983,7 +1999,7 @@ class MigrationRunner:
         if mig.load_policy_is_adaptive(self.config):
             if self._apply_load_policy():
                 self._record_job_rate(False)
-                self._publish_progress()
+                self._publish_progress(force=True)
                 return []
         # Cancel = finish-current-tree (P2.4): once an admin cancels, the job is
         # in finishing_tree — stop starting new trees (skip the not-started
@@ -2014,7 +2030,7 @@ class MigrationRunner:
             elif self._space_floor_breached():
                 self._pause_for_space()
                 self._record_job_rate(False)
-                self._publish_progress()
+                self._publish_progress(force=True)
                 return [("__space__", None, "paused_min_free")]
 
         # RECURRING re-scan (per rescan_cadence): re-resolve the selection and add
@@ -2065,7 +2081,7 @@ class MigrationRunner:
         ):
             self._pause_for_space()
             self._record_job_rate(False)
-            self._publish_progress()
+            self._publish_progress(force=True)
             return [("__space__", None, "paused_min_free")]
         # Per-occurrence byte budget: stop STARTING trees once spent. A tree in
         # flight always finishes -- stopping mid-tree would strand a half-moved
@@ -2164,7 +2180,7 @@ class MigrationRunner:
             )
             self._record_job_rate(False)
             self._touch()
-            self._publish_progress()
+            self._publish_progress(force=True)
             return results
         if any(
             action in ("fail", "blocked", "destination_exists")
@@ -2307,8 +2323,9 @@ class MigrationRunner:
         # not just a disk moving; item-state changes already touched via _set.
         if str(self.migration.status) != cur:
             self._touch()
-        # Signal the change-handler to broadcast the aggregate to admins.
-        self._publish_progress()
+        # Signal the change-handler to broadcast the aggregate to admins; a
+        # status change this tick forces past the throttle.
+        self._publish_progress(force=str(self.migration.status) != cur)
         return results
 
     def is_complete(self):

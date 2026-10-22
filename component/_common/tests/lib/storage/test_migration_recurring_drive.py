@@ -184,7 +184,7 @@ def _runner(
     r.job_status_fn = job_status_fn
     r._now = lambda tz: now
     r._domains = lambda sid: []
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
     r.prepare = lambda: None
     r.reactivate = lambda: None
     r._enqueue = lambda *a, **k: "tid"
@@ -919,7 +919,7 @@ def test_cancel_one_parked_migration_does_not_touch_another(monkeypatch):
     r.job_status_fn = lambda t: None
     r._now = lambda tz: NOW
     r._domains = lambda sid: []
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
     r.prepare = lambda: None
     r.reactivate = lambda: None
     r._enqueue = lambda *a, **k: "tid"

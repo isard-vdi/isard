@@ -222,7 +222,7 @@ def test_tick_drives_no_trees_while_load_parked():
     r.migration = m
     r.config = m.config
     r._load_sample_fn = lambda: {"desktops_started": 999}  # stays parked
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
 
     def _boom():
         raise AssertionError("tick drove trees while load-parked")
