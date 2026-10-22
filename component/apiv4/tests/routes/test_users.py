@@ -494,6 +494,22 @@ def test_get_user_password_policy(monkeypatch, test_client):
     assert response.json() == stub
 
 
+@pytest.mark.parametrize("provider", ["saml", "google", "ldap"])
+def test_get_user_password_policy_rejects_a_user_that_is_not_local(
+    monkeypatch, test_client, provider
+):
+    jwt = MockJWT(provider=provider)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.get_user_password_policy",
+        staticmethod(lambda user_id: False),
+    )
+
+    response = test_client(url="/item/user/get-password-policy", jwt=jwt)
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "user_not_local"
+
+
 def test_get_user_api_key(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     stub = {"exists": True, "expires": 1765200000.0}

@@ -1037,16 +1037,6 @@ class UsersProcessed(RethinkSharedConnection):
     @classmethod
     def change_password(cls, password, user_id):
         """_From api/libv2/api_users.py ApiUsers.change_password()_"""
-        # Log user password changes with relevant metadata for auditing purposes.
-        logger.info(
-            "password_mutation",
-            extra={
-                "audit_event": "users.password.changed",
-                "target_user_id": user_id,
-                "ts": int(time.time()),
-            },
-        )
-
         with cls._rdb_context():
             raw = r.table("users").get(user_id).default(None).run(cls._rdb_connection)
         if raw is None:
@@ -1062,13 +1052,27 @@ class UsersProcessed(RethinkSharedConnection):
             "provider": raw.get("provider"),
         }
 
-        # p = Password()
+        if user["provider"] != "local":
+            raise Error(
+                "bad_request",
+                f"User {user_id} does not sign in with a local password",
+                description_code="user_not_local",
+            )
+
+        # Log user password changes with relevant metadata for auditing purposes.
+        logger.info(
+            "password_mutation",
+            extra={
+                "audit_event": "users.password.changed",
+                "target_user_id": user_id,
+                "ts": int(time.time()),
+            },
+        )
+
         policy = UserPolicies.get_user_policy(
             "password", user["category"], user["role"], user["provider"]
         )
-
-        if policy:
-            Password.check_policy(password, policy, user_id)
+        Password.check_policy(password, policy, user_id)
         password = Password.encrypt(password)
 
         if policy["old_passwords"] == 0:
@@ -1297,10 +1301,6 @@ class UsersProcessed(RethinkSharedConnection):
         for user_id in user_ids:
             revoke_user_session(user_id)
 
-        if data.get("password"):
-            for user_id in user_ids:
-                cls.change_password(data["password"], user_id)
-            data.pop("password")
         if data.get("ids"):
             data.pop("ids")
 
@@ -1312,6 +1312,12 @@ class UsersProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         users_by_id = {user["id"]: user for user in users}
+
+        if data.get("password"):
+            for user in users:
+                if user["provider"] == "local":
+                    cls.change_password(data["password"], user["id"])
+            data.pop("password")
 
         for user in users:
             if (

@@ -207,11 +207,18 @@ async def re_register_user(register_post_data: RegisterPostData, request: Reques
     summary="Get user password policy",
     description="Returns the password policy for the user.",
     responses={
+        400: {"description": "The user does not sign in with a local password"},
         500: {"description": "Failed to retrieve password policy"},
     },
     response_model=UserPasswordPolicyResponse,
 )
 async def get_user_password_policy(request: Request):
+    if request.token_payload.get("provider") != "local":
+        raise Error(
+            "bad_request",
+            "Only local users have a password policy",
+            description_code="user_not_local",
+        )
     try:
         policy = await asyncio.to_thread(
             UsersService.get_user_password_policy,
