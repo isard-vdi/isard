@@ -699,12 +699,7 @@ func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 
 		if s.Net != nil && stats.xml != nil && stats.xml.Devices != nil {
 			for _, n := range s.Net {
-				mac := ""
-				for _, i := range stats.xml.Devices.Interfaces {
-					if i.Target.Dev == n.Name {
-						mac = i.MAC.Address
-					}
-				}
+				mac := interfaceMAC(stats.xml.Devices.Interfaces, n.Name)
 
 				ch <- prometheus.MustNewConstMetric(c.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), name, n.Name, mac, userID, groupID, categoryID, templateID)
 				ch <- prometheus.MustNewConstMetric(c.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), name, n.Name, mac, userID, groupID, categoryID, templateID)
@@ -759,6 +754,20 @@ func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.descStatsExtractionDuration, prometheus.GaugeValue, c.extractDuration.Load().Seconds())
 	ch <- prometheus.MustNewConstMetric(c.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
 	ch <- prometheus.MustNewConstMetric(c.descScrapeSuccess, prometheus.GaugeValue, float64(success))
+}
+
+// interfaceMAC returns the MAC address of the interface whose target device
+// is dev. Libvirt can report interfaces without a target or a MAC (e.g. while
+// a domain is still being set up), so both are optional.
+func interfaceMAC(ifaces []libvirtxml.DomainInterface, dev string) string {
+	mac := ""
+	for _, i := range ifaces {
+		if i.Target != nil && i.Target.Dev == dev && i.MAC != nil {
+			mac = i.MAC.Address
+		}
+	}
+
+	return mac
 }
 
 func (c *Domain) collectStats(ctx context.Context) {
