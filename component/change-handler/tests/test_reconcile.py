@@ -1415,9 +1415,10 @@ async def test_pass3_leaves_a_domain_parked_by_a_live_migration():
     storage.find.assert_not_called()
 
 
-def test_an_unreadable_ledger_never_blocks_the_sweep():
-    """Claiming nothing is the safe failure: a heal that should not happen is
-    recoverable, a sweep that stops running is not."""
+def test_an_unreadable_ledger_fails_closed():
+    """An unreadable ledger must NOT read as 'nothing migrating'. Promoting a
+    disk a migration still owned onto a source it was about to discard is not a
+    recoverable heal, so the read returns None and every finalize pass skips."""
     from isardvdi_change_handler.streams import reconcile
 
     with patch.object(
@@ -1425,4 +1426,4 @@ def test_an_unreadable_ledger_never_blocks_the_sweep():
         "active_storage_ids",
         side_effect=Exception("db gone"),
     ):
-        assert reconcile._migration_owned_storage_ids() == set()
+        assert reconcile._migration_owned_storage_ids() is None
