@@ -510,6 +510,32 @@ def test_get_user_password_policy_rejects_a_user_that_is_not_local(
     assert response.json()["description_code"] == "user_not_local"
 
 
+@pytest.mark.parametrize("token_type", ["password-reset", "password-reset-required"])
+def test_get_user_password_policy_from_a_reset_token(
+    monkeypatch, test_client, token_type
+):
+    jwt = MockJWT(provider=None, token_type=token_type)
+    stub = {
+        "digits": 0,
+        "expiration": 0,
+        "length": 8,
+        "lowercase": 0,
+        "not_username": False,
+        "old_passwords": 0,
+        "special_characters": 0,
+        "uppercase": 0,
+    }
+    monkeypatch.setattr(
+        "api.services.users.UsersService.get_user_password_policy",
+        staticmethod(lambda user_id: stub),
+    )
+
+    response = test_client(url="/item/user/get-password-policy", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == stub
+
+
 def test_get_user_api_key(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     stub = {"exists": True, "expires": 1765200000.0}

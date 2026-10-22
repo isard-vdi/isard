@@ -213,17 +213,18 @@ async def re_register_user(register_post_data: RegisterPostData, request: Reques
     response_model=UserPasswordPolicyResponse,
 )
 async def get_user_password_policy(request: Request):
-    if request.token_payload.get("provider") != "local":
-        raise Error(
-            "bad_request",
-            "Only local users have a password policy",
-            description_code="user_not_local",
-        )
     try:
         policy = await asyncio.to_thread(
             UsersService.get_user_password_policy,
             user_id=request.token_payload["user_id"],
         )
+        # Password reset tokens carry no provider, only local users have a policy
+        if not policy:
+            raise Error(
+                "bad_request",
+                "Only local users have a password policy",
+                description_code="user_not_local",
+            )
         return JSONResponse(
             content=UserPasswordPolicyResponse(**policy).model_dump(mode="json"),
             status_code=200,
