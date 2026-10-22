@@ -178,6 +178,14 @@ PENDING_ACTIONS = {
         "flagged_by": ("a qemu-img check or repair that reached no verdict",),
         "cleared_by": "a qemu-img check that reaches one",
     },
+    "review_coherence": {
+        "flagged_by": ("the integrity coherence pass",),
+        "cleared_by": "an admin decision",
+    },
+    "review_dependents": {
+        "flagged_by": ("the integrity on-disk dependents scan",),
+        "cleared_by": "an admin decision",
+    },
 }
 
 

@@ -13,6 +13,7 @@ SWEEP_DEFAULTS = {
     "sparsify": False,
     "repair_leaks": False,
     "check_integrity": False,
+    "detect": False,  # read-only integrity detection (L0-L3), records pending_actions
     "check_max_age_days": 30,
 }
 

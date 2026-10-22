@@ -740,7 +740,7 @@ class StorageService:
         """Validate and persist the sweep config; returns the merged value.
         delete_backup is deliberately not a sweep action — it is a manual purge."""
         clean = {}
-        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity"):
+        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity", "detect"):
             if key in data:
                 clean[key] = bool(data[key])
         for key, hi in (("hour", 23), ("minute", 59)):
@@ -790,6 +790,16 @@ class StorageService:
             summary["actions"]["check_integrity"] = StorageService._sweep_act(
                 payload, "check_integrity", ids, budget
             )
+        if config.get("detect"):
+            # read-only, whole-estate: records pending_actions, ignores the
+            # per-disk budget (it enqueues one header scan per pool, not per disk)
+            res = StorageProcessed.run_integrity_detection()
+            summary["actions"]["detect"] = {
+                "findings": len(res["findings"]),
+                "scan_ok": res["scan_ok"],
+                "failed_pools": res["failed_pools"],
+                "scanned": res["scanned"],
+            }
         return summary
 
     @staticmethod

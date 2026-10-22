@@ -61,6 +61,7 @@ LONG_ACTIONS = frozenset(
         "disconnect",
         "virt_win_reg",
         "find",
+        "scan_backing_index",
     }
 )
 

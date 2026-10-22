@@ -1970,6 +1970,36 @@ def pool_free_space(path):
     return {"path": path, "free_bytes": free, "total_bytes": total, "source": source}
 
 
+def scan_backing_index(pool_paths):
+    """Read-only header scan of every qcow2 under ``pool_paths``.
+
+    Walks each pool root for ``*.qcow2`` and returns ``build_backing_index`` of
+    them (uuid/size/backing from the 72-byte header, never qemu-img). Opens no
+    file for writing and changes nothing; the integrity orchestration reads the
+    result back and classifies it.
+    """
+    from isardvdi_common.lib.storage.dependents import build_backing_index
+
+    started = time()
+    files = []
+    temps = []
+    for root in pool_paths:
+        for dirpath, _dirnames, filenames in walk(root):
+            for name in filenames:
+                if name.endswith(".qcow2") and not name.startswith("."):
+                    files.append(join(dirpath, name))
+                elif ".qcow2" in name:
+                    # a .qcow2 carrying trailing junk, or a dot-prefixed copy:
+                    # rsync leaves ``.<name>.qcow2.XXXXXX`` while streaming
+                    temps.append(join(dirpath, name))
+    return {
+        "index": build_backing_index(files),
+        "temps": temps,
+        "scanned": len(files),
+        "elapsed_ms": round((time() - started) * 1000, 3),
+    }
+
+
 def migration_verify_destination_absent(dst_path):
     """Refuse a migration copy onto a path that already holds a file.
 
