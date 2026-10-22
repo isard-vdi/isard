@@ -2148,8 +2148,13 @@ class MigrationRunner:
                 "the storage worker refused a copy below the destination's "
                 "free-space floor; pausing, the disk stays pending",
             )
-            self.migration.pause_reason = "space"
-            self.migration.status = MigrationStatus.PAUSED.value
+            # CAS on the tick-start status (like _pause_for_space): an admin
+            # cancel/pause that raced in loses, so the admin's state stands.
+            self._claim_status(
+                str(self.migration.status),
+                MigrationStatus.PAUSED.value,
+                pause_reason="space",
+            )
             self._record_job_rate(False)
             self._touch()
             self._publish_progress()

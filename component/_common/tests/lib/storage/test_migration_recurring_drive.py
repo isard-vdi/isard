@@ -751,3 +751,57 @@ def test_a_skipped_stale_tree_comes_back_when_it_matches_again(monkeypatch):
     r.tick()
     assert items[0]["state"] != "skipped"
     assert items[0]["occurrence_failures"] == 0  # a skip is not a failure
+
+
+# --- F1: an admin action that lands during a space_deferred tick survives ----- #
+def _running_job():
+    m = _Mig("running", {"window": WINDOW})
+    m.last_occurrence = "2026-07-01"
+    m.logs = []
+    m.space_probe = {}
+    return m
+
+
+_SPACE_REFUSAL = "move: refusing to copy /x: destination below the 1 byte floor"
+
+
+def test_admin_cancel_during_a_space_deferred_tick_is_not_clobbered(monkeypatch):
+    """The worker refuses a move for lack of room mid-tick (-> space_deferred). If
+    an admin cancel lands in that same tick, the end-of-tick space pause must not
+    overwrite the finishing_tree the cancel wrote (a status-keyed claim loses the
+    race; the old unconditional write clobbered it, and _claim_resume would then
+    auto-resume the space pause -- the cancel vanishes)."""
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _running_job()
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "failed")
+
+    def _reason_then_admin_cancels(item):
+        m.live["status"] = "finishing_tree"  # admin cancel lands concurrently
+        return _SPACE_REFUSAL
+
+    r._failure_reason = _reason_then_admin_cancels
+    r.tick()
+
+    assert items[0]["state"] == "pending"  # the disk was deferred, not failed
+    assert (
+        m.live["status"] == "finishing_tree"
+    ), "admin cancel clobbered to paused/space"
+    assert m.live.get("pause_reason") != "space"
+
+
+def test_admin_pause_during_a_space_deferred_tick_is_not_clobbered(monkeypatch):
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _running_job()
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "failed")
+
+    def _reason_then_admin_pauses(item):
+        m.live["status"] = "paused"
+        m.live["pause_reason"] = "manual"  # admin manual pause lands concurrently
+        return _SPACE_REFUSAL
+
+    r._failure_reason = _reason_then_admin_pauses
+    r.tick()
+
+    assert items[0]["state"] == "pending"
+    assert m.live["status"] == "paused"
+    assert m.live["pause_reason"] == "manual", "manual pause overwritten to space"
