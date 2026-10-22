@@ -1,6 +1,7 @@
 package authentication_test
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,6 +36,7 @@ func TestForgotPassword(t *testing.T) {
 		CategoryID      string
 		Email           string
 		ExpectedErr     string
+		ExpectedLog     string
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
@@ -80,6 +83,7 @@ func TestForgotPassword(t *testing.T) {
 			CategoryID:  "default",
 			Email:       "nefix@example.org",
 			ExpectedErr: "user not found",
+			ExpectedLog: `"category_id":"default","email":"nefix@example.org","message":"password reset requested for an email without a verified local user"`,
 		},
 	}
 
@@ -106,12 +110,20 @@ func TestForgotPassword(t *testing.T) {
 			}
 			a.Notifier = notifier
 
+			var logs bytes.Buffer
+			logger := zerolog.New(&logs)
+			a.Log = &logger
+
 			err := a.ForgotPassword(t.Context(), tc.CategoryID, tc.Email)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
+			}
+
+			if tc.ExpectedLog != "" {
+				assert.Contains(logs.String(), tc.ExpectedLog)
 			}
 
 			mock.AssertExpectations(t)

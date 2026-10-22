@@ -37,6 +37,8 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 	}
 
 	if !exists {
+		// The caller always answers success, so this is the only trace of the request
+		a.Log.Info().Str("category_id", categoryID).Str("email", email).Msg("password reset requested for an email without a verified local user")
 		return ErrUserNotFound
 	}
 
