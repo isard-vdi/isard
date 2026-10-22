@@ -1376,7 +1376,7 @@
           },
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "sum(count_values by(role) (\"tipo\", count_over_time(isardvdi_isardvdi_api_user_info{category=\"$category\"}[60d]))) or vector(0)",
+          "expr": "count by (role) (last_over_time(isardvdi_isardvdi_api_user_info{category=~\"$category\"}[60d:1d])) or vector(0)",
           "groupBy": [
             {
               "params": [
@@ -1394,7 +1394,7 @@
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "Usuaris dels últims mesos",
+          "legendFormat": "{{role}}",
           "measurement": "docker",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1665,7 +1665,9 @@
   "refresh": "10s",
   "schemaVersion": 37,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "users"
+  ],
   "templating": {
     "list": [
       {

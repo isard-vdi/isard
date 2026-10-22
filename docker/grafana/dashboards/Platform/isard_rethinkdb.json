@@ -529,18 +529,6 @@
           "legendFormat": "connections count",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "rethinkdb_server_client_connections_ip",
-          "hide": false,
-          "legendFormat": "IP: {{ip}}",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Cluster client connections",
@@ -861,18 +849,6 @@
           "legendFormat": "Server: {{server}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "rethinkdb_server_client_connections_ip{}",
-          "hide": false,
-          "legendFormat": "IP: {{ip}}",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Server client connections",
@@ -1394,7 +1370,9 @@
   "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "platform"
+  ],
   "templating": {
     "list": [
       {

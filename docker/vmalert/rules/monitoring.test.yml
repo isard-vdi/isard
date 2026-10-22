@@ -1,0 +1,161 @@
+rule_files:
+  - monitoring.rules.yml
+  - system_health.rules.yml
+  - certificates.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: target_down_fires_after_five_minutes
+    interval: 1m
+    input_series:
+      - series: 'up{job="containers",instance="isard-vmalert:8880",domain="a"}'
+        values: "1 0 0 0 0 0 0 0"
+      - series: 'up{job="containers",instance="isard-loki:3100",domain="a"}'
+        values: "1 1 1 1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: monitoring_stack
+        alertname: MetricsTargetDown
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: monitoring_stack
+        alertname: MetricsTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              job: containers
+              instance: isard-vmalert:8880
+              domain: a
+            exp_annotations:
+              summary: "A metrics target is not answering its scrape"
+              description: "containers target isard-vmalert:8880 on a has failed every scrape for 5m, so its panels and the rules that read it are blind."
+
+  - name: loki_discards_fire_per_reason_and_stay_quiet_when_flat
+    interval: 1m
+    input_series:
+      - series: 'loki_discarded_samples_total{reason="rate_limited",tenant="fake"}'
+        values: "0x20 40 80 80 80"
+      - series: 'loki_discarded_samples_total{reason="line_too_long",tenant="fake"}'
+        values: "3x25"
+    alert_rule_test:
+      - eval_time: 19m
+        groupname: monitoring_stack
+        alertname: LogsDiscardedByLoki
+        exp_alerts: []
+      - eval_time: 23m
+        groupname: monitoring_stack
+        alertname: LogsDiscardedByLoki
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              reason: rate_limited
+            exp_annotations:
+              summary: "Loki is discarding log lines (rate_limited)"
+              description: "80 log lines were rejected in 15m for rate_limited. They are lost, not delayed."
+
+  - name: grafana_absent_fires_and_present_does_not
+    interval: 1m
+    input_series:
+      - series: 'grafana_build_info{version="13.1.8"}'
+        values: "1 1 1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: monitoring_stack
+        alertname: GrafanaNotScraped
+        exp_alerts: []
+      - eval_time: 18m
+        groupname: monitoring_stack
+        alertname: GrafanaNotScraped
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+            exp_annotations:
+              summary: "Grafana has reported no metrics for 10m"
+              description: "Either isard-grafana is down or its metrics endpoint is no longer scraped."
+
+  - name: heartbeat_is_recorded_every_evaluation
+    interval: 1m
+    metricsql_expr_test:
+      - expr: isardvdi:vmalert_heartbeat
+        eval_time: 3m
+        exp_samples:
+          - labels: 'isardvdi:vmalert_heartbeat'
+            value: 1
+
+  # vmalert-tool's clock starts at 2000-01-01T00:00:00Z (946684800), so expiries are absolute from there.
+  - name: certificate_ten_days_away_warns_and_does_not_page
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
+        values: "947548800x200"
+      - series: 'probe_success{job="certificates",domain="a"}'
+        values: "1x200"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 2h
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: certificates
+              job: certificates
+              domain: a
+            exp_annotations:
+              summary: "The certificate of a expires in 10 days"
+              description: "The TLS certificate served on a:443 expires in less than 14 days. Renewal should have happened already: check the certificate renewal of the portal."
+    metricsql_expr_test:
+      - expr: isardvdi:area_monitored
+        eval_time: 1h
+        exp_samples:
+          - labels: 'isardvdi:area_monitored{area="certificates"}'
+            value: 1
+
+  - name: certificate_far_away_is_quiet
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="certificates",domain="a"}'
+        values: "954460800x200"
+      - series: 'probe_success{job="certificates",domain="a"}'
+        values: "1x200"
+    alert_rule_test:
+      - eval_time: 3h
+        groupname: certificates
+        alertname: CertificateExpiresSoon
+        exp_alerts: []
+      - eval_time: 3h
+        groupname: certificates
+        alertname: CertificateNotReadable
+        exp_alerts: []
+
+  - name: certificate_not_trusted_is_info_only_when_the_public_probe_reads_it
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="certificates",domain="own-ca"}'
+        values: "1x100"
+      - series: 'probe_success{job="certificates_verify",domain="own-ca"}'
+        values: "0x100"
+      - series: 'probe_success{job="certificates",domain="public-ca"}'
+        values: "1x100"
+      - series: 'probe_success{job="certificates_verify",domain="public-ca"}'
+        values: "1x100"
+    alert_rule_test:
+      - eval_time: 90m
+        groupname: certificates
+        alertname: CertificateNotTrusted
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              area: certificates
+              job: certificates_verify
+              domain: own-ca
+            exp_annotations:
+              summary: "The certificate of own-ca does not match its name or is not trusted"
+              description: "own-ca:443 serves a certificate that fails verification for own-ca: wrong name, expired chain or a CA that is not public. Expected on installs with their own CA; otherwise browsers show an error."

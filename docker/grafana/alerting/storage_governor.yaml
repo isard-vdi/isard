@@ -15,9 +15,10 @@ apiVersion: 1
 # warning. Telegram alerting is therefore OPT-IN: the grafana entrypoint
 # (docker/grafana/run.sh) removes this file from the provisioning dir when
 # GRAFANA_TELEGRAM_TOKEN / GRAFANA_TELEGRAM_CHAT_ID are unset, so grafana still
-# starts. The Prometheus recording/alerting rules in
-# docker/prometheus/rules/storage_governor.rules.yml carry the same alerts and
-# have no external-secret dependency.
+# starts. The vmalert rules in docker/vmalert/rules/storage_governor.rules.yml
+# carry the same alerts, with the same area labels, and have no external-secret
+# dependency. Telegram gets plain text (parse_mode None), so a summary with <, >,
+# _ or & is not rejected.
 #
 # Every alert expression references ONLY metrics exported by the storage-governor
 # collector (prefix isardvdi_storage_governor_). Queries run against the
@@ -35,12 +36,13 @@ contactPoints:
         settings:
           bottoken: ${GRAFANA_TELEGRAM_TOKEN}
           chatid: ${GRAFANA_TELEGRAM_CHAT_ID}
+          parse_mode: None
         disableResolveMessage: false
 
 groups:
   - orgId: 1
     name: storage-governor-critical
-    folder: Storage Governor
+    folder: Alerts
     interval: 1m
     rules:
       # ------------------------------------------------------------------
@@ -55,6 +57,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: redis
         annotations:
           summary: Storage-governor Redis is down
           description: >-
@@ -119,6 +122,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: storage
         annotations:
           summary: Storage worker heartbeat lost
           description: >-
@@ -135,7 +139,7 @@ groups:
             model:
               refId: A
               editorMode: code
-              expr: isardvdi_storage_governor_worker_up == bool 0
+              expr: (isardvdi_storage_governor_worker_up == bool 0) and on(worker) (isardvdi_storage_governor_worker_hash_present == 1)
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -184,6 +188,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: storage
         annotations:
           summary: No storage workers available
           description: >-
@@ -251,6 +256,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: queues
         annotations:
           summary: Storage lane stranded with backlog
           description: >-
@@ -316,6 +322,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: queues
         annotations:
           summary: Started storage job stuck past timeout
           description: >-
@@ -380,6 +387,7 @@ groups:
         labels:
           severity: critical
           service: storage-governor
+          area: queues
         annotations:
           summary: Storage-governor scrape failed
           description: >-

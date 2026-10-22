@@ -329,14 +329,14 @@ unit-test-vmalert:
   stage: unit-test
   needs: []
   image:
-    name: victoriametrics/vmalert-tool:v1.147.0
+    name: victoriametrics/vmalert-tool:v1.154.0
     entrypoint: [""]
   script:
     - runtime=$(grep -oE 'victoriametrics/vmalert:v[0-9.]+' docker-compose-parts/monitor.yml | head -1 | sed 's/.*://')
     - tool=$(/vmalert-tool-prod --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
     - '[ -n "$runtime" ] || { echo "FAIL: cannot read the runtime vmalert pin from docker-compose-parts/monitor.yml"; exit 1; }'
     - '[ "$runtime" = "$tool" ] || { echo "FAIL: vmalert-tool $tool != runtime vmalert $runtime (docker-compose-parts/monitor.yml) — bump this job image and monitor.yml together"; exit 1; }'
-    - /vmalert-tool-prod unittest --files docker/vmalert/rules/storage_governor.test.yml
+    - /vmalert-tool-prod unittest --files "docker/vmalert/rules/*.test.yml"
 
 unit-test-sparsify:
   stage: unit-test

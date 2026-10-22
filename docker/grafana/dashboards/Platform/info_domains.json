@@ -1858,7 +1858,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "sum by (mode)(rate(node_cpu_seconds_total{mode='guest',domain=\"$domain\"}[$__rate_interval])) * 100",
+              "expr": "sum(rate(node_cpu_guest_seconds_total{domain=\"$domain\"}[$__rate_interval])) * 100",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "Guest - Time spent running a virtual CPU for a guest operating system",
@@ -6082,7 +6082,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_virtual_memory_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6095,20 +6095,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_resident_memory_max_bytes{domain=\"$domain\"}",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "Maximum amount of virtual memory available in bytes",
-              "refId": "B",
-              "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "expr": "rate(process_virtual_memory_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6121,7 +6108,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_virtual_memory_max_bytes{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_virtual_memory_max_bytes[$__rate_interval])",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
@@ -6759,7 +6746,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "rate(process_cpu_seconds_total{domain=\"$domain\"}[$__rate_interval])",
+              "expr": "rate(process_cpu_seconds_total[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -6858,7 +6845,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_max_fds{domain=\"$domain\"}",
+              "expr": "process_max_fds",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Maximum open file descriptors",
@@ -6870,7 +6857,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "process_open_fds{domain=\"$domain\"}",
+              "expr": "process_open_fds",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Open file descriptors",
@@ -7042,20 +7029,6 @@
               "intervalFactor": 1,
               "legendFormat": "{{ chip }} {{ sensor }} Critical",
               "refId": "C",
-              "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "expr": "node_hwmon_temp_crit_hyst_celsius{domain=\"$domain\"}",
-              "format": "time_series",
-              "hide": true,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{ chip }} {{ sensor }} Critical Historical",
-              "refId": "D",
               "step": 240
             },
             {
@@ -10777,7 +10750,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "node_network_up{operstate=\"up\",domain=\"$domain\"}",
+              "expr": "node_network_up{domain=\"$domain\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{interface}} - Operational state UP",
@@ -11961,20 +11934,6 @@
               "legendFormat": "CurrEstab - TCP connections for which the current state is either ESTABLISHED or CLOSE- WAIT",
               "refId": "A",
               "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "expr": "node_netstat_Tcp_MaxConn{domain=\"$domain\"}",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "MaxConn - Limit on the total number of TCP connections the entity can support (Dinamic is \"-1\")",
-              "refId": "B",
-              "step": 240
             }
           ],
           "thresholds": [],
@@ -12520,7 +12479,8 @@
   "schemaVersion": 37,
   "style": "dark",
   "tags": [
-    "linux"
+    "linux",
+    "platform"
   ],
   "templating": {
     "list": [

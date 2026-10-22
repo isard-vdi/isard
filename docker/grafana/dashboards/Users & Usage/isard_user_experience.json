@@ -1,0 +1,1360 @@
+{
+  "title": "IsardVDI User Experience",
+  "uid": "isard-user-experience",
+  "schemaVersion": 37,
+  "version": 1,
+  "editable": true,
+  "tags": [
+    "isardvdi",
+    "ux",
+    "faro",
+    "users"
+  ],
+  "time": {
+    "from": "now-12h",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "hypervisor",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "query": {
+          "query": "label_values(isardvdi_domain_balloon_rss, hypervisor)",
+          "refId": "hyp"
+        },
+        "definition": "label_values(isardvdi_domain_balloon_rss, hypervisor)",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "How to read this",
+      "id": 1,
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**User experience, measured without touching any desktop.** Everything comes from data the platform already collects: users' browsers (Faro, requires `FARO_ENABLED`), service logs (Loki) and the libvirt statistics of each desktop (VictoriaMetrics). Always percentiles: **p50** is the typical user, **p90** the worst one in ten.\n\nRows: **Portal** (page load) · **Actions** (time of each click, seen from the browser) · **Start** (from the click to a running desktop) · **Viewers** · **Inside the desktop** (CPU, disk and memory as the guest feels them) · **Hosts**. The last row lists what is **not** visible yet."
+      }
+    },
+    {
+      "type": "row",
+      "title": "Portal: page load in the browser (Faro web-vitals, p75)",
+      "id": 2,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "TTFB: time to first byte",
+      "id": 3,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "p75 of time_to_first_byte measured in each user's browser. Includes the client network.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.75, {source=\"faro\"} |= \"type=web-vitals\" | logfmt | time_to_first_byte!=\"\" | unwrap time_to_first_byte [5m]) by (app)",
+          "legendFormat": "{{app}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "LCP: main content visible",
+      "id": 4,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "p75 of lcp measured in each user's browser. Includes the client network.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.75, {source=\"faro\"} |= \"type=web-vitals\" | logfmt | lcp!=\"\" | unwrap lcp [5m]) by (app)",
+          "legendFormat": "{{app}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "FCP: first content",
+      "id": 5,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.75, {source=\"faro\"} |= \"type=web-vitals\" | logfmt | fcp!=\"\" | unwrap fcp [5m]) by (app)",
+          "legendFormat": "{{app}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "INP: response to a click or key press",
+      "id": 6,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.75, {source=\"faro\"} |= \"type=web-vitals\" | logfmt | inp!=\"\" | unwrap inp [5m]) by (app)",
+          "legendFormat": "{{app}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Actions: time of each click as seen by the browser (Faro request_completed)",
+      "id": 7,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Key actions, p50",
+      "id": 8,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "From the moment the browser sends the request until it gets the response: server plus client network.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.5, {source=\"faro\"} |= \"event_name=request_completed\" | logfmt | event_data_route_template=~\".*/desktop/\\\\{id\\\\}/(start|stop)|.*get-viewer.*|/api/v4/item/user/desktops|/api/v4/items/desktops\" | unwrap event_data_duration_ms [10m]) by (event_data_method, event_data_route_template)",
+          "legendFormat": "{{event_data_method}} {{event_data_route_template}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Key actions, p90",
+      "id": 9,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "From the moment the browser sends the request until it gets the response: server plus client network.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.9, {source=\"faro\"} |= \"event_name=request_completed\" | logfmt | event_data_route_template=~\".*/desktop/\\\\{id\\\\}/(start|stop)|.*get-viewer.*|/api/v4/item/user/desktops|/api/v4/items/desktops\" | unwrap event_data_duration_ms [10m]) by (event_data_method, event_data_route_template)",
+          "legendFormat": "{{event_data_method}} {{event_data_route_template}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error responses by route (status ≥ 400), per 10 min",
+      "id": 10,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "428 on start = the disk is not ready; 401 = expired session.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_data_status, event_data_route_template) (count_over_time({source=\"faro\"} |= \"event_name=request_completed\" | logfmt | event_data_status >= 400 | event_data_route_template=~\".*/desktop/\\\\{id\\\\}/(start|stop)|.*get-viewer.*|/api/v4/item/user/desktops|/api/v4/items/desktops\" [10m]))",
+          "legendFormat": "{{event_data_status}} {{event_data_route_template}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests without a response (request_failed), per 10 min",
+      "id": 11,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "The request got no response: client network, cut connection or timeout.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (app) (count_over_time({source=\"faro\"} |= \"event_name=request_failed\" [10m]))",
+          "legendFormat": "{{app}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Start: from the click to a running desktop",
+      "id": 12,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Engine: start time (start_domain), p90 by hypervisor",
+      "id": 13,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "From the moment the engine gets the order until libvirt has the desktop running. Does not include the guest OS boot.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.9, {container_name=\"isard-engine\"} |= \"start_domain\" |= \"\\\"level\\\": \\\"info\\\"\" | regexp \"hyp_id.: .(?P<hyp>[a-z0-9-]+).*total_time.: (?P<tt>[0-9.]+)\" | hyp=~\"$hypervisor\" | unwrap tt [10m]) by (hyp)",
+          "legendFormat": "{{hyp}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Starts by hypervisor, per 10 min",
+      "id": 14,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "Where starts land. A large wave on a single hypervisor makes the guest OS boot more expensive.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (hyp) (count_over_time({container_name=\"isard-engine\"} |= \"start_domain\" |= \"\\\"level\\\": \\\"info\\\"\" | regexp \"hyp_id.: .(?P<hyp>[a-z0-9-]+)\" | hyp=~\"$hypervisor\" [10m]))",
+          "legendFormat": "{{hyp}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Viewers",
+      "id": 15,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Viewer opens by result (owns-desktop), per 10 min",
+      "id": 16,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "Pre-check made by guac, rdpgw and websockify. 200 = opened; 403 = denied (desktop stopped or not owned by the user); 401 = expired token; 428 = desktop not started.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({service_name=\"isard-apiv4\"} |= \"owns-desktop\" | regexp \"owns-desktop (?P<status>[0-9]{3})\" [10m]))",
+          "legendFormat": "{{status}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Time to get the viewer (get-viewer), p90 by type",
+      "id": 17,
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.9, {source=\"faro\"} |= \"event_name=request_completed\" | logfmt | event_data_route_template=~\".*get-viewer/.*\" | unwrap event_data_duration_ms [10m]) by (event_data_route_template)",
+          "legendFormat": "{{event_data_route_template}}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Inside the desktop: what the guest feels (libvirt)",
+      "id": 18,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU wait (vCPU waiting for a core), p90 per desktop",
+      "id": 19,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Below 1 % it is not noticeable. If it rises, the hypervisor is short of CPU.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 58
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile by (hypervisor)(0.9, 100*sum by (hypervisor,desktop)(rate(isardvdi_domain_vcpu_delay{hypervisor=~\"$hypervisor\"}[5m]))/1e9 / max by (hypervisor,desktop)(isardvdi_domain_vcpu_current{hypervisor=~\"$hypervisor\"}))",
+          "legendFormat": "{{hypervisor}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk write latency, p90 per desktop",
+      "id": 20,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Sustained values above 15 ms are noticeable to users.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 58
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile by (hypervisor)(0.9, 1000*sum by (hypervisor,desktop)(rate(isardvdi_domain_block_wr_times{hypervisor=~\"$hypervisor\"}[5m]))/sum by (hypervisor,desktop)(rate(isardvdi_domain_block_wr_reqs{hypervisor=~\"$hypervisor\"}[5m]))/1e9)",
+          "legendFormat": "{{hypervisor}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk read latency, p90 per desktop",
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 66
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile by (hypervisor)(0.9, 1000*sum by (hypervisor,desktop)(rate(isardvdi_domain_block_rd_times{hypervisor=~\"$hypervisor\"}[5m]))/sum by (hypervisor,desktop)(rate(isardvdi_domain_block_rd_reqs{hypervisor=~\"$hypervisor\"}[5m]))/1e9)",
+          "legendFormat": "{{hypervisor}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Desktops with less than 10 % free memory",
+      "id": 22,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Memory the guest reports as available. A desktop short of memory opens applications slowly even when the platform is fine.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 66
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "count by (hypervisor)((max by (hypervisor,desktop)(isardvdi_domain_balloon_usable{hypervisor=~\"$hypervisor\"}) / max by (hypervisor,desktop)(isardvdi_domain_balloon_available{hypervisor=~\"$hypervisor\"})) < 0.10)",
+          "legendFormat": "{{hypervisor}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Write latency by category, p90 (now)",
+      "id": 23,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "The category comes from the disk path. Some categories store disks under an id instead of the name.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "topk(25, quantile by (category)(0.9, label_replace(1000*sum by (desktop,block_path)(rate(isardvdi_domain_block_wr_times[15m]))/sum by (desktop,block_path)(rate(isardvdi_domain_block_wr_reqs[15m]))/1e9, \"category\",\"$1\",\"block_path\",\"/isard/storage_pools/[^/]+/([^/]+)/.*\")))",
+          "instant": true,
+          "format": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Running desktops by category (now)",
+      "id": 24,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 74
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(count by (category)(label_replace(max by (desktop,block_path)(isardvdi_domain_block_rd_reqs), \"category\",\"$1\",\"block_path\",\"/isard/storage_pools/[^/]+/([^/]+)/.*\")))",
+          "instant": true,
+          "format": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Hosts",
+      "id": 25,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 82
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Real host CPU (without iowait)",
+      "id": 26,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 83
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "100*(sum by (domain)(rate(node_cpu_seconds_total{mode=~\"user|system|irq|softirq|steal\"}[5m]))/count by (domain)(node_cpu_seconds_total{mode=\"idle\"}))",
+          "legendFormat": "{{domain}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Running desktops by hypervisor",
+      "id": 27,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 83
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "count by (hypervisor)(isardvdi_domain_balloon_rss{hypervisor=~\"$hypervisor\"})",
+          "legendFormat": "{{hypervisor}}",
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Not visible yet",
+      "id": 28,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 91
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "text",
+      "title": "Known gaps",
+      "id": 29,
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 92
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- **Guest OS boot and application start times**: not visible from outside. The disk read burst after a start is a good proxy (it settles in about 90-120 s), but it needs each desktop's start time as a metric to be drawn here.\n- **Viewer latency and disconnections**: client RTT and who ends a session need structured proxy logs with timers.\n- **Native SPICE and RDP clients**: Faro only sees the browser; these have to be measured on the server side.\n- **Quality by site**: grouping by each site's public (NAT) address needs a per-connection metric.\n- **Hypervisor CPU and I/O pressure (PSI)**: not exported yet."
+      }
+    }
+  ]
+}

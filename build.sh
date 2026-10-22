@@ -743,15 +743,7 @@ create_docker_compose_file(){
 		parts="$parts openapi"
 	fi
 
-	# Expand monitoring: the tempo/pyroscope SERVERS run only on the monitor (or
-	# all-in-one) node. Other flavours act as clients — apps emit traces and alloy
-	# ships eBPF profiles to the monitor via TEMPO_ADDRESS/PYROSCOPE_ADDRESS (run.sh),
-	# so they must NOT start a local, unused server here.
-	if [ "$TEMPO" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
-	then
-		echo "Adding Tempo"
-		parts="$parts monitor-tempo"
-	fi
+	# the pyroscope server runs only on monitor/all-in-one; other flavours ship to it
 
 	if [ "$PYROSCOPE_EBPF" = "true" ] && { [ "$FLAVOUR" = "monitor" ] || [ "$FLAVOUR" = "all-in-one" ]; }
 	then
@@ -764,13 +756,6 @@ create_docker_compose_file(){
 
 	# Build the docker-compose.yml
 	flavour "$config_name" $parts
-
-	# Expand monitoring
-	if [ "$TEMPO" != "true" ]
-	then
-		echo "Clean Tempo vars"
-		sed -i '/\bTEMPO.*/d' docker-compose*.yml
-	fi
 
 	if [ "$FARO_ENABLED" != "true" ]
 	then

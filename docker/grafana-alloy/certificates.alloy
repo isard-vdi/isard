@@ -1,0 +1,47 @@
+//
+// TLS certificate this host serves on 443, asked for its public name (copied by run.sh where it applies)
+//
+prometheus.exporter.blackbox "certificates" {
+	// public reads the expiry even of a self-signed certificate; verified also checks the
+	// name and the chain against the system CAs.
+	config = "{ modules: { tls_connect: { prober: tcp, timeout: 10s, tcp: { tls: true, tls_config: { insecure_skip_verify: true, server_name: \"" + sys.env("DOMAIN") + "\" } } }, tls_verify: { prober: tcp, timeout: 10s, tcp: { tls: true, tls_config: { insecure_skip_verify: false, server_name: \"" + sys.env("DOMAIN") + "\" } } } } }"
+
+	target {
+		name    = "public"
+		address = sys.env("CERT_PROBE_ADDRESS")
+		module  = "tls_connect"
+	}
+
+	target {
+		name    = "verified"
+		address = sys.env("CERT_PROBE_ADDRESS")
+		module  = "tls_verify"
+	}
+}
+
+prometheus.scrape "certificates" {
+	targets = prometheus.exporter.blackbox.certificates.targets
+
+	forward_to      = [prometheus.relabel.certificates.receiver]
+	job_name        = "certificates"
+	scrape_interval = "5m"
+}
+
+// The exporter names each target's job itself; the rules select these two.
+prometheus.relabel "certificates" {
+	forward_to = [prometheus.relabel.process_metrics_containers.receiver]
+
+	rule {
+		source_labels = ["job"]
+		regex         = ".*/verified"
+		target_label  = "job"
+		replacement   = "certificates_verify"
+	}
+
+	rule {
+		source_labels = ["job"]
+		regex         = ".*/public"
+		target_label  = "job"
+		replacement   = "certificates"
+	}
+}

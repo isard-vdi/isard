@@ -1,0 +1,27 @@
+rule_files:
+  - desktop_io.rules.yml
+
+evaluation_interval: 5m
+
+tests:
+  - name: desktop_throughput_is_summed_over_its_disks
+    interval: 30s
+    input_series:
+      # two disks of the same desktop, 1 MiB/s and 3 MiB/s of writes
+      - series: 'isardvdi_domain_block_wr_bytes{desktop="d1",category_id="c",user_id="u",block_name="vda",template_id="t"}'
+        values: "0+31457280x40"
+      - series: 'isardvdi_domain_block_wr_bytes{desktop="d1",category_id="c",user_id="u",block_name="vdb",template_id="t"}'
+        values: "0+94371840x40"
+      - series: 'isardvdi_domain_block_rd_bytes{desktop="d1",category_id="c",user_id="u",block_name="vda",template_id="t"}'
+        values: "0+15728640x40"
+    metricsql_expr_test:
+      - expr: isardvdi:desktop_block_wr_bytes:rate5m
+        eval_time: 15m
+        exp_samples:
+          - labels: 'isardvdi:desktop_block_wr_bytes:rate5m{desktop="d1",category_id="c",user_id="u"}'
+            value: 4194304
+      - expr: isardvdi:desktop_block_rd_bytes:rate5m
+        eval_time: 15m
+        exp_samples:
+          - labels: 'isardvdi:desktop_block_rd_bytes:rate5m{desktop="d1",category_id="c",user_id="u"}'
+            value: 524288

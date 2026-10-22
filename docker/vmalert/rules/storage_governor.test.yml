@@ -18,8 +18,8 @@
 #     cannot separate a healthy burst from a stall on this signal (measured
 #     healthy peaks 261-673, incident 892), so the rule discriminates on the 30m
 #     `for:`. Lower the `for:` and that case starts failing.
-#   * WorkerHeartbeatLost does NOT fire for a registration whose rq:worker hash
-#     is gone -- remove the hash_present gate and that case fails.
+#   * WorkerHeartbeatLost does NOT fire for a never-up registration whose
+#     rq:worker hash is gone -- remove either gate and that case fails.
 #   * TaskStreamDeadLettering does not fire on a TRIM of the dead stream, the
 #     same anti-shrink guarantee FailedSpike has.
 #   * TaskStreamsUnreadable stays quiet while Redis is down (RedisDown's job).
@@ -60,6 +60,7 @@ tests:
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: _pool
@@ -97,6 +98,7 @@ tests:
         alertname: OldestQueuedAgeHigh
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: 9a3b
@@ -136,6 +138,7 @@ tests:
         alertname: StrandedLane
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
               pool: oldpool
               category: _pool
@@ -194,6 +197,7 @@ tests:
         alertname: CategoryStarved
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               pool: default
               category: 9a3b
@@ -244,6 +248,7 @@ tests:
         alertname: PSIPinned
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: workerA
             exp_annotations:
@@ -274,6 +279,7 @@ tests:
         alertname: PSIPinned
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: workerM
             exp_annotations:
@@ -317,6 +323,7 @@ tests:
         alertname: GovernorInflightScanTruncated
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Governor in-flight leak scan is truncated"
@@ -355,6 +362,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: warning
+              area: queues
             exp_annotations:
               summary: "Storage governor lane scan truncated"
               description: "The bounded lane scan has been cutting lanes that hold work for 30m (2 with queued, started, deferred or scheduled jobs, 5 cut in total); the view is not seeing every lane with work. Narrow by pool/category or raise the cap deliberately; investigate a lane explosion."
@@ -377,18 +385,137 @@ tests:
         alertname: WorkerHeartbeatLost
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
               worker: storage.default.background.def456
               pool: default
               kind: elastic
             exp_annotations:
               summary: "Storage worker lost its heartbeat"
-              description: "Worker storage.default.background.def456 (pool default, kind elastic) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+              description: "Worker storage.default.background.def456 (pool default, kind elastic) stopped heartbeating without deregistering, so it was killed, crashed or is hung; a clean stop never reaches this. Restart the worker container if it did not respawn; it may still hold slots until reconcile."
+
+  # Busy: the hash expires ~90s after the last heartbeat, before up drops.
+  - name: worker_heartbeat_lost_fires_for_a_worker_that_dies_busy
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:busy1",pool="default",kind="elastic"}'
+        values: "1x9 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:busy1",pool="",kind=""}'
+        values: "_x10 0x3 stale"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:busy1"}'
+        values: "1x9 0x3 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:peer1",pool="default",kind="elastic"}'
+        values: "1x30"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:peer1"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 18m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts:
+          - exp_labels:
+              area: storage
+              severity: critical
+              worker: "storage-elastic:isard-storage:busy1"
+              pool: default
+              kind: elastic
+            exp_annotations:
+              summary: "Storage worker lost its heartbeat"
+              description: "Worker storage-elastic:isard-storage:busy1 (pool default, kind elastic) stopped heartbeating without deregistering, so it was killed, crashed or is hung; a clean stop never reaches this. Restart the worker container if it did not respawn; it may still hold slots until reconcile."
+      - eval_time: 30m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+
+  # Idle: up drops a minute before the hash expires; swept after one scrape.
+  - name: worker_heartbeat_lost_fires_for_a_worker_that_dies_idle
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:idle1",pool="default",kind="reserved"}'
+        values: "1x9 0 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:idle1",pool="",kind=""}'
+        values: "_x11 0 stale"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:idle1"}'
+        values: "1x10 0 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:peer2",pool="default",kind="reserved"}'
+        values: "1x30"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:peer2"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts:
+          - exp_labels:
+              area: storage
+              severity: critical
+              worker: "storage-reserved:isard-storage:idle1"
+              pool: default
+              kind: reserved
+            exp_annotations:
+              summary: "Storage worker lost its heartbeat"
+              description: "Worker storage-reserved:isard-storage:idle1 (pool default, kind reserved) stopped heartbeating without deregistering, so it was killed, crashed or is hung; a clean stop never reaches this. Restart the worker container if it did not respawn; it may still hold slots until reconcile."
+
+  - name: worker_alerts_silent_on_a_clean_stop_of_one_of_several
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:stop1",pool="default",kind="elastic"}'
+        values: "1x9 stale"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:stop1"}'
+        values: "1x9 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:stay1",pool="default",kind="elastic"}'
+        values: "1x30"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:stay1"}'
+        values: "1x30"
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "1x30"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+      - eval_time: 12m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts: []
+
+  - name: worker_alerts_silent_on_a_healthy_fleet
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:ok1",pool="default",kind="reserved"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:ok1"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:ok2",pool="default",kind="elastic"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:ok2"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_up{worker="notifier:isard-notifier:82795ba4"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="notifier:isard-notifier:82795ba4"}'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+      - eval_time: 15m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts: []
 
   # ---------------------------------------------------------------------------
   # NoStorageWorkers: every worker reporting up==0 -> sum==0 -> fires after 2m.
-  # (When NO worker series exists at all, sum() yields no series and this cannot
-  # fire — that blindness is GovernorScrapeFailed / GovernorExporterAbsent.)
   # ---------------------------------------------------------------------------
   - name: no_storage_workers_all_down_fires
     interval: 1m
@@ -403,6 +530,7 @@ tests:
         alertname: NoStorageWorkers
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
             exp_annotations:
               summary: "No storage workers are up"
@@ -426,10 +554,92 @@ tests:
         alertname: NoStorageWorkers
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
             exp_annotations:
               summary: "No storage workers are up"
               description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+
+  - name: no_storage_workers_fires_when_every_worker_has_stopped
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-reserved:isard-storage:gone1",pool="default",kind="reserved"}'
+        values: "1x4 stale"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-reserved:isard-storage:gone1"}'
+        values: "1x4 stale"
+      - series: 'isardvdi_storage_governor_worker_up{worker="storage-elastic:isard-storage:gone2",pool="default",kind="elastic"}'
+        values: "1x4 stale"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="storage-elastic:isard-storage:gone2"}'
+        values: "1x4 stale"
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "1x20"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 3m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts: []
+      - eval_time: 13m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts:
+          - exp_labels:
+              area: storage
+              severity: critical
+            exp_annotations:
+              summary: "No storage workers are up"
+              description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+      - eval_time: 13m
+        groupname: storage_governor_alerts
+        alertname: WorkerHeartbeatLost
+        exp_alerts: []
+
+  # A crash loop before registration; a missing redis_up must not silence it.
+  - name: no_storage_workers_fires_with_only_a_kindless_worker_registered
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_worker_up{worker="notifier:isard-notifier:82795ba4"}'
+        values: "1x10"
+      - series: 'isardvdi_storage_governor_worker_hash_present{worker="notifier:isard-notifier:82795ba4"}'
+        values: "1x10"
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts:
+          - exp_labels:
+              area: storage
+              severity: critical
+            exp_annotations:
+              summary: "No storage workers are up"
+              description: "No storage worker has reported up for 2m; nothing is draining the storage queues. Restart the worker containers."
+
+  - name: no_storage_workers_silent_while_the_scrape_fails
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts: []
+
+  - name: no_storage_workers_silent_while_redis_is_down
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_storage_governor_scrape_duration_success'
+        values: "1x10"
+      - series: 'isardvdi_storage_governor_redis_up'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 8m
+        groupname: storage_governor_alerts
+        alertname: NoStorageWorkers
+        exp_alerts: []
 
   # ===========================================================================
   # TASK STREAMS — the finalize backlog no queue gauge can see.
@@ -459,6 +669,7 @@ tests:
         alertname: TaskStreamLagStuck
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               stream: "stream:task-results"
               group: change-handler
@@ -489,6 +700,7 @@ tests:
         alertname: TaskStreamPendingStuck
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
               stream: "stream:task-results"
               group: change-handler
@@ -519,6 +731,7 @@ tests:
         alertname: TaskStreamBackpressured
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
             exp_annotations:
               summary: "Task-result stream is at its backpressure high-water mark"
@@ -547,6 +760,7 @@ tests:
         alertname: TaskStreamDeadLettering
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Task results are being dead-lettered"
@@ -580,6 +794,7 @@ tests:
         alertname: TaskStreamNoConsumers
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: critical
               stream: "stream:task-results"
               group: change-handler
@@ -614,6 +829,7 @@ tests:
         alertname: TaskStreamsUnreadable
         exp_alerts:
           - exp_labels:
+              area: queues
               severity: warning
             exp_annotations:
               summary: "Task-stream health cannot be read while Redis is up"
@@ -623,8 +839,8 @@ tests:
   # STALE WORKER REGISTRATIONS — a corpse must not page for ever.
   # ===========================================================================
 
-  # THE regression test: a registration with no worker behind it must not page.
-  # Removing the hash_present gate makes this case fail.
+  # THE regression test: a registration with no worker behind it, never seen up,
+  # must not page. Removing either gate makes this case fail.
   - name: worker_heartbeat_lost_silent_for_a_registration_with_no_worker
     interval: 1m
     input_series:
@@ -638,7 +854,7 @@ tests:
         alertname: WorkerHeartbeatLost
         exp_alerts: []
 
-  # The case the alert is FOR, unchanged.
+  # A hash that stays while the heartbeat is stale pages with no time bound.
   - name: worker_heartbeat_lost_fires_while_the_hash_is_present
     interval: 1m
     input_series:
@@ -652,13 +868,14 @@ tests:
         alertname: WorkerHeartbeatLost
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: critical
               worker: "storage-reserved:isard-storage:abc123"
               pool: default
               kind: reserved
             exp_annotations:
               summary: "Storage worker lost its heartbeat"
-              description: "Worker storage-reserved:isard-storage:abc123 (pool default, kind reserved) has reported up=0 for 2m with its rq:worker hash still present (heartbeat_age>420s). Restart the worker container; it may still hold slots until reconcile."
+              description: "Worker storage-reserved:isard-storage:abc123 (pool default, kind reserved) stopped heartbeating without deregistering, so it was killed, crashed or is hung; a clean stop never reaches this. Restart the worker container if it did not respawn; it may still hold slots until reconcile."
 
   # The corpse still reaches an operator, as a warning, after 30m.
   - name: worker_registration_stale_fires_after_30m
@@ -672,6 +889,7 @@ tests:
         alertname: WorkerRegistrationStale
         exp_alerts:
           - exp_labels:
+              area: storage
               severity: warning
               worker: "storage-reserved:isard-storage:dead"
             exp_annotations:
@@ -736,6 +954,7 @@ tests:
         alertname: HypervisorsDegraded
         exp_alerts:
           - exp_labels:
+              area: hypervisors
               severity: critical
             exp_annotations:
               summary: "Several hypervisors are degraded at once"

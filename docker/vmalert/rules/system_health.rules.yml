@@ -1,0 +1,7 @@
+# Rules feed the system-health dashboard through their `severity` and `area` labels.
+# Without this heartbeat, "vmalert is down" and "no alert is firing" look identical.
+groups:
+  - name: system_health
+    rules:
+      - record: isardvdi:vmalert_heartbeat
+        expr: vector(1)

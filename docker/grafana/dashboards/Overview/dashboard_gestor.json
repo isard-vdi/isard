@@ -1005,7 +1005,8 @@
               }
             ]
           },
-          "unit": "currencyEUR"
+          "unit": "currencyEUR",
+          "noValue": "No cost data: the cloud cost collector is not configured"
         },
         "overrides": []
       },
@@ -1054,7 +1055,9 @@
   ],
   "schemaVersion": 37,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "overview"
+  ],
   "templating": {
     "list": [
       {

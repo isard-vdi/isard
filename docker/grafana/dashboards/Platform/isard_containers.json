@@ -178,7 +178,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by(name) (rate(container_cpu_usage_seconds_total{instance=~\"$host\", name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m])) * 100",
+          "expr": "sum by(name) (rate(container_cpu_usage_seconds_total{name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m])) * 100",
           "hide": false,
           "interval": "",
           "legendFormat": "{{name}}",
@@ -305,7 +305,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by(name) (container_memory_rss{instance=~\"$host\", name=~\"$container\", name=~\".+\", domain=\"$domain\"})",
+          "expr": "sum by(name) (container_memory_rss{name=~\"$container\", name=~\".+\", domain=\"$domain\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "{{name}}",
@@ -406,7 +406,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by(name) (container_memory_cache{instance=~\"$host\", name=~\"$container\", name=~\".+\", domain=\"$domain\"})",
+          "expr": "sum by(name) (container_memory_cache{name=~\"$container\", name=~\".+\", domain=\"$domain\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "{{name}}",
@@ -533,7 +533,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by(name) (rate(container_network_receive_bytes_total{instance=~\"$host\", name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m]))",
+          "expr": "sum by(name) (rate(container_network_receive_bytes_total{name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m]))",
           "hide": false,
           "interval": "",
           "legendFormat": "{{name}}",
@@ -634,7 +634,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "builder",
-          "expr": "sum by(name) (rate(container_network_transmit_bytes_total{instance=~\"$host\", name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m]))",
+          "expr": "sum by(name) (rate(container_network_transmit_bytes_total{name=~\"$container\", name=~\".+\", domain=\"$domain\"}[5m]))",
           "interval": "",
           "legendFormat": "{{name}}",
           "range": true,
@@ -649,72 +649,11 @@
   "style": "dark",
   "tags": [
     "cadvisor",
-    "docker"
+    "docker",
+    "platform"
   ],
   "templating": {
     "list": [
-      {
-        "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "label_values({__name__=~\"container.*\"},instance)",
-        "hide": 2,
-        "includeAll": true,
-        "label": "Cadvisor",
-        "multi": false,
-        "name": "host",
-        "options": [],
-        "query": {
-          "query": "label_values({__name__=~\"container.*\"},instance)",
-          "refId": "Prometheus-host-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 5,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "label_values({__name__=~\"container.*\", instance=~\"$host\"},name)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Container",
-        "multi": false,
-        "name": "container",
-        "options": [],
-        "query": {
-          "query": "label_values({__name__=~\"container.*\", instance=~\"$host\"},name)",
-          "refId": "Prometheus-container-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
       {
         "current": {
           "selected": false,
@@ -725,7 +664,7 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(domain)",
+        "definition": "label_values(container_last_seen, domain)",
         "hide": 0,
         "includeAll": false,
         "label": "Host",
@@ -733,7 +672,7 @@
         "name": "domain",
         "options": [],
         "query": {
-          "query": "label_values(domain)",
+          "query": "label_values(container_last_seen, domain)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -741,6 +680,37 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "label_values(container_last_seen{domain=~\"$domain\"},name)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Container",
+        "multi": false,
+        "name": "container",
+        "options": [],
+        "query": {
+          "query": "label_values(container_last_seen{domain=~\"$domain\"},name)",
+          "refId": "Prometheus-container-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
       }
     ]
   },

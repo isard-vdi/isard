@@ -1,0 +1,49 @@
+groups:
+  - name: certificates
+    rules:
+      # An area tile reads NOT MONITORED until a source records itself here.
+      - record: isardvdi:area_monitored
+        expr: clamp_max(count(probe_success{job="certificates"}), 1)
+        labels:
+          area: certificates
+
+      - alert: CertificateExpiresSoon
+        expr: (probe_ssl_earliest_cert_expiry{job="certificates"} - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+          area: certificates
+        annotations:
+          summary: "The certificate of {{ $labels.domain }} expires in {{ $value | printf \"%.0f\" }} days"
+          description: "The TLS certificate served on {{ $labels.domain }}:443 expires in less than 14 days. Renewal should have happened already: check the certificate renewal of the portal."
+
+      - alert: CertificateExpiresSoon
+        expr: (probe_ssl_earliest_cert_expiry{job="certificates"} - time()) / 86400 < 3
+        for: 1h
+        labels:
+          severity: critical
+          area: certificates
+        annotations:
+          summary: "The certificate of {{ $labels.domain }} expires in {{ $value | printf \"%.0f\" }} days"
+          description: "The TLS certificate served on {{ $labels.domain }}:443 expires in less than 3 days. Users will get a certificate error when it does."
+
+      # info: a self-signed or private-CA install is untrusted by design and must not page.
+      - alert: CertificateNotTrusted
+        expr: (probe_success{job="certificates_verify"} == 0) and on (domain) (probe_success{job="certificates"} == 1)
+        for: 1h
+        labels:
+          severity: info
+          area: certificates
+        annotations:
+          summary: "The certificate of {{ $labels.domain }} does not match its name or is not trusted"
+          description: "{{ $labels.domain }}:443 serves a certificate that fails verification for {{ $labels.domain }}: wrong name, expired chain or a CA that is not public. Expected on installs with their own CA; otherwise browsers show an error."
+
+      - alert: CertificateNotReadable
+        expr: probe_success{job="certificates"} == 0
+        for: 30m
+        labels:
+          severity: warning
+          area: certificates
+        annotations:
+          summary: "The TLS certificate of {{ $labels.domain }} cannot be read"
+          description: "A TLS connection to {{ $labels.domain }}:443 has failed for 30m, so its expiry is not being checked. The portal may be down, or this host cannot reach its own public name."

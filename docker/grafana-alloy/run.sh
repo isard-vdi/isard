@@ -10,6 +10,20 @@ else
 	rm -f /etc/alloy/journal.alloy
 fi
 
+# The probe reaches the container that serves 443 by its name: DOMAIN may resolve to this
+# very container (a host /etc/hosts entry pointing it at 127.0.0.1 is inherited).
+case "$FLAVOUR" in
+	all-in-one | *web*) CERT_PROBE_ADDRESS="isard-portal:${HTTPS_PORT:-443}" ;;
+	monitor) CERT_PROBE_ADDRESS="isard-monitor-proxy:${HTTPS_PORT:-443}" ;;
+	*) CERT_PROBE_ADDRESS="" ;;
+esac
+export CERT_PROBE_ADDRESS
+if [ -n "$CERT_PROBE_ADDRESS" ]; then
+	cp /usr/local/etc/alloy/certificates.alloy /etc/alloy/certificates.alloy
+else
+	rm -f /etc/alloy/certificates.alloy
+fi
+
 if [ "$PYROSCOPE_EBPF" = "true" ]; then
 	cp /usr/local/etc/alloy/profiling.alloy /etc/alloy/profiling.alloy
 fi

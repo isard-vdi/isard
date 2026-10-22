@@ -1,4 +1,4 @@
-# Isard main config v3.0.15
+# Isard main config v3.0.16
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -531,7 +531,6 @@ HAPROXY_LOGGING=.
 #NETWORK_MAX_DOWNLOAD_BANDWIDTH=800   # Example: Set max download speed to 800 Mbps
 #NETWORK_MAX_UPLOAD_BANDWIDTH=200     # Example: Set max upload speed to 200 Mbps
 
-
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?
 ## Not needed for remote hypervisors, only to split main web install.
@@ -904,11 +903,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 #PYROSCOPE_EBPF=false
 #PYROSCOPE_ADDRESS=http://isard-pyroscope:4040
 
-# ------ Tempo -----------------------------------------------------
-#
-#TEMPO=false
-#TEMPO_ADDRESS=http://isard-tempo:3200
-
 # ------ Faro (Frontend errors) ------------------------------------------
 #
 # Captures Vue 3 frontend errors (uncaught exceptions, unhandled promise
@@ -935,7 +929,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## CHECK PARAMETERS                                             ##
 ##################################################################
 #CHECK_CHECK_IMAGE=registry.gitlab.com/isard/isardvdi/check-client:main
-
 
 ##################################################################
 ## INFRASTRUCTURE                                               ##

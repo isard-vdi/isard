@@ -1,0 +1,1334 @@
+{
+  "uid": "isard-capacity",
+  "title": "IsardVDI Capacity",
+  "tags": [
+    "isardvdi",
+    "capacity",
+    "overview"
+  ],
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "description": "Is the install big enough? Resource headroom, requests refused and why, desktops that load the disk, and orchestrator decisions.",
+  "templating": {
+    "list": [
+      {
+        "name": "domain",
+        "label": "Host",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "query": {
+          "query": "label_values(node_memory_MemTotal_bytes, domain)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(node_memory_MemTotal_bytes, domain)",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Resource headroom",
+      "id": 1,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 2,
+      "title": "CPU busy % per host (iowait excluded)",
+      "description": "Real CPU work per host: user+system+irq+softirq+steal over all threads. iowait is left out on purpose: on hypervisors with qemu io_uring iothreads it counts idle desktops as busy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 * sum by (domain) (rate(node_cpu_seconds_total{mode=~\"user|system|irq|softirq|steal\", domain=~\"$domain\"}[5m])) / count by (domain) (node_cpu_seconds_total{mode=\"idle\", domain=~\"$domain\"})",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "{{domain}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 3,
+      "title": "Memory available to desktops % per host",
+      "description": "MemAvailable plus the free reserved hugepages, over MemTotal. Free hugepages are memory desktops can still use, so they count as available, as the platform counts them. Below 15% the host starts to swap or refuse desktops.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 * (node_memory_MemAvailable_bytes{domain=~\"$domain\"} + node_memory_HugePages_Free{domain=~\"$domain\"} * node_memory_Hugepagesize_bytes{domain=~\"$domain\"}) / node_memory_MemTotal_bytes{domain=~\"$domain\"}",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "{{domain}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 15
+              },
+              {
+                "color": "transparent",
+                "value": 25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Desktop storage used",
+      "description": "Fullest desktop storage per host: /opt/isard/groups when mounted, /opt/isard otherwise.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "max by (domain) ((100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"})) or on(domain, instance) (100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard\", fstype!=\"rootfs\"})))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "{{domain}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "vCPU assigned per CPU thread",
+      "description": "vCPUs of the started desktops over the host CPU threads. Above ~4 desktops start to wait for CPU.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "sum(isardvdi_domain_vcpu_current) / sum(machine_cpu_cores)",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "ratio",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 3
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "id": 6,
+      "title": "RAM assigned to desktops",
+      "description": "Maximum memory of the started desktops over the host RAM.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 * sum(isardvdi_domain_balloon_maximum) * 1024 / sum(node_memory_MemTotal_bytes)",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "assigned",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 7,
+      "title": "Started desktops",
+      "description": "Desktops running right now, counted from the per-desktop vCPU series.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(count by (desktop) (isardvdi_domain_vcpu_current))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "started desktops",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Unmet demand",
+      "id": 8,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 9,
+      "title": "Refused requests by reason",
+      "description": "Desktop starts, bookings and creations the API refused because of a capacity or policy limit. Needs a booking: the GPU desktop can only start inside a booking (priority rule \"forbid time\"). Booking limit: the user already has the maximum of future bookings (\"max items\"). No capacity: the booking plan is full. Quotas: user, group or category limits.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"not enough advanced time|needs a booking|does not match the current plan\" [$__interval]))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "GPU desktop needs a booking",
+          "queryType": "range"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"max_items\" [$__interval]))",
+          "refId": "B",
+          "editorMode": "code",
+          "legendFormat": "Booking limit per user reached",
+          "queryType": "range"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"does not fit\" [$__interval]))",
+          "refId": "C",
+          "editorMode": "code",
+          "legendFormat": "No capacity left in the booking plan",
+          "queryType": "range"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"Max time reached\" [$__interval]))",
+          "refId": "D",
+          "editorMode": "code",
+          "legendFormat": "Maximum desktop time reached",
+          "queryType": "range"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"quota exceeded for starting\" [$__interval]))",
+          "refId": "E",
+          "editorMode": "code",
+          "legendFormat": "Quota: running desktops (memory, vCPU)",
+          "queryType": "range"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"exceeded for creating\" [$__interval]))",
+          "refId": "F",
+          "editorMode": "code",
+          "legendFormat": "Quota: creating desktops",
+          "queryType": "range"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 10,
+      "title": "Refused requests in the range",
+      "description": "Requests refused for one of the capacity or policy reasons of the graph, in the selected range.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-apiv4\"} |~ \"\\\"status\\\": (409|412|428)\" |~ \"not enough advanced time|needs a booking|does not match the current plan|max_items|does not fit|Max time reached|quota exceeded for starting|exceeded for creating\" [$__range]))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "refused",
+          "queryType": "instant"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "id": 11,
+      "title": "Scheduled stops executed in the range",
+      "description": "Desktops stopped by the scheduler: end of a booking or maximum time reached. Users see it as being kicked out.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum(count_over_time({container_name=\"isard-scheduler\"} |= \"Actions.desktop_stop\" |= \"executed successfully\" |= \"\\\"level\\\"\" [$__range]))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "stops",
+          "queryType": "instant"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Desktops using the most disk",
+      "id": 12,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "id": 13,
+      "title": "Writing now (MB/s, 5 min)",
+      "description": "Top 10 desktops by disk write rate over the last 5 minutes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (rate(isardvdi_domain_block_wr_bytes{domain=~\"$domain\"}[5m])) / 1048576)",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MB/s"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "MB/s",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "desktop": 0,
+              "category_id": 1,
+              "user_id": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "desktop": "Desktop",
+              "category_id": "Category",
+              "user_id": "User",
+              "Value": "MB/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 14,
+      "title": "Writing sustained (MB/s, average over the range)",
+      "description": "Top 10 desktops by average write rate over the selected time range (24 h by default). A desktop here is writing all the time, not in a burst. Read from the 5-minute per-desktop recording rule, so it starts filling once vmalert has run for the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (sum_over_time(isardvdi:desktop_block_wr_bytes:rate5m{domain=~\"$domain\"}[$__range])) * 300 / $__range_s) / 1048576",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MB/s"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "MB/s",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "desktop": 0,
+              "category_id": 1,
+              "user_id": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "desktop": "Desktop",
+              "category_id": "Category",
+              "user_id": "User",
+              "Value": "MB/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 15,
+      "title": "Reading now (MB/s, 5 min)",
+      "description": "Top 10 desktops by disk read rate over the last 5 minutes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (rate(isardvdi_domain_block_rd_bytes{domain=~\"$domain\"}[5m])) / 1048576)",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MB/s"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "MB/s",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "desktop": 0,
+              "category_id": 1,
+              "user_id": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "desktop": "Desktop",
+              "category_id": "Category",
+              "user_id": "User",
+              "Value": "MB/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": 16,
+      "title": "Reading sustained (MB/s, average over the range)",
+      "description": "Top 10 desktops by average read rate over the selected time range (24 h by default). Read from the 5-minute per-desktop recording rule, so it starts filling once vmalert has run for the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, sum by (desktop, category_id, user_id) (sum_over_time(isardvdi:desktop_block_rd_bytes:rate5m{domain=~\"$domain\"}[$__range])) * 300 / $__range_s) / 1048576",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MB/s"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "MB/s",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "desktop": 0,
+              "category_id": 1,
+              "user_id": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "desktop": "Desktop",
+              "category_id": "Category",
+              "user_id": "User",
+              "Value": "MB/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Orchestrator decisions (elastic hypervisors)",
+      "id": 17,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 18,
+      "title": "Decisions by type",
+      "description": "What the orchestrator decided about hypervisors. Empty on installs without orchestrator.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "sum by (message) (count_over_time({container_name=\"isard-orchestrator\"} |= \"scaling\" | json | scaling != \"\" [$__interval]))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "{{message}}",
+          "queryType": "range"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "id": 19,
+      "title": "Destructions called off",
+      "description": "Share of \"set hypervisor to destroy\" later cancelled in the range. High values mean the orchestrator flaps: it marks hosts to shut down and takes it back.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "100 * sum(count_over_time({container_name=\"isard-orchestrator\"} |= \"scaling\" | json | scaling != \"\" |= \"cancel hypervisor destruction\" [$__range])) / sum(count_over_time({container_name=\"isard-orchestrator\"} |= \"scaling\" | json | scaling != \"\" |= \"set hypervisor to destroy\" [$__range]))",
+          "refId": "A",
+          "editorMode": "code",
+          "legendFormat": "cancelled",
+          "queryType": "instant"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "logs",
+      "id": 20,
+      "title": "Latest decisions",
+      "description": "Each decision with the host and the free resources it saw.",
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "{container_name=\"isard-orchestrator\"} |= \"scaling\" | json | scaling != \"\" | line_format \"{{.message}} {{.id}}  avail_cpu={{.avail_cpu}} avail_ram={{.avail_ram}} req_cpu={{.req_cpu}} req_ram={{.req_ram}}\"",
+          "refId": "A",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 42
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "links": []
+}

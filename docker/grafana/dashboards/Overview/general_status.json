@@ -26,7 +26,19 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 15,
-  "links": [],
+  "links": [
+    {
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "System Health",
+      "tooltip": "One-glance health of every area, with drill-down",
+      "type": "link",
+      "url": "/d/system-health"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -1724,7 +1736,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum by (scaling, id) (count_over_time({container_name=\"isard-orchestrator\"} | json | level = \"info\" | scaling = \"up\"[$__interval]))",
+          "expr": "sum by (scaling, id) (count_over_time({container_name=\"isard-orchestrator\"} | json | scaling = \"up\"[$__interval]))",
           "hide": false,
           "queryType": "range",
           "refId": "D"
@@ -1735,7 +1747,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "sum by (scaling, id) (count_over_time({container_name=\"isard-orchestrator\"} | json | level = \"info\" | scaling = \"down\"[$__interval]))",
+          "expr": "sum by (scaling, id) (count_over_time({container_name=\"isard-orchestrator\"} | json | scaling = \"down\"[$__interval]))",
           "hide": false,
           "queryType": "range",
           "refId": "E"
@@ -2952,7 +2964,9 @@
   "revision": 1,
   "schemaVersion": 38,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "overview"
+  ],
   "templating": {
     "list": [
       {
