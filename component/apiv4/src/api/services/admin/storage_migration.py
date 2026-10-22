@@ -705,19 +705,27 @@ class AdminStorageMigrationService:
         # Cancel = finish-current-tree: a started job drains its in-flight tree
         # (and restores autostart) via finishing_tree before becoming canceled;
         # the reconciler performs that transition. See mig.cancel_target.
-        if action == "cancel":
-            m.status = mig.cancel_target(m.status)
-        else:
-            m.status = _ACTION_TARGET[action]
+        # One atomic update: a torn (status, pause_reason) pair would let a
+        # half-written manual pause read as a load pause and be auto-resumed.
+        now = time()
+        update = {
+            "status": (
+                mig.cancel_target(m.status)
+                if action == "cancel"
+                else _ACTION_TARGET[action]
+            ),
+            "status_time": now,  # __setattr__ stamps this on a status write; match it
+            "updated_at": now,
+            "last_activity_at": now,
+        }
         # An admin pause is manual, so the adaptive loop never auto-resumes it;
         # starting clears the reason so a later load pause is recognised as such.
         if action == "pause":
-            m.pause_reason = "manual"
+            update["pause_reason"] = "manual"
         elif action == "start":
-            m.pause_reason = None
-        now = time()
-        m.updated_at = now
-        m.last_activity_at = now
+            update["pause_reason"] = None
+        StorageMigration.update_document(migration_id, update, validate=False)
+        m._update_cache(**update)  # keep the per-id attr cache coherent for get()
         return cls.get(migration_id)
 
     @classmethod

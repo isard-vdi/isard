@@ -36,9 +36,10 @@ class _Mig:
         self.pause_reason = None
 
     def __setattr__(self, name, value):
-        # an unguarded write must show on the live row, or nothing is proven
-        if name == "status" and "live" in self.__dict__:
-            self.live["status"] = value
+        # an unguarded write must show on the live row, or nothing is proven;
+        # pause_reason is a real column too (the resume claim keys on it).
+        if name in ("status", "pause_reason") and "live" in self.__dict__:
+            self.live[name] = value
         object.__setattr__(self, name, value)
 
     def _update_cache(self, **fields):
