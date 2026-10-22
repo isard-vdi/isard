@@ -50,7 +50,7 @@ class TestDeleteStorageRefusesTerminalStatus:
         assert exc.value.error["error"] == "precondition_required"
         assert status in exc.value.error["description"]
 
-    def test_a_recycled_entry_is_NOT_stopped_here(self):
+    def test_a_recycled_entry_is_NOT_stopped_here(self, monkeypatch):
         """The guard must let a genuinely recycled entry through — otherwise
         nothing could ever be deleted. It proceeds past the guard and fails
         later (no DB), which is a DIFFERENT error than the 428 above."""
@@ -63,8 +63,10 @@ class TestDeleteStorageRefusesTerminalStatus:
         import isardvdi_common.helpers.recycle_bin as mod
 
         called = {}
-        mod.Helpers.update_status = staticmethod(
-            lambda rid, oid, st: called.setdefault("status", st)
+        monkeypatch.setattr(
+            mod.Helpers,
+            "update_status",
+            staticmethod(lambda rid, oid, st: called.setdefault("status", st)),
         )
         rb.id = "rb-1"
         rb.owner_id = "o1"
@@ -519,16 +521,22 @@ class TestDeleteStorageRefusesLiveStorageGraphDependents:
     storage-graph child, so the base's qcow2 is unlinked under a live child.
     """
 
-    def test_a_live_uncovered_child_defers_the_entry_instead_of_purging(self, cascade):
+    def test_a_live_uncovered_child_defers_the_entry_instead_of_purging(
+        self, cascade, monkeypatch
+    ):
         mod, events, rb, tables, lane = cascade
         tables["recycle_bin"] = []  # single entry, no domain-graph dependents
         # ``s-self`` (the base being purged) still has a live child that is NOT
         # itself in this deletion — exactly the derived desktop/disk that keeps
         # reading through the base.
-        mod.Storage.get_children = staticmethod(
-            lambda ids, include_deleted=False: (
-                [_Child("c-live", "ready")] if "s-self" in ids else []
-            )
+        monkeypatch.setattr(
+            mod.Storage,
+            "get_children",
+            staticmethod(
+                lambda ids, include_deleted=False: (
+                    [_Child("c-live", "ready")] if "s-self" in ids else []
+                )
+            ),
         )
 
         rb.delete_storage("agent-user")
@@ -541,17 +549,23 @@ class TestDeleteStorageRefusesLiveStorageGraphDependents:
         # with a visible reason — never silently dropped.
         assert ("recycled", "rb-self") in events
 
-    def test_a_child_that_is_part_of_the_deletion_does_not_block(self, cascade):
+    def test_a_child_that_is_part_of_the_deletion_does_not_block(
+        self, cascade, monkeypatch
+    ):
         """The legitimate cascade: the child is itself being deleted (covered),
         so the purge must proceed — otherwise nothing with derivatives could
         ever be emptied."""
         mod, events, rb, tables, lane = cascade
         tables["recycle_bin"] = []
         # The only child of the base is ``s-self``'s own deletion set member.
-        mod.Storage.get_children = staticmethod(
-            lambda ids, include_deleted=False: (
-                [_Child("s-self", "ready")] if "s-self" in ids else []
-            )
+        monkeypatch.setattr(
+            mod.Storage,
+            "get_children",
+            staticmethod(
+                lambda ids, include_deleted=False: (
+                    [_Child("s-self", "ready")] if "s-self" in ids else []
+                )
+            ),
         )
 
         rb.delete_storage("agent-user")
@@ -559,20 +573,24 @@ class TestDeleteStorageRefusesLiveStorageGraphDependents:
         assert _queued(events) == [("task", "rb-self")]
         assert ("deleting", "rb-self") in events
 
-    def test_a_deleted_or_recycled_child_does_not_block(self, cascade):
+    def test_a_deleted_or_recycled_child_does_not_block(self, cascade, monkeypatch):
         """A child already going away (``deleted``/``recycled``) is not a live
         dependant; it must not deadlock the purge."""
         mod, events, rb, tables, lane = cascade
         tables["recycle_bin"] = []
-        mod.Storage.get_children = staticmethod(
-            lambda ids, include_deleted=False: (
-                [
-                    _Child("gone", "deleted"),
-                    _Child("also-going", "recycled"),
-                ]
-                if "s-self" in ids
-                else []
-            )
+        monkeypatch.setattr(
+            mod.Storage,
+            "get_children",
+            staticmethod(
+                lambda ids, include_deleted=False: (
+                    [
+                        _Child("gone", "deleted"),
+                        _Child("also-going", "recycled"),
+                    ]
+                    if "s-self" in ids
+                    else []
+                )
+            ),
         )
 
         rb.delete_storage("agent-user")
