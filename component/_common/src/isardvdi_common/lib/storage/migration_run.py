@@ -812,6 +812,9 @@ class MigrationRunner:
         )
 
     def _resume_after_space(self):
+        # Returns whether it resumed (see _claim_resume); False if an admin pause won.
+        if not self._claim_resume():
+            return False
         probe = getattr(self.migration, "space_probe", None) or {}
         free, total = probe.get("free_bytes"), probe.get("total_bytes")
         min_free_pct = int(self.config.get("min_free_pct") or 0)
@@ -827,9 +830,7 @@ class MigrationRunner:
             min_free_pct=min_free_pct,
             min_free_bytes=min_free_bytes,
         )
-        self._claim_status(
-            str(self.migration.status), MigrationStatus.RUNNING.value, pause_reason=None
-        )
+        return True
 
     def _log(self, event, message, **data):
         """Append one entry to the migration's durable ``logs`` list."""
@@ -1822,6 +1823,28 @@ class MigrationRunner:
             )
         return claimed
 
+    def _claim_resume(self):
+        # Resume keyed on pause_reason, NOT status (a manual/failure pause shares
+        # status="paused", so a status key would clobber an admin pause that raced in).
+        data = {"status": MigrationStatus.RUNNING.value, "pause_reason": None}
+        claimed = StorageMigration.update_document_if(
+            self.migration.id,
+            data,
+            field="pause_reason",
+            values=("load", "space"),
+            validate=False,
+        )
+        if claimed:
+            self.migration._update_cache(**data)
+        else:
+            self.migration.fresh_status()
+            log.info(
+                "migration %s: pause became %s under the tick; not resuming",
+                self.migration_id,
+                self.migration.pause_reason,
+            )
+        return claimed
+
     # -- adaptive load policy ---------------------------------------------- #
     def _started_desktops_count(self):
         """Cheapest honest signal of "the system is in use". None on any error,
@@ -1927,10 +1950,10 @@ class MigrationRunner:
                 decision.action, decision.reason, decision.parallelism, sample, now
             )
         elif decision.action == "resume":
-            self._claim_status(status, MigrationStatus.RUNNING.value, pause_reason=None)
-            self._append_load_log(
-                decision.action, decision.reason, decision.parallelism, sample, now
-            )
+            if self._claim_resume():
+                self._append_load_log(
+                    decision.action, decision.reason, decision.parallelism, sample, now
+                )
         load_state.update(
             clean_ticks=decision.clean_ticks,
             last_action=decision.action,
@@ -1976,8 +1999,11 @@ class MigrationRunner:
         if not finishing and win_open and not held:
             if space_paused:
                 if self._space_floor_state() is False:
-                    self._resume_after_space()
-                    space_paused = False
+                    if self._resume_after_space():
+                        space_paused = False
+                    else:
+                        # an admin pause won the resume race: honour it this tick
+                        held = self._held()
             elif self._space_floor_breached():
                 self._pause_for_space()
                 self._record_job_rate(False)
@@ -2122,8 +2148,13 @@ class MigrationRunner:
                 "the storage worker refused a copy below the destination's "
                 "free-space floor; pausing, the disk stays pending",
             )
-            self.migration.pause_reason = "space"
-            self.migration.status = MigrationStatus.PAUSED.value
+            # CAS on the tick-start status (like _pause_for_space): an admin
+            # cancel/pause that raced in loses, so the admin's state stands.
+            self._claim_status(
+                str(self.migration.status),
+                MigrationStatus.PAUSED.value,
+                pause_reason="space",
+            )
             self._record_job_rate(False)
             self._touch()
             self._publish_progress()
@@ -2247,7 +2278,14 @@ class MigrationRunner:
                 target = MigrationStatus.BUDGET_REACHED.value
             # recurring: running (in-window/in-flight) or scheduled (idle).
             if target is not None and cur != target:
-                self._claim_status(cur, target)
+                if (
+                    cur == MigrationStatus.PAUSED.value
+                    and target == MigrationStatus.RUNNING.value
+                ):
+                    # load/space resume only (held never reaches here); _claim_resume
+                    self._claim_resume()
+                else:
+                    self._claim_status(cur, target)
         # Surface the live window for the admin UI (incl. the next-run lookahead
         # for a scheduled/recurring job).
         self.migration.current_window = {

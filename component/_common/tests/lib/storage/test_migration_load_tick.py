@@ -155,6 +155,41 @@ def test_a_non_load_pause_is_left_untouched_and_never_sampled(reason):
     assert sampled["hit"] is False  # never even sampled
 
 
+# --- the race the bug is about: an admin pause that lands mid-resume ---------- #
+def test_admin_pause_during_a_load_resume_is_not_clobbered():
+    """Under a task-results backlog the change-handler drives advance() -> tick()
+    -> _apply_load_policy over and over while the adaptive policy flaps. The load
+    loop decides to resume (load has cleared), but an admin pause lands in the
+    window between that decision and the resume write: apiv4 set_action turns the
+    load pause into a manual one -- pause_reason flips to "manual" while the row is
+    still status="paused". A resume keyed on status ALONE still fires (the row IS
+    paused) and clobbers the admin pause back to running: that is the production
+    bug. The resume must be keyed on pause_reason, so it loses this race instead.
+
+    This is the same setup as test_load_paused_resumes_itself_after_clean_ticks;
+    the only difference is the admin pause that lands during the load sample.
+    """
+    m = _Mig(
+        "paused",
+        {"parallelism": 2, "load_policy": _lp()},
+        pause_reason="load",
+        load_state={"clean_ticks": N - 1},  # one more clean tick -> resume
+    )
+    r = _runner(m, None)
+
+    def _sample_then_admin_pauses():
+        # the admin's pause lands mid-sample: status stays "paused", reason -> manual
+        m.pause_reason = "manual"
+        return {"desktops_started": 5}  # load clear -> decide() says "resume"
+
+    r._load_sample_fn = _sample_then_admin_pauses
+    parked = r._apply_load_policy()
+
+    assert str(m.status) == PAUSED, "the admin pause was clobbered back to running"
+    assert m.pause_reason == "manual", "the admin pause reason was overwritten"
+    assert parked is True  # a parked job drives no trees this tick
+
+
 # --- a non-running (window/budget/scheduled) job is not throttled ----------- #
 def test_window_closed_job_is_not_touched_by_the_loop():
     m = _Mig("window_closed", {"parallelism": 3, "load_policy": _lp()})

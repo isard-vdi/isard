@@ -36,9 +36,10 @@ class _Mig:
         self.pause_reason = None
 
     def __setattr__(self, name, value):
-        # an unguarded write must show on the live row, or nothing is proven
-        if name == "status" and "live" in self.__dict__:
-            self.live["status"] = value
+        # an unguarded write must show on the live row, or nothing is proven;
+        # pause_reason is a real column too (the resume claim keys on it).
+        if name in ("status", "pause_reason") and "live" in self.__dict__:
+            self.live[name] = value
         object.__setattr__(self, name, value)
 
     def _update_cache(self, **fields):
@@ -750,3 +751,175 @@ def test_a_skipped_stale_tree_comes_back_when_it_matches_again(monkeypatch):
     r.tick()
     assert items[0]["state"] != "skipped"
     assert items[0]["occurrence_failures"] == 0  # a skip is not a failure
+
+
+# --- F1: an admin action that lands during a space_deferred tick survives ----- #
+def _running_job():
+    m = _Mig("running", {"window": WINDOW})
+    m.last_occurrence = "2026-07-01"
+    m.logs = []
+    m.space_probe = {}
+    return m
+
+
+_SPACE_REFUSAL = "move: refusing to copy /x: destination below the 1 byte floor"
+
+
+def test_admin_cancel_during_a_space_deferred_tick_is_not_clobbered(monkeypatch):
+    """The worker refuses a move for lack of room mid-tick (-> space_deferred). If
+    an admin cancel lands in that same tick, the end-of-tick space pause must not
+    overwrite the finishing_tree the cancel wrote (a status-keyed claim loses the
+    race; the old unconditional write clobbered it, and _claim_resume would then
+    auto-resume the space pause -- the cancel vanishes)."""
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _running_job()
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "failed")
+
+    def _reason_then_admin_cancels(item):
+        m.live["status"] = "finishing_tree"  # admin cancel lands concurrently
+        return _SPACE_REFUSAL
+
+    r._failure_reason = _reason_then_admin_cancels
+    r.tick()
+
+    assert items[0]["state"] == "pending"  # the disk was deferred, not failed
+    assert (
+        m.live["status"] == "finishing_tree"
+    ), "admin cancel clobbered to paused/space"
+    assert m.live.get("pause_reason") != "space"
+
+
+def test_admin_pause_during_a_space_deferred_tick_is_not_clobbered(monkeypatch):
+    items = [_item("a", "moving", tree="a", move_task_id="mt")]
+    m = _running_job()
+    r = _runner(monkeypatch, items, m, now=NOW, job_status_fn=lambda t: "failed")
+
+    def _reason_then_admin_pauses(item):
+        m.live["status"] = "paused"
+        m.live["pause_reason"] = "manual"  # admin manual pause lands concurrently
+        return _SPACE_REFUSAL
+
+    r._failure_reason = _reason_then_admin_pauses
+    r.tick()
+
+    assert items[0]["state"] == "pending"
+    assert m.live["status"] == "paused"
+    assert m.live["pause_reason"] == "manual", "manual pause overwritten to space"
+
+
+# --- F3: cancelling a parked job drains through finishing_tree ---------------- #
+WINDOW_CLOSED = {"start": "20:00", "end": "22:00", "days": [], "tz": "UTC"}
+
+
+@pytest.mark.parametrize("recurring", [False, True])  # budget_reached | scheduled
+def test_cancel_of_a_parked_job_drains_and_reactivates_once(monkeypatch, recurring):
+    """cancel_target sends budget_reached/scheduled to finishing_tree; driving that
+    with the window CLOSED and only pending disks must skip them without starting,
+    reach canceled, and restore autostart exactly once (reactivate is the other
+    session's code -- called here, never modified)."""
+    items = [_item("a", "pending", tree="a")]
+    cfg = {"window": WINDOW_CLOSED}
+    if recurring:
+        cfg["recurring"] = True
+    m = _Mig("finishing_tree", cfg)
+    m.last_occurrence = "2026-07-01"
+    m.logs = []
+    r = _runner(monkeypatch, items, m, now=NOW)
+    calls = {"n": 0}
+    r.reactivate = lambda: calls.__setitem__("n", calls["n"] + 1)
+    r.tick()
+    assert items[0]["state"] == "skipped"  # pending tree canceled, never started
+    assert m.live["status"] == "canceled"
+    assert calls["n"] == 1  # autostart restored exactly once
+
+
+def test_cancel_one_parked_migration_does_not_touch_another(monkeypatch):
+    """Driving A's cancel to completion never reads or writes B's row or items:
+    every ledger read is scoped by migration_id and every status claim keys on A's
+    id. B keeps its status and its disk mid-move."""
+    a_items = [_item("a", "pending", tree="a")]
+    a_items[0].update(id="A--a", migration_id="A")
+    b_items = [_item("b", "moving", tree="b", move_task_id="mt")]
+    b_items[0].update(id="B--b", migration_id="B")
+    all_items = a_items + b_items
+
+    a = _Mig("finishing_tree", {"window": WINDOW})
+    a.id = "A"
+    a.last_occurrence = "2026-07-01"
+    a.logs = []
+    b = _Mig("running", {"window": WINDOW})
+    b.id = "B"
+    migs = {"A": a, "B": b}
+
+    def _claim(cls, doc_id, update_data, *, field, values=None, excluding=None, **_k):
+        mo = migs[doc_id]
+        held = mo.live.get(field)
+        if (values is not None and held not in values) or (
+            excluding is not None and held in excluding
+        ):
+            return False
+        mo.live.update(update_data)
+        for key, value in update_data.items():
+            object.__setattr__(mo, key, value)
+        return True
+
+    monkeypatch.setattr(mr.StorageMigration, "update_document_if", classmethod(_claim))
+    monkeypatch.setattr(
+        mr.StorageMigrationItem,
+        "dicts_by_migration",
+        classmethod(
+            lambda cls, mid: [it for it in all_items if it["migration_id"] == mid]
+        ),
+    )
+
+    def _update(cls, iid, fields, validate=True):
+        for it in all_items:
+            if it["id"] == iid:
+                it.update(fields)
+
+    monkeypatch.setattr(
+        mr.StorageMigrationItem, "update_document", classmethod(_update)
+    )
+    monkeypatch.setattr(mig, "roots_for_selection", lambda sel: ["a"])
+    monkeypatch.setattr(
+        mig, "build_plan_for_roots", lambda mid, roots, pool, **k: ([], {})
+    )
+
+    class _Storage:
+        def __init__(self, sid):
+            self.status = "ready"
+
+        @staticmethod
+        def exists(sid):
+            return True
+
+        @classmethod
+        def update_document(cls, sid, fields, validate=True):
+            pass
+
+    monkeypatch.setattr(mr, "Storage", _Storage)
+
+    r = object.__new__(mr.MigrationRunner)
+    r.migration_id = "A"
+    r.migration = a
+    r.config = a.config
+    r.user_id = "admin"
+    r.dst_pool = None
+    r.job_status_fn = lambda t: None
+    r._now = lambda tz: NOW
+    r._domains = lambda sid: []
+    r._publish_progress = lambda: None
+    r.prepare = lambda: None
+    r.reactivate = lambda: None
+    r._enqueue = lambda *a, **k: "tid"
+    r._pool_queue = lambda p, action: "q"
+    r._move_queue = lambda p: "q"
+    r._pool_of = lambda p: type("P", (), {"id": "p"})()
+    r._admit_tree = lambda *a, **k: True
+    r._restore_storage_status = lambda it: None
+    r.tick()
+
+    assert a.live["status"] == "canceled"
+    assert a_items[0]["state"] == "skipped"
+    assert b.live["status"] == "running"  # B untouched
+    assert b_items[0]["state"] == "moving"  # B's disk still mid-move

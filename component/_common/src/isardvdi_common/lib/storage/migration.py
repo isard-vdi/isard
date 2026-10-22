@@ -1329,13 +1329,49 @@ def cancel_target(status):
     (running / window_closed / paused / already finishing) goes to
     ``finishing_tree``: the reconciler stops starting new trees, lets the
     current tree(s) finish cleanly, restores autostart, then flips it to
-    ``canceled``. A job that never started (draft / planned) cancels outright.
+    ``canceled``. A job the driver may tick (scheduled, budget_reached) holds
+    disks too and finishes the same way. Only a job that never started (draft /
+    planned) cancels outright.
     """
     return (
         "finishing_tree"
-        if str(status) in {"running", "window_closed", "paused", "finishing_tree"}
+        if str(status)
+        in {
+            "running",
+            "window_closed",
+            "paused",
+            "finishing_tree",
+            "scheduled",
+            "budget_reached",
+        }
         else "canceled"
     )
+
+
+#: terminal job statuses — no admin action applies.
+TERMINAL_STATUSES = frozenset(
+    {"completed", "completed_with_skips", "failed", "canceled"}
+)
+
+
+def admin_action_allowed(status, action, pause_reason=None):
+    """Whether an admin ``start``/``pause``/``cancel`` is valid from ``status``,
+    mirroring the webapp's ``migActionEnabled`` so the API enforces what the UI
+    already shows (``waiting`` is a UI-only label with no job status). Pause is
+    also allowed on a load/space auto-pause, to convert it into a manual one the
+    adaptive loop will not resume."""
+    status = str(status)
+    if status in TERMINAL_STATUSES:
+        return False
+    if action == "start":
+        return status not in ("running", "finishing_tree")
+    if action == "pause":
+        if status in ("running", "waiting", "window_closed"):
+            return True
+        return status == "paused" and pause_reason in ("load", "space")
+    if action == "cancel":
+        return True
+    return False
 
 
 def recurring_status_target(

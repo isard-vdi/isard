@@ -9,10 +9,43 @@ create, pool aggregation) mock at the ``isardvdi_common.lib.storage.migration``
 boundary — that compute/DB layer is unit- and live-tested separately.
 """
 
+from time import time
+
 import pytest
+from isardvdi_common.models.storage_migration import StorageMigration
+from rethinkdb import r
 from tests.routes.helpers import MockJWT
 
 ADMIN = MockJWT(role_id="admin")
+
+
+@pytest.fixture(autouse=True)
+def _emulate_status_cas(monkeypatch):
+    """set_action's compare-and-set uses update_document_if, whose r.branch query
+    rethinkdb_mock cannot run. Emulate it with a fresh read + conditional update
+    (both mock-safe); the REAL CAS semantics are gated by
+    testing/integration/storage_migration/test_migration_status_cas.py."""
+
+    def _cas(cls, doc_id, update_data, *, field, values=None, excluding=None, **_k):
+        with cls._rdb_context():
+            row = (
+                r.table(cls._rdb_table)
+                .get(doc_id)
+                .pluck(field)
+                .run(cls._rdb_connection)
+            )
+        current = (row or {}).get(field)
+        if (values is not None and current not in values) or (
+            excluding is not None and current in excluding
+        ):
+            return False
+        data = dict(update_data)
+        if "status" in data:
+            data.setdefault("status_time", time())
+        cls.update_document(doc_id, data, validate=False)
+        return True
+
+    monkeypatch.setattr(StorageMigration, "update_document_if", classmethod(_cas))
 
 
 def _migration(id="mig-1", status="planned", **extra):
@@ -379,6 +412,112 @@ class TestControl:
         )
         # the app maps RequestValidationError (bad Literal path param) to 400
         assert resp.status_code == 400
+
+    # the UI's action matrix, now enforced by the API (migActionEnabled)
+    def test_start_on_a_running_job_is_refused(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="running")]},
+        )
+        assert resp.status_code == 428
+
+    def test_start_on_a_finishing_tree_job_is_refused(self, test_client):
+        # start must not silently abort an in-progress cancel
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="finishing_tree")]},
+        )
+        assert resp.status_code == 428
+
+    def test_pause_on_a_planned_job_is_refused(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/pause",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 428
+
+    def test_pause_on_a_load_paused_job_converts_to_manual(self, test_client):
+        # the original-bug case: an admin pause on a load/space auto-pause must
+        # take hold (become manual) so the adaptive loop stops auto-resuming it.
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/pause",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="paused", pause_reason="load")]
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "paused"
+        assert resp.json()["pause_reason"] == "manual"
+
+    def test_pause_on_a_space_paused_job_converts_to_manual(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/pause",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="paused", pause_reason="space")]
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["pause_reason"] == "manual"
+
+    def test_pause_on_a_manual_paused_job_is_idempotent(self, monkeypatch, test_client):
+        # already manually paused: no error and NO write (the gate's job is done)
+        monkeypatch.setattr(
+            StorageMigration,
+            "update_document_if",
+            classmethod(lambda cls, *a, **k: pytest.fail("idempotent pause wrote")),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/pause",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="paused", pause_reason="manual")
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["pause_reason"] == "manual"
+
+    def test_pause_on_a_failure_paused_job_is_idempotent(self, test_client):
+        # a failure pause is left as-is (NOT re-labelled manual): both stop the job
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/pause",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [
+                    _migration(status="paused", pause_reason="failure")
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["pause_reason"] == "failure"
+
+    def test_a_lost_cas_race_is_a_conflict(self, monkeypatch, test_client):
+        # the reconciler moved the row between set_action's read and its write
+        monkeypatch.setattr(
+            StorageMigration,
+            "update_document_if",
+            classmethod(lambda cls, *a, **k: False),
+        )
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/cancel",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="running")]},
+        )
+        assert resp.status_code == 409
 
 
 # ── config ──────────────────────────────────────────────────────────────────

@@ -398,14 +398,14 @@ function migDeleteButton (m) {
 
 // Which admin actions make sense for a given status (so we don't offer Start on
 // an already-running job, or Pause on a paused one).
-function migActionEnabled (status, action) {
+function migActionEnabled (status, action, pauseReason) {
   if (MIG_TERMINAL.indexOf(status) !== -1) return false;
-  // Start/resume: anything not already running (planned, paused, scheduled,
-  // waiting, window_closed). Pause: only a job that is actively progressing.
-  // Cancel: any non-terminal job.
+  // Start/resume: anything not already running. Pause: a progressing job, or a
+  // load/space auto-pause (to convert it to a manual one). Cancel: any non-terminal.
   if (action === "start") return status !== "running" && status !== "finishing_tree";
   if (action === "pause") return status === "running" || status === "waiting" ||
-    status === "window_closed";
+    status === "window_closed" ||
+    (status === "paused" && (pauseReason === "load" || pauseReason === "space"));
   if (action === "cancel") return true;
   // Check disks first: worth it before the run starts (planned/paused/scheduled),
   // not while it is actively moving.
@@ -419,7 +419,7 @@ function migActionButtons (m) {
     return migStatusBadge(m.status) + " " + migLogButton(m) + del;
   }
   const btn = function (action, cls, icon, text, tip) {
-    const off = migActionEnabled(m.status, action) ? "" : "disabled";
+    const off = migActionEnabled(m.status, action, m.pause_reason) ? "" : "disabled";
     return `<button class="btn btn-xs btn-${cls} mig-action" data-mig="${migEscape(m.id)}" data-action="${action}" ${off} title="${migEscape(tip)}" data-toggle="tooltip"><i class="fa ${icon}"></i> ${text}</button>`;
   };
   return `
