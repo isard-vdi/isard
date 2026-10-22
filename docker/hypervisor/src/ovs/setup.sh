@@ -145,40 +145,21 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to $_ovs_mtu"
 
 if [ "$vpn_tunneling_mode" = "geneve" ]; then
     echo "Configuring OVS for plain Geneve tunneling"
-    VPN_DOMAIN=${VPN_DOMAIN:-isard-vpn}
-    # OVS remote_ip requires an IP address, not hostname - resolve if needed
-    if echo "$VPN_DOMAIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-        VPN_REMOTE_IP="$VPN_DOMAIN"
+    # Never abort here: the rest of the OVS setup below must run even without a tunnel.
+    GENEVE_PORT=""
+    if _out=$(/src/ovs/geneve-tunnel.sh ensure "${GENEVE_RESOLVE_WAIT:-60}"); then
+        GENEVE_PORT=$(echo "$_out" | sed -n 's/^GENEVE_PORT=//p')
+        echo "Waiting for GENEVE tunnel BFD..."
+        for i in $(seq 1 40); do
+            # bfd_status:state map-key get returns a bare value (up), not "up";
+            # strip quotes so the compare works across ovs-vsctl output forms.
+            BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null | tr -d '"')
+            if [ "$BFD_STATE" = "up" ]; then echo "BFD tunnel UP after ${i} polls"; break; fi
+            sleep 0.25
+        done
     else
-        VPN_REMOTE_IP=$(getent hosts "$VPN_DOMAIN" | awk '{print $1}' | head -1)
-        if [ -z "$VPN_REMOTE_IP" ]; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Cannot resolve VPN_DOMAIN '$VPN_DOMAIN' to IP address"
-            exit 1
-        fi
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS][WARNING] No geneve tunnel to the VPN yet; the maintenance loop will create it"
     fi
-    GENEVE_DST_PORT=${WG_HYPERS_PORT:-4443}
-    ovs-vsctl add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
-        type=geneve options:remote_ip=$VPN_REMOTE_IP \
-        options:dst_port=$GENEVE_DST_PORT
-    # Geneve-only mode has no underlying wireguard keepalive to detect tunnel
-    # loss, so BFD is the liveness signal we publish into the hypervisors row
-    # (vpn.tunnel_status). Tight 200 ms intervals give sub-second detection
-    # (~600 ms = 3 missed probes) while staying well clear of the per-port CPU
-    # cost in OVS. The wait loop polls every 250 ms with a 10 s cap — enough
-    # for a healthy tunnel to converge in 2-3 ticks; a hung tunnel still
-    # bottoms out fast so container start does not stall a full minute.
-    ovs-vsctl set Interface vpn-geneve bfd:enable=true bfd:min_tx=200 bfd:min_rx=200
-
-    echo "Waiting for GENEVE tunnel BFD..."
-    for i in $(seq 1 40); do
-        # bfd_status:state map-key get returns a bare value (up), not "up";
-        # strip quotes so the compare works across ovs-vsctl output forms.
-        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null | tr -d '"')
-        if [ "$BFD_STATE" = "up" ]; then echo "BFD tunnel UP after ${i} polls"; break; fi
-        sleep 0.25
-    done
-
-    GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
 else
     echo "Configuring OVS for WireGuard + Geneve tunneling"
     ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
@@ -224,18 +205,10 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Adding port security rules for VLA
 # GENEVE_PORT already set above based on tunneling mode
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT}"
 
-# Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
-# Restricted to geneve ingress to prevent VMs from spoofing infrastructure ARP
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_GW},actions=strip_vlan,output:all"  # gw
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_BASTION},actions=strip_vlan,output:all"  # bastion
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_SAMBA},actions=strip_vlan,output:all"  # samba
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_GUAC},actions=strip_vlan,output:all"  # guacamole
-
-# Allow VLAN 4095 traffic FROM VPN (infrastructure + return traffic)
-# This must be higher priority than spoofing blocks below
-# Traffic from guests arrives on vnetX ports, not geneve, so they can't bypass
-ovs-ofctl add-flow ovsbr0 "priority=211,in_port=${GENEVE_PORT},dl_vlan=4095,actions=NORMAL"
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed VLAN 4095 traffic from VPN (port ${GENEVE_PORT})"
+# Tunnel ingress flows; geneve-only already got them from geneve-tunnel.sh.
+if [ "$vpn_tunneling_mode" != "geneve" ] && [ -n "$GENEVE_PORT" ]; then
+    /src/ovs/geneve-tunnel.sh flows "$GENEVE_PORT"
+fi
 
 # IP Spoofing Protection - Block VLAN 4095 guest traffic claiming protected IPs
 # Only affects traffic from VM ports (vnetX), not from geneve (allowed above)
@@ -263,8 +236,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked VLAN 4095 access to Docker
 # ============================================================================
 # SECURITY: Rogue DHCP Server Protection (VLAN 4095 only)
 # ============================================================================
-# Only allow DHCP server responses from legitimate gateway (10.2.0.1)
-ovs-ofctl add-flow ovsbr0 "priority=220,udp,in_port=${GENEVE_PORT},dl_vlan=4095,tp_src=67,nw_src=${GUESTS_GW},actions=NORMAL"
+# The gateway's DHCP answers are let through by geneve-tunnel.sh (priority=220).
 # Drop all other DHCP server traffic from VLAN 4095
 ovs-ofctl add-flow ovsbr0 "priority=219,udp,dl_vlan=4095,tp_src=67,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Rogue DHCP protection enabled for VLAN 4095"

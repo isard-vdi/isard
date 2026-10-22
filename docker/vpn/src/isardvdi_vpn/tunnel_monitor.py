@@ -54,6 +54,10 @@ HANDSHAKE_TIMEOUT_S = 180
 FAST_POLL_INTERVAL_S = 1
 FAST_FOLLOW_S = 60
 
+# Geneve-only: while a tunnel is not up, re-ensure its port, doubling the wait up to the max.
+ENSURE_PORT_RETRY_S = 10
+ENSURE_PORT_RETRY_MAX_S = 300
+
 
 def _rdb_connect():
     r = RethinkDB()
@@ -146,7 +150,37 @@ def _set_status(r, conn, hyper_id: str, connected: bool):
     return connected
 
 
-def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]):
+def _ensure_missing_port(
+    hyper: dict, ensure_port, attempts: dict[str, tuple[float, float]], now: float
+):
+    """Re-run ensure_port with backoff until BFD is up; attempts: id -> (next, wait)."""
+    hyper_id = hyper["id"]
+    if _bfd_state(hyper_id) == "up":
+        attempts.pop(hyper_id, None)
+        return
+    next_at, wait = attempts.get(hyper_id, (now, ENSURE_PORT_RETRY_S / 2))
+    if now < next_at:
+        return
+    try:
+        ensure_port(hyper_id, hyper.get("hostname"))
+    except Exception:
+        log.warning(
+            "tunnel_monitor: ensuring the geneve port of %s failed:\n%s",
+            hyper_id,
+            traceback.format_exc(),
+        )
+    wait = min(wait * 2, ENSURE_PORT_RETRY_MAX_S)
+    attempts[hyper_id] = (now + wait, wait)
+
+
+def _poll_once(
+    r,
+    conn,
+    geneve_only: bool,
+    not_connected_since: dict[str, float],
+    ensure_port=None,
+    ensure_attempts: dict[str, tuple[float, float]] | None = None,
+):
     """One pass over the hypervisors table.
 
     ``not_connected_since`` maps a hypervisor id to the monotonic time it was
@@ -156,7 +190,7 @@ def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]
     coming up is published promptly."""
     hypers = list(
         r.table("hypervisors")
-        .pluck("id", {"vpn": ["tunneling_mode", "wireguard"]})
+        .pluck("id", "hostname", {"vpn": ["tunneling_mode", "wireguard"]})
         .run(conn)
     )
     handshakes = {} if geneve_only else _wg_handshakes("hypers")
@@ -169,6 +203,13 @@ def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]
         vpn = h.get("vpn") or {}
         mode = vpn.get("tunneling_mode", "wireguard+geneve")
         try:
+            if geneve_only and ensure_port is not None:
+                _ensure_missing_port(
+                    h,
+                    ensure_port,
+                    ensure_attempts if ensure_attempts is not None else {},
+                    now,
+                )
             if geneve_only or mode == "geneve":
                 connected = _connected_geneve(hyper_id)
             else:
@@ -189,15 +230,19 @@ def _poll_once(r, conn, geneve_only: bool, not_connected_since: dict[str, float]
                 not_connected_since.pop(hyper_id, None)
         elif now - not_connected_since.setdefault(hyper_id, now) < FAST_FOLLOW_S:
             fast = True
-    # Drop hypervisors that vanished from the table so the tracker can't grow.
+    # Drop hypervisors that vanished from the table so the trackers can't grow.
     for gone in set(not_connected_since) - seen:
         not_connected_since.pop(gone, None)
+    if ensure_attempts is not None:
+        for gone in set(ensure_attempts) - seen:
+            ensure_attempts.pop(gone, None)
     return fast
 
 
-def _run(geneve_only: bool):
+def _run(geneve_only: bool, ensure_port=None):
     """Long-running poller. Reconnects to rdb on driver errors."""
     not_connected_since: dict[str, float] = {}
+    ensure_attempts: dict[str, tuple[float, float]] = {}
     while True:
         try:
             r, conn = _rdb_connect()
@@ -208,7 +253,14 @@ def _run(geneve_only: bool):
                 "geneve-only" if geneve_only else "wireguard+geneve",
             )
             while True:
-                fast = _poll_once(r, conn, geneve_only, not_connected_since)
+                fast = _poll_once(
+                    r,
+                    conn,
+                    geneve_only,
+                    not_connected_since,
+                    ensure_port,
+                    ensure_attempts,
+                )
                 time.sleep(FAST_POLL_INTERVAL_S if fast else POLL_INTERVAL_S)
         except Exception:
             log.warning(
@@ -217,9 +269,9 @@ def _run(geneve_only: bool):
             time.sleep(5)
 
 
-def start():
+def start(ensure_port=None):
     """Spawn the poller as a daemon thread."""
     geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
-    t = threading.Thread(target=_run, args=(geneve_only,), daemon=True)
+    t = threading.Thread(target=_run, args=(geneve_only, ensure_port), daemon=True)
     t.start()
     return t
