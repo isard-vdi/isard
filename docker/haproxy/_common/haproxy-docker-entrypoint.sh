@@ -49,6 +49,14 @@ then
   FLAVOUR="web video monitor"
 fi
 
+# The monitor backends verify every JWT against this secret: never serve them with a weak one.
+for part in $FLAVOUR; do
+  if [ "$part" = "monitor" ] && [ "${#API_ISARDVDI_SECRET}" -lt 32 ]; then
+    echo "ERROR: API_ISARDVDI_SECRET has ${#API_ISARDVDI_SECRET} characters, at least 32 are needed to verify the monitor JWTs. Set it in isardvdi.cfg to the value isard-authentication uses and recreate this container." >&2
+    exit 1
+  fi
+done
+
 # Only override HTTP_PORT/HTTPS_PORT with viewer ports for video-only containers.
 # In all-in-one or web+video flavours, HTTP_PORT/HTTPS_PORT should remain unchanged
 # because the Docker port mapping uses those values.
