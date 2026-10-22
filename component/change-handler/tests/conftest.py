@@ -7,7 +7,7 @@ merged back into the output on model_dump / model_dump_json.
 """
 
 from typing import Any, Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel, Field, model_serializer, model_validator
@@ -263,3 +263,20 @@ def _no_shared_redis_clients(monkeypatch):
     from isardvdi_common.connections import redis_client
 
     monkeypatch.setattr(redis_client, "_clients", {})
+
+
+@pytest.fixture(autouse=True)
+def _readable_migration_ledger():
+    """Default the migration ledger to readable-and-empty for every test.
+
+    ``active_storage_ids()`` hits RethinkDB; with no DB it raises, and the
+    finalize passes now read an unreadable ledger as 'skip' (fail closed). Tests
+    that are not about the ledger want it readable with nothing migrating so the
+    pass under test actually runs; the ledger tests override this patch.
+    """
+    from isardvdi_change_handler.streams import reconcile
+
+    with patch.object(
+        reconcile.StorageMigrationItem, "active_storage_ids", return_value=set()
+    ):
+        yield

@@ -699,6 +699,23 @@ class TestConfig:
         )
         assert resp.json()["config"]["on_damaged"] == "continue"
 
+    def test_config_preserves_a_field_it_did_not_change(self, test_client):
+        # R3: a partial update persists ONLY the fields sent, so a parallelism the
+        # adaptive loop wrote (or any other untouched field) is not dropped.
+        job = _migration(status="planned")
+        job["config"]["parallelism"] = 8
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 100},
+            db_tables_data={"storage_migration": [job]},
+        )
+        assert resp.status_code == 200
+        cfg = resp.json()["config"]
+        assert cfg["parallelism"] == 8
+        assert cfg["bwlimit_kbs"] == 100
+
     def test_config_rejects_an_unknown_on_damaged(self, test_client):
         resp = test_client(
             url="/admin/storage/migrations/mig-1/config",
@@ -1911,3 +1928,128 @@ class TestPreflightCheck:
         body = resp.json()
         assert body["check_census"] == {"checked": 2, "leaks": 1, "corruptions": 1}
         assert body["not_moving_disks"] == [{"id": "sa", "reason": "corruptions=2"}]
+
+
+class TestWindowValidation:
+    """The API rejects a malformed maintenance window up front, so a typo cannot
+    silently widen a night job to 24h (an unparseable time, an out-of-range
+    weekday or an unknown timezone otherwise falls through to 'always open')."""
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            {"start": "25:99", "end": "02:00"},
+            {"start": "7a:00", "end": "02:00"},
+            {"start": "02:00", "end": "24:00"},
+            {"start": "08:00", "end": "08:00"},
+            {"days": [7]},
+            {"days": [0, -1]},
+            {"tz": "Not/AZone"},
+        ],
+    )
+    def test_config_rejects_a_malformed_window(self, test_client, window):
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"window": window},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 400
+
+    def test_config_accepts_a_valid_overnight_window(self, test_client):
+        window = {
+            "start": "22:00",
+            "end": "06:00",
+            "days": [0, 1, 2, 3, 4],
+            "tz": "Europe/Madrid",
+        }
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"window": window},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["window"] == window
+
+    def test_create_rejects_a_malformed_window(self, test_client):
+        resp = test_client(
+            url="/admin/storage/migrations",
+            method="POST",
+            jwt=ADMIN,
+            body={
+                "selection": {"kind": "pool", "dst_pool_id": "dst"},
+                "config": {"window": {"tz": "Not/AZone"}},
+            },
+            db_tables_data={
+                "storage_pool": [_pool()],
+                "storage_migration": [],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 400
+
+
+class TestAdminActionPublishesEvent:
+    """Every admin action XADDs a kind=migration event (R6) so the change-handler
+    wakes the drain at once and refreshes other admins' tabs, instead of the job
+    waiting on the periodic backstop. A refused action publishes nothing."""
+
+    @staticmethod
+    def _spy(monkeypatch):
+        published = []
+        monkeypatch.setattr(
+            "api.routes.admin.storage_migration.publish_migration_event",
+            lambda mid: published.append(mid),
+        )
+        return published
+
+    def test_a_successful_action_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]
+
+    def test_a_refused_action_publishes_nothing(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="completed")]},
+        )
+        assert resp.status_code == 428
+        assert published == []
+
+    def test_update_config_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 5000},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]
+
+    def test_delete_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="completed")],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]

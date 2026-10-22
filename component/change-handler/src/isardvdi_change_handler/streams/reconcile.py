@@ -699,9 +699,10 @@ def _migration_owned_storage_ids():
     try:
         return StorageMigrationItem.active_storage_ids()
     except Exception:
-        # Unreadable ledger: claim nothing rather than block every heal.
+        # Unreadable ledger: return None so every finalize pass fails CLOSED
+        # (skips) instead of finalizing a disk a live migration may still own.
         log.exception("reconcile: could not read the migration ledger")
-        return set()
+        return None
 
 
 async def _reconcile_stuck_storage(redis_manager, grace_s=GRACE_S):
@@ -720,6 +721,8 @@ async def _reconcile_stuck_storage(redis_manager, grace_s=GRACE_S):
     if not stuck:
         return 0
     migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    if migrating is None:
+        return 0
     now = time()
     healed = 0
     for storage in stuck:
@@ -769,6 +772,8 @@ async def _reconcile_unclaimed_allocations(redis_manager, grace_s=GRACE_S):
     if not allocated:
         return 0
     migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    if migrating is None:
+        return 0
     now = time()
     healed = 0
     for storage in allocated:
@@ -900,6 +905,8 @@ async def _reconcile_stuck_domains(redis_manager, grace_s=GRACE_S):
     if not stuck:
         return 0
     migrating = await asyncio.to_thread(_migration_owned_storage_ids)
+    if migrating is None:
+        return 0
     now = time()
     healed = 0
     for domain in stuck:

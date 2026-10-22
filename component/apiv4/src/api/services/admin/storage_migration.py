@@ -784,10 +784,14 @@ class AdminStorageMigrationService:
         validated = MigrationConfigData(**effective).model_dump()
         cls._validate_recurring_schedule(validated)
         cls._validate_load_policy(validated)
-        m.config = effective
         now = time()
-        m.updated_at = now
-        m.last_activity_at = now
+        # persist ONLY the fields sent (rethinkdb deep-merges over the live config)
+        # so the loop's parallelism survives and no default backfills a legacy job
+        StorageMigration.update_document(
+            migration_id,
+            {"config": changes, "updated_at": now, "last_activity_at": now},
+            validate=False,
+        )
         return cls.get(migration_id)
 
     @staticmethod

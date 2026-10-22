@@ -460,6 +460,7 @@ class _FakeMig:
         self.current_window = None
         self.last_occurrence = None
         self.pause_reason = None
+        self.config = {}
 
     def __setattr__(self, name, value):
         # The unguarded write must be VISIBLE on the live row, or a test that
@@ -476,6 +477,16 @@ class _FakeMig:
             if name in self.live:
                 object.__setattr__(self, name, self.live[name])
         return self.status, self.pause_reason
+
+    def fresh_config(self):
+        return self.config
+
+    def update_document(self, _doc_id, update_data, *, validate=True):
+        for key, value in update_data.items():
+            if isinstance(value, dict) and isinstance(getattr(self, key, None), dict):
+                getattr(self, key).update(value)
+            else:
+                setattr(self, key, value)
 
     def recompute_totals(self, items=None):
         pass
@@ -606,7 +617,7 @@ def _tick_runner(monkeypatch, items, status, job_status_fn, live_status=None):
     r._pool_queue = lambda path, action: "q"
     r._move_queue = lambda path: "q"
     r._domains = lambda sid: []
-    r._publish_progress = lambda: None
+    r._publish_progress = lambda *a, **k: None
     r.prepare = lambda: None
     return r, caps
 
