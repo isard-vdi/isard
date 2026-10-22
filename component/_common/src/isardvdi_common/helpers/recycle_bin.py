@@ -1546,14 +1546,35 @@ def uncovered_storage_children(covered_storage_ids, children):
     )
 
 
-def _entry_uncovered_storage_children(storage_ids, covered_ids):
-    """Live storage-graph children of ``storage_ids`` not in ``covered_ids``
+def _entry_storage_children(storage_ids):
+    """Storage-graph children of ``storage_ids`` as ``{"id", "status"}`` rows
     (``include_deleted`` keeps a move-deleted copy that still backs a child)."""
     children = Storage.get_children(list(storage_ids), include_deleted=True)
-    return uncovered_storage_children(
-        covered_ids,
-        [{"id": child.id, "status": child.status} for child in children],
-    )
+    return [{"id": child.id, "status": child.status} for child in children]
+
+
+def blocked_storage_entries(entries_storages, covered_storage_ids, entries_children):
+    """Entries of a purge that must stay recycled, mapped to what keeps them."""
+    covered = set(covered_storage_ids or ())
+    kept = set()
+    blocked = {}
+    while True:
+        newly = {}
+        for entry_id in entries_storages:
+            if entry_id in blocked:
+                continue
+            children = list(entries_children.get(entry_id) or ())
+            uncovered = set(uncovered_storage_children(covered, children))
+            # A kept disk reads through its parent whatever its status.
+            uncovered.update(child["id"] for child in children if child["id"] in kept)
+            if uncovered:
+                newly[entry_id] = sorted(uncovered)
+        if not newly:
+            return blocked
+        blocked.update(newly)
+        for entry_id in newly:
+            covered.difference_update(entries_storages[entry_id])
+            kept.update(entries_storages[entry_id])
 
 
 class RecycleBin(RethinkSharedConnection):
@@ -2084,13 +2105,7 @@ class RecycleBin(RethinkSharedConnection):
                         len(entries_raw),
                     )
 
-                # A child that is itself part of this deletion must not block it.
-                covered_ids = {
-                    storage["id"] for entry in entries for storage in entry["storages"]
-                }
-                covered_paths = [
-                    Storage(sid).path for sid in covered_ids if Storage.exists(sid)
-                ]
+                loaded = []
                 for entry in entries:
                     start = time.time()
                     rb = RecycleBin(entry["id"])
@@ -2113,7 +2128,38 @@ class RecycleBin(RethinkSharedConnection):
                         rb.id,
                         time.time() - start,
                     )
-                    if all(x == "deleted" for x in storages_status):
+                    loaded.append(
+                        (entry, rb, all(x == "deleted" for x in storages_status))
+                    )
+
+                # A child that is itself part of this deletion must not block it.
+                covered_ids = {
+                    storage["id"] for entry in entries for storage in entry["storages"]
+                }
+                entries_storages = {
+                    rb.id: {
+                        storage["id"] for storage in rb.storages + entry["storages"]
+                    }
+                    for entry, rb, all_deleted in loaded
+                    if not all_deleted
+                }
+                # A storage-graph child with no domain is invisible to the
+                # domain walk above; refuse rather than strand it.
+                blocked_entries = blocked_storage_entries(
+                    entries_storages,
+                    covered_ids,
+                    {
+                        entry_id: _entry_storage_children(storage_ids)
+                        for entry_id, storage_ids in entries_storages.items()
+                    },
+                )
+                for entry_id in blocked_entries:
+                    covered_ids.difference_update(entries_storages[entry_id])
+                covered_paths = [
+                    Storage(sid).path for sid in covered_ids if Storage.exists(sid)
+                ]
+                for entry, rb, all_deleted in loaded:
+                    if all_deleted:
                         start = time.time()
                         Helpers.update_status(
                             rb.id, self.owner_id, RecycleBinStatusEnum.deleted.value
@@ -2125,16 +2171,11 @@ class RecycleBin(RethinkSharedConnection):
                         )
                         deleted_entries.append(rb)
                     else:
-                        # A storage-graph child with no domain is invisible to
-                        # the domain walk above; refuse rather than strand it.
-                        uncovered = _entry_uncovered_storage_children(
-                            [storage["id"] for storage in rb.storages],
-                            covered_ids,
-                        )
+                        uncovered = blocked_entries.get(rb.id)
                         if uncovered:
                             log.warning(
                                 "RecycleBin %s delete_storage: refusing purge, "
-                                "%s live dependent disk(s) not in this deletion "
+                                "%s dependent disk(s) that are kept "
                                 "still depend on it: %s",
                                 rb.id,
                                 len(uncovered),

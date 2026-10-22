@@ -578,3 +578,66 @@ class TestDeleteStorageRefusesLiveStorageGraphDependents:
         rb.delete_storage("agent-user")
 
         assert _queued(events) == [("task", "rb-self")]
+
+
+class TestABlockedEntryKeepsItsAncestors:
+    """``rb-self`` holds the parent disk ``s-self``; ``rb-dep``, in the same
+    purge, holds its child ``s-dep``. Once ``rb-dep`` is refused, ``s-dep``
+    stays, so purging ``s-self`` would cut the chain under it."""
+
+    @staticmethod
+    def _graph(mod, graph):
+        mod.Storage.get_children = staticmethod(
+            lambda ids, include_deleted=False: [
+                child for sid in ids for child in graph.get(sid, [])
+            ]
+        )
+
+    @pytest.mark.parametrize("child_status", ["recycled", "ready"])
+    def test_the_parent_of_a_refused_entry_is_refused_too(self, cascade, child_status):
+        mod, events, rb, tables, lane = cascade
+        self._graph(
+            mod,
+            {
+                "s-self": [_Child("s-dep", child_status)],
+                "s-dep": [_Child("x-live", "ready")],
+            },
+        )
+
+        rb.delete_storage("agent-user")
+
+        assert _queued(events) == []
+        assert ("recycled", "rb-dep") in events
+        assert ("recycled", "rb-self") in events
+        assert not [e for e in events if e[0] in ("deleting", "deleted")]
+
+    def test_an_independent_entry_still_purges(self, cascade, monkeypatch):
+        mod, events, rb, tables, lane = cascade
+        self._graph(mod, {"s-dep": [_Child("x-live", "ready")]})
+        kwargs = []
+        real_task = mod.Task
+
+        def capture(*a, **k):
+            kwargs.append(k["job_kwargs"]["kwargs"])
+            return real_task(*a, **k)
+
+        capture._redis = real_task._redis
+        monkeypatch.setattr(mod, "Task", capture)
+
+        rb.delete_storage("agent-user")
+
+        assert _queued(events) == [("task", "rb-self")]
+        assert ("deleting", "rb-self") in events
+        assert ("recycled", "rb-dep") in events
+        # The kept disk is not handed to the worker as going away.
+        assert [k["covered_paths"] for k in kwargs] == [["/pool/s-self.qcow2"]]
+
+    def test_a_parent_whose_child_is_purged_with_it_still_purges(self, cascade):
+        mod, events, rb, tables, lane = cascade
+        self._graph(mod, {"s-self": [_Child("s-dep", "recycled")]})
+
+        rb.delete_storage("agent-user")
+
+        assert sorted(_queued(events)) == [("task", "rb-dep"), ("task", "rb-self")]
+        assert ("deleting", "rb-self") in events
+        assert ("deleting", "rb-dep") in events
