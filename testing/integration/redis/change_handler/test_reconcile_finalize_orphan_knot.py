@@ -44,24 +44,34 @@ def _settle_every_real_job(connection, root, *, aged_s=AGED_S, status=None):
         job.save()
 
 
-def test_the_anchor_is_not_the_root(
+def _deeper_anchors(closure, root):
+    return [
+        job
+        for job_id, job in closure.items()
+        if job_id != root.id and (getattr(job, "meta", None) or {}).get("core_finalize")
+    ]
+
+
+def _stamp_the_root_finalize(closure, root):
+    """Leave only the deeper finalize unstamped, as after the root's result was consumed."""
+    job = closure[root.id]
+    finalize = (job.meta or {}).get("core_finalize")
+    if finalize:
+        _stamp_all(finalize)
+        job.save()
+
+
+def test_a_finalize_hangs_off_a_deeper_job(
     task_on_scratch_redis, repair_storage_new_slot
 ):  # noqa: F811
-    """The premise the rest of this file rests on. If the builder ever puts the
-    finalize on the root, these tests stop testing what they claim to."""
+    """The premise the rest of this file rests on: a finalize below the root."""
     root = Task(**template_chain_kwargs())
 
     closure = _chain_closure(root.job, task_on_scratch_redis)
-    anchors = [
-        job_id
-        for job_id, job in closure.items()
-        if (getattr(job, "meta", None) or {}).get("core_finalize")
-    ]
 
-    assert anchors, "no job in the chain carries core_finalize"
-    assert root.id not in anchors, (
-        "the finalize now hangs off the chain root; the knot shape this file "
-        "exists for has changed and these tests need rewriting"
+    assert _deeper_anchors(closure, root), (
+        "no finalize hangs off a job deeper than the chain root; the knot shape "
+        "this file exists for has changed and these tests need rewriting"
     )
 
 
@@ -75,6 +85,7 @@ def test_the_hatch_opens_for_a_chain_whose_finalize_hangs_off_a_deeper_job(
 
     root = Task(**template_chain_kwargs())
     _settle_every_real_job(task_on_scratch_redis, root)
+    _stamp_the_root_finalize(_chain_closure(root.job, task_on_scratch_redis), root)
 
     assert (
         reconcile._metadata_finalize_orphaned(
@@ -100,9 +111,7 @@ def test_the_hatch_stays_shut_while_a_deeper_member_is_still_running(
     # The anchor itself is the deepest real job in this chain: put a worker
     # back on it.
     closure = _chain_closure(root.job, task_on_scratch_redis)
-    anchor = next(
-        job for job in closure.values() if (job.meta or {}).get("core_finalize")
-    )
+    anchor = _deeper_anchors(closure, root)[0]
     anchor.set_status(JobStatus.STARTED)
     anchor.save()
 

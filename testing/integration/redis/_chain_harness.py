@@ -227,6 +227,7 @@ def first_core_step(task):
 
     In the template chain that is the ``storage_update`` hanging off the third
     storage job; the walk finds it rather than the test asserting where it is.
+    A finalize step with no storage child carries no knot and is passed over.
     """
     from isardvdi_common.models.task import CoreStep
 
@@ -235,7 +236,9 @@ def first_core_step(task):
         current = frontier.pop(0)
         for dependent in current.dependents:
             if isinstance(dependent, CoreStep):
-                return dependent
+                if dependent.storage_dependents:
+                    return dependent
+                continue
             frontier.append(dependent)
     raise AssertionError("the chain has no finalize step — the harness is broken")
 
