@@ -1,4 +1,4 @@
-# Isard main config v3.0.14
+# Isard main config v3.0.15
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -294,6 +294,19 @@ LOG_LEVEL=INFO
 #DEBUG_STATS=false
 ## Log websocket authentication failures and socket.io room joins/leaves.
 #DEBUG_WEBSOCKETS=false
+## Debug logging of the isard-socketio service, independent of LOG_LEVEL
+## (LOG_LEVEL=DEBUG alone never enables the socket.io libraries' loggers).
+## Empty or unset: off. One of:
+##   app       the service's own debug lines only, no library logger.
+##   socketio  also socketio.server: event names, rooms and session ids,
+##             without the event payloads.
+##   all       also engineio.server, which logs the full content of every
+##             packet in and out, including the session token (JWT) each
+##             client sends on connect, the event payloads and the ping/pong
+##             of every client every 25 s. It writes credentials and user
+##             data to the logs: enable it only to debug, for as long as
+##             needed.
+#SOCKETIO_DEBUG=
 
 ## ------ HAPROXIES
 ## Comment/uncomment to deactivate/activate haproxy logging
