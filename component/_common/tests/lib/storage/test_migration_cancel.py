@@ -18,3 +18,10 @@ def test_cancel_started_job_finishes_tree_first():
 def test_cancel_unstarted_job_is_immediate():
     for status in ("draft", "planned"):
         assert mig.cancel_target(status) == "canceled"
+
+
+def test_cancel_a_parked_job_drains_through_finishing_tree():
+    # budget_reached/scheduled have suppressed autostart (prepare ran), so they
+    # must drain via finishing_tree for reactivate to restore it, not cancel direct.
+    for status in ("budget_reached", "scheduled"):
+        assert mig.cancel_target(status) == "finishing_tree"

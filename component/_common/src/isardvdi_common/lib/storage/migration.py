@@ -1329,11 +1329,21 @@ def cancel_target(status):
     (running / window_closed / paused / already finishing) goes to
     ``finishing_tree``: the reconciler stops starting new trees, lets the
     current tree(s) finish cleanly, restores autostart, then flips it to
-    ``canceled``. A job that never started (draft / planned) cancels outright.
+    ``canceled``. A job the driver may tick (scheduled, budget_reached) holds
+    disks too and finishes the same way. Only a job that never started (draft /
+    planned) cancels outright.
     """
     return (
         "finishing_tree"
-        if str(status) in {"running", "window_closed", "paused", "finishing_tree"}
+        if str(status)
+        in {
+            "running",
+            "window_closed",
+            "paused",
+            "finishing_tree",
+            "scheduled",
+            "budget_reached",
+        }
         else "canceled"
     )
 
