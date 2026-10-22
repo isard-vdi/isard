@@ -1,0 +1,26 @@
+From: Josep Maria Viñolas Auquer <josepmaria@isardvdi.com>
+Subject: [PATCH] RDP: do not reconnect when the server ends the session with a reason
+
+Since GUACAMOLE-2221, rdp_guac_client_wait_for_events() returns -1 as soon as
+FreeRDP records an error, and the top of the event loop then breaks without
+calling guac_rdp_client_abort(). guac_rdp_handle_connection() returns 0, so
+the client reconnects. When the error is a Set Error Info PDU sent by the
+server, such as ERRINFO_LOGOFF_BY_USER after the user logs off, the reconnect
+logs the user straight back in with the stored credentials.
+
+Abort through guac_rdp_client_abort() when the server gave a reason, so the
+disconnect is reported as before GUACAMOLE-2221. A transport failure carries no
+error info and still reconnects.
+---
+diff --git a/src/protocols/rdp/rdp.c b/src/protocols/rdp/rdp.c
+--- a/src/protocols/rdp/rdp.c
++++ b/src/protocols/rdp/rdp.c
+@@ -621,2 +621,8 @@ static int guac_rdp_handle_connection(guac_client* client) {
+         int wait_result = rdp_guac_client_wait_for_events(client, GUAC_RDP_MESSAGE_CHECK_INTERVAL);
++
++        /* The server ended the session and said why (a logoff, for instance):
++         * reconnecting would log the user straight back in */
++        if (wait_result < 0 && freerdp_error_info(rdp_inst) != 0)
++            guac_rdp_client_abort(client, rdp_inst);
++
+         if (wait_result < 0)
