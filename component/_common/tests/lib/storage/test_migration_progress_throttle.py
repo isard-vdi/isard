@@ -97,7 +97,6 @@ class _TMig:
         self.throughput_ewma = {}
         self.pause_reason = None
 
-
     def __setattr__(self, name, value):
         if name in ("status", "pause_reason") and "live" in self.__dict__:
             self.live[name] = value
@@ -203,6 +202,25 @@ def test_the_end_of_tick_publish_forces_on_a_status_change(monkeypatch):
     r.tick()
     assert m.status == MigrationStatus.SCHEDULED.value
     assert forces[-1] is True  # the transition forced past the throttle
+
+
+# publish_migration_event: the API's post-action wake (raw XADD, never throttled)
+def test_publish_migration_event_xadds_unconditionally(monkeypatch):
+    conn = _Conn()
+    monkeypatch.setattr(mr, "shared_client", lambda url: conn)
+    monkeypatch.setattr(mr, "rq_url", lambda: "redis://x")
+    monkeypatch.setattr(mr.task_streams, "maxlen_for_stream", lambda s: 1000)
+    mr.publish_migration_event("mig-7")
+    assert conn.xadds == [{"kind": "migration", "migration_id": "mig-7"}]
+    assert conn.sets == []  # a discrete admin action wake never consults a throttle
+
+
+def test_publish_migration_event_never_raises(monkeypatch):
+    conn = _Conn(fail="xadd")
+    monkeypatch.setattr(mr, "shared_client", lambda url: conn)
+    monkeypatch.setattr(mr, "rq_url", lambda: "redis://x")
+    monkeypatch.setattr(mr.task_streams, "maxlen_for_stream", lambda s: 1000)
+    mr.publish_migration_event("mig-7")  # must not raise
 
 
 def test_the_end_of_tick_publish_does_not_force_on_a_quiet_tick(monkeypatch):

@@ -54,6 +54,7 @@ from api.services.admin.storage_migration import AdminStorageMigrationService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import Response
+from isardvdi_common.lib.storage.migration_run import publish_migration_event
 
 _TAGS = ["admin-storage-migration"]
 _ERRS = {400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
@@ -338,9 +339,11 @@ async def admin_storage_migration_status(
 )
 async def admin_storage_migration_delete(request: Request, migration_id: str):
     try:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             AdminStorageMigrationService.delete, migration_id
         )
+        await asyncio.to_thread(publish_migration_event, migration_id)
+        return result
     except Error:
         raise
     except Exception:
@@ -394,9 +397,11 @@ async def admin_storage_migration_action(
     action: Literal["start", "pause", "cancel"],
 ):
     try:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             AdminStorageMigrationService.set_action, migration_id, action
         )
+        await asyncio.to_thread(publish_migration_event, migration_id)
+        return result
     except Error:
         raise
     except Exception:
@@ -421,12 +426,14 @@ async def admin_storage_migration_config(
     changes = data.model_dump(exclude_unset=True)
     confirm = bool(changes.pop("confirm_weakening", False))
     try:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             AdminStorageMigrationService.update_config,
             migration_id,
             changes,
             confirm,
         )
+        await asyncio.to_thread(publish_migration_event, migration_id)
+        return result
     except Error:
         raise
     except Exception:

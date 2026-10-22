@@ -1990,3 +1990,66 @@ class TestWindowValidation:
             },
         )
         assert resp.status_code == 400
+
+
+class TestAdminActionPublishesEvent:
+    """Every admin action XADDs a kind=migration event (R6) so the change-handler
+    wakes the drain at once and refreshes other admins' tabs, instead of the job
+    waiting on the periodic backstop. A refused action publishes nothing."""
+
+    @staticmethod
+    def _spy(monkeypatch):
+        published = []
+        monkeypatch.setattr(
+            "api.routes.admin.storage_migration.publish_migration_event",
+            lambda mid: published.append(mid),
+        )
+        return published
+
+    def test_a_successful_action_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]
+
+    def test_a_refused_action_publishes_nothing(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/start",
+            method="POST",
+            jwt=ADMIN,
+            db_tables_data={"storage_migration": [_migration(status="completed")]},
+        )
+        assert resp.status_code == 428
+        assert published == []
+
+    def test_update_config_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1/config",
+            method="PUT",
+            jwt=ADMIN,
+            body={"bwlimit_kbs": 5000},
+            db_tables_data={"storage_migration": [_migration(status="planned")]},
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]
+
+    def test_delete_publishes(self, monkeypatch, test_client):
+        published = self._spy(monkeypatch)
+        resp = test_client(
+            url="/admin/storage/migrations/mig-1",
+            method="DELETE",
+            jwt=ADMIN,
+            db_tables_data={
+                "storage_migration": [_migration(status="completed")],
+                "storage_migration_item": [],
+            },
+        )
+        assert resp.status_code == 200
+        assert published == ["mig-1"]

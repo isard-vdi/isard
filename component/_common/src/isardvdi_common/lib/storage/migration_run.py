@@ -104,6 +104,28 @@ MAX_ABANDON_RESTARTS = 10
 PROGRESS_THROTTLE_S = 5
 
 
+def _xadd_migration_event(conn, migration_id):
+    # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared result
+    # stream for every producer, so ask task_streams for the sanctioned value.
+    conn.xadd(
+        task_streams.RESULT_STREAM,
+        {"kind": "migration", "migration_id": migration_id},
+        maxlen=task_streams.maxlen_for_stream(task_streams.RESULT_STREAM),
+        approximate=True,
+    )
+
+
+def publish_migration_event(migration_id):
+    """Best-effort XADD of a ``kind=migration`` event onto the result stream so
+    the change-handler refreshes the admin socket and drains the job at once —
+    for the API to call after an admin action, whose effect would otherwise wait
+    for the periodic backstop and leave other admins' tabs stale. Never raises."""
+    try:
+        _xadd_migration_event(shared_client(rq_url()), migration_id)
+    except Exception:
+        log.exception("migration: could not publish event for %s", migration_id)
+
+
 def job_status(task_id, *, check_abandon=True):
     """Failure-aware RQ status of a migration task id, or ``None`` if absent.
 
@@ -860,17 +882,7 @@ class MigrationRunner:
                 ex=PROGRESS_THROTTLE_S,
             ):
                 return
-            # MAXLEN is STREAM-WIDE: a hardcoded cap here re-trims the shared
-            # result stream for every producer. The floor in task_streams exists
-            # because the old tight cap discarded UNREAD kind=result entries under
-            # a burst, and a cap below the backpressure high-water also disables
-            # the enqueue-admission throttle. Ask for the sanctioned value.
-            conn.xadd(
-                task_streams.RESULT_STREAM,
-                {"kind": "migration", "migration_id": self.migration_id},
-                maxlen=task_streams.maxlen_for_stream(task_streams.RESULT_STREAM),
-                approximate=True,
-            )
+            _xadd_migration_event(conn, self.migration_id)
         except Exception:
             log.exception(
                 "migration: could not publish progress event for %s",
