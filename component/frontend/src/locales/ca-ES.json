@@ -421,6 +421,7 @@
         "headers": {
           "name": "Nom",
           "description": "Descripció",
+          "created": "Data de creació",
           "owner": "Propietari",
           "category": "Categoria",
           "group": "Grup"

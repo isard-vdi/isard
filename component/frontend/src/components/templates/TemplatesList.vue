@@ -26,7 +26,7 @@ import {
   templateStatus
 } from '@/components/template-status'
 
-const { t } = useI18n()
+const { t, d } = useI18n()
 
 interface Props {
   selectable?: boolean
@@ -107,6 +107,12 @@ const userTemplatesHeader = computed(() => [
     sortable: true,
     width: 'minmax(var(--spacing-56), 1fr)'
   },
+  {
+    name: t('views.templates.table.headers.created'),
+    key: 'accessed',
+    sortable: true,
+    width: 'max-content'
+  },
   { name: '', key: 'actions', width: 'max-content' }
 ])
 
@@ -133,6 +139,12 @@ const userSharedTemplatesHeader = computed(() => [
     key: 'description',
     sortable: true,
     width: 'minmax(var(--spacing-56), 1fr)'
+  },
+  {
+    name: t('views.templates.table.headers.created'),
+    key: 'accessed',
+    sortable: true,
+    width: 'max-content'
   },
   {
     name: t('views.templates.table.headers.owner'),
@@ -187,6 +199,9 @@ const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowS
 function templateProgressPercent(progress: unknown): number {
   return (progress as { total_percent?: number } | undefined)?.total_percent ?? 0
 }
+
+// `accessed` is only written on template create/duplicate, so it reads as the creation date
+const TEMPLATE_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
 <template>
   <main class="flex flex-col gap-6 w-full">
@@ -212,8 +227,9 @@ function templateProgressPercent(progress: unknown): number {
       :row-cell-class="rowCellClass"
       autofocus-search
       :disabled-tooltip="t('views.templates.table.failed-message')"
-      @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
       :selected-id="props.selectedId"
+      :default-sort="TEMPLATE_DEFAULT_SORT"
+      @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
     >
       <template #tabs>
         <Tabs v-model="localActiveTab">
@@ -266,6 +282,12 @@ function templateProgressPercent(progress: unknown): number {
         </div>
         <p v-else class="text-xs font-medium text-gray-warm-600 line-clamp-2">
           {{ row.description }}
+        </p>
+      </template>
+
+      <template #cell-accessed="{ row }">
+        <p class="text-sm text-gray-warm-900 whitespace-nowrap">
+          {{ row.accessed ? d(row.accessed * 1000, { dateStyle: 'short' }) : '' }}
         </p>
       </template>
 

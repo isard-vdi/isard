@@ -68,7 +68,7 @@ import type { UserSharedTemplate } from '@/gen/oas/apiv4'
 const router = useRouter()
 const queryClient = useQueryClient()
 const userStore = useUserStore()
-const { t } = useI18n()
+const { t, d } = useI18n()
 
 const { activeTab, isResolving: tabIsResolving } = useOwnershipTab({
   hasOwned: async () =>
@@ -148,6 +148,12 @@ const tableHeaders = computed(() => {
       key: 'description',
       sortable: true,
       width: 'minmax(var(--spacing-56), 1fr)'
+    },
+    {
+      name: t('views.templates.table.headers.created'),
+      key: 'accessed',
+      sortable: true,
+      width: 'max-content'
     }
   ]
 
@@ -352,6 +358,9 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
 const isFailed = isTemplateFailed
 const rowStatus = (row: Record<string, unknown>) => templateStatus(row, activeTab.value === 'user')
 const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowStatus(row))
+
+// `accessed` is only written on template create/duplicate, so it reads as the creation date
+const TEMPLATE_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
 
 <template>
@@ -513,6 +522,7 @@ const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowS
       :loading="templatesArePending"
       :is-clickable="false"
       :row-cell-class="rowCellClass"
+      :default-sort="TEMPLATE_DEFAULT_SORT"
       hide-toolbar
     >
       <template #empty="{ variant }">
@@ -563,6 +573,12 @@ const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowS
       <template #cell-description="{ row }">
         <p class="text-xs font-medium text-gray-warm-600 line-clamp-2">
           {{ row.description }}
+        </p>
+      </template>
+
+      <template #cell-accessed="{ row }">
+        <p class="text-sm text-gray-warm-900 whitespace-nowrap">
+          {{ row.accessed ? d(row.accessed * 1000, { dateStyle: 'short' }) : '' }}
         </p>
       </template>
 
