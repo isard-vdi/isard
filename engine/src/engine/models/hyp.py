@@ -1961,15 +1961,13 @@ class hyp(object):
     def _get_guests_memory_kb(self):
         """Configured memory (KiB) of every running guest, or None."""
         try:
-            total = 0
-            for _dom, stats in self.conn.getAllDomainStats(
-                stats=libvirt.VIR_DOMAIN_STATS_BALLOON,
-                flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE,
-            ):
-                total += int(
-                    stats.get("balloon.maximum", stats.get("balloon.current", 0)) or 0
+            # maxMemory() reads the definition; balloon stats would wait on each qemu monitor
+            return sum(
+                int(dom.maxMemory() or 0)
+                for dom in self.conn.listAllDomains(
+                    libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
                 )
-            return total
+            )
         except Exception as e:
             log.warning(
                 f"hyp {self.id_hyp_rethink}: guests memory not read from libvirt: {e}"

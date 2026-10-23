@@ -15,6 +15,7 @@ from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, verdict_for_blocked_disks
 from rethinkdb import r
 
+from engine.models.balancers import release_pending_start
 from engine.models.domain_xml import (
     BUS_TYPES,
     add_iothread_pinning,
@@ -428,6 +429,11 @@ class UiActions(object):
                 # unknown numa_node behave exactly as before.
                 prefer_cpuset = pinned_cpuset_from_xml(xml)
                 group_node = None
+                charged_hyps = set()
+
+                def _release_charges():
+                    for _h in charged_hyps:
+                        release_pending_start(_h, id_domain)
 
                 def _rollback_vgpus():
                     for _g, _u, _p in reserved:
@@ -469,6 +475,8 @@ class UiActions(object):
                             coplacement_profiles=gpu_profiles,
                             domain_id=id_domain,
                         )
+                        if nh is not False:
+                            charged_hyps.add(nh)
                         if nh is False or ei.get("nvidia", False) is not True:
                             # No card for this profile on the pinned host.
                             break
@@ -527,6 +535,7 @@ class UiActions(object):
                                 profile=ei["profile"],
                             )
                             _rollback_vgpus()
+                            _release_charges()
                             update_domain_status(
                                 "Failed",
                                 id_domain,
@@ -554,6 +563,7 @@ class UiActions(object):
 
                 if placement_failed:
                     _rollback_vgpus()
+                    _release_charges()
                     update_domain_status(
                         "Failed",
                         id_domain,

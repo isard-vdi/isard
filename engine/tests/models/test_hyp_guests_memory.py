@@ -34,19 +34,31 @@ def _build_hyp(conn):
     return h
 
 
+def _domain(max_kb):
+    dom = MagicMock()
+    dom.maxMemory.return_value = max_kb
+    return dom
+
+
 def test_guests_memory_sums_the_configured_memory_of_running_guests():
     conn = MagicMock()
-    conn.getAllDomainStats.return_value = [
-        (MagicMock(), {"balloon.maximum": 8 * GIB, "balloon.current": 2 * GIB}),
-        (MagicMock(), {"balloon.current": 4 * GIB}),
-        (MagicMock(), {}),
-    ]
+    conn.listAllDomains.return_value = [_domain(8 * GIB), _domain(4 * GIB), _domain(0)]
     assert _build_hyp(conn)._get_guests_memory_kb() == 12 * GIB
+    conn.listAllDomains.assert_called_once_with(
+        hyp_mod.libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
+    )
+
+
+def test_guests_memory_never_queries_the_guests():
+    conn = MagicMock()
+    conn.listAllDomains.return_value = [_domain(GIB)]
+    _build_hyp(conn)._get_guests_memory_kb()
+    conn.getAllDomainStats.assert_not_called()
 
 
 def test_guests_memory_is_none_when_libvirt_does_not_answer():
     conn = MagicMock()
-    conn.getAllDomainStats.side_effect = RuntimeError("libvirt gone")
+    conn.listAllDomains.side_effect = RuntimeError("libvirt gone")
     assert _build_hyp(conn)._get_guests_memory_kb() is None
 
 
