@@ -245,6 +245,14 @@ class DeploymentService:
             if not deployment_data.get("desktops_to_edit"):
                 deployment = Caches.get_document("deployments", deployment_id)
                 if deployment:
+                    # The flat shape describes a single desktop; fanning it
+                    # out would overwrite every desktop type with it
+                    if len(deployment.get("create_dict", [])) > 1:
+                        raise Error(
+                            "bad_request",
+                            f"Deployment {deployment_id} has several desktop types and can't be edited with the apiv3 form",
+                            description_code="deployment_multi_desktop_edit_unsupported",
+                        )
                     fanout_template = {}
                     if legacy_desktop_name is not None:
                         fanout_template["name"] = legacy_desktop_name

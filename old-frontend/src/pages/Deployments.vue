@@ -59,8 +59,8 @@
           </b-button>
           <b-button
             class="rounded-circle btn btn-blue px-2 mr-2"
-            :title="$t('components.statusbar.deployment.buttons.edit.title')"
-            :disabled="data.item.creatingDesktops > 0"
+            :title="data.item.isMultiDesktop ? $t('components.statusbar.deployment.buttons.edit.multi-desktop') : $t('components.statusbar.deployment.buttons.edit.title')"
+            :disabled="data.item.creatingDesktops > 0 || data.item.isMultiDesktop"
             @click="editDeployment(data.item.id)"
           >
             <b-icon

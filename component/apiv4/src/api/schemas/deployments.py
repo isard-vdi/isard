@@ -975,6 +975,10 @@ class DeploymentVideowallResponse(BaseModel):
     desktops: list[UserDeploymentDesktop]  # TODO
     total_users: int
     desktops_each_user: int
+    desktop_names: list[str] = Field(
+        default=[],
+        description="Names of the deployment's desktop types, one per create_dict entry",
+    )
 
 
 class DeploymentRecreateCountResponse(BaseModel):

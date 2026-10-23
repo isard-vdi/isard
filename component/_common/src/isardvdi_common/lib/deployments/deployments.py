@@ -154,6 +154,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
         # deployment["description"] = deployment.get("description")
         deployment["visible"] = deployment.get("tag_visible")
         deployment["desktop_name"] = create_dict.get("name")
+        deployment["desktop_names"] = [
+            cd.get("name") for cd in deployment.get("create_dict", [])
+        ]
         deployment["template"] = Caches.get_document(
             "domains", create_dict.get("template"), ["name"]
         )
@@ -1453,6 +1456,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 "not_found",
                 "Deployment id not found: " + str(deployment_id),
                 description_code="not_found",
+            )
+        # The apiv3 edit form only knows create_dict[0]; serving it for a
+        # multi-desktop deployment would let its save overwrite every entry
+        if len(deployment_data.get("create_dict", [])) > 1:
+            raise Error(
+                "bad_request",
+                f"Deployment {deployment_id} has several desktop types and can't be edited with the apiv3 form",
+                description_code="deployment_multi_desktop_edit_unsupported",
             )
         create_dict = {
             **create_dict,
