@@ -1,4 +1,4 @@
-# Isard main config v3.0.16
+# Isard main config v3.0.17
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -501,9 +501,15 @@ HAPROXY_LOGGING=.
 #ONLY_FORCED_HYP=false
 
 # WARNING: By default only DOCKER_NET and self hypervisor is BLOCKED for guest
-# Comma separated CIDR networks you want guests to be BLOCKED access
+# Comma separated CIDR networks you want guests to be BLOCKED access.
+# An entry can keep some ports open with CIDR:!PORT/PROTO[:!PORT/PROTO...]
+# (PROTO is tcp or udp), e.g. 10.10.10.0/24:!53/udp:!53/tcp
+# Where entries overlap, the most specific network wins.
 #BLACKLIST_IPTABLES=10.10.10.0/24
-# Comma separated CIDR networks you want guests to be ALLOWED access
+# Comma separated CIDR networks you want guests to be ALLOWED access.
+# An entry without ports allows every port; ADDR:PORT/PROTO[:PORT/PROTO...]
+# allows only those ports, e.g. 10.10.10.53:53/udp:53/tcp
+# Malformed port specs are logged at hypervisor start and ignored.
 #WHITELIST_IPTABLES=10.10.10.0/24
 
 # Memory free at hypervisor
