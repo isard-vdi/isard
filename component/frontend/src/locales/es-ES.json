@@ -910,14 +910,90 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "desktop": {
+          "label": "Escritorios"
+        },
+        "status": {
+          "label": "Estado",
+          "started": "Iniciados",
+          "stopped": "Parados"
+        }
+      },
       "gpu-warning": "El videowall no funciona con visores RDP",
-      "desktop-not-available": "Escritorio no disponible",
-      "filter-placeholder": "Filtrar por usuario",
-      "only-started": "Solo iniciados",
-      "back-to-deployment": "Volver al despliegue",
+      "review": {
+        "all": "Ver pantallas en directo",
+        "filtered": "Ver {n} pantalla filtrada | Ver {n} pantallas filtradas",
+        "filtered-hint": "Abre las pantallas de los escritorios filtrados a la vez para vigilarlas; solo vista",
+        "all-hint": "Abre todas las pantallas a la vez para vigilarlas; solo vista"
+      },
+      "viewer": {
+        "previous": "Escritorio anterior",
+        "next": "Escritorio siguiente",
+        "position": "{current} de {total}",
+        "pick": "Ir a un escritorio",
+        "not-found": "No se han encontrado escritorios",
+        "connecting": "Conectando con el escritorio…",
+        "fullscreen": {
+          "enter": "Pantalla completa",
+          "exit": "Salir de pantalla completa"
+        },
+        "layout": {
+          "mosaic": "Mosaico",
+          "single": "Individual",
+          "to-mosaic": "Ver en mosaico: todos los escritorios a la vez, solo vista",
+          "to-single": "Ver individual: un escritorio en grande, para verlo o controlarlo"
+        },
+        "density": {
+          "label": "Tamaño de las casillas",
+          "lg": "Casillas grandes",
+          "md": "Casillas medianas",
+          "sm": "Casillas pequeñas"
+        },
+        "mosaic": {
+          "title": "{n} escritorio | {n} escritorios",
+          "control-disabled": "En mosaico solo se puede ver: haz clic en un escritorio para controlarlo"
+        },
+        "filtered": {
+          "label": "Filtrado:",
+          "showing": "mostrando {shown} de {total}",
+          "clear": "Ver todos"
+        },
+        "mode": {
+          "label": "Modo del visor",
+          "view": "Ver",
+          "control": "Controlar",
+          "view-hint": "Solo mirar: el teclado y el ratón no llegan al escritorio",
+          "control-hint": "Usar el teclado y el ratón en el escritorio del usuario",
+          "view-notice": "Modo ver: el teclado y el ratón no llegan al escritorio",
+          "control-notice": "Modo control: estás usando el escritorio del usuario"
+        },
+        "pinned": {
+          "pin": "Fijar en el lateral para seguir viéndolo",
+          "badge": "Fijado",
+          "notice": "Fijado en el lateral",
+          "unpin": "Quitar de fijados",
+          "limit": "Puedes fijar hasta {max} escritorios",
+          "title": "Fijados ({count})",
+          "on-screen": "En pantalla",
+          "collapse": "Plegar fijados",
+          "expand": "Mostrar fijados"
+        }
+      },
+      "filter-placeholder": "Filtrar por usuario o escritorio",
       "view": {
-        "grid": "Vista en cuadrícula",
-        "single": "Vista completa"
+        "cards": "Vista de tarjetas",
+        "table": "Vista de tabla"
+      },
+      "group-by": {
+        "label": "Agrupar por",
+        "user": "Agrupar por usuario",
+        "desktop": "Agrupar por escritorio"
+      },
+      "group-count": "{n} escritorio | {n} escritorios",
+      "group-status": {
+        "started": "{n} iniciado | {n} iniciados",
+        "failed": "{n} fallido | {n} fallidos"
       }
     },
     "shared-deployments": {
@@ -1478,6 +1554,7 @@
           "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
+          "expand": "Ampliar",
           "networks": "Redes"
         },
         "debug-options": {
@@ -1723,6 +1800,7 @@
       },
       "data-table": {
         "headers": {
+          "user": "Usuario",
           "name": "Nombre",
           "description": "Descripción",
           "status": "Estado",
@@ -3231,7 +3309,17 @@
         "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
         "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo.",
         "desktop_storage_not_ready": "El disco del escritorio todavía no está listo. Espera unos minutos y vuelve a intentarlo.",
-        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador."
+        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador.",
+        "deployment_start_user_quota_exceeded": "Se ha alcanzado el máximo de escritorios en ejecución del despliegue. Detén alguno para iniciar otro.",
+        "desktop_start_group_limit_exceeded": "El grupo ha alcanzado su límite de escritorios en ejecución.",
+        "desktop_start_group_memory_limit_exceeded": "El grupo ha alcanzado su límite de memoria en ejecución.",
+        "desktop_start_group_vcpu_limit_exceeded": "El grupo ha alcanzado su límite de vCPU en ejecución.",
+        "no_storage_pool_available": "Los recursos del sistema no están disponibles. Inténtalo más tarde."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "No se ha podido parar el escritorio. Inténtalo de nuevo."
       }
     },
     "extend-desktop": {

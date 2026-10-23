@@ -3,6 +3,7 @@ export const VUE2_TO_VUE3 = {
   templates: '/frontend/templates',
   deployments: '/frontend/deployments',
   deployment_desktops: '/frontend/deployments/:id',
+  deployment_videowall: '/frontend/deployments/:id/videowall',
   media: '/frontend/media',
   recycleBins: '/frontend/recycle-bin',
   recycleBin: '/frontend/recycle-bin/:id',

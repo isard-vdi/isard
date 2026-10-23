@@ -331,9 +331,12 @@ class DeploymentDesktopsProcessed(RethinkSharedConnection):
         else:
             viewer = False
         user_photo = desktop.get("user_photo")
+        # Legacy rows store ``False``; normalised so clients test one falsy value.
+        tag_desktop_id = desktop.get("tag_desktop_id") or None
         desktop = DesktopsProcessed._parse_desktop(desktop)
         desktop["viewer"] = viewer
         desktop["user_photo"] = user_photo
+        desktop["tag_desktop_id"] = tag_desktop_id
         desktop["user_name"] = Caches.get_document("users", desktop["user"], ["name"])
         desktop["group_name"] = Caches.get_document(
             "groups", desktop["group"], ["name"]

@@ -123,6 +123,38 @@ class TestGetDeployment:
         assert result["info"]["co_owner"] is expected
 
 
+class TestGetDeploymentVideowall:
+    @patch(
+        "api.services.deployments.Caches.get_document",
+        return_value=[
+            {"tag_desktop_id": "r1", "name": "Ubuntu"},
+            {"tag_desktop_id": "r2", "name": "Windows"},
+        ],
+    )
+    @patch(
+        "api.services.deployments.CommonDeploymentUsers.get_users_info",
+        return_value=[{"id": "u1"}],
+    )
+    @patch(
+        "api.services.deployments.CommonDeployments.get_deployment",
+        return_value={
+            "id": "d1",
+            "desktops": [
+                {"id": "a", "tag_desktop_id": "r2"},
+                # Created before tag_desktop_id existed.
+                {"id": "b", "tag_desktop_id": None},
+            ],
+        },
+    )
+    def test_groups_desktops_by_deployment_desktop(self, _get, _users, _cache):
+        result = DeploymentService.get_deployment_videowall("d1")
+        assert result["deployment_desktops"] == [
+            {"tag_desktop_id": "r1", "name": "Ubuntu"},
+            {"tag_desktop_id": "r2", "name": "Windows"},
+        ]
+        assert [d["tag_desktop_id"] for d in result["desktops"]] == ["r2", "r1"]
+
+
 class TestDeleteDeployment:
     @patch(
         "api.services.deployments.DesktopEvents.deployment_delete",

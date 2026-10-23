@@ -298,7 +298,8 @@ const router = createRouter({
               component: () => import('../views/deployments/DeploymentVideowallView.vue'),
               meta: {
                 title: 'router.deployment-videowall.title',
-                subtitle: 'router.deployment-videowall.subtitle'
+                subtitle: 'router.deployment-videowall.subtitle',
+                narrowGutter: true
               }
             }
           ]

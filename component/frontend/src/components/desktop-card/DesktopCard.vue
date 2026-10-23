@@ -178,6 +178,7 @@ const desktopKind = computed(() => {
     </template>
 
     <template #header-actions>
+      <slot name="header-actions" />
       <DesktopCardHeaderActions
         :desktop="desktop"
         :active-overlay="activeOverlay"

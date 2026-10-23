@@ -654,6 +654,10 @@ class UserDeploymentDesktop(BaseModel):
     server: Optional[bool] = None
     accessed: Optional[float] = None
     tag: Optional[str] = None
+    tag_desktop_id: Optional[str] = Field(
+        default=None,
+        description="Which of the deployment's desktops this one was created from.",
+    )
     visible: Optional[bool] = None
     user: Optional[str] = None
     user_name: Optional[str] = None
@@ -884,6 +888,15 @@ class DeploymentInfoResponse(BaseModel):
     tag_visible: Optional[bool] = None
 
 
+class VideowallDeploymentDesktop(BaseModel):
+    """One of the desktops each user of the deployment gets."""
+
+    tag_desktop_id: Optional[str] = Field(
+        default=None, description="Matches ``tag_desktop_id`` on the desktops."
+    )
+    name: str = Field(description="Name of the desktop")
+
+
 class DeploymentVideowallResponse(BaseModel):
     allowed: Allowed
     co_owners: list[str] = Field(
@@ -919,6 +932,10 @@ class DeploymentVideowallResponse(BaseModel):
     next_booking_end: Optional[datetime]
     booking_id: Optional[str | bool]
     desktops: list[UserDeploymentDesktop]  # TODO
+    deployment_desktops: list[VideowallDeploymentDesktop] = Field(
+        default=[],
+        description="The deployment's desktops, in creation order, to group the desktops by.",
+    )
     total_users: int
     desktops_each_user: int
 

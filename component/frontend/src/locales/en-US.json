@@ -918,14 +918,90 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "desktop": {
+          "label": "Desktops"
+        },
+        "status": {
+          "label": "Status",
+          "started": "Started",
+          "stopped": "Stopped"
+        }
+      },
       "gpu-warning": "Videowall does not work with RDP viewers",
-      "desktop-not-available": "Desktop not available",
-      "filter-placeholder": "Filter by user",
-      "only-started": "Only started",
-      "back-to-deployment": "Back to deployment",
+      "review": {
+        "all": "View live screens",
+        "filtered": "View {n} filtered screen | View {n} filtered screens",
+        "filtered-hint": "Open the screens of the filtered desktops at once to keep an eye on them; view only",
+        "all-hint": "Open every screen at once to keep an eye on them; view only"
+      },
+      "viewer": {
+        "previous": "Previous desktop",
+        "next": "Next desktop",
+        "position": "{current} of {total}",
+        "pick": "Go to a desktop",
+        "not-found": "No desktops found",
+        "connecting": "Connecting to the desktop…",
+        "fullscreen": {
+          "enter": "Full screen",
+          "exit": "Exit full screen"
+        },
+        "layout": {
+          "mosaic": "Mosaic",
+          "single": "Single",
+          "to-mosaic": "Mosaic: every desktop at once, view only",
+          "to-single": "Single: one desktop, large, to view or control it"
+        },
+        "density": {
+          "label": "Tile size",
+          "lg": "Large tiles",
+          "md": "Medium tiles",
+          "sm": "Small tiles"
+        },
+        "mosaic": {
+          "title": "{n} desktop | {n} desktops",
+          "control-disabled": "The mosaic is view only: click a desktop to control it"
+        },
+        "filtered": {
+          "label": "Filtered:",
+          "showing": "showing {shown} of {total}",
+          "clear": "Show all"
+        },
+        "mode": {
+          "label": "Viewer mode",
+          "view": "View",
+          "control": "Control",
+          "view-hint": "Watch only: keyboard and mouse don't reach the desktop",
+          "control-hint": "Use the keyboard and mouse on the user's desktop",
+          "view-notice": "View mode: keyboard and mouse don't reach the desktop",
+          "control-notice": "Control mode: you are using the user's desktop"
+        },
+        "pinned": {
+          "pin": "Pin to the side to keep watching it",
+          "badge": "Pinned",
+          "notice": "Pinned to the side",
+          "unpin": "Unpin",
+          "limit": "You can pin up to {max} desktops",
+          "title": "Pinned ({count})",
+          "on-screen": "On screen",
+          "collapse": "Collapse pinned",
+          "expand": "Show pinned"
+        }
+      },
+      "filter-placeholder": "Filter by user or desktop",
       "view": {
-        "grid": "Grid view",
-        "single": "Full view"
+        "cards": "Card view",
+        "table": "Table view"
+      },
+      "group-by": {
+        "label": "Group by",
+        "user": "Group by user",
+        "desktop": "Group by desktop"
+      },
+      "group-count": "{n} desktop | {n} desktops",
+      "group-status": {
+        "started": "{n} started",
+        "failed": "{n} failed"
       }
     },
     "shared-deployments": {
@@ -2211,6 +2287,7 @@
           "book": "Book",
           "bastion": "Bastion",
           "bastion-access": "Bastion access (HTTP / HTTPS / SSH)",
+          "expand": "Expand",
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
@@ -2485,6 +2562,7 @@
       },
       "data-table": {
         "headers": {
+          "user": "User",
           "name": "Name",
           "description": "Description",
           "status": "Status",
@@ -3218,7 +3296,17 @@
         "service_temporarily_unavailable": "The service is temporarily unavailable. Please try again in a few minutes.",
         "generic": "The desktop could not be started. Please try again.",
         "desktop_storage_not_ready": "The desktop's disk is not ready yet. Wait a few minutes and try again.",
-        "storage_not_found": "The desktop's disk could not be found. Contact your administrator."
+        "storage_not_found": "The desktop's disk could not be found. Contact your administrator.",
+        "deployment_start_user_quota_exceeded": "The deployment has reached its maximum of running desktops. Stop one to start another.",
+        "desktop_start_group_limit_exceeded": "The group has reached its limit of running desktops.",
+        "desktop_start_group_memory_limit_exceeded": "The group has reached its running memory limit.",
+        "desktop_start_group_vcpu_limit_exceeded": "The group has reached its running vCPU limit.",
+        "no_storage_pool_available": "System resources are not available right now. Please try again later."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "The desktop could not be stopped. Please try again."
       }
     },
     "extend-desktop": {
