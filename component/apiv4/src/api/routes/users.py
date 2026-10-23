@@ -207,6 +207,7 @@ async def re_register_user(register_post_data: RegisterPostData, request: Reques
     summary="Get user password policy",
     description="Returns the password policy for the user.",
     responses={
+        400: {"description": "The user does not sign in with a local password"},
         500: {"description": "Failed to retrieve password policy"},
     },
     response_model=UserPasswordPolicyResponse,
@@ -217,6 +218,13 @@ async def get_user_password_policy(request: Request):
             UsersService.get_user_password_policy,
             user_id=request.token_payload["user_id"],
         )
+        # Password reset tokens carry no provider, only local users have a policy
+        if not policy:
+            raise Error(
+                "bad_request",
+                "Only local users have a password policy",
+                description_code="user_not_local",
+            )
         return JSONResponse(
             content=UserPasswordPolicyResponse(**policy).model_dump(mode="json"),
             status_code=200,
