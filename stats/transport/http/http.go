@@ -24,7 +24,7 @@ func (s *StatsServer) Serve(ctx context.Context, log *zerolog.Logger) {
 	r := prometheus.NewRegistry()
 	r.MustRegister(version.NewCollector("isardvdi_stats"))
 	for _, c := range s.Collectors {
-		r.MustRegister(c)
+		r.MustRegister(collector.Recovering(c, log))
 	}
 
 	m := http.NewServeMux()

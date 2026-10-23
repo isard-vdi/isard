@@ -95,3 +95,43 @@ func TestSplitDomainsIntoBatches(t *testing.T) {
 		})
 	}
 }
+
+func TestInterfaceMAC(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Interfaces  []libvirtxml.DomainInterface
+		Dev         string
+		ExpectedMAC string
+	}{
+		"should return the MAC of the matching target": {
+			Interfaces: []libvirtxml.DomainInterface{
+				{Target: &libvirtxml.DomainInterfaceTarget{Dev: "vnet0"}, MAC: &libvirtxml.DomainInterfaceMAC{Address: "52:54:00:00:00:01"}},
+				{Target: &libvirtxml.DomainInterfaceTarget{Dev: "vnet1"}, MAC: &libvirtxml.DomainInterfaceMAC{Address: "52:54:00:00:00:02"}},
+			},
+			Dev:         "vnet1",
+			ExpectedMAC: "52:54:00:00:00:02",
+		},
+		"should skip an interface without a target": {
+			Interfaces: []libvirtxml.DomainInterface{
+				{MAC: &libvirtxml.DomainInterfaceMAC{Address: "52:54:00:00:00:01"}},
+				{Target: &libvirtxml.DomainInterfaceTarget{Dev: "vnet1"}, MAC: &libvirtxml.DomainInterfaceMAC{Address: "52:54:00:00:00:02"}},
+			},
+			Dev:         "vnet1",
+			ExpectedMAC: "52:54:00:00:00:02",
+		},
+		"should return an empty MAC when the matching interface has none": {
+			Interfaces: []libvirtxml.DomainInterface{
+				{Target: &libvirtxml.DomainInterfaceTarget{Dev: "vnet0"}},
+			},
+			Dev:         "vnet0",
+			ExpectedMAC: "",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(tc.ExpectedMAC, interfaceMAC(tc.Interfaces, tc.Dev))
+		})
+	}
+}
