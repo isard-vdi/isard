@@ -1166,6 +1166,7 @@
       "headers": {
         "user": "Usuario",
         "all": "Todos",
+        "all-tooltip": "Todos los escritorios del usuario: marca la casilla de su fila para mostrarlos u ocultarlos todos a la vez",
         "state": "Estado"
       },
       "filter": {

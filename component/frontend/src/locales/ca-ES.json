@@ -1166,6 +1166,7 @@
       "headers": {
         "user": "Usuari",
         "all": "Tots",
+        "all-tooltip": "Tots els escriptoris de l'usuari: marca la casella de la seva fila per mostrar-los o amagar-los tots alhora",
         "state": "Estat"
       },
       "filter": {

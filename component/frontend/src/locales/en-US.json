@@ -1166,6 +1166,7 @@
       "headers": {
         "user": "User",
         "all": "All",
+        "all-tooltip": "Every desktop of the user: tick the checkbox in their row to show or hide all of them at once",
         "state": "State"
       },
       "filter": {
