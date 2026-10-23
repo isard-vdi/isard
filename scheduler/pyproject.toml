@@ -12,7 +12,7 @@ dependencies = [
   "pyjwt==2.13.0",
   "pytz==2026.2",
   "requests==2.34.2",
-  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/de0aa01a894bc08c3d8ecb9333bec2eafe9fd504.tar.gz",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/0bbd7ff5363f70739ae0ef1074f864a81e8c0df6.tar.gz",
   "werkzeug==3.1.8",
 ]
 
