@@ -2488,6 +2488,7 @@
           "name": "Name",
           "description": "Description",
           "status": "Status",
+          "accessed": "Last access",
           "actions": "Actions",
           "viewers": "Viewers"
         }

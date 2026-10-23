@@ -1726,6 +1726,7 @@
           "name": "Nombre",
           "description": "Descripción",
           "status": "Estado",
+          "accessed": "Último acceso",
           "actions": "Acciones",
           "viewers": "Visores"
         }

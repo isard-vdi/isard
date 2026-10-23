@@ -1471,6 +1471,7 @@
           "name": "Izena",
           "description": "Deskribapena",
           "status": "Egoera",
+          "accessed": "Azken sarbidea",
           "actions": "Ekintzak",
           "viewers": "Ikustaileak"
         }
