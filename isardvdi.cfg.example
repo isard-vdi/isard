@@ -1,4 +1,4 @@
-# Isard main config v3.0.18
+# Isard main config v3.0.19
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -825,6 +825,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## The password used with AUTH inside redis connections.
 ## WARNING it is sent unencrypted, so the connection should be securized.
 ## See also https://redis.io/docs/management/security/
+## isard-redis always requires one. Left empty or commented, build.sh
+## generates a random one on the node that runs apiv4 and isard-redis and
+## writes it here. Every other node that connects to isard-redis (storage
+## with workers, backupninja, vpn) needs that same value in its own cfg,
+## and its build stops until it has it.
 #REDIS_PASSWORD=
 
 # Redis host

@@ -278,7 +278,7 @@ flavour_parts(){
 	esac
 }
 
-SECRET_NAMES="API_ISARDVDI_SECRET API_HYPERVISORS_SECRET"
+SECRET_NAMES="API_ISARDVDI_SECRET API_HYPERVISORS_SECRET REDIS_PASSWORD"
 
 default_secret(){
 	# Anchored: the example also names the secrets in comments
@@ -307,6 +307,8 @@ generate_secrets(){
 		[ -n "$current_secret" ] && [ "$current_secret" != "$(default_secret "$secret_name")" ] && continue
 
 		new_secret="$(head -c 32 /dev/urandom | base64)"
+		# hex: clients splice it unquoted into redis:// URLs
+		[ "$secret_name" = REDIS_PASSWORD ] && new_secret="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 		if grep -qE "^${secret_name}=" "$config_file"
 		then
 			# '|' is not in the base64 alphabet, so it is a safe sed delimiter.
@@ -321,7 +323,7 @@ generate_secrets(){
 # The part's yml passes the secret on, but this node runs nothing that reads it
 secret_unused_by_part(){
 	case "$1:$2" in
-		API_ISARDVDI_SECRET:storage)
+		API_ISARDVDI_SECRET:storage | REDIS_PASSWORD:storage)
 			[ "${REDIS_WORKERS:-1}" = "0" ]
 			;;
 		API_ISARDVDI_SECRET:stats)
