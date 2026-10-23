@@ -14,3 +14,4 @@ services:
     command:
       - '--db.address'
       - 'isard-db:28015'
+      - '--stats.query-jobs'
