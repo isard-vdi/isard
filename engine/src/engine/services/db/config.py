@@ -21,11 +21,14 @@ def get_config_branch(key):
 def table_config_created_and_populated():
     try:
         r_conn_test = r.connect(RETHINK_HOST, RETHINK_PORT)
-        if not r.db_list().contains(RETHINK_DB).run(r_conn_test):
+        try:
+            db_created = r.db_list().contains(RETHINK_DB).run(r_conn_test)
+        finally:
+            r_conn_test.close()
+        if not db_created:
             print(
                 f"rethink host {RETHINK_HOST} and port {RETHINK_PORT} has connected but rethink database {RETHINK_DB} is not created"
             )
-            r.conn_test.close()
             return False
         else:
             with rethink_conn() as r_conn:
