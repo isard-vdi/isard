@@ -163,12 +163,12 @@ func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error
 		Certificate:        params.cert,
 		IDPMetadata:        params.metadata,
 		DefaultRedirectURI: "/authentication/callback",
+		// The IdP posts back cross-site, and Lax only lets that through for two minutes.
+		CookieSameSite: http.SameSiteNoneMode,
 	})
 	middleware.OnError = samlOnError(params.log)
 
-	// samlsp.New ties both the cookie and the signed token inside it to
-	// saml.MaxIssueDelay; both must be extended, or the request still expires
-	// at the assertion-age limit regardless of the cookie.
+	// samlsp.New ties both the cookie and its signed token to saml.MaxIssueDelay.
 	if tracker, ok := middleware.RequestTracker.(samlsp.CookieRequestTracker); ok {
 		tracker.MaxAge = params.requestTrackerMaxAge
 		if codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec); ok {

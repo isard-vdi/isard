@@ -1419,43 +1419,40 @@ func strPtr(s string) *string {
 	return &s
 }
 
-// TestSAMLRequestTrackerMaxAge checks the request-tracker lifetime is decoupled
-// from the assertion-age limit (saml.MaxIssueDelay). Not parallel: it reads that
-// package global.
-func TestSAMLRequestTrackerMaxAge(t *testing.T) {
-	nopLog := zerolog.Nop()
+// Not parallel: LoadConfig sets the saml.MaxIssueDelay package global.
+func TestSAMLRequestTracker(t *testing.T) {
+	assert := assert.New(t)
 
 	cases := map[string]struct {
 		MaxIssueDelay        time.Duration
 		RequestTrackerMaxAge time.Duration
-		Want                 time.Duration
+		ExpectedMaxAge       time.Duration
 	}{
-		"explicit tracker age is independent of the assertion-age limit": {
+		"should use the configured tracker age, not the assertion-age limit": {
 			MaxIssueDelay:        90 * time.Second,
-			RequestTrackerMaxAge: 15 * time.Minute,
-			Want:                 15 * time.Minute,
+			RequestTrackerMaxAge: 30 * time.Minute,
+			ExpectedMaxAge:       30 * time.Minute,
 		},
-		"unset tracker age falls back to the default, not MaxIssueDelay": {
+		"should fall back to the default if the tracker age is unset": {
 			MaxIssueDelay:        90 * time.Second,
 			RequestTrackerMaxAge: 0,
-			Want:                 defaultSAMLRequestTrackerMaxAge,
+			ExpectedMaxAge:       defaultSAMLRequestTrackerMaxAge,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			assert := assert.New(t)
 			certPath, keyPath, metadataPath := prepareSAMLFiles(t)
 
 			s := &SAML{
 				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 				host:          "sp.example.com",
-				log:           &nopLog,
+				log:           log.New("test", "debug"),
 				validateURL:   validateMetadataURL,
 				brandingHosts: map[string]string{},
 			}
 
-			require.NoError(t, s.LoadConfig(context.Background(), model.SAMLConfig{
+			require.NoError(t, s.LoadConfig(t.Context(), model.SAMLConfig{
 				MetadataFile:         metadataPath,
 				KeyFile:              keyPath,
 				CertFile:             certPath,
@@ -1475,10 +1472,21 @@ func TestSAMLRequestTrackerMaxAge(t *testing.T) {
 			codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec)
 			require.True(t, ok, "expected a JWTTrackedRequestCodec")
 
-			assert.Equal(tc.Want, tracker.MaxAge)
-			assert.Equal(tc.Want, codec.MaxAge)
-			// The assertion-age limit must stay as configured, unchanged by the fix.
+			assert.Equal(tc.ExpectedMaxAge, tracker.MaxAge)
+			assert.Equal(tc.ExpectedMaxAge, codec.MaxAge)
 			assert.Equal(tc.MaxIssueDelay, saml.MaxIssueDelay)
+
+			// TLS ends at the proxy, so the request the service sees is plain HTTP
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://sp.example.com/authentication/login", nil)
+			_, err := tracker.TrackRequest(rec, req, "request-id")
+			require.NoError(t, err)
+
+			cookies := rec.Result().Cookies()
+			require.Len(t, cookies, 1)
+			assert.Equal(http.SameSiteNoneMode, cookies[0].SameSite)
+			assert.True(cookies[0].Secure)
+			assert.Equal(int(tc.ExpectedMaxAge.Seconds()), cookies[0].MaxAge)
 		})
 	}
 }
