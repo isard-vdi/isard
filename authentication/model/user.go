@@ -200,10 +200,24 @@ func (u *User) FindExisting(ctx context.Context, sess r.QueryExecutor) (*User, b
 }
 
 func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").GetAllByIndex("category", u.Category).Filter(r.And(
+	return u.existsWithEmail(sess, r.And(
 		r.Eq(r.Row.Field("email"), u.Email),
 		r.Ne(r.Row.Field("email_verified"), nil),
-	), r.FilterOpts{}).Run(sess)
+	))
+}
+
+// ExistsLocalWithVerifiedEmail only matches local users, the only ones with a password
+func (u *User) ExistsLocalWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	return u.existsWithEmail(sess, r.And(
+		r.Eq(r.Row.Field("email"), u.Email),
+		// Verified is true or a timestamp, unverified is null, false or 0
+		r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+		r.Eq(r.Row.Field("provider"), "local"),
+	))
+}
+
+func (u *User) existsWithEmail(sess r.QueryExecutor, filter r.Term) (bool, error) {
+	res, err := r.Table("users").GetAllByIndex("category", u.Category).Filter(filter, r.FilterOpts{}).Run(sess)
 	if err != nil {
 		return false, &db.Err{
 			Err: err,

@@ -1943,8 +1943,10 @@ class UsersProcessed(RethinkSharedConnection):
                 r.table("users")
                 .get_all(category, index="category")
                 .filter(
+                    # Verified is true or a timestamp, unverified is null, false or 0
                     lambda user: (user["email"].eq(email))
-                    & (user["email_verified"].ne(None))
+                    & (user["email_verified"].eq(True) | user["email_verified"].gt(0))
+                    & (user["provider"].eq("local"))
                 )
                 .pluck("id")["id"]
                 .run(cls._rdb_connection)

@@ -1,6 +1,7 @@
 package authentication_test
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,6 +36,7 @@ func TestForgotPassword(t *testing.T) {
 		CategoryID      string
 		Email           string
 		ExpectedErr     string
+		ExpectedLog     string
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
@@ -41,7 +44,8 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
-					r.Ne(r.Row.Field("email_verified"), nil),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
 				))).Return([]interface{}{
 					map[string]interface{}{
 						"id":    "néfix imagine this is an UUID",
@@ -72,12 +76,14 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
-					r.Ne(r.Row.Field("email_verified"), nil),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
 				))).Return([]interface{}{}, nil)
 			},
 			CategoryID:  "default",
 			Email:       "nefix@example.org",
 			ExpectedErr: "user not found",
+			ExpectedLog: `"category_id":"default","email":"nefix@example.org","message":"password reset requested for an email without a verified local user"`,
 		},
 	}
 
@@ -104,12 +110,20 @@ func TestForgotPassword(t *testing.T) {
 			}
 			a.Notifier = notifier
 
+			var logs bytes.Buffer
+			logger := zerolog.New(&logs)
+			a.Log = &logger
+
 			err := a.ForgotPassword(t.Context(), tc.CategoryID, tc.Email)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
+			}
+
+			if tc.ExpectedLog != "" {
+				assert.Contains(logs.String(), tc.ExpectedLog)
 			}
 
 			mock.AssertExpectations(t)

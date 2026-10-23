@@ -165,3 +165,71 @@ func TestExistsWithVerifiedEmail(t *testing.T) {
 		})
 	}
 }
+
+func TestExistsLocalWithVerifiedEmail(t *testing.T) {
+	assert := assert.New(t)
+	now := float64(time.Now().Unix())
+
+	cases := map[string]struct {
+		PrepareTest    func(*r.Mock)
+		User           *model.User
+		ExpectedExists bool
+		ExpectedErr    string
+	}{
+		"should work as expected": {
+			PrepareTest: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"category":       "default",
+						"email":          "nefix@example.org",
+						"email_verified": now,
+					},
+				}, nil)
+			},
+			User: &model.User{
+				Category:      "default",
+				Email:         "nefix@example.org",
+				EmailVerified: &now,
+			},
+			ExpectedExists: true,
+		},
+		"should not exist if no user matches": {
+			PrepareTest: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
+					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Or(r.Eq(r.Row.Field("email_verified"), true), r.Gt(r.Row.Field("email_verified"), 0)),
+					r.Eq(r.Row.Field("provider"), "local"),
+				))).Return([]interface{}{}, nil)
+			},
+			User: &model.User{
+				Category: "default",
+				Email:    "nefix@example.org",
+			},
+			ExpectedExists: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mock := r.NewMock()
+
+			tc.PrepareTest(mock)
+
+			exists, err := tc.User.ExistsLocalWithVerifiedEmail(context.Background(), mock)
+
+			if tc.ExpectedErr == "" {
+				assert.NoError(err)
+			} else {
+				assert.EqualError(err, tc.ExpectedErr)
+			}
+
+			assert.Equal(tc.ExpectedExists, exists)
+
+			mock.AssertExpectations(t)
+		})
+	}
+}

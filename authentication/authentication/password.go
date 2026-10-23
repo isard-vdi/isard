@@ -31,12 +31,14 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 		Category: categoryID,
 		Email:    email,
 	}
-	exists, err := u.ExistsWithVerifiedEmail(ctx, a.DB)
+	exists, err := u.ExistsLocalWithVerifiedEmail(ctx, a.DB)
 	if err != nil {
 		return fmt.Errorf("check if user exists with email: %w", err)
 	}
 
 	if !exists {
+		// The caller always answers success, so this is the only trace of the request
+		a.Log.Info().Str("category_id", categoryID).Str("email", email).Msg("password reset requested for an email without a verified local user")
 		return ErrUserNotFound
 	}
 
