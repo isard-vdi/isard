@@ -358,3 +358,58 @@ class TestStatsKindOffLoop:
         assert response.status_code == 200
         assert response.json() == [{"id": "t1"}]
         assert seen["encode"] == seen["read"]
+
+
+class TestConnectedUsers:
+    URL = "/admin/item/stats/connected-users"
+
+    def test_admin_gets_users_and_sockets(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.stats.AdminStatsService.get_connected_users",
+            staticmethod(lambda: {"users": 2, "sockets": 5}),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        assert response.json() == {"users": 2, "sockets": 5}
+
+    def test_reads_the_socketio_redis(self, monkeypatch, test_client):
+        import api.services.admin.stats as service
+
+        class Redis:
+            def scan_iter(self, match, count=None):
+                assert match == "socketio:connected:*"
+                return ["socketio:connected:a", "socketio:connected:b"]
+
+            def hvals(self, key):
+                return {
+                    "socketio:connected:a": [b"u1", b"u1"],
+                    "socketio:connected:b": [b"u1", b"u2", b""],
+                }[key]
+
+        urls = []
+
+        def shared_client(url):
+            urls.append(url)
+            return Redis()
+
+        monkeypatch.setattr(service, "shared_client", shared_client)
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        assert response.json() == {"users": 2, "sockets": 5}
+        assert urls and urls[0].endswith("/3")
+
+    def test_redis_failure_is_500(self, monkeypatch, test_client):
+        def boom():
+            raise ConnectionError("redis down")
+
+        monkeypatch.setattr(
+            "api.routes.admin.stats.AdminStatsService.get_connected_users",
+            staticmethod(boom),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 500
+
+    def test_is_admin_only(self, test_client):
+        for role in ("manager", "user"):
+            response = test_client(url=self.URL, jwt=MockJWT(role_id=role))
+            assert response.status_code == 403

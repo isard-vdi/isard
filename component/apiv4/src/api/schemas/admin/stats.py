@@ -104,6 +104,16 @@ class StatsCategoriesDeploymentsResponse(BaseModel):
     categories: dict[str, int]
 
 
+# -- /admin/item/stats/connected-users --
+
+
+class StatsConnectedUsersResponse(BaseModel):
+    users: int = Field(description="Distinct users with at least one live socket")
+    sockets: int = Field(
+        description="Live Socket.IO connections, per tab and namespace"
+    )
+
+
 # -- /admin/item/stats/domains/status --
 
 

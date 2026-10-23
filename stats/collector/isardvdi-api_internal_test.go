@@ -18,9 +18,28 @@ func TestIsardVDIAPICollect(t *testing.T) {
 
 	cases := map[string]struct {
 		Hypervisors apiv4.StatsHypervisorsOKApplicationJSON
+		Connected   apiv4.StatsConnectedUsersResponse
 		Metric      string
 		Expected    string
 	}{
+		"should export the distinct connected users": {
+			Connected: apiv4.StatsConnectedUsersResponse{Users: 2, Sockets: 5},
+			Metric:    "isardvdi_isardvdi_api_connected_users",
+			Expected: `
+# HELP isardvdi_isardvdi_api_connected_users Number of distinct users with at least one live Socket.IO connection
+# TYPE isardvdi_isardvdi_api_connected_users gauge
+isardvdi_isardvdi_api_connected_users 2
+`,
+		},
+		"should export the live sockets": {
+			Connected: apiv4.StatsConnectedUsersResponse{Users: 2, Sockets: 5},
+			Metric:    "isardvdi_isardvdi_api_connected_sockets",
+			Expected: `
+# HELP isardvdi_isardvdi_api_connected_sockets Number of live Socket.IO connections, one per browser tab and namespace
+# TYPE isardvdi_isardvdi_api_connected_sockets gauge
+isardvdi_isardvdi_api_connected_sockets 5
+`,
+		},
 		"should label the desktops as desktop in the domain status": {
 			Metric: "isardvdi_isardvdi_api_domain_status",
 			Expected: `
@@ -85,6 +104,7 @@ isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason=""} 0
 			templates := apiv4.StatsTemplatesOKApplicationJSON{}
 			hypervisors := tc.Hypervisors
 			deployments := apiv4.StatsCategoriesDeploymentsResponse{}
+			connected := tc.Connected
 
 			cli := apiv4.NewMockInvoker(t)
 			cli.On("StatsUsers", ctx).Return(&users, nil)
@@ -94,6 +114,7 @@ isardvdi_isardvdi_api_hypervisor_degraded{id="h2",reason=""} 0
 			cli.On("StatsTemplates", ctx).Return(&templates, nil)
 			cli.On("StatsHypervisors", ctx).Return(&hypervisors, nil)
 			cli.On("StatsCategoriesDeployments", ctx).Return(&deployments, nil)
+			cli.On("StatsConnectedUsers", ctx).Return(&connected, nil)
 
 			a := NewIsardVDIAPI(ctx, l, cli)
 			expected := strings.NewReader(tc.Expected)

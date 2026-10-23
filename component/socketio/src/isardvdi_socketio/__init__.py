@@ -22,8 +22,11 @@ import logging
 from os import environ
 
 import isardvdi_common.helpers.log  # noqa: F401  installs the JSON root handler
+import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.helpers.socketio import SocketIO
+from isardvdi_common.helpers.token import Token
+from isardvdi_socketio.connected import Presence
 from socketio import ASGIApp, AsyncRedisManager, AsyncServer
 
 log = logging.getLogger(__name__)
@@ -65,16 +68,35 @@ socketio_server = AsyncServer(
     cors_allowed_origins=cors_allowed if cors_allowed else [],
     **async_server_kwargs,
 )
-app = ASGIApp(socketio_server, socketio_path="/socket.io")
+presence = Presence(
+    aioredis.from_url(socketio_url(), decode_responses=True, socket_connect_timeout=5)
+)
+app = ASGIApp(
+    socketio_server,
+    socketio_path="/socket.io",
+    on_startup=presence.start,
+    on_shutdown=presence.stop,
+)
+
+
+def _user_id(auth):
+    try:
+        return Token.get_token_payload((auth or {}).get("jwt")).get("user_id") or ""
+    except Exception:
+        return ""
 
 
 @socketio_server.event(namespace="*")
 async def connect(namespace, sid, environ, auth):
-    return await SocketIO(socketio_server, sid).users_connect(auth, namespace)
+    connected = await SocketIO(socketio_server, sid).users_connect(auth, namespace)
+    if connected:
+        await presence.add(sid, _user_id(auth))
+    return connected
 
 
 @socketio_server.event(namespace="*")
 async def disconnect(namespace, sid, reason):
+    await presence.remove(sid)
     return await SocketIO(socketio_server, sid).quit_users_rooms(None, namespace)
 
 

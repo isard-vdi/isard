@@ -26,6 +26,7 @@ from api import admin_router
 from api.schemas.admin.stats import (
     StatsCategoriesDeploymentsResponse,
     StatsCategoriesResponse,
+    StatsConnectedUsersResponse,
     StatsDomainsStatusResponse,
     StatsGenericResponse,
     StatsKindDesktop,
@@ -229,6 +230,33 @@ async def stats_categories_deployments(request: Request):
             request,
             "internal_server",
             "Failed to get category deployments statistics",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/item/stats/connected-users",
+    tags=[tag],
+    response_model=StatsConnectedUsersResponse,
+    summary="Get connected users and sockets",
+    description="Distinct users and Socket.IO connections live now across "
+    "every socketio process.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def stats_connected_users(request: Request):
+    try:
+        result = await asyncio.to_thread(AdminStatsService.get_connected_users)
+        return JSONResponse(
+            content=StatsConnectedUsersResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get connected users",
             traceback.format_exc(),
         )
 
