@@ -1,5 +1,6 @@
 # IsardVDI hypervisor health alert rules, from the stats-go isardvdi_api collector.
-# Unit tests live in storage_governor.test.yml, the file the CI vmalert job runs.
+# HypervisorsDegraded is tested in storage_governor.test.yml, the rest in
+# hypervisors.test.yml.
 
 groups:
   - name: hypervisor_alerts
@@ -15,3 +16,111 @@ groups:
         annotations:
           summary: "Several hypervisors are degraded at once"
           description: "{{ $value }} online hypervisors have been marked degraded by the engine for 1m, so new desktops are not placed on them. Several at once usually means a shared cause such as the storage: check the reason on the hypervisors page and the engine log."
+
+      - alert: HypervisorDegraded
+        expr: max by (id, reason) (isardvdi_isardvdi_api_hypervisor_degraded) == 1
+        for: 1m
+        labels:
+          severity: warning
+          area: hypervisors
+        annotations:
+          summary: "Hypervisor {{ $labels.id }} is degraded ({{ $labels.reason }})"
+          description: "The engine keeps new desktops off {{ $labels.id }}. Read the full reason on the hypervisors page or in GET /api/v4/admin/item/system-status, then fix that cause on the host; if it does not clear by itself, set the hypervisor to only forced while you work on it."
+
+      # A hypervisor in Error is one the engine cannot reach any more. The
+      # desktops that ran on it stay Started in the database and nothing frees
+      # them on its own.
+      - alert: HypervisorInError
+        expr: max by (id) (isardvdi_isardvdi_api_hypervisor_info{status="Error"}) > 0
+        for: 2m
+        labels:
+          severity: critical
+          area: hypervisors
+        annotations:
+          summary: "Hypervisor {{ $labels.id }} is in Error"
+          description: "The engine has lost {{ $labels.id }} for 2m. Check whether the host is powered on and reachable and bring it back. Do not delete the hypervisor yet: that does not free its desktops, which stay Started in the database until they are stopped."
+
+      # Starting a desktop takes seconds and the engine forces a stop after 90s
+      # in Shutting-down, so ten of them held in one of these states for 15m
+      # means the orders are not finishing.
+      - alert: DesktopsStuckInTransition
+        expr: sum by (status) (isardvdi_isardvdi_api_domain_status{type!="template",status=~"Starting|StartingPaused|CreatingDomain|Stopping|Shutting-down"}) >= 10
+        for: 15m
+        labels:
+          severity: warning
+          area: hypervisors
+        annotations:
+          summary: "{{ $value }} desktops have been {{ $labels.status }} for 15m"
+          description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."
+
+      # CPU time not spent idle or waiting for I/O on a host that runs isard-hypervisor: the
+      # guests themselves. I/O wait is left to HypervisorIoProblem.
+      # Divided by the cpu count: an avg over both modes counts each cpu twice.
+      - alert: HypervisorCpuElevated
+        expr: |
+          (1 - sum by (domain) (rate(node_cpu_seconds_total{mode=~"idle|iowait"}[5m])) / count by (domain) (node_cpu_seconds_total{mode="idle"}) > 0.85)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 15m
+        labels:
+          severity: warning
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} CPU is {{ $value | humanizePercentage }} busy"
+          description: "The guests on {{ $labels.domain }} have kept its CPU over 85% busy for 15m, so their desktops slow down. Check whether new desktops still land on it and whether the orchestrator should start another hypervisor."
+
+      - alert: HypervisorCpuHigh
+        expr: |
+          (1 - sum by (domain) (rate(node_cpu_seconds_total{mode=~"idle|iowait"}[5m])) / count by (domain) (node_cpu_seconds_total{mode="idle"}) > 0.95)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 10m
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} CPU is saturated ({{ $value | humanizePercentage }})"
+          description: "The CPU of {{ $labels.domain }} has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."
+
+      - alert: HypervisorMemoryLow
+        expr: |
+          (max by (domain) (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.05)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        for: 2m
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} has only {{ $value | humanizePercentage }} of its memory available"
+          description: "{{ $labels.domain }} is about to run out of memory and the kernel will start killing guests. Set it to only forced so no more desktops go to it, and check whether a burst of starts landed on it."
+
+      # increase() counts a series that first appears with a non-zero counter as new kills;
+      # the offset term keeps a new host or a restarted scrape from firing on old ones.
+      - alert: HypervisorOomKills
+        expr: |
+          (sum by (domain) (increase(node_vmstat_oom_kill[5m])) > 0)
+          and on (domain) group by (domain) (node_vmstat_oom_kill offset 5m)
+          and on (domain) group by (domain) (container_last_seen{name="isard-hypervisor"})
+        labels:
+          severity: critical
+          area: hypervisors
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} has killed processes for lack of memory"
+          description: "The kernel OOM killer ran on {{ $labels.domain }} in the last 5m, which usually kills a desktop. Set it to only forced, check which desktops stopped, and look at how many desktops it was given."
+
+      # isard-stats-go is scraped through container discovery, so when it dies its
+      # target just disappears: no up == 0, and every rule fed by it reads no data.
+      - alert: HypervisorStatsMissing
+        expr: |
+          group by (domain) (container_last_seen{name="isard-hypervisor"})
+          unless on (domain) group by (domain) (isardvdi_hypervisor_scrape_duration_success)
+        for: 10m
+        labels:
+          severity: warning
+          area: monitoring
+          scope: host
+        annotations:
+          summary: "Hypervisor {{ $labels.domain }} is sending no isard-stats-go metrics"
+          description: "{{ $labels.domain }} runs isard-hypervisor but isard-stats-go has reported nothing for 10m, so its desktop and hypervisor panels and the rules that read them are blind. Check the isard-stats-go container on that host and its log for a panic."

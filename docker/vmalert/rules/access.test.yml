@@ -1,0 +1,50 @@
+rule_files:
+  - access.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: a_user_promoted_to_manager_fires_for_one_hour
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_user_info{id="u1",role="user",category="c1",group="g1"}'
+        values: "1x60"
+      - series: 'isardvdi_isardvdi_api_user_info{id="u1",role="manager",category="c1",group="g1"}'
+        values: "_x61 1x80"
+      - series: 'isardvdi_isardvdi_api_user_info{id="m0",role="manager",category="c1",group="g1"}'
+        values: "1x150"
+    alert_rule_test:
+      - eval_time: 50m
+        groupname: access
+        alertname: NewPrivilegedRole
+        exp_alerts: []
+      - eval_time: 70m
+        groupname: access
+        alertname: NewPrivilegedRole
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: web
+              category: c1
+              role: manager
+            exp_annotations:
+              summary: "1 new manager user(s) in category c1"
+              description: "In the last hour 1 user(s) of category c1 became manager. Check in Administration, Users (role and category filters) that each one is expected; if not, take the role away and find out how it was given (a role change, a registration code or another manager)."
+      - eval_time: 130m
+        groupname: access
+        alertname: NewPrivilegedRole
+        exp_alerts: []
+
+  # Without the hour-old series every manager would look new.
+  - name: no_reference_an_hour_ago_stays_quiet
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_user_info{id="a1",role="admin",category="default",group="default-default"}'
+        values: "1x40"
+      - series: 'isardvdi_isardvdi_api_user_info{id="m1",role="manager",category="c1",group="g1"}'
+        values: "1x40"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: access
+        alertname: NewPrivilegedRole
+        exp_alerts: []

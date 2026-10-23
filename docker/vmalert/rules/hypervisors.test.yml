@@ -1,0 +1,306 @@
+rule_files:
+  - hypervisors.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: one_degraded_hypervisor_is_a_warning_not_a_crisis
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-1",reason="storage"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-2",reason=""}'
+        values: "0x5"
+    alert_rule_test:
+      - eval_time: 0m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts: []
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              id: hyp-1
+              reason: storage
+            exp_annotations:
+              summary: "Hypervisor hyp-1 is degraded (storage)"
+              description: "The engine keeps new desktops off hyp-1. Read the full reason on the hypervisors page or in GET /api/v4/admin/item/system-status, then fix that cause on the host; if it does not clear by itself, set the hypervisor to only forced while you work on it."
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorsDegraded
+        exp_alerts: []
+
+  - name: a_short_degradation_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_degraded{id="hyp-1",reason="libvirt"}'
+        values: "1 0 0 0"
+    alert_rule_test:
+      - eval_time: 2m
+        groupname: hypervisor_alerts
+        alertname: HypervisorDegraded
+        exp_alerts: []
+
+  - name: hypervisor_in_error_fires_after_two_minutes_and_online_does_not
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_hypervisor_info{id="hyp-1",status="Error",only_forced="false"}'
+        values: "1x5"
+      - series: 'isardvdi_isardvdi_api_hypervisor_info{id="hyp-2",status="Online",only_forced="false"}'
+        values: "1x5"
+    alert_rule_test:
+      - eval_time: 1m
+        groupname: hypervisor_alerts
+        alertname: HypervisorInError
+        exp_alerts: []
+      - eval_time: 3m
+        groupname: hypervisor_alerts
+        alertname: HypervisorInError
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              id: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 is in Error"
+              description: "The engine has lost hyp-1 for 2m. Check whether the host is powered on and reachable and bring it back. Do not delete the hypervisor yet: that does not free its desktops, which stay Started in the database until they are stopped."
+
+  - name: desktops_held_in_a_transition_fire_per_status
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Starting"}'
+        values: "12x20"
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Started"}'
+        values: "500x20"
+      # templates are not desktops, even in a transition state
+      - series: 'isardvdi_isardvdi_api_domain_status{type="template",status="Stopping"}'
+        values: "40x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              status: Starting
+            exp_annotations:
+              summary: "12 desktops have been Starting for 15m"
+              description: "Desktop orders are not finishing. Look in the engine log for the hypervisors those desktops are on: a degraded or lost hypervisor and a stalled storage are the usual causes, and a hypervisor in that state should go to only forced."
+
+  - name: a_busy_hypervisor_cpu_is_a_warning_then_critical
+    interval: 1m
+    input_series:
+      # 3% idle: 97% busy. node_exporter also exports iowait and system for every cpu,
+      # and they must not change the share
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+1.8x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="system"}'
+        values: "0+6x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+52.2x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+      # the same load on a host without isard-hypervisor is not a hypervisor
+      - series: 'node_cpu_seconds_total{domain="web-1",cpu="0",mode="idle"}'
+        values: "0+1.8x40"
+      - series: 'node_cpu_seconds_total{domain="web-1",cpu="0",mode="user"}'
+        values: "0+58.2x40"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 CPU is 97% busy"
+              description: "The guests on hyp-1 have kept its CPU over 85% busy for 15m, so their desktops slow down. Check whether new desktops still land on it and whether the orchestrator should start another hypervisor."
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuHigh
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 CPU is saturated (97%)"
+              description: "The CPU of hyp-1 has been over 95% busy for 10m and its desktops are starved. Set it to only forced so no more desktops go to it, and move load off it or start another hypervisor."
+
+  - name: a_hypervisor_at_75_percent_is_not_busy
+    interval: 1m
+    input_series:
+      # two cpus, each 25% idle, with their iowait series at zero: 75% busy
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+15x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+45x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="idle"}'
+        values: "0+15x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="iowait"}'
+        values: "0x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="1",mode="user"}'
+        values: "0+45x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+
+  - name: iowait_is_not_cpu_load
+    interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="idle"}'
+        values: "0+6x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="iowait"}'
+        values: "0+48x40"
+      - series: 'node_cpu_seconds_total{domain="hyp-1",cpu="0",mode="user"}'
+        values: "0+6x40"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x40"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: hypervisor_alerts
+        alertname: HypervisorCpuElevated
+        exp_alerts: []
+
+  - name: a_hypervisor_without_stats_go_metrics_fires
+    interval: 1m
+    input_series:
+      # hyp-1 loses isard-stats-go after 5m; hyp-2 keeps it; web-1 is not a hypervisor
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x30"
+      - series: 'isardvdi_hypervisor_scrape_duration_success{domain="hyp-1",hypervisor="hyp-1"}'
+        values: "1x5"
+      - series: 'container_last_seen{domain="hyp-2",name="isard-hypervisor"}'
+        values: "1x30"
+      - series: 'isardvdi_hypervisor_scrape_duration_success{domain="hyp-2",hypervisor="hyp-2"}'
+        values: "1x30"
+      - series: 'container_last_seen{domain="web-1",name="isard-apiv4"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 12m
+        groupname: hypervisor_alerts
+        alertname: HypervisorStatsMissing
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: HypervisorStatsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: monitoring
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 is sending no isard-stats-go metrics"
+              description: "hyp-1 runs isard-hypervisor but isard-stats-go has reported nothing for 10m, so its desktop and hypervisor panels and the rules that read them are blind. Check the isard-stats-go container on that host and its log for a panic."
+
+  - name: a_hypervisor_out_of_memory_fires
+    interval: 1m
+    input_series:
+      - series: 'node_memory_MemTotal_bytes{domain="hyp-1"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="hyp-1"}'
+        values: "40x4 3x15"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x20"
+      - series: 'node_memory_MemTotal_bytes{domain="hyp-2"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="hyp-2"}'
+        values: "8x20"
+      - series: 'container_last_seen{domain="hyp-2",name="isard-hypervisor"}'
+        values: "1x20"
+      # the same pressure on a host without isard-hypervisor is not a hypervisor
+      - series: 'node_memory_MemTotal_bytes{domain="web-1"}'
+        values: "100x20"
+      - series: 'node_memory_MemAvailable_bytes{domain="web-1"}'
+        values: "3x20"
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: hypervisor_alerts
+        alertname: HypervisorMemoryLow
+        exp_alerts: []
+      - eval_time: 8m
+        groupname: hypervisor_alerts
+        alertname: HypervisorMemoryLow
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 has only 3% of its memory available"
+              description: "hyp-1 is about to run out of memory and the kernel will start killing guests. Set it to only forced so no more desktops go to it, and check whether a burst of starts landed on it."
+
+  - name: an_oom_kill_on_a_hypervisor_fires_at_once
+    interval: 1m
+    input_series:
+      - series: 'node_vmstat_oom_kill{domain="hyp-1"}'
+        values: "0x5 9x20"
+      - series: 'container_last_seen{domain="hyp-1",name="isard-hypervisor"}'
+        values: "1x25"
+      # hyp-2 had kills before it was first scraped: not new ones
+      - series: 'node_vmstat_oom_kill{domain="hyp-2"}'
+        values: "2x25"
+      - series: 'container_last_seen{domain="hyp-2",name="isard-hypervisor"}'
+        values: "1x25"
+      - series: 'node_vmstat_oom_kill{domain="web-1"}'
+        values: "0x5 4x20"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts: []
+      - eval_time: 7m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: hypervisors
+              scope: host
+              domain: hyp-1
+            exp_annotations:
+              summary: "Hypervisor hyp-1 has killed processes for lack of memory"
+              description: "The kernel OOM killer ran on hyp-1 in the last 5m, which usually kills a desktop. Set it to only forced, check which desktops stopped, and look at how many desktops it was given."
+      - eval_time: 20m
+        groupname: hypervisor_alerts
+        alertname: HypervisorOomKills
+        exp_alerts: []
+
+  - name: a_burst_of_starts_that_drains_does_not_fire
+    interval: 1m
+    input_series:
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Starting"}'
+        values: "30x5 4x20"
+      - series: 'isardvdi_isardvdi_api_domain_status{type="desktop",status="Shutting-down"}'
+        values: "9x25"
+    alert_rule_test:
+      - eval_time: 25m
+        groupname: hypervisor_alerts
+        alertname: DesktopsStuckInTransition
+        exp_alerts: []

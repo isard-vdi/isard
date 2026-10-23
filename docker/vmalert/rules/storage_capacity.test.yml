@@ -1,0 +1,117 @@
+rule_files:
+  - storage_capacity.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: low_space_warns_after_fifteen_minutes
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{domain="storage-a",mountpoint="/opt/isard",fstype="xfs",device="/dev/md0"}'
+        values: "8x30"
+      - series: 'node_filesystem_size_bytes{domain="storage-a",mountpoint="/opt/isard",fstype="xfs",device="/dev/md0"}'
+        values: "100x30"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceLow
+        exp_alerts: []
+      - eval_time: 16m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: storage
+              domain: storage-a
+              mountpoint: /opt/isard
+              fstype: xfs
+              device: /dev/md0
+            exp_annotations:
+              summary: "/opt/isard on storage-a has 8% free"
+              description: "The storage under /opt/isard is below 10% free for 15m. Find what grew (new templates, media, desktops of a big deployment), empty the recycle bin or move disks to another pool before it reaches 5%, where new desktops and disk writes start to fail."
+      - eval_time: 16m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceCritical
+        exp_alerts: []
+
+  - name: very_low_space_pages_after_five_minutes
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{domain="storage-a",mountpoint="/opt/isard/storage_pools/p1",fstype="ext4",device="/dev/sdb"}'
+        values: "4x10"
+      - series: 'node_filesystem_size_bytes{domain="storage-a",mountpoint="/opt/isard/storage_pools/p1",fstype="ext4",device="/dev/sdb"}'
+        values: "100x10"
+    alert_rule_test:
+      - eval_time: 6m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceCritical
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              area: storage
+              domain: storage-a
+              mountpoint: /opt/isard/storage_pools/p1
+              fstype: ext4
+              device: /dev/sdb
+            exp_annotations:
+              summary: "/opt/isard/storage_pools/p1 on storage-a has only 4% free"
+              description: "The storage under /opt/isard/storage_pools/p1 is below 5% free: running desktops can pause on a full disk and new ones fail. Free space now (recycle bin, unused media and templates) or move disks to another pool, and stop new deployments on it until it is back above 10%."
+
+  # The hypervisors see the same pool through NFS, other paths are not pools.
+  - name: nfs_clients_and_other_mounts_are_ignored
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{domain="hyp-a",mountpoint="/opt/isard",fstype="nfs4",device="nas:/opt/isard"}'
+        values: "1x30"
+      - series: 'node_filesystem_size_bytes{domain="hyp-a",mountpoint="/opt/isard",fstype="nfs4",device="nas:/opt/isard"}'
+        values: "100x30"
+      - series: 'node_filesystem_avail_bytes{domain="hyp-a",mountpoint="/opt/isard-local",fstype="ext4",device="/dev/sda3"}'
+        values: "1x30"
+      - series: 'node_filesystem_size_bytes{domain="hyp-a",mountpoint="/opt/isard-local",fstype="ext4",device="/dev/sda3"}'
+        values: "100x30"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceLow
+        exp_alerts: []
+      - eval_time: 20m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceCritical
+        exp_alerts: []
+
+  # An all-in-one keeps /opt/isard on the root filesystem; with its own mount, / is not a pool.
+  - name: the_root_filesystem_counts_only_without_an_opt_isard_mount
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{domain="aio-a",mountpoint="/",fstype="ext4",device="/dev/sda2"}'
+        values: "7x30"
+      - series: 'node_filesystem_size_bytes{domain="aio-a",mountpoint="/",fstype="ext4",device="/dev/sda2"}'
+        values: "100x30"
+      - series: 'node_filesystem_avail_bytes{domain="storage-a",mountpoint="/",fstype="ext4",device="/dev/sda2"}'
+        values: "3x30"
+      - series: 'node_filesystem_size_bytes{domain="storage-a",mountpoint="/",fstype="ext4",device="/dev/sda2"}'
+        values: "100x30"
+      - series: 'node_filesystem_avail_bytes{domain="storage-a",mountpoint="/opt/isard",fstype="xfs",device="/dev/md0"}'
+        values: "50x30"
+      - series: 'node_filesystem_size_bytes{domain="storage-a",mountpoint="/opt/isard",fstype="xfs",device="/dev/md0"}'
+        values: "100x30"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              area: storage
+              domain: aio-a
+              mountpoint: /
+              fstype: ext4
+              device: /dev/sda2
+            exp_annotations:
+              summary: "/ on aio-a has 7% free"
+              description: "The storage under / is below 10% free for 15m. Find what grew (new templates, media, desktops of a big deployment), empty the recycle bin or move disks to another pool before it reaches 5%, where new desktops and disk writes start to fail."
+      - eval_time: 20m
+        groupname: storage_capacity
+        alertname: StoragePoolSpaceCritical
+        exp_alerts: []
