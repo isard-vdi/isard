@@ -383,7 +383,8 @@
             "title": "Eliminar despliegue"
           },
           "edit": {
-            "title": "Editar despliegue"
+            "title": "Editar despliegue",
+            "multi-desktop": "Los despliegues con varios tipos de escritorio solo se pueden editar desde la nueva interfaz"
           },
           "allowed": {
             "title": "Editar usuarios"
@@ -1726,6 +1727,7 @@
     "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
     "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
     "deployment_recreate_booking_not_enough_units": "El despliegue no puede recrearse porque no hay suficientes unidades disponibles para las reservas planeadas",
+    "deployment_multi_desktop_edit_unsupported": "Este despliegue tiene varios tipos de escritorio. Edítalo desde la nueva interfaz.",
     "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
     "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
     "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",

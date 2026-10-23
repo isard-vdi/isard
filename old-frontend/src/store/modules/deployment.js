@@ -435,6 +435,10 @@ export default {
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
+        // This form only edits single-desktop deployments
+        if (e.response?.data?.description_code === 'deployment_multi_desktop_edit_unsupported') {
+          context.dispatch('navigate', 'deployments')
+        }
       })
     },
     editDeployment (context, data) {

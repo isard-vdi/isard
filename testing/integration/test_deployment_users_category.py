@@ -14,7 +14,7 @@ from isardvdi_apiv4_client.api.role_advanced import (
     get_deployment,
 )
 from isardvdi_apiv4_client.api.role_user import get_user_allowed_templates_flat
-from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_base_input import AllowedBaseInput
 from isardvdi_apiv4_client.models.create_deployment_request import (
     CreateDeploymentRequest,
 )
@@ -61,7 +61,7 @@ def test_manager_deployment_skips_users_of_another_category(test_namespace: str)
         body=CreateDeploymentRequest(
             name=name,
             description="category isolation",
-            allowed=AllowedBase(users=[manager.user_id], groups=[FOREIGN_GROUP]),
+            allowed=AllowedBaseInput(users=[manager.user_id], groups=[FOREIGN_GROUP]),
             create_owner_desktop=False,
             visible=False,
             desktops=[

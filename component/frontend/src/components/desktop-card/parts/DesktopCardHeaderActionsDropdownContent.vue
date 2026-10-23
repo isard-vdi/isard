@@ -90,7 +90,11 @@ const actions = computed<Action[]>(() =>
         event: 'bookDesktop',
         labelKey: 'components.desktops.desktop-card.actions.book',
         icon: 'calendar-check-02',
-        when: isManageable.value && isStandalone.value && props.desktop.needs_booking === true
+        when:
+          isManageable.value &&
+          isStandalone.value &&
+          props.desktop.needs_booking === true &&
+          props.desktop.type !== 'nonpersistent'
       },
       {
         event: 'showDirectLinkModal',

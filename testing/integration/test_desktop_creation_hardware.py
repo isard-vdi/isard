@@ -87,7 +87,7 @@ from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomain
 from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
     AdminListDomainsDataKind,
 )
-from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_base_input import AllowedBaseInput
 from isardvdi_apiv4_client.models.allowed_input import AllowedInput
 from isardvdi_apiv4_client.models.api_schemas_domains_hardware_reservables import (
     ApiSchemasDomainsHardwareReservables,
@@ -394,7 +394,7 @@ def _media_then_template(
                 desktop_id=src_id,
                 name=template_name,
                 description="",
-                allowed=AllowedBase(users=False, groups=False),
+                allowed=AllowedBaseInput(users=False, groups=False),
                 enabled=True,
             ),
         )
@@ -1042,7 +1042,7 @@ def test_deployment_desktops_inherit_hardware_from_request(
             body=CreateDeploymentRequest(
                 name=dep_name,
                 description="hw-test",
-                allowed=AllowedBase(users=False, groups=["default-default"]),
+                allowed=AllowedBaseInput(users=False, groups=["default-default"]),
                 create_owner_desktop=True,
                 visible=False,
                 desktops=[

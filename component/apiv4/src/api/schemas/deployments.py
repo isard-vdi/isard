@@ -69,6 +69,22 @@ class UserList(BaseModel):
     users: list[DeploymentUser]
 
 
+class DeploymentInterface(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class DeploymentMedia(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class CreateDictHardware(Hardware):
+    interfaces: list[DeploymentInterface]
+    isos: list[DeploymentMedia] = []
+    floppies: list[DeploymentMedia] = []
+
+
 class CreateDict(BaseModel):
     """Deployment create dict model"""
 
@@ -79,6 +95,16 @@ class CreateDict(BaseModel):
     description: Optional[str]
     reservables: dict
     template: str
+
+
+class CreateDictResponse(CreateDict):
+    """Deployment create dict response model"""
+
+    hardware: CreateDictHardware
+
+    tag_desktop_id: str = Field(
+        description="Unique identifier for the desktop within the deployment.",
+    )
 
 
 class Resource(BaseModel):
@@ -510,6 +536,44 @@ class DeploymentResponse(BaseModel):
     )
 
 
+class DeploymentInfoResponse(BaseModel):
+    """Deployment base model. Imitates what can be found in the database"""
+
+    id: str = Field(
+        description="ID of the deployment",
+    )
+    name: str = Field(
+        description="Name of the deployment",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Description of the deployment",
+    )
+    image: Image = Field(
+        description="Image associated with the deployment",
+    )
+    tag_visible: bool = Field(
+        description="Indicates if the deployment is visible",
+    )
+    allowed: AllowedBase = Field(
+        description="Lists of users and groups that can access the deployment",
+    )
+    user_permissions: list[DeploymentPermissions] = Field(
+        default=[],
+        description="List of permissions the users have over their desktops in the deployment",
+    )
+    user: str = Field(
+        description="ID of the owner of the deployment",
+    )
+    co_owners: list[str] | None = Field(
+        default=None,
+        description="List of user IDs from co-owners of the deployment",
+    )
+    create_dict: list[CreateDictResponse] = Field(
+        description="List of create dicts for the deployment's desktops",
+    )
+
+
 class SharedDeploymentUser(BaseModel):
     """Owner info for a shared deployment"""
 
@@ -654,6 +718,10 @@ class UserDeploymentDesktop(BaseModel):
     server: Optional[bool] = None
     accessed: Optional[float] = None
     tag: Optional[str] = None
+    tag_desktop_id: Optional[str] = Field(
+        default=None,
+        description="Which of the deployment's desktops this one was created from.",
+    )
     visible: Optional[bool] = None
     user: Optional[str] = None
     user_name: Optional[str] = None
@@ -823,16 +891,6 @@ class DeploymentVisibilityResponse(BaseModel):
     )
 
 
-class DeploymentInterface(BaseModel):
-    id: str
-    name: Optional[str] = None
-
-
-class DeploymentMedia(BaseModel):
-    id: str
-    name: Optional[str] = None
-
-
 class DeploymentHardware(Hardware):
     interfaces: list[DeploymentInterface]
     isos: Optional[list[DeploymentMedia]] = []
@@ -859,7 +917,7 @@ class DeploymentHardwareResponse(BaseModel):
     reservable_name: list[str] | bool = False
 
 
-class DeploymentInfoResponse(BaseModel):
+class FullDeploymentInfoResponse(BaseModel):
     """Response model for ``GET /item/deployment/{id}/info``.
 
     Combines the deployment's ``create_dict[0]`` with the deployment's
@@ -882,6 +940,15 @@ class DeploymentInfoResponse(BaseModel):
     tag_name: Optional[str] = None
     tag_description: Optional[str] = None
     tag_visible: Optional[bool] = None
+
+
+class VideowallDeploymentDesktop(BaseModel):
+    """One of the desktops each user of the deployment gets."""
+
+    tag_desktop_id: Optional[str] = Field(
+        default=None, description="Matches ``tag_desktop_id`` on the desktops."
+    )
+    name: str = Field(description="Name of the desktop")
 
 
 class DeploymentVideowallResponse(BaseModel):
@@ -919,8 +986,16 @@ class DeploymentVideowallResponse(BaseModel):
     next_booking_end: Optional[datetime]
     booking_id: Optional[str | bool]
     desktops: list[UserDeploymentDesktop]  # TODO
+    deployment_desktops: list[VideowallDeploymentDesktop] = Field(
+        default=[],
+        description="The deployment's desktops, in creation order, to group the desktops by.",
+    )
     total_users: int
     desktops_each_user: int
+    desktop_names: list[str] = Field(
+        default=[],
+        description="Names of the deployment's desktop types, one per create_dict entry",
+    )
 
 
 class DeploymentRecreateCountResponse(BaseModel):

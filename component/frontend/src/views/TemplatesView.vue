@@ -8,6 +8,7 @@ import {
   getUserTemplatesOptions,
   getUserSharedTemplatesOptions,
   checkQuotaNewTemplateOptions,
+  getUserDesktopsOptions,
   updateTemplateAllowedMutation,
   getTemplateAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -15,6 +16,7 @@ import {
 import { copyToClipboard } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { canCreateAnyDesktop } from '@/lib/quotas'
+import { resolveDesktopKind } from '@/lib/desktops'
 import { useOwnershipTab } from '@/composables/useOwnershipTab'
 import { useUserStore } from '@/stores/user'
 
@@ -42,11 +44,19 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Icon } from '@/components/icon'
-import { QuotaExceededModal } from '@/components/modal'
+import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { TemplateDeleteModal } from '@/components/templates/template-delete-modal'
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
 import { TemplateToggleVisibilityModal } from '@/components/template-toggle-visibility'
+import {
+  TemplateStatusBadge,
+  TemplateStatusImage,
+  isTemplateFailed,
+  isTemplateVisible,
+  templateRowCellClass,
+  templateStatus
+} from '@/components/template-status'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -54,7 +64,6 @@ import { toast } from '@/components/ui/toast'
 import { DomainInfoModal } from '@/components/desktops'
 import { getTemplateDetails } from '@/gen/oas/apiv4/'
 import type { UserSharedTemplate } from '@/gen/oas/apiv4'
-import DomainImage from '@/components/domain/DomainImage.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -80,9 +89,6 @@ const activeTemplateFilterCount = computed(() => countFilterTags(templateFilterT
 const clearTemplateFilters = () => {
   templateFilterTags.value = emptyFilterTags(TEMPLATE_FILTER_CATEGORIES)
 }
-
-// Legacy rows come back without the field and are visible.
-const isTemplateVisible = (template: { enabled?: boolean }) => template.enabled !== false
 
 const templateFilterCategories = computed<FilterCategory[]>(() => {
   const templates = userTemplates.value?.templates ?? []
@@ -231,6 +237,7 @@ const quotaExceededModalData = ref<{
 } | null>(null)
 const templateCreationCheckIsPending = ref(false)
 const desktopCreationCheckIsPending = ref(false)
+const noDesktopsModalOpen = ref(false)
 
 const handleWithTemplateQuotaCheck = async (callback: () => void) => {
   templateCreationCheckIsPending.value = true
@@ -251,6 +258,22 @@ const handleWithTemplateQuotaCheck = async (callback: () => void) => {
   }
 }
 
+const goToNewTemplate = () =>
+  handleWithTemplateQuotaCheck(async () => {
+    templateCreationCheckIsPending.value = true
+    // A failed fetch is left to the form, which shows its own loading error.
+    const hasTemplateSource = await queryClient
+      .fetchQuery(getUserDesktopsOptions())
+      .then(({ desktops }) => desktops.some((d) => resolveDesktopKind(d) === 'persistent'))
+      .catch(() => true)
+    templateCreationCheckIsPending.value = false
+    if (!hasTemplateSource) {
+      noDesktopsModalOpen.value = true
+      return
+    }
+    router.push({ name: 'new-template' })
+  })
+
 const handleWithDesktopQuotaCheck = async (callback: () => void) => {
   desktopCreationCheckIsPending.value = true
   if (await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false)) {
@@ -261,7 +284,7 @@ const handleWithDesktopQuotaCheck = async (callback: () => void) => {
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
       description: t('components.desktops.quota-exceeded-modal.description'),
-      cancelLabel: t('components.desktops.quota-exceeded-modal.cancel')
+      cancelLabel: t('components.templates.quota-exceeded-modal.cancel')
     }
   }
 }
@@ -326,7 +349,9 @@ const handleSaveAllowed = (selection: AllowedSelection) => {
   updateTemplateAllowed({ path: { template_id: templateId }, body: selection })
 }
 
-const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
+const isFailed = isTemplateFailed
+const rowStatus = (row: Record<string, unknown>) => templateStatus(row, activeTab.value === 'user')
+const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowStatus(row))
 </script>
 
 <template>
@@ -339,6 +364,32 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :cancel-to="{ name: 'templates' }"
     @close="quotaExceededModalData = null"
   />
+
+  <AlertModal
+    :open="noDesktopsModalOpen"
+    level="warning"
+    size="md"
+    :title="t('components.empty.template-sources.title')"
+    :description="t('components.empty.template-sources.description')"
+    @close="noDesktopsModalOpen = false"
+  >
+    <template #footer>
+      <Button hierarchy="link-gray" @click="noDesktopsModalOpen = false">
+        {{ t('components.templates.no-desktops-modal.cancel') }}
+      </Button>
+      <Button
+        icon="plus"
+        @click="
+          () => {
+            noDesktopsModalOpen = false
+            handleWithDesktopQuotaCheck(() => router.push({ name: 'new-desktop' }))
+          }
+        "
+      >
+        {{ t('components.templates.no-desktops-modal.new-desktop') }}
+      </Button>
+    </template>
+  </AlertModal>
 
   <AllowedModal
     v-if="allowedModalData"
@@ -448,7 +499,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             'motion-safe:animate-[spin_2s_linear_infinite]': templateCreationCheckIsPending
           }"
           :disabled="templateCreationCheckIsPending"
-          @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+          @click="goToNewTemplate"
           >{{ t('views.templates.new-template') }}</Button
         >
       </template>
@@ -461,6 +512,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       :total-rows="totalTemplates"
       :loading="templatesArePending"
       :is-clickable="false"
+      :row-cell-class="rowCellClass"
       hide-toolbar
     >
       <template #empty="{ variant }">
@@ -480,7 +532,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
               }"
               :disabled="templateCreationCheckIsPending"
               size="lg"
-              @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+              @click="goToNewTemplate"
               >{{ t('views.templates.new-template') }}</Button
             >
           </template>
@@ -488,60 +540,23 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
       </template>
 
       <template #cell-image="{ row }">
-        <div class="relative">
-          <DomainImage
-            :image-url="row.image.url"
-            variant="compact"
-            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'grayscale opacity-40': isFailed(row) }]"
-          >
-            <ContextMenu>
-              <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
-              </ContextMenuTrigger>
-              <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
-                <ContextMenuItem @click="copyToClipboard(row.id)">{{
-                  t('components.templates.datatable.debug-options.copy-id')
-                }}</ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          </DomainImage>
-
-          <Tooltip v-if="isFailed(row)">
-            <TooltipTrigger as-child>
-              <div
-                aria-hidden="true"
-                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
-              >
-                <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent :title="t('views.templates.table.failed-message')" />
-          </Tooltip>
-        </div>
+        <TemplateStatusImage :image-url="row.image.url" :status="rowStatus(row)">
+          <ContextMenu>
+            <ContextMenuTrigger class="absolute top-0 bottom-0 left-0 w-1/4 rounded-l-2xl">
+            </ContextMenuTrigger>
+            <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
+              <ContextMenuItem @click="copyToClipboard(row.id)">{{
+                t('components.templates.datatable.debug-options.copy-id')
+              }}</ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </TemplateStatusImage>
       </template>
 
       <template #cell-name="{ row }">
         <div class="flex flex-col">
           <p class="text-sm font-semibold text-gray-warm-900 truncate">{{ row.name }}</p>
-          <template v-if="isFailed(row)">
-            <Tooltip :delay-duration="200">
-              <TooltipTrigger as-child>
-                <div
-                  class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
-                >
-                  <span aria-hidden="true" class="contents">
-                    <Icon
-                      name="info-circle"
-                      class="size-3.5 shrink-0"
-                      stroke-color="currentColor"
-                    />
-                  </span>
-                  <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent :title="t('views.templates.table.failed-message')" />
-            </Tooltip>
-            <span class="sr-only">{{ t('views.templates.table.failed-message') }}</span>
-          </template>
+          <TemplateStatusBadge v-if="rowStatus(row)" :status="rowStatus(row)!" />
         </div>
       </template>
 
@@ -582,20 +597,24 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             <TooltipTrigger as-child>
               <Button
                 hierarchy="secondary-gray"
-                :icon="row.enabled ? 'eye' : 'eye-off'"
+                :icon="isTemplateVisible(row) ? 'eye' : 'eye-off'"
                 class="aspect-square p-[10px]"
-                :aria-label="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+                :aria-label="
+                  t(`views.templates.table.actions.${isTemplateVisible(row) ? 'hide' : 'show'}`)
+                "
                 @click="
                   visibilityModalData = {
                     id: row.id,
                     name: row.name,
-                    action: row.enabled ? 'hide' : 'show'
+                    action: isTemplateVisible(row) ? 'hide' : 'show'
                   }
                 "
               />
             </TooltipTrigger>
             <TooltipContent
-              :title="t(`views.templates.table.actions.${row.enabled ? 'hide' : 'show'}`)"
+              :title="
+                t(`views.templates.table.actions.${isTemplateVisible(row) ? 'hide' : 'show'}`)
+              "
             />
           </Tooltip>
 

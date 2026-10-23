@@ -77,8 +77,12 @@ const fallback = computed(() => {
       <AvatarFallback>{{ fallback }}</AvatarFallback>
     </Avatar>
     <div>
-      <span :class="cn('block', sizes[props.size].name, props.nameClass)">{{ props.name }}</span>
-      <span :class="cn('block', sizes[props.size].sub)">{{ props.sub }}</span>
+      <span :class="cn('block', sizes[props.size].name, props.nameClass)">
+        <slot name="name">{{ props.name }}</slot>
+      </span>
+      <span :class="cn('block', sizes[props.size].sub)">
+        <slot name="sub">{{ props.sub }}</slot>
+      </span>
     </div>
   </div>
 </template>

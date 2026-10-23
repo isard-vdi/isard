@@ -1,4 +1,4 @@
-import type { InjectionKey } from 'vue'
+import type { InjectionKey, Ref } from 'vue'
 import { cva } from 'class-variance-authority'
 
 // --- Component exports ---
@@ -28,6 +28,11 @@ export type CardSize = (typeof cardSizes)[number]
 export type OverlayKind = 'info' | 'networks' | 'bastion'
 
 export const CARD_SIZE_INJECTION_KEY = Symbol('cardSize') as InjectionKey<CardSize>
+
+/** True while something covers the cards; a page providing it replaces their viewport observer. */
+export const PREVIEWS_PAUSED_INJECTION_KEY = Symbol('previewsPaused') as InjectionKey<
+  Readonly<Ref<boolean>>
+>
 
 // --- Header icon buttons ---
 

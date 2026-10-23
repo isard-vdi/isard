@@ -11,6 +11,7 @@ import {
   desktopActionsData,
   DesktopActionsEnum,
   desktopNotificationText,
+  desktopHasReservables,
   desktopNeedsBooking as checkDesktopNeedsBooking
 } from '@/lib/desktops'
 
@@ -115,7 +116,8 @@ const mainButtonData = computed(() => {
     props.desktop.status,
     desktopNeedsBooking.value,
     false,
-    props.desktop.type !== 'nonpersistent'
+    props.desktop.type !== 'nonpersistent',
+    desktopHasReservables(props.desktop)
   )
 })
 
@@ -176,6 +178,7 @@ const desktopKind = computed(() => {
     </template>
 
     <template #header-actions>
+      <slot name="header-actions" />
       <DesktopCardHeaderActions
         :desktop="desktop"
         :active-overlay="activeOverlay"

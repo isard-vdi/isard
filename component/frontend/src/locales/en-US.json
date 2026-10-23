@@ -85,6 +85,10 @@
       "new": {
         "title": "New Deployment",
         "subtitle": "Create a new deployment by selecting the desktops you want to include in it"
+      },
+      "edit": {
+        "title": "Edit Deployment",
+        "subtitle": "Edit a deployment modifying its information and desktops"
       }
     },
     "deployment": {
@@ -440,7 +444,9 @@
           "info": "Information"
         },
         "failed-badge": "Failed template",
-        "failed-message": "This template failed and can't be used to create desktops or deployments"
+        "failed-message": "This template failed and can't be used to create desktops or deployments",
+        "hidden-badge": "Hidden template",
+        "hidden-message": "This template is hidden: other users can't create desktops from it"
       }
     },
     "new-template": {
@@ -918,14 +924,90 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "desktop": {
+          "label": "Desktops"
+        },
+        "status": {
+          "label": "Status",
+          "started": "Started",
+          "stopped": "Stopped"
+        }
+      },
       "gpu-warning": "Videowall does not work with RDP viewers",
-      "desktop-not-available": "Desktop not available",
-      "filter-placeholder": "Filter by user",
-      "only-started": "Only started",
-      "back-to-deployment": "Back to deployment",
+      "review": {
+        "all": "View live screens",
+        "filtered": "View {n} filtered screen | View {n} filtered screens",
+        "filtered-hint": "Open the screens of the filtered desktops at once to keep an eye on them; view only",
+        "all-hint": "Open every screen at once to keep an eye on them; view only"
+      },
+      "viewer": {
+        "previous": "Previous desktop",
+        "next": "Next desktop",
+        "position": "{current} of {total}",
+        "pick": "Go to a desktop",
+        "not-found": "No desktops found",
+        "connecting": "Connecting to the desktop…",
+        "fullscreen": {
+          "enter": "Full screen",
+          "exit": "Exit full screen"
+        },
+        "layout": {
+          "mosaic": "Mosaic",
+          "single": "Single",
+          "to-mosaic": "Mosaic: every desktop at once, view only",
+          "to-single": "Single: one desktop, large, to view or control it"
+        },
+        "density": {
+          "label": "Tile size",
+          "lg": "Large tiles",
+          "md": "Medium tiles",
+          "sm": "Small tiles"
+        },
+        "mosaic": {
+          "title": "{n} desktop | {n} desktops",
+          "control-disabled": "The mosaic is view only: click a desktop to control it"
+        },
+        "filtered": {
+          "label": "Filtered:",
+          "showing": "showing {shown} of {total}",
+          "clear": "Show all"
+        },
+        "mode": {
+          "label": "Viewer mode",
+          "view": "View",
+          "control": "Control",
+          "view-hint": "Watch only: keyboard and mouse don't reach the desktop",
+          "control-hint": "Use the keyboard and mouse on the user's desktop",
+          "view-notice": "View mode: keyboard and mouse don't reach the desktop",
+          "control-notice": "Control mode: you are using the user's desktop"
+        },
+        "pinned": {
+          "pin": "Pin to the side to keep watching it",
+          "badge": "Pinned",
+          "notice": "Pinned to the side",
+          "unpin": "Unpin",
+          "limit": "You can pin up to {max} desktops",
+          "title": "Pinned ({count})",
+          "on-screen": "On screen",
+          "collapse": "Collapse pinned",
+          "expand": "Show pinned"
+        }
+      },
+      "filter-placeholder": "Filter by user or desktop",
       "view": {
-        "grid": "Grid view",
-        "single": "Full view"
+        "cards": "Card view",
+        "table": "Table view"
+      },
+      "group-by": {
+        "label": "Group by",
+        "user": "Group by user",
+        "desktop": "Group by desktop"
+      },
+      "group-count": "{n} desktop | {n} desktops",
+      "group-status": {
+        "started": "{n} started",
+        "failed": "{n} failed"
       }
     },
     "shared-deployments": {
@@ -1067,6 +1149,11 @@
       "success": {
         "message": "Password changed successfully.",
         "redirecting": "Redirecting to login in {seconds} second(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Save Changes"
       }
     },
     "deployment-visibility": {
@@ -1440,6 +1527,10 @@
         "cancel": "Go back to templates",
         "go-to-profile": "Check your quota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancel",
+        "new-desktop": "New desktop"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copy Template ID"
@@ -1603,7 +1694,25 @@
           "unavailable": "No vGPU available for your user",
           "hint": "Maximum of {max} vGPU profiles per desktop.",
           "numaSameSocket": "Same NUMA socket possible (node {node}): the cards can share a socket, best memory bandwidth.",
-          "numaDiffSocket": "Different NUMA sockets: the desktop still starts, but cross-socket memory access is slower."
+          "numaDiffSocket": "Different NUMA sockets: the desktop still starts, but cross-socket memory access is slower.",
+          "booking": {
+            "end-time": {
+              "label": "End time",
+              "placeholder": "Select until when it will be used",
+              "hint": "The GPU is booked from now on. Latest end: {time}.",
+              "too-late": "This end time is no longer available. Pick an earlier one."
+            },
+            "unavailable-now": "Not available right now",
+            "selected-unavailable": "{names} is not available right now. Remove it or pick another profile. | {names} are not available right now. Remove them or pick other profiles.",
+            "none-available": {
+              "title": "No GPU is available right now",
+              "description": "No GPU profile has a free slot at the moment. Remove the GPU to create the desktop without it, or create a persistent desktop and book it for later."
+            },
+            "failed": {
+              "title": "Couldn't check GPU availability",
+              "description": "Try again in a moment, or remove the GPU to create the desktop without it."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -2189,6 +2298,7 @@
           "book": "Book",
           "bastion": "Bastion",
           "bastion-access": "Bastion access (HTTP / HTTPS / SSH)",
+          "expand": "Expand",
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
@@ -2463,9 +2573,11 @@
       },
       "data-table": {
         "headers": {
+          "user": "User",
           "name": "Name",
           "description": "Description",
           "status": "Status",
+          "accessed": "Last access",
           "actions": "Actions",
           "viewers": "Viewers"
         }
@@ -2668,11 +2780,15 @@
         "alloweds": {
           "title": "Allowed Groups and Users",
           "subtitle": "This deployment will be shared with {groups} and {users}.",
+          "subtitle-groups": "This deployment will be shared with {groups}.",
+          "subtitle-users": "This deployment will be shared with {users}.",
+          "subtitle-nobody": "This deployment is not shared with anyone yet.",
           "fields": {
             "alloweds": {
               "button": "Manage users and groups"
             }
-          }
+          },
+          "required": "A deployment must be shared with at least one group or user."
         },
         "other-options": {
           "title": "Other options",
@@ -2727,6 +2843,10 @@
             "button": "Edit hardware and access configuration"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Missing required fields",
+        "desktop": "Desktop {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Delete desktop '{desktop-name}' from deployment",
@@ -3064,10 +3184,6 @@
           "title": "No storage pool available",
           "description": "There is no storage pool available to create the desktop. Please contact an administrator or try again later."
         },
-        "temporal_new_reservable": {
-          "title": "Temporal desktops cannot have reservables",
-          "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Desktop start quota exceeded",
           "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to create this one."
@@ -3087,6 +3203,22 @@
         "template_storage_not_ready": {
           "title": "Template disk not ready",
           "description": "This template's disk is not ready, so no desktop can be created from it. Please contact the administrator."
+        },
+        "booking_does_not_fit_date": {
+          "title": "The GPU booking no longer fits",
+          "description": "The availability changed while you were choosing. Try again and pick an earlier end time."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Maximum bookings reached",
+          "description": "You have reached the maximum number of bookings. Delete a booking before creating a desktop with a GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "The GPU needs an end time",
+          "description": "A temporary desktop with a GPU is booked when it is created. Try again and select until when it will be used."
+        },
+        "booking_exceeds_max_time": {
+          "title": "The GPU booking is too long",
+          "description": "The end time exceeds the maximum time you may book the GPU for. Pick an earlier one."
         }
       }
     },
@@ -3183,7 +3315,17 @@
         "service_temporarily_unavailable": "The service is temporarily unavailable. Please try again in a few minutes.",
         "generic": "The desktop could not be started. Please try again.",
         "desktop_storage_not_ready": "The desktop's disk is not ready yet. Wait a few minutes and try again.",
-        "storage_not_found": "The desktop's disk could not be found. Contact your administrator."
+        "storage_not_found": "The desktop's disk could not be found. Contact your administrator.",
+        "deployment_start_user_quota_exceeded": "The deployment has reached its maximum of running desktops. Stop one to start another.",
+        "desktop_start_group_limit_exceeded": "The group has reached its limit of running desktops.",
+        "desktop_start_group_memory_limit_exceeded": "The group has reached its running memory limit.",
+        "desktop_start_group_vcpu_limit_exceeded": "The group has reached its running vCPU limit.",
+        "no_storage_pool_available": "System resources are not available right now. Please try again later."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "The desktop could not be stopped. Please try again."
       }
     },
     "extend-desktop": {
@@ -3235,7 +3377,8 @@
         "booking_max_items_exceeded": "You've exceeded the user maximum bookings",
         "booking_desktop_delete_stop": "The desktop must be stopped to delete this booking",
         "booking_deployment_delete_stop": "The deployment must be stopped to delete this booking",
-        "not_found": "Booking not found"
+        "not_found": "Booking not found",
+        "booking_exceeds_max_time": "You can't book the GPU for that long. Pick an earlier end time."
       }
     },
     "planning": {
@@ -3250,6 +3393,34 @@
         "reservable_item_not_found": "The reservable item was not found",
         "no_available_profile": "No available profile for this item",
         "not_found": "Plan not found"
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error updating deployment",
+          "description": "There was an error while updating your deployment, please try again."
+        },
+        "deployment_stop": {
+          "title": "The deployment's desktops must be stopped",
+          "description": "The deployment cannot be edited while any of its desktops is running. Stop them and try again."
+        },
+        "new_desktop_name_exists": {
+          "title": "One or more users have a desktop with this name",
+          "description": "The following users already have a desktop with the name {desktop_name}. Please choose a different name."
+        },
+        "duplicated_name": {
+          "title": "Deployment name already exists",
+          "description": "A deployment with the name {deployment_name} already exists. Please choose a different name."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Desktop reservables are not equal",
+          "description": "All desktops with reservables in a deployment must have the same reservables assigned. Please make sure all desktops with reservables have the same reservables assigned and try again."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "vGPU profiles must be of the same model",
+          "description": "All desktops with vGPU profiles in a deployment must have the same model. Please make sure all desktops with vGPU profiles have the same model and try again."
+        }
       }
     }
   },

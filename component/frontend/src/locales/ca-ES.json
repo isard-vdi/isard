@@ -77,6 +77,10 @@
       "new": {
         "title": "Nou Desplegament",
         "subtitle": "Crea un nou desplegament seleccionant els escriptoris que vols incloure-hi"
+      },
+      "edit": {
+        "title": "Editar Desplegament",
+        "subtitle": "Edita un desplegament modificant la seva informació i escriptoris"
       }
     },
     "deployment": {
@@ -432,7 +436,9 @@
           "info": "Informació"
         },
         "failed-badge": "Plantilla amb errors",
-        "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments"
+        "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments",
+        "hidden-badge": "Plantilla amagada",
+        "hidden-message": "Aquesta plantilla està amagada: altres usuaris no poden crear escriptoris a partir d'ella"
       }
     },
     "new-template": {
@@ -910,14 +916,90 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "desktop": {
+          "label": "Escriptoris"
+        },
+        "status": {
+          "label": "Estat",
+          "started": "Iniciats",
+          "stopped": "Aturats"
+        }
+      },
       "gpu-warning": "El videowall no funciona amb visors RDP",
-      "desktop-not-available": "Escriptori no disponible",
-      "filter-placeholder": "Filtra per usuari",
-      "only-started": "Només iniciats",
-      "back-to-deployment": "Torna al desplegament",
+      "review": {
+        "all": "Mostra les pantalles en directe",
+        "filtered": "Mostra {n} pantalla filtrada | Mostra {n} pantalles filtrades",
+        "filtered-hint": "Obre alhora les pantalles dels escriptoris filtrats per vigilar-les; només visualització",
+        "all-hint": "Obre totes les pantalles alhora per vigilar-les; només visualització"
+      },
+      "viewer": {
+        "previous": "Escriptori anterior",
+        "next": "Escriptori següent",
+        "position": "{current} de {total}",
+        "pick": "Ves a un escriptori",
+        "not-found": "No s'han trobat escriptoris",
+        "connecting": "Connectant amb l'escriptori…",
+        "fullscreen": {
+          "enter": "Pantalla completa",
+          "exit": "Surt de la pantalla completa"
+        },
+        "layout": {
+          "mosaic": "Mosaic",
+          "single": "Individual",
+          "to-mosaic": "Mostra en mosaic: tots els escriptoris alhora, només visualització",
+          "to-single": "Mostra individual: un escriptori en gran, per veure'l o controlar-lo"
+        },
+        "density": {
+          "label": "Mida de les caselles",
+          "lg": "Caselles grans",
+          "md": "Caselles mitjanes",
+          "sm": "Caselles petites"
+        },
+        "mosaic": {
+          "title": "{n} escriptori | {n} escriptoris",
+          "control-disabled": "En mosaic només es pot veure: fes clic en un escriptori per controlar-lo"
+        },
+        "filtered": {
+          "label": "Filtrat:",
+          "showing": "es mostren {shown} de {total}",
+          "clear": "Mostra-les totes"
+        },
+        "mode": {
+          "label": "Mode del visor",
+          "view": "Veure",
+          "control": "Controlar",
+          "view-hint": "Només mirar: el teclat i el ratolí no arriben a l'escriptori",
+          "control-hint": "Fer servir el teclat i el ratolí a l'escriptori de l'usuari",
+          "view-notice": "Mode veure: el teclat i el ratolí no arriben a l'escriptori",
+          "control-notice": "Mode control: estàs fent servir l'escriptori de l'usuari"
+        },
+        "pinned": {
+          "pin": "Fixa al lateral per continuar veient-lo",
+          "badge": "Fixat",
+          "notice": "Fixat al lateral",
+          "unpin": "Treu de fixats",
+          "limit": "Pots fixar fins a {max} escriptoris",
+          "title": "Fixats ({count})",
+          "on-screen": "En pantalla",
+          "collapse": "Plega els fixats",
+          "expand": "Mostra els fixats"
+        }
+      },
+      "filter-placeholder": "Filtra per usuari o escriptori",
       "view": {
-        "grid": "Vista en graella",
-        "single": "Vista completa"
+        "cards": "Vista de targetes",
+        "table": "Vista de taula"
+      },
+      "group-by": {
+        "label": "Agrupa per",
+        "user": "Agrupa per usuari",
+        "desktop": "Agrupa per escriptori"
+      },
+      "group-count": "{n} escriptori | {n} escriptoris",
+      "group-status": {
+        "started": "{n} iniciat | {n} iniciats",
+        "failed": "{n} fallit | {n} fallits"
       }
     },
     "shared-deployments": {
@@ -1067,6 +1149,11 @@
       "success": {
         "message": "Contrasenya canviada amb èxit.",
         "redirecting": "Redirigint a l'inici de sessió en {seconds} segon(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Desa els canvis"
       }
     },
     "deployment-visibility": {
@@ -1478,6 +1565,7 @@
           "advanced-options": "Opcions avançades",
           "reset": "Reinicia",
           "bastion-access": "Accés pel bastió (HTTP / HTTPS / SSH)",
+          "expand": "Amplia",
           "networks": "Xarxes"
         },
         "debug-options": {
@@ -1723,9 +1811,11 @@
       },
       "data-table": {
         "headers": {
+          "user": "Usuari",
           "name": "Nom",
           "description": "Descripció",
           "status": "Estat",
+          "accessed": "Últim accés",
           "actions": "Accions",
           "viewers": "Visors"
         }
@@ -2233,6 +2323,10 @@
         "cancel": "Torna a les plantilles",
         "go-to-profile": "Comprova la teva quota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancel·la",
+        "new-desktop": "Escriptori nou"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copia l'ID de la plantilla"
@@ -2396,7 +2490,25 @@
           "unavailable": "No hi ha cap vGPU disponible per al teu usuari",
           "hint": "Màxim {max} perfils de vGPU per escriptori.",
           "numaSameSocket": "Mateix sòcol NUMA possible (node {node}): les targetes poden compartir sòcol, millor ample de banda de memòria.",
-          "numaDiffSocket": "Sòcols NUMA diferents: l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent."
+          "numaDiffSocket": "Sòcols NUMA diferents: l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent.",
+          "booking": {
+            "end-time": {
+              "label": "Hora de finalització",
+              "placeholder": "Selecciona fins quan es farà servir",
+              "hint": "La GPU es reserva des d'ara. Fi màxima: {time}.",
+              "too-late": "Aquesta hora de fi ja no està disponible. Tria'n una d'anterior."
+            },
+            "unavailable-now": "No disponible ara",
+            "selected-unavailable": "{names} no està disponible ara. Treu-lo o tria un altre perfil. | {names} no estan disponibles ara. Treu-los o tria altres perfils.",
+            "none-available": {
+              "title": "No hi ha cap GPU disponible ara",
+              "description": "Cap perfil de GPU té places lliures en aquest moment. Treu la GPU per crear l'escriptori sense, o crea un escriptori persistent i reserva'l per a més tard."
+            },
+            "failed": {
+              "title": "No s'ha pogut comprovar la disponibilitat de GPU",
+              "description": "Torna-ho a provar d'aquí a una estona, o treu la GPU per crear l'escriptori sense."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Maquinari",
@@ -2577,11 +2689,15 @@
         "alloweds": {
           "title": "Grups i Usuaris permesos",
           "subtitle": "Aquest desplegament es compartirà amb {groups} i {users}.",
+          "subtitle-groups": "Aquest desplegament es compartirà amb {groups}.",
+          "subtitle-users": "Aquest desplegament es compartirà amb {users}.",
+          "subtitle-nobody": "Aquest desplegament encara no es comparteix amb ningú.",
           "fields": {
             "alloweds": {
               "button": "Gestiona usuaris i grups"
             }
-          }
+          },
+          "required": "Un desplegament s'ha de compartir com a mínim amb un grup o un usuari."
         },
         "other-options": {
           "title": "Altres opcions del desplegament",
@@ -2636,6 +2752,10 @@
             "button": "Edita la configuració del maquinari i accés"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Falten camps obligatoris",
+        "desktop": "Escriptori {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Esborra l'escriptori '{desktop-name}' del desplegament",
@@ -3062,10 +3182,6 @@
           "title": "No hi ha emmagatzematge disponible",
           "description": "No hi ha emmagatzematge disponible per crear l'escriptori. Contacta amb un administrador o torna-ho a provar més tard."
         },
-        "temporal_new_reservable": {
-          "title": "Els escriptoris temporals no poden tenir reservables",
-          "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Quota d'inici d'escriptoris superada",
           "description": "Has arribat al nombre màxim d'escriptoris en marxa. N'has d'aturar un per poder crear aquest."
@@ -3085,6 +3201,22 @@
         "template_storage_not_ready": {
           "title": "El disc de la plantilla no està a punt",
           "description": "El disc d'aquesta plantilla no està a punt i, per tant, no se'n pot crear cap escriptori. Si us plau, contacta amb l'administrador."
+        },
+        "booking_does_not_fit_date": {
+          "title": "La reserva de GPU ja no hi cap",
+          "description": "La disponibilitat ha canviat mentre triaves. Torna-ho a provar i selecciona una hora de fi anterior."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Has arribat al màxim de reserves",
+          "description": "Has arribat al nombre màxim de reserves. Esborra una reserva abans de crear un escriptori amb GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "La GPU necessita una hora de fi",
+          "description": "Un escriptori temporal amb GPU es reserva en crear-lo. Torna-ho a provar i selecciona fins quan es farà servir."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU és massa llarga",
+          "description": "L'hora de fi supera el temps màxim que pots reservar la GPU. Tria'n una d'anterior."
         }
       }
     },
@@ -3165,7 +3297,8 @@
         "booking_max_items_exceeded": "Has superat el màxim de reserves de l'usuari",
         "conflict": "La reserva no encaixa en la data sol·licitada",
         "generic": "S'ha produït un error",
-        "not_found": "Reserva no trobada"
+        "not_found": "Reserva no trobada",
+        "booking_exceeds_max_time": "No pots reservar la GPU durant tant de temps. Tria una hora de fi anterior."
       }
     },
     "loading": "S'està carregant...",
@@ -3223,7 +3356,17 @@
         "service_temporarily_unavailable": "El servei no està disponible temporalment. Torna-ho a provar d'aquí a uns minuts.",
         "generic": "No s'ha pogut iniciar l'escriptori. Torna-ho a provar.",
         "desktop_storage_not_ready": "El disc de l'escriptori encara no està a punt. Espera uns minuts i torna-ho a provar.",
-        "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador."
+        "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador.",
+        "deployment_start_user_quota_exceeded": "S'ha arribat al màxim d'escriptoris en execució del desplegament. Atura'n algun per iniciar-ne un altre.",
+        "desktop_start_group_limit_exceeded": "El grup ha arribat al seu límit d'escriptoris en execució.",
+        "desktop_start_group_memory_limit_exceeded": "El grup ha arribat al seu límit de memòria en execució.",
+        "desktop_start_group_vcpu_limit_exceeded": "El grup ha arribat al seu límit de vCPU en execució.",
+        "no_storage_pool_available": "Els recursos del sistema no estan disponibles. Torna-ho a provar més tard."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "No s'ha pogut aturar l'escriptori. Torna-ho a provar."
       }
     },
     "extend-desktop": {
@@ -3250,6 +3393,34 @@
         "generic": "No s'ha pogut comprovar la recreació del desplegament. Torna-ho a provar.",
         "not_found": "No s'ha trobat el desplegament.",
         "deployment_recreate_booking_not_enough_units": "La reserva futura del desplegament no té prou unitats per als escriptoris que crearia la recreació."
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error en editar el desplegament",
+          "description": "Hi ha hagut un error en editar el desplegament. Si us plau, torna-ho a provar mes tard."
+        },
+        "deployment_stop": {
+          "title": "Els escriptoris del desplegament han d'estar aturats",
+          "description": "El desplegament no es pot editar mentre algun dels seus escriptoris estigui en marxa. Atura'ls i torna-ho a provar."
+        },
+        "new_desktop_name_exists": {
+          "title": "Un o més usuaris tenen un escriptori amb aquest nom",
+          "description": "Els següents usuaris ja tenen un escriptori amb el nom {desktop_name}. Si us plau, tria un nom diferent."
+        },
+        "duplicated_name": {
+          "title": "El nom del desplegament ja existeix",
+          "description": "Ja existeix un desplegament amb el nom {deployment_name}. Si us plau, tria un nom diferent."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Els reservables dels escriptoris no son iguals",
+          "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "Els perfils vGPU han de ser del mateix model",
+          "description": "Tots els escriptoris amb perfils vGPU en un desplegament han de tenir el mateix model. Si us plau, assegura't que tots els escriptoris amb perfils vGPU tinguin el mateix model i torna-ho a provar."
+        }
       }
     }
   },

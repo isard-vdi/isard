@@ -4631,14 +4631,13 @@ password:s:%s"""
             try:
                 deployments = list(r.table(table).run(self.conn))
                 for deployment in deployments:
-                    tag_desktop_id = str(uuid4())
                     update_data = {}
                     # Add tag_desktop_id to each create_dict entry
                     if isinstance(deployment.get("create_dict"), list):
                         new_create_dict = []
                         for cd in deployment["create_dict"]:
                             if "tag_desktop_id" not in cd:
-                                cd["tag_desktop_id"] = tag_desktop_id
+                                cd["tag_desktop_id"] = str(uuid4())
                             new_create_dict.append(cd)
                         update_data["create_dict"] = new_create_dict
                     # Add image at deployment root if missing

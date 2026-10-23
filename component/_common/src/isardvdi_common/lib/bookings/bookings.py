@@ -42,6 +42,7 @@ from isardvdi_common.lib.bookings.reservables_planner_compute import (
 )
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
 
 _get_cached_desktop_bookings_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=200, ttl=5
@@ -124,6 +125,36 @@ class BookingsProcessed(RethinkSharedConnection):
             item_type, item_id
         )
         return ReservablesPlannerCompute.min_profile_priority(reservables)
+
+    @classmethod
+    def get_start_now_max_minutes(
+        cls, payload: dict, reservables: dict, user_priority: dict
+    ) -> int:
+        """Longest booking starting now that these reservables allow the user.
+
+        The desktop card's start-now offers end times from the profiles' rule
+        and the GPU pickers from the user's own, so the larger of both is the
+        limit neither of them may have exceeded.
+        """
+        if not user_priority.get("max_time"):
+            return 0
+
+        def minutes(priority: dict) -> int:
+            max_time = priority.get("max_time") or 0
+            if payload.get("role_id") == "admin":
+                return max_time
+            return min(priority.get("forbid_time") or 0, max_time)
+
+        max_minutes = minutes(user_priority)
+        try:
+            profile_priority = ReservablesPlannerCompute.min_profile_priority(
+                reservables
+            )
+        except ReqlNonExistenceError:
+            profile_priority = None
+        if profile_priority:
+            max_minutes = max(max_minutes, minutes(profile_priority))
+        return min(max_minutes, ReservablesPlannerProccess.MAX_BOOKING_TIME)
 
     @classmethod
     def get_users_priorities(cls, rule_id):
@@ -279,6 +310,19 @@ class BookingsProcessed(RethinkSharedConnection):
                     "Invalid booking start/end date format.",
                     description_code="invalid_booking_date",
                 )
+
+            # Measured from the server clock: a start-now `start` comes from the
+            # browser's. The extra minute covers ends cut to the minute.
+            if now and reservables:
+                max_minutes = cls.get_start_now_max_minutes(
+                    payload, reservables, priorities
+                )
+                if end_dt > datetime.now(pytz.UTC) + timedelta(minutes=max_minutes + 1):
+                    raise Error(
+                        "bad_request",
+                        "The booking is longer than the user may book from now.",
+                        description_code="booking_exceeds_max_time",
+                    )
 
             booking = {
                 "id": str(uuid.uuid4()),

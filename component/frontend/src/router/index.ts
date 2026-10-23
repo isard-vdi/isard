@@ -4,7 +4,7 @@ import { MainLayout } from '@/layouts/main'
 import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
-import { getUserConfig } from '@/gen/oas/apiv4'
+import { useUserStore } from '@/stores/user'
 import {
   resolveVue2Path,
   clearPreferredFrontend,
@@ -284,6 +284,22 @@ const router = createRouter({
               component: () => import('../views/ViewDeploymentView.vue')
             },
             {
+              path: 'edit',
+              name: 'edit-deployment-root',
+              meta: {
+                title: 'router.deployments.edit.title',
+                subtitle: 'router.deployments.edit.subtitle'
+              },
+              redirect: { name: 'deployments' },
+              children: [
+                {
+                  path: ':deploymentId',
+                  name: 'edit-deployment',
+                  component: () => import('../views/EditDeploymentView.vue')
+                }
+              ]
+            },
+            {
               path: ':deploymentId/visibility',
               name: 'deployment-visibility',
               component: () => import('../views/deployments/DeploymentVisibilityView.vue'),
@@ -298,7 +314,8 @@ const router = createRouter({
               component: () => import('../views/deployments/DeploymentVideowallView.vue'),
               meta: {
                 title: 'router.deployment-videowall.title',
-                subtitle: 'router.deployment-videowall.subtitle'
+                subtitle: 'router.deployment-videowall.subtitle',
+                narrowGutter: true
               }
             }
           ]
@@ -507,11 +524,7 @@ let cachedFrontendMode: FrontendMode | null = null
 async function getFrontendMode(): Promise<FrontendMode> {
   if (cachedFrontendMode) return cachedFrontendMode
   try {
-    const { data } = await getUserConfig()
-    if (!data) {
-      cachedFrontendMode = 'deprecated'
-      return cachedFrontendMode
-    }
+    const data = await useUserStore().getUserConfig()
     if (data.faro) {
       // Fire-and-forget: Faro init must not block navigation.
       void ensureFaroInitialized(data.faro)

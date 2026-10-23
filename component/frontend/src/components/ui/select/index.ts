@@ -14,7 +14,7 @@ export { default as SelectValue } from './SelectValue.vue'
 
 export const selectTriggerVariants = cva(
   `
-  flex items-center justify-between
+  flex items-center justify-between text-start
   h-10 w-full px-[14px] py-[10px] rounded-md
   border border-gray-warm-300 bg-base-white
   text-md leading-md text-gray-warm-900 font-medium

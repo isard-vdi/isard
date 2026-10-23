@@ -3,7 +3,7 @@ import { revalidateLogic, useForm } from '@tanstack/vue-form'
 import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { z } from 'zod'
 import {
   Field,
@@ -14,13 +14,21 @@ import {
   FieldLabel
 } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getAllowedHardwareOptions,
+  getBookingReservablesAvailableOptions,
   getTemplateInfoOptions,
   getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { AvailableReservable } from '@/gen/oas/apiv4/types.gen'
+import {
+  earliestBookingDate,
+  getEndTimeIntervals,
+  missingBookableProfiles
+} from '@/lib/booking/end-time-intervals'
 import {
   Select,
   SelectContent,
@@ -54,6 +62,19 @@ const emit = defineEmits<{
   'update:interfaces': [interfaces: string[]]
 }>()
 
+export interface HardwareValues {
+  vcpus?: number
+  memory?: number
+  diskBus?: string
+  diskSize?: number
+  videos?: string
+  bootOrder?: string
+  isos?: string[]
+  floppies?: string[]
+  interfaces?: string[]
+  reservables?: { vgpus?: string[] }
+}
+
 interface Props {
   loading?: boolean
   templateId?: string // Optional template ID to load hardware from
@@ -76,6 +97,9 @@ interface Props {
   // Interfaces another form depends on (the access form needs wireguard for RDP).
   requiredInterfaces?: string[]
   limitedHardware?: LimitedHardware | null
+  // The vGPU is booked from now when the desktop is created, so ask until when.
+  bookVgpuNow?: boolean
+  original?: HardwareValues | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -95,7 +119,9 @@ const props = withDefaults(defineProps<Props>(), {
   reservables: () => ({ vgpus: undefined }),
   interfaces: () => [],
   requiredInterfaces: () => [],
-  limitedHardware: null
+  limitedHardware: null,
+  bookVgpuNow: false,
+  original: null
 })
 
 // Fetch template info when templateId is provided
@@ -188,7 +214,7 @@ const interfaces = computed(() => {
   )
 })
 
-const { t } = useI18n()
+const { t, d } = useI18n()
 
 const maxDiskSize = computed(() => {
   const quota = userAllowedHardware.value?.quota
@@ -238,7 +264,8 @@ const formSchema = z.object({
   reservables: z.object({
     vgpus: z.array(z.string()).max(MAX_VGPU_PROFILES).optional()
   }),
-  interfaces: z.array(z.string())
+  interfaces: z.array(z.string()),
+  bookingEnd: z.string()
 })
 
 const defaultValues = reactive({
@@ -253,7 +280,8 @@ const defaultValues = reactive({
   reservables: {
     vgpus
   },
-  interfaces
+  interfaces,
+  bookingEnd: ''
 })
 
 provideFormSchema(formSchema)
@@ -264,13 +292,33 @@ const form = useForm({
   }
 })
 
+const originalValues = computed<typeof defaultValues | null>(() => {
+  const original = props.original
+  if (!original) return null
+
+  return {
+    vcpus: roundToNearestTier(original.vcpus ?? vcpus.value, vcpuOptions.value),
+    memory: roundToNearestTier(original.memory ?? memory.value, memoryOptions.value),
+    diskBus: original.diskBus ?? diskBus.value,
+    diskSize: original.diskSize ?? diskSize.value,
+    videos: original.videos ?? videos.value,
+    bootOrder: original.bootOrder ?? bootOrder.value,
+    isos: original.isos ?? isos.value,
+    floppies: original.floppies ?? floppies.value,
+    interfaces: original.interfaces ?? interfaces.value,
+    reservables: {
+      vgpus: (original.reservables?.vgpus ?? vgpus.value).filter((id) => id !== NO_VGPU_ID)
+    }
+  }
+})
+
 // Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
 // but never over edits in progress: the edit views refetch on focus.
 watch([templateData, desktopData], () => {
   if (form.state.isPristine) form.reset()
 })
 
-const isDirty = form.useStore((state) => !state.isDefaultValue)
+const isPristine = form.useStore((state) => state.isDefaultValue)
 
 // Fetch user allowed hardware options
 
@@ -329,12 +377,18 @@ const vgpuNumaHintFor = (selected: string[] | undefined) =>
   numaSocketHint(selected ?? [], vgpusOptions.value as VgpuOption[])
 
 const vgpuTagsFor = (selected: string[] | undefined) =>
-  (vgpusOptions.value as VgpuOption[]).map((v) => ({
-    value: v.id,
-    label: v.name,
-    group: vgpuGroupLabel(v) ?? undefined,
-    disabled: vgpuDisabled(v, selected)
-  }))
+  (vgpusOptions.value as VgpuOption[]).map((v) => {
+    const unavailableNow = vgpuUnavailableNow(v.id, selected)
+    return {
+      value: v.id,
+      label: v.name,
+      description: unavailableNow
+        ? t('components.domain.hardware.vgpus.booking.unavailable-now')
+        : undefined,
+      group: vgpuGroupLabel(v) ?? undefined,
+      disabled: unavailableNow || vgpuDisabled(v, selected)
+    }
+  })
 
 const networksOptions = computed(() => userAllowedHardware.value?.interfaces || [])
 
@@ -382,7 +436,8 @@ const getFormData = () => ({
     vgpus: (form.getFieldValue('reservables.vgpus') as string[] | undefined)?.length
       ? form.getFieldValue('reservables.vgpus')
       : null
-  }
+  },
+  bookingEnd: needsBooking.value ? form.getFieldValue('bookingEnd') || null : null
 })
 
 const formValues = form.useStore((state) => state.values)
@@ -397,6 +452,109 @@ const showVgpusField = computed(
 const vgpusUnavailable = computed(
   () => vgpusOptions.value.length === 0 && (formValues.value.reservables?.vgpus?.length ?? 0) === 0
 )
+
+const availabilityQuery = useQuery({
+  ...getBookingReservablesAvailableOptions(),
+  enabled: computed(() => props.bookVgpuNow && vgpusOptions.value.length > 0),
+  retry: false,
+  staleTime: 30_000
+})
+
+// The endpoint answers "nothing is free" with this error instead of an empty list.
+const noProfileAvailable = computed(
+  () => availabilityQuery.error.value?.description_code === 'no_available_profile'
+)
+const availabilityFailed = computed(
+  () => availabilityQuery.isError.value && !noProfileAvailable.value
+)
+
+/** Null while unknown. */
+const availableProfiles = computed<AvailableReservable[] | null>(() => {
+  if (noProfileAvailable.value) return []
+  const data = availabilityQuery.data.value
+  return data ? (data.reservables_available ?? []) : null
+})
+
+const vgpuUnavailableNow = (id: string, selected: string[] | undefined) =>
+  props.bookVgpuNow &&
+  availableProfiles.value !== null &&
+  !(selected ?? []).includes(id) &&
+  !availableProfiles.value.some((profile) => profile.id === id)
+
+// Profiles the user may not use are dropped by the API on create, and have no
+// chip to remove them by, so they must not hold the booking back.
+const bookedVgpus = computed(() =>
+  props.bookVgpuNow
+    ? (formValues.value.reservables?.vgpus ?? []).filter((id) =>
+        vgpusOptions.value.some((option) => option.id === id)
+      )
+    : []
+)
+
+const needsBooking = computed(() => bookedVgpus.value.length > 0)
+
+const bookingAlert = computed<'failed' | 'none-available' | null>(() => {
+  if (!props.bookVgpuNow) return null
+  if (availabilityFailed.value) return 'failed'
+  return availableProfiles.value?.length === 0 ? 'none-available' : null
+})
+
+const bookingWindow = computed(() => {
+  const profiles = availableProfiles.value
+  if (!needsBooking.value || !profiles?.length) return null
+  if (missingBookableProfiles(profiles, bookedVgpus.value).length) return null
+  const limit = earliestBookingDate(profiles, bookedVgpus.value)
+  const intervals = limit ? getEndTimeIntervals(limit) : []
+  return limit && intervals.length ? { limit, intervals } : null
+})
+
+const unavailableVgpus = computed(() => {
+  const profiles = availableProfiles.value
+  if (!needsBooking.value || !profiles?.length || bookingWindow.value) return []
+  const missing = missingBookableProfiles(profiles, bookedVgpus.value)
+  return missing.length ? missing : bookedVgpus.value
+})
+
+const bookingEnd = computed(() => formValues.value.bookingEnd)
+
+const bookingEndTooLate = computed(
+  () =>
+    !!bookingWindow.value &&
+    !!bookingEnd.value &&
+    new Date(bookingEnd.value) > bookingWindow.value.limit
+)
+
+const bookingReady = computed(
+  () =>
+    !needsBooking.value || (!!bookingWindow.value && !!bookingEnd.value && !bookingEndTooLate.value)
+)
+
+const isToday = (date: Date) => date.toDateString() === new Date().toDateString()
+
+const endTimeLabel = (date: Date) =>
+  d(date, isToday(date) ? { timeStyle: 'short' } : { dateStyle: 'short', timeStyle: 'short' })
+
+// The slots count from the current minute, so a pick made earlier rarely lines
+// up with them again: keep it listed so the field still shows it.
+const endTimeOptions = computed(() => {
+  const options = (bookingWindow.value?.intervals ?? []).map((date) => ({
+    value: date.toISOString(),
+    label: endTimeLabel(date),
+    disabled: false
+  }))
+  const current = bookingEnd.value
+  if (current && !options.some((option) => option.value === current)) {
+    options.push({
+      value: current,
+      label: endTimeLabel(new Date(current)),
+      disabled: bookingEndTooLate.value
+    })
+    options.sort((a, b) => a.value.localeCompare(b.value))
+  }
+  return options
+})
+
+const vgpuSectionEl = ref<HTMLElement | null>(null)
 
 const showIsosField = computed(
   () =>
@@ -427,19 +585,6 @@ const optionName = (id: string | undefined, options: { id: string; name: string 
 const optionNames = (ids: string[] | undefined, options: { id: string; name: string }[]) =>
   ids?.map((id) => optionName(id, options) as string)
 
-interface HardwareValues {
-  vcpus?: number
-  memory?: number
-  diskBus?: string
-  diskSize?: number
-  videos?: string
-  bootOrder?: string
-  isos?: string[]
-  floppies?: string[]
-  interfaces?: string[]
-  reservables?: { vgpus?: string[] }
-}
-
 /** What the summary card shows for this form, with ids resolved. */
 const buildSummary = (values: HardwareValues) => ({
   vcpu: values.vcpus,
@@ -458,10 +603,22 @@ const buildSummary = (values: HardwareValues) => ({
 
 const summary = computed(() => buildSummary(formValues.value))
 
-/** The same, as the form was seeded: what the card compares the edits against. */
-const baseSummary = computed(() => buildSummary(defaultValues))
+/** The same, for the domain's original values: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(originalValues.value ?? defaultValues))
+
+const isDirty = computed(() =>
+  originalValues.value
+    ? JSON.stringify(summary.value) !== JSON.stringify(baseSummary.value)
+    : !isPristine.value
+)
+
+const reset = () => (originalValues.value ? form.reset(originalValues.value) : form.reset())
 
 const isFormValid = form.useStore((state) => state.isValid)
+
+// Kept out of the zod schema: a reset would clear the errors it raised and let
+// an unbooked vGPU through.
+const isValid = computed(() => isFormValid.value && bookingReady.value)
 
 const interfacesStore = form.useStore((state) => state.values.interfaces)
 
@@ -499,17 +656,19 @@ watch(interfacesStore, (newInterfaces) => {
 
 defineExpose({
   getFormData,
-  isValid: isFormValid,
+  isValid,
   isDirty,
   summary,
   baseSummary,
-  reset: () => form.reset(),
+  reset,
   limitedFields: computedLimitedHardware,
   getInterfaces,
   addInterface,
   removeInterface,
   interfaces: interfacesStore,
-  wireguardAvailable
+  wireguardAvailable,
+  needsBooking,
+  vgpuSectionEl
 })
 </script>
 <template>
@@ -753,7 +912,7 @@ defineExpose({
             </form.Field> -->
           </div>
         </div>
-        <div v-if="showVgpusField" class="grid gap-4 items-start">
+        <div v-if="showVgpusField" ref="vgpuSectionEl" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
             <Icon name="gpu" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
             <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
@@ -761,7 +920,7 @@ defineExpose({
             </h4>
             <Separator class="flex-1" />
           </div>
-          <div class="grid grid-cols-1">
+          <div class="grid grid-cols-1 gap-4">
             <form.Field v-slot="{ field }" name="reservables.vgpus">
               <Field>
                 <div class="flex items-center gap-2">
@@ -780,9 +939,22 @@ defineExpose({
                   :model-value="field.state.value ?? []"
                   :disabled="vgpusUnavailable"
                   tagsDisplay="wrap"
-                  :invalid="isInvalid(field)"
+                  :invalid="isInvalid(field) || unavailableVgpus.length > 0"
                   @update:model-value="field.handleChange($event)"
                 />
+                <FieldDescription
+                  v-if="unavailableVgpus.length"
+                  data-testid="vgpu-unavailable-now"
+                  class="text-error-600"
+                >
+                  {{
+                    t(
+                      'components.domain.hardware.vgpus.booking.selected-unavailable',
+                      { names: optionNames(unavailableVgpus, vgpusOptions)?.join(', ') },
+                      unavailableVgpus.length
+                    )
+                  }}
+                </FieldDescription>
                 <FieldDescription
                   v-if="(field.state.value?.length ?? 0) >= MAX_VGPU_PROFILES"
                   class="text-error-600"
@@ -806,6 +978,61 @@ defineExpose({
                 </FieldDescription>
               </Field>
             </form.Field>
+            <Alert
+              v-if="bookingAlert"
+              data-testid="vgpu-booking-alert"
+              :variant="bookingAlert === 'failed' ? 'destructive' : 'warning'"
+            >
+              <AlertTitle>{{
+                t(`components.domain.hardware.vgpus.booking.${bookingAlert}.title`)
+              }}</AlertTitle>
+              <AlertDescription>{{
+                t(`components.domain.hardware.vgpus.booking.${bookingAlert}.description`)
+              }}</AlertDescription>
+            </Alert>
+            <template v-else-if="needsBooking">
+              <Skeleton v-if="availableProfiles === null" class="h-10 w-full" />
+              <form.Field v-else-if="bookingWindow" v-slot="{ field }" name="bookingEnd">
+                <Field :data-invalid="bookingEndTooLate">
+                  <FieldLabel :for="field.name" required>
+                    {{ t('components.domain.hardware.vgpus.booking.end-time.label') }}
+                  </FieldLabel>
+                  <Select
+                    name="bookingEnd"
+                    :model-value="field.state.value"
+                    @update:model-value="field.handleChange(String($event ?? ''))"
+                  >
+                    <SelectTrigger :id="field.name" :aria-invalid="bookingEndTooLate">
+                      <SelectValue
+                        :placeholder="
+                          t('components.domain.hardware.vgpus.booking.end-time.placeholder')
+                        "
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in endTimeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                        :disabled="option.disabled"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription v-if="bookingEndTooLate" class="text-error-600">
+                    {{ t('components.domain.hardware.vgpus.booking.end-time.too-late') }}
+                  </FieldDescription>
+                  <FieldDescription v-else>
+                    {{
+                      t('components.domain.hardware.vgpus.booking.end-time.hint', {
+                        time: endTimeLabel(bookingWindow.limit)
+                      })
+                    }}
+                  </FieldDescription>
+                </Field>
+              </form.Field>
+            </template>
           </div>
         </div>
       </section>

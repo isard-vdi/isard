@@ -60,6 +60,12 @@ interface Bastion {
   customDomains?: string[]
 }
 
+export interface AccessValues {
+  credentials?: { username?: string; password?: string }
+  fullscreen?: boolean
+  viewers?: string[]
+}
+
 interface Props {
   loading?: boolean
   templateId?: string
@@ -75,6 +81,7 @@ interface Props {
   initialRemovedViewers?: string[]
   hardwareInterfaces?: string[]
   onRequestAddInterface?: (ifaceId: string) => boolean | undefined
+  original?: AccessValues | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -106,7 +113,8 @@ const props = withDefaults(defineProps<Props>(), {
   viewers: () => [],
   initialRemovedViewers: () => [],
   hardwareInterfaces: () => [],
-  onRequestAddInterface: undefined
+  onRequestAddInterface: undefined,
+  original: null
 })
 
 const emit = defineEmits<{
@@ -273,6 +281,20 @@ const form = useForm({
   }
 })
 
+const originalValues = computed<typeof defaultValues | null>(() => {
+  const original = props.original
+  if (!original) return null
+
+  return {
+    credentials: {
+      username: original.credentials?.username ?? credentials.value.username,
+      password: original.credentials?.password ?? credentials.value.password
+    },
+    fullscreen: original.fullscreen ?? fullscreen.value,
+    viewers: original.viewers ?? viewers.value
+  }
+})
+
 // --- Bastion coordination ---
 
 const bastionEnabled = ref(false)
@@ -282,7 +304,7 @@ function handleBastionEnabled(enabled: boolean) {
   emit('bastion-enabled', enabled)
 }
 
-const ownFieldsAreDirty = form.useStore((state) => !state.isDefaultValue)
+const isPristine = form.useStore((state) => state.isDefaultValue)
 
 // --- Viewer / wireguard coordination ---
 
@@ -407,12 +429,6 @@ const getFormData = () => {
 
 const formValues = form.useStore((state) => state.values)
 
-interface AccessValues {
-  credentials?: { username?: string; password?: string }
-  fullscreen?: boolean
-  viewers?: string[]
-}
-
 /** What the summary card shows for this form. */
 const buildSummary = (values: AccessValues) => ({
   credentials: values.credentials,
@@ -422,8 +438,14 @@ const buildSummary = (values: AccessValues) => ({
 
 const summary = computed(() => buildSummary(formValues.value))
 
-/** The same, as the form was seeded: what the card compares the edits against. */
-const baseSummary = computed(() => buildSummary(defaultValues))
+/** The same, for the domain's original values: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(originalValues.value ?? defaultValues))
+
+const ownFieldsAreDirty = computed(() =>
+  originalValues.value
+    ? JSON.stringify(summary.value) !== JSON.stringify(baseSummary.value)
+    : !isPristine.value
+)
 
 const isFormValid = form.useStore((state) => state.isValid)
 
@@ -442,7 +464,8 @@ const isDirty = computed(() => {
 })
 
 const reset = () => {
-  form.reset()
+  if (originalValues.value) form.reset(originalValues.value)
+  else form.reset()
   bastionFormRef.value?.reset()
   syncCredentialsRequirement()
 }

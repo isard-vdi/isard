@@ -98,6 +98,9 @@ export const startCase = (str: string): string => str.charAt(0).toUpperCase() + 
 export function isInvalid(field: { state: { meta: { isTouched: any; isValid: any } } }) {
   return field.state.meta.isTouched && !field.state.meta.isValid
 }
+export function isInvalidOrUntouched(field: { state: any }) {
+  return isInvalid(field) || (field.state.meta.isPristine && !field.state.value)
+}
 
 export function validateOnBlur(field: {
   handleBlur: () => void

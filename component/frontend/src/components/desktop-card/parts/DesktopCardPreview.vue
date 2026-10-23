@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue'
 
 import { DesktopStatusEnum, type UserDesktop, type BrowserVncValues } from '@/gen/oas/apiv4/'
 import { getDesktopViewerByType } from '@/gen/oas/apiv4/'
 
 import NoVNC from '@/components/noVNC/NoVNC.vue'
+import { Icon } from '@/components/icon'
 
 import DomainImage from '@/components/domain/DomainImage.vue'
-import type { CardSize } from '..'
+import { PREVIEWS_PAUSED_INJECTION_KEY, type CardSize } from '..'
 
 interface Props {
   desktop: UserDesktop
@@ -31,6 +32,9 @@ const previewEnabled = computed(() => props.size !== '2xs')
 
 const root = ref<HTMLDivElement | null>(null)
 const inViewport = ref(false)
+// A page providing the pause decides what streams; otherwise the viewport does.
+const paused = inject(PREVIEWS_PAUSED_INJECTION_KEY, null)
+const watched = computed(() => (paused ? !paused.value : inViewport.value))
 const viewerValues = ref<BrowserVncValues | null>(null)
 const fetchInflight = ref(false)
 
@@ -65,7 +69,7 @@ watch(isVncAlive, (alive) => {
 
 // Fetch when alive + visible + we don't already have credentials.
 watch(
-  [isVncAlive, inViewport, previewEnabled],
+  [isVncAlive, watched, previewEnabled],
   ([alive, visible, enabled]) => {
     if (alive && visible && enabled && !viewerValues.value) {
       fetchViewer()
@@ -75,7 +79,7 @@ watch(
 )
 
 onMounted(() => {
-  if (!previewEnabled.value || !root.value) return
+  if (paused || !previewEnabled.value || !root.value) return
   observer = new IntersectionObserver(
     (entries) => {
       inViewport.value = entries[0]?.isIntersecting ?? false
@@ -91,8 +95,16 @@ onBeforeUnmount(() => {
 })
 
 const showLivePreview = computed(
-  () => previewEnabled.value && isVncAlive.value && inViewport.value && viewerValues.value !== null
+  () => previewEnabled.value && isVncAlive.value && watched.value && viewerValues.value !== null
 )
+
+// After a pause every preview reconnects at once: spin until each connects.
+const resuming = ref(false)
+if (paused) {
+  watch(paused, (isPaused) => {
+    resuming.value = !isPaused && showLivePreview.value
+  })
+}
 
 // Inset of the noVNC "monitor" inside the card image area, so the static
 // image stays visible at the edges as a "desk" around the screen. Scales
@@ -132,7 +144,17 @@ const monitorInsetClass = computed(() => {
         :quality-level="0"
         :compression-level="9"
         background="transparent"
+        @connect="resuming = false"
+        @disconnect="resuming = false"
       />
+      <Transition leave-active-class="transition-opacity duration-300" leave-to-class="opacity-0">
+        <div
+          v-if="resuming"
+          class="absolute inset-0 flex items-center justify-center bg-gray-warm-900"
+        >
+          <Icon name="loading-02" size="sm" stroke-color="gray-warm-200" class="animate-spin" />
+        </div>
+      </Transition>
     </div>
   </div>
 </template>

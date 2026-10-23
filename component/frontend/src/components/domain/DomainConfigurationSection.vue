@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
@@ -49,12 +49,15 @@ const props = withDefaults(
     loading?: boolean
     /** Edit views drop the disclosure and render the forms straight away. */
     alwaysOpen?: boolean
+    /** Opts the summary in or out; by default it only shows while the forms are collapsed. */
+    showSummary?: boolean
     showBastionConfig?: boolean
     showCustomDomains?: boolean
     showDiskSize?: boolean
     showPeripherals?: boolean
     summary?: DomainSummaryData
     defaults?: DomainConfigurationDefaults
+    original?: DomainConfigurationDefaults
     /** Quota restrictions when there is no template or desktop to read them from. */
     limitedHardware?: LimitedHardware | null
     /** Viewers the API dropped, when there is no template or desktop to read them from. */
@@ -69,12 +72,14 @@ const props = withDefaults(
     desktopId: undefined,
     loading: false,
     alwaysOpen: false,
+    showSummary: undefined,
     showBastionConfig: false,
     showCustomDomains: false,
     showDiskSize: false,
     showPeripherals: true,
     summary: undefined,
     defaults: undefined,
+    original: undefined,
     limitedHardware: undefined,
     initialRemovedViewers: undefined,
     kind: 'persistent',
@@ -168,6 +173,7 @@ const kindAccent = computed(() => domainKindStyle(summaryKind.value))
 const showConfiguration = ref(false)
 const isOpen = computed(() => props.alwaysOpen || showConfiguration.value)
 const disclosureRef = ref<HTMLElement | null>(null)
+const showSummary = computed(() => props.showSummary ?? !props.alwaysOpen)
 
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -187,16 +193,25 @@ function stickyHeadersHeight(): number {
   }, 0)
 }
 
-const open = async () => {
+const reveal = async (target: () => HTMLElement | null | undefined) => {
   showConfiguration.value = true
 
   await nextTick()
-  const target = disclosureRef.value
-  if (!target) return
+  const element = target()
+  if (!element) return
   const top =
-    target.getBoundingClientRect().top + window.scrollY - stickyHeadersHeight() - SCROLL_GAP
+    element.getBoundingClientRect().top + window.scrollY - stickyHeadersHeight() - SCROLL_GAP
   window.scrollTo({ top, behavior: scrollBehavior() })
 }
+
+const open = () => reveal(() => disclosureRef.value)
+
+watch(
+  () => hardwareFormRef.value?.needsBooking,
+  (needsBooking) => {
+    if (needsBooking && !isOpen.value) reveal(() => hardwareFormRef.value?.vgpuSectionEl)
+  }
+)
 
 const isValid = computed(
   () => (hardwareFormRef.value?.isValid ?? true) && (accessFormRef.value?.isValid ?? true)
@@ -321,10 +336,8 @@ defineExpose({
             />
           </Tooltip>
         </div>
-        <!-- The summary previews what the collapsed forms hold; where they are
-             open from the start it would only repeat them. -->
         <DomainSummary
-          v-if="!alwaysOpen"
+          v-if="showSummary"
           class="shadow-xs"
           :loading="loading"
           :kind="summaryKind"
@@ -369,6 +382,7 @@ defineExpose({
               :credentials="defaults?.access?.credentials"
               :fullscreen="defaults?.access?.fullscreen"
               :viewers="defaults?.access?.viewers"
+              :original="original?.access"
               :initial-removed-viewers="props.initialRemovedViewers"
               :hardware-interfaces="hardwareInterfaces"
               :on-request-add-interface="handleAddInterfaceFromAccessForm"
@@ -424,6 +438,8 @@ defineExpose({
               :interfaces="defaults?.hardware?.interfaces"
               :required-interfaces="requiredInterfaces"
               :reservables="defaults?.hardware?.reservables"
+              :book-vgpu-now="kind === 'nonpersistent'"
+              :original="original?.hardware"
               class="p-6"
             />
           </div>

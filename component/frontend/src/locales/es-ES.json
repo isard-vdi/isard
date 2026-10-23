@@ -77,6 +77,10 @@
       "new": {
         "title": "Nuevo Despliegue",
         "subtitle": "Crea un nuevo despliegue seleccionando los escritorios que quieres incluir en él"
+      },
+      "edit": {
+        "title": "Editar Despliegue",
+        "subtitle": "Edita un despliegue modificando su información y escritorios"
       }
     },
     "deployment": {
@@ -432,7 +436,9 @@
           "info": "Información"
         },
         "failed-badge": "Plantilla con errores",
-        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues"
+        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues",
+        "hidden-badge": "Plantilla oculta",
+        "hidden-message": "Esta plantilla está oculta: otros usuarios no pueden crear escritorios a partir de ella"
       }
     },
     "new-template": {
@@ -910,14 +916,90 @@
       }
     },
     "deployment-videowall": {
+      "filters": {
+        "desktop": {
+          "label": "Escritorios"
+        },
+        "status": {
+          "label": "Estado",
+          "started": "Iniciados",
+          "stopped": "Parados"
+        }
+      },
       "gpu-warning": "El videowall no funciona con visores RDP",
-      "desktop-not-available": "Escritorio no disponible",
-      "filter-placeholder": "Filtrar por usuario",
-      "only-started": "Solo iniciados",
-      "back-to-deployment": "Volver al despliegue",
+      "review": {
+        "all": "Ver pantallas en directo",
+        "filtered": "Ver {n} pantalla filtrada | Ver {n} pantallas filtradas",
+        "filtered-hint": "Abre las pantallas de los escritorios filtrados a la vez para vigilarlas; solo vista",
+        "all-hint": "Abre todas las pantallas a la vez para vigilarlas; solo vista"
+      },
+      "viewer": {
+        "previous": "Escritorio anterior",
+        "next": "Escritorio siguiente",
+        "position": "{current} de {total}",
+        "pick": "Ir a un escritorio",
+        "not-found": "No se han encontrado escritorios",
+        "connecting": "Conectando con el escritorio…",
+        "fullscreen": {
+          "enter": "Pantalla completa",
+          "exit": "Salir de pantalla completa"
+        },
+        "layout": {
+          "mosaic": "Mosaico",
+          "single": "Individual",
+          "to-mosaic": "Ver en mosaico: todos los escritorios a la vez, solo vista",
+          "to-single": "Ver individual: un escritorio en grande, para verlo o controlarlo"
+        },
+        "density": {
+          "label": "Tamaño de las casillas",
+          "lg": "Casillas grandes",
+          "md": "Casillas medianas",
+          "sm": "Casillas pequeñas"
+        },
+        "mosaic": {
+          "title": "{n} escritorio | {n} escritorios",
+          "control-disabled": "En mosaico solo se puede ver: haz clic en un escritorio para controlarlo"
+        },
+        "filtered": {
+          "label": "Filtrado:",
+          "showing": "mostrando {shown} de {total}",
+          "clear": "Ver todos"
+        },
+        "mode": {
+          "label": "Modo del visor",
+          "view": "Ver",
+          "control": "Controlar",
+          "view-hint": "Solo mirar: el teclado y el ratón no llegan al escritorio",
+          "control-hint": "Usar el teclado y el ratón en el escritorio del usuario",
+          "view-notice": "Modo ver: el teclado y el ratón no llegan al escritorio",
+          "control-notice": "Modo control: estás usando el escritorio del usuario"
+        },
+        "pinned": {
+          "pin": "Fijar en el lateral para seguir viéndolo",
+          "badge": "Fijado",
+          "notice": "Fijado en el lateral",
+          "unpin": "Quitar de fijados",
+          "limit": "Puedes fijar hasta {max} escritorios",
+          "title": "Fijados ({count})",
+          "on-screen": "En pantalla",
+          "collapse": "Plegar fijados",
+          "expand": "Mostrar fijados"
+        }
+      },
+      "filter-placeholder": "Filtrar por usuario o escritorio",
       "view": {
-        "grid": "Vista en cuadrícula",
-        "single": "Vista completa"
+        "cards": "Vista de tarjetas",
+        "table": "Vista de tabla"
+      },
+      "group-by": {
+        "label": "Agrupar por",
+        "user": "Agrupar por usuario",
+        "desktop": "Agrupar por escritorio"
+      },
+      "group-count": "{n} escritorio | {n} escritorios",
+      "group-status": {
+        "started": "{n} iniciado | {n} iniciados",
+        "failed": "{n} fallido | {n} fallidos"
       }
     },
     "shared-deployments": {
@@ -1067,6 +1149,11 @@
       "success": {
         "message": "Contraseña cambiada con éxito.",
         "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundo(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Guardar Cambios"
       }
     },
     "deployment-visibility": {
@@ -1478,6 +1565,7 @@
           "advanced-options": "Opciones avanzadas",
           "reset": "Reiniciar",
           "bastion-access": "Acceso por bastión (HTTP / HTTPS / SSH)",
+          "expand": "Ampliar",
           "networks": "Redes"
         },
         "debug-options": {
@@ -1723,9 +1811,11 @@
       },
       "data-table": {
         "headers": {
+          "user": "Usuario",
           "name": "Nombre",
           "description": "Descripción",
           "status": "Estado",
+          "accessed": "Último acceso",
           "actions": "Acciones",
           "viewers": "Visores"
         }
@@ -2245,6 +2335,10 @@
         "cancel": "Volver a plantillas",
         "go-to-profile": "Comprobar tu cuota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancelar",
+        "new-desktop": "Nuevo escritorio"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copiar ID de la plantilla"
@@ -2408,7 +2502,25 @@
           "unavailable": "No hay ninguna vGPU disponible para tu usuario",
           "hint": "Máximo {max} perfiles de vGPU por escritorio.",
           "numaSameSocket": "Mismo socket NUMA posible (nodo {node}): las tarjetas pueden compartir socket, mejor ancho de banda de memoria.",
-          "numaDiffSocket": "Sockets NUMA distintos: el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento."
+          "numaDiffSocket": "Sockets NUMA distintos: el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento.",
+          "booking": {
+            "end-time": {
+              "label": "Hora de finalización",
+              "placeholder": "Selecciona hasta cuándo se usará",
+              "hint": "La GPU se reserva desde ahora. Fin máximo: {time}.",
+              "too-late": "Esta hora de fin ya no está disponible. Elige una anterior."
+            },
+            "unavailable-now": "No disponible ahora",
+            "selected-unavailable": "{names} no está disponible ahora. Quítalo o elige otro perfil. | {names} no están disponibles ahora. Quítalos o elige otros perfiles.",
+            "none-available": {
+              "title": "No hay ninguna GPU disponible ahora",
+              "description": "Ningún perfil de GPU tiene plazas libres en este momento. Quita la GPU para crear el escritorio sin ella, o crea un escritorio persistente y resérvalo para más tarde."
+            },
+            "failed": {
+              "title": "No se ha podido comprobar la disponibilidad de GPU",
+              "description": "Vuelve a intentarlo en un momento, o quita la GPU para crear el escritorio sin ella."
+            }
+          }
         },
         "hardwareGroups": {
           "hardware": "Hardware",
@@ -2589,11 +2701,15 @@
         "alloweds": {
           "title": "Grupos y usuarios permitidos",
           "subtitle": "Este despliegue será compartido con {groups} y {users}.",
+          "subtitle-groups": "Este despliegue será compartido con {groups}.",
+          "subtitle-users": "Este despliegue será compartido con {users}.",
+          "subtitle-nobody": "Este despliegue todavía no está compartido con nadie.",
           "fields": {
             "alloweds": {
               "button": "Gestionar usuarios y grupos"
             }
-          }
+          },
+          "required": "Un despliegue debe compartirse como mínimo con un grupo o un usuario."
         },
         "other-options": {
           "title": "Otras opciones",
@@ -2648,6 +2764,10 @@
             "button": "Editar configuración de hardware y acceso"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Faltan campos obligatorios",
+        "desktop": "Escritorio {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Eliminar escritorio '{desktop-name}' del despliegue",
@@ -3062,10 +3182,6 @@
           "title": "No hay almacenamiento disponible",
           "description": "No hay almacenamiento disponible para crear el escritorio. Contacta con un administrador o inténtalo más tarde."
         },
-        "temporal_new_reservable": {
-          "title": "Los escritorios temporales no pueden tener reservables",
-          "description": "Los escritorios temporales no pueden tener reservables asignados. Elimina los reservables e inténtalo de nuevo."
-        },
         "desktop_start_quota_exceeded": {
           "title": "Cuota de inicio de escritorios superada",
           "description": "Has alcanzado el número máximo de escritorios en marcha. Debes detener uno para poder crear este."
@@ -3085,6 +3201,22 @@
         "template_storage_not_ready": {
           "title": "El disco de la plantilla no está listo",
           "description": "El disco de esta plantilla no está listo, por lo que no se puede crear ningún escritorio a partir de ella. Por favor, contacta con el administrador."
+        },
+        "booking_does_not_fit_date": {
+          "title": "La reserva de GPU ya no cabe",
+          "description": "La disponibilidad ha cambiado mientras elegías. Inténtalo de nuevo y selecciona una hora de fin anterior."
+        },
+        "booking_max_items_exceeded": {
+          "title": "Has alcanzado el máximo de reservas",
+          "description": "Has alcanzado el número máximo de reservas. Elimina una reserva antes de crear un escritorio con GPU."
+        },
+        "temporal_reservable_needs_booking": {
+          "title": "La GPU necesita una hora de fin",
+          "description": "Un escritorio temporal con GPU se reserva al crearlo. Inténtalo de nuevo y selecciona hasta cuándo se usará."
+        },
+        "booking_exceeds_max_time": {
+          "title": "La reserva de GPU es demasiado larga",
+          "description": "La hora de fin supera el tiempo máximo que puedes reservar la GPU. Elige una anterior."
         }
       }
     },
@@ -3196,7 +3328,17 @@
         "service_temporarily_unavailable": "El servicio no está disponible temporalmente. Vuelve a intentarlo en unos minutos.",
         "generic": "No se ha podido iniciar el escritorio. Inténtalo de nuevo.",
         "desktop_storage_not_ready": "El disco del escritorio todavía no está listo. Espera unos minutos y vuelve a intentarlo.",
-        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador."
+        "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador.",
+        "deployment_start_user_quota_exceeded": "Se ha alcanzado el máximo de escritorios en ejecución del despliegue. Detén alguno para iniciar otro.",
+        "desktop_start_group_limit_exceeded": "El grupo ha alcanzado su límite de escritorios en ejecución.",
+        "desktop_start_group_memory_limit_exceeded": "El grupo ha alcanzado su límite de memoria en ejecución.",
+        "desktop_start_group_vcpu_limit_exceeded": "El grupo ha alcanzado su límite de vCPU en ejecución.",
+        "no_storage_pool_available": "Los recursos del sistema no están disponibles. Inténtalo más tarde."
+      }
+    },
+    "stop-desktop": {
+      "errors": {
+        "generic": "No se ha podido parar el escritorio. Inténtalo de nuevo."
       }
     },
     "extend-desktop": {
@@ -3233,7 +3375,8 @@
         "booking_max_items_exceeded": "Has superado el máximo de reservas del usuario",
         "conflict": "La reserva no encaja en la fecha solicitada",
         "generic": "Se ha producido un error",
-        "not_found": "Reserva no encontrada"
+        "not_found": "Reserva no encontrada",
+        "booking_exceeds_max_time": "No puedes reservar la GPU durante tanto tiempo. Elige una hora de fin anterior."
       }
     },
     "loading": "Cargando...",
@@ -3250,6 +3393,34 @@
         "not_found": "Plan no encontrado",
         "reservable_item_not_found": "No se ha encontrado el elemento reservable",
         "unable_to_insert": "No se ha podido crear el plan"
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error al editar el despliegue",
+          "description": "Hubo un error al editar tu despliegue, por favor, inténtalo de nuevo más tarde."
+        },
+        "deployment_stop": {
+          "title": "Los escritorios del despliegue deben estar detenidos",
+          "description": "El despliegue no se puede editar mientras alguno de sus escritorios esté en marcha. Detenlos y vuelve a intentarlo."
+        },
+        "new_desktop_name_exists": {
+          "title": "Uno o más usuarios tienen un escritorio con este nombre",
+          "description": "Los siguientes usuarios ya tienen un escritorio con el nombre {desktop_name}. Por favor, elige un nombre diferente."
+        },
+        "duplicated_name": {
+          "title": "Nombre de despliegue ya existe",
+          "description": "Ya existe un despliegue con el nombre {deployment_name}. Por favor, elige un nombre diferente."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Los reservables de los escritorios no son iguales",
+          "description": "Todos los escritorios con reservables en un despliegue deben tener los mismos reservables asignados. Por favor, asegúrate de que todos los escritorios con reservables tengan los mismos reservables asignados y vuelve a intentarlo."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "Los perfiles vGPU deben  ser del mismo modelo",
+          "description": "Todos los escritorios con perfiles vGPU en un despliegue deben tener el mismo modelo. Por favor, asegúrate de que todos los escritorios con perfiles vGPU tengan el mismo modelo y vuelve a intentarlo."
+        }
       }
     }
   },

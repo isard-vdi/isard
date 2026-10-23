@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
@@ -9,7 +10,7 @@ import {
   desktopHasMenuActions,
   desktopNotificationText
 } from '@/lib/desktops'
-import { copyToClipboard } from '@/lib/utils'
+import { copyToClipboard, formatRelativeTime } from '@/lib/utils'
 
 import {
   DesktopCellImage,
@@ -17,6 +18,7 @@ import {
   DesktopCellStatus,
   DesktopCellMainActionsButton
 } from '.'
+import { AvatarLabel } from '@/components/avatar-label'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table'
 import { Progress } from '@/components/ui/progress'
@@ -33,11 +35,15 @@ import { ViewerSelect } from '@/components/viewer-select'
 interface Props {
   desktops: ApiSchemasDomainsDesktopsUserDesktop[]
   preferedViewers: Record<string, string>
+  /** Add a column with the desktop's owner, for lists that mix users. */
+  showUser?: boolean
+  /** Adds a button to open the desktop to work on it, enabled where this holds. */
+  canExpand?: (desktop: ApiSchemasDomainsDesktopsUserDesktop) => boolean
 }
 
-const { t, d } = useI18n()
+const { t, d, locale } = useI18n()
 
-const props = withDefaults(defineProps<Props>(), {})
+const props = withDefaults(defineProps<Props>(), { showUser: false, canExpand: undefined })
 
 const emit = defineEmits<{
   // --- Main actions ---
@@ -49,6 +55,7 @@ const emit = defineEmits<{
   // desktop*: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Viewers ---
   openViewer: [{ dktp: ApiSchemasDomainsDesktopsUserDesktop; viewer: string }]
+  expand: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Modals ---
   fetchNetworks: [ApiSchemasDomainsDesktopsUserDesktop]
   showNetworksModal: [ApiSchemasDomainsDesktopsUserDesktop]
@@ -75,12 +82,20 @@ const DEFAULT_PAGE_SIZE = window.innerHeight <= SHORT_VIEWPORT_HEIGHT ? 10 : 20
 
 const asDesktop = (row: unknown) => row as ApiSchemasDomainsDesktopsUserDesktop
 
-const headers = [
+const USER_HEADER = {
+  name: t('components.desktops.data-table.headers.user'),
+  key: 'user_name',
+  sortable: true,
+  width: 'minmax(160px, 1fr)'
+}
+
+const headers = computed(() => [
   {
     name: '',
     key: 'image',
     width: 'min-content'
   },
+  ...(props.showUser ? [USER_HEADER] : []),
   {
     name: t('components.desktops.data-table.headers.name'),
     key: 'name',
@@ -100,6 +115,12 @@ const headers = [
     width: 'minmax(112px, 0.9fr)'
   },
   {
+    name: t('components.desktops.data-table.headers.accessed'),
+    key: 'accessed',
+    sortable: true,
+    width: 'minmax(112px, max-content)'
+  },
+  {
     name: t('components.desktops.data-table.headers.actions'),
     key: 'mainActions',
     width: 'minmax(168px, max-content)'
@@ -114,7 +135,9 @@ const headers = [
     key: 'actions',
     width: 'min-content'
   }
-]
+])
+
+const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
 </script>
 
 <template>
@@ -126,6 +149,7 @@ const headers = [
     density="compact"
     cell-class="h-auto min-h-13"
     row-class="odd:bg-gray-warm-100/30 hover:bg-gray-warm-100"
+    :default-sort="DESKTOPS_DEFAULT_SORT"
   >
     <template #cell-image="{ row }">
       <DesktopCellImage
@@ -135,6 +159,9 @@ const headers = [
         :desktop="desktop"
         @copy-to-clipboard="copyToClipboard"
       />
+    </template>
+    <template #cell-user_name="{ row }">
+      <AvatarLabel :src="row.user_photo ?? ''" :name="row.user_name ?? ''" />
     </template>
     <template #cell-name="{ row }">
       <DesktopCellName
@@ -158,6 +185,20 @@ const headers = [
 
     <template #cell-status="{ row }">
       <DesktopCellStatus v-for="desktop in [asDesktop(row)]" :key="desktop.id" :desktop="desktop" />
+    </template>
+
+    <template #cell-accessed="{ row }">
+      <template v-for="desktop in [asDesktop(row)]" :key="desktop.id">
+        <Tooltip v-if="desktop.accessed">
+          <TooltipTrigger as-child>
+            <span class="text-xs text-gray-warm-600 pr-6">
+              {{ d(desktop.accessed * 1000, { dateStyle: 'short', timeStyle: 'medium' }) }}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :title="formatRelativeTime(desktop.accessed, locale)" />
+        </Tooltip>
+        <span v-else class="text-xs text-gray-warm-600 pr-6">—</span>
+      </template>
     </template>
 
     <template #cell-mainActions="{ row }">
@@ -215,6 +256,30 @@ const headers = [
         :key="desktop.id"
         class="flex flex-row items-center justify-end gap-1.5 w-full"
       >
+        <Tooltip v-if="props.canExpand">
+          <TooltipTrigger as-child>
+            <!-- A disabled button gets no pointer events: the span keeps the tooltip. -->
+            <span class="inline-flex">
+              <Button
+                hierarchy="secondary-gray"
+                icon="maximize-02"
+                icon-size="sm"
+                class="size-8 p-0"
+                :disabled="!props.canExpand(desktop)"
+                :aria-label="t('components.desktops.desktop-card.actions.expand')"
+                @click="emit('expand', desktop)"
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            :title="
+              props.canExpand(desktop)
+                ? t('components.desktops.desktop-card.actions.expand')
+                : t('views.view-deployment.sections.viewer.empty.not-available')
+            "
+          />
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger as-child>
             <Button

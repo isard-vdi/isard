@@ -23,6 +23,7 @@ import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
 import { FormHeader } from '@/components/form-header'
 import NewTemplateForm from '@/components/templates/new-template-form/NewTemplateForm.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import DatatablePagination from '@/components/ui/data-table-pagination/DatatablePagination.vue'
@@ -209,8 +210,11 @@ const globalFilter = ref('')
 
 const tableData = computed(
   () =>
-    desktops.value?.desktops.filter((desktop) => desktop.type === 'persistent' && !desktop.tag) ||
-    []
+    desktops.value?.desktops.filter((desktop) => resolveDesktopKind(desktop) === 'persistent') || []
+)
+
+const isFirstRun = computed(
+  () => !desktopsIsPending.value && !desktopsIsError.value && tableData.value.length === 0
 )
 
 const table = useVueTable({
@@ -330,6 +334,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
           </h1>
 
           <SearchInput
+            v-if="!isFirstRun"
             :id="NEW_TEMPLATE_SEARCH_INPUT_ID"
             v-model="globalFilter"
             class="min-w-48"
@@ -338,7 +343,30 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
           />
         </div>
 
-        <DataTableBackground>
+        <div v-if="desktopsIsPending" class="flex flex-col gap-4 mt-8">
+          <div v-for="n in 4" :key="'skeleton-row-' + n" class="flex gap-2">
+            <Skeleton class="h-16 w-47 rounded-l-2xl shrink-0" />
+            <Skeleton class="h-16 w-full rounded-r-2xl" />
+          </div>
+        </div>
+
+        <div v-else-if="desktopsIsError" class="text-center text-error-500">
+          {{ t('api.loading-error') }}
+        </div>
+
+        <EmptyState v-else-if="isFirstRun" kind="template-sources">
+          <template #actions>
+            <Button
+              hierarchy="secondary-gray"
+              icon="monitor-02"
+              @click="router.push({ name: 'desktops' })"
+            >
+              {{ t('views.desktops.go-to-desktops') }}
+            </Button>
+          </template>
+        </EmptyState>
+
+        <DataTableBackground v-else>
           <DataTable
             :template-cols="
               headers.map((header) => header.width || 'minmax(var(--spacing-48), 1fr)')
@@ -419,30 +447,7 @@ const NEW_TEMPLATE_SEARCH_INPUT_ID = 'new-template-search'
               </template>
 
               <DataTableEmpty v-else>
-                <!-- No eligible desktop at all is a different dead end than a
-                     search that matched none of them. -->
-                <EmptyState
-                  v-if="tableData.length === 0"
-                  variant="no-results"
-                  :title="t('components.empty.template-sources.title')"
-                  :description="t('components.empty.template-sources.description')"
-                >
-                  <template #actions>
-                    <Button
-                      hierarchy="secondary-gray"
-                      icon="monitor-04"
-                      @click="router.push({ name: 'desktops' })"
-                    >
-                      {{ t('views.desktops.go-to-desktops') }}
-                    </Button>
-                  </template>
-                </EmptyState>
-                <EmptyState
-                  v-else
-                  variant="no-results"
-                  searching
-                  @clear-search="globalFilter = ''"
-                />
+                <EmptyState variant="no-results" searching @clear-search="globalFilter = ''" />
               </DataTableEmpty>
             </DataTableBody>
           </DataTable>

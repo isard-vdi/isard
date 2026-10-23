@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { isInvalid, validateOnBlur } from '@/lib/utils'
@@ -22,6 +22,7 @@ import { DesktopCardBaseStacked, DesktopCardHeader } from '@/components/desktop-
 import { BadgeInfo } from '@/components/badge/info'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
 import { vAutofocus } from '@/directives/autofocus'
+import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const { t, d } = useI18n()
@@ -29,17 +30,37 @@ const { t, d } = useI18n()
 interface Props {
   form: any // TODO: type this
   showCreateOwnerDesktop: boolean
+  deploymentId?: string // For the allowed modal when editing an existing deployment
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showCreateOwnerDesktop: true
+  showCreateOwnerDesktop: true,
+  deploymentId: undefined
 })
+
+const showAllowedModal = ref(false)
+
+const bucketCount = (bucket?: boolean | string[]) => (Array.isArray(bucket) ? bucket.length : 0)
 
 const emit = defineEmits<{
   submit: []
 }>()
 
+const formName = props.form.useStore((state: any) => state.values.name)
 const formImage = props.form.useStore((state: any) => state.values.image)
+const formAlloweds = props.form.useStore(
+  (state: { values: { alloweds?: AllowedSelection } }) => state.values.alloweds
+)
+
+const allowedGroupCount = computed(() => bucketCount(formAlloweds.value?.groups))
+const allowedUserCount = computed(() => bucketCount(formAlloweds.value?.users))
+
+const allowedSubtitleKey = computed(() => {
+  if (allowedGroupCount.value && allowedUserCount.value) return 'subtitle'
+  if (allowedGroupCount.value) return 'subtitle-groups'
+  if (allowedUserCount.value) return 'subtitle-users'
+  return 'subtitle-nobody'
+})
 
 const showChangeImageModal = ref(false)
 
@@ -92,14 +113,13 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
             </template>
             <template #footer>
               <Button
-                icon="play"
-                icon-class="fill-current"
+                icon="arrow-circle-broken-right"
                 hierarchy="secondary-color"
                 size="sm"
                 class="shrink-0"
                 disabled
               >
-                {{ t('components.desktops.desktop-card.status.stopped.action') }}
+                {{ t('views.deployment.buttons.enter') }}
               </Button>
             </template>
           </DesktopCardBaseStacked>
@@ -199,43 +219,65 @@ function handleImageSelected(image: { id: string; type: string; url?: string }) 
       </form>
     </div>
     <div class="flex flex-col gap-[16px]">
-      <props.form.Subscribe v-slot="{ values }">
-        <div class="flex flex-col gap-0.5">
-          <div class="flex flex-row gap-4">
-            <h1 class="text-lg font-semibold text-gray-warm-900">
-              {{ t('components.deployments.form-sections.alloweds.title') }}
-            </h1>
-            <BadgeInfo
-              icon="users-01"
-              :content="(values.alloweds?.groups?.length || 0).toString()"
-              class="text-sm px-2"
-            />
-            <BadgeInfo
-              icon="user-01"
-              :content="(values.alloweds?.users?.length || 0).toString()"
-              class="text-sm px-2"
-            />
-          </div>
-          <i18n-t
-            keypath="components.deployments.form-sections.alloweds.subtitle"
-            tag="h2"
-            class="text-sm font-regular text-gray-warm-700"
-          >
-            <template #groups>
-              <b>{{ t('users.count.groups', values.alloweds?.groups?.length || 0) }}</b>
-            </template>
-            <template #users>
-              <b>{{ t('users.count.users', values.alloweds?.users?.length || 0) }}</b>
-            </template>
-          </i18n-t>
+      <div class="flex flex-col gap-0.5">
+        <div class="flex flex-row gap-4">
+          <h1 class="text-lg font-semibold text-gray-warm-900">
+            {{ t('components.deployments.form-sections.alloweds.title') }}
+          </h1>
+          <BadgeInfo
+            v-if="allowedGroupCount"
+            icon="users-01"
+            :content="allowedGroupCount.toString()"
+            class="text-sm px-2"
+          />
+          <BadgeInfo
+            v-if="allowedUserCount"
+            icon="user-01"
+            :content="allowedUserCount.toString()"
+            class="text-sm px-2"
+          />
         </div>
-      </props.form.Subscribe>
-
-      <div>
-        <Button icon="plus" hierarchy="secondary-gray">{{
-          t('components.deployments.form-sections.alloweds.fields.alloweds.button')
-        }}</Button>
+        <i18n-t
+          :keypath="`components.deployments.form-sections.alloweds.${allowedSubtitleKey}`"
+          tag="h2"
+          class="text-sm font-regular text-gray-warm-700"
+        >
+          <template #groups>
+            <b>{{ t('users.count.groups', allowedGroupCount) }}</b>
+          </template>
+          <template #users>
+            <b>{{ t('users.count.users', allowedUserCount) }}</b>
+          </template>
+        </i18n-t>
       </div>
+
+      <props.form.Field v-slot="{ field }" name="alloweds">
+        <Field>
+          <div>
+            <Button icon="plus" hierarchy="secondary-gray" @click="showAllowedModal = true">{{
+              t('components.deployments.form-sections.alloweds.fields.alloweds.button')
+            }}</Button>
+          </div>
+          <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+          <AllowedModal
+            :open="showAllowedModal"
+            :item-id="props.deploymentId"
+            :item-name="formName?.trim()"
+            item-type="deployment"
+            :warning="props.deploymentId ? t('views.deployments.alloweds.warning') : ''"
+            :selection="field.state.value"
+            require-selection
+            :supports-everyone="false"
+            @close="showAllowedModal = false"
+            @save="
+              (selection: AllowedSelection) => {
+                field.handleChange(selection)
+                showAllowedModal = false
+              }
+            "
+          />
+        </Field>
+      </props.form.Field>
     </div>
 
     <div class="flex flex-col gap-[16px] col-span-full">

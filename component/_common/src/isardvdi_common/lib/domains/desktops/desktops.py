@@ -1272,6 +1272,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                         "tag",
                         "current_action",
                         "detail",
+                        "accessed",
                     ]
                 )
                 .merge(

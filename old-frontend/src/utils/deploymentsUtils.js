@@ -46,7 +46,7 @@ export class DeploymentsUtils {
     // apiv4 uses tag_visible at the deployment root; old-frontend has always
     // read `visible`. Accept either so this parser works on the apiv4 wire
     // shape without a per-call adapter.
-    const { id, name, desktop_name: desktopName, description, tag_visible: tagVisible, visible: legacyVisible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, total_desktops: totalDesktops, total_users: totalUsers, desktops_each_user: desktopsEachUser } = deployment
+    const { id, name, desktop_name: desktopName, desktop_names: desktopNames, description, tag_visible: tagVisible, visible: legacyVisible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, total_desktops: totalDesktops, total_users: totalUsers, desktops_each_user: desktopsEachUser } = deployment
     const visible = tagVisible !== undefined ? tagVisible : legacyVisible
     const desktops = deployment.desktops
       ? deployment.desktops.map((desktop) => {
@@ -66,7 +66,8 @@ export class DeploymentsUtils {
       nextBookingEnd: nextBookingEnd === undefined ? undefined : (nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''),
       totalDesktops,
       totalUsers,
-      desktopsEachUser
+      desktopsEachUser,
+      isMultiDesktop: Array.isArray(desktopNames) ? desktopNames.length > 1 : (partial ? undefined : false)
     }
     if (!partial) return out
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))

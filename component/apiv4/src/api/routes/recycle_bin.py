@@ -597,8 +597,9 @@ async def delete_cutoff_time_surpassed(request: Request):
 )
 async def list_stuck_recycle_bin_entries(request: Request, older_than_minutes: int = 0):
     try:
-        return RecycleBinService.list_stuck_entries(
-            older_than_minutes=older_than_minutes
+        return await asyncio.to_thread(
+            RecycleBinService.list_stuck_entries,
+            older_than_minutes=older_than_minutes,
         )
     except Error:
         raise

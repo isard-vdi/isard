@@ -18,7 +18,13 @@ import { computed, watch } from 'vue'
 import { useOwnershipTab, type OwnershipTab } from '@/composables/useOwnershipTab'
 import { TruncatedText } from '@/components/truncated-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import DomainImage from '@/components/domain/DomainImage.vue'
+import {
+  TemplateStatusBadge,
+  TemplateStatusImage,
+  isTemplateFailed,
+  templateRowCellClass,
+  templateStatus
+} from '@/components/template-status'
 
 const { t } = useI18n()
 
@@ -173,7 +179,10 @@ const tableIsError = computed(() => {
   return userTemplatesIsError.value || sharedTemplatesIsError.value || userIsError.value
 })
 
-const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
+const isFailed = isTemplateFailed
+const rowStatus = (row: Record<string, unknown>) =>
+  templateStatus(row, localActiveTab.value === 'user')
+const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowStatus(row))
 
 function templateProgressPercent(progress: unknown): number {
   return (progress as { total_percent?: number } | undefined)?.total_percent ?? 0
@@ -200,6 +209,7 @@ function templateProgressPercent(progress: unknown): number {
       :inline-tabs="props.inlineTabs"
       :is-clickable="true"
       :is-row-disabled="isFailed"
+      :row-cell-class="rowCellClass"
       autofocus-search
       :disabled-tooltip="t('views.templates.table.failed-message')"
       @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
@@ -228,34 +238,21 @@ function templateProgressPercent(progress: unknown): number {
       </template>
 
       <template #cell-image="{ row }">
-        <div class="relative">
-          <DomainImage
-            :image-url="row.image.url"
-            variant="compact"
-            :class="['w-48 h-16 shrink-0 rounded-l-2xl', { 'opacity-40 grayscale': isFailed(row) }]"
-          />
-          <div
-            v-if="isFailed(row)"
-            aria-hidden="true"
-            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-error-200/60 p-1.5 rounded-full backdrop-blur-xs border-2 border-base-white ring-[3px] ring-error-600/20 ring-offset-1 ring-offset-base-white/30 shadow-md shadow-error-700"
-          >
-            <Icon name="alert-triangle" size="xl" stroke-color="error-700" />
-          </div>
-        </div>
+        <TemplateStatusImage
+          :image-url="row.image.url"
+          :status="rowStatus(row)"
+          :tooltip="!isFailed(row)"
+        />
       </template>
 
       <template #cell-name="{ row }">
         <div class="flex flex-col">
           <TruncatedText :title="row.name" class="text-sm font-semibold text-gray-warm-900" />
-          <div
-            v-if="isFailed(row)"
-            class="inline-flex items-center gap-1.5 font-semibold max-w-full w-max text-xs text-error-600"
-          >
-            <span aria-hidden="true" class="contents">
-              <Icon name="info-circle" class="size-3.5 shrink-0" stroke-color="currentColor" />
-            </span>
-            <span class="truncate">{{ t('views.templates.table.failed-badge') }}</span>
-          </div>
+          <TemplateStatusBadge
+            v-if="rowStatus(row)"
+            :status="rowStatus(row)!"
+            :tooltip="!isFailed(row)"
+          />
         </div>
       </template>
 

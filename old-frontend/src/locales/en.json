@@ -385,7 +385,8 @@
                     },
                     "edit": {
                         "title": "Edit deployment",
-                        "disabled": "This deployment cannot be edited at the moment"
+                        "disabled": "This deployment cannot be edited at the moment",
+                        "multi-desktop": "Deployments with several desktop types can only be edited from the new interface"
                     },
                     "allowed": {
                         "title": "Edit users"
@@ -1693,6 +1694,7 @@
         "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded",
         "deployment_stop": "To perform this action the deployment desktops must be stopped",
         "deployment_recreate_booking_not_enough_units": "The deployment can't be recreated because there are not enough units available for the scheduled bookings",
+        "deployment_multi_desktop_edit_unsupported": "This deployment has several desktop types. Edit it from the new interface.",
         "desktop_not_booked": "The desktop needs a booking to be started",
         "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
         "desktop_not_started": "The desktop is not running",

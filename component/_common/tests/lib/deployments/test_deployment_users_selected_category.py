@@ -87,7 +87,7 @@ def _selected(**kwargs):
 def test_a_manager_only_gets_users_of_its_own_category(db, selected):
     payload = {"user_id": "u-mgr", "role_id": "manager", "category_id": "cat-a"}
 
-    users = DU.get_selected_users(payload, selected, add_payload_user=False)
+    users = DU.get_selected_users(payload, selected)
 
     assert {u["id"] for u in users} == {"u-own"}
 
@@ -95,8 +95,6 @@ def test_a_manager_only_gets_users_of_its_own_category(db, selected):
 def test_an_admin_gets_users_of_every_category(db):
     payload = {"user_id": "u-adm", "role_id": "admin", "category_id": "default"}
 
-    users = DU.get_selected_users(
-        payload, _selected(users=["u-own", "u-other"]), add_payload_user=False
-    )
+    users = DU.get_selected_users(payload, _selected(users=["u-own", "u-other"]))
 
     assert {u["id"] for u in users} == {"u-own", "u-other"}

@@ -126,6 +126,7 @@ api/src/api/bastion_domains/*.map
 # Playwright reports and results
 playwright-report/
 test-results/
+.playwright-mcp/
 
 # Local CI results
 ci-results/

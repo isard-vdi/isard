@@ -1,17 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getUserConfig as fetchUserConfig } from '@/gen/oas/apiv4'
+import { useQueryClient } from '@tanstack/vue-query'
+import type { UserConfigResponse } from '@/gen/oas/apiv4'
+import {
+  getUserConfigOptions,
+  getUserConfigQueryKey
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 export const useUserStore = defineStore('user', () => {
+  const queryClient = useQueryClient()
   const config = ref<Record<string, unknown> | null>(null)
 
-  const getUserConfig = async (): Promise<void> => {
+  const getUserConfig = async ({ refresh = false } = {}): Promise<UserConfigResponse> => {
     try {
-      const response = await fetchUserConfig()
-      if (response.error) {
-        throw new Error('Failed to fetch user config')
-      }
-      config.value = response.data
+      const options = getUserConfigOptions()
+      const data = refresh
+        ? await queryClient.fetchQuery({ ...options, staleTime: 0 })
+        : await queryClient.ensureQueryData(options)
+      config.value = data
+      return data
     } catch (error) {
       console.error('Error fetching user config:', error)
       throw error
@@ -20,6 +27,7 @@ export const useUserStore = defineStore('user', () => {
 
   const $reset = () => {
     config.value = null
+    queryClient.removeQueries({ queryKey: getUserConfigQueryKey() })
   }
 
   return {

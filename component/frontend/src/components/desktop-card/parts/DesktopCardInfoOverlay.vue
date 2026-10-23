@@ -14,7 +14,8 @@ import {
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import type { Client } from '@/gen/oas/apiv4/client'
 
-import { Icon, CopyIcon } from '@/components/icon'
+import { Icon } from '@/components/icon'
+import { CopyValue } from '@/components/copy-value'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -153,12 +154,6 @@ const { isTruncated: isDiskBusLabelTruncated } = useIsTextTruncated(
   () => diskBusLabel.value
 )
 
-const desktopIpRef = ref<HTMLElement | null>(null)
-const { isTruncated: isDesktopIpTruncated } = useIsTextTruncated(
-  desktopIpRef,
-  () => desktopIp.value
-)
-
 const videoLabelRef = ref<HTMLElement | null>(null)
 const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
   videoLabelRef,
@@ -200,15 +195,12 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
           <span class="sr-only">
             {{ t('components.desktops.desktop-card.ip-address', { ip: desktopIp }) }}
           </span>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <code ref="desktopIpRef" aria-hidden="true" class="font-mono truncate">{{
-                desktopIp
-              }}</code>
-            </TooltipTrigger>
-            <TooltipContent v-if="isDesktopIpTruncated" :title="desktopIp" />
-          </Tooltip>
-          <CopyIcon :value="desktopIp" size="xs" stroke-color="base-white" class="shrink-0" />
+          <CopyValue
+            :value="desktopIp"
+            stroke-color="base-white"
+            class="hover:bg-base-white/15"
+            text-class="font-mono"
+          />
         </template>
       </div>
     </div>
