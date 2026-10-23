@@ -47,6 +47,8 @@ services:
       -retentionPeriod=${VICTORIAMETRICS_RETENTION_TIME:-${PROMETHEUS_RETENTION_TIME:-40d}}
       -selfScrapeInterval=30s
       -vmalert.proxyURL=http://isard-vmalert:8880
+      -deleteAuthKey=${VICTORIAMETRICS_ADMIN_AUTH_KEY:-}
+      -forceMergeAuthKey=${VICTORIAMETRICS_ADMIN_AUTH_KEY:-}
 
   isard-vmalert:
     container_name: isard-vmalert
