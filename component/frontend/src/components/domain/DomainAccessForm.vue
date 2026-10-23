@@ -515,6 +515,13 @@ defineExpose({
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <FieldLabel>
+                      <Icon
+                        name="expand-06"
+                        size="sm"
+                        stroke-color=""
+                        aria-hidden="true"
+                        class="text-gray-warm-500"
+                      />
                       {{ t('components.domain.access.fullscreen.label') }}
                       <Icon name="info-circle" size="xs" class="inline-block" />
                     </FieldLabel>
@@ -572,9 +579,16 @@ defineExpose({
         <div class="grid grid-cols-1 gap-2.5 md:gap-5 md:w-auto md:grid-cols-2">
           <form.Field v-slot="{ field }" name="credentials.username">
             <Field :data-invalid="isInvalid(field)">
-              <FieldLabel :for="field.name">{{
-                t('components.domain.access.credentials.username.label')
-              }}</FieldLabel>
+              <FieldLabel :for="field.name">
+                <Icon
+                  name="user-03"
+                  size="sm"
+                  stroke-color=""
+                  aria-hidden="true"
+                  class="text-gray-warm-500"
+                />
+                {{ t('components.domain.access.credentials.username.label') }}
+              </FieldLabel>
               <InputField
                 :id="field.name"
                 :name="field.name"
@@ -590,9 +604,16 @@ defineExpose({
           </form.Field>
           <form.Field v-slot="{ field }" name="credentials.password">
             <Field :data-invalid="isInvalid(field)">
-              <FieldLabel :for="field.name">{{
-                t('components.domain.access.credentials.password.label')
-              }}</FieldLabel>
+              <FieldLabel :for="field.name">
+                <Icon
+                  name="passcode-lock"
+                  size="sm"
+                  stroke-color=""
+                  aria-hidden="true"
+                  class="text-gray-warm-500"
+                />
+                {{ t('components.domain.access.credentials.password.label') }}
+              </FieldLabel>
               <InputField
                 :id="field.name"
                 :name="field.name"
