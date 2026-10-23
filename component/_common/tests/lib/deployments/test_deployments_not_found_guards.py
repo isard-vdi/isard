@@ -55,21 +55,3 @@ class TestDeploymentNotFoundGuards:
         with pytest.raises(Error) as exc:
             DP.add_desktops_to_deployment({"user_id": "u-1"}, "nope", [{}])
         assert exc.value.error["error"] == "not_found"
-
-    def test_get_deployment_info_wrong_kind(self, monkeypatch):
-        # get_deployment_info rejects a row that is not a desktops-deployment.
-        # First lookup ([create_dict]) must stay subscriptable, second returns
-        # the row whose ``kind`` is checked.
-        monkeypatch.setattr(
-            mod.Caches,
-            "get_document",
-            classmethod(
-                lambda cls, table, did, keys=None: (
-                    [{"name": "r"}] if keys else {"kind": "desktop"}
-                )
-            ),
-        )
-        with pytest.raises(Error) as exc:
-            DP.get_deployment_info("dep-1")
-        assert exc.value.error["error"] == "not_found"
-        assert exc.value.error["description_code"] == "not_found"

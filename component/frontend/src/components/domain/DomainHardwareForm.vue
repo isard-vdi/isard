@@ -62,6 +62,19 @@ const emit = defineEmits<{
   'update:interfaces': [interfaces: string[]]
 }>()
 
+export interface HardwareValues {
+  vcpus?: number
+  memory?: number
+  diskBus?: string
+  diskSize?: number
+  videos?: string
+  bootOrder?: string
+  isos?: string[]
+  floppies?: string[]
+  interfaces?: string[]
+  reservables?: { vgpus?: string[] }
+}
+
 interface Props {
   loading?: boolean
   templateId?: string // Optional template ID to load hardware from
@@ -86,6 +99,7 @@ interface Props {
   limitedHardware?: LimitedHardware | null
   // The vGPU is booked from now when the desktop is created, so ask until when.
   bookVgpuNow?: boolean
+  original?: HardwareValues | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -106,7 +120,8 @@ const props = withDefaults(defineProps<Props>(), {
   interfaces: () => [],
   requiredInterfaces: () => [],
   limitedHardware: null,
-  bookVgpuNow: false
+  bookVgpuNow: false,
+  original: null
 })
 
 // Fetch template info when templateId is provided
@@ -277,13 +292,33 @@ const form = useForm({
   }
 })
 
+const originalValues = computed<typeof defaultValues | null>(() => {
+  const original = props.original
+  if (!original) return null
+
+  return {
+    vcpus: roundToNearestTier(original.vcpus ?? vcpus.value, vcpuOptions.value),
+    memory: roundToNearestTier(original.memory ?? memory.value, memoryOptions.value),
+    diskBus: original.diskBus ?? diskBus.value,
+    diskSize: original.diskSize ?? diskSize.value,
+    videos: original.videos ?? videos.value,
+    bootOrder: original.bootOrder ?? bootOrder.value,
+    isos: original.isos ?? isos.value,
+    floppies: original.floppies ?? floppies.value,
+    interfaces: original.interfaces ?? interfaces.value,
+    reservables: {
+      vgpus: (original.reservables?.vgpus ?? vgpus.value).filter((id) => id !== NO_VGPU_ID)
+    }
+  }
+})
+
 // Re-seed when source data changes (e.g. stale cache replaced by fresh fetch),
 // but never over edits in progress: the edit views refetch on focus.
 watch([templateData, desktopData], () => {
   if (form.state.isPristine) form.reset()
 })
 
-const isDirty = form.useStore((state) => !state.isDefaultValue)
+const isPristine = form.useStore((state) => state.isDefaultValue)
 
 // Fetch user allowed hardware options
 
@@ -550,19 +585,6 @@ const optionName = (id: string | undefined, options: { id: string; name: string 
 const optionNames = (ids: string[] | undefined, options: { id: string; name: string }[]) =>
   ids?.map((id) => optionName(id, options) as string)
 
-interface HardwareValues {
-  vcpus?: number
-  memory?: number
-  diskBus?: string
-  diskSize?: number
-  videos?: string
-  bootOrder?: string
-  isos?: string[]
-  floppies?: string[]
-  interfaces?: string[]
-  reservables?: { vgpus?: string[] }
-}
-
 /** What the summary card shows for this form, with ids resolved. */
 const buildSummary = (values: HardwareValues) => ({
   vcpu: values.vcpus,
@@ -581,8 +603,16 @@ const buildSummary = (values: HardwareValues) => ({
 
 const summary = computed(() => buildSummary(formValues.value))
 
-/** The same, as the form was seeded: what the card compares the edits against. */
-const baseSummary = computed(() => buildSummary(defaultValues))
+/** The same, for the domain's original values: what the card compares the edits against. */
+const baseSummary = computed(() => buildSummary(originalValues.value ?? defaultValues))
+
+const isDirty = computed(() =>
+  originalValues.value
+    ? JSON.stringify(summary.value) !== JSON.stringify(baseSummary.value)
+    : !isPristine.value
+)
+
+const reset = () => (originalValues.value ? form.reset(originalValues.value) : form.reset())
 
 const isFormValid = form.useStore((state) => state.isValid)
 
@@ -630,7 +660,7 @@ defineExpose({
   isDirty,
   summary,
   baseSummary,
-  reset: () => form.reset(),
+  reset,
   limitedFields: computedLimitedHardware,
   getInterfaces,
   addInterface,

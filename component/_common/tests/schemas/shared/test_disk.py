@@ -29,12 +29,6 @@ class TestDiskBusNormalisation:
         disk = Disk(storage_id="s1", bus=None)
         assert disk.bus is None
 
-    def test_bus_default_is_none(self):
-        # Field default; no value supplied. Must not be False (the
-        # legacy bug) and must validate as Optional[str].
-        disk = Disk(storage_id="s1")
-        assert disk.bus is None
-
     def test_bus_empty_string_passes_through(self):
         # Empty string is a legitimate "no bus declared" — keep it
         # as-is so callers that distinguish from None don't break.

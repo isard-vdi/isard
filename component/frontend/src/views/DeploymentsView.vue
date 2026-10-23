@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
@@ -229,7 +229,11 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
     key: 'edit',
     icon: 'edit-01',
     label: t('views.deployments.dropdown.buttons.edit'),
-    fn: handleNotImplemented
+    fn: (deployment: OwnedDeployment) => ({
+      name: 'edit-deployment',
+      params: { deploymentId: deployment.id }
+    }),
+    routerLink: true
   },
   {
     key: 'alloweds',
@@ -576,7 +580,9 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
                         v-for="action in visibleDropdownActions(row)"
                         :key="action.key"
                         :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
-                        @click="action.fn(row)"
+                        :as="action.routerLink ? RouterLink : undefined"
+                        :to="action.routerLink ? action.fn(row) : null"
+                        @click="action.routerLink ? null : action.fn(row)"
                       >
                         <Button
                           size="sm"

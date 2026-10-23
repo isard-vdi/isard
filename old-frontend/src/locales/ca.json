@@ -79,7 +79,8 @@
             "title": "Esborrar desplegament"
           },
           "edit": {
-            "title": "Editar desplegament"
+            "title": "Editar desplegament",
+            "multi-desktop": "Els desplegaments amb diversos tipus d'escriptori només es poden editar des de la nova interfície"
           },
           "allowed": {
             "title": "Editar usuaris"
@@ -1613,6 +1614,7 @@
     "no_reservables": "L'element no té reservables",
     "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades",
     "deployment_recreate_booking_not_enough_units": "El desplegament no es pot recrear perquè no hi ha prou unitats disponibles per a les reserves planificades",
+    "deployment_multi_desktop_edit_unsupported": "Aquest desplegament té diversos tipus d'escriptori. Edita'l des de la nova interfície.",
     "password_character_length": "La contrasenya ha de tenir com a mínim {num} caràcter(s)",
     "password_uppercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en majúscula",
     "password_lowercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en minúscula",

@@ -35,6 +35,7 @@ from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.deployments.deployment_desktops import (
@@ -102,6 +103,24 @@ class DeploymentService:
             for entry in (deployment.get("create_dict") or [])
         ]
         return {"info": deployment, "users": users}
+
+    @staticmethod
+    def get_deployment_info(deployment_id: str, payload: dict):
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        deployment = CommonDeployments.get_deployment_info(
+            deployment_id=deployment_id,
+        )
+        deployment["create_dict"] = [
+            Quotas.limit_user_hardware_allowed(payload, desktop)
+            for desktop in deployment["create_dict"]
+        ]
+
+        return deployment
 
     @staticmethod
     def delete_deployment(
@@ -226,6 +245,14 @@ class DeploymentService:
             if not deployment_data.get("desktops_to_edit"):
                 deployment = Caches.get_document("deployments", deployment_id)
                 if deployment:
+                    # The flat shape describes a single desktop; fanning it
+                    # out would overwrite every desktop type with it
+                    if len(deployment.get("create_dict", [])) > 1:
+                        raise Error(
+                            "bad_request",
+                            f"Deployment {deployment_id} has several desktop types and can't be edited with the apiv3 form",
+                            description_code="deployment_multi_desktop_edit_unsupported",
+                        )
                     fanout_template = {}
                     if legacy_desktop_name is not None:
                         fanout_template["name"] = legacy_desktop_name
@@ -243,50 +270,125 @@ class DeploymentService:
                         if cd.get("tag_desktop_id")
                     ]
 
-        # Creation and edition could lead to permission errors
-        # so we handle them first to avoid removing desktops and then failing
-        if deployment_data.get("desktops_to_create"):
-            ## Create and add new desktops
-            CommonDeployments.add_desktops_to_deployment(
-                payload,
-                deployment_id,
-                deployment_data.pop("desktops_to_create"),
+        if (
+            deployment_data.get("desktops_to_delete")
+            and len(deployment_data["desktops_to_delete"])
+            >= len(Caches.get_document("deployments", deployment_id)["create_dict"])
+            and not deployment_data.get("desktops_to_create")
+        ):
+            # TODO: validate this at the request's pydantic model before executing any code
+            raise Error(
+                "bad_request",
+                "Cannot delete all desktops from deployment. At least one desktop must remain.",
             )
-        if deployment_data.get("desktops_to_edit"):
+
+        # Validate that there will be no duplicate desktop names after the update
+        # TODO: move this to a helper function
+
+        # tag_desktop_ids of desktops to delete and edit
+        modified_desktops = deployment_data.get("desktops_to_delete", []).copy()
+        if deployment_data.get("desktops_to_edit", []):
+            modified_desktops += [
+                desktop["tag_desktop_id"]
+                for desktop in deployment_data["desktops_to_edit"]
+            ]
+
+        existing_desktops = RethinkDeployment.get(deployment_id)
+        existing_desktops = existing_desktops["create_dict"]
+        existing_names = [
+            desktop["name"]
+            for desktop in existing_desktops
+            # if desktop["tag_desktop_id"] not in modified_desktops
+        ]
+        unchanged_names = [
+            desktop["name"]
+            for desktop in existing_desktops
+            if desktop.get("tag_desktop_id") not in modified_desktops
+        ]
+
+        new_names = [
+            *[
+                desktop["name"]
+                for desktop in deployment_data.get("desktops_to_create", [])
+            ],
+            *[
+                desktop["name"]
+                for desktop in deployment_data.get("desktops_to_edit", [])
+                if desktop.get("name") is not None
+            ],
+        ]
+
+        final_names = unchanged_names + new_names
+
+        duplicate_names = set(
+            name for name in final_names if final_names.count(name) > 1
+        )
+        if duplicate_names:
+            raise Error(
+                "bad_request",
+                f"Duplicate desktop names found after update: {', '.join(duplicate_names)}. Desktop names must be unique within a deployment.",
+            )
+
+        # remove all names that are not being modified to check only the new and edited ones
+        final_new_names = [name for name in final_names if name not in existing_names]
+
+        for name in final_new_names:
+            CommonDeploymentUsers.get_selected_users(
+                payload,
+                deployment_data.get(
+                    "allowed",
+                    RethinkDeployment.get(deployment_id)["allowed"],
+                ),
+                name,
+                existing_desktops_error=True,
+                excluded_deployment_id=deployment_id,
+            )
+
+        # Check everything before the first write
+        CommonDeployments.validate_deployment_edit(
+            payload,
+            deployment_id,
+            deployment_data,
+        )
+
+        alloweds_edited = "allowed" in deployment_data
+        if desktops_to_edit := deployment_data.pop("desktops_to_edit", None):
             ## Edit desktops with tag_desktop_id
             CommonDeployments.edit_deployment_desktops(
                 payload,
                 deployment_id,
-                deployment_data.pop("desktops_to_edit"),
+                desktops_to_edit,
             )
 
-        if deployment_data.get("desktops_to_delete"):
-            if (
-                len(deployment_data["desktops_to_delete"])
-                >= len(
-                    Caches.get_document(
-                        "deployments",
-                        deployment_id,
-                    )["create_dict"]
-                )
-            ) and not deployment_data.get("desktops_to_create"):
-                raise Error(
-                    "bad_request",
-                    "Cannot delete all desktops from deployment. At least one desktop must remain.",
-                )
+        if desktops_to_create := deployment_data.pop("desktops_to_create", None):
+            ## Add new desktops
+            CommonDeployments.add_desktops_to_deployment(
+                payload,
+                deployment_id,
+                desktops_to_create,
+                skip_name_check=True,
+                allowed=deployment_data.get("allowed"),
+            )
 
+        # Deleting desktops can't be undone, so it goes last
+        if desktops_to_delete := deployment_data.pop("desktops_to_delete", None):
             ## Delete desktops with tag_desktop_id
             CommonDeployments.remove_desktops_from_deployment(
                 payload,
                 deployment_id,
-                deployment_data.pop("desktops_to_delete"),
+                desktops_to_delete,
             )
 
+        # Edit the deployment data
         CommonDeployments.edit_deployment_data(
             payload,
             deployment_id,
             deployment_data,
         )
+
+        # Create the missing desktops for the new users
+        if alloweds_edited or desktops_to_create:
+            CommonDeployments.recreate(payload, deployment_id)
 
         # invalidate cache
         Caches.invalidate_cache("deployments", deployment_id)
@@ -486,8 +588,6 @@ class DeploymentService:
 
     @staticmethod
     def check_quota(user_id: str, users: list[dict] | None = None) -> None:
-        from isardvdi_common.helpers.quotas import Quotas
-
         Quotas.deployment_create(user_id, 1, None, users or None)
 
     @staticmethod
@@ -563,10 +663,8 @@ class DeploymentService:
         return RethinkDeployment(deployment_id).get_deployment_details_hardware()
 
     @staticmethod
-    def get_deployment_info(deployment_id: str, payload: dict) -> dict:
-        from isardvdi_common.helpers.quotas import Quotas
-
-        deployment = CommonDeployments.get_deployment_info(
+    def get_deployment_info_apiv3(deployment_id: str, payload: dict) -> dict:
+        deployment = CommonDeployments.get_deployment_info_apiv3(
             deployment_id=deployment_id,
         )
         deployment = Quotas.limit_user_hardware_allowed(payload, deployment)

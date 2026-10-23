@@ -54,6 +54,7 @@ from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import (
     DesktopsProcessed as CommonDesktops,
 )
+from isardvdi_common.lib.domains.desktops.desktops import validate_reservables_vgpus
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
 from isardvdi_common.models.deployment import (
     Deployment,
@@ -70,7 +71,6 @@ _validate_tag_desktop_id_for_deployment_cache: SynchronizedTTLCache = (
 
 
 class DeploymentsProcessed(RethinkSharedConnection):
-
     _rdb_table = "deployments"
 
     @classmethod
@@ -154,6 +154,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
         # deployment["description"] = deployment.get("description")
         deployment["visible"] = deployment.get("tag_visible")
         deployment["desktop_name"] = create_dict.get("name")
+        deployment["desktop_names"] = [
+            cd.get("name") for cd in deployment.get("create_dict", [])
+        ]
         deployment["template"] = Caches.get_document(
             "domains", create_dict.get("template"), ["name"]
         )
@@ -657,7 +660,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             if booking["units"] < len(deployment_users):
                 raise Error(
                     "precondition_required",
-                    f'The deployment {deployment["id"]} has a future booking ({booking["start"]} - {booking["end"]}) with only {booking["units"]} units booked and recreating would require {len(deployment_users)} units',
+                    f"The deployment {deployment['id']} has a future booking ({booking['start']} - {booking['end']}) with only {booking['units']} units booked and recreating would require {len(deployment_users)} units",
                     description_code="deployment_recreate_booking_not_enough_units",
                 )
 
@@ -840,7 +843,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
                             "co_owners": r.literal([]),
                         }
                     ).run(
-                        cls._rdb_connection
+                        cls._rdb_connection,
                     )
 
     @classmethod
@@ -1168,7 +1171,6 @@ class DeploymentsProcessed(RethinkSharedConnection):
         }
 
         for d in parsed_desktops:
-
             # Check the desktop names
             DeploymentUsers.get_selected_users(
                 payload,
@@ -1266,8 +1268,9 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     .max(r.row["right"]["accessed"])
                     .ungroup()
                     .filter(
-                        lambda row: row["reduction"]["right"]["accessed"]
-                        < cutoff_timestamp
+                        lambda row: (
+                            row["reduction"]["right"]["accessed"] < cutoff_timestamp
+                        )
                     )
                     .map(
                         lambda row: {
@@ -1415,6 +1418,44 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
     @classmethod
     def get_deployment_info(cls, deployment_id):
+        if not Deployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+
+        deployment = Deployment.get(deployment_id)
+
+        for desktop in deployment["create_dict"]:
+            if "isos" in desktop["hardware"]:
+                isos = desktop["hardware"]["isos"]
+                desktop["hardware"]["isos"] = []
+                for iso in isos:
+                    desktop["hardware"]["isos"].append(
+                        Caches.get_document("media", iso["id"], ["id", "name"])
+                    )
+            if "floppies" in desktop["hardware"]:
+                floppies = desktop["hardware"]["floppies"]
+                desktop["hardware"]["floppies"] = []
+                for floppy in floppies:
+                    desktop["hardware"]["floppies"].append(
+                        Caches.get_document("media", floppy["id"], ["id", "name"])
+                    )
+
+            desktop["hardware"]["memory"] = desktop["hardware"]["memory"] / (
+                1024 * 1024
+            )
+
+            desktop["hardware"]["interfaces"] = [
+                Caches.get_document("interfaces", i, ["id", "name"])
+                or {"id": i, "name": i}
+                for i in desktop["hardware"]["interfaces"]
+            ]
+
+        return deployment
+
+    @classmethod
+    def get_deployment_info_apiv3(cls, deployment_id):
         create_dict = Caches.get_document(
             "deployments", deployment_id, ["create_dict"]
         )[0]
@@ -1424,6 +1465,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 "not_found",
                 "Deployment id not found: " + str(deployment_id),
                 description_code="not_found",
+            )
+        # The apiv3 edit form only knows create_dict[0]; serving it for a
+        # multi-desktop deployment would let its save overwrite every entry
+        if len(deployment_data.get("create_dict", [])) > 1:
+            raise Error(
+                "bad_request",
+                f"Deployment {deployment_id} has several desktop types and can't be edited with the apiv3 form",
+                description_code="deployment_multi_desktop_edit_unsupported",
             )
         create_dict = {
             **create_dict,
@@ -1575,6 +1624,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
 
         """
 
+        # TODO: return hardware, reservables and guest_properties separately
+
         merged_create_dict = copy.deepcopy(create_dict)
         guest_properties = copy.deepcopy(merged_create_dict.pop("guest_properties", {}))
 
@@ -1635,15 +1686,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return deployment_hardware["memory"]
 
     @classmethod
-    def edit_deployment_desktops(
+    def _merge_edited_deployment_desktops(
         cls,
         payload: dict,
         deployment_id: str,
         desktops_data: list[dict],
-    ):
-        """
-        Edit a deployment's desktops by it's tag_desktop_ids
-        """
+    ) -> tuple[list[dict], dict[str, dict]]:
+        """Merge and check each edit without writing (mutates ``desktops_data``)."""
         if not Caches.get_document("deployments", deployment_id):
             raise Error(
                 "not_found",
@@ -1695,10 +1744,46 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 desktop_data,
             )
 
+            if new_name := desktop_data.get("name"):
+                deployment_create_dict_object[desktop_data["tag_desktop_id"]][
+                    "name"
+                ] = new_name
+            if new_description := desktop_data.get("description"):
+                deployment_create_dict_object[desktop_data["tag_desktop_id"]][
+                    "description"
+                ] = new_description
+            if new_image := desktop_data.get("image"):
+                deployment_create_dict_object[desktop_data["tag_desktop_id"]][
+                    "image"
+                ] = new_image
+
+            if "reservables" in desktop_data:
+                new_vgpus = (desktop_data.get("reservables") or {}).get("vgpus") or []
+                old_vgpus = (create_dict.get("reservables") or {}).get("vgpus") or []
+                validate_reservables_vgpus(
+                    new_vgpus, payload=payload, existing_vgpus=old_vgpus
+                )
+
+        return create_dicts, deployment_create_dict_object
+
+    @classmethod
+    def edit_deployment_desktops(
+        cls,
+        payload: dict,
+        deployment_id: str,
+        desktops_data: list[dict],
+    ):
+        """
+        Edit a deployment's desktops by it's tag_desktop_ids
+        """
+        create_dicts, deployment_create_dict_object = (
+            cls._merge_edited_deployment_desktops(payload, deployment_id, desktops_data)
+        )
+
         with cls._rdb_context():
             r.table("deployments").get(deployment_id).update(
                 DeploymentUpdateModel(
-                    create_dict=deployment_create_dict_object.values(),
+                    create_dict=list(deployment_create_dict_object.values()),
                 ).model_dump(mode="json", exclude_unset=True)
             ).run(cls._rdb_connection)
         Caches.invalidate_cache("deployments", deployment_id)
@@ -1745,25 +1830,12 @@ class DeploymentsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
-    def add_desktops_to_deployment(
+    def _parse_new_deployment_desktops(
         cls,
         payload: dict,
-        deployment_id: str,
         desktops: list[dict],
-    ):
-        """
-        Add new desktops to an existing deployment's create_dict list
-        """
-        if not Caches.get_document("deployments", deployment_id):
-            raise Error(
-                "not_found",
-                f"Deployment not found: {deployment_id}",
-                traceback.format_exc(),
-            )
-
-        for desktop in desktops:
-            desktop["tag_desktop_id"] = str(uuid.uuid4())
-
+    ) -> list[dict]:
+        """Merge and check each new desktop with its template without writing."""
         parsed_desktops = []
         # TODO: Unify with create deployment code
         for desktop in desktops:
@@ -1848,10 +1920,78 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 description_code="deployment_reservables_not_equal",
             )
 
+        return parsed_desktops
+
+    @classmethod
+    def _check_deployment_quota(
+        cls,
+        payload: dict,
+        deployment_id: str,
+        allowed: dict,
+        new_desktops: int,
+    ) -> None:
+        """Only users getting a new desktop count towards group and category limits."""
+        users = DeploymentUsers.get_selected_users(
+            payload,
+            allowed,
+            "",
+            deployment_id=None,
+            existing_desktops_error=False,
+            include_existing_desktops=True,
+        )
+        limit_users = (
+            users
+            if new_desktops
+            else DeploymentUsers.get_selected_users(
+                payload,
+                allowed,
+                "",
+                deployment_id=deployment_id,
+                existing_desktops_error=False,
+                include_existing_desktops=False,
+            )
+        )
+
+        # TODO: check if quantity=0 works, else create `deployment_add` function to only check deployment desktops quota
+        Quotas.deployment_create(
+            owner_id=payload["user_id"],
+            quantity=0,
+            desktops_len=new_desktops,
+            users=users,
+            limit_users=limit_users,
+        )
+
+    @classmethod
+    def add_desktops_to_deployment(
+        cls,
+        payload: dict,
+        deployment_id: str,
+        desktops: list[dict],
+        *,
+        skip_name_check: bool = False,
+        allowed: dict | None = None,
+    ):
+        """
+        Add new desktops to an existing deployment's create_dict list
+        """
+        if not Caches.get_document("deployments", deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment not found: {deployment_id}",
+                traceback.format_exc(),
+            )
+
+        for desktop in desktops:
+            desktop["tag_desktop_id"] = str(uuid.uuid4())
+
+        parsed_desktops = cls._parse_new_deployment_desktops(payload, desktops)
+
         with cls._rdb_context():
             deployment = (
                 r.table("deployments").get(deployment_id).run(cls._rdb_connection)
             )
+        if allowed is None:
+            allowed = deployment["allowed"]
 
         create_dict_list = deployment["create_dict"] + [
             {
@@ -1871,34 +2011,18 @@ class DeploymentsProcessed(RethinkSharedConnection):
             for desktop in parsed_desktops
         ]
 
-        for desktop in parsed_desktops:
+        if not skip_name_check:
+            for desktop in parsed_desktops:
+                # Check the desktop names
+                DeploymentUsers.get_selected_users(
+                    payload,
+                    allowed,
+                    desktop["name"],
+                    deployment_id=None,
+                    existing_desktops_error=True,
+                )
 
-            # Check the desktop names
-            DeploymentUsers.get_selected_users(
-                payload,
-                deployment["allowed"],
-                desktop["name"],
-                deployment_id=None,
-                existing_desktops_error=True,
-            )
-
-        # Get the users
-        users = DeploymentUsers.get_selected_users(
-            payload,
-            deployment["allowed"],
-            "",
-            deployment_id=None,
-            existing_desktops_error=False,
-            include_existing_desktops=True,
-        )
-
-        # TODO: check if quantity=0 works, else create `deployment_add` function to only check deployment desktops quota
-        Quotas.deployment_create(
-            owner_id=payload["user_id"],
-            quantity=0,
-            desktops_len=len(desktops),
-            users=users,
-        )
+        cls._check_deployment_quota(payload, deployment_id, allowed, len(desktops))
 
         """Create deployment"""
         with cls._rdb_context():
@@ -1909,18 +2033,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
             ).run(cls._rdb_connection)
         Caches.invalidate_cache("deployments", deployment_id)
 
-        """Create desktops for each user found"""
-        deployment_tag = {
-            "tag": deployment_id,
-            "tag_name": deployment["name"],
-            "tag_visible": deployment["tag_visible"],
-        }
-        cls.create_deployment_desktops(deployment_tag, desktops, users)
-
         return deployment["id"]
 
     @classmethod
-    def edit_deployment_data(cls, payload: dict, deployment_id: str, data: dict):
+    def edit_deployment_data(
+        cls,
+        payload: dict,
+        deployment_id: str,
+        data: dict,
+    ):
         """
         Edit the deployment data without modifying it's desktops
         """
@@ -1933,13 +2054,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
             )
 
         if "allowed" in data:
-            alloweds = data.pop("allowed")
             DeploymentUsers.edit_deployment_users(
                 payload=payload,
                 deployment_id=deployment_id,
-                allowed=alloweds,
+                allowed=data.pop("allowed"),
+                recreate=False,
             )
-            cls.recreate(payload, deployment_id)
+
+        if "visible" in data:
+            data["tag_visible"] = data.pop("visible")
 
         with cls._rdb_context():
             r.table("deployments").get(deployment_id).update(
@@ -1949,8 +2072,45 @@ class DeploymentsProcessed(RethinkSharedConnection):
             ).run(cls._rdb_connection)
         Caches.invalidate_cache("deployments", deployment_id)
 
-        if "visible" in data:
+        if "tag_visible" in data:
             with cls._rdb_context():
                 r.table("domains").get_all(deployment_id, index="tag").update(
-                    {"tag_visible": data["visible"]}
+                    {"tag_visible": data["tag_visible"]}
                 ).run(cls._rdb_connection)
+
+    @classmethod
+    def validate_deployment_edit(
+        cls,
+        payload: dict,
+        deployment_id: str,
+        data: dict,
+    ) -> None:
+        """Run every check that can reject an edit, without writing."""
+        deployment = Caches.get_document("deployments", deployment_id)
+        if not deployment:
+            raise Error(
+                "not_found",
+                f"Deployment not found: {deployment_id}",
+                traceback.format_exc(),
+            )
+
+        if "allowed" in data:
+            DeploymentUsers.check_no_scheduled_booking(deployment_id)
+
+        if data.get("desktops_to_edit"):
+            cls._merge_edited_deployment_desktops(
+                payload, deployment_id, copy.deepcopy(data["desktops_to_edit"])
+            )
+
+        desktops_to_create = data.get("desktops_to_create") or []
+        if desktops_to_create:
+            cls._parse_new_deployment_desktops(payload, desktops_to_create)
+
+        # recreate creates the new users' desktops
+        if "allowed" in data or desktops_to_create:
+            cls._check_deployment_quota(
+                payload,
+                deployment_id,
+                data.get("allowed", deployment["allowed"]),
+                len(desktops_to_create),
+            )

@@ -278,8 +278,8 @@
                 </b-button>
                 <b-button
                   class="rounded-circle btn btn-blue px-2 mr-2"
-                  :title="canEditDeployment ? $t('components.statusbar.deployment.buttons.edit.disabled') : $t('components.statusbar.deployment.buttons.edit.title')"
-                  :disabled="canEditDeployment || blockDeploymentActions"
+                  :title="deployment.isMultiDesktop ? $t('components.statusbar.deployment.buttons.edit.multi-desktop') : canEditDeployment ? $t('components.statusbar.deployment.buttons.edit.disabled') : $t('components.statusbar.deployment.buttons.edit.title')"
+                  :disabled="canEditDeployment || blockDeploymentActions || deployment.isMultiDesktop"
                   @click="editDeployment()"
                 >
                   <b-icon

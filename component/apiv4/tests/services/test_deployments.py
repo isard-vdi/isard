@@ -5,7 +5,8 @@ DesktopEvents, and RethinkDeployment. Tests pin the not-found
 dispatch + the merged owned/co-owned listing.
 """
 
-from unittest.mock import patch
+from contextlib import ExitStack
+from unittest.mock import MagicMock, patch
 
 import pytest
 from api.services.deployments import DeploymentService
@@ -373,3 +374,88 @@ class TestBastionCsv:
     def test_raises_not_found(self, _exists):
         with pytest.raises(Error):
             DeploymentService.bastion_csv("ghost")
+
+
+class TestUpdateDeployment:
+    """Every check runs first and the steps that delete desktops run last.
+
+    Desktops are created in the background, so the missing ones are created
+    in a single ``recreate`` once the whole edit is applied: a second pass
+    duplicates them and an earlier one builds them from the pre-edit desktops.
+    """
+
+    STEPS = (
+        "validate_deployment_edit",
+        "edit_deployment_desktops",
+        "add_desktops_to_deployment",
+        "remove_desktops_from_deployment",
+        "edit_deployment_data",
+        "recreate",
+    )
+
+    @pytest.fixture
+    def common(self):
+        manager = MagicMock()
+        with ExitStack() as stack:
+            for step in self.STEPS:
+                mock = stack.enter_context(
+                    patch(f"api.services.deployments.CommonDeployments.{step}")
+                )
+                manager.attach_mock(mock, step)
+            stack.enter_context(
+                patch(
+                    "api.services.deployments.CommonDeploymentUsers.get_selected_users"
+                )
+            )
+            stack.enter_context(
+                patch("api.services.deployments.Helpers.check_duplicate")
+            )
+            caches = stack.enter_context(patch("api.services.deployments.Caches"))
+            caches.get_document.return_value = {"create_dict": [{}, {}]}
+            stack.enter_context(
+                patch(
+                    "api.services.deployments.RethinkDeployment.get",
+                    return_value={
+                        "create_dict": [
+                            {"name": "A", "tag_desktop_id": "t1"},
+                            {"name": "B", "tag_desktop_id": "t2"},
+                        ],
+                        "allowed": {"users": ["u1"], "groups": False},
+                    },
+                )
+            )
+            yield manager
+
+    def test_creates_the_missing_desktops_once_after_the_whole_edit(self, common):
+        DeploymentService.update_deployment(
+            JWT_PAYLOAD,
+            "d1",
+            {
+                "name": "Lab",
+                "allowed": {"users": ["u1", "u2"], "groups": False},
+                "desktops_to_edit": [{"tag_desktop_id": "t1", "name": "A2"}],
+                "desktops_to_create": [{"template_id": "tpl", "name": "C"}],
+                "desktops_to_delete": ["t2"],
+            },
+        )
+        assert [name for name, _, _ in common.mock_calls] == list(self.STEPS)
+        common.recreate.assert_called_once_with(JWT_PAYLOAD, "d1")
+        assert (
+            "create_desktops" not in common.add_desktops_to_deployment.call_args.kwargs
+        )
+
+    def test_new_alloweds_alone_create_the_missing_desktops(self, common):
+        DeploymentService.update_deployment(
+            JWT_PAYLOAD, "d1", {"allowed": {"users": ["u1", "u2"], "groups": False}}
+        )
+        assert [name for name, _, _ in common.mock_calls] == [
+            "validate_deployment_edit",
+            "edit_deployment_data",
+            "recreate",
+        ]
+
+    def test_plain_edit_creates_no_desktops(self, common):
+        DeploymentService.update_deployment(
+            JWT_PAYLOAD, "d1", {"name": "Lab", "description": "Updated"}
+        )
+        common.recreate.assert_not_called()

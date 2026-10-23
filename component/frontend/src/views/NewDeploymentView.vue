@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -25,9 +25,10 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Button } from '@/components/ui/button'
-import { NewDeploymentForm } from '@/components/deployments/new-deployment-form'
+import { missingFieldLabels, NewDeploymentForm } from '@/components/deployments/new-deployment-form'
+import { type AllowedSelection } from '@/components/modal/allowed'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
-import { FormHeader } from '@/components/form-header'
+import { FormHeader, type FormHeaderTooltip } from '@/components/form-header'
 import { EmptyState } from '@/components/page'
 import { DomainInfoModal } from '@/components/desktops'
 
@@ -260,6 +261,16 @@ const formSchema = z.object({
     }),
   coOwners: z.array(z.string()),
   createOwnerDesktop: z.boolean(),
+  alloweds: z
+    .object({
+      groups: z.union([z.boolean(), z.array(z.string())]).default(false),
+      users: z.union([z.boolean(), z.array(z.string())]).default(false)
+    })
+    .refine(
+      ({ groups, users }) =>
+        (Array.isArray(groups) && groups.length > 0) || (Array.isArray(users) && users.length > 0),
+      { message: t('components.deployments.form-sections.alloweds.required') }
+    ),
   permissions: z.object({
     recreate: z.boolean()
   }),
@@ -279,7 +290,8 @@ const step2Schema = formSchema.pick({
   image: true,
   createOwnerDesktop: true,
   coOwners: true,
-  permissions: true
+  permissions: true,
+  alloweds: true
 })
 const step4Schema = formSchema.pick({ desktops: true })
 
@@ -305,7 +317,8 @@ const form = useForm({
     permissions: {
       recreate: false
     },
-    coOwners: [] as string[]
+    coOwners: [] as string[],
+    alloweds: { users: false, groups: false } as AllowedSelection
   },
   validators: {
     onChange: formSchema
@@ -318,8 +331,17 @@ const form = useForm({
         image: value.image,
         visible: value.visible,
 
-        // desktops without the temporary id
-        desktops: value.desktops.map(({ _id, ...desktop }) => desktop),
+        desktops: value.desktops.map(({ _id, ...desktop }) => ({
+          ...desktop,
+          hardware: {
+            ...desktop.hardware,
+            interfaces: desktop.hardware?.interfaces?.map((iface: string | { id: string }) =>
+              typeof iface === 'string' ? iface : iface.id
+            ),
+            isos: toMediaResources(desktop.hardware?.isos),
+            floppies: toMediaResources(desktop.hardware?.floppies)
+          }
+        })),
 
         create_owner_desktop: true,
         co_owners: [],
@@ -327,8 +349,8 @@ const form = useForm({
         user_permissions: [...(value.permissions.recreate ? ['recreate'] : [])] as 'recreate'[],
 
         allowed: {
-          users: ['local-default-admin-admin'],
-          groups: false
+          users: value.alloweds.users,
+          groups: value.alloweds.groups
         },
 
         resources: []
@@ -390,7 +412,7 @@ watch([deploymentName, desktopNames], () => {
 })
 
 // Define which form fields belong to each step
-const step1Fields = ['name', 'description', 'visible']
+const step1Fields = ['name', 'description', 'visible', 'alloweds']
 const step2Fields = ['desktops']
 
 // Helper to check if any field in a list has errors (touched + invalid)
@@ -409,17 +431,21 @@ function hasFieldErrors(
   })
 }
 
-// Check if the current step's fields pass validation (independent of touch state)
-function isStepFieldsValid(step: number): boolean {
+// Validation issues of the current step's fields (independent of touch state)
+function stepIssues(step: number) {
   const values = formValues.value
   switch (step) {
     case 1:
-      return step2Schema.safeParse(values).success
+      return step2Schema.safeParse(values).error?.issues ?? []
     case 2:
-      return step4Schema.safeParse(values).success
+      return step4Schema.safeParse(values).error?.issues ?? []
     default:
-      return true
+      return []
   }
+}
+
+function isStepFieldsValid(step: number): boolean {
+  return stepIssues(step).length === 0
 }
 
 const steps = computed<StepperFormStep[]>(() => {
@@ -450,10 +476,44 @@ const goToNextStep = () => {
   }
 }
 
+const formIsValid = form.useStore((state) => state.isValid)
+const formIsSubmitting = form.useStore((state) => state.isSubmitting)
+
+const isLastStep = computed(() => currentStep.value === steps.value.length)
+
+const nextButtonLabel = computed(() =>
+  isLastStep.value
+    ? t('views.new-deployment.header.create-deployment')
+    : t('views.new-deployment.header.next')
+)
+
+const isNextButtonDisabled = computed(() =>
+  isLastStep.value
+    ? !formIsValid.value ||
+      !formIsTouched.value ||
+      formIsSubmitting.value ||
+      createDeploymentIsPending.value
+    : !isStepFieldsValid(currentStep.value)
+)
+
+const nextButtonTooltip = computed<FormHeaderTooltip | undefined>(() => {
+  if (!isNextButtonDisabled.value) return undefined
+
+  const fields = missingFieldLabels(stepIssues(currentStep.value), t)
+  if (!fields.length) return undefined
+
+  return {
+    title: t('components.deployments.missing-fields.title'),
+    description: fields.join(', ')
+  }
+})
+
+const handleNext = () => (isLastStep.value ? form.handleSubmit() : goToNextStep())
+
 const toMediaResources = (media?: DomainInfoMedia[]) =>
   media?.map(({ id, name }) => ({ id, name: name ?? id }))
 
-async function addDesktop(templateId: string) {
+async function desktopFromTemplate(templateId: string, entryId: string, name: string) {
   const {
     id,
     hardware: {
@@ -466,30 +526,39 @@ async function addDesktop(templateId: string) {
     ...templateData
   } = await getTemplateInfoAsync(templateId)
 
-  const currentDesktops = form.getFieldValue('desktops') || []
-  const newDesktops = [
-    ...currentDesktops,
-    {
-      ...templateData,
-      hardware: {
-        ...templateHardware,
-        interfaces: templateInterfaces.map((iface) =>
-          typeof iface === 'string' ? iface : iface.id
-        ),
-        isos: toMediaResources(templateIsos),
-        floppies: toMediaResources(templateFloppies)
-      },
+  return {
+    ...templateData,
+    hardware: {
+      ...templateHardware,
+      interfaces: templateInterfaces.map((iface) => (typeof iface === 'string' ? iface : iface.id)),
+      isos: toMediaResources(templateIsos),
+      floppies: toMediaResources(templateFloppies)
+    },
 
-      _id: `${Date.now()}-${Math.random()}`,
-      template_id: templateId,
-      name: ''
-    }
-  ]
-  form.setFieldValue('desktops', newDesktops)
+    _id: entryId,
+    template_id: templateId,
+    name
+  }
+}
+
+const desktopOriginals = ref(new Map<string, any>())
+
+const rememberOriginal = (desktop: { _id: string }) => {
+  desktopOriginals.value.set(desktop._id, structuredClone(toRaw(desktop)))
+}
+
+async function addDesktop(templateId: string) {
+  const desktop = await desktopFromTemplate(templateId, `${Date.now()}-${Math.random()}`, '')
+  rememberOriginal(desktop)
+
+  const currentDesktops = form.getFieldValue('desktops') || []
+  form.setFieldValue('desktops', [...currentDesktops, desktop])
 }
 
 const deleteDesktop = (index: number) => {
   const currentDesktops = form.getFieldValue('desktops') || []
+  desktopOriginals.value.delete(currentDesktops[index]._id)
+
   const newDesktops = [...currentDesktops.slice(0, index), ...currentDesktops.slice(index + 1)]
   form.setFieldValue('desktops', newDesktops)
 
@@ -497,39 +566,19 @@ const deleteDesktop = (index: number) => {
 }
 
 async function updateDesktopTemplate(templateId: string, index: number) {
-  const {
-    id,
-    hardware: {
-      interfaces: templateInterfaces,
-      isos: templateIsos,
-      floppies: templateFloppies,
-
-      ...templateHardware
-    },
-    ...templateData
-  } = await getTemplateInfoAsync(templateId)
-
   const currentDesktops = form.getFieldValue('desktops') || []
-  const newDesktops = [
-    ...currentDesktops.slice(0, index),
-    {
-      ...templateData,
-      hardware: {
-        ...templateHardware,
-        interfaces: templateInterfaces.map((iface) =>
-          typeof iface === 'string' ? iface : iface.id
-        ),
-        isos: toMediaResources(templateIsos),
-        floppies: toMediaResources(templateFloppies)
-      },
+  const desktop = await desktopFromTemplate(
+    templateId,
+    currentDesktops[index]._id,
+    currentDesktops[index].name
+  )
+  rememberOriginal(desktop)
 
-      _id: currentDesktops[index]._id,
-      template_id: templateId,
-      name: currentDesktops[index].name
-    },
+  form.setFieldValue('desktops', [
+    ...currentDesktops.slice(0, index),
+    desktop,
     ...currentDesktops.slice(index + 1)
-  ]
-  form.setFieldValue('desktops', newDesktops)
+  ])
 }
 
 interface SelectTemplateModalData {
@@ -554,7 +603,16 @@ const deleteDesktopConfirmationModalData = ref<{
 const updateHardwareModalData = ref<{
   index: number
   data: CreateDesktopRequest | any
+  original: CreateDesktopRequest | any
 } | null>(null)
+
+const openHardwareModal = (index: number, desktop: { _id: string }) => {
+  updateHardwareModalData.value = {
+    index,
+    data: desktop,
+    original: desktopOriginals.value.get(desktop._id) ?? null
+  }
+}
 
 const updateHardware = (
   index: number,
@@ -716,6 +774,7 @@ const updateHardware = (
       v-if="updateHardwareModalData !== null"
       :open="updateHardwareModalData !== null"
       :data="updateHardwareModalData?.data"
+      :original="updateHardwareModalData?.original"
       @close="updateHardwareModalData = null"
       @submit="
         ({ access, hardware }) => {
@@ -729,7 +788,12 @@ const updateHardware = (
       :cancel-to="{ name: 'deployments' }"
       :confirm-cancel="formIsTouched || currentStep > 1"
       :show-previous="currentStep > 1"
+      :next-label="nextButtonLabel"
+      :next-disabled="isNextButtonDisabled"
+      :next-pending="formIsSubmitting || createDeploymentIsPending"
+      :next-tooltip="nextButtonTooltip"
       @previous="goToPreviousStep"
+      @next="handleNext"
     >
       <template #stepper>
         <div class="shrink-0 _w-160 w-80">
@@ -739,28 +803,6 @@ const updateHardware = (
             :disable-future-steps="!isStepFieldsValid(currentStep)"
           />
         </div>
-      </template>
-
-      <template #next>
-        <form.Subscribe v-slot="{ isValid, isSubmitting, isTouched }">
-          <Button
-            v-if="currentStep === steps.length"
-            class="min-w-32"
-            type="submit"
-            :disabled="!isValid || !isTouched || isSubmitting || createDeploymentIsPending"
-            :icon="isSubmitting || createDeploymentIsPending ? 'loading-02' : ''"
-            icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-            @click="form.handleSubmit"
-            >{{ t('views.new-deployment.header.create-deployment') }}</Button
-          >
-          <Button
-            v-else
-            class="min-w-32"
-            :disabled="!isStepFieldsValid(currentStep)"
-            @click="goToNextStep"
-            >{{ t('views.new-deployment.header.next') }}</Button
-          >
-        </form.Subscribe>
       </template>
     </FormHeader>
     <main class="max-w-320 w-full mx-auto flex flex-1 flex-col gap-6">
@@ -846,7 +888,7 @@ const updateHardware = (
                 "
                 @update-hardware="
                   () => {
-                    updateHardwareModalData = { index, data: values.desktops[index] }
+                    openHardwareModal(index, values.desktops[index])
                   }
                 "
               />

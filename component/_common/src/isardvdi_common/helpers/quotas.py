@@ -1183,6 +1183,7 @@ class Quotas(RethinkCustomBase):
         quantity=1,
         desktops_len=None,
         users=None,
+        limit_users=None,
     ):
         user = Caches.get_cached_user_with_names(owner_id)
 
@@ -1257,10 +1258,14 @@ class Quotas(RethinkCustomBase):
                 quota_error,
             )
 
+        # Only the users that get a new desktop count towards the limits
+        if limit_users is None:
+            limit_users = users
+        if limit_users:
             # Group the users considering its groups and categories
             groups_users = {}
             categories_users = {}
-            for user in users:
+            for user in limit_users:
                 groups_users.setdefault(user["group"], []).append(user)
                 categories_users.setdefault(user["category"], []).append(user)
 

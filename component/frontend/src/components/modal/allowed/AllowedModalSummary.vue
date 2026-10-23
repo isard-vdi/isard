@@ -48,6 +48,15 @@ const usersCountLabel = computed(() =>
     : t('users.count.users', props.users.length)
 )
 
+// Shrinks once the modal's columns (far larger shrink weight) are at their minimum; open, it keeps
+// the trigger, the headers and one row of chips.
+const rootClass = computed(() =>
+  cn(
+    'mb-4 flex flex-col rounded-lg border border-gray-warm-200 bg-base-white',
+    open.value && 'min-h-26'
+  )
+)
+
 // Sits on the column header's text line, so showing it does not change the header's height.
 const clearButtonClass =
   'ml-auto h-auto shrink-0 gap-1 rounded-xs p-0 text-xs focus-visible:ring-3 focus-visible:ring-gray focus-visible:outline-none'
@@ -59,13 +68,9 @@ const chipButtonClass =
 </script>
 
 <template>
-  <Collapsible
-    v-model:open="open"
-    class="mb-4 shrink-0 rounded-lg border border-gray-warm-200 bg-base-white"
-    data-slot="selection-summary"
-  >
+  <Collapsible v-model:open="open" :class="rootClass" data-slot="selection-summary">
     <CollapsibleTrigger
-      class="flex w-full cursor-pointer flex-row items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-warm-50 focus-visible:ring-3 focus-visible:ring-gray focus-visible:outline-none"
+      class="flex w-full shrink-0 cursor-pointer flex-row items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-warm-50 focus-visible:ring-3 focus-visible:ring-gray focus-visible:outline-none"
       data-slot="selection-summary-trigger"
     >
       <Icon
@@ -100,11 +105,11 @@ const chipButtonClass =
       </span>
     </CollapsibleTrigger>
 
-    <CollapsibleContent>
+    <CollapsibleContent class="flex min-h-0 flex-col">
       <div
         :class="
           cn(
-            'grid h-32 grid-rows-1 gap-6 border-t border-gray-warm-200 px-3 py-2',
+            'grid h-32 min-h-0 grid-rows-1 gap-6 border-t border-gray-warm-200 px-3 py-2',
             props.showGroups ? 'grid-cols-2' : 'grid-cols-1'
           )
         "

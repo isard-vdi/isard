@@ -35,7 +35,6 @@ from rethinkdb import r
 
 
 class DeploymentUsers(RethinkSharedConnection):
-
     _rdb_table = "deployments"
 
     @classmethod
@@ -155,7 +154,7 @@ class DeploymentUsers(RethinkSharedConnection):
         deployment_id=None,
         existing_desktops_error=False,
         include_existing_desktops=False,
-        add_payload_user=True,
+        excluded_deployment_id=None,
     ):
         """Check who has to be created"""
         users = []
@@ -214,23 +213,27 @@ class DeploymentUsers(RethinkSharedConnection):
         """ DOES THE USERS ALREADY HAVE A DESKTOP WITH THIS NAME? """
         users_ids = [u["id"] for u in users]
 
-        filter_dict = {"kind": "desktop"}
-        if deployment_id:
-            filter_dict["tag"] = deployment_id
-        if desktop_name:
-            filter_dict["name"] = desktop_name
-
         with cls._rdb_context():
-            existing_desktops = [
-                u["user"]
-                for u in list(
-                    r.table("domains")
-                    .get_all(r.args(users_ids), index="user")
-                    .filter(filter_dict)
-                    .pluck("id", "user", "username")
-                    .run(cls._rdb_connection)
+            existing_desktops_data = list(
+                r.table("domains")
+                .get_all(r.args(users_ids), index="user")
+                .filter(
+                    lambda row: (
+                        row["kind"].eq("desktop")
+                        & (row["tag"].eq(deployment_id) if deployment_id else True)
+                        & (
+                            row["tag"].ne(excluded_deployment_id)
+                            if excluded_deployment_id
+                            else True
+                        )
+                        & (row["name"].eq(desktop_name) if desktop_name else True)
+                    )
                 )
-            ]
+                .pluck("id", "user", "username")
+                .run(cls._rdb_connection)
+            )
+
+        existing_desktops = [u["user"] for u in existing_desktops_data]
         if len(existing_desktops):
             if existing_desktops_error:
                 raise Error(
@@ -245,7 +248,23 @@ class DeploymentUsers(RethinkSharedConnection):
         return users
 
     @classmethod
-    def edit_deployment_users(cls, payload, deployment_id, allowed):
+    def check_no_scheduled_booking(cls, deployment_id: str) -> None:
+        # Circular import
+        from isardvdi_common.lib.deployments.deployments import (  # noqa: E501
+            DeploymentsProcessed,
+        )
+
+        deployment_booking = DeploymentsProcessed._parse_booking(deployment_id)
+        if deployment_booking.get("next_booking_end"):
+            raise Error(
+                "precondition_required",
+                "Can't edit a deployment with a scheduled booking",
+                traceback.format_exc(),
+                "cant_edit_booked_deployment",
+            )
+
+    @classmethod
+    def edit_deployment_users(cls, payload, deployment_id, allowed, *, recreate=True):
         deployment = Caches.get_document("deployments", deployment_id)
         if not deployment:
             raise Error(
@@ -264,14 +283,7 @@ class DeploymentUsers(RethinkSharedConnection):
             DeploymentsProcessed,
         )
 
-        deployment_booking = DeploymentsProcessed._parse_booking(deployment_id)
-        if deployment_booking.get("next_booking_end"):
-            raise Error(
-                "precondition_required",
-                "Can't edit a deployment with a scheduled booking",
-                traceback.format_exc(),
-                "cant_edit_booked_deployment",
-            )
+        cls.check_no_scheduled_booking(deployment_id)
         with cls._rdb_context():
             r.table("deployments").get(deployment_id).update(
                 {
@@ -317,4 +329,5 @@ class DeploymentUsers(RethinkSharedConnection):
                 desktops_ids=desktops_ids,
                 permanent=True,
             )
-        DeploymentsProcessed.recreate(payload, deployment_id)
+        if recreate:
+            DeploymentsProcessed.recreate(payload, deployment_id)

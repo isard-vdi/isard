@@ -31,7 +31,7 @@ from isardvdi_apiv4_client.api.role_user import (
     force_stop_desktop,
     start_desktop,
 )
-from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_base_input import AllowedBaseInput
 from isardvdi_apiv4_client.models.allowed_input import AllowedInput
 from isardvdi_apiv4_client.models.create_desktop_from_media import (
     CreateDesktopFromMedia,
@@ -168,7 +168,7 @@ def test_media_from_url_full_lifecycle(
                 desktop_id=desktop_id,
                 name=template_name,
                 description="",
-                allowed=AllowedBase(users=False, groups=False),
+                allowed=AllowedBaseInput(users=False, groups=False),
                 enabled=True,
             ),
         )
