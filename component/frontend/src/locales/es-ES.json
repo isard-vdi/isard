@@ -436,7 +436,9 @@
           "info": "Información"
         },
         "failed-badge": "Plantilla con errores",
-        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues"
+        "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues",
+        "hidden-badge": "Plantilla oculta",
+        "hidden-message": "Esta plantilla está oculta: otros usuarios no pueden crear escritorios a partir de ella"
       }
     },
     "new-template": {

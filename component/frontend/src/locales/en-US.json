@@ -444,7 +444,9 @@
           "info": "Information"
         },
         "failed-badge": "Failed template",
-        "failed-message": "This template failed and can't be used to create desktops or deployments"
+        "failed-message": "This template failed and can't be used to create desktops or deployments",
+        "hidden-badge": "Hidden template",
+        "hidden-message": "This template is hidden: other users can't create desktops from it"
       }
     },
     "new-template": {
