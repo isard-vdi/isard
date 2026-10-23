@@ -1440,6 +1440,10 @@
         "cancel": "Go back to templates",
         "go-to-profile": "Check your quota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancel",
+        "new-desktop": "New desktop"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copy Template ID"

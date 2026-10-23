@@ -8,6 +8,7 @@ import {
   getUserTemplatesOptions,
   getUserSharedTemplatesOptions,
   checkQuotaNewTemplateOptions,
+  getUserDesktopsOptions,
   updateTemplateAllowedMutation,
   getTemplateAllowedQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -15,6 +16,7 @@ import {
 import { copyToClipboard } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { canCreateAnyDesktop } from '@/lib/quotas'
+import { resolveDesktopKind } from '@/lib/desktops'
 import { useOwnershipTab } from '@/composables/useOwnershipTab'
 import { useUserStore } from '@/stores/user'
 
@@ -42,7 +44,7 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Icon } from '@/components/icon'
-import { QuotaExceededModal } from '@/components/modal'
+import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { AllowedModal, type AllowedSelection } from '@/components/modal/allowed'
 import { TemplateDeleteModal } from '@/components/templates/template-delete-modal'
 import { TemplateToDesktopModal } from '@/components/templates/template-to-desktop-modal'
@@ -231,6 +233,7 @@ const quotaExceededModalData = ref<{
 } | null>(null)
 const templateCreationCheckIsPending = ref(false)
 const desktopCreationCheckIsPending = ref(false)
+const noDesktopsModalOpen = ref(false)
 
 const handleWithTemplateQuotaCheck = async (callback: () => void) => {
   templateCreationCheckIsPending.value = true
@@ -251,6 +254,22 @@ const handleWithTemplateQuotaCheck = async (callback: () => void) => {
   }
 }
 
+const goToNewTemplate = () =>
+  handleWithTemplateQuotaCheck(async () => {
+    templateCreationCheckIsPending.value = true
+    // A failed fetch is left to the form, which shows its own loading error.
+    const hasTemplateSource = await queryClient
+      .fetchQuery(getUserDesktopsOptions())
+      .then(({ desktops }) => desktops.some((d) => resolveDesktopKind(d) === 'persistent'))
+      .catch(() => true)
+    templateCreationCheckIsPending.value = false
+    if (!hasTemplateSource) {
+      noDesktopsModalOpen.value = true
+      return
+    }
+    router.push({ name: 'new-template' })
+  })
+
 const handleWithDesktopQuotaCheck = async (callback: () => void) => {
   desktopCreationCheckIsPending.value = true
   if (await canCreateAnyDesktop(queryClient, userStore.config?.show_temporal_tab !== false)) {
@@ -261,7 +280,7 @@ const handleWithDesktopQuotaCheck = async (callback: () => void) => {
     quotaExceededModalData.value = {
       title: t('components.desktops.quota-exceeded-modal.title'),
       description: t('components.desktops.quota-exceeded-modal.description'),
-      cancelLabel: t('components.desktops.quota-exceeded-modal.cancel')
+      cancelLabel: t('components.templates.quota-exceeded-modal.cancel')
     }
   }
 }
@@ -339,6 +358,32 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
     :cancel-to="{ name: 'templates' }"
     @close="quotaExceededModalData = null"
   />
+
+  <AlertModal
+    :open="noDesktopsModalOpen"
+    level="warning"
+    size="md"
+    :title="t('components.empty.template-sources.title')"
+    :description="t('components.empty.template-sources.description')"
+    @close="noDesktopsModalOpen = false"
+  >
+    <template #footer>
+      <Button hierarchy="link-gray" @click="noDesktopsModalOpen = false">
+        {{ t('components.templates.no-desktops-modal.cancel') }}
+      </Button>
+      <Button
+        icon="plus"
+        @click="
+          () => {
+            noDesktopsModalOpen = false
+            handleWithDesktopQuotaCheck(() => router.push({ name: 'new-desktop' }))
+          }
+        "
+      >
+        {{ t('components.templates.no-desktops-modal.new-desktop') }}
+      </Button>
+    </template>
+  </AlertModal>
 
   <AllowedModal
     v-if="allowedModalData"
@@ -448,7 +493,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
             'motion-safe:animate-[spin_2s_linear_infinite]': templateCreationCheckIsPending
           }"
           :disabled="templateCreationCheckIsPending"
-          @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+          @click="goToNewTemplate"
           >{{ t('views.templates.new-template') }}</Button
         >
       </template>
@@ -480,7 +525,7 @@ const isFailed = (row: Record<string, unknown>) => row.status === 'Failed'
               }"
               :disabled="templateCreationCheckIsPending"
               size="lg"
-              @click="handleWithTemplateQuotaCheck(() => router.push({ name: 'new-template' }))"
+              @click="goToNewTemplate"
               >{{ t('views.templates.new-template') }}</Button
             >
           </template>

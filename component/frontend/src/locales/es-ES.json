@@ -2245,6 +2245,10 @@
         "cancel": "Volver a plantillas",
         "go-to-profile": "Comprobar tu cuota"
       },
+      "no-desktops-modal": {
+        "cancel": "Cancelar",
+        "new-desktop": "Nuevo escritorio"
+      },
       "datatable": {
         "debug-options": {
           "copy-id": "Copiar ID de la plantilla"
