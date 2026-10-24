@@ -81,7 +81,7 @@ services:
       - /sys:/sys:ro
       # Node Exporter
       - type: bind
-        source: /opt/isard/stats/node-exporter
+        source: /opt/isard-local/stats/node-exporter
         target: /var/lib/node-exporter
         bind: { create_host_path: true }
       # This is also used for log extraction
