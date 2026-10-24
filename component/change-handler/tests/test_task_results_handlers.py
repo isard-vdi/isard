@@ -485,6 +485,47 @@ def test_media_download_update_status_failed_when_the_transfer_itself_failed():
     assert store["m1"]["status"] == "DownloadFailed"
 
 
+def _fail_with(exc_info, store):
+    from isardvdi_change_handler.task_results import media
+
+    download = SimpleNamespace(exc_info=exc_info, dependencies=[])
+    media_update = SimpleNamespace(exc_info=None, dependencies=[download])
+    task = _task(depending_status="failed", dependencies=[media_update])
+    with patch.object(media, "Media", _media_over(store)):
+        media.handle_media_download_update_status(task, media_id="m1")
+
+
+def test_media_download_update_status_writes_the_failure_reason_to_detail():
+    store = {"m1": {"status": "Downloading", "detail": ""}}
+    _fail_with(
+        "Traceback ...\nisardvdi_storage.task.DownloadError: the download timed out "
+        "(curl exit 28): curl: (28) Connection timed out after 30001 milliseconds\n",
+        store,
+    )
+    assert store["m1"]["status"] == "DownloadFailed"
+    assert store["m1"]["detail"] == (
+        "the download timed out (curl exit 28): "
+        "curl: (28) Connection timed out after 30001 milliseconds"
+    )
+
+
+def test_media_download_update_status_names_an_unexpected_error_without_its_text():
+    store = {"m1": {"status": "Downloading", "detail": ""}}
+    _fail_with(
+        "Traceback ...\nsubprocess.CalledProcessError: Command '['curl', "
+        "'https://user:secret@example.org/x.iso']' returned non-zero exit status 6.\n",
+        store,
+    )
+    assert store["m1"]["detail"] == "the download task failed (CalledProcessError)"
+
+
+def test_media_download_update_status_clears_a_previous_reason_on_success():
+    store = {"m1": {"status": "Downloading", "detail": "the download timed out"}}
+    _settle(store)
+    assert store["m1"]["status"] == "Downloaded"
+    assert store["m1"]["detail"] == ""
+
+
 def test_media_download_update_status_failed_when_chain_failed():
     """depending_status=failed → DownloadFailed regardless of media row."""
     store = {"m1": {"status": "Downloading"}}
