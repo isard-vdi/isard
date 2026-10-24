@@ -1175,6 +1175,37 @@ class DownloadInvalidFormatError(CalledProcessError):
         return self.stderr
 
 
+# change-handler copies the text after this class name into the row's detail.
+class DownloadError(CalledProcessError):
+    def __str__(self):
+        return self.stderr
+
+
+_CURL_EXIT_REASONS = {
+    5: "could not resolve the proxy",
+    6: "could not resolve the host",
+    7: "could not connect to the server",
+    18: "the transfer ended before the whole file arrived",
+    22: "the server returned an HTTP error",
+    23: "could not write the file to the storage pool",
+    28: "the download timed out",
+    35: "the TLS handshake failed",
+    47: "too many redirects",
+    52: "the server returned an empty reply",
+    56: "the connection was lost while receiving data",
+    60: "the server certificate could not be verified",
+    92: "the server reset the HTTP/2 stream",
+}
+
+
+def _curl_failure_reason(returncode, curl_message):
+    reason = _CURL_EXIT_REASONS.get(returncode, "the download failed")
+    reason = f"{reason} (curl exit {returncode})"
+    if curl_message:
+        reason = f"{reason}: {curl_message}"
+    return reason[:500]
+
+
 _MEDIA_SIGNATURES = {
     "iso": (32769, (b"CD001", b"BEA01")),
     "floppy": (510, (b"\x55\xaa",)),
@@ -1232,6 +1263,11 @@ def _run_curl_download(
     failure (RQ marks the chain FAILED so the dependent
     ``update_status`` can flip the row terminal).
     """
+    if not isinstance(url, str) or not url.strip():
+        log.error("download failed: no source URL (url=%r)", url)
+        raise DownloadError(
+            returncode=1, cmd="download", stderr="the download has no source URL"
+        )
     job = get_current_job()
     makedirs(dirname(dest_path), exist_ok=True)
 
@@ -1287,6 +1323,7 @@ def _run_curl_download(
     last_flush = 0.0
     last_progress = {}
     line = ""
+    curl_message = ""
     aborted = False
     with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
         while process.poll() is None:
@@ -1305,6 +1342,8 @@ def _run_curl_download(
             ch = c.decode("utf-8", errors="replace")
             if ch in ("\r", "\n"):
                 progress = _curl_progress_dict(line)
+                if line.strip().startswith("curl:"):
+                    curl_message = line.strip()
                 line = ""
                 if progress:
                     last_progress = progress
@@ -1349,24 +1388,34 @@ def _run_curl_download(
             os.unlink(dest_path)
         except OSError:
             pass
-        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+        raise DownloadError(
+            returncode=130, cmd=curl_cmd, stderr="the download was cancelled"
+        )
 
     if is_aborting():
         try:
             os.unlink(dest_path)
         except OSError:
             pass
-        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+        raise DownloadError(
+            returncode=130, cmd=curl_cmd, stderr="the download was cancelled"
+        )
 
     if process.returncode != 0:
-        stderr = process.stderr.read().decode("utf-8", errors="replace")
-        log.error("download failed (rc=%s): %s", process.returncode, stderr.strip())
+        stderr = process.stderr.read().decode("utf-8", errors="replace").strip()
+        if line.strip().startswith("curl:"):
+            curl_message = line.strip()
+        if stderr:
+            curl_message = stderr.splitlines()[-1].strip()
+        log.error("download failed (rc=%s): %s", process.returncode, curl_message)
         try:
             os.unlink(dest_path)
         except OSError:
             pass
-        raise CalledProcessError(
-            returncode=process.returncode, cmd=curl_cmd, stderr=stderr
+        raise DownloadError(
+            returncode=process.returncode,
+            cmd=curl_cmd,
+            stderr=_curl_failure_reason(process.returncode, curl_message),
         )
 
     if _looks_like_html(dest_path):
