@@ -182,3 +182,33 @@ def test_reclaimable_sees_an_inflated_copy(tmp_path):
     for path, low, high in ((sparse, 0, 16 * MIB), (inflated, 48 * MIB, 80 * MIB)):
         actual = os.stat(path).st_blocks * 512
         assert low <= task._reclaimable_zeros(str(path), actual) <= high
+
+
+def _measure(monkeypatch, storage_type="qcow2", map_returncode=0):
+    info = json.dumps([{"actual-size": 9 * MIB, "format": storage_type}])
+    extents = '[{"start": 0, "length": 1048576, "depth": 0, "data": true}]'
+
+    def fake(cmd, *a, **k):
+        if "map" in cmd:
+            return _Done(extents, returncode=map_returncode)
+        return _Done(info)
+
+    monkeypatch.setattr(task, "run", fake)
+    return task.qemu_img_info_backing_chain("s1", "/x.qcow2", storage_type)
+
+
+def test_a_qcow2_measure_reports_its_reclaimable_zeros(monkeypatch):
+    assert _measure(monkeypatch)["reclaimable-zeros"] == 8 * MIB
+
+
+@pytest.mark.parametrize(
+    "storage_type, map_returncode",
+    [("raw", 0), ("qcow2", 1)],
+    ids=["not-qcow2", "map-failed"],
+)
+def test_a_measure_without_a_figure_carries_none(
+    monkeypatch, storage_type, map_returncode
+):
+    assert "reclaimable-zeros" not in _measure(
+        monkeypatch, storage_type, map_returncode
+    )

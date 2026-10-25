@@ -38,9 +38,11 @@ from contextlib import contextmanager
 from datetime import timezone
 from time import time
 
+from isardvdi_common.lib.storage import actions as disk_actions
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import (
     DIG_HOLES_MISMATCH,
+    DIG_HOLES_SLACK_BYTES,
     SPARSIFY_GROWTH_BYTES,
     Storage,
     StoragePool,
@@ -240,6 +242,37 @@ def _sparsify_growth(storage_dict):
     return grew if grew >= SPARSIFY_GROWTH_BYTES else None
 
 
+def _diggable_once_stopped(storage):
+    """Whether the registry admits dig_holes on this disk once its desktops stop."""
+    return (
+        disk_actions.refusal(
+            "dig_holes",
+            status="ready",
+            domains=[(getattr(d, "kind", None), "Stopped") for d in storage.domains],
+            has_children=lambda: disk_actions.has_dependents(
+                storage, include_deleted=True
+            ),
+            perms=storage.perms,
+            storage_id=storage.id,
+        )
+        is None
+    )
+
+
+def _note_reclaimable_zeros(storage_id, reclaimable):
+    """Flag dig_holes when a dig could give back enough zeros; clear a mark that no longer holds."""
+    storage = Storage(storage_id)
+    if reclaimable >= DIG_HOLES_SLACK_BYTES and _diggable_once_stopped(storage):
+        Storage.flag_pending(
+            storage_id,
+            "dig_holes",
+            found_by="storage refresh",
+            detail={"reclaimable_bytes": reclaimable},
+        )
+    elif "dig_holes" in (getattr(storage, "pending_actions", None) or {}):
+        Storage.clear_pending(storage_id, "dig_holes")
+
+
 def _read_started_at(task):
     """When the earliest reading this step applies started, or None."""
     starts = []
@@ -266,8 +299,15 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
     if not storage_dict or not Storage.exists(storage_dict["id"]):
         return None
     open_error = storage_dict.get("open_error")
-    reading = {k: v for k, v in storage_dict.items() if k != "open_error"}
+    reclaimable = storage_dict.get("reclaimable-zeros")
+    reading = {
+        k: v
+        for k, v in storage_dict.items()
+        if k not in ("open_error", "reclaimable-zeros")
+    }
     grew = _sparsify_growth(reading)
+    if grew and reclaimable is not None and grew - reclaimable < SPARSIFY_GROWTH_BYTES:
+        grew = None
     status = Storage.write_reading(reading, observer=observer, read_at=read_at)
     if status is None:
         return None
@@ -290,6 +330,8 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
             found_by="storage refresh",
             detail={"grew_bytes": grew},
         )
+    if status == "ready" and reclaimable is not None:
+        _note_reclaimable_zeros(storage_dict["id"], reclaimable)
     storage_object = Storage(storage_dict["id"])
     if storage_dict.get("status") == status and status in (
         "deleted",

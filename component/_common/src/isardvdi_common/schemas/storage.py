@@ -44,6 +44,8 @@ class StoragePendingAction(str, Enum):
     review_damage = "review_damage"
     #: written into since it was last sparsified
     sparsify = "sparsify"
+    #: the file allocates zeros its qcow2 does not hold as data
+    dig_holes = "dig_holes"
     #: its parent moved and the backing pointer still names the old path
     rebase_backing = "rebase_backing"
     #: the stored qemu-img-info no longer describes the file

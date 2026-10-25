@@ -1079,6 +1079,12 @@ def qemu_img_info_backing_chain(
             # adoption judge the real location, not a symlink or a ``..`` path
             qemu_img_info_data[0]["backing-realpath"] = os.path.realpath(backing)
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
+        if storage_type == "qcow2":
+            reclaimable = _reclaimable_zeros(
+                storage_path, qemu_img_info_data[0].get("actual-size")
+            )
+            if reclaimable is not None:
+                storage_data["reclaimable-zeros"] = reclaimable
         # Only stamp on success: a failed measure must not record a geometry the disk may not have.
         if qcow2_geometry:
             storage_data["qcow2_geometry"] = qcow2_geometry

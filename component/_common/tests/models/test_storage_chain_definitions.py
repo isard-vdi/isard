@@ -341,6 +341,19 @@ def test_a_dig_the_registry_refuses_queues_nothing():
     create.assert_not_called()
 
 
+def test_dig_holes_clears_its_mark_after_the_measure():
+    s, _, create, _ = _dig([_desktop()])
+    dependents = create.call_args.kwargs["dependents"]
+    parents = {dep["task"]: parent for parent, dep in _walk_with_parents(dependents)}
+    assert parents["clear_pending_action"] == "storage_update"
+    clear = next(
+        dep
+        for _, dep in _walk_with_parents(dependents)
+        if dep["task"] == "clear_pending_action"
+    )
+    assert clear["job_kwargs"]["kwargs"] == {"storage_id": s.id, "action": "dig_holes"}
+
+
 # ---------------------------------------------------------------------------
 # rsync / mv: storage_domains_force_update must not be present
 # ---------------------------------------------------------------------------

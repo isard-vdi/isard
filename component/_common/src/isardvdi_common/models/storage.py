@@ -162,6 +162,12 @@ PENDING_ACTIONS = {
         "flagged_by": ("a storage refresh that measured growth",),
         "cleared_by": "sparsify",
     },
+    "dig_holes": {
+        "flagged_by": (
+            "a storage refresh that found allocation beyond the qcow2 data",
+        ),
+        "cleared_by": "dig_holes",
+    },
     "rebase_backing": {
         "flagged_by": ("check_backing_chain",),
         "cleared_by": "rebase",
@@ -192,6 +198,8 @@ PENDING_ACTIONS = {
 #: Flag ``sparsify`` when a disk's actual-size grows at least this much since its
 #: last measurement -- 256 MiB clears the journal a bare start/stop moves.
 SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
+#: What a file may allocate beyond its qcow2 data (metadata included) before it is flagged dig_holes.
+DIG_HOLES_SLACK_BYTES = 256 * 1024 * 1024
 
 
 #: Every :class:`Storage` method that creates a task, and what it does to the
@@ -1904,6 +1912,18 @@ class Storage(RethinkCustomBase):
                 {
                     "queue": "core",
                     "task": "storage_update",
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "clear_pending_action",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                    "action": "dig_holes",
+                                }
+                            },
+                        }
+                    ],
                 }
             ],
         }
