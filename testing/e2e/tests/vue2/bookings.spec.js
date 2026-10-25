@@ -68,11 +68,24 @@ async function getDesktopBookings(client, id) {
   }
 }
 
+// The modal takes local wall-clock times and reads the hour a DST change repeats as its
+// first occurrence. Returns the ms to add to now so the next `horizonMin` minutes avoid it.
+function dstShiftMs(horizonMin = 480) {
+  const now = Math.floor(Date.now() / 60000) * 60000
+  let shift = 0
+  for (let m = 0; m <= horizonMin; m++) {
+    const d = new Date(now + m * 60000)
+    const local = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes())
+    if (local.getTime() !== d.getTime()) shift = (m + 1) * 60000
+  }
+  return shift
+}
+
 // Worker-staggered booking window so concurrent admins don't fight
 // over the 8 units of NVIDIA-T4-2Q's plan. Each worker takes a 30-min
 // strip starting at `now + 1h + worker*30min`.
 function workerBookingWindow(workerIndex, offsetMinutes = 0, durationMinutes = 30) {
-  const base = Date.now() + (60 + workerIndex * 30 + offsetMinutes) * 60 * 1000
+  const base = Date.now() + dstShiftMs() + (60 + workerIndex * 30 + offsetMinutes) * 60 * 1000
   // Round up to the next minute so the start is always >= forbid_time.
   const startMs = Math.ceil(base / 60000) * 60000
   return {
@@ -483,6 +496,8 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     userE2EPage: page,
     apiv4User: apiv4,
   }, testInfo) => {
+    // forbid_time is relative to now, so this window cannot be moved.
+    test.skip(dstShiftMs(60) > 0, 'the forbid_time window touches a DST change')
     const tpl = await getFirstAllowedTemplate(apiv4)
     const desktop = await createDesktopAndTrack(apiv4, testInfo, {
       template_id: tpl.id,
@@ -545,8 +560,9 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     })
 
     // Non-overlapping windows, all outside the 15-min forbid_time.
+    const shift = dstShiftMs()
     const win = (offsetMin) => {
-      const startMs = Date.now() + offsetMin * 60 * 1000
+      const startMs = Date.now() + shift + offsetMin * 60 * 1000
       return { startMs, endMs: startMs + 30 * 60 * 1000 }
     }
     await createBookingAndTrack(apiv4, testInfo, {
@@ -627,7 +643,8 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     await gotoBooking(page, desktop.id)
 
     // 150 min > the user's max_time=120 on T4-2Q.
-    const startMs = Date.now() + 30 * 60 * 1000
+    const shift = dstShiftMs()
+    const startMs = Date.now() + shift + 30 * 60 * 1000
     await showWeekOf(page, startMs, ITEM_BOOKINGS_URL_RE)
     await setCreateModal(page, startMs, startMs + 150 * 60 * 1000)
     const post = watchBookingPost(page)
@@ -641,7 +658,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     await expect(page.locator('#eventModal'), 'modal stays open').toBeVisible()
 
     // Positive control: exactly 120 min is the inclusive boundary.
-    const okStart = Date.now() + 30 * 60 * 1000
+    const okStart = Date.now() + shift + 30 * 60 * 1000
     await setCreateModal(page, okStart, okStart + 120 * 60 * 1000)
     const title = `e2e-vue2-s7-ok-${Date.now()}`
     const postPromise = page.waitForResponse(
