@@ -421,6 +421,10 @@ function createDatatable(tableId, status, initCompleteFn = null) {
                 filter: true,
                 width: '10px', 
                 "render": function ( data, type, full, meta ) {
+                    if (type === 'display' && full.detail && String(full.status).startsWith('DownloadFailed')) {
+                        return $('<span>').text(full.status).prop('outerHTML') +
+                            '<br>' + $('<small class="text-danger">').text(full.detail).prop('outerHTML');
+                    }
                     return full.status;
                 }
             },

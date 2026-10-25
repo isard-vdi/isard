@@ -89,11 +89,29 @@ def _download_had_an_invalid_format(task):
     return False
 
 
+_REASON_CARRYING_ERRORS = ("DownloadError", "DownloadInvalidFormatError")
+
+
+def _download_failure_reason(task):
+    pending = list(task.dependencies)
+    while pending:
+        dependency = pending.pop()
+        lines = [line for line in (dependency.exc_info or "").splitlines() if line]
+        if lines:
+            error, _, message = lines[-1].partition(": ")
+            if error.rsplit(".", 1)[-1] in _REASON_CARRYING_ERRORS and message:
+                return message.strip()[:500]
+            # other exceptions may print the whole command line, URL included
+            return f"the download task failed ({error.rsplit('.', 1)[-1]})"
+        pending.extend(dependency.dependencies)
+    return ""
+
+
 def handle_media_download_update_status(task, media_id):
     """Set media status after a download task chain completes."""
     if task.depending_status == "finished" and Media.update_document_if(
         media_id,
-        {"status": "Downloaded"},
+        {"status": "Downloaded", "detail": ""},
         field="status",
         values=_DOWNLOAD_IN_FLIGHT_STATUSES,
     ):
@@ -106,7 +124,8 @@ def handle_media_download_update_status(task, media_id):
                 "DownloadFailedInvalidFormat"
                 if _download_had_an_invalid_format(task)
                 else "DownloadFailed"
-            )
+            ),
+            "detail": _download_failure_reason(task),
         },
         field="status",
         values=_DOWNLOAD_IN_FLIGHT_STATUSES + ("DownloadAborting",),
