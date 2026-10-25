@@ -21,6 +21,7 @@ import errno
 import hashlib
 import logging
 import os
+import re
 import shlex
 import signal
 import tempfile
@@ -1198,6 +1199,15 @@ _CURL_EXIT_REASONS = {
 }
 
 
+_CURL_ERROR_LINE = re.compile(r"curl: \(\d+\).*")
+
+
+def _curl_error_line(text):
+    """The last ``curl: (N) ...`` message in text, without the progress meter before it."""
+    found = _CURL_ERROR_LINE.findall(text or "")
+    return found[-1].strip() if found else ""
+
+
 def _curl_failure_reason(returncode, curl_message):
     reason = _CURL_EXIT_REASONS.get(returncode, "the download failed")
     reason = f"{reason} (curl exit {returncode})"
@@ -1289,6 +1299,7 @@ def _run_curl_download(
     curl_cmd.extend(
         [
             "-L",
+            "--fail",
             "--max-redirs",
             "5",
             "--connect-timeout",
@@ -1342,8 +1353,7 @@ def _run_curl_download(
             ch = c.decode("utf-8", errors="replace")
             if ch in ("\r", "\n"):
                 progress = _curl_progress_dict(line)
-                if line.strip().startswith("curl:"):
-                    curl_message = line.strip()
+                curl_message = _curl_error_line(line) or curl_message
                 line = ""
                 if progress:
                     last_progress = progress
@@ -1403,10 +1413,7 @@ def _run_curl_download(
 
     if process.returncode != 0:
         stderr = process.stderr.read().decode("utf-8", errors="replace").strip()
-        if line.strip().startswith("curl:"):
-            curl_message = line.strip()
-        if stderr:
-            curl_message = stderr.splitlines()[-1].strip()
+        curl_message = _curl_error_line(line + "\n" + stderr) or curl_message
         log.error("download failed (rc=%s): %s", process.returncode, curl_message)
         try:
             os.unlink(dest_path)
