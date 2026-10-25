@@ -1151,13 +1151,17 @@ class Helpers(RethinkSharedConnection):
 
     @classmethod
     def old_entries_purge_enabled(cls):
-        """Whether the configured action asks for old entries to be purged."""
-        return cls.get_old_entries_config().get("action") == "delete"
+        """Whether the action asks for a purge and a usable window is set."""
+        return (
+            cls.get_old_entries_config().get("action") == "delete"
+            and cls.get_old_entries_cutoff() is not None
+        )
 
     @classmethod
     def get_old_entries_cutoff(cls):
         """Return the timestamp before which an entry counts as old."""
-        max_time = cls.get_old_entries_config()["max_time"]
+        # action and max_time are written by separate setters; either may be absent
+        max_time = cls.get_old_entries_config().get("max_time")
         if max_time is None:
             return None
         try:

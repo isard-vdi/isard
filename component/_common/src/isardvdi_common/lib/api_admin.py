@@ -1733,10 +1733,14 @@ class ApiAdmin(RethinkSharedConnection):
 
         if table == "logs_desktops":
             if max_time_config is None:
-                max_time_config = cls.get_logs_desktops_old_entries_config()["max_time"]
+                max_time_config = cls.get_logs_desktops_old_entries_config().get(
+                    "max_time"
+                )
         elif table == "logs_users":
             if max_time_config is None:
-                max_time_config = cls.get_logs_users_old_entries_config()["max_time"]
+                max_time_config = cls.get_logs_users_old_entries_config().get(
+                    "max_time"
+                )
         else:
             raise Error(
                 "forbidden",
@@ -1824,10 +1828,14 @@ class ApiAdmin(RethinkSharedConnection):
 
         if table == "logs_desktops":
             if max_time_config is None:
-                max_time_config = cls.get_logs_desktops_old_entries_config()["max_time"]
+                max_time_config = cls.get_logs_desktops_old_entries_config().get(
+                    "max_time"
+                )
         elif table == "logs_users":
             if max_time_config is None:
-                max_time_config = cls.get_logs_users_old_entries_config()["max_time"]
+                max_time_config = cls.get_logs_users_old_entries_config().get(
+                    "max_time"
+                )
         else:
             raise Error(
                 "forbidden",
