@@ -675,3 +675,68 @@ class TestBuildHugepagesExtra:
         assert extra["hugepages"] == {"1G": {"free": 4, "total": 8}, "mounted": True}
         assert extra["hugepages_free_kb"] == 4 * 1048576
         assert extra["numa_hugepages_free_kb"] == {"0": 4 * 1048576}
+
+
+class TestPendingStartsLifetime:
+    """In-flight starts stay charged until the stats include them."""
+
+    def test_a_tracked_start_outlives_the_anonymous_expiry(self):
+        balancer = BalancerInterface(balancer_type="round_robin")
+        with patch("engine.models.balancers.time.time", return_value=1000.0):
+            balancer._record_pending("hyper1", 8, domain_id="d1")
+            balancer._record_pending("hyper1", 4)
+        with patch("engine.models.balancers.time.time", return_value=1060.0):
+            balancer._cleanup_expired()
+        assert balancer._get_pending_ram_kb("hyper1") == 8 * GB
+
+    def test_the_worker_releases_a_start_the_stats_now_show(self):
+        from engine.models.balancers import release_pending_start
+
+        balancer = BalancerInterface(balancer_type="round_robin")
+        balancer._record_pending("hyper1", 8, domain_id="d1")
+        balancer._record_pending("hyper1", 8, domain_id="d2")
+        release_pending_start("hyper1", "d1")
+        assert balancer._get_pending_ram_kb("hyper1") == 8 * GB
+
+    def test_starting_a_desktop_again_replaces_its_previous_start(self):
+        balancer = BalancerInterface(balancer_type="round_robin")
+        balancer._record_pending("hyper1", 8, domain_id="d1")
+        balancer._record_pending("hyper1", 8, domain_id="d1")
+        assert balancer._get_pending_ram_kb("hyper1") == 8 * GB
+
+    def test_pending_is_split_by_memory_backing(self):
+        balancer = BalancerInterface(balancer_type="round_robin")
+        balancer._record_pending("hyper1", 8, domain_id="d1", backing="hugepages")
+        balancer._record_pending("hyper1", 4, domain_id="d2")
+        assert balancer._get_pending_ram_kb("hyper1", "hugepages") == 8 * GB
+        assert balancer._get_pending_ram_kb("hyper1", "regular") == 4 * GB
+
+    def test_the_only_host_counts_its_starts_in_flight(self):
+        """The single-host shortcut used to skip the in-flight accounting."""
+        balancer = BalancerInterface(balancer_type="round_robin")
+        host = {
+            "id": "hyper1",
+            "min_free_mem_gb": 0,
+            "hugepages_info": {"mounted": True, "1G": {"total": 16}},
+            "stats": {
+                "mem_stats": {
+                    **_mem(64, 16, hugepages_free_gb=16)["mem_stats"],
+                    "hugepages_total_kb": 16 * GB,
+                    "hugepages_used_kb": 0,
+                    "guests_kb": 0,
+                }
+            },
+        }
+        with patch(
+            "engine.models.balancers.get_hypers_online", return_value=[host]
+        ), patch(
+            "engine.models.balancers.get_pools_threads_running", side_effect=lambda h: h
+        ):
+            plans = [
+                balancer.get_next_hypervisor(
+                    storage_pool_id="p", domain_memory_gb=8, domain_id=f"d{i}"
+                )[1]["memory_backing"]
+                for i in range(4)
+            ]
+        # 16 GiB regular for two, the 16 GiB pool for the other two.
+        assert plans == ["regular", "regular", "hugepages", "hugepages"]

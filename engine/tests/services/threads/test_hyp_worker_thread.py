@@ -88,3 +88,36 @@ def test_generic_error_clears_vgpu_info(
     w._handle_generic_error_in_start_domain(err, action, 0.0, [])
 
     mock_update_vgpu.assert_called_once_with(action["id_domain"])
+
+
+@patch("engine.services.threads.hyp_worker_thread.update_table_field")
+def test_a_start_is_released_from_the_balancer_once_its_stats_are_written(
+    mock_update_field,
+):
+    """The balancer charges a start until the stats it reads include it."""
+    w = _build_worker()
+    w.h = MagicMock()
+    w.h.stats = {"mem_stats": {}}
+    w.libvirt_stats = MagicMock()
+    w.get_positioned_items = MagicMock(return_value=[])
+    with patch("engine.models.balancers.release_pending_start") as release:
+        w._update_stats_if_needed(_action(), 0.0, [], 0.0)
+    mock_update_field.assert_called_once()
+    release.assert_called_once_with("hyp-test", "_admin_dsk-1")
+
+
+@patch(
+    "engine.services.threads.hyp_worker_thread.update_table_field",
+    side_effect=RuntimeError("db down"),
+)
+def test_a_start_whose_stats_were_not_written_stays_charged(mock_update_field):
+    w = _build_worker()
+    w.h = MagicMock()
+    w.h.stats = {"mem_stats": {}}
+    w.h.connected = True
+    w._try_reconnect = MagicMock()
+    w.libvirt_stats = MagicMock()
+    w.get_positioned_items = MagicMock(return_value=[])
+    with patch("engine.models.balancers.release_pending_start") as release:
+        w._update_stats_if_needed(_action(), 0.0, [], 0.0)
+    release.assert_not_called()

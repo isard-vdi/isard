@@ -15,6 +15,7 @@ from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage, verdict_for_blocked_disks
 from rethinkdb import r
 
+from engine.models.balancers import release_pending_start
 from engine.models.domain_xml import (
     BUS_TYPES,
     add_iothread_pinning,
@@ -32,6 +33,7 @@ from engine.models.domain_xml import (
     recreate_xml_to_start,
     vcpus_from_xml,
 )
+from engine.models.memory_placement import HUGEPAGES, pick_hugepage_size
 from engine.services.db import (
     delete_domain,
     domains_with_attached_storage_id,
@@ -74,30 +76,6 @@ _template_cache = SynchronizedTTLCache(maxsize=100, ttl=60)
 updating_thread_pool = ThreadPoolExecutor(
     max_workers=4, thread_name_prefix="updating_domain"
 )
-
-
-_HUGEPAGE_SIZES = ((("1", "G"), "1G", 1048576), (("2", "M"), "2M", 2048))
-
-
-def pick_hugepage_size(memory_kb, hugepages, free_kb):
-    """Largest mounted hugepage size that divides the memory and has enough free."""
-    memory_kb = round(memory_kb)
-    # absent on hypervisors that predate it: any size with a pool stays eligible
-    usable = hugepages.get("mount_sizes")
-    pool_kb = {
-        label: (hugepages.get(label) or {}).get("total", 0) * page_kb
-        for _, label, page_kb in _HUGEPAGE_SIZES
-    }
-    for page, label, page_kb in _HUGEPAGE_SIZES:
-        if not pool_kb[label] or memory_kb % page_kb:
-            continue
-        if usable is not None and label not in usable:
-            continue
-        # free_kb is summed over all sizes; the other pools bound how much is not ours
-        free_of_size_kb = free_kb - sum(v for k, v in pool_kb.items() if k != label)
-        if free_of_size_kb >= memory_kb:
-            return page
-    return None
 
 
 @cached(cache=_template_cache)
@@ -399,6 +377,7 @@ class UiActions(object):
         numa_opts=None,
     ):
         failed = False
+        no_hyp_reason = None
         if pool_id in self.manager.pools.keys():
             next_hyp = False
             extra_info = {}
@@ -429,7 +408,10 @@ class UiActions(object):
                     storage_pool_id=storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                     domain_vcpus=domain_vcpus,
+                    domain_id=id_domain,
                 )
+                if next_hyp is False:
+                    no_hyp_reason = (extra_info or {}).get("reason")
                 if action == "start_paused_domain":
                     extra_info = {}
                 is_gpu = extra_info.get("nvidia", False) is True
@@ -447,6 +429,11 @@ class UiActions(object):
                 # unknown numa_node behave exactly as before.
                 prefer_cpuset = pinned_cpuset_from_xml(xml)
                 group_node = None
+                charged_hyps = set()
+
+                def _release_charges():
+                    for _h in charged_hyps:
+                        release_pending_start(_h, id_domain)
 
                 def _rollback_vgpus():
                     for _g, _u, _p in reserved:
@@ -486,7 +473,10 @@ class UiActions(object):
                             # every requested profile can share; ignored once
                             # group_node is set (prefer_numa_node wins downstream).
                             coplacement_profiles=gpu_profiles,
+                            domain_id=id_domain,
                         )
+                        if nh is not False:
+                            charged_hyps.add(nh)
                         if nh is False or ei.get("nvidia", False) is not True:
                             # No card for this profile on the pinned host.
                             break
@@ -545,6 +535,7 @@ class UiActions(object):
                                 profile=ei["profile"],
                             )
                             _rollback_vgpus()
+                            _release_charges()
                             update_domain_status(
                                 "Failed",
                                 id_domain,
@@ -572,6 +563,7 @@ class UiActions(object):
 
                 if placement_failed:
                     _rollback_vgpus()
+                    _release_charges()
                     update_domain_status(
                         "Failed",
                         id_domain,
@@ -716,6 +708,21 @@ class UiActions(object):
                             # GPU start on a host without a mounted hugepages
                             # pool — 4K-page mapping is the only option.
                             expects_slow_createxml = True
+                    elif "memory_backing" in extra_info:
+                        # Non-GPU: the balancer decided it (memory_placement)
+                        hugepages = extra_info.get("hugepages", {})
+                        if (
+                            extra_info["memory_backing"] == HUGEPAGES
+                            and hugepages.get("mounted")
+                            and _allow["memory_backing"]
+                        ):
+                            page = pick_hugepage_size(
+                                domain_memory_kb,
+                                hugepages,
+                                extra_info.get("hugepages_free_kb", 0),
+                            )
+                            if page is not None:
+                                xml = add_memory_backing(xml, *page)
                     else:
                         # Non-GPU: use hugepages as fallback when regular RAM is low
                         hugepages = extra_info.get("hugepages", {})
@@ -916,6 +923,8 @@ class UiActions(object):
                     f"matching GPU cards are in use, or no GPU hypervisor is online "
                     f"in pool {pool_id}. Free a GPU desktop or add capacity, then retry."
                 )
+            elif no_hyp_reason:
+                detail = f"desktop not started: {no_hyp_reason}"
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
             update_domain_status(

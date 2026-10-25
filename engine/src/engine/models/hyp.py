@@ -170,12 +170,16 @@ class HypStats(object):
         for kk in minutes_keys[0]["memory"].keys():
             sample = minutes_keys[0]["memory"][kk]
             if isinstance(sample, (int, float)):
-                memory_minutes_mean[kk] = round(
-                    sum(vv["memory"][kk] for vv in minutes_keys) / len(minutes_keys), 0
-                )
+                # guests_kb is missing from samples where libvirt did not answer
+                values = [
+                    vv["memory"][kk]
+                    for vv in minutes_keys
+                    if isinstance(vv["memory"].get(kk), (int, float))
+                ]
+                memory_minutes_mean[kk] = round(sum(values) / len(values), 0)
             else:
                 # Non-numeric fields (e.g. numa_hugepages_free_kb dict): use latest value
-                memory_minutes_mean[kk] = minutes_keys[-1]["memory"][kk]
+                memory_minutes_mean[kk] = minutes_keys[-1]["memory"].get(kk, sample)
         self.remove_old_stats(hyp_id=hyp_id)
         return {"memory": memory_minutes_mean, "cpu": cpu_minutes_mean}
 
@@ -198,6 +202,7 @@ class HypStats(object):
         hugepages_total_kb=0,
         hugepages_free_kb=0,
         numa_hugepages_free_kb=None,
+        guests_kb=None,
     ):
         memory["available"] = memory["free"] + memory["cached"]
         memory["hugepages_total_kb"] = hugepages_total_kb
@@ -210,6 +215,8 @@ class HypStats(object):
         # when empty.
         memory["numa_hugepages_free_kb"] = numa_hugepages_free_kb or {}
         memory["used"] = memory["total"] - memory["available"] - hugepages_free_kb
+        if guests_kb is not None:
+            memory["guests_kb"] = guests_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
         if hyp_id not in self.hyper_libvirt_last_stats.keys():
             cpu_current, _, _ = calcule_cpu_hyp_stats(
@@ -1951,6 +1958,22 @@ class hyp(object):
 
         return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb), {}
 
+    def _get_guests_memory_kb(self):
+        """Configured memory (KiB) of every running guest, or None."""
+        try:
+            # maxMemory() reads the definition; balloon stats would wait on each qemu monitor
+            return sum(
+                int(dom.maxMemory() or 0)
+                for dom in self.conn.listAllDomains(
+                    libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
+                )
+            )
+        except Exception as e:
+            log.warning(
+                f"hyp {self.id_hyp_rethink}: guests memory not read from libvirt: {e}"
+            )
+            return None
+
     def get_system_stats(self):
         try:
             start = time.time()
@@ -1966,6 +1989,7 @@ class hyp(object):
                 hugepages_total_kb,
                 hugepages_free_kb,
                 numa_hp_free,
+                guests_kb=self._get_guests_memory_kb(),
             )
             self.stats = {
                 "mem_stats": hyp_stats.get_stats(self.id_hyp_rethink)["memory"],

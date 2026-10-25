@@ -473,6 +473,8 @@ class HypWorkerThread(threading.Thread):
         Tracks slow responses to detect overloaded hypervisors.
         """
         current_time = time.time()
+        if action.get("type") == "start_paused_domain":
+            self._release_pending_start(action)
         if (
             action.get("type") in ["start_domain", "stop_domain"]
             or current_time - last_stats_update > 10
@@ -507,6 +509,8 @@ class HypWorkerThread(threading.Thread):
                     "hypervisors", self.hyp_id, "stats", stats, soft=True
                 )
                 logs.workers.debug(f"Hypervisor {self.hyp_id} stats updated")
+                if action.get("type") == "start_domain":
+                    self._release_pending_start(action)
             except Exception as e:
                 logs.workers.error(f"Failed to update hypervisor stats: {e}")
                 # Handle connection loss - trigger reconnection
@@ -515,6 +519,14 @@ class HypWorkerThread(threading.Thread):
                         f"Connection lost to hypervisor {self.hyp_id}, attempting reconnect"
                     )
                     self._try_reconnect()
+
+    def _release_pending_start(self, action):
+        try:
+            from engine.models.balancers import release_pending_start
+
+            release_pending_start(self.hyp_id, action.get("id_domain"))
+        except Exception as e:
+            logs.workers.warning(f"[{self.hyp_id}] pending start not released: {e}")
 
     def _check_connection(self, action_time, intervals):
         """Check if connection is alive with timeout tracking"""
