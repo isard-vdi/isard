@@ -77,20 +77,30 @@ def test_the_figure_is_never_written_to_the_row():
 @pytest.mark.parametrize(
     "row",
     [
-        _row(domains=[_domain(kind="template")]),
+        _row(
+            perms=("r",),
+            domains=[_domain(kind="template")],
+            children=[MagicMock(id="child")],
+        ),
         _row(domains=[]),
         _row(perms=("r",)),
         _row(children=[MagicMock(id="child")]),
     ],
-    ids=["template", "unused", "read-only", "has-children"],
+    ids=["template-with-children", "unused", "read-only", "has-children"],
 )
 def test_a_disk_no_dig_may_write_is_not_flagged(row):
     cls = _apply(_reading(10 * SLACK), row)
     assert "dig_holes" not in _flagged(cls)
 
 
+def test_flags_a_templates_disk_without_descendants():
+    row = _row(perms=("r",), domains=[_domain(kind="template")])
+    cls = _apply(_reading(SLACK), row)
+    assert _flagged(cls) == ["dig_holes"]
+
+
 def test_a_mark_the_disk_no_longer_qualifies_for_is_cleared():
-    row = _row(marks={"dig_holes": {"since": 1}}, domains=[_domain(kind="template")])
+    row = _row(marks={"dig_holes": {"since": 1}}, domains=[])
     cls = _apply(_reading(10 * SLACK), row)
     cls.clear_pending.assert_called_once_with("s1", "dig_holes")
 

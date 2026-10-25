@@ -9,6 +9,7 @@ from isardvdi_common.lib.storage import actions
 from isardvdi_common.lib.storage import storage as lib
 
 DESKTOP = ("desktop", "Stopped")
+TEMPLATE = ("template", "Stopped")
 
 
 def _dig(**facts):
@@ -26,6 +27,9 @@ class TestDigHolesOnlyDigsAStoppedDesktopsLeafDisk:
     def test_a_stopped_desktops_leaf_disk_is_admitted(self):
         assert _dig() is None
 
+    def test_a_templates_leaf_disk_is_admitted_although_read_only(self):
+        assert _dig(domains=[TEMPLATE], perms=["r"]) is None
+
     def test_a_failed_desktop_still_blocks_it(self):
         assert _dig(domains=[("desktop", "Failed")]) == "desktops_not_stopped"
 
@@ -36,8 +40,12 @@ class TestDigHolesOnlyDigsAStoppedDesktopsLeafDisk:
             ({"perms": ["r"]}, "storage_read_only"),
             ({"domains": []}, "storage_not_used_by_any_domain"),
             (
-                {"domains": [DESKTOP, ("template", "Stopped")]},
-                "storage_used_by_template",
+                {"domains": [DESKTOP, TEMPLATE], "perms": ["r"]},
+                "storage_read_only",
+            ),
+            (
+                {"domains": [TEMPLATE], "perms": ["r"], "has_children": True},
+                "storage_has_children",
             ),
             ({"domains": [("desktop", "Started")]}, "storage_open_by_running_desktop"),
             ({"domains": [("desktop", "Paused")]}, "storage_open_by_running_desktop"),
@@ -47,7 +55,8 @@ class TestDigHolesOnlyDigsAStoppedDesktopsLeafDisk:
             "not-ready",
             "read-only",
             "no-domain",
-            "template",
+            "template-and-desktop",
+            "template-with-children",
             "running",
             "paused",
             "children",
@@ -104,6 +113,17 @@ def test_allowed_actions_counts_deleted_children_only_for_dig_holes():
     assert "sparsify" in allowed
 
 
+def test_a_templates_disk_is_dug_only_without_descendants_deleted_included():
+    def allowed(**children):
+        return "dig_holes" in actions.allowed_actions(
+            status="ready", domains=[TEMPLATE], perms=["r"], **children
+        )
+
+    assert allowed()
+    assert not allowed(has_children=True)
+    assert not allowed(has_deleted_children=True)
+
+
 def _query(monkeypatch, module, result):
     chain = MagicMock(name="query")
     for name in ("map", "get_all", "pluck", "filter", "table", "get", "default"):
@@ -132,6 +152,12 @@ def test_search_info_carries_what_the_registry_admits(monkeypatch):
                 "children": [],
             },
             {
+                "id": "template-leaf",
+                "perms": ["r"],
+                "domains": [{"kind": "template", "status": "Stopped"}],
+                "children": [],
+            },
+            {
                 "id": "orphaned-base",
                 "perms": ["r", "w"],
                 "domains": [{"kind": "desktop", "status": "Stopped"}],
@@ -142,15 +168,17 @@ def test_search_info_carries_what_the_registry_admits(monkeypatch):
     monkeypatch.setattr(
         lib.StorageProcessed, "_rdb_context", classmethod(lambda c: MagicMock())
     )
-    base, leaf, orphaned = lib.StorageProcessed.add_allowed_actions(
+    base, leaf, template_leaf, orphaned = lib.StorageProcessed.add_allowed_actions(
         [
             {"id": "base", "status": "ready"},
             {"id": "leaf", "status": "ready"},
+            {"id": "template-leaf", "status": "ready"},
             {"id": "orphaned-base", "status": "ready"},
         ]
     )
     assert "dig_holes" not in base["allowed_actions"]
     assert "derive" in base["allowed_actions"]
     assert {"sparsify", "dig_holes", "delete"} <= set(leaf["allowed_actions"])
+    assert "dig_holes" in template_leaf["allowed_actions"]
     assert "dig_holes" not in orphaned["allowed_actions"]
     assert "sparsify" in orphaned["allowed_actions"]

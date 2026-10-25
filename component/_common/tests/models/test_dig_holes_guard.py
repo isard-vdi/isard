@@ -63,13 +63,34 @@ def test_a_stopped_desktops_leaf_disk_is_parked_with_a_guarded_claim():
     assert asked == [True]
 
 
+def test_a_templates_leaf_disk_is_parked_with_its_template():
+    code, claims, asked = _park([_domain("template", domain_id="t1")], perms=("r",))
+    assert code is None
+    assert claims == [("s1", "status", ("ready",))]
+    assert asked == [True]
+
+
 @pytest.mark.parametrize(
     "kwargs, code",
     [
-        ({"domains": [_domain("template")]}, "storage_used_by_template"),
         (
-            {"domains": [_domain(), _domain("template", domain_id="t1")]},
-            "storage_used_by_template",
+            {"domains": [_domain("template")], "perms": ("r",), "children": ["c"]},
+            "storage_has_children",
+        ),
+        (
+            {
+                "domains": [_domain("template")],
+                "perms": ("r",),
+                "deleted_children": ["gone"],
+            },
+            "storage_has_children",
+        ),
+        (
+            {
+                "domains": [_domain(), _domain("template", domain_id="t1")],
+                "perms": ("r",),
+            },
+            "storage_read_only",
         ),
         ({"domains": []}, "storage_not_used_by_any_domain"),
         ({"domains": [_domain()], "perms": ("r",)}, "storage_read_only"),
@@ -81,7 +102,8 @@ def test_a_stopped_desktops_leaf_disk_is_parked_with_a_guarded_claim():
         ),
     ],
     ids=[
-        "template",
+        "template-with-child",
+        "template-with-deleted-child",
         "desktop-and-template",
         "no-domain",
         "read-only",

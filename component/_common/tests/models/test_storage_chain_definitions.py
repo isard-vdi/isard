@@ -333,7 +333,7 @@ def test_a_dig_the_registry_refuses_queues_nothing():
     from isardvdi_common.helpers.error_factory import Error
 
     refused = Error(
-        "precondition_required", "template", description_code="storage_used_by_template"
+        "precondition_required", "children", description_code="storage_has_children"
     )
     _, result, create, park = _dig([_desktop()], refused=refused)
     assert result is refused

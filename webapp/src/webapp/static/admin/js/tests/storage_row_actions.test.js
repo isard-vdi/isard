@@ -71,13 +71,13 @@ const report = ctx.storageBatchReport({
   queued: 1,
   results: [
     { storage_id: "a", task_id: "t-a" },
-    { storage_id: "b", description_code: "storage_used_by_template", message: "Storage b is a template's disk" },
+    { storage_id: "b", description_code: "storage_has_children", message: "Storage b has children storages that depend on it as backing file" },
     { storage_id: "c", description_code: "storage_has_children" },
   ],
 });
 assert.strictEqual(report.refused, 2);
 assert.ok(report.text.startsWith("Queued on 1 of 3 disk(s)."));
-assert.ok(report.text.includes("b: Storage b is a template's disk"));
+assert.ok(report.text.includes("b: Storage b has children storages that depend on it as backing file"));
 assert.ok(report.text.includes("c: storage_has_children"));
 console.log("the bulk report gives a reason per refused disk: PASS");
 

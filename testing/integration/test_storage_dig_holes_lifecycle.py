@@ -155,39 +155,49 @@ def test_dig_holes_refuses_an_unknown_priority(admin_client: IsardClient):
     assert resp.status_code == 400, resp.text
 
 
-def _template_disk(admin_client: IsardClient, conn) -> str:
+def _derived_template_disk(admin_client: IsardClient, conn, name: str) -> str:
     templates = derivable(
         expect(admin_get_templates.sync_detailed(client=admin_client.apiv4()))
     )
     assert templates, "no derivable template seeded"
+    created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=templates[0].id, name=name, description=""
+            ),
+        )
+    )
     domain = r.table("domains").get(templates[0].id).run(conn)
     return domain["create_dict"]["hardware"]["disks"][0]["storage_id"]
 
 
 @pytest.mark.real
-def test_dig_holes_refuses_a_templates_disk_and_says_why(admin_client: IsardClient):
+def test_dig_holes_refuses_a_template_base_and_says_why(
+    admin_client: IsardClient, test_namespace: str
+):
     conn = _connect()
     try:
-        storage_id = _template_disk(admin_client, conn)
+        storage_id = _derived_template_disk(
+            admin_client, conn, f"{test_namespace}dig_base"
+        )
         resp = admin_client.raw(
             "PUT", f"/api/v4/item/storage/{storage_id}/dig-holes/priority/low"
         )
         assert resp.status_code == 428, resp.text
-        # a template's disk is read-only, and a template uses it: either says why
-        assert resp.json()["description_code"] in {
-            "storage_read_only",
-            "storage_used_by_template",
-        }, resp.text
+        assert resp.json()["description_code"] == "storage_has_children", resp.text
         assert r.table("storage").get(storage_id)["status"].run(conn) == "ready"
     finally:
         conn.close()
 
 
 @pytest.mark.real
-def test_a_batch_dig_answers_each_id(admin_client: IsardClient):
+def test_a_batch_dig_answers_each_id(admin_client: IsardClient, test_namespace: str):
     conn = _connect()
     try:
-        storage_id = _template_disk(admin_client, conn)
+        storage_id = _derived_template_disk(
+            admin_client, conn, f"{test_namespace}dig_batch"
+        )
         body = admin_client.put(
             "/api/v4/items/storage/dig-holes",
             json_body={"ids": [storage_id, "does-not-exist"]},

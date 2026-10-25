@@ -37,8 +37,8 @@ class DiskAction:
     children_include_deleted: bool = False
     #: refused when the disk's ``perms`` lack ``w``
     refuse_read_only: bool = False
-    #: refused when any template uses the disk
-    refuse_templates: bool = False
+    #: a disk only templates use is admitted although it is read-only
+    admit_template_disk: bool = False
     #: refused when no domain uses the disk
     refuse_unused: bool = False
 
@@ -89,15 +89,15 @@ DISK_ACTIONS = {
     "resize": _WRITER,
     "virt_win_reg": _WRITER,
     "sparsify": _WRITER,
-    # Rewrites the file in place: only a desktop's own leaf disk, never a base
-    # anything reads through, a template or a disk nobody uses.
+    # Rewrites the file in place: only the leaf disk of a stopped desktop or of a
+    # template, never a base anything reads through or a disk nobody uses.
     "dig_holes": DiskAction(
         Access.WRITE,
         refuse_running=True,
         running_refusal="storage_open_by_running_desktop",
         children_include_deleted=True,
         refuse_read_only=True,
-        refuse_templates=True,
+        admit_template_disk=True,
         refuse_unused=True,
     ),
     "repair": DiskAction(
@@ -137,7 +137,7 @@ def needs_domains(action):
     return (
         entry.domains is not None
         or entry.refuse_running
-        or entry.refuse_templates
+        or entry.admit_template_disk
         or entry.refuse_unused
     )
 
@@ -169,7 +169,13 @@ def refusal(
     domains = list(domains)
     if entry.statuses is not None and status not in entry.statuses:
         return status_refusal(action, storage_id, status)
-    if entry.refuse_read_only and perms is not None and "w" not in perms:
+    template_disk = bool(domains) and all(kind == "template" for kind, _ in domains)
+    if (
+        entry.refuse_read_only
+        and perms is not None
+        and "w" not in perms
+        and not (entry.admit_template_disk and template_disk)
+    ):
         return (
             "storage_read_only",
             f"Storage {storage_id} is read-only (perms without 'w'); it is never written",
@@ -177,12 +183,7 @@ def refusal(
     if entry.refuse_unused and not domains:
         return (
             "storage_not_used_by_any_domain",
-            f"Storage {storage_id} is not used by any desktop; only a desktop's own disk is written",
-        )
-    if entry.refuse_templates and any(kind == "template" for kind, _ in domains):
-        return (
-            "storage_used_by_template",
-            f"Storage {storage_id} is a template's disk; a template's disk is never written",
+            f"Storage {storage_id} is not used by any desktop or template; only a domain's own disk is written",
         )
     if entry.refuse_running and any(s in RUNNING for _, s in domains):
         return (

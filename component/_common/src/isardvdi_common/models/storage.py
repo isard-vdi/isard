@@ -1895,7 +1895,7 @@ class Storage(RethinkCustomBase):
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
         verify=False,
     ):
-        """Give back the all-zero blocks of a stopped desktop's own leaf disk."""
+        """Give back the all-zero blocks of the leaf disk of a stopped desktop or a template."""
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
