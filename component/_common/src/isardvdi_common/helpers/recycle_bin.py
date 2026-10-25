@@ -74,6 +74,11 @@ _PURGEABLE = [
 ]
 
 
+# the startup reconcile re-drives an entry stranded in deleting longer than this,
+# sparing one a live task pipeline may still be finishing
+_STALE_DELETING_REENQUEUE_MIN_AGE_MINUTES = 60
+
+
 # the engine is acting on the domain; binning the row loses that action
 ENGINE_TRANSIENT_STATUSES = [
     "Creating",
@@ -165,11 +170,37 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                     }
                 )
 
+            for recycle_bin in await asyncio.to_thread(self._stale_deleting_entries):
+                await self.enqueue(
+                    {
+                        "recycle_bin_id": recycle_bin["id"],
+                        "user_id": recycle_bin["agent_id"],
+                    }
+                )
+
     def _queued_entries(self):
         with self._rdb_context():
             return list(
                 r.table("recycle_bin")
                 .get_all(RecycleBinStatusEnum.queued.value, index="status")
+                .pluck("id", "agent_id")
+                .run(self._rdb_connection)
+            )
+
+    def _stale_deleting_entries(self):
+        """Entries stranded in deleting by a prior restart, past the age gate so
+        one a live task pipeline may still be finishing is left alone."""
+        cutoff_ts = (
+            datetime.now(timezone.utc)
+            - timedelta(minutes=_STALE_DELETING_REENQUEUE_MIN_AGE_MINUTES)
+        ).timestamp()
+        with self._rdb_context():
+            return list(
+                r.table("recycle_bin")
+                .get_all(RecycleBinStatusEnum.deleting.value, index="status")
+                .filter(
+                    lambda rb: rb["last_log"].default({})["time"].default(0) < cutoff_ts
+                )
                 .pluck("id", "agent_id")
                 .run(self._rdb_connection)
             )
@@ -1794,6 +1825,12 @@ class RecycleBin(RethinkSharedConnection):
                 }
             ).run(self._rdb_connection)
 
+    def _reset_tasks(self):
+        with self._rdb_context():
+            r.table("recycle_bin").get(self.id).update({"tasks": []}).run(
+                self._rdb_connection
+            )
+
     def _add_task(self, task):
         with self._rdb_context():
             r.table("recycle_bin").get(self.id).update(
@@ -2308,6 +2345,11 @@ class RecycleBin(RethinkSharedConnection):
                                 rb.id,
                                 time.time() - start,
                             )
+                        # A re-drive judges completion by its own task set: drop
+                        # the prior attempt's rows so a stale non-finished one
+                        # can't keep update_task_status from ever flipping deleted.
+                        if plans:
+                            rb._reset_tasks()
                         for plan in plans:
                             storage = plan["storage"]
                             category = plan["category"]
