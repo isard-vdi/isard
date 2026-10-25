@@ -827,7 +827,9 @@ class StorageService:
         # A write action never touches a disk with descendants; check_integrity is
         # read-only, so it may, and never carries the flag.
         parents_with_children = (
-            StorageService._ids_with_children(ids)
+            StorageService._ids_with_children(
+                ids, include_deleted=action == "dig_holes"
+            )
             if action in ("sparsify", "dig_holes", "repair_leaks")
             else set()
         )
@@ -874,14 +876,18 @@ class StorageService:
         }
 
     @staticmethod
-    def _ids_with_children(ids: list) -> set:
-        """The subset of ``ids`` that have at least one non-deleted child backing
-        onto them, in ONE indexed query (never one per id) -- the same dependency
-        check ``set_maintenance`` makes for its ``storage_has_children`` guard."""
+    def _ids_with_children(ids: list, include_deleted: bool = False) -> set:
+        """The subset of ``ids`` that have at least one child backing onto them
+        (deleted ones only with ``include_deleted``), in ONE indexed query (never
+        one per id) -- the dependency check the registry makes for the action."""
         if not ids:
             return set()
         return {
-            child.parent for child in Storage.get_children(list(ids)) if child.parent
+            child.parent
+            for child in Storage.get_children(
+                list(ids), include_deleted=include_deleted
+            )
+            if child.parent
         }
 
     @staticmethod

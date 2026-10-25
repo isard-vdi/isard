@@ -576,6 +576,26 @@ class TestSweepGivesBackZeros:
         assert (out["selected"], out["skipped_has_descendants"]) == (1, 1)
         assert mock_enq.call_args.args[1] == "dig_holes"
 
+    @pytest.mark.parametrize(
+        "action,include_deleted",
+        [("dig_holes", True), ("sparsify", False), ("repair_leaks", False)],
+    )
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_a_deleted_child_keeps_dig_holes_off_its_parent(
+        self, mock_get, mock_children, mock_enq, action, include_deleted
+    ):
+        mock_children.return_value = []
+        mock_get.side_effect = _sweep_storage
+        StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN, action, ["parent"], {"disks": None, "bytes": None}
+        )
+        assert (
+            mock_children.call_args.kwargs.get("include_deleted", False)
+            is include_deleted
+        )
+
     def test_the_enqueue_runs_dig_holes_at_low_priority(self):
         storage = MagicMock()
         StorageService._sweep_enqueue("u1", "dig_holes", storage)
