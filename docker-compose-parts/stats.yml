@@ -18,7 +18,7 @@ services:
         max-size: "10m"
         max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: "no"
+    restart: "unless-stopped"
     networks:
       isard-network: {}
     environment:
