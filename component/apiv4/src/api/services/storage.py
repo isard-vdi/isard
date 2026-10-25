@@ -745,7 +745,14 @@ class StorageService:
         """Validate and persist the sweep config; returns the merged value.
         delete_backup is deliberately not a sweep action — it is a manual purge."""
         clean = {}
-        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity", "detect"):
+        for key in (
+            "enabled",
+            "sparsify",
+            "dig_holes",
+            "repair_leaks",
+            "check_integrity",
+            "detect",
+        ):
             if key in data:
                 clean[key] = bool(data[key])
         for key, hi in (("hour", 23), ("minute", 59)):
@@ -768,7 +775,7 @@ class StorageService:
         """Run ONE sweep pass and return its summary. Reads the stored config,
         letting ``overrides`` (the webapp run-now form) replace budget/action keys
         for this pass only. Each enabled action selects ready disks oldest first
-        (sparsify/repair_leaks by index, check_integrity by last-checked age),
+        (sparsify/dig_holes/repair_leaks by index, check_integrity by last-checked age),
         skips those a Started desktop holds, honours the shared max_disks/max_bytes
         budget (0 == no cap) and enqueues the matching task. Never repairs
         corruption here (repair_leaks is -r leaks only) and never touches
@@ -821,7 +828,7 @@ class StorageService:
         # read-only, so it may, and never carries the flag.
         parents_with_children = (
             StorageService._ids_with_children(ids)
-            if action in ("sparsify", "repair_leaks")
+            if action in ("sparsify", "dig_holes", "repair_leaks")
             else set()
         )
         storages, candidates = {}, []
@@ -881,6 +888,8 @@ class StorageService:
     def _sweep_enqueue(user_id, action, storage):
         if action == "sparsify":
             storage.sparsify(user_id, priority="default", secondary_priority="high")
+        elif action == "dig_holes":
+            storage.dig_holes(user_id, priority="low", secondary_priority="high")
         elif action == "repair_leaks":
             storage.repair(
                 user_id, "leaks", priority="default", secondary_priority="high"

@@ -11,6 +11,7 @@ SWEEP_DEFAULTS = {
     "max_disks": 50,
     "max_bytes": 0,  # 0 == no byte cap
     "sparsify": False,
+    "dig_holes": False,
     "repair_leaks": False,
     "check_integrity": False,
     "detect": False,  # read-only integrity detection (L0-L3), records pending_actions
@@ -21,6 +22,7 @@ SWEEP_DEFAULTS = {
 #: mark (it selects ready disks by last-checked age); the integrity check wires it.
 SWEEP_PENDING_ACTION = {
     "sparsify": "sparsify",
+    "dig_holes": "dig_holes",
     "repair_leaks": "repair_leaks",
 }
 

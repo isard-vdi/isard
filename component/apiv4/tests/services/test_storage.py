@@ -556,6 +556,53 @@ def _sweep_storage(payload, sid):
     return storage
 
 
+class TestSweepGivesBackZeros:
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_dig_holes_is_a_write_action_and_skips_a_parent(
+        self, mock_get, mock_children, mock_enq
+    ):
+        child = MagicMock()
+        child.parent = "parent"
+        mock_children.return_value = [child]
+        mock_get.side_effect = _sweep_storage
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN,
+            "dig_holes",
+            ["parent", "leaf"],
+            {"disks": None, "bytes": None},
+        )
+        assert (out["selected"], out["skipped_has_descendants"]) == (1, 1)
+        assert mock_enq.call_args.args[1] == "dig_holes"
+
+    def test_the_enqueue_runs_dig_holes_at_low_priority(self):
+        storage = MagicMock()
+        StorageService._sweep_enqueue("u1", "dig_holes", storage)
+        storage.dig_holes.assert_called_once_with(
+            "u1", priority="low", secondary_priority="high"
+        )
+
+    @patch("api.services.storage.Config")
+    def test_the_config_accepts_the_toggle(self, mock_config):
+        mock_config.get_storage_sweep_config.return_value = {}
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, {"dig_holes": 1})
+        mock_config.update_storage_sweep.assert_called_once_with({"dig_holes": True})
+
+    @patch("api.services.storage.StorageService._sweep_act")
+    @patch("api.services.storage.Storage.pending_ids")
+    @patch("api.services.storage.Config")
+    def test_a_pass_reads_the_dig_holes_marks_when_enabled(
+        self, mock_config, mock_pending, mock_act
+    ):
+        mock_config.get_storage_sweep_config.return_value = {"dig_holes": True}
+        mock_pending.return_value = ["leaf"]
+        mock_act.return_value = {"selected": 1}
+        out = StorageService.run_sweep_pass(JWT_PAYLOAD_ADMIN)
+        mock_pending.assert_called_once_with("dig_holes", status="ready", limit=50)
+        assert out["actions"] == {"dig_holes": {"selected": 1}}
+
+
 class TestSweepExcludesDescendants:
     @patch("api.services.storage.StorageService._sweep_enqueue")
     @patch("api.services.storage.Storage.get_children")

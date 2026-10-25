@@ -121,6 +121,7 @@ class StorageSweepConfigResponse(BaseModel):
     max_disks: int
     max_bytes: int
     sparsify: bool
+    dig_holes: bool
     repair_leaks: bool
     check_integrity: bool
     detect: bool
@@ -136,6 +137,7 @@ class StorageSweepConfigRequest(BaseModel):
     max_disks: Optional[int] = None
     max_bytes: Optional[int] = None
     sparsify: Optional[bool] = None
+    dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
     detect: Optional[bool] = None
@@ -148,6 +150,7 @@ class StorageSweepRunRequest(BaseModel):
     max_disks: Optional[int] = None
     max_bytes: Optional[int] = None
     sparsify: Optional[bool] = None
+    dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
     detect: Optional[bool] = None
