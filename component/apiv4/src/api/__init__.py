@@ -60,8 +60,9 @@ from pydantic import ValidationError
 from .schemas.common import ErrorResponse
 
 
-def _sync_haproxy_maps():
+def _sync_haproxy_maps(reason):
     """Sync bastion maps and category branding domains to HAProxy (blocking)."""
+    log.info(f"Syncing HAProxy maps and domains (reason: {reason})")
     Bastion.update_bastion_haproxy_map()
     Bastion.sync_category_branding_domains()
 
@@ -248,30 +249,21 @@ async def lifespan(app: FastAPI):
     except Exception:
         log.warning("Pool-headroom sampler failed to start (telemetry only, non-fatal)")
 
-    try:
-        await asyncio.to_thread(_sync_haproxy_maps)
-    except Exception:
-        log.warning("Bastion haproxy map update failed (bastion may be disabled)")
-
-    # Watch haproxy-sync health and resync on reconnection
-    health_task = None
-    haproxy_health_channel = None
+    # haproxy-sync asks for a resync on connect (the startup sync) and after every reload
+    resync_task = None
+    haproxy_resync_channel = None
     try:
         from api.connections.grpc_client import (
-            async_watch_health_check,
-            create_health_watch_channel,
+            async_watch_resync,
+            create_resync_watch_channel,
         )
 
-        haproxy_health_channel = create_health_watch_channel("isard-portal", 1312)
-        health_task = asyncio.create_task(
-            async_watch_health_check(
-                haproxy_health_channel,
-                "haproxy_sync.v1.HaproxySyncService",
-                _sync_haproxy_maps,
-            )
+        haproxy_resync_channel = create_resync_watch_channel("isard-portal", 1312)
+        resync_task = asyncio.create_task(
+            async_watch_resync(haproxy_resync_channel, _sync_haproxy_maps)
         )
     except Exception:
-        log.warning("Failed to start HAProxy health watch")
+        log.warning("Failed to start the HAProxy resync watch")
 
     recycle_bin_queue = RecycleBinDeleteQueue()
     await recycle_bin_queue.initialize()
@@ -280,14 +272,14 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    if health_task:
-        health_task.cancel()
+    if resync_task:
+        resync_task.cancel()
         try:
-            await health_task
+            await resync_task
         except asyncio.CancelledError, Exception:
             pass
-    if haproxy_health_channel:
-        await haproxy_health_channel.close()
+    if haproxy_resync_channel:
+        await haproxy_resync_channel.close()
     if pool_sampler_task:
         pool_sampler_task.cancel()
         try:

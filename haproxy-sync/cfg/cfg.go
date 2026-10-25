@@ -37,6 +37,8 @@ type HAProxyDomains struct {
 	// BaseDomain is the deployment's own domain, the one the certificate the
 	// crt-list already points at is issued for.
 	BaseDomain string `mapstructure:"base_domain"`
+	// ACMEPath is acme.sh's working directory, where the domains it manages live.
+	ACMEPath string `mapstructure:"acme_path"`
 }
 
 type HAProxyBastion struct {
@@ -73,6 +75,7 @@ func setDefaults() {
 			"certs_path":    "/certs",
 			// DOMAIN is what the entrypoint and the configuration use for it.
 			"base_domain": os.Getenv("DOMAIN"),
+			"acme_path":   "/etc/acme",
 		},
 		"bastion": map[string]any{
 			"subdomains_map":         "virt@subdomains",

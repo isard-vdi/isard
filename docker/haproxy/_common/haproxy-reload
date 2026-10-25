@@ -19,6 +19,10 @@ fi
 : "${HTTPS_PORT:=443}"
 export HTTP_PORT HTTPS_PORT
 
+worker_pid() {
+    echo "show info" | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock 2>/dev/null | sed -n 's/^Pid: //p'
+}
+
 # Verify HAProxy configuration before reloading
 if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
     log "Configuration is valid, reloading HAProxy..."
@@ -26,9 +30,22 @@ if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
     # that is a customization of original ones
     # https://github.com/docker-library/haproxy/blob/master/2.3/docker-entrypoint.sh#L14
     # http://cbonte.github.io/haproxy-dconv/2.3/configuration.html#3.1-master-worker
+    old_pid=$(worker_pid)
     kill -SIGUSR2 1
     if [ $? -eq 0 ]; then
         log "HAProxy reload signal sent successfully"
+        # haproxy-sync resyncs the worker answering when the signal arrives, so wait for the new one
+        tries=0
+        while [ -n "$old_pid" ] && [ "$(worker_pid)" = "$old_pid" ] && [ "$tries" -lt 100 ]; do
+            sleep 0.1
+            tries=$((tries + 1))
+        done
+        # the new worker starts with empty runtime maps: haproxy-sync asks apiv4 to push them again
+        if pkill -HUP -x haproxy-sync 2>/dev/null; then
+            log "Asked haproxy-sync to resync the runtime maps"
+        else
+            log "WARNING: haproxy-sync is not running, the runtime maps were not resynced"
+        fi
     else
         log "ERROR: Failed to send reload signal to HAProxy"
     fi
