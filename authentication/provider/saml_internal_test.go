@@ -29,6 +29,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1416,4 +1417,76 @@ func TestSAMLHealthcheck(t *testing.T) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// Not parallel: LoadConfig sets the saml.MaxIssueDelay package global.
+func TestSAMLRequestTracker(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		MaxIssueDelay        time.Duration
+		RequestTrackerMaxAge time.Duration
+		ExpectedMaxAge       time.Duration
+	}{
+		"should use the configured tracker age, not the assertion-age limit": {
+			MaxIssueDelay:        90 * time.Second,
+			RequestTrackerMaxAge: 30 * time.Minute,
+			ExpectedMaxAge:       30 * time.Minute,
+		},
+		"should fall back to the default if the tracker age is unset": {
+			MaxIssueDelay:        90 * time.Second,
+			RequestTrackerMaxAge: 0,
+			ExpectedMaxAge:       defaultSAMLRequestTrackerMaxAge,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			certPath, keyPath, metadataPath := prepareSAMLFiles(t)
+
+			s := &SAML{
+				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+				host:          "sp.example.com",
+				log:           log.New("test", "debug"),
+				validateURL:   validateMetadataURL,
+				brandingHosts: map[string]string{},
+			}
+
+			require.NoError(t, s.LoadConfig(t.Context(), model.SAMLConfig{
+				MetadataFile:         metadataPath,
+				KeyFile:              keyPath,
+				CertFile:             certPath,
+				MaxIssueDelay:        db.Duration(tc.MaxIssueDelay),
+				RequestTrackerMaxAge: db.Duration(tc.RequestTrackerMaxAge),
+				RegexUID:             ".*",
+				RegexUsername:        ".*",
+				RegexName:            ".*",
+				RegexEmail:           ".*",
+				RegexPhoto:           ".*",
+			}))
+
+			cfg := s.cfg.Cfg()
+			require.NotNil(t, cfg.Middleware)
+			tracker, ok := cfg.Middleware.RequestTracker.(samlsp.CookieRequestTracker)
+			require.True(t, ok, "expected a CookieRequestTracker")
+			codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec)
+			require.True(t, ok, "expected a JWTTrackedRequestCodec")
+
+			assert.Equal(tc.ExpectedMaxAge, tracker.MaxAge)
+			assert.Equal(tc.ExpectedMaxAge, codec.MaxAge)
+			assert.Equal(tc.MaxIssueDelay, saml.MaxIssueDelay)
+
+			// TLS ends at the proxy, so the request the service sees is plain HTTP
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://sp.example.com/authentication/login", nil)
+			_, err := tracker.TrackRequest(rec, req, "request-id")
+			require.NoError(t, err)
+
+			cookies := rec.Result().Cookies()
+			require.Len(t, cookies, 1)
+			assert.Equal(http.SameSiteNoneMode, cookies[0].SameSite)
+			assert.True(cookies[0].Secure)
+			assert.Equal(int(tc.ExpectedMaxAge.Seconds()), cookies[0].MaxAge)
+		})
+	}
 }

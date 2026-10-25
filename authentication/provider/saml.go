@@ -134,15 +134,18 @@ func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, e
 	}
 }
 
+const defaultSAMLRequestTrackerMaxAge = 15 * time.Minute
+
 type samlMiddlewareParams struct {
-	host       string
-	categoryID *string
-	key        *rsa.PrivateKey
-	cert       *x509.Certificate
-	metadata   *saml.EntityDescriptor
-	entityID   string
-	sigMethod  string
-	log        *zerolog.Logger
+	host                 string
+	categoryID           *string
+	key                  *rsa.PrivateKey
+	cert                 *x509.Certificate
+	metadata             *saml.EntityDescriptor
+	entityID             string
+	sigMethod            string
+	requestTrackerMaxAge time.Duration
+	log                  *zerolog.Logger
 }
 
 func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error) {
@@ -160,8 +163,20 @@ func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error
 		Certificate:        params.cert,
 		IDPMetadata:        params.metadata,
 		DefaultRedirectURI: "/authentication/callback",
+		// The IdP posts back cross-site, and Lax only lets that through for two minutes.
+		CookieSameSite: http.SameSiteNoneMode,
 	})
 	middleware.OnError = samlOnError(params.log)
+
+	// samlsp.New ties both the cookie and its signed token to saml.MaxIssueDelay.
+	if tracker, ok := middleware.RequestTracker.(samlsp.CookieRequestTracker); ok {
+		tracker.MaxAge = params.requestTrackerMaxAge
+		if codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec); ok {
+			codec.MaxAge = params.requestTrackerMaxAge
+			tracker.Codec = codec
+		}
+		middleware.RequestTracker = tracker
+	}
 
 	// Build category-aware SAML endpoint paths.
 	acsSuffix := ACSRoute
@@ -292,15 +307,21 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	// response.
 	saml.MaxIssueDelay = time.Duration(cfg.MaxIssueDelay)
 
+	requestTrackerMaxAge := time.Duration(cfg.RequestTrackerMaxAge)
+	if requestTrackerMaxAge <= 0 {
+		requestTrackerMaxAge = defaultSAMLRequestTrackerMaxAge
+	}
+
 	params := samlMiddlewareParams{
-		host:       s.host,
-		categoryID: s.categoryID,
-		key:        k.PrivateKey.(*rsa.PrivateKey),
-		cert:       k.Leaf,
-		metadata:   metadata,
-		entityID:   cfg.EntityID,
-		sigMethod:  cfg.SignatureMethod,
-		log:        s.log,
+		host:                 s.host,
+		categoryID:           s.categoryID,
+		key:                  k.PrivateKey.(*rsa.PrivateKey),
+		cert:                 k.Leaf,
+		metadata:             metadata,
+		entityID:             cfg.EntityID,
+		sigMethod:            cfg.SignatureMethod,
+		requestTrackerMaxAge: requestTrackerMaxAge,
+		log:                  s.log,
 	}
 
 	middleware, err := buildSAMLMiddleware(params)
