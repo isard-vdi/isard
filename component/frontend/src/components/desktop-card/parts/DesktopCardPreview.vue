@@ -30,6 +30,8 @@ const isVncAlive = computed(() => VNC_ALIVE_STATUSES.includes(props.desktop.stat
 // back to the static image. Everything else gets the live preview.
 const previewEnabled = computed(() => props.size !== '2xs')
 
+const hasVncViewer = computed(() => props.desktop.viewers.includes('browser-vnc'))
+
 const root = ref<HTMLDivElement | null>(null)
 const inViewport = ref(false)
 // A page providing the pause decides what streams; otherwise the viewport does.
@@ -67,11 +69,11 @@ watch(isVncAlive, (alive) => {
   if (!alive) viewerValues.value = null
 })
 
-// Fetch when alive + visible + we don't already have credentials.
+// Fetch when alive + visible + noVNC enabled + we don't already have credentials.
 watch(
-  [isVncAlive, watched, previewEnabled],
-  ([alive, visible, enabled]) => {
-    if (alive && visible && enabled && !viewerValues.value) {
+  [isVncAlive, watched, previewEnabled, hasVncViewer],
+  ([alive, visible, enabled, hasVnc]) => {
+    if (alive && visible && enabled && hasVnc && !viewerValues.value) {
       fetchViewer()
     }
   },
@@ -95,7 +97,12 @@ onBeforeUnmount(() => {
 })
 
 const showLivePreview = computed(
-  () => previewEnabled.value && isVncAlive.value && watched.value && viewerValues.value !== null
+  () =>
+    previewEnabled.value &&
+    hasVncViewer.value &&
+    isVncAlive.value &&
+    watched.value &&
+    viewerValues.value !== null
 )
 
 // After a pause every preview reconnects at once: spin until each connects.
