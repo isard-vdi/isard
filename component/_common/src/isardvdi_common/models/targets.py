@@ -187,6 +187,16 @@ class Targets(RethinkCustomBase):
             )
 
     @classmethod
+    def find_domains_targets(cls, domain_ids: list) -> list[dict]:
+        """Return the target rows of ``domain_ids``; never raises, may be empty."""
+        with cls._rdb_context():
+            return list(
+                r.table("targets")
+                .get_all(r.args(domain_ids), index="desktop_id")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def bulk_delete_domain_targets(cls, domain_ids: list):
         with cls._rdb_context():
             r.table("targets").get_all(
