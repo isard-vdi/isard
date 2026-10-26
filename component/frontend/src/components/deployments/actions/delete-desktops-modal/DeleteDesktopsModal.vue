@@ -13,13 +13,13 @@ import { Modal } from '@/components/modal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DesktopStatusBadge } from '@/components/desktops'
 import { Icon } from '@/components/icon'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TruncatedText } from '@/components/truncated-text'
 import { describeApiError } from '@/lib/api-errors'
-import { desktopActionsData, desktopStatusLabel } from '@/lib/desktops'
 import { formatRelativeTime } from '@/lib/utils'
 
 interface Props {
@@ -40,12 +40,8 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const i18n = useI18n()
-const { t, te, d, locale } = i18n
+const { t, te, d, locale } = useI18n()
 const queryClient = useQueryClient()
-
-const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
-const statusIcon = (status?: string) => desktopActionsData(status ?? '').text
 
 const {
   data: userDesktops,
@@ -245,17 +241,7 @@ const handleClose = () => {
         </template>
 
         <template #cell-status="{ row }">
-          <div class="flex items-center gap-2 text-sm font-medium text-gray-warm-700">
-            <Icon
-              v-if="statusIcon(row.status as string)"
-              :name="statusIcon(row.status as string)!.icon"
-              size="md"
-              class="shrink-0"
-              :class="statusIcon(row.status as string)!.iconClass"
-              :stroke-color="statusIcon(row.status as string)!.iconColor"
-            />
-            {{ statusLabel(row.status as string) }}
-          </div>
+          <DesktopStatusBadge :status="row.status as string" />
         </template>
 
         <template #cell-accessed="{ row }">
