@@ -1522,7 +1522,7 @@
         "title": "Clau API",
         "alert": {
           "expired": "La teva clau API ha caducat. Necessites generar-ne una de nova per continuar utilitzant l'API d'IsardVDI amb aplicacions externes. Pots generar-ne una de nova a continuació.",
-          "regenerated": "L'API key s'ha eliminat. A sota es pot copiar la nova"
+          "regenerated": "La antiga clau API s'ha eliminat. A sota es pot copiar la nova"
         },
         "new-key": {
           "title": "Genera una nova clau API",
@@ -1534,7 +1534,8 @@
             "expiration-label": "Data d'expiració:",
             "show": "Mostrar clau",
             "copy": "Copiar clau",
-            "clau-copiada": "Clau copiada al porta-retalls"
+            "clau-copiada": "Clau copiada al porta-retalls",
+            "key-copied": "Clau copiada al porta-retalls"
           }
         },
         "existing-key": {
