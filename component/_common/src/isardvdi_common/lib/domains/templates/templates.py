@@ -53,6 +53,14 @@ def _as_card(image):
     return Cards.get_card(image["id"], image["type"])
 
 
+def _interface_ids(interfaces):
+    """Interfaces are stored either as bare ids or as ``{id, mac}`` rows."""
+    return [
+        interface["id"] if isinstance(interface, dict) else interface
+        for interface in interfaces or []
+    ]
+
+
 class TemplatesProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
 
@@ -327,6 +335,12 @@ class TemplatesProcessed(RethinkSharedConnection):
         template_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
 
         hardware = desktop["create_dict"]["hardware"]
+        # Copying the desktop's addresses is what manufactured the duplicates:
+        # the desktop and its template ended up holding the same MAC.
+        if hardware.get("interfaces"):
+            hardware["interfaces"] = Helpers.gen_interfaces_macs(
+                _interface_ids(hardware["interfaces"])
+            )
         # Pre-wire the template disk with both ``storage_id`` and
         # ``file`` *before* domain insert — same invariant
         # ``DesktopService.create_from_media`` enforces, so apiv4 restart
@@ -485,6 +499,12 @@ class TemplatesProcessed(RethinkSharedConnection):
 
         cls._check_duplicable(template_id, template)
         template = {**template, **Helpers.get_user_data(payload["user_id"])}
+        # Same reason as in ``new_template``: the copy gets its own addresses.
+        duplicated_hardware = (template.get("create_dict") or {}).get("hardware") or {}
+        if duplicated_hardware.get("interfaces"):
+            duplicated_hardware["interfaces"] = Helpers.gen_interfaces_macs(
+                _interface_ids(duplicated_hardware["interfaces"])
+            )
         template["name"] = name
         template["description"] = description
         template["allowed"] = Allowed(**allowed).model_dump(mode="json")
