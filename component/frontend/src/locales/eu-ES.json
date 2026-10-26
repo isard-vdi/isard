@@ -28,10 +28,10 @@
     },
     "desktops": {
       "title": "Mahaigainak",
-      "subtitle": "Hasi eta lan egin berehala mahaigain birtual mota askorekin",
+      "subtitle": "Hasi eta berehala lan egin mahaigain birtual mota askorekin",
       "new": {
         "title": "Mahaigain berria",
-        "subtitle": "Sortu mahaigain birtual berri bat txantiloi batetik"
+        "subtitle": "Mahaigain birtual berri bat sortu txantiloi batetik"
       }
     },
     "templates": {
