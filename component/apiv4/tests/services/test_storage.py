@@ -596,11 +596,11 @@ class TestSweepGivesBackZeros:
             is include_deleted
         )
 
-    def test_the_enqueue_runs_dig_holes_at_low_priority(self):
+    def test_the_enqueue_runs_a_verified_dig_holes_at_low_priority(self):
         storage = MagicMock()
         StorageService._sweep_enqueue("u1", "dig_holes", storage)
         storage.dig_holes.assert_called_once_with(
-            "u1", priority="low", secondary_priority="high"
+            "u1", priority="low", secondary_priority="high", verify=True
         )
 
     @patch("api.services.storage.Config")

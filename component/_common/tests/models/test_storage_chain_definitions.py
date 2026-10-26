@@ -287,7 +287,7 @@ def test_a_failed_sparsify_releases_the_disk_and_its_domains():
 # dig_holes: parked through set_maintenance, released whatever the outcome
 
 
-def _dig(domains, refused=None):
+def _dig(domains, refused=None, **kwargs):
     s = _bare_storage()
     with (
         patch.object(Storage, "create_task", return_value="t1") as mock_create,
@@ -297,7 +297,7 @@ def _dig(domains, refused=None):
     ):
         mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
         try:
-            result = s.dig_holes(user_id="u1", priority="low")
+            result = s.dig_holes(user_id="u1", priority="low", **kwargs)
         except Exception as exc:
             result = exc
     return s, result, mock_create, mock_park
@@ -327,6 +327,14 @@ def test_dig_holes_parks_a_desktop_disk_and_releases_it_on_failure():
     verdict = kwargs["dependents"][-1]
     assert verdict["task"] == "dig_holes_result" and verdict["queue"] == "core"
     assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id}
+
+
+def test_dig_holes_hands_verify_to_the_worker():
+    s, _, create, _ = _dig([_desktop()], verify=True)
+    assert create.call_args.kwargs["job_kwargs"]["kwargs"] == {
+        "storage_path": s.path,
+        "verify": True,
+    }
 
 
 def test_a_dig_the_registry_refuses_queues_nothing():

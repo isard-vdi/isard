@@ -895,7 +895,9 @@ class StorageService:
         if action == "sparsify":
             storage.sparsify(user_id, priority="default", secondary_priority="high")
         elif action == "dig_holes":
-            storage.dig_holes(user_id, priority="low", secondary_priority="high")
+            storage.dig_holes(
+                user_id, priority="low", secondary_priority="high", verify=True
+            )
         elif action == "repair_leaks":
             storage.repair(
                 user_id, "leaks", priority="default", secondary_priority="high"
