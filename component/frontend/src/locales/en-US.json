@@ -1011,8 +1011,8 @@
       },
       "group-count": "{n} desktop | {n} desktops",
       "group-status": {
-        "started": "{n} started",
-        "failed": "{n} failed"
+        "started": "{n} started | {n} started",
+        "failed": "{n} failed | {n} failed"
       }
     },
     "shared-deployments": {
