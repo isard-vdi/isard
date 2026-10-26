@@ -10,7 +10,7 @@ RUN apk add --no-cache \
     git
 
 RUN git clone https://github.com/isard-vdi/rethinkdb-prometheus-exporter /build && \
-    git -C /build checkout 3a5465834795a4272b0c776133dda284702fec58
+    git -C /build checkout a40b53998b0e134a7e66c2ab6ada7601c5fe9a21
 
 WORKDIR /build
 

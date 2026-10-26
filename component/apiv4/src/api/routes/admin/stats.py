@@ -26,6 +26,7 @@ from api import admin_router
 from api.schemas.admin.stats import (
     StatsCategoriesDeploymentsResponse,
     StatsCategoriesResponse,
+    StatsConnectedUsersResponse,
     StatsDomainsStatusResponse,
     StatsGenericResponse,
     StatsKindDesktop,
@@ -37,7 +38,8 @@ from api.schemas.common import ErrorResponse
 from api.services.admin.stats import AdminStatsService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from pydantic_core import to_json
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +96,22 @@ def _stats_rows(
             "stats_inventory_rows_dropped count=%d required=%s", dropped, required
         )
     return projected
+
+
+def _inventory_json(
+    kind: str,
+    required: tuple[str, ...],
+    optional: tuple[str, ...] = (),
+    flatten_degraded: bool = False,
+) -> Response:
+    # call through asyncio.to_thread: encoding on the event loop stalls every request
+    rows = AdminStatsService.get_kind(kind)
+    if flatten_degraded:
+        rows = _flatten_degraded(rows)
+    return Response(
+        content=to_json(_stats_rows(rows, required, optional)),
+        media_type="application/json",
+    )
 
 
 @admin_router.get(
@@ -217,6 +235,33 @@ async def stats_categories_deployments(request: Request):
 
 
 @admin_router.get(
+    "/admin/item/stats/connected-users",
+    tags=[tag],
+    response_model=StatsConnectedUsersResponse,
+    summary="Get connected users and sockets",
+    description="Distinct users and Socket.IO connections live now across "
+    "every socketio process.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def stats_connected_users(request: Request):
+    try:
+        result = await asyncio.to_thread(AdminStatsService.get_connected_users)
+        return JSONResponse(
+            content=StatsConnectedUsersResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get connected users",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
     "/admin/items/stats/users",
     tags=[tag],
     response_model=list[StatsKindUser],
@@ -226,10 +271,8 @@ async def stats_categories_deployments(request: Request):
 )
 async def stats_users(request: Request):
     try:
-        result = await asyncio.to_thread(AdminStatsService.get_kind, "users")
-        return JSONResponse(
-            content=_stats_rows(result, ("id",), ("role", "category", "group")),
-            status_code=200,
+        return await asyncio.to_thread(
+            _inventory_json, "users", ("id",), ("role", "category", "group")
         )
     except Error:
         raise
@@ -252,11 +295,7 @@ async def stats_users(request: Request):
 )
 async def stats_desktops(request: Request):
     try:
-        result = await asyncio.to_thread(AdminStatsService.get_kind, "desktops")
-        return JSONResponse(
-            content=_stats_rows(result, ("id", "user")),
-            status_code=200,
-        )
+        return await asyncio.to_thread(_inventory_json, "desktops", ("id", "user"))
     except Error:
         raise
     except Exception:
@@ -278,11 +317,7 @@ async def stats_desktops(request: Request):
 )
 async def stats_templates(request: Request):
     try:
-        result = await asyncio.to_thread(AdminStatsService.get_kind, "templates")
-        return JSONResponse(
-            content=_stats_rows(result, ("id",)),
-            status_code=200,
-        )
+        return await asyncio.to_thread(_inventory_json, "templates", ("id",))
     except Error:
         raise
     except Exception:
@@ -308,14 +343,12 @@ async def stats_templates(request: Request):
 )
 async def stats_hypervisors(request: Request):
     try:
-        result = await asyncio.to_thread(AdminStatsService.get_kind, "hypervisors")
-        return JSONResponse(
-            content=_stats_rows(
-                _flatten_degraded(result),
-                ("id", "status", "only_forced"),
-                ("degraded", "degraded_reason"),
-            ),
-            status_code=200,
+        return await asyncio.to_thread(
+            _inventory_json,
+            "hypervisors",
+            ("id", "status", "only_forced"),
+            ("degraded", "degraded_reason"),
+            True,
         )
     except Error:
         raise

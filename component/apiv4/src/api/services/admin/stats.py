@@ -18,6 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from isardvdi_common.connections.redis_client import shared_client
+from isardvdi_common.connections.redis_urls import socketio_url
+from isardvdi_common.lib.stats.connected import count_connected
 from isardvdi_common.lib.stats.stats import StatsProcessed
 
 
@@ -52,6 +55,10 @@ class AdminStatsService:
     @staticmethod
     def get_group_by_categories():
         return StatsProcessed.get_group_by_categories()
+
+    @staticmethod
+    def get_connected_users():
+        return count_connected(shared_client(socketio_url()))
 
     @staticmethod
     def get_categories_deployments():

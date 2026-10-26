@@ -32,6 +32,8 @@ type IsardVDIAPI struct {
 	descHypervisorInfo               *prometheus.Desc
 	descDeploymentNumberCategory     *prometheus.Desc
 	descHypervisorDegraded           *prometheus.Desc
+	descConnectedUsers               *prometheus.Desc
+	descConnectedSockets             *prometheus.Desc
 }
 
 func NewIsardVDIAPI(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker) *IsardVDIAPI {
@@ -119,6 +121,18 @@ func NewIsardVDIAPI(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker)
 		[]string{"id", "reason"},
 		prometheus.Labels{},
 	)
+	a.descConnectedUsers = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "connected_users"),
+		"Number of distinct users with at least one live Socket.IO connection",
+		[]string{},
+		prometheus.Labels{},
+	)
+	a.descConnectedSockets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "connected_sockets"),
+		"Number of live Socket.IO connections, one per browser tab and namespace",
+		[]string{},
+		prometheus.Labels{},
+	)
 
 	return a
 }
@@ -140,6 +154,8 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descHypervisorInfo
 	ch <- a.descDeploymentNumberCategory
 	ch <- a.descHypervisorDegraded
+	ch <- a.descConnectedUsers
+	ch <- a.descConnectedSockets
 }
 
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
@@ -190,6 +206,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		templatesOK   bool
 		hypervisors   []hypervisorMetric
 		deployments   []deploymentMetric
+		connected     *apiv4.StatsConnectedUsersResponse
 	)
 
 	var wg sync.WaitGroup
@@ -335,6 +352,22 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		}
 	})
 
+	wg.Go(func() {
+		res, err := a.cli.StatsConnectedUsers(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("get connected users")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsConnectedUsersResponse)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("get connected users")
+			failScrape()
+			return
+		}
+		connected = v
+	})
+
 	wg.Wait()
 
 	for _, u := range users {
@@ -371,6 +404,11 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 	for _, d := range deployments {
 		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, d.count, d.category)
+	}
+
+	if connected != nil {
+		ch <- prometheus.MustNewConstMetric(a.descConnectedUsers, prometheus.GaugeValue, float64(connected.Users))
+		ch <- prometheus.MustNewConstMetric(a.descConnectedSockets, prometheus.GaugeValue, float64(connected.Sockets))
 	}
 
 	duration := time.Since(start)

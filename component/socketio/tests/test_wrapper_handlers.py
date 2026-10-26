@@ -2,9 +2,12 @@ import asyncio
 from unittest import mock
 
 import pytest
+from isardvdi_socketio.connected import Presence
+from tests.fake_redis import FakeRedis
 
 
 def test_connect_delegates_to_users_connect(pristine_module, monkeypatch):
+    monkeypatch.setattr(pristine_module, "presence", Presence(FakeRedis()))
     fake_socketio = mock.MagicMock()
     fake_socketio.return_value.users_connect = mock.AsyncMock(return_value="joined")
     monkeypatch.setattr(pristine_module, "SocketIO", fake_socketio)
@@ -21,6 +24,7 @@ def test_connect_delegates_to_users_connect(pristine_module, monkeypatch):
 
 
 def test_disconnect_delegates_to_quit_users_rooms(pristine_module, monkeypatch):
+    monkeypatch.setattr(pristine_module, "presence", Presence(FakeRedis()))
     fake_socketio = mock.MagicMock()
     fake_socketio.return_value.quit_users_rooms = mock.AsyncMock(return_value="left")
     monkeypatch.setattr(pristine_module, "SocketIO", fake_socketio)
