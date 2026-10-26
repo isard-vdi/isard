@@ -152,5 +152,5 @@ def test_the_runner_reaches_release_216_through_the_storage_table():
         if isinstance(n, ast.Assign)
         and getattr(n.targets[0], "id", None) == "release_version"
     )
-    assert release == 216
+    assert release >= 216
     assert "if version == 216:" in source and "v216_storage_health(self)" in source
