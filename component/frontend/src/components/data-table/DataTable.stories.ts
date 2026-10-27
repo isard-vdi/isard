@@ -1,5 +1,6 @@
 import type { ComponentPropsAndSlots, Meta, StoryObj } from '@storybook/vue3-vite'
 import { DataTable } from '@/components/data-table'
+import type { HeaderCell } from '@/components/data-table/DataTable.vue'
 import { Badge } from '@/components/badge'
 import { BadgeInfo } from '@/components/badge/info'
 import { DropdownButton } from '@/components/dropdown-button'
@@ -223,4 +224,22 @@ export const Default = createStory({
       actions: actions
     }
   ]
+})
+
+const defaultArgs = Default.args as { headers: HeaderCell[]; rows: Record<string, unknown>[] }
+
+export const StickyHeader = createStory({
+  headers: [
+    { name: 'Description', key: 'description', sticky: 'left', width: '240px' },
+    ...defaultArgs.headers
+      .filter((header) => header.key !== 'description')
+      .map((header) => ({ ...header, width: '240px' }))
+  ],
+  rows: Array.from({ length: 40 }, (_, index) => ({
+    ...defaultArgs.rows[index % defaultArgs.rows.length],
+    description: `Deployment ${index + 1}`
+  })),
+  pageSize: 40,
+  rowClass: 'group',
+  stickyHeader: true
 })
