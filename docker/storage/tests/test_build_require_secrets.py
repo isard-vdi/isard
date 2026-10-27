@@ -122,6 +122,10 @@ def test_a_hypervisor_without_storage_workers_still_needs_the_hypervisors_secret
 
 def test_a_hypervisor_with_both_secrets_builds():
     done = _require(
-        "hypervisor", f"{HYPERVISOR} backupninja", REDIS_WORKERS="1", **SECRETS
+        "hypervisor",
+        f"{HYPERVISOR} backupninja",
+        REDIS_WORKERS="1",
+        REDIS_PASSWORD="0123abcd",
+        **SECRETS,
     )
     assert done.returncode == 0, done.stderr
