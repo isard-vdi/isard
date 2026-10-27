@@ -49,12 +49,15 @@ from .upgrade_helpers import (
     v189_prune_non_full_use_gpu_profiles,
     v210_perms_follow_the_domain,
     v215_limits_volatile,
+    v216_storage_health,
 )
 
 """
 Update to new database release version when new code version release
 """
-release_version = 215
+release_version = 216
+# release 216: storage health: the integrity, zero-scan and pending-since indexes,
+#              and health.checks.integrity.at backfilled from last_checked_at
 # release 215: add the volatile limit to group and category limits stored without it
 # release 214: store users.active and domains.enabled as booleans
 # release 213: drop the Redis task indexes of storage/media rows that no longer exist
@@ -6512,6 +6515,12 @@ password:s:%s"""
                 except Exception as e:
                     log.warning(f"v211: could not create index {name}: {e}")
             r.table(table).index_wait().run(self.conn)
+
+        if version == 216:
+            try:
+                v216_storage_health(self)
+            except Exception as e:
+                log.warning(f"v216: storage health upgrade failed: {e}")
 
         if version == 205:
             # The row pointer and its index are retired: every reader resolves

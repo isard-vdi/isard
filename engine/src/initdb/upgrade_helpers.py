@@ -961,3 +961,123 @@ def v215_limits_volatile(upgrade, table):
                 f"limits failed: {e}"
             )
     log.info(f"v215: volatile limit added to {added} of {len(ids)} {table} limits")
+
+
+def v216_storage_indexes(r, zeros_growth):
+    """The storage health indexes: ``{name: (function, multi)}``."""
+
+    def integrity_at(s):
+        return s["health"]["checks"]["integrity"]["at"].default(
+            s["last_checked_at"].default(0)
+        )
+
+    def zeros_due(s):
+        zeros = s["health"]["checks"]["zeros"]
+        grown = s["qemu-img-info"]["actual-size"].default(0) - zeros[
+            "actual_size_at_scan"
+        ].default(0)
+        return r.branch(
+            grown.ge(zeros_growth).and_(
+                zeros["result"].default("ok").ne("unsupported")
+            ),
+            [s["status"], zeros["at"].default(0)],
+            None,
+        )
+
+    return {
+        "status_integrity_checked": (lambda s: [s["status"], integrity_at(s)], False),
+        "status_zeros_due": (zeros_due, False),
+        "status_pending_action_since": (
+            lambda s: s["pending_actions"]
+            .default({})
+            .keys()
+            .map(
+                lambda a: [s["status"], a, s["pending_actions"][a]["since"].default(0)]
+            ),
+            True,
+        ),
+    }
+
+
+def v216_create_indexes(table, conn, indexes, warn):
+    """Create the ``indexes`` ``table`` lacks; one failure never stops the others."""
+    try:
+        existing = set(table.index_list().run(conn))
+    except Exception as e:
+        warn(f"v216: could not list the storage indexes: {e}")
+        existing = set()
+    created = []
+    for name, (function, multi) in indexes.items():
+        if name in existing:
+            continue
+        try:
+            table.index_create(name, function, multi=multi).run(conn)
+            created.append(name)
+        except Exception as e:
+            warn(f"v216: could not create index {name}: {e}")
+    try:
+        table.index_wait().run(conn)
+    except Exception as e:
+        warn(f"v216: waiting for the storage indexes failed: {e}")
+    return created
+
+
+def v216_backfill_integrity_at(ids, update_batch, warn, batch_size=10000):
+    """Run ``update_batch`` over ``ids`` in batches; a failing batch is logged and skipped."""
+    done = failed = 0
+    for i in range(0, len(ids), batch_size):
+        batch = ids[i : i + batch_size]
+        try:
+            done += update_batch(batch)
+        except Exception as e:
+            failed += len(batch)
+            warn(f"v216: backfilling {len(batch)} storage rows failed: {e}")
+    return done, failed
+
+
+def v216_backfill_batch(table, conn, batch):
+    """Copy ``last_checked_at`` into the health of ``batch``; any row error fails the batch."""
+    result = (
+        table.get_all(*batch)
+        .filter(lambda s: s.has_fields("health").not_())
+        .update(
+            lambda s: {
+                "health": {"checks": {"integrity": {"at": s["last_checked_at"]}}}
+            }
+        )
+        .run(conn)
+    )
+    if result.get("errors"):
+        raise RuntimeError(
+            f"{result['errors']} rows failed: {result.get('first_error')}"
+        )
+    return result.get("replaced", 0)
+
+
+def v216_storage_health(upgrade):
+    """Health indexes on storage, and ``health.checks.integrity.at`` from ``last_checked_at``."""
+    from isardvdi_common.lib.storage.sweep import ZEROS_RESCAN_GROWTH_BYTES
+
+    conn = upgrade.conn
+    table = r.table("storage")
+    created = v216_create_indexes(
+        table, conn, v216_storage_indexes(r, ZEROS_RESCAN_GROWTH_BYTES), log.warning
+    )
+    log.info(f"v216: storage indexes created: {created}")
+    try:
+        ids = list(
+            table.has_fields("last_checked_at")
+            .filter(lambda s: s.has_fields("health").not_())["id"]
+            .run(conn)
+        )
+    except Exception as e:
+        log.warning(f"v216: could not list the rows to backfill: {e}")
+        return
+
+    done, failed = v216_backfill_integrity_at(
+        ids, lambda batch: v216_backfill_batch(table, conn, batch), log.warning
+    )
+    log.info(
+        f"v216: health.checks.integrity.at backfilled on {done} of {len(ids)} "
+        f"storage rows, {failed} in failed batches"
+    )
