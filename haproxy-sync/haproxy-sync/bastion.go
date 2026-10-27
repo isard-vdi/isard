@@ -20,6 +20,10 @@ func (h *HAproxySync) BastionSyncMaps(ctx context.Context, maps BastionSyncMaps)
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
+	return h.bastionSyncMaps(maps)
+}
+
+func (h *HAproxySync) bastionSyncMaps(maps BastionSyncMaps) (BastionSyncMapsResult, error) {
 	// Get the actual individual domains in the HAProxy
 	h.Bastion.subdomains = map[string]bool{}
 	currentSubdomains, err := h.haproxy.ShowMap(h.Bastion.SubdomainsMapName)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
@@ -16,6 +17,10 @@ import (
 )
 
 func main() {
+	// SIGHUP terminates the process until it is handled.
+	reloaded := make(chan os.Signal, 1)
+	signal.Notify(reloaded, syscall.SIGHUP)
+
 	cfg := cfg.New()
 
 	log := log.New("haproxy-sync", cfg.Log.Level)
@@ -37,6 +42,20 @@ func main() {
 
 	go grpc.Serve(ctx)
 	wg.Add(1)
+
+	wg.Go(func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-reloaded:
+				if err := haproxysync.Restore(ctx); err != nil {
+					log.Error().Err(err).Msg("restore the HAProxy state")
+				}
+			}
+		}
+	})
 
 	log.Info().Msg("service started")
 

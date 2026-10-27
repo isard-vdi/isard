@@ -52,6 +52,10 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
+	return h.domainSync(ctx, domains)
+}
+
+func (h *HAproxySync) domainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {
 	// Get the actual domains in the HAProxy
 	h.Domains.domains = map[string]bool{}
 	currentDomains, err := h.haproxy.ShowMap(h.Domains.DomainsMapName)

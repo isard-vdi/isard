@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ const retryInterval = 1 * time.Second
 
 type Interface interface {
 	ShowVersion() (string, error)
+	ShowPID() (int, error)
 	ShowMap(name string) ([]string, error)
 	AddMap(name, key string) error
 	DelMap(name, key string) error
@@ -136,6 +138,31 @@ func (h *HAProxy) ShowVersion() (string, error) {
 		Msg("showed version")
 
 	return version, nil
+}
+
+// ShowPID returns the PID of the worker answering the admin socket.
+func (h *HAProxy) ShowPID() (int, error) {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-show%20info
+	raw, err := h.exec("show info")
+	if err != nil {
+		return 0, fmt.Errorf("show info: %w", err)
+	}
+
+	for line := range strings.Lines(raw) {
+		v, ok := strings.CutPrefix(strings.TrimSpace(line), "Pid:")
+		if !ok {
+			continue
+		}
+
+		pid, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return 0, fmt.Errorf("show info: parse the worker PID %q: %w", v, err)
+		}
+
+		return pid, nil
+	}
+
+	return 0, fmt.Errorf("show info: no worker PID in %q", raw)
 }
 
 // ShowMap returns all entries in a map file.

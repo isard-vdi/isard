@@ -1,9 +1,15 @@
 package haproxy
 
 import (
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"gitlab.com/isard/isardvdi/pkg/log"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheckResponse(t *testing.T) {
@@ -107,6 +113,83 @@ func TestCheckResponse(t *testing.T) {
 			}
 
 			assert.NoError(err)
+		})
+	}
+}
+
+func TestShowPID(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Response    string
+		NoSocket    bool
+		Expected    int
+		ExpectedErr string
+	}{
+		"should work as expected": {
+			Response: "Name: HAProxy\nVersion: 3.3.0\nProcess_num: 1\nPid: 42\nUptime: 0d 0h00m05s\n",
+			Expected: 42,
+		},
+		"should return an error if the admin socket is not available": {
+			NoSocket:    true,
+			ExpectedErr: "show info: connect to the HAProxy admin socket: dial unix ",
+		},
+		"should return an error if the PID is not a number": {
+			Response:    "Name: HAProxy\nPid: abc\n",
+			ExpectedErr: `show info: parse the worker PID " abc": strconv.Atoi: parsing "abc": invalid syntax`,
+		},
+		"should return an error if there is no PID": {
+			Response:    "Unknown command\n",
+			ExpectedErr: `show info: no worker PID in "Unknown command"`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			// t.TempDir() embeds the test name and overflows the unix socket path limit.
+			dir, err := os.MkdirTemp("", "haproxy")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				os.RemoveAll(dir)
+			})
+
+			path := filepath.Join(dir, "haproxy.sock")
+
+			if !tc.NoSocket {
+				ln, err := net.Listen("unix", path)
+				require.NoError(t, err)
+				t.Cleanup(func() {
+					ln.Close()
+				})
+
+				go func() {
+					conn, err := ln.Accept()
+					if err != nil {
+						return
+					}
+					defer conn.Close()
+
+					buf := make([]byte, 256)
+					_, _ = conn.Read(buf)
+					_, _ = conn.Write([]byte(tc.Response))
+				}()
+			}
+
+			log := log.New("test", "debug")
+			h := NewHAProxy(log, path)
+
+			pid, err := h.ShowPID()
+
+			if tc.ExpectedErr != "" {
+				assert.ErrorContains(err, tc.ExpectedErr)
+				return
+			}
+
+			assert.NoError(err)
+			assert.Equal(tc.Expected, pid)
 		})
 	}
 }
