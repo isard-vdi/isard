@@ -71,6 +71,7 @@ interface Props {
   cellClass?: HTMLAttributes['class']
   density?: DataTableDensity
   stickyHeader?: boolean
+  stickyFooter?: boolean
 }
 
 defineOptions({ inheritAttrs: false })
@@ -82,7 +83,8 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSort: undefined,
   cellClass: undefined,
   density: 'comfortable',
-  stickyHeader: false
+  stickyHeader: false,
+  stickyFooter: false
 })
 
 const density = computed(() => DENSITY[props.density] ?? DENSITY.comfortable)
@@ -209,7 +211,11 @@ const HEADER_SIZER_CLASSES = 'invisible h-0 overflow-hidden border-0'
       </DataTableHeaderRow>
     </DefineHeaderRow>
 
-    <DataTableBackground v-bind="$attrs" :class="density.container">
+    <DataTableBackground
+      v-bind="$attrs"
+      :class="density.container"
+      :sticky-footer="props.stickyFooter"
+    >
       <template v-if="props.stickyHeader" #header>
         <DataTable :template-cols="headerTemplateCols">
           <ReuseHeaderRow />

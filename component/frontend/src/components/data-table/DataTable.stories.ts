@@ -228,7 +228,7 @@ export const Default = createStory({
 
 const defaultArgs = Default.args as { headers: HeaderCell[]; rows: Record<string, unknown>[] }
 
-export const StickyHeader = createStory({
+export const StickyHeaderAndFooter = createStory({
   headers: [
     { name: 'Description', key: 'description', sticky: 'left', width: '240px' },
     ...defaultArgs.headers
@@ -241,5 +241,6 @@ export const StickyHeader = createStory({
   })),
   pageSize: 40,
   rowClass: 'group',
-  stickyHeader: true
+  stickyHeader: true,
+  stickyFooter: true
 })
