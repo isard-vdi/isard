@@ -38,12 +38,12 @@ here, route them through that service's own bootstrap (after its own
 cannot know whether its importer is monkey-patched, and guessing wrong
 is fatal.
 
-The one exception is the resync watcher, which uses gRPC's asyncio API.
+The one exception is the health watcher, which uses gRPC's asyncio API.
 Every other client here is consumed from worker threads via
 ``asyncio.to_thread``, where blocking is harmless; the watcher is the
-only one that lives *on* the event loop, and the ``WatchResync`` RPC
+only one that lives *on* the event loop, and the Health ``Watch`` RPC
 it consumes is a server stream that stays silent while the service is
-healthy — a sync iterator over it blocks in C until the next resync
+healthy — a sync iterator over it blocks in C until the next status
 push, pinning the loop thread and hanging uvicorn (its signal handlers
 are loop callbacks). Per ``grpc/aio/__init__.py``, aio objects may only
 be used on the thread that created them, so the aio channel and its
@@ -55,7 +55,8 @@ import logging
 
 import grpc
 import grpc.aio
-from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2, haproxy_sync_pb2_grpc
+from grpc_health.v1 import health_pb2, health_pb2_grpc
+from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2_grpc
 from isardvdi_protobuf.operations.v1 import operations_pb2_grpc
 from isardvdi_protobuf.sessions.v1 import sessions_pb2_grpc
 
@@ -89,58 +90,43 @@ def create_haproxy_bastion_client(host, port):
     return _create_grpc_client(haproxy_sync_pb2_grpc.HaproxySyncServiceStub, host, port)
 
 
-def create_resync_watch_channel(host, port):
-    """Create an *asyncio* gRPC channel for `async_watch_resync`."""
+def create_health_watch_channel(host, port):
+    """Create an *asyncio* gRPC channel for `async_watch_health_check`."""
     return grpc.aio.insecure_channel(f"{host}:{port}", options=_GRPC_CHANNEL_OPTIONS)
 
 
-async def async_watch_resync(channel, on_resync, max_backoff=30):
-    """Call `on_resync(reason)` per haproxy-sync `WatchResync` request and report its outcome."""
-    stub = haproxy_sync_pb2_grpc.HaproxySyncServiceStub(channel)
-    backoff = 1
+async def async_watch_health_check(
+    channel, service_name, on_reconnect, retry_interval=5
+):
+    """
+    Watch gRPC service health and call `on_reconnect` when it recovers.
+    """
+    health_stub = health_pb2_grpc.HealthStub(channel)
+    request = health_pb2.HealthCheckRequest(service=service_name)
+
+    previously_serving = None
 
     while True:
         try:
-            call = stub.WatchResync(haproxy_sync_pb2.WatchResyncRequest())
+            call = health_stub.Watch(request)
             try:
-                async for message in call:
-                    backoff = 1
-                    log.info(
-                        f"haproxy-sync asked for a resync: {message.reason} "
-                        f"(request {message.id})"
-                    )
-                    error = ""
-                    try:
-                        await asyncio.to_thread(on_resync, message.reason)
-                    except Exception as exc:
-                        error = str(exc) or type(exc).__name__
-                        log.warning(
-                            f"HAProxy resync failed (reason: {message.reason}, "
-                            f"request {message.id}), haproxy-sync will ask again",
-                            exc_info=True,
-                        )
-                    try:
-                        await stub.AckResync(
-                            haproxy_sync_pb2.AckResyncRequest(
-                                id=message.id, error=error
-                            ),
-                            timeout=10,
-                        )
-                    except grpc.RpcError as exc:
-                        log.warning(
-                            f"Could not report HAProxy resync request {message.id}: "
-                            f"{exc.code().name}"
-                        )
+                async for response in call:
+                    serving = response.status == health_pb2.HealthCheckResponse.SERVING
+                    if serving and previously_serving is False:
+                        log.info(f"gRPC service {service_name} reconnected, syncing...")
+                        await asyncio.to_thread(on_reconnect)
+                    previously_serving = serving
             finally:
                 call.cancel()
-            log.warning("haproxy-sync resync stream ended, reconnecting")
         except grpc.RpcError as exc:
-            log.warning(
-                f"haproxy-sync resync stream failed: {exc.code().name}; "
-                f"retrying in {backoff}s"
-            )
+            if previously_serving is not False:
+                log.warning(
+                    f"gRPC health watch failed for {service_name}: "
+                    f"{exc.code().name}; will retry"
+                )
+            previously_serving = False
         except Exception:
-            log.warning("haproxy-sync resync stream error", exc_info=True)
+            log.warning(f"Health watch error for {service_name}", exc_info=True)
+            previously_serving = False
 
-        await asyncio.sleep(backoff)
-        backoff = min(backoff * 2, max_backoff)
+        await asyncio.sleep(retry_interval)

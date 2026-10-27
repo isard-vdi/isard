@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"maps"
+	"os"
+	"slices"
 	"sync"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
@@ -19,6 +21,8 @@ var ErrInvalidDomain = errors.New("invalid domain name")
 type Interface interface {
 	// Check ensures the service is working correctly.
 	Check(ctx context.Context) error
+	// Restore adds back to the HAProxy worker the runtime state it lacks after a reload.
+	Restore(ctx context.Context) error
 
 	//
 	// DomainSync performs a full synchronization of all the domains that HAProxy needs to accept / manage.
@@ -41,12 +45,6 @@ type Interface interface {
 	// Bastion Individual Domains
 	BastionAddIndividualDomain(ctx context.Context, domain string) error
 	BastionDeleteIndividualDomain(ctx context.Context, domain string) error
-
-	// WatchResync calls send every time the state has to be pushed again: once on connect and after
-	// every HAProxy reload, repeating a request until it is acknowledged, until ctx ends or send fails.
-	WatchResync(ctx context.Context, send func(ResyncRequest) error) error
-	// AckResync reports the outcome of a resync request; an empty syncErr means it succeeded.
-	AckResync(id uint64, syncErr string)
 }
 
 type DomainSyncDomain struct {
@@ -93,7 +91,8 @@ type HAproxySync struct {
 	Domains *HAProxySyncDomains
 	Bastion *HAProxySyncBastion
 
-	resync resyncHub
+	// workerPID is the HAProxy worker the state was last restored into.
+	workerPID int
 
 	haproxy haproxy.Interface
 	acme    acme.Interface
@@ -104,7 +103,6 @@ type HAProxySyncDomains struct {
 	CrtListPath    string
 	CertsPath      string
 	BaseDomain     string
-	ACMEPath       string
 
 	domains map[string]bool
 }
@@ -118,10 +116,6 @@ type HAProxySyncBastion struct {
 }
 
 func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme acme.Interface) *HAproxySync {
-	if !filepath.IsAbs(cfg.Domains.ACMEPath) {
-		log.Warn().Str("acme_path", cfg.Domains.ACMEPath).Msg("the acme.sh directory is not an absolute path, every domain will get a new ACME certificate instead of reusing the one on disk")
-	}
-
 	return &HAproxySync{
 		log: log,
 
@@ -130,7 +124,6 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			CrtListPath:    cfg.Domains.CrtListPath,
 			CertsPath:      cfg.Domains.CertsPath,
 			BaseDomain:     cfg.Domains.BaseDomain,
-			ACMEPath:       cfg.Domains.ACMEPath,
 		},
 
 		Bastion: &HAProxySyncBastion{
@@ -140,17 +133,100 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme 
 			individualDomains:        map[string]bool{},
 		},
 
-		resync: newResyncHub(),
-
 		haproxy: haproxy,
 		acme:    acme,
 	}
 }
 
 func (h *HAproxySync) Check(ctx context.Context) error {
-	if _, err := h.haproxy.ShowVersion(); err != nil {
-		return fmt.Errorf("get HAProxy version: %w", err)
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	pid, err := h.haproxy.ShowPID()
+	if err != nil {
+		return fmt.Errorf("get HAProxy worker PID: %w", err)
 	}
+
+	// A different worker means HAProxy was reloaded without haproxy-reload.
+	if pid == h.workerPID {
+		return nil
+	}
+
+	return h.restore(ctx, pid)
+}
+
+func (h *HAproxySync) Restore(ctx context.Context) error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	pid, err := h.haproxy.ShowPID()
+	if err != nil {
+		return fmt.Errorf("get HAProxy worker PID: %w", err)
+	}
+
+	return h.restore(ctx, pid)
+}
+
+// restore only records pid once everything is in, so the next Check retries a failure.
+func (h *HAproxySync) restore(ctx context.Context, pid int) (err error) {
+	// A failed sync forgets what it couldn't add, but the retry needs it.
+	subdomains := maps.Clone(h.Bastion.subdomains)
+	individualDomains := maps.Clone(h.Bastion.individualDomains)
+	domains := maps.Clone(h.Domains.domains)
+	defer func() {
+		if err != nil {
+			h.Bastion.subdomains = subdomains
+			h.Bastion.individualDomains = individualDomains
+			h.Domains.domains = domains
+		}
+	}()
+
+	// Syncing a state that was never synced would empty the worker, and remove its certificates.
+	if len(subdomains) != 0 || len(individualDomains) != 0 {
+		bastion := BastionSyncMaps{
+			Subdomains:        slices.Collect(maps.Keys(subdomains)),
+			IndividualDomains: slices.Collect(maps.Keys(individualDomains)),
+		}
+
+		if _, err := h.bastionSyncMaps(bastion); err != nil {
+			return fmt.Errorf("restore the bastion maps: %w", err)
+		}
+	}
+
+	if len(domains) != 0 {
+		wanted := make([]DomainSyncDomain, 0, len(domains))
+		for d := range domains {
+			certData, err := os.ReadFile(domainCertPath(h.Domains.CertsPath, domainPemName(d)))
+			if err != nil {
+				return fmt.Errorf("restore the domains: read certificate file for domain '%s': %w", d, err)
+			}
+
+			wanted = append(wanted, DomainSyncDomain{Name: d, Certificate: certData})
+		}
+
+		result, err := h.domainSync(ctx, wanted)
+		if err != nil {
+			return fmt.Errorf("restore the domains: %w", err)
+		}
+
+		var errs []error
+		for _, f := range result.FailedDomains {
+			errs = append(errs, fmt.Errorf("domain '%s': %s", f.Domain, f.Error))
+		}
+
+		if err := errors.Join(errs...); err != nil {
+			return fmt.Errorf("restore the domains: %w", err)
+		}
+	}
+
+	h.workerPID = pid
+
+	h.log.Info().
+		Int("worker_pid", pid).
+		Int("subdomains", len(h.Bastion.subdomains)).
+		Int("individual_domains", len(h.Bastion.individualDomains)).
+		Int("domains", len(h.Domains.domains)).
+		Msg("HAProxy state restored into the worker")
 
 	return nil
 }

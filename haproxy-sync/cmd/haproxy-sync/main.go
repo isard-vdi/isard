@@ -17,9 +17,9 @@ import (
 )
 
 func main() {
-	// haproxy-reload may send SIGHUP while this is starting, and unhandled it kills the process
-	reloads := make(chan os.Signal, 1)
-	signal.Notify(reloads, syscall.SIGHUP)
+	// SIGHUP terminates the process until it is handled.
+	reloaded := make(chan os.Signal, 1)
+	signal.Notify(reloaded, syscall.SIGHUP)
 
 	cfg := cfg.New()
 
@@ -37,23 +37,25 @@ func main() {
 	acme := acme.NewACME(log, cfg.HAProxy.Domains.CertsPath)
 
 	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy, acme)
-	haproxysync.RecordWorkerPid()
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-reloads:
-				haproxysync.NotifyReload(ctx)
-			}
-		}
-	}()
 
 	grpc := grpc.NewHAProxySyncServer(log, &wg, cfg.GRPC, haproxysync)
 
 	go grpc.Serve(ctx)
 	wg.Add(1)
+
+	wg.Go(func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-reloaded:
+				if err := haproxysync.Restore(ctx); err != nil {
+					log.Error().Err(err).Msg("restore the HAProxy state")
+				}
+			}
+		}
+	})
 
 	log.Info().Msg("service started")
 

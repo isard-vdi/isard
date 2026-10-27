@@ -2,7 +2,6 @@ package haproxy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -20,7 +19,7 @@ const retryInterval = 1 * time.Second
 
 type Interface interface {
 	ShowVersion() (string, error)
-	ShowPid() (int, error)
+	ShowPID() (int, error)
 	ShowMap(name string) ([]string, error)
 	AddMap(name, key string) error
 	DelMap(name, key string) error
@@ -141,25 +140,29 @@ func (h *HAProxy) ShowVersion() (string, error) {
 	return version, nil
 }
 
-// ShowPid returns the PID of the worker answering the admin socket, which changes on every reload.
-func (h *HAProxy) ShowPid() (int, error) {
-	info, err := h.exec("show info")
+// ShowPID returns the PID of the worker answering the admin socket.
+func (h *HAProxy) ShowPID() (int, error) {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-show%20info
+	raw, err := h.exec("show info")
 	if err != nil {
 		return 0, fmt.Errorf("show info: %w", err)
 	}
 
-	for _, line := range strings.Split(info, "\n") {
-		if v, ok := strings.CutPrefix(line, "Pid: "); ok {
-			pid, err := strconv.Atoi(strings.TrimSpace(v))
-			if err != nil {
-				return 0, fmt.Errorf("parse pid %q: %w", v, err)
-			}
-
-			return pid, nil
+	for line := range strings.Lines(raw) {
+		v, ok := strings.CutPrefix(strings.TrimSpace(line), "Pid:")
+		if !ok {
+			continue
 		}
+
+		pid, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return 0, fmt.Errorf("show info: parse the worker PID %q: %w", v, err)
+		}
+
+		return pid, nil
 	}
 
-	return 0, errors.New("show info: no Pid line")
+	return 0, fmt.Errorf("show info: no worker PID in %q", raw)
 }
 
 // ShowMap returns all entries in a map file.

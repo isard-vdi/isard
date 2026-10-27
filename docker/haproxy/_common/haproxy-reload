@@ -5,6 +5,10 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] HAProxy-reload: $1"
 }
 
+worker_pid() {
+    echo "show info" | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock 2>/dev/null | sed -n 's/^Pid: //p'
+}
+
 # A `docker exec` of this script inherits none of the defaults the entrypoint
 # exported into the haproxy master, and `bind ":${HTTP_PORT}"` would not parse.
 HAPROXY_ENV_FILE="${HAPROXY_ENV_FILE:-/var/run/haproxy-env}"
@@ -19,32 +23,28 @@ fi
 : "${HTTPS_PORT:=443}"
 export HTTP_PORT HTTPS_PORT
 
-worker_pid() {
-    echo "show info" | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock 2>/dev/null | sed -n 's/^Pid: //p'
-}
-
 # Verify HAProxy configuration before reloading
 if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
     log "Configuration is valid, reloading HAProxy..."
+    previous=$(worker_pid)
     # haproxy runs with -W flag that reloads with USR2 signal, see haproxy-docker-entrypoint.sh
     # that is a customization of original ones
     # https://github.com/docker-library/haproxy/blob/master/2.3/docker-entrypoint.sh#L14
     # http://cbonte.github.io/haproxy-dconv/2.3/configuration.html#3.1-master-worker
-    old_pid=$(worker_pid)
     kill -SIGUSR2 1
     if [ $? -eq 0 ]; then
         log "HAProxy reload signal sent successfully"
-        # haproxy-sync resyncs the worker answering when the signal arrives, so wait for the new one
+        # The new worker starts without the runtime maps; haproxy-sync puts them back.
         tries=0
-        while [ -n "$old_pid" ] && [ "$(worker_pid)" = "$old_pid" ] && [ "$tries" -lt 100 ]; do
-            sleep 0.1
+        while [ $tries -lt 100 ]; do
+            pid=$(worker_pid)
+            [ -n "$pid" ] && [ "$pid" != "$previous" ] && break
             tries=$((tries + 1))
+            sleep 0.1
         done
-        # the new worker starts with empty runtime maps: haproxy-sync asks apiv4 to push them again
-        if pkill -HUP -x haproxy-sync 2>/dev/null; then
-            log "Asked haproxy-sync to resync the runtime maps"
-        else
-            log "WARNING: haproxy-sync is not running, the runtime maps were not resynced"
+        [ $tries -eq 100 ] && log "WARNING: no new HAProxy worker after 10s, haproxy-sync will catch up on its next check"
+        if pkill -HUP -x haproxy-sync; then
+            log "haproxy-sync asked to restore its state"
         fi
     else
         log "ERROR: Failed to send reload signal to HAProxy"
