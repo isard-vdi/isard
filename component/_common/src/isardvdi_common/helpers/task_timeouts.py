@@ -56,6 +56,7 @@ LONG_ACTIONS = frozenset(
         "convert",
         "sparsify",
         "dig_holes",
+        "zero_scan",
         "move",
         "create",
         "disconnect",

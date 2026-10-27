@@ -83,6 +83,7 @@ def _bare_storage(
     object.__setattr__(s, "user_id", user_id)
     object.__setattr__(s, "parent", parent)
     object.__setattr__(s, "status", "ready")
+    object.__setattr__(s, "pending_actions", {})
     # Chain methods end with ``return self.task``. With ``create_task``
     # mocked out, ``self.task`` is never set; __getattr__ would fall
     # through to RethinkDB. Pre-seed it.
@@ -326,7 +327,22 @@ def test_dig_holes_parks_a_desktop_disk_and_releases_it_on_failure():
         assert statuses[outcome]["Stopped"] == {"domain": ["d1"]}
     verdict = kwargs["dependents"][-1]
     assert verdict["task"] == "dig_holes_result" and verdict["queue"] == "core"
-    assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id}
+    assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id, "since": None}
+
+
+def test_dig_holes_hands_the_mark_age_to_its_verdict():
+    s = _bare_storage()
+    object.__setattr__(s, "pending_actions", {"dig_holes": {"since": 1700000000}})
+    with (
+        patch.object(Storage, "create_task", return_value="t1") as create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(Storage, "domains", new=[_desktop()]),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.dig_holes(user_id="u1", priority="low")
+    verdict = create.call_args.kwargs["dependents"][-1]
+    assert verdict["job_kwargs"]["kwargs"]["since"] == 1700000000
 
 
 def test_dig_holes_hands_verify_to_the_worker():

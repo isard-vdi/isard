@@ -43,6 +43,26 @@ class _Value:
     def append(self, item):
         return [*self._value, item]
 
+    def __getitem__(self, field):
+        return _Value(self._value.get(field) if isinstance(self._value, dict) else None)
+
+    def merge(self, other):
+        return _Value({**self._value, **other})
+
+
+class _Literal:
+    def __init__(self, value):
+        self.value = value
+
+
+def _merged(old, new):
+    if isinstance(new, _Literal):
+        return new.value
+    if isinstance(new, dict):
+        old = old if isinstance(old, dict) else {}
+        return {**old, **{k: _merged(old.get(k), v) for k, v in new.items()}}
+    return new
+
 
 class _Row:
     def __init__(self, doc):
@@ -61,6 +81,9 @@ class _List(list):
     def contains(self, value):
         return _Bool(value._value in self)
 
+    def min(self):
+        return min(v._value if isinstance(v, _Value) else v for v in self)
+
 
 class _Get:
     def __init__(self, store, doc_id):
@@ -75,7 +98,7 @@ class _Get:
         if doc is None:
             return {"skipped": 1, "changes": []}
         patch = self.change(_Row(doc)) if callable(self.change) else self.change
-        new = {**doc, **patch}
+        new = _merged(doc, patch)
         self.store[self.doc_id] = new
         return {"replaced": int(new != doc), "changes": [{"new_val": new}]}
 
@@ -91,6 +114,10 @@ class _R:
     @staticmethod
     def branch(condition, when_true, when_false):
         return when_true if condition else when_false
+
+    @staticmethod
+    def literal(value):
+        return _Literal(value)
 
     @staticmethod
     def expr(value):
@@ -289,4 +316,61 @@ def test_a_check_for_a_row_that_is_gone_writes_nothing(store):
     Storage, rows = store
     Storage.write_check("s1")
     Storage.write_check("s1", damage_reason="corruptions=62")
+    assert rows == {}
+
+
+def test_a_check_stamps_the_integrity_health_and_the_oldest_check(store):
+    Storage, rows = store
+    rows["s1"] = {
+        "id": "s1",
+        "status": "ready",
+        "health": {"checks": {"zeros": {"at": 5, "reclaimable_bytes": 9}}},
+    }
+    Storage.write_check("s1", leaks=3)
+    health = rows["s1"]["health"]
+    assert health["checks"]["integrity"]["result"] == "leaks"
+    assert health["checks"]["integrity"]["at"] == rows["s1"]["last_checked_at"]
+    assert health["checks"]["zeros"] == {"at": 5, "reclaimable_bytes": 9}
+    assert health["checked_at"] == 5
+
+
+@pytest.mark.parametrize(
+    "kwargs, verdict", [({}, "ok"), ({"damage_reason": "corruptions=1"}, "damaged")]
+)
+def test_a_check_records_its_verdict(store, kwargs, verdict):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1", "status": "ready"}
+    Storage.write_check("s1", **kwargs)
+    assert rows["s1"]["health"]["checks"]["integrity"]["result"] == verdict
+    assert rows["s1"]["health"]["checked_at"] == 0
+
+
+def test_a_zero_scan_replaces_the_previous_one_whole(store):
+    Storage, rows = store
+    rows["s1"] = {
+        "id": "s1",
+        "health": {
+            "checks": {
+                "integrity": {"at": 50, "result": "ok"},
+                "zeros": {"at": 1, "result": "ok", "stale": True},
+            }
+        },
+    }
+    Storage.write_zeros("s1", 4096, reclaimable=1024)
+    zeros = rows["s1"]["health"]["checks"]["zeros"]
+    assert zeros["reclaimable_bytes"] == 1024 and zeros["actual_size_at_scan"] == 4096
+    assert "stale" not in zeros
+    assert rows["s1"]["health"]["checked_at"] == 50
+
+
+def test_a_filesystem_that_cannot_punch_is_remembered(store):
+    Storage, rows = store
+    rows["s1"] = {"id": "s1"}
+    Storage.write_zeros("s1", 4096, result="unsupported")
+    assert rows["s1"]["health"]["checks"]["zeros"]["result"] == "unsupported"
+
+
+def test_a_zero_scan_for_a_row_that_is_gone_writes_nothing(store):
+    Storage, rows = store
+    Storage.write_zeros("s1", 4096, reclaimable=1)
     assert rows == {}

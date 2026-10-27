@@ -41,6 +41,8 @@ class DiskAction:
     admit_template_disk: bool = False
     #: refused when no domain uses the disk
     refuse_unused: bool = False
+    #: pending actions this one makes moot: the sweep runs it first and skips those
+    supersedes: tuple = ()
 
 
 def _reader(**kwargs):
@@ -68,6 +70,9 @@ DISK_ACTIONS = {
     "find": _reader(),
     "check_backing_chain": _reader(),
     "check_integrity": _reader(refuse_running=True),
+    "zero_scan": DiskAction(
+        Access.READ, domains=None, children_block=False, refuse_running=True
+    ),
     "create": _fresh(),
     "download": _fresh(),
     "derive": DiskAction(Access.CREATE, domains=None, children_block=False),
@@ -99,6 +104,7 @@ DISK_ACTIONS = {
         refuse_read_only=True,
         admit_template_disk=True,
         refuse_unused=True,
+        supersedes=("sparsify",),
     ),
     "repair": DiskAction(
         Access.WRITE,

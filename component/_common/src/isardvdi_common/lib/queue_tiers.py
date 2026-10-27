@@ -116,6 +116,7 @@ _MAINTENANCE_ACTIONS = frozenset(
     {
         "sparsify",
         "dig_holes",
+        "zero_scan",
         "convert",
         "disconnect",
         "virt_win_reg",
