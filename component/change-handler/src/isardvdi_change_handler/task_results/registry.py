@@ -47,6 +47,7 @@ HANDLERS = {
     "storage_delete": (storage.handle_storage_delete, SYNC),
     "clear_pending_action": (storage.handle_clear_pending_action, SYNC),
     "dig_holes_result": (storage.handle_dig_holes_result, SYNC),
+    "zero_scan_result": (storage.handle_zero_scan_result, SYNC),
     "storage_repair_result": (storage.handle_storage_repair_result, ASYNC),
     "storage_repair_size": (storage.handle_storage_repair_size, SYNC),
     "storage_check_result": (storage.handle_storage_check_result, SYNC),

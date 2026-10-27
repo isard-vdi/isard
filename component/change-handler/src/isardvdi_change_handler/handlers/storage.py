@@ -53,7 +53,7 @@ _NAMESPACE = "/administrators"
 
 # Fields that, when changed in isolation, are not worth a SocketIO emit.
 # The full row payload still goes out when any "meaningful" field changes.
-_NOISE_FIELDS = frozenset({"status_time"})
+_NOISE_FIELDS = frozenset({"status_time", "health"})
 
 
 class StorageHandler(BaseHandler):
