@@ -547,6 +547,8 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
         :is-clickable="true"
         row-class="hover:bg-brand-100"
         cell-class="h-19"
+        sticky-header
+        sticky-footer
         @row-click="goToDeployment"
       >
         <template #cell-tag_visible="{ row }">

@@ -39,11 +39,18 @@ interface Props {
   showUser?: boolean
   /** Adds a button to open the desktop to work on it, enabled where this holds. */
   canExpand?: (desktop: ApiSchemasDomainsDesktopsUserDesktop) => boolean
+  stickyHeader?: boolean
+  stickyFooter?: boolean
 }
 
 const { t, d, locale } = useI18n()
 
-const props = withDefaults(defineProps<Props>(), { showUser: false, canExpand: undefined })
+const props = withDefaults(defineProps<Props>(), {
+  showUser: false,
+  canExpand: undefined,
+  stickyHeader: false,
+  stickyFooter: false
+})
 
 const emit = defineEmits<{
   // --- Main actions ---
@@ -150,6 +157,8 @@ const DESKTOPS_DEFAULT_SORT = { key: 'accessed', desc: true }
     cell-class="h-auto min-h-13"
     row-class="odd:bg-gray-warm-100/30 hover:bg-gray-warm-100"
     :default-sort="DESKTOPS_DEFAULT_SORT"
+    :sticky-header="props.stickyHeader"
+    :sticky-footer="props.stickyFooter"
   >
     <template #cell-image="{ row }">
       <DesktopCellImage

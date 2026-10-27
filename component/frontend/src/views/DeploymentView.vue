@@ -764,6 +764,8 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
       :headers="header"
       cell-class="h-19"
       :is-clickable="false"
+      sticky-header
+      sticky-footer
     >
       <template #cell-visible="{ row }">
         <div

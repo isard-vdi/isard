@@ -492,6 +492,8 @@ const MEDIA_DEFAULT_SORT = { key: 'accessed', desc: true }
         :is-clickable="false"
         :default-sort="MEDIA_DEFAULT_SORT"
         cell-class="h-19"
+        sticky-header
+        sticky-footer
       >
         <template #cell-name="{ row }">
           <div class="flex items-center gap-2 text-sm font-semibold">

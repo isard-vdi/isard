@@ -1702,6 +1702,9 @@ const missingCardRows = computed(() => {
           v-show="filteredDesktops.length !== 0"
           :desktops="filteredDesktops"
           :prefered-viewers="preferedViewers"
+          sticky-header
+          sticky-footer
+          :style="{ '--data-table-sticky-top': `${curtainTop}px` }"
           @desktop-start="(dktp) => desktopStart({ path: { desktop_id: dktp.id } })"
           @desktop-stop="(dktp) => desktopStop({ path: { desktop_id: dktp.id } })"
           @desktop-update-status="
