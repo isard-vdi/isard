@@ -44,6 +44,34 @@ describe('rdpViewerEntry', () => {
     ).toMatchObject({ loading: false, status: 'unverified', tone: 'warn', progress: 100 })
   })
 
+  it('opens a guest with standard RDP security with its own warning', () => {
+    expect(
+      rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'unverified', protocol: 'rdp' }, false, t)
+    ).toMatchObject({ loading: false, status: 'unverified_standard', tone: 'warn', progress: 100 })
+    // without stored credentials too: there is nothing to check them against
+    expect(
+      rdpViewerEntry(
+        'file-rdpgw',
+        '10.2.0.5',
+        { state: 'unverified', protocol: 'rdp', reason: 'no_credentials' },
+        false,
+        t
+      )
+    ).toMatchObject({ status: 'unverified_standard', tone: 'warn' })
+  })
+
+  it('blocks a security level the administrator does not allow and says why', () => {
+    const rdp = { state: 'refused', protocol: 'rdp', reason: 'security_not_allowed' }
+    expect(rdpViewerEntry('browser-rdp', '10.2.0.5', rdp, false, t)).toMatchObject({
+      loading: true,
+      status: 'security_not_allowed',
+      tone: 'error'
+    })
+    expect(rdpViewerEntry('browser-rdp', '10.2.0.5', rdp, true, t)).toMatchObject({
+      loading: false
+    })
+  })
+
   it('shows "credentials not verified" as a blocking step while the check runs', () => {
     expect(
       rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'verifying' }, false, t)

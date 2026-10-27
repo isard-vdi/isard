@@ -131,6 +131,8 @@
         "ready": "RDP: llest",
         "last_failed": "RDP: l'última connexió ha fallat",
         "waiting_ip": "RDP: esperant que l'escriptori tingui IP",
+        "unverified_standard": "RDP: disponible amb la seguretat RDP estàndard, sense TLS ni NLA — pots connectar",
+        "security_not_allowed": "RDP: la seguretat de l'escriptori no és permesa per l'administrador: {reason}",
         "reason": {
           "port_closed": "el servei RDP de l'escriptori encara no escolta",
           "unreachable": "l'escriptori no respon a la xarxa",
@@ -142,6 +144,7 @@
           "security_refused": "l'escriptori ha refusat la seguretat de la connexió; revisa la configuració RDP del convidat",
           "account_blocked": "el compte de l'escriptori està bloquejat o caducat",
           "no_credentials": "l'escriptori no té credencials RDP desades",
+          "security_not_allowed": "l'escriptori només ofereix la seguretat RDP estàndard (sense TLS ni NLA) i l'administrador no la permet; activa TLS o NLA al convidat",
           "other": "la negociació RDP amb l'escriptori ha fallat; revisa la configuració RDP del convidat"
         }
       },

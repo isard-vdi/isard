@@ -19,6 +19,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from cachetools import cached
+from isardvdi_common.helpers.rdp_security import (
+    allowed_rdp_security,
+    certificate_check,
+    with_certificate_check,
+)
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
@@ -56,6 +61,53 @@ class ViewersConfig(RethinkSharedConnection):
                 {"viewers": {viewer: {"custom": r.row["viewers"][viewer]["default"]}}}
             ).run(cls._rdb_connection)
         _viewers.clear()
+
+    ## RDP security policy
+
+    RDP_FILE_VIEWERS = ("file_rdpgw", "file_rdpvpn")
+
+    @classmethod
+    def get_rdp_security(cls):
+        """Allowed guest security levels, and the certificate check the RDP files carry."""
+        with cls._rdb_context():
+            config_row = r.table("config").get(1).default({}).run(cls._rdb_connection)
+        viewers = (config_row or {}).get("viewers") or {}
+        return {
+            "allowed_protocols": list(allowed_rdp_security(config_row)),
+            "certificate_check": certificate_check(
+                (viewers.get("file_rdpgw") or {}).get("custom")
+            ),
+        }
+
+    @classmethod
+    def update_rdp_security(cls, allowed_protocols, certificate_check_level=None):
+        """Store the allowed levels; set the certificate check in both RDP files' custom part."""
+        from isardvdi_common.models.config import Config
+
+        with cls._rdb_context():
+            update = {
+                "rdp_security": r.literal({"allowed_protocols": allowed_protocols})
+            }
+            if certificate_check_level is not None:
+                viewers = (
+                    r.table("config")
+                    .get(1)
+                    .get_field("viewers")
+                    .default({})
+                    .run(cls._rdb_connection)
+                )
+                update["viewers"] = {
+                    viewer: {
+                        "custom": with_certificate_check(
+                            viewers[viewer].get("custom"), certificate_check_level
+                        )
+                    }
+                    for viewer in cls.RDP_FILE_VIEWERS
+                    if viewer in viewers
+                }
+            r.table("config").get(1).update(update).run(cls._rdb_connection)
+        _viewers.clear()
+        Config.clear_get_config_cache()
 
     ## IsardVDI viewers configuration
 

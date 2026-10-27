@@ -136,6 +136,14 @@ def test_reporting_an_outcome_does_not_need_a_verified_rdp(lookup):
 
 # rdpgw asks ``owns-desktop`` by IP with the viewer token before every channel:
 # whatever closes this check closes native RDP through the gateway.
+@pytest.fixture
+def policy(monkeypatch):
+    def set_allowed(*levels):
+        monkeypatch.setattr(mod, "current_allowed_rdp_security", lambda: levels)
+
+    return set_allowed
+
+
 @pytest.mark.parametrize(
     "rdp",
     [
@@ -147,7 +155,20 @@ def test_reporting_an_outcome_does_not_need_a_verified_rdp(lookup):
         {"state": "refused", "protocol": None, "reason": "tls_not_allowed"},
     ],
 )
-def test_rdpgw_reaches_a_guest_at_every_security_level(lookup, rdp):
+def test_rdpgw_reaches_a_guest_at_every_security_level_by_default(lookup, policy, rdp):
+    policy("rdp", "tls", "nla")
     lookup.domains = [{**OWN, "viewer": {"rdp": rdp}}]
 
     assert by_ip() is True
+
+
+def test_rdpgw_is_refused_a_security_level_outside_the_policy(lookup, policy):
+    policy("tls", "nla")
+    lookup.domains = [
+        {**OWN, "viewer": {"rdp": {"state": "unverified", "protocol": "rdp"}}}
+    ]
+
+    with pytest.raises(Error) as exc:
+        by_ip()
+    assert exc.value.status_code == 409
+    assert exc.value.error["description_code"] == "rdp_security_not_allowed"

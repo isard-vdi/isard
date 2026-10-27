@@ -2443,6 +2443,8 @@
           "unverified": "RDP available, credentials not verified — you may connect",
           "last_failed": "The last RDP connection failed",
           "waiting_ip": "Waiting for the desktop to get an IP",
+          "unverified_standard": "RDP available with standard RDP security, without TLS or NLA: you may connect",
+          "security_not_allowed": "The desktop RDP security is not allowed by the administrator: {reason}",
           "reason": {
             "port_closed": "the desktop RDP service is not listening yet",
             "unreachable": "the desktop does not answer on the network",
@@ -2454,6 +2456,7 @@
             "security_refused": "the desktop refused the connection security; check the guest RDP settings",
             "account_blocked": "the desktop account is locked or expired",
             "no_credentials": "the desktop has no stored RDP credentials",
+            "security_not_allowed": "the desktop only offers standard RDP security (no TLS or NLA) and the administrator does not allow it; enable TLS or NLA in the guest",
             "other": "the RDP negotiation with the desktop failed; check the guest RDP settings"
           }
         }

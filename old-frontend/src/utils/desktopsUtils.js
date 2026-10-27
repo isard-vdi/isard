@@ -186,7 +186,8 @@ export class DesktopUtils {
       certificate_not_allowed: 'certificate',
       security_refused: 'security_refused',
       account_blocked: 'account_blocked',
-      no_credentials: 'no_credentials'
+      no_credentials: 'no_credentials',
+      security_not_allowed: 'security_not_allowed'
     }
     const key = typeof reason === 'string' && Object.prototype.hasOwnProperty.call(keys, reason) ? keys[reason] : 'other'
     return i18n.t(`components.desktop-cards.rdp.reason.${key}`)
@@ -208,6 +209,12 @@ export class DesktopUtils {
       text = i18n.t(rdp.last.result === 'auth_failed' ? 'components.desktop-cards.rdp.auth_failed' : 'components.desktop-cards.rdp.last_failed')
     } else if (rdp.state === 'auth_failed' && rdp.reason === 'account_blocked') {
       text = i18n.t('components.desktop-cards.rdp.reason.account_blocked')
+    } else if (rdp.state === 'refused' && rdp.reason === 'security_not_allowed') {
+      // the guest answers, but with a security level the administrator does not allow
+      text = i18n.t('components.desktop-cards.rdp.security_not_allowed', { reason: DesktopUtils.rdpReason(rdp.reason) })
+    } else if (rdp.state === 'unverified' && rdp.protocol === 'rdp') {
+      // standard RDP security has no credential check to run before connecting
+      text = i18n.t('components.desktop-cards.rdp.unverified_standard')
     } else if (rdp.state === 'unverified' && rdp.reason === 'no_credentials') {
       text = i18n.t('components.desktop-cards.rdp.reason.no_credentials')
     } else if (rdp.state !== 'ready') {

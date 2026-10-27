@@ -23,7 +23,11 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin.viewers_config import ViewerConfigItem, ViewerConfigUpdateRequest
+from api.schemas.admin.viewers_config import (
+    RdpSecurityConfig,
+    ViewerConfigItem,
+    ViewerConfigUpdateRequest,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
@@ -126,5 +130,66 @@ async def admin_viewers_config_reset(
             request,
             "internal_server",
             "Failed to reset viewer configuration",
+            traceback.format_exc(),
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  RDP security policy
+# ══════════════════════════════════════════════════════════════════════════
+
+
+@admin_router.get(
+    "/admin/item/rdp-security",
+    tags=[tag],
+    response_model=RdpSecurityConfig,
+    summary="Get the RDP security policy",
+    description="Security levels a guest RDP may negotiate for its RDP viewers"
+    " to open, and the certificate check the RDP files carry.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_rdp_security(request: Request):
+    try:
+        result = await asyncio.to_thread(AdminViewersConfigService.get_rdp_security)
+        return JSONResponse(
+            content=RdpSecurityConfig(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get the RDP security policy",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/rdp-security",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update the RDP security policy",
+    description="Sets the security levels a guest RDP may negotiate and, when"
+    " given, the certificate check of both RDP files.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_rdp_security_update(request: Request, data: RdpSecurityConfig):
+    try:
+        await asyncio.to_thread(
+            AdminViewersConfigService.update_rdp_security,
+            list(dict.fromkeys(data.allowed_protocols)),
+            data.certificate_check,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update the RDP security policy",
             traceback.format_exc(),
         )

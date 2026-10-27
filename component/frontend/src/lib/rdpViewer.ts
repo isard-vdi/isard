@@ -2,6 +2,8 @@ import type { Viewer } from '@/components/viewer-select'
 
 export interface DesktopRdp {
   state: string
+  // security the guest negotiated: rdp (standard RDP security), tls or nla
+  protocol?: string | null
   reason?: string | null
   last?: { connected?: boolean; result?: string | null } | null
 }
@@ -23,7 +25,8 @@ const REASON_KEYS: Record<string, string> = {
   certificate_not_allowed: 'certificate',
   security_refused: 'security_refused',
   account_blocked: 'account_blocked',
-  no_credentials: 'no_credentials'
+  no_credentials: 'no_credentials',
+  security_not_allowed: 'security_not_allowed'
 }
 
 const reasonKey = (reason?: string | null) =>
@@ -90,6 +93,16 @@ export function rdpViewerEntry(
   } else if (rdp.state === 'auth_failed' && rdp.reason === 'account_blocked') {
     status = t('components.desktops.desktop-card.rdp.reason.account_blocked')
     tone = 'error'
+  } else if (rdp.state === 'refused' && rdp.reason === 'security_not_allowed') {
+    // the guest answers, but with a security level the administrator does not allow
+    status = t('components.desktops.desktop-card.rdp.security_not_allowed', {
+      reason: t('components.desktops.desktop-card.rdp.reason.security_not_allowed')
+    })
+    tone = 'error'
+  } else if (rdp.state === 'unverified' && rdp.protocol === 'rdp') {
+    // standard RDP security has no credential check to run before connecting
+    status = t('components.desktops.desktop-card.rdp.unverified_standard')
+    tone = 'warn'
   } else if (rdp.state === 'unverified' && rdp.reason === 'no_credentials') {
     status = t('components.desktops.desktop-card.rdp.reason.no_credentials')
     tone = 'warn'

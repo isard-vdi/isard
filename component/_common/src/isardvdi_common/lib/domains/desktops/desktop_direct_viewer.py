@@ -45,7 +45,11 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_viewer import IsardViewer
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
-from isardvdi_common.helpers.rdp_security import RDP_OPEN_STATES, rdp_effective
+from isardvdi_common.helpers.rdp_security import (
+    RDP_OPEN_STATES,
+    current_allowed_rdp_security,
+    rdp_effective,
+)
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
@@ -505,20 +509,29 @@ class DesktopDirectViewer(RethinkSharedConnection):
 
     @staticmethod
     def rdp_state(domain):
-        """The guest RDP state to act on, from the stored one."""
-        return rdp_effective((domain.get("viewer") or {}).get("rdp"))
+        """The guest RDP state to act on: the stored one under the security policy."""
+        return rdp_effective(
+            (domain.get("viewer") or {}).get("rdp"), current_allowed_rdp_security()
+        )
 
     @classmethod
     def rdp_ready(cls, domain):
-        """Open when the guest RDP answers."""
+        """Open when the guest RDP answers with a security level the policy allows."""
         return (cls.rdp_state(domain) or {}).get("state") in cls.RDP_OPEN_STATES
 
     @classmethod
     def check_rdp_open(cls, domain, role_id=None, category_id=None):
-        if cls.rdp_ready(domain) or cls.rdp_bypass_allowed(
+        rdp = cls.rdp_state(domain) or {}
+        if rdp.get("state") in cls.RDP_OPEN_STATES or cls.rdp_bypass_allowed(
             domain, role_id, category_id
         ):
             return
+        if rdp.get("reason") == "security_not_allowed":
+            raise Error(
+                "conflict",
+                "The desktop RDP security level is not allowed by the administrator",
+                description_code="rdp_security_not_allowed",
+            )
         raise Error(
             "conflict",
             "The desktop RDP service has not been verified yet",
