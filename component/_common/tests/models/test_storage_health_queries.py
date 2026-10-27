@@ -60,6 +60,8 @@ def test_a_check_writes_its_verdict_into_health(queries, kwargs, result):
     assert "last_checked_at" in query
     assert "integrity" in query and result in query
     assert "checked_at" in query
+    # the verdict is written inside r.branch, where the server refuses r.literal
+    assert "r.branch" in query and "r.literal" not in query
 
 
 def test_a_zero_scan_records_the_figure_and_the_size_it_measured(queries):

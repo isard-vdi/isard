@@ -955,12 +955,15 @@ class Storage(RethinkCustomBase):
         return new.get("status")
 
     @classmethod
-    def _health(cls, row, check, value):
-        """The ``health`` update writing ``check`` and recomputing ``checked_at``."""
+    def _health(cls, row, check, value, replace=True):
+        """The ``health`` update writing ``check`` and recomputing ``checked_at``.
+
+        ``replace=False`` merges ``value`` instead, for an update inside ``r.branch``,
+        where ReQL refuses ``r.literal``."""
         checks = row["health"]["checks"].default({}).merge({check: value})
         return {
             "health": {
-                "checks": {check: r.literal(value)},
+                "checks": {check: r.literal(value) if replace else value},
                 "checked_at": r.expr(
                     [checks[name]["at"].default(0) for name in HEALTH_CHECKS]
                 ).min(),
@@ -995,7 +998,7 @@ class Storage(RethinkCustomBase):
         def checked_on(row):
             return {
                 "last_checked_at": int(now),
-                **cls._health(row, "integrity", integrity),
+                **cls._health(row, "integrity", integrity, replace=False),
             }
 
         def logged(row, status):
