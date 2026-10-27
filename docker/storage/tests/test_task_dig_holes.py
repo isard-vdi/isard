@@ -115,100 +115,145 @@ class _Done:
         self.stdout, self.returncode = stdout, returncode
 
 
-def test_reclaimable_counts_only_the_top_layer_data(monkeypatch):
-    extents = (
-        '[{"start": 0, "length": 1048576, "depth": 0, "data": true},'
-        ' {"start": 1048576, "length": 4194304, "depth": 1, "data": true},'
-        ' {"start": 5242880, "length": 8388608, "depth": 0, "data": false}]'
+def test_a_measure_no_longer_estimates_the_zeros(monkeypatch):
+    info = json.dumps([{"actual-size": 9 * MIB, "format": "qcow2"}])
+    commands = []
+    monkeypatch.setattr(
+        task, "run", lambda cmd, *a, **k: commands.append(cmd) or _Done(info)
     )
-    monkeypatch.setattr(task, "run", lambda *a, **k: _Done(extents))
-    assert task._reclaimable_zeros("/x.qcow2", 9 * MIB) == 8 * MIB
+    out = task.qemu_img_info_backing_chain("s1", "/x.qcow2")
+    assert "reclaimable-zeros" not in out
+    assert not any("map" in cmd for cmd in commands)
 
 
-def test_preallocated_zero_clusters_are_not_data(monkeypatch):
-    extents = (
-        '[{"start": 0, "length": 1048576, "depth": 0, "zero": false, "data": true},'
-        ' {"start": 1048576, "length": 8388608, "depth": 0, "zero": true, "data": true}]'
-    )
-    monkeypatch.setattr(task, "run", lambda *a, **k: _Done(extents))
-    assert task._reclaimable_zeros("/x.qcow2", 9 * MIB) == 8 * MIB
+class _Job:
+    def __init__(self, log):
+        self.meta, self.log = {}, log
+
+    def save_meta(self):
+        self.log.append(("meta", dict(self.meta)))
 
 
-def test_reclaimable_is_unknown_when_map_fails(monkeypatch):
-    monkeypatch.setattr(task, "run", lambda *a, **k: _Done("", returncode=1))
-    assert task._reclaimable_zeros("/x.qcow2", 9 * MIB) is None
-
-
-@pytest.mark.skipif(
-    subprocess.run(
-        ["sh", "-c", "command -v qemu-img && command -v qemu-io"], capture_output=True
-    ).returncode,
-    reason="qemu-img/qemu-io not available",
-)
-def test_reclaimable_sees_an_inflated_copy(tmp_path):
-    """With extended_l2 a preallocated subcluster is a zero in the qcow2 itself, so inflation shows."""
-    sparse = tmp_path / "s.qcow2"
-    subprocess.run(
-        [
-            "qemu-img",
-            "create",
-            "-q",
-            "-f",
-            "qcow2",
-            "-o",
-            "cluster_size=2M,extended_l2=on,preallocation=metadata",
-            str(sparse),
-            "64M",
-        ],
-        check=True,
-    )
-    subprocess.run(
-        ["qemu-io", "-f", "qcow2", "-c", "write -P 0xab 0 1M", str(sparse)],
-        check=True,
-        capture_output=True,
-    )
-    extents = json.loads(
-        subprocess.run(
-            ["qemu-img", "map", "--output=json", str(sparse)],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-    )
-    if any(e.get("data") and e["length"] > 8 * MIB for e in extents):
-        pytest.skip("this qemu-img does not mark preallocated subclusters as zero")
-    inflated = tmp_path / "i.qcow2"
-    inflated.write_bytes(sparse.read_bytes())
-    for path, low, high in ((sparse, 0, 16 * MIB), (inflated, 48 * MIB, 80 * MIB)):
-        actual = os.stat(path).st_blocks * 512
-        assert low <= task._reclaimable_zeros(str(path), actual) <= high
-
-
-def _measure(monkeypatch, storage_type="qcow2", map_returncode=0):
-    info = json.dumps([{"actual-size": 9 * MIB, "format": storage_type}])
-    extents = '[{"start": 0, "length": 1048576, "depth": 0, "data": true}]'
-
-    def fake(cmd, *a, **k):
-        if "map" in cmd:
-            return _Done(extents, returncode=map_returncode)
-        return _Done(info)
-
-    monkeypatch.setattr(task, "run", fake)
-    return task.qemu_img_info_backing_chain("s1", "/x.qcow2", storage_type)
-
-
-def test_a_qcow2_measure_reports_its_reclaimable_zeros(monkeypatch):
-    assert _measure(monkeypatch)["reclaimable-zeros"] == 8 * MIB
+def test_the_job_says_it_began_punching_before_the_file_is_written(
+    worker, monkeypatch, tmp_path
+):
+    log = []
+    monkeypatch.setattr(worker, "get_current_job", lambda: _Job(log))
+    monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: log.append("punch"))
+    disk = _inflated(tmp_path / "d.qcow2")
+    worker.dig_holes(str(disk))
+    assert log[:2] == [("meta", {"dig_holes_punch": "started"}), "punch"]
 
 
 @pytest.mark.parametrize(
-    "storage_type, map_returncode",
-    [("raw", 0), ("qcow2", 1)],
-    ids=["not-qcow2", "map-failed"],
+    "failure",
+    [
+        subprocess.CalledProcessError(
+            1,
+            ["fallocate"],
+            output="fallocate: fallocate failed: Operation not supported",
+        ),
+        subprocess.CalledProcessError(
+            1, ["fallocate"], stderr=b"fallocate failed: Operation not supported"
+        ),
+    ],
+    ids=["wired", "no-job"],
 )
-def test_a_measure_without_a_figure_carries_none(
-    monkeypatch, storage_type, map_returncode
+def test_a_filesystem_that_cannot_punch_says_so(worker, monkeypatch, tmp_path, failure):
+    from isardvdi_common.lib.storage.zeros import DIG_HOLES_UNSUPPORTED
+
+    def refuse(cmd):
+        raise failure
+
+    monkeypatch.setattr(worker, "_run_cancellable", refuse)
+    with pytest.raises(RuntimeError, match=DIG_HOLES_UNSUPPORTED):
+        worker.dig_holes(str(_inflated(tmp_path / "d.qcow2")))
+
+
+def test_an_unwritten_punch_the_filesystem_refuses_says_so(
+    worker, monkeypatch, tmp_path
 ):
-    assert "reclaimable-zeros" not in _measure(
-        monkeypatch, storage_type, map_returncode
+    import errno
+
+    from isardvdi_common.lib.storage import zeros
+
+    def refuse(path):
+        raise OSError(errno.EOPNOTSUPP, "Operation not supported")
+
+    monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: 0)
+    monkeypatch.setattr(zeros, "punch_unwritten", refuse)
+    with pytest.raises(RuntimeError, match=zeros.DIG_HOLES_UNSUPPORTED):
+        worker.dig_holes(str(_inflated(tmp_path / "d.qcow2")))
+
+
+def test_any_other_failure_is_raised_as_it_is(worker, monkeypatch, tmp_path):
+    def fail(cmd):
+        raise subprocess.CalledProcessError(1, cmd, output="No space left on device")
+
+    monkeypatch.setattr(worker, "_run_cancellable", fail)
+    with pytest.raises(subprocess.CalledProcessError):
+        worker.dig_holes(str(_inflated(tmp_path / "d.qcow2")))
+
+
+def _preallocated(path):
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        os.pwrite(fd, b"\xab" * MIB, 0)
+        os.posix_fallocate(fd, MIB, 16 * MIB)
+        os.pwrite(fd, b"\xcd" * MIB, 17 * MIB)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    return str(path)
+
+
+def _reports_unwritten(path):
+    from isardvdi_common.lib.storage import zeros
+
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        size = os.fstat(fd).st_size
+        return any(
+            f & zeros.FIEMAP_EXTENT_UNWRITTEN
+            for logical, _, f in zeros.fiemap(fd)
+            if logical < size
+        )
+    except OSError:
+        return False
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.skipif(
+    not _fallocate_digs_holes(), reason="this fallocate has no --dig-holes"
+)
+@pytest.mark.parametrize("verify", [False, True])
+def test_a_dig_gives_back_the_preallocation_too(worker, tmp_path, verify):
+    disk = _preallocated(tmp_path / "d.qcow2")
+    if not _reports_unwritten(disk):
+        pytest.skip("this filesystem reports no unwritten extents through FIEMAP")
+    result = worker.dig_holes(disk, verify=verify)
+    assert result["reclaimed"] >= 16 * MIB
+    assert not _reports_unwritten(disk)
+    assert result["verified"] is verify
+
+
+def test_zero_scan_counts_the_file(worker, monkeypatch, tmp_path):
+    from isardvdi_common.lib.storage import zeros
+
+    disk = _inflated(tmp_path / "d.qcow2")
+    monkeypatch.setattr(zeros, "scan_zeros", lambda path: {"reclaimable_bytes": 7})
+    assert worker.zero_scan(str(disk)) == {"reclaimable_bytes": 7}
+
+
+def test_zero_scan_refuses_a_file_a_guest_holds_open(worker, monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        worker, "_storage_qcow", lambda: _qcow(True, 'Failed to get "write" lock')
     )
+    with pytest.raises(RuntimeError, match="in use by a hypervisor"):
+        worker.zero_scan(str(_inflated(tmp_path / "d.qcow2")))
+
+
+def test_zero_scan_of_a_missing_file_fails(worker, tmp_path):
+    with pytest.raises(RuntimeError, match="does not exist"):
+        worker.zero_scan(str(tmp_path / "gone.qcow2"))
