@@ -50,6 +50,7 @@ from .upgrade_helpers import (
     v210_perms_follow_the_domain,
     v215_limits_volatile,
     v216_storage_health,
+    v216_storage_repair_allowed,
 )
 
 """
@@ -57,7 +58,8 @@ Update to new database release version when new code version release
 """
 release_version = 216
 # release 216: storage health: the integrity, zero-scan and pending-since indexes,
-#              and health.checks.integrity.at backfilled from last_checked_at
+#              and health.checks.integrity.at backfilled from last_checked_at;
+#              config storage_repair.allowed seeded empty (only admins run costly repairs)
 # release 215: add the volatile limit to group and category limits stored without it
 # release 214: store users.active and domains.enabled as booleans
 # release 213: drop the Redis task indexes of storage/media rows that no longer exist
@@ -1343,6 +1345,10 @@ password:s:%s"""
             r.table("config").get(1).update({"orchestrator": {"enabled": False}}).run(
                 self.conn
             )
+
+        if version == 216:
+            seeded = v216_storage_repair_allowed(r.table(table), self.conn, log.warning)
+            log.info(f"v216: storage_repair.allowed seeded: {seeded}")
 
         return True
 

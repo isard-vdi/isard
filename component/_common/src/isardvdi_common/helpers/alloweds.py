@@ -812,6 +812,26 @@ class Alloweds(RethinkCustomBase):
         return config.get("bastion", {}).get("allowed", {})
 
     @classmethod
+    def update_storage_repair_alloweds(cls, allowed):
+        with cls._rdb_context():
+            r.table("config").get(1).update(
+                {"storage_repair": {"allowed": allowed}}
+            ).run(cls._rdb_connection)
+
+    @classmethod
+    def get_storage_repair_allowed_dict(cls) -> dict:
+        """Read ``config[id=1].storage_repair.allowed``; {} when missing."""
+        with cls._rdb_context():
+            config = (
+                r.table("config")
+                .get(1)
+                .pluck({"storage_repair": "allowed"})
+                .default({})
+                .run(cls._rdb_connection)
+            )
+        return (config or {}).get("storage_repair", {}).get("allowed", {})
+
+    @classmethod
     def get_bastion_domains_allowed_dict(cls) -> dict:
         """Read ``config[id=1].bastion.individual_domains.allowed``."""
         with cls._rdb_context():

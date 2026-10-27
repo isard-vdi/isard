@@ -927,6 +927,17 @@ class Helpers(RethinkSharedConnection):
         return Alloweds.is_allowed(payload, bastion_allowed, "config", True)
 
     @classmethod
+    def can_repair_storage_costly(cls, payload):
+        """Admins, and the users the ``storage_repair`` allowed list matches."""
+        if payload.get("role_id") == "admin":
+            return True
+        try:
+            allowed = Alloweds.get_storage_repair_allowed_dict()
+        except Exception:
+            return False
+        return Alloweds.is_allowed(payload, {"allowed": allowed}, "config", True)
+
+    @classmethod
     def can_use_bastion_individual_domains(cls, payload):
         if not cls.can_use_bastion(payload):
             return False

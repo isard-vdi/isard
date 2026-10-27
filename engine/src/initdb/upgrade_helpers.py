@@ -1081,3 +1081,33 @@ def v216_storage_health(upgrade):
         f"v216: health.checks.integrity.at backfilled on {done} of {len(ids)} "
         f"storage rows, {failed} in failed batches"
     )
+
+
+#: no key set: only admins run a costly repair until an admin allows others
+STORAGE_REPAIR_ALLOWED_EMPTY = {
+    "roles": False,
+    "categories": False,
+    "groups": False,
+    "users": False,
+}
+
+
+def v216_storage_repair_allowed(config, conn, warn):
+    """Seed ``storage_repair.allowed`` with nobody allowed; a list already set is kept."""
+    try:
+        current = (
+            config.get(1).pluck({"storage_repair": "allowed"}).default({}).run(conn)
+        )
+    except Exception as e:
+        warn(f"v216: could not read the storage repair allowed list: {e}")
+        return False
+    if ((current or {}).get("storage_repair") or {}).get("allowed") is not None:
+        return False
+    try:
+        config.get(1).update(
+            {"storage_repair": {"allowed": dict(STORAGE_REPAIR_ALLOWED_EMPTY)}}
+        ).run(conn)
+    except Exception as e:
+        warn(f"v216: could not seed the storage repair allowed list: {e}")
+        return False
+    return True
