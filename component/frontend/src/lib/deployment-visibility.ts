@@ -1,6 +1,7 @@
 import type { DeploymentDesktop, DeploymentResponse, DeploymentUserDetail } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
-import type { VisibilityState } from '@/components/deployments/visibility'
+
+export type VisibilityState = boolean | 'indeterminate'
 
 /** One (user, desktop) cell of the visibility matrix. */
 export interface MatrixDesktop {

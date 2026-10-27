@@ -1163,7 +1163,6 @@
       "show-all": "Mostrarlo todo",
       "hide-all": "Ocultarlo todo",
       "search-placeholder": "Buscar un usuario",
-      "click-hint": "Haz clic en los iconos para mostrar u ocultar cada escritorio",
       "headers": {
         "user": "Usuario",
         "all": "Todos",
