@@ -92,31 +92,21 @@ def _haproxy_bastion_client():
 # human-friendly "detail" field — see Bastion.readable_sync_error.
 _ACME_DETAIL_RE = re.compile(r'"detail"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
 
-# haproxy-sync kills acme.sh when the DomainSync deadline passes
-DOMAIN_SYNC_TIMEOUT = 600
-
 
 class Bastion(RethinkSharedConnection):
     @staticmethod
     def _call_grpc_with_infinite_retry(
-        func,
-        *args,
-        initial_delay=1,
-        max_delay=30,
-        max_retries=60,
-        timeout=30,
-        **kwargs,
+        func, *args, initial_delay=1, max_delay=30, max_retries=60, **kwargs
     ):
         """
         Call a gRPC function with retry and exponential backoff.
         Retries up to max_retries times with delays capped at max_delay.
-        Each call gets ``timeout`` seconds.
         """
         delay = initial_delay
         attempt = 0
         while attempt < max_retries:
             try:
-                return func(*args, wait_for_ready=True, timeout=timeout, **kwargs)
+                return func(*args, wait_for_ready=True, timeout=30, **kwargs)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.UNAVAILABLE:
                     attempt += 1
@@ -337,7 +327,6 @@ class Bastion(RethinkSharedConnection):
         return cls._call_grpc_with_infinite_retry(
             _haproxy_bastion_client().DomainSync,
             haproxy_sync_pb2.DomainSyncRequest(domains=domains),
-            timeout=DOMAIN_SYNC_TIMEOUT,
         )
 
     @staticmethod

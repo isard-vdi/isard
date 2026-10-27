@@ -586,39 +586,3 @@ def test_check_duplicate_bastion_domains_rejects_default_bastion_domain(monkeypa
     with pytest.raises(Exception) as excinfo:
         bastion_module.Bastion.check_duplicate_bastion_domains(["bastion.example.com"])
     assert "same as the default domain" in excinfo.value.error["description"]
-
-
-# DomainSync deadline: haproxy-sync runs acme.sh under the call's context
-
-
-def test_retry_passes_the_timeout_it_is_given():
-    calls = []
-
-    def func(*a, **kw):
-        calls.append(kw)
-        return "ok"
-
-    bastion_module.Bastion._call_grpc_with_infinite_retry(func, timeout=123)
-
-    assert calls[0]["timeout"] == 123
-
-
-def test_domain_sync_leaves_time_for_acme_to_issue_certificates(monkeypatch):
-    import contextlib
-    from unittest.mock import MagicMock
-
-    calls = []
-
-    class _Client:
-        def DomainSync(self, request, **kw):
-            calls.append(kw)
-            return "synced"
-
-    client = _Client()
-    bastion_module.configure_haproxy_bastion_client(lambda: client)
-    monkeypatch.setattr(bastion_module, "r", MagicMock(name="r"))
-    monkeypatch.setattr(bastion_module.Bastion, "_rdb_context", contextlib.nullcontext)
-
-    assert bastion_module.Bastion.sync_category_branding_domains() == "synced"
-    assert calls[0]["timeout"] == bastion_module.DOMAIN_SYNC_TIMEOUT
-    assert bastion_module.DOMAIN_SYNC_TIMEOUT >= 300

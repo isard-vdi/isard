@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"sync"
-	"syscall"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
@@ -17,10 +16,6 @@ import (
 )
 
 func main() {
-	// haproxy-reload may send SIGHUP while this is starting, and unhandled it kills the process
-	reloads := make(chan os.Signal, 1)
-	signal.Notify(reloads, syscall.SIGHUP)
-
 	cfg := cfg.New()
 
 	log := log.New("haproxy-sync", cfg.Log.Level)
@@ -37,18 +32,6 @@ func main() {
 	acme := acme.NewACME(log, cfg.HAProxy.Domains.CertsPath)
 
 	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy, acme)
-	haproxysync.RecordWorkerPid()
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-reloads:
-				haproxysync.NotifyReload(ctx)
-			}
-		}
-	}()
 
 	grpc := grpc.NewHAProxySyncServer(log, &wg, cfg.GRPC, haproxysync)
 

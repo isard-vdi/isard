@@ -1,21 +1,11 @@
 package haproxysync
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"syscall"
-	"time"
 
 	"golang.org/x/net/idna"
 )
@@ -44,155 +34,12 @@ func validateDomain(d string) error {
 	return nil
 }
 
-// certReuseMinValidity leaves acme-cron time to renew a certificate before it is reused.
-const certReuseMinValidity = 7 * 24 * time.Hour
-
-// reusableACMECert returns the certificate on disk only when it is the one acme.sh issued for d.
-func (h *HAproxySync) reusableACMECert(d, certPath string) ([]byte, bool) {
-	if !filepath.IsAbs(h.Domains.ACMEPath) {
-		return nil, false
-	}
-
-	acmeCert, err := readFileNoFollow(filepath.Join(h.Domains.ACMEPath, d+"_ecc", d+".cer"))
-	if err != nil {
-		return nil, false
-	}
-
-	pemData, err := readFileNoFollow(certPath)
-	if err != nil {
-		return nil, false
-	}
-
-	pair, err := tls.X509KeyPair(pemData, pemData)
-	if err != nil {
-		h.log.Warn().Err(err).Str("domain", d).Msg("certificate on disk has no matching key, issuing a new one")
-		return nil, false
-	}
-
-	if block, _ := pem.Decode(acmeCert); block == nil || block.Type != "CERTIFICATE" || !bytes.Equal(block.Bytes, pair.Certificate[0]) {
-		h.log.Warn().Str("domain", d).Msg("certificate on disk is not the one acme.sh issued, issuing a new one")
-		return nil, false
-	}
-
-	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil {
-		return nil, false
-	}
-
-	if err := leaf.VerifyHostname(d); err != nil {
-		h.log.Warn().Err(err).Str("domain", d).Msg("certificate on disk is for another domain, issuing a new one")
-		return nil, false
-	}
-
-	if time.Until(leaf.NotAfter) < certReuseMinValidity {
-		h.log.Warn().Time("not_after", leaf.NotAfter).Str("domain", d).Msg("certificate on disk expires soon, issuing a new one")
-		return nil, false
-	}
-
-	return pemData, true
-}
-
 func domainPemName(domain string) string {
 	return domain + ".pem"
 }
 
-// certDomain allows lowercase hostnames only, so two domains can never name the same file.
-var certDomain = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-
-// certPathFor is the only way a domain becomes a path, and the path never leaves CertsPath.
-func (h *HAproxySync) certPathFor(d string) (string, error) {
-	if len(d) > maxDNSNameLength || !certDomain.MatchString(d) {
-		return "", fmt.Errorf("%w: %q cannot name a certificate file", ErrInvalidDomain, d)
-	}
-
-	dir := filepath.Clean(h.Domains.CertsPath)
-	p := filepath.Clean(filepath.Join(dir, domainPemName(d)))
-	if !strings.HasPrefix(p, dir+string(filepath.Separator)) {
-		return "", fmt.Errorf("%w: %q escapes the certificates directory", ErrInvalidDomain, d)
-	}
-
-	return p, nil
-}
-
-// regularFile reports whether p exists, refusing anything that is not a regular file.
-func regularFile(p string) (bool, error) {
-	fi, err := os.Lstat(p)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if !fi.Mode().IsRegular() {
-		return true, fmt.Errorf("%s is not a regular file", p)
-	}
-
-	return true, nil
-}
-
-// removeCertFile deletes the certificate file of d only if it really holds a certificate for d.
-func (h *HAproxySync) removeCertFile(d, certPath string) {
-	exists, err := regularFile(certPath)
-	if err != nil {
-		h.log.Warn().Err(err).Str("domain", d).Msg("not deleting the certificate path of a removed domain")
-		return
-	}
-	if !exists {
-		return
-	}
-
-	if err := certFor(certPath, d); err != nil {
-		h.log.Warn().Err(err).Str("domain", d).Msg("the certificate file is not for the removed domain, keeping it")
-		return
-	}
-
-	if err := os.Remove(certPath); err != nil {
-		h.log.Warn().Err(err).Str("domain", d).Msg("delete the certificate file of a removed domain")
-	}
-}
-
-func readFileNoFollow(p string) ([]byte, error) {
-	f, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	return io.ReadAll(f)
-}
-
-func writeFileNoFollow(p string, data []byte) error {
-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o600)
-	if err != nil {
-		return err
-	}
-
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
-	}
-
-	return f.Close()
-}
-
-// certFor checks that the file at p holds a certificate for d, with its matching key.
-func certFor(p, d string) error {
-	data, err := readFileNoFollow(p)
-	if err != nil {
-		return err
-	}
-
-	pair, err := tls.X509KeyPair(data, data)
-	if err != nil {
-		return err
-	}
-
-	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil {
-		return err
-	}
-
-	return leaf.VerifyHostname(d)
+func domainCertPath(certsPath, pemName string) string {
+	return filepath.Join(certsPath, pemName)
 }
 
 func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {
@@ -274,18 +121,7 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		}
 
 		pemName := domainPemName(d)
-		certPath, err := h.certPathFor(d)
-		if err != nil {
-			h.log.Warn().Err(err).Str("domain", d).Msg("removing an invalid domain from the map without touching any file")
-			if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("delete domain from HAProxy: %w", err)
-			}
-
-			delete(h.Domains.domains, d)
-			domainsRemoved += 1
-
-			continue
-		}
+		certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
 		if h.isBaseDomain(d) {
 			h.dropBaseDomain(d, certPath)
@@ -309,7 +145,6 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 		}
 
 		h.acme.RemoveCert(ctx, d, pemName)
-		h.removeCertFile(d, certPath)
 		certsRemoved += 1
 
 		delete(h.Domains.domains, d)
@@ -353,33 +188,21 @@ func (h *HAproxySync) isBaseDomain(d string) bool {
 
 func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {
 	pemName := domainPemName(d)
-	certPath, err := h.certPathFor(d)
-	if err != nil {
-		return err
-	}
-	if _, err := regularFile(certPath); err != nil {
-		return fmt.Errorf("certificate path: %w", err)
-	}
+	certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
 	var pemData []byte
 	if len(certData) > 0 {
-		if err := writeFileNoFollow(certPath, certData); err != nil {
+		if err := os.WriteFile(certPath, certData, 0600); err != nil {
 			return fmt.Errorf("write provided certificate: %w", err)
 		}
 		pemData = certData
-	} else if onDisk, ok := h.reusableACMECert(d, certPath); ok {
-		h.log.Info().Str("domain", d).Msg("reusing the ACME certificate on disk")
-		pemData = onDisk
 	} else {
 		if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
 			return fmt.Errorf("issue certificate: %w", err)
 		}
 
-		if _, err := regularFile(certPath); err != nil {
-			return fmt.Errorf("issued certificate path: %w", err)
-		}
-
-		pemData, err = readFileNoFollow(certPath)
+		var err error
+		pemData, err = os.ReadFile(certPath)
 		if err != nil {
 			return fmt.Errorf("read certificate file: %w", err)
 		}
