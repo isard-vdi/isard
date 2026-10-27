@@ -19,7 +19,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
+
 from api.dependencies.jwt_token import has_token
+from api.services.storage_problems import StorageProblemsService
 from fastapi import Depends, Path
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 
@@ -41,7 +44,16 @@ async def check_virt_storage_pool_availability(
 ):
     """
     Check there is a virt storage pool available for virtualization of the user desktop.
+    Disks that are not ready get their quick fixes queued before the error returns.
     """
-    return HypervisorsProcessed.check_virt_storage_pool_availability(
-        domain_id=desktop_id
-    )
+    try:
+        return HypervisorsProcessed.check_virt_storage_pool_availability(
+            domain_id=desktop_id
+        )
+    except Exception as e:
+        code = (getattr(e, "error", None) or {}).get("description_code")
+        if code == "desktop_storage_not_ready":
+            await asyncio.to_thread(
+                StorageProblemsService.handle_quietly, payload, desktop_id
+            )
+        raise
