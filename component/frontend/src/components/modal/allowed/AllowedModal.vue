@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, useMediaQuery } from '@vueuse/core'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { Modal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
@@ -172,12 +172,17 @@ const userGroupFilter = ref<string | null>(null)
 
 const hydrated = ref(false)
 const dirty = ref(false)
-const summaryOpen = ref(false)
+// On short screens the open summary would squeeze the columns, so it starts collapsed there.
+const shortScreen = useMediaQuery('(max-height: 900px)')
+const summaryOpen = ref(!shortScreen.value)
 
 watch(
   () => props.open,
   (open) => {
-    if (open) return
+    if (open) {
+      summaryOpen.value = !shortScreen.value
+      return
+    }
 
     hydrated.value = false
     dirty.value = false
@@ -188,7 +193,6 @@ watch(
     groupSearch.value = ''
     userSearch.value = ''
     userGroupFilter.value = null
-    summaryOpen.value = false
   }
 )
 
@@ -239,8 +243,6 @@ const hydrate = () => {
     everyoneEnabled.value && Array.isArray(source.users) && source.users.length === 0
   selectedUsers.value =
     !shareWithEveryone.value && Array.isArray(source.users) ? [...source.users] : []
-  summaryOpen.value =
-    selectedGroups.value.length > 0 || selectedUsers.value.length > 0 || apiAllGroups.value
   hydrated.value = true
 }
 
@@ -693,20 +695,7 @@ const handleClose = () => {
         {{ option.label }}
       </ToggleGroupItem>
     </ToggleGroup>
-    <AllowedModalSummary
-      v-if="!shareWithEveryone"
-      v-model:open="summaryOpen"
-      :groups="summaryGroups"
-      :users="summaryUsers"
-      :all-groups="apiAllGroups"
-      :show-groups="!props.usersOnly"
-      :disabled="columnsDisabled"
-      @remove-group="toggleGroup"
-      @remove-user="removeUser"
-      @remove-all-groups="toggleAllGroups(false)"
-      @remove-all-users="clearUsers"
-    />
-    <Alert v-else class="mb-4 shrink-0" data-slot="share-everyone-alert">
+    <Alert v-if="shareWithEveryone" class="mb-4 shrink-0" data-slot="share-everyone-alert">
       <div class="flex flex-row items-center gap-2">
         <FeaturedIconOutline kind="filled" color="brand" name="users-02" />
         <div class="flex min-w-0 flex-col">
@@ -721,7 +710,7 @@ const handleClose = () => {
     </Alert>
 
     <!-- The far larger shrink weight makes the columns give up height before the summary does. -->
-    <div v-if="!shareWithEveryone" class="flex min-h-[192px] flex-[0_10000_480px] gap-6">
+    <div v-else class="flex min-h-[192px] flex-[0_10000_480px] gap-6">
       <AllowedModalColumn
         v-if="!props.usersOnly"
         v-model:search="groupSearch"
@@ -779,6 +768,20 @@ const handleClose = () => {
         </template>
       </AllowedModalColumn>
     </div>
+
+    <AllowedModalSummary
+      v-if="!shareWithEveryone"
+      v-model:open="summaryOpen"
+      :groups="summaryGroups"
+      :users="summaryUsers"
+      :all-groups="apiAllGroups"
+      :show-groups="!props.usersOnly"
+      :disabled="columnsDisabled"
+      @remove-group="toggleGroup"
+      @remove-user="removeUser"
+      @remove-all-groups="toggleAllGroups(false)"
+      @remove-all-users="clearUsers"
+    />
 
     <div v-if="props.error" class="mt-4 w-full flex shrink-0 justify-center">
       <Alert variant="destructive" class="w-[min(100%,var(--spacing-256))]">
