@@ -70,6 +70,9 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
 import { describeApiError } from '@/lib/api-errors'
+import { STORAGE_START_ERROR_CODES } from '@/lib/storage-problems'
+import { useStorageRepair } from '@/composables/useStorageRepair'
+import { StorageProblemsModal } from '@/components/storage-problems'
 import { resolveDesktopKind, type DesktopKind } from '@/lib/desktops'
 import { domainKindStyle } from '@/lib/domainKind'
 import { useAuthStore } from '@/stores/auth'
@@ -242,6 +245,35 @@ const showStartStorageUnavailableModal = ref(false)
 // with no feedback at all.
 const startErrorMessage = ref<string | null>(null)
 
+const storageRepair = useStorageRepair()
+// desktops whose start this view asked for: a later Failed is checked for disk problems
+const startedHere = new Set<string>()
+
+const desktopNameOf = (desktopId: string) =>
+  desktops.value?.desktops.find((d) => d.id === desktopId)?.name ?? desktopId
+
+const repairTarget = (desktopId: string) => ({
+  desktopId,
+  desktopName: desktopNameOf(desktopId),
+  retryStart: () => desktopStart({ path: { desktop_id: desktopId } })
+})
+
+watch(
+  () =>
+    desktops.value?.desktops
+      .filter((d) => startedHere.has(d.id))
+      .map((d) => [d.id, d.status] as const) ?? [],
+  (rows) => {
+    for (const [id, status] of rows) {
+      if (status === DesktopStatusEnum.STARTED) startedHere.delete(id)
+      else if (status === DesktopStatusEnum.FAILED) {
+        startedHere.delete(id)
+        storageRepair.diagnose(repairTarget(id))
+      }
+    }
+  }
+)
+
 const desktopsKey = getUserDesktopsQueryKey()
 
 const {
@@ -264,7 +296,7 @@ const {
     nextStatusGuard: (current) =>
       current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
     baseMutation: startDesktopMutation(),
-    onError: (error) => {
+    onError: (error, vars) => {
       const err = error as ErrorResponse
       const modalKey = QUOTA_EXCEEDED_MODAL_KEYS[err.description_code]
       if (modalKey) {
@@ -275,11 +307,17 @@ const {
         }
       } else if (err.description_code === 'no_storage_pool_available') {
         showStartStorageUnavailableModal.value = true
+      } else if (STORAGE_START_ERROR_CODES.includes(err.description_code)) {
+        const message = describeApiError(error, { t, te }, 'start-desktop')
+        storageRepair.diagnose(repairTarget(vars.path.desktop_id)).then((found) => {
+          if (!found) startErrorMessage.value = message
+        })
       } else {
         startErrorMessage.value = describeApiError(error, { t, te }, 'start-desktop')
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, vars) => {
+      startedHere.add(vars.path.desktop_id)
       try {
         const { data } = await getUserNotificationTriggerDisplay({
           path: {
@@ -1117,6 +1155,17 @@ const missingCardRows = computed(() => {
   </AlertModal>
 
   <!-- Start error modal -->
+  <StorageProblemsModal
+    :open="storageRepair.open.value"
+    :desktop-name="storageRepair.target.value?.desktopName ?? ''"
+    :plan="storageRepair.plan.value"
+    :error-message="storageRepair.errorMessage.value"
+    :describe-estimate="storageRepair.describeEstimate"
+    :duration="storageRepair.duration"
+    :is-queued="storageRepair.isQueued"
+    @confirm="storageRepair.confirm"
+    @close="storageRepair.close"
+  />
   <AlertModal
     :open="startErrorMessage !== null"
     level="danger"

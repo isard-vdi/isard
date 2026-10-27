@@ -3107,6 +3107,72 @@
     },
     "scroll-to-top": {
       "label": "Ir arriba"
+    },
+    "storage-problems": {
+      "duration": {
+        "unknown": "un tiempo desconocido",
+        "s": "unos {value} s",
+        "min": "unos {value} min",
+        "h": "unas {value} h"
+      },
+      "estimate": "Cola: {tier} · {ahead} tareas por delante · previsto en {duration}",
+      "progress": "Arreglando el disco de {name}: {percent}%",
+      "queued": "Posición {position} en la cola · faltan unos {duration}",
+      "running": "En ejecución",
+      "stranded": "Ahora mismo ningún trabajador atiende esta cola: el arreglo espera hasta que haya uno.",
+      "fixed": "El disco de {name} ya está arreglado. Se vuelve a arrancar.",
+      "failed": "No se ha podido arreglar el disco de {name}.",
+      "fix-queued": "{fix} en la cola del disco de {name}",
+      "code": {
+        "storage_busy": "El disco está ocupado con otra operación. El escritorio podrá arrancar cuando acabe.",
+        "storage_damaged": "El disco está marcado como dañado.",
+        "storage_broken_chain": "El disco no encuentra un disco del que depende.",
+        "storage_unavailable": "El disco no está disponible. Lo tiene que revisar un administrador.",
+        "storage_leaks": "El disco tiene espacio perdido que una reparación rápida recupera.",
+        "storage_check_due": "Al disco le toca una comprobación de integridad.",
+        "storage_check_inconclusive": "La última comprobación del disco no llegó a ningún veredicto.",
+        "storage_zeros": "El disco tiene bloques de ceros que se pueden devolver.",
+        "storage_grown": "El disco ha crecido y se puede compactar.",
+        "storage_review_damage": "El disco puede estar dañado. Lo tiene que revisar un administrador.",
+        "storage_rebase_backing": "El disco apunta a un disco que se ha movido. Lo tiene que arreglar un administrador.",
+        "storage_review_coherence": "El disco no cuadra con su propietario. Lo tiene que revisar un administrador.",
+        "storage_review_dependents": "Otros discos aún pueden leer este. Lo tiene que revisar un administrador.",
+        "storage_missing": "Falta el fichero del disco. Lo tiene que revisar un administrador."
+      },
+      "fix": {
+        "check": "Comprobación de integridad",
+        "check_backing_chain": "Comprobación de la cadena",
+        "repair_leaks": "Reparación del espacio perdido",
+        "repair_all": "Reparación completa",
+        "dig_holes": "Devolver los bloques de ceros",
+        "sparsify": "Compactar el disco"
+      },
+      "quick-fix": {
+        "queued": "{fix}: iniciada ahora",
+        "recorded": "{fix}: queda para el mantenimiento nocturno de los discos"
+      },
+      "modal": {
+        "title": "El disco de {name} necesita atención",
+        "description": "Los arreglos rápidos se ejecutan enseguida. Estos son los problemas encontrados en los discos del escritorio y qué se hace con cada uno.",
+        "quick_fixes": "Lo que se ha hecho ahora",
+        "waits": "En curso",
+        "quick": "Arreglos rápidos pendientes",
+        "costly": "Reparaciones pendientes que tardan un rato",
+        "admins": "Hace falta un administrador",
+        "not-allowed": "Solo un administrador puede ejecutar esta reparación.",
+        "run": "Ejecutar: {fix}",
+        "running": "En la cola",
+        "close": "Cerrar"
+      },
+      "tier": {
+        "interactive": "interactiva",
+        "standard": "estándar",
+        "template": "plantillas",
+        "bulk": "masiva",
+        "maintenance": "mantenimiento",
+        "reclaim": "recuperación de espacio",
+        "background": "segundo plano"
+      }
     }
   },
   "authentication": {
@@ -3429,6 +3495,14 @@
           "title": "Los perfiles vGPU deben  ser del mismo modelo",
           "description": "Todos los escritorios con perfiles vGPU en un despliegue deben tener el mismo modelo. Por favor, asegúrate de que todos los escritorios con perfiles vGPU tengan el mismo modelo y vuelve a intentarlo."
         }
+      }
+    },
+    "storage-fix": {
+      "errors": {
+        "storage_repair_not_allowed": "Solo un administrador, o un usuario que un administrador haya permitido, puede ejecutar esta reparación.",
+        "storage_fix_not_needed": "El disco ya no necesita este arreglo.",
+        "storage_fix_in_progress": "Ya se está trabajando en el disco. Espera a que acabe.",
+        "generic": "No se ha podido arreglar el disco. Vuelve a intentarlo."
       }
     }
   },

@@ -3107,6 +3107,72 @@
     },
     "scroll-to-top": {
       "label": "Go to top"
+    },
+    "storage-problems": {
+      "duration": {
+        "unknown": "an unknown time",
+        "s": "about {value} s",
+        "min": "about {value} min",
+        "h": "about {value} h"
+      },
+      "estimate": "Queue: {tier} · {ahead} tasks ahead · expected in {duration}",
+      "progress": "Fixing the disk of {name}: {percent}%",
+      "queued": "Position {position} in the queue · about {duration} left",
+      "running": "Running now",
+      "stranded": "No worker serves this queue right now: the fix waits until one does.",
+      "fixed": "The disk of {name} is fixed. Starting it again.",
+      "failed": "The disk of {name} could not be fixed.",
+      "fix-queued": "{fix} queued on the disk of {name}",
+      "code": {
+        "storage_busy": "The disk is busy with another operation. The desktop can start when it ends.",
+        "storage_damaged": "The disk is marked as damaged.",
+        "storage_broken_chain": "The disk cannot find a disk it depends on.",
+        "storage_unavailable": "The disk is not available. An administrator has to review it.",
+        "storage_leaks": "The disk has leaked space that a quick repair gives back.",
+        "storage_check_due": "The disk is due an integrity check.",
+        "storage_check_inconclusive": "The last check of the disk reached no verdict.",
+        "storage_zeros": "The disk holds zero blocks that can be given back.",
+        "storage_grown": "The disk has grown and can be compacted.",
+        "storage_review_damage": "The disk may be damaged. An administrator has to review it.",
+        "storage_rebase_backing": "The disk points to a disk that moved. An administrator has to fix it.",
+        "storage_review_coherence": "The disk does not match its owner. An administrator has to review it.",
+        "storage_review_dependents": "Other disks may still read this one. An administrator has to review it.",
+        "storage_missing": "The disk file is missing. An administrator has to review it."
+      },
+      "fix": {
+        "check": "Integrity check",
+        "check_backing_chain": "Chain check",
+        "repair_leaks": "Leak repair",
+        "repair_all": "Full repair",
+        "dig_holes": "Give back zero blocks",
+        "sparsify": "Compact the disk"
+      },
+      "quick-fix": {
+        "queued": "{fix}: started now",
+        "recorded": "{fix}: left for the nightly storage maintenance"
+      },
+      "modal": {
+        "title": "The disk of {name} needs attention",
+        "description": "Quick fixes run at once. These are the problems found in the desktop's disks and what is done about each one.",
+        "quick_fixes": "What was done now",
+        "waits": "In progress",
+        "quick": "Pending quick fixes",
+        "costly": "Pending repairs that take a while",
+        "admins": "Needs an administrator",
+        "not-allowed": "Only an administrator can run this repair.",
+        "run": "Run {fix}",
+        "running": "Queued",
+        "close": "Close"
+      },
+      "tier": {
+        "interactive": "interactive",
+        "standard": "standard",
+        "template": "templates",
+        "bulk": "bulk",
+        "maintenance": "maintenance",
+        "reclaim": "space reclaim",
+        "background": "background"
+      }
     }
   },
   "authentication": {
@@ -3429,6 +3495,14 @@
           "title": "vGPU profiles must be of the same model",
           "description": "All desktops with vGPU profiles in a deployment must have the same model. Please make sure all desktops with vGPU profiles have the same model and try again."
         }
+      }
+    },
+    "storage-fix": {
+      "errors": {
+        "storage_repair_not_allowed": "Only an administrator, or a user an administrator allowed, can run this repair.",
+        "storage_fix_not_needed": "The disk no longer needs this fix.",
+        "storage_fix_in_progress": "The disk is already being worked on. Wait until it finishes.",
+        "generic": "The disk could not be fixed. Please try again."
       }
     }
   },

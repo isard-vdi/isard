@@ -354,6 +354,19 @@ export interface WsTargetPayload {
 // Event name → payload type mapping
 // ---------------------------------------------------------------------------
 
+// Tasks — emitted by the change-handler feedback when a user's task runs or ends
+
+export interface WsTaskPayload {
+  id: string
+  task?: string
+  status?: string
+  progress?: number
+  storage_id?: string | null
+  effective_position?: number | null
+  eta_seconds?: number | null
+  stranded?: boolean | null
+}
+
 export interface WsEventMap {
   desktop_add: WsDesktopPayload
   desktop_update: WsDesktopPayload
@@ -408,6 +421,8 @@ export interface WsEventMap {
   shared_deployment_desktop_stop: WsSharedDeploymentDesktopPayload
 
   msg: WsMessagePayload
+
+  task: WsTaskPayload
 }
 
 export type WsEventName = keyof WsEventMap
