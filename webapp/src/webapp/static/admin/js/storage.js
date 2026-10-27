@@ -2102,17 +2102,15 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
         }
       },
       {
-        title: 'Last',
-        data: 'last',
-        render: function (last, type, full, meta) {
+        title: 'Last status change',
+        data: 'status_time',
+        defaultContent: 'N/A',
+        render: function (statusTime, type, full, meta) {
+          if (!statusTime) return "N/A";
           if (type == "display" || type === 'filter') {
-            try {
-              return moment.unix(last.time).fromNow();
-            } catch {
-              return "N/A";
-            }
+            return moment.unix(statusTime).fromNow();
           }
-          return last?.time || "N/A";
+          return statusTime;
         }
       },
       {

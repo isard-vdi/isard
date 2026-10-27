@@ -2161,14 +2161,16 @@ class RecycleBin(RethinkSharedConnection):
             r.table("categories").insert(self.categories).run(self._rdb_connection)
 
         storage_ids = [storage["id"] for storage in self.storages]
+        now = time.time()
         try:
             with self._rdb_context():
                 r.table("storage").get_all(*storage_ids).update(
                     {
                         "status": StorageStatusEnum.ready.value,
+                        "status_time": now,
                         "status_logs": r.row["status_logs"].append(
                             {
-                                "time": int(time.time()),
+                                "time": int(now),
                                 "status": StorageStatusEnum.ready.value,
                             }
                         ),
@@ -2912,13 +2914,15 @@ class RecycleBinDomain(RecycleBin):
                     .get_all(r.args(batch_ids))
                     .run(self._rdb_connection)
                 )
+            now = time.time()
             with self._rdb_context():
                 r.table("storage").get_all(r.args(batch_ids)).update(
                     {
                         "status": RecycleBinStatusEnum.recycled.value,
+                        "status_time": now,
                         "status_logs": r.row["status_logs"].append(
                             {
-                                "time": int(time.time()),
+                                "time": int(now),
                                 "status": RecycleBinStatusEnum.recycled.value,
                             }
                         ),
@@ -3041,13 +3045,15 @@ class RecycleBinStorage(RecycleBin):
             )
         self.add_storage(storage)
         super()._add_owner(storage["user_id"])
+        now = time.time()
         with self._rdb_context():
             r.table("storage").get(storage_id).update(
                 {
                     "status": RecycleBinStatusEnum.recycled.value,
+                    "status_time": now,
                     "status_logs": r.row["status_logs"].append(
                         {
-                            "time": int(time.time()),
+                            "time": int(now),
                             "status": RecycleBinStatusEnum.recycled.value,
                         }
                     ),

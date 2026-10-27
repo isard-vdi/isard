@@ -46,10 +46,12 @@ def get_storage_id_filename(storage_id):
 
 def update_storage_status(storage_id, status):
     if storage_id:
+        now = time.time()
         data = {
             "status": status,
+            "status_time": now,
             "status_logs": r.row["status_logs"].append(
-                {"time": int(time.time()), "status": status}
+                {"time": int(now), "status": status}
             ),
         }
         update_table_dict("storage", storage_id, data)
