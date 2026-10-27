@@ -123,6 +123,7 @@ async def admin_allowed_update(
         "remotevpn",
         "reservables_vgpus",
         "storage_pool",
+        "storage_repair",
         "unused_item_timeout",
         "videos",
     ] = Path(..., description="Table containing the item"),

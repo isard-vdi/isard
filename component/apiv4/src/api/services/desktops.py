@@ -33,6 +33,7 @@ from api.schemas.domains.desktops import (
 from api.services.bastion import BastionService
 from api.services.cards import CardService
 from api.services.error import Error
+from api.services.storage_problems import StorageProblemsService
 from cachetools import cached
 from cachetools.keys import hashkey
 from fastapi import Request
@@ -1008,7 +1009,13 @@ class DesktopService:
         # event emits status=Stopped (unchanged), which races the optimistic
         # frontend flip and makes the desktop card visibly flicker
         # Stopped → Starting → Stopped → Starting before settling.
-        DesktopEvents.desktop_start(desktop_id=desktop_id)
+        try:
+            DesktopEvents.desktop_start(desktop_id=desktop_id)
+        except Exception as e:
+            code = (getattr(e, "error", None) or {}).get("description_code")
+            if code == "desktop_storage_not_ready":
+                StorageProblemsService.handle_quietly(payload, desktop_id)
+            raise
         # Reconcile a deployment desktop's bastion target to its deployment's
         # bastion config. Best-effort: never let it block the start.
         try:
