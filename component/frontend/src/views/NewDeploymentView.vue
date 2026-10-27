@@ -666,7 +666,7 @@ const updateHardware = (
     <Modal
       v-if="selectTemplateModalData !== null"
       :open="selectTemplateModalData !== null"
-      size="7xl"
+      size="8xl"
       :title="
         t(
           `components.deployments.form-select-template-modal.${selectTemplateModalData.type}.title`,

@@ -270,6 +270,7 @@
         "headers": {
           "name": "Izena",
           "description": "Deskribapena",
+          "created": "Sorrera data",
           "owner": "Jabea",
           "category": "Kategoria",
           "group": "Taldea"

@@ -43,6 +43,7 @@ def templates_db_factory():
                     "description": "Test template 1",
                     "image": {"id": "img-test", "type": "stock"},
                     "enabled": True,
+                    "accessed": 1700000000.0,
                 },
                 {
                     "id": "desktop-1",
@@ -96,6 +97,7 @@ def test_get_all_templates(test_client, templates_db_factory):
                 # absent in this fixture row, so they serialize as null.
                 "status": None,
                 "progress": None,
+                "accessed": 1700000000.0,
             }
         ]
     }
