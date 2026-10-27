@@ -43,6 +43,8 @@ class DiskAction:
     refuse_unused: bool = False
     #: pending actions this one makes moot: the sweep runs it first and skips those
     supersedes: tuple = ()
+    #: long or heavy on the file: interactively only an admin or an allowed user runs it
+    costly: bool = False
 
 
 def _reader(**kwargs):
@@ -65,6 +67,10 @@ def _fresh():
 
 
 _WRITER = DiskAction(Access.WRITE)
+_COSTLY_WRITER = DiskAction(Access.WRITE, costly=True)
+
+#: ``repair`` modes that rewrite more than the leaked clusters
+COSTLY_REPAIRS = ("all",)
 
 DISK_ACTIONS = {
     "find": _reader(),
@@ -93,7 +99,7 @@ DISK_ACTIONS = {
     ),
     "resize": _WRITER,
     "virt_win_reg": _WRITER,
-    "sparsify": _WRITER,
+    "sparsify": _COSTLY_WRITER,
     # Rewrites the file in place: only the leaf disk of a stopped desktop or of a
     # template, never a base anything reads through or a disk nobody uses.
     "dig_holes": DiskAction(
@@ -105,6 +111,7 @@ DISK_ACTIONS = {
         admit_template_disk=True,
         refuse_unused=True,
         supersedes=("sparsify",),
+        costly=True,
     ),
     "repair": DiskAction(
         Access.WRITE,
@@ -113,8 +120,8 @@ DISK_ACTIONS = {
         domains=("Stopped", "Failed"),
     ),
     "disconnect": _WRITER,
-    "convert": _WRITER,
-    "recreate": _WRITER,
+    "convert": _COSTLY_WRITER,
+    "recreate": _COSTLY_WRITER,
     "set_path": _WRITER,
     "delete_path": _WRITER,
     "maintenance": _WRITER,
@@ -135,6 +142,13 @@ _RUNNING_MESSAGES = {
 def spec(action):
     """The registry entry for ``action``; a label it does not know is a plain write."""
     return DISK_ACTIONS.get(action, DISK_ACTIONS["maintenance"])
+
+
+def is_costly(action, what=None):
+    """Whether ``action`` (``what`` for a repair) is a costly one."""
+    if action == "repair":
+        return what in COSTLY_REPAIRS
+    return spec(action).costly
 
 
 def needs_domains(action):

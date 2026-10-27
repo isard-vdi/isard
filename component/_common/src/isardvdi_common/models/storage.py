@@ -147,7 +147,7 @@ def verdict_for_blocked_disks(statuses):
 #: ``test_pending_actions_contract`` fails when the enum and this table drift.
 PENDING_ACTIONS = {
     "repair_leaks": {
-        "flagged_by": ("migration verify gate",),
+        "flagged_by": ("migration verify gate", "a user action on the desktop"),
         "cleared_by": "qemu-img check -r leaks",
     },
     "review_damage": {
@@ -170,7 +170,10 @@ PENDING_ACTIONS = {
         "cleared_by": "dig_holes",
     },
     "check_integrity": {
-        "flagged_by": ("a dig_holes that stopped after it began punching",),
+        "flagged_by": (
+            "a dig_holes that stopped after it began punching",
+            "a user action on the desktop",
+        ),
         "cleared_by": "a qemu-img check that reaches a verdict",
     },
     "rebase_backing": {

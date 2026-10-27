@@ -283,3 +283,40 @@ def test_the_action_own_service_time_beats_the_tier_wide_one():
     assert qe.estimate_task(task)["eta_seconds"] == 30.0
     task = _FakeTask(r, f"storage.{DEF}.standard", position=1, action="convert")
     assert qe.estimate_task(task)["eta_seconds"] == 100.0
+
+
+def test_a_new_job_waits_behind_its_lane_and_the_tiers_above():
+    r = _FakeRedis()
+    _governed_worker(r)
+    _queued(r, f"storage.{DEF}.interactive", 1)
+    _queued(r, f"storage.{DEF}.standard", 3)
+    r.kv["governor:svc:ewma:standard:qemu_img_check_repair"] = "10"
+    out = qe.estimate_new(r, DEF, "standard", "qemu_img_check_repair")
+    assert out["ahead"] == 4
+    assert out["run_seconds"] == 10
+    assert out["basis"] == "history"
+    assert out["wait_seconds"] == 40
+    assert out["has_consumer"] is True
+
+
+def test_without_history_a_new_job_is_timed_by_its_size():
+    r = _FakeRedis()
+    _governed_worker(r)
+    out = qe.estimate_new(r, DEF, "maintenance", "qemu_img_check_repair", 100 << 30)
+    assert out["basis"] == "size"
+    assert out["run_seconds"] == 512
+    assert out["wait_seconds"] == 0
+
+
+def test_a_new_job_with_nothing_to_go_on_has_no_estimate():
+    out = qe.estimate_new(_FakeRedis(), DEF, "standard", "dig_holes")
+    assert out["run_seconds"] is None
+    assert out["wait_seconds"] is None
+
+
+def test_a_redis_failure_never_raises_from_a_new_job_estimate():
+    r = _FakeRedis()
+    r.fail = True
+    _queued(r, f"storage.{DEF}.standard", 2)
+    out = qe.estimate_new(r, DEF, "standard", "qemu_img_info_backing_chain")
+    assert out["run_seconds"] == 2
