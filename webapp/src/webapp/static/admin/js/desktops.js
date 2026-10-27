@@ -949,6 +949,9 @@ $(document).ready(function() {
                         $('#description-'+domain_id).text(data.description);
                     }
                 })
+                if (['Failed', 'Maintenance', 'Stopped'].includes(row.data().status)) {
+                    loadStorageProblems(domain_id)
+                }
                 actionsDomainDetail();
                 setDomainDetailButtonsStatus(domain_id,row.data(),{})
                 setDomainHotplug(domain_id);
@@ -2315,15 +2318,19 @@ function renderStorageActionsButton(data) {
                 contentType: "application/json",
                 cache: false,
                 error: function(data) {
+                    const body = data.responseJSON || {}
                     new PNotify({
                         title: 'ERROR starting desktop',
-                        text: data.responseJSON.description,
+                        text: body.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
                         delay: 5000,
                         opacity: 1
                     })
+                    if (STORAGE_START_CODES.includes(body.description_code)) {
+                        notifyStorageProblems(domain_id)
+                    }
                 },
             })
         }
@@ -2568,3 +2575,86 @@ function renderStorageActionsButton(data) {
 
 
     
+
+
+const STORAGE_START_CODES = ['desktop_storage_not_ready', 'storage_not_found'];
+
+function formatFixEta (seconds) {
+  if (seconds == null) return 'unknown time';
+  if (seconds < 60) return `~${Math.max(1, Math.round(seconds))} s`;
+  if (seconds < 3600) return `~${Math.round(seconds / 60)} min`;
+  return `~${(seconds / 3600).toFixed(1)} h`;
+}
+
+function storageProblemLine (desktopId, disk, problem) {
+  let detail = { wait: 'busy', quick: 'quick fix', costly: 'costly repair', admin: 'needs an administrator' }[problem.mode];
+  if (problem.mode === 'wait' && disk.task) {
+    detail = disk.task.position != null
+      ? `queued #${disk.task.position}, ETA ${formatFixEta(disk.task.eta_seconds)}`
+      : `running ${Math.round((disk.task.progress || 0) * 100)}%`;
+  } else if (problem.mode === 'costly' && !problem.allowed) {
+    detail = 'costly repair, not allowed';
+  }
+  const fix = problem.fix && problem.allowed && problem.mode !== 'wait'
+    ? ` <button type="button" class="btn btn-xs ${problem.mode === 'costly' ? 'btn-danger' : 'btn-primary'} btn-storage-fix" data-desktop="${desktopId}" data-storage="${disk.storage_id}" data-fix="${problem.fix}">Run ${problem.fix}</button>`
+    : '';
+  return `<li><b>${problem.code}</b> on ${disk.storage_id} (${detail})${fix}</li>`;
+}
+
+function storageQuickFixLine (run) {
+  if (run.task_id) return `<li>Queued ${run.fix} on ${run.storage_id}</li>`;
+  const why = run.refused ? ` (${run.refused})` : '';
+  return `<li>${run.fix} on ${run.storage_id} left for the storage sweep${why}</li>`;
+}
+
+function storageProblemLines (desktopId, report) {
+  const lines = (report.quick_fixes || []).map(storageQuickFixLine);
+  for (const disk of report.disks) {
+    for (const problem of disk.problems) lines.push(storageProblemLine(desktopId, disk, problem));
+  }
+  return lines;
+}
+
+function loadStorageProblems (desktopId) {
+  $.ajax({
+    type: 'GET',
+    url: `/api/v4/item/desktop/${desktopId}/storage-problems`,
+    success: function (report) {
+      const lines = storageProblemLines(desktopId, report);
+      const $panel = $('#storage-problems-' + desktopId);
+      $panel.find('.storage-problems-list').html(lines.join(''));
+      $panel.toggle(lines.length > 0);
+    }
+  });
+}
+
+function notifyStorageProblems (desktopId) {
+  $.ajax({
+    type: 'GET',
+    url: `/api/v4/item/desktop/${desktopId}/storage-problems`,
+    success: function (report) {
+      const lines = storageProblemLines(desktopId, report);
+      if (!lines.length) return;
+      new PNotify({
+        title: 'The desktop disks need attention',
+        text: `<ul>${lines.join('')}</ul>`,
+        type: 'info', hide: false, opacity: 1, icon: 'fa fa-hdd-o'
+      });
+    }
+  });
+}
+
+$(document).on('click', '.btn-storage-fix', function () {
+  const { desktop, storage, fix } = $(this).data();
+  $.ajax({
+    type: 'PUT',
+    url: `/api/v4/item/desktop/${desktop}/storage/${storage}/fix/${fix}`,
+    success: function () {
+      new PNotify({ title: `Queued ${fix} on ${storage}`, type: 'success', hide: true, delay: 4000, opacity: 1 });
+      loadStorageProblems(desktop);
+    },
+    error: function (xhr) {
+      new PNotify({ title: 'ERROR', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+    }
+  });
+});

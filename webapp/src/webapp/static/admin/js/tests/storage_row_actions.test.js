@@ -23,6 +23,8 @@ const names = [
   "storageModalButtonAllowed",
   "storageBatchReport",
   "storageRowActions",
+  "formatEta",
+  "renderQueueEstimate",
 ];
 const ctx = {};
 new Function(
@@ -90,3 +92,11 @@ console.log("no per-status dig and no status assignment in a test: PASS");
 assert.ok(src.includes("dig-holes/priority/low?verify=${verify}"));
 assert.ok(src.includes('class="dig-holes-verify"'));
 console.log("the row dig sends verify from its checkbox: PASS");
+
+// --- a queued task shows its position and ETA -------------------------------
+assert.ok(src.includes("rowData.queue_position = data.effective_position"));
+assert.strictEqual(ctx.renderQueueEstimate({ queue_position: 4, eta_seconds: 150 }), "<small>queued #4, ETA ~3 min</small>");
+assert.strictEqual(ctx.renderQueueEstimate({ queue_position: null }), "");
+assert.strictEqual(ctx.formatEta(null), "unknown");
+assert.strictEqual(ctx.formatEta(7200), "~2.0 h");
+console.log("a queued task shows its position and ETA: PASS");

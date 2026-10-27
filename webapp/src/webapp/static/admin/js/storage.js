@@ -1622,6 +1622,47 @@ $(document).on('click', '.btn-check-integrity', function () {
   }).on('pnotify.cancel', function () { });
 });
 
+// row action: count the zeros of a disk's file
+$(document).on('click', '.btn-zero-scan-now', function () {
+  const id = $(this).data('id');
+  $.ajax({
+    type: 'PUT',
+    url: `/api/v4/admin/item/storage/${id}/zero-scan`,
+    contentType: 'application/json',
+    success: function () {
+      new PNotify({ title: 'Zero scan queued', text: `Zero scan queued on ${id}.`, type: 'success', hide: true, delay: 2500, opacity: 1 });
+    },
+    error: function (xhr) {
+      new PNotify({ title: 'ERROR scanning storage', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+    }
+  });
+});
+
+function storageBulkCheckRequest (status) {
+  return { type: 'PUT', url: `/api/v4/admin/items/storage/check/${encodeURIComponent(status)}` };
+}
+
+$(document).on('click', '#btn-check-integrity-status', function () {
+  const status = $('#check-integrity-status').val();
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Run an integrity check (qemu-img check) on every ${status} disk? Disks open by a running desktop are skipped.`,
+    hide: false, opacity: 0.9, confirm: { confirm: true },
+    buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      ...storageBulkCheckRequest(status),
+      contentType: 'application/json',
+      success: function (data) {
+        new PNotify({ title: 'Checks queued', text: `Integrity check queued on ${data.queued} ${status} disk(s).`, type: 'success', hide: true, delay: 4000, opacity: 1 });
+      },
+      error: function (xhr) {
+        new PNotify({ title: 'ERROR checking storage', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
+      }
+    });
+  }).on('pnotify.cancel', function () { });
+});
+
 // row action: sparsify a disk now
 $(document).on('click', '.btn-sparsify-now', function () {
   const id = $(this).data('id');
@@ -1902,6 +1943,8 @@ function socketio_on() {
         var rowData = t.row(taskRow).data();
         if (rowData) {
           rowData.progress = data.progress;
+          rowData.queue_position = data.effective_position;
+          rowData.eta_seconds = data.eta_seconds;
           t.row(taskRow).data(rowData).draw();
           break;
         }
@@ -2078,9 +2121,9 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
         title: 'Progress',
         data: 'progress',
         visible: status == "maintenance",
-        render: function (data) {
+        render: function (data, type, row) {
           if (data != undefined || status != "maintenance") {
-            return renderProgress(data);
+            return renderProgress(data) + renderQueueEstimate(row);
           } else { return '-' }
         }
       },
@@ -2406,6 +2449,18 @@ function addCheckboxListeners() {
   $("#modalConvertStorageForm #change_status-cb").on('ifUnchecked', function (event) {
     $("#modalConvertStorageForm #new_status-content").hide();
   });
+}
+
+function formatEta (seconds) {
+  if (seconds == null) return 'unknown';
+  if (seconds < 60) return `~${Math.max(1, Math.round(seconds))} s`;
+  if (seconds < 3600) return `~${Math.round(seconds / 60)} min`;
+  return `~${(seconds / 3600).toFixed(1)} h`;
+}
+
+function renderQueueEstimate (row) {
+  if (!row || row.queue_position == null) return '';
+  return `<small>queued #${row.queue_position}, ETA ${formatEta(row.eta_seconds)}</small>`;
 }
 
 function renderProgress(perc) {
@@ -2795,10 +2850,14 @@ function storageRowActions (row) {
   if (row.status === 'ready') {
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-check-integrity" title="Check integrity (qemu-img check)"><i class="fa fa-stethoscope"></i></button>`);
-    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk"><i class="fa fa-compress"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-zero-scan-now" title="Count the zero blocks a dig would give back (reads the whole file)"><i class="fa fa-calculator"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk (costly)"><i class="fa fa-compress"></i></button>`);
     if (!Array.isArray(row.perms) || row.perms.includes('w')) {
-      buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-dig-holes-now" title="Give back zero blocks of a stopped desktop's disk (the content does not change)"><i class="fa fa-eraser"></i></button>`);
+      buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-dig-holes-now" title="Give back zero blocks of a stopped desktop's disk (costly; the content does not change)"><i class="fa fa-eraser"></i></button>`);
     }
+  }
+  if (row.status === 'ready' && row.pending_actions && row.pending_actions.repair_leaks) {
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
   }
   if (row.last_task_id) {
     buttons.push(`<button type="button" data-id="${id}" data-task="${row.last_task_id}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
@@ -2808,7 +2867,7 @@ function storageRowActions (row) {
   }
   if (row.status === 'damaged') {
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
-    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-repair-all" title="Repair all (qemu-img check -r all)"><i class="fa fa-wrench"></i></button>`);
+    buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-danger btn-xs btn-repair-all" title="Repair all (costly: qemu-img check -r all)"><i class="fa fa-wrench"></i></button>`);
   }
   return buttons;
 }

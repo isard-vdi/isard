@@ -103,3 +103,7 @@ function updateSweepSchedulerJob(enabled, hour, minute) {
         });
     });
 }
+
+$(document).on("click", "#btn-storage-repair-alloweds", function () {
+    modalAllowedsFormShow("storage_repair", { id: 1, name: "Costly disk repairs" });
+});
