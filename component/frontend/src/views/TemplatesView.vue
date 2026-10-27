@@ -705,7 +705,20 @@ const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowS
       </template>
 
       <template v-else #cell-actions="{ row }">
-        <div class="flex gap-2">
+        <div class="flex gap-4">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="secondary-gray"
+                icon="info-circle"
+                class="aspect-square p-[10px]"
+                :aria-label="t('views.templates.table.actions.info')"
+                @click="openTemplateInfoModal(row.id)"
+              />
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.templates.table.actions.info')" />
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
