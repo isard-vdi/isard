@@ -45,6 +45,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_viewer import IsardViewer
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.rdp_security import RDP_OPEN_STATES, rdp_effective
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.helpers.viewers import available_viewers
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
@@ -493,7 +494,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
         )
 
     RDP_PROTOCOLS = ("browser-rdp", "file-rdpgw", "file-rdpvpn")
-    RDP_OPEN_STATES = ("ready", "unverified")
+    RDP_OPEN_STATES = RDP_OPEN_STATES
 
     @staticmethod
     def rdp_bypass_allowed(domain, role_id, category_id):
@@ -502,10 +503,15 @@ class DesktopDirectViewer(RethinkSharedConnection):
             role_id == "manager" and domain.get("category") == category_id
         )
 
+    @staticmethod
+    def rdp_state(domain):
+        """The guest RDP state to act on, from the stored one."""
+        return rdp_effective((domain.get("viewer") or {}).get("rdp"))
+
     @classmethod
     def rdp_ready(cls, domain):
-        state = ((domain.get("viewer") or {}).get("rdp") or {}).get("state")
-        return state in cls.RDP_OPEN_STATES
+        """Open when the guest RDP answers."""
+        return (cls.rdp_state(domain) or {}).get("state") in cls.RDP_OPEN_STATES
 
     @classmethod
     def check_rdp_open(cls, domain, role_id=None, category_id=None):

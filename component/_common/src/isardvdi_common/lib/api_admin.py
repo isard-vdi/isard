@@ -9,6 +9,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.rdp_security import rdp_effective
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from rethinkdb import r
 
@@ -763,7 +764,7 @@ class ApiAdmin(RethinkSharedConnection):
                 "guest_ip": (desktop.get("viewer") or {}).get("guest_ip"),
                 # RDP verification state and how the last RDP connection ended:
                 # fixed words only, no credentials (see the vpn rdp checks).
-                "rdp": (desktop.get("viewer") or {}).get("rdp"),
+                "rdp": rdp_effective((desktop.get("viewer") or {}).get("rdp")),
                 "rdp_last": (desktop.get("viewer") or {}).get("rdp_last"),
             },
         }

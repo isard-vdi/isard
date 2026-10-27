@@ -54,3 +54,13 @@ def test_no_rdp_state_without_an_rdp_viewer_or_an_ip():
     )
     assert DesktopsProcessed._parse_desktop(no_rdp)["rdp"] is None
     assert DesktopsProcessed._parse_desktop(_desktop({"passwd": "x"}))["rdp"] is None
+
+
+def test_a_guest_refusing_tls_is_shown_as_standard_rdp_security():
+    viewer = {
+        "guest_ip": "192.0.2.5",
+        "passwd": "x",
+        "rdp": {"state": "refused", "reason": "tls_not_allowed", "at": 1},
+    }
+    rdp = DesktopsProcessed._parse_desktop(_desktop(viewer))["rdp"]
+    assert (rdp["state"], rdp["protocol"], rdp["reason"]) == ("unverified", "rdp", None)

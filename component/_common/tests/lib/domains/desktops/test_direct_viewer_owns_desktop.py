@@ -132,3 +132,22 @@ def test_reporting_an_outcome_does_not_need_a_verified_rdp(lookup):
         )
         is True
     )
+
+
+# rdpgw asks ``owns-desktop`` by IP with the viewer token before every channel:
+# whatever closes this check closes native RDP through the gateway.
+@pytest.mark.parametrize(
+    "rdp",
+    [
+        {"state": "unverified", "protocol": "rdp", "reason": None},
+        {"state": "unverified", "protocol": "tls", "reason": None},
+        {"state": "unverified", "protocol": "nla", "reason": "no_credentials"},
+        {"state": "ready", "protocol": "nla", "reason": None},
+        # what the vpn of older versions stored for a standard-security guest
+        {"state": "refused", "protocol": None, "reason": "tls_not_allowed"},
+    ],
+)
+def test_rdpgw_reaches_a_guest_at_every_security_level(lookup, rdp):
+    lookup.domains = [{**OWN, "viewer": {"rdp": rdp}}]
+
+    assert by_ip() is True

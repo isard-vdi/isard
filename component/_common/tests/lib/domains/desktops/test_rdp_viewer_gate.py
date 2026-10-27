@@ -103,3 +103,19 @@ def test_a_stopped_desktop_is_answered_as_not_started_not_as_rdp_pending(no_db):
     with pytest.raises(ErrorBase) as err:
         DDV.desktop_viewer("d1", "browser-rdp", desktop=stopped)
     assert err.value.error["description_code"] == "unable_to_get_viewer"
+
+
+def _rdp_desktop(rdp):
+    desktop = _desktop()
+    desktop["viewer"]["rdp"] = rdp
+    return desktop
+
+
+def test_a_guest_with_standard_rdp_security_only_is_open():
+    # what the vpn of older versions stored for it
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "refused", "reason": "tls_not_allowed"}), "user", "cat-a"
+    )
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "unverified", "protocol": "rdp"}), "user", "cat-a"
+    )
