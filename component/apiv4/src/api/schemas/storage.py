@@ -124,6 +124,7 @@ class StorageSweepConfigResponse(BaseModel):
     dig_holes: bool
     repair_leaks: bool
     check_integrity: bool
+    zero_scan: bool
     detect: bool
     check_max_age_days: int
 
@@ -140,6 +141,7 @@ class StorageSweepConfigRequest(BaseModel):
     dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    zero_scan: Optional[bool] = None
     detect: Optional[bool] = None
     check_max_age_days: Optional[int] = None
 
@@ -153,6 +155,7 @@ class StorageSweepRunRequest(BaseModel):
     dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    zero_scan: Optional[bool] = None
     detect: Optional[bool] = None
 
 

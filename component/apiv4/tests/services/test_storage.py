@@ -619,7 +619,7 @@ class TestSweepGivesBackZeros:
         mock_pending.return_value = ["leaf"]
         mock_act.return_value = {"selected": 1}
         out = StorageService.run_sweep_pass(JWT_PAYLOAD_ADMIN)
-        mock_pending.assert_called_once_with("dig_holes", status="ready", limit=50)
+        mock_pending.assert_called_once_with("dig_holes", status="ready", limit=500)
         assert out["actions"] == {"dig_holes": {"selected": 1}}
 
 

@@ -882,6 +882,75 @@ async def batch_check_storage_by_status(request: Request, status: str):
         )
 
 
+@admin_router.put(
+    "/admin/item/storage/{storage_id}/zero-scan",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Count a storage's zeros",
+    description=(
+        "Enqueues a read-only exact count of the zeros the disk's file allocates: "
+        "unwritten extents plus written blocks that read all zeros. The result is "
+        "recorded in health.checks.zeros and flags dig_holes when a dig would give "
+        "back enough. Refused for a disk that is not ready or that a running "
+        "desktop holds open."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def zero_scan_storage(request: Request, storage_id: str):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.zero_scan, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to scan the storage for zeros",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/items/storage/zero-scan/{status}",
+    tags=[tag],
+    response_model=StorageRepairBatchResponse,
+    summary="Batch count zeros by status",
+    description="Zero-scans every disk with the given status; returns how many were queued.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def batch_zero_scan_storage_by_status(request: Request, status: str):
+    try:
+        queued = await asyncio.to_thread(
+            StorageService.batch_zero_scan_by_status,
+            request.token_payload,
+            status,
+        )
+        return JSONResponse(
+            content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch scan storage for zeros",
+            traceback.format_exc(),
+        )
+
+
 @admin_router.get(
     "/admin/storage/sweep/config",
     tags=[tag],

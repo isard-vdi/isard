@@ -43,6 +43,7 @@ function loadSweepConfig() {
         setChecked("sweep-dig-holes", c.dig_holes);
         setChecked("sweep-repair-leaks", c.repair_leaks);
         setChecked("sweep-check-integrity", c.check_integrity);
+        setChecked("sweep-zero-scan", c.zero_scan);
         $("#sweep-hour").val(c.hour);
         $("#sweep-minute").val(c.minute);
         $("#sweep-max-disks").val(c.max_disks);
@@ -65,6 +66,7 @@ function saveSweepConfig() {
         dig_holes: $("#sweep-dig-holes").is(":checked"),
         repair_leaks: $("#sweep-repair-leaks").is(":checked"),
         check_integrity: $("#sweep-check-integrity").is(":checked"),
+        zero_scan: $("#sweep-zero-scan").is(":checked"),
         check_max_age_days: parseInt($("#sweep-check-age").val()) || 30,
     };
     $.ajax({
