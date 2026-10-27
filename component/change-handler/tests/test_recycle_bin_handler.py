@@ -139,6 +139,38 @@ class TestRecycleBinHandler:
         assert payload == {"id": "rb1", "status": "deleted"}
 
     @pytest.mark.asyncio
+    async def test_update_status_to_deleted_frees_the_vgpu_pool(self, handler):
+        """The flip to deleted is the only point every delete path passes through:
+        an entry whose desktops had no storage never reaches update_task_status."""
+        old = FakeRow(
+            id="rb1", status="deleting", additional_properties={"owner_id": "u1"}
+        )
+        new = FakeRow(
+            id="rb1", status="deleted", additional_properties={"owner_id": "u1"}
+        )
+        with patch(
+            "isardvdi_change_handler.handlers.recycle_bin.RecycleBinHelpers.free_vgpu_pool"
+        ) as free:
+            await handler.on_update(old, new)
+        free.assert_called_once_with("rb1")
+
+    @pytest.mark.asyncio
+    async def test_update_status_to_something_else_does_not_free_the_pool(
+        self, handler
+    ):
+        old = FakeRow(
+            id="rb1", status="recycled", additional_properties={"owner_id": "u1"}
+        )
+        new = FakeRow(
+            id="rb1", status="deleting", additional_properties={"owner_id": "u1"}
+        )
+        with patch(
+            "isardvdi_change_handler.handlers.recycle_bin.RecycleBinHelpers.free_vgpu_pool"
+        ) as free:
+            await handler.on_update(old, new)
+        free.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_update_status_other_emits_update_with_status(self, handler):
         old = FakeRow(
             id="rb1",

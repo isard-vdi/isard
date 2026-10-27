@@ -21,6 +21,7 @@ from isardvdi_common.lib import queue_coverage, queue_tiers
 from isardvdi_common.lib.notifications.notifications_data import (
     NotificationsDataProcessed,
 )
+from isardvdi_common.lib.vgpu_state import vgpu_pool_frees_for_domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.targets import Targets
@@ -72,6 +73,11 @@ _PURGEABLE = [
     RecycleBinStatusEnum.queued.value,
     RecycleBinStatusEnum.deleting.value,
 ]
+
+
+# the startup reconcile re-drives an entry stranded in deleting longer than this,
+# sparing one a live task pipeline may still be finishing
+_STALE_DELETING_REENQUEUE_MIN_AGE_MINUTES = 60
 
 
 # the engine is acting on the domain; binning the row loses that action
@@ -165,11 +171,37 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
                     }
                 )
 
+            for recycle_bin in await asyncio.to_thread(self._stale_deleting_entries):
+                await self.enqueue(
+                    {
+                        "recycle_bin_id": recycle_bin["id"],
+                        "user_id": recycle_bin["agent_id"],
+                    }
+                )
+
     def _queued_entries(self):
         with self._rdb_context():
             return list(
                 r.table("recycle_bin")
                 .get_all(RecycleBinStatusEnum.queued.value, index="status")
+                .pluck("id", "agent_id")
+                .run(self._rdb_connection)
+            )
+
+    def _stale_deleting_entries(self):
+        """Entries stranded in deleting by a prior restart, past the age gate so
+        one a live task pipeline may still be finishing is left alone."""
+        cutoff_ts = (
+            datetime.now(timezone.utc)
+            - timedelta(minutes=_STALE_DELETING_REENQUEUE_MIN_AGE_MINUTES)
+        ).timestamp()
+        with self._rdb_context():
+            return list(
+                r.table("recycle_bin")
+                .get_all(RecycleBinStatusEnum.deleting.value, index="status")
+                .filter(
+                    lambda rb: rb["last_log"].default({})["time"].default(0) < cutoff_ts
+                )
                 .pluck("id", "agent_id")
                 .run(self._rdb_connection)
             )
@@ -877,6 +909,67 @@ class Helpers(RethinkSharedConnection):
         cls.clear_get_user_recycle_bin_ids_cache()
 
     @classmethod
+    def free_vgpu_pool(cls, recycle_bin_id):
+        """Release the vGPU pool places of the desktops an entry has deleted for good.
+
+        Takes the id, not the entry: the recycle_bin changefeed is plucked down to
+        ``id``/``owner_id``/``status``, so the caller has no ``desktops`` to hand over.
+        Called on the status flip to ``deleted``, the only point every delete path
+        passes through — an entry whose desktops had no storage yet never reaches
+        ``update_task_status``. Never on binning — a binned desktop can
+        still be restored, and binning does not stop it, so freeing earlier could hand
+        a live domain's mdev to another desktop.
+        """
+        try:
+            with cls._rdb_context():
+                entry = (
+                    r.table("recycle_bin")
+                    .get(recycle_bin_id)
+                    .pluck("desktops")
+                    .default(None)
+                    .run(cls._rdb_connection)
+                )
+        except Exception as e:
+            log.error(
+                "RecycleBin %s: reading the entry to free its pool failed: %s",
+                recycle_bin_id,
+                e,
+            )
+            return
+        dom_ids = [
+            d.get("id") for d in ((entry or {}).get("desktops") or []) if d.get("id")
+        ]
+        if not dom_ids:
+            return
+        try:
+            with cls._rdb_context():
+                cards = list(
+                    r.table("vgpus").pluck("id", "mdevs").run(cls._rdb_connection)
+                )
+            for card in cards:
+                frees = {}
+                for dom_id in dom_ids:
+                    for profile, uuids in vgpu_pool_frees_for_domain(
+                        card.get("mdevs"), dom_id
+                    ).items():
+                        frees.setdefault(profile, {}).update(uuids)
+                if frees:
+                    with cls._rdb_context():
+                        r.table("vgpus").get(card["id"]).update({"mdevs": frees}).run(
+                            cls._rdb_connection
+                        )
+                    log.info(
+                        "RecycleBin %s: freed vgpu pool entries on %s: %s",
+                        recycle_bin_id,
+                        card["id"],
+                        [u for us in frees.values() for u in us],
+                    )
+        except Exception as e:
+            log.error(
+                "RecycleBin %s: freeing the vgpu pool failed: %s", recycle_bin_id, e
+            )
+
+    @classmethod
     def update_task_status(cls, task):
 
         # First, atomically update the task status and get the updated document
@@ -1151,13 +1244,17 @@ class Helpers(RethinkSharedConnection):
 
     @classmethod
     def old_entries_purge_enabled(cls):
-        """Whether the configured action asks for old entries to be purged."""
-        return cls.get_old_entries_config().get("action") == "delete"
+        """Whether the action asks for a purge and a usable window is set."""
+        return (
+            cls.get_old_entries_config().get("action") == "delete"
+            and cls.get_old_entries_cutoff() is not None
+        )
 
     @classmethod
     def get_old_entries_cutoff(cls):
         """Return the timestamp before which an entry counts as old."""
-        max_time = cls.get_old_entries_config()["max_time"]
+        # action and max_time are written by separate setters; either may be absent
+        max_time = cls.get_old_entries_config().get("max_time")
         if max_time is None:
             return None
         try:
@@ -1790,6 +1887,12 @@ class RecycleBin(RethinkSharedConnection):
                 }
             ).run(self._rdb_connection)
 
+    def _reset_tasks(self):
+        with self._rdb_context():
+            r.table("recycle_bin").get(self.id).update({"tasks": []}).run(
+                self._rdb_connection
+            )
+
     def _add_task(self, task):
         with self._rdb_context():
             r.table("recycle_bin").get(self.id).update(
@@ -2304,6 +2407,11 @@ class RecycleBin(RethinkSharedConnection):
                                 rb.id,
                                 time.time() - start,
                             )
+                        # A re-drive judges completion by its own task set: drop
+                        # the prior attempt's rows so a stale non-finished one
+                        # can't keep update_task_status from ever flipping deleted.
+                        if plans:
+                            rb._reset_tasks()
                         for plan in plans:
                             storage = plan["storage"]
                             category = plan["category"]

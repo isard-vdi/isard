@@ -95,3 +95,49 @@ class TestClaimStatusIsConditionalOnTheServer:
     def test_the_condition_travels_to_the_server(self):
         _, kwargs = self._run(replaced=1)
         assert kwargs.kwargs.get("return_changes") is True
+
+
+class TestARefusedRestoreNeverClaimsTheEntry:
+    """A check that refuses must leave the entry in the bin, never read restored."""
+
+    def _restore(self, item_type, exists=True, check=None):
+        from isardvdi_common.helpers.recycle_bin import Error
+
+        rb = _bare_entry(
+            status="recycled",
+            id="rb1",
+            owner_id="u1",
+            owner_name="owner",
+            item_type=item_type,
+        )
+        with patch(
+            "isardvdi_common.helpers.recycle_bin.Helpers.claim_status",
+            return_value=True,
+        ) as claim:
+            with patch.object(
+                type(rb), "check_can_restore", MagicMock(side_effect=check)
+            ):
+                with patch(
+                    "isardvdi_common.helpers.recycle_bin._exists_now",
+                    return_value=exists,
+                ):
+                    with pytest.raises(Error):
+                        rb.restore()
+        return claim
+
+    def test_a_missing_parent_leaves_the_entry_in_the_bin(self):
+        from isardvdi_common.helpers.recycle_bin import Error
+
+        claim = self._restore(
+            "template",
+            check=Error(
+                "precondition_required",
+                "Cannot restore template without parent template p",
+                description_code="parent_template_not_found",
+            ),
+        )
+        claim.assert_not_called()
+
+    def test_a_deleted_owner_leaves_the_entry_in_the_bin(self):
+        claim = self._restore("desktop", exists=False)
+        claim.assert_not_called()

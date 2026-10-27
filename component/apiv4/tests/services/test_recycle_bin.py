@@ -5,7 +5,7 @@ queues async deletes. Tests pin the not-found dispatch + the queue
 enqueue payload shape.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from api.services.error import Error
@@ -583,3 +583,92 @@ class TestDeleteOldEntries:
     ):
         RecycleBinService.delete_old_entries()
         mock_delete.assert_called_once_with(["rb-1", "rb-2"])
+
+
+class TestRestoreInDependencyOrder:
+    """A refused entry must not stop the batch, and children wait for their parent."""
+
+    @staticmethod
+    def _fake_bin(parents, refuse=()):
+        """``parents`` maps an entry to the entry it needs restored first."""
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        restored = []
+
+        def make(id):
+            entry = MagicMock()
+
+            def restore():
+                if id in refuse:
+                    raise ErrorBase("not_found", "owner gone", description_code="other")
+                parent = parents.get(id)
+                if parent and parent not in restored:
+                    raise ErrorBase(
+                        "precondition_required",
+                        f"Cannot restore template without parent template {parent}",
+                        description_code="parent_template_not_found",
+                    )
+                restored.append(id)
+
+            entry.restore.side_effect = restore
+            return entry
+
+        return restored, make
+
+    def test_children_sent_before_their_parent_are_restored_after_it(self):
+        restored, make = self._fake_bin({"v3": "v2", "v2": "v1"})
+        with patch("api.services.recycle_bin.CommonRecycleBin", side_effect=make):
+            failed = RecycleBinService.restore_in_dependency_order(
+                ["v3", "v2", "v1", "other"], "u-1"
+            )
+        assert failed == {}
+        assert restored.index("v1") < restored.index("v2") < restored.index("v3")
+        assert set(restored) == {"v1", "v2", "v3", "other"}
+
+    def test_one_refused_entry_does_not_stop_the_rest(self):
+        restored, make = self._fake_bin({}, refuse={"a"})
+        with patch("api.services.recycle_bin.CommonRecycleBin", side_effect=make):
+            failed = RecycleBinService.restore_in_dependency_order(
+                ["a", "b", "c"], "u-1"
+            )
+        assert restored == ["b", "c"]
+        assert list(failed) == ["a"]
+        assert "owner gone" in failed["a"]
+
+    def test_a_parent_that_never_comes_back_is_reported_not_looped(self):
+        restored, make = self._fake_bin({"child": "absent"})
+        with patch(
+            "api.services.recycle_bin.CommonRecycleBin", side_effect=make
+        ) as cls:
+            failed = RecycleBinService.restore_in_dependency_order(
+                ["child", "x"], "u-1"
+            )
+        assert restored == ["x"]
+        assert "absent" in failed["child"]
+        # first pass + one retry that made no progress, then stop
+        assert cls.call_count == 3
+
+    def test_failures_are_logged_one_by_one(self, caplog):
+        _, make = self._fake_bin({}, refuse={"a"})
+        with patch("api.services.recycle_bin.CommonRecycleBin", side_effect=make):
+            with caplog.at_level("ERROR", logger="api.services.recycle_bin"):
+                RecycleBinService.restore_in_dependency_order(["a", "b"], "u-1")
+        assert any(
+            "a" in r.getMessage() and "not restored" in r.getMessage()
+            for r in caplog.records
+        )
+        assert any("1 of 2" in r.getMessage() for r in caplog.records)
+
+    async def test_the_background_bulk_restore_goes_through_it(self, monkeypatch):
+        """What the route schedules restores the whole batch."""
+        import asyncio as _asyncio
+
+        scheduled = []
+        monkeypatch.setattr(
+            "asyncio.create_task", lambda coro, *a, **k: scheduled.append(coro)
+        )
+        restored, make = self._fake_bin({"child": "parent"})
+        with patch("api.services.recycle_bin.CommonRecycleBin", side_effect=make):
+            await RecycleBinService.bulk_restore(["child", "parent", "x"], "u-1")
+            await _asyncio.gather(*scheduled)
+        assert set(restored) == {"parent", "child", "x"}

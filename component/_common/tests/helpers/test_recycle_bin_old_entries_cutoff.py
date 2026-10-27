@@ -22,6 +22,19 @@ def config(monkeypatch):
     return _set
 
 
+@pytest.fixture
+def stored_config(monkeypatch):
+    """Serve ``old_entries`` exactly as stored, without filling in defaults."""
+
+    def _set(row):
+        monkeypatch.setattr(
+            Helpers, "get_old_entries_config", classmethod(lambda cls: row)
+        )
+        return row
+
+    return _set
+
+
 class TestGetOldEntriesCutoff:
     def test_a_positive_window_gives_a_cutoff_in_the_past(self, config):
         config(max_time=24)
@@ -61,6 +74,11 @@ class TestGetOldEntriesCutoff:
         config()
         assert Helpers.get_old_entries_cutoff() is None
 
+    def test_an_action_stored_without_a_window_yields_no_cutoff(self, stored_config):
+        """``set_old_entries_action`` alone leaves exactly this row behind."""
+        stored_config({"action": "delete"})
+        assert Helpers.get_old_entries_cutoff() is None
+
 
 class TestCheckOlderThanOldEntryMaxTime:
     @pytest.mark.parametrize("hours", [-1, -5])
@@ -83,14 +101,27 @@ class TestCheckOlderThanOldEntryMaxTime:
 
 class TestOldEntriesPurgeEnabled:
     def test_only_delete_enables_the_purge(self, config):
-        config(action="delete")
+        config(action="delete", max_time=24)
         assert Helpers.old_entries_purge_enabled() is True
+
+    @pytest.mark.parametrize("hours", [None, -1, "whenever"])
+    def test_delete_without_a_usable_window_does_not_enable_the_purge(
+        self, config, hours
+    ):
+        config(action="delete", max_time=hours)
+        assert Helpers.old_entries_purge_enabled() is False
+
+    def test_delete_stored_without_a_window_does_not_enable_the_purge(
+        self, stored_config
+    ):
+        stored_config({"action": "delete"})
+        assert Helpers.old_entries_purge_enabled() is False
 
     @pytest.mark.parametrize("action", ["keep", "none", None])
     def test_any_other_action_disables_the_purge(self, config, action):
         """``keep`` is what the api offers and ``none`` what the scheduler
         view takes; neither may leave the purge running."""
-        config(action=action)
+        config(action=action, max_time=24)
         assert Helpers.old_entries_purge_enabled() is False
 
 
@@ -102,6 +133,18 @@ class TestGetOldDeletedEntryIds:
         """The selection is the last point before the delete, so prove it
         returns empty *and* that it does not even reach the database."""
         config(max_time=hours, action="delete")
+        import isardvdi_common.helpers.recycle_bin as mod
+
+        queried = []
+        monkeypatch.setattr(mod.r, "table", lambda name: queried.append(name))
+
+        assert Helpers.get_old_deleted_entry_ids() == []
+        assert queried == []
+
+    def test_an_action_stored_without_a_window_selects_nothing(
+        self, stored_config, monkeypatch
+    ):
+        stored_config({"action": "delete"})
         import isardvdi_common.helpers.recycle_bin as mod
 
         queried = []
