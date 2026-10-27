@@ -23,19 +23,20 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { TruncatedText } from '@/components/truncated-text'
+import { DesktopStatusBadge } from '@/components/desktops'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { toast } from '@/components/ui/toast'
 
 import { VisibilityLegend, VisibilityToggle } from '@/components/deployments/visibility'
 import { DeploymentVisibilityModal } from '@/components/deployments/actions/visibility-modal'
 import { useDeploymentVisibility } from '@/composables/useDeploymentVisibility'
+import { desktopStatusLabel } from '@/lib/desktops'
 import {
   cellFor,
   columnCells,
   columnState,
   deploymentState,
   desktopColumns,
-  isRunning,
   rowState,
   runningCount,
   userDesktops,
@@ -44,7 +45,8 @@ import {
   type DesktopColumn
 } from '@/lib/deployment-visibility'
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 const route = useRoute()
 const router = useRouter()
 
@@ -363,6 +365,8 @@ function toggleAll(visible: boolean) {
   })
 }
 
+const statusLabel = (status?: string | null) => desktopStatusLabel(status ?? undefined, i18n)
+
 const goBack = () =>
   router.push({ name: 'deployment', params: { deploymentId: deploymentId.value } })
 </script>
@@ -633,27 +637,12 @@ const goBack = () =>
                 </Tooltip>
               </span>
 
-              <span class="flex h-full items-center justify-center">
-                <!-- Running desktops are the ones hiding actually interrupts. -->
-                <Tooltip v-if="cellFor(row as DeploymentUserDetail, column.tagDesktopId)">
-                  <TooltipTrigger as-child>
-                    <span
-                      class="size-2.5 shrink-0 rounded-full"
-                      :class="
-                        isRunning(cellFor(row as DeploymentUserDetail, column.tagDesktopId))
-                          ? 'bg-success-600 ring-2 ring-success-200'
-                          : 'bg-gray-warm-300'
-                      "
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    :title="
-                      isRunning(cellFor(row as DeploymentUserDetail, column.tagDesktopId))
-                        ? t('views.deployment-visibility.legend.started')
-                        : t('views.deployment-visibility.legend.stopped')
-                    "
-                  />
-                </Tooltip>
+              <span class="flex h-full min-w-0 items-center justify-center px-2">
+                <DesktopStatusBadge
+                  v-if="cellFor(row as DeploymentUserDetail, column.tagDesktopId)"
+                  :status="cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.status"
+                  class="max-w-full min-w-0 [&>span]:truncate"
+                />
               </span>
             </div>
           </template>

@@ -1173,10 +1173,6 @@
         "visible": "Fully visible",
         "hidden": "Fully hidden",
         "mixed": "Partially visible"
-      },
-      "legend": {
-        "started": "Started",
-        "stopped": "Stopped"
       }
     }
   },

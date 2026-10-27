@@ -1173,10 +1173,6 @@
         "visible": "Totalment visibles",
         "hidden": "Totalment ocults",
         "mixed": "Parcialment visibles"
-      },
-      "legend": {
-        "started": "Iniciat",
-        "stopped": "Aturat"
       }
     }
   },
