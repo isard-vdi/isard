@@ -2939,3 +2939,63 @@ func TestProviderManagerFormSubProviderLifecycle(t *testing.T) {
 		})
 	}
 }
+
+func TestInitProvidersMapDefaultAdminRecovery(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		Recovery    bool
+		ExpectedErr error
+	}{
+		"should log the default admin in through the form when the recovery is enabled": {
+			Recovery: true,
+		},
+		"should not log the default admin in when the recovery is disabled": {
+			Recovery:    false,
+			ExpectedErr: provider.ErrUnknownIDP,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			t.Parallel()
+
+			db := r.NewMock()
+			if tc.Recovery {
+				db.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{"admin", "default", "local"})).Return([]interface{}{
+					map[string]interface{}{
+						"id":       "local-default-admin-admin",
+						"username": "admin",
+						"uid":      "admin",
+						"password": "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider": "local",
+						"active":   true,
+						"category": "default",
+						"role":     "admin",
+						"group":    "default-default",
+					},
+				}, nil)
+			}
+
+			prvs := initProvidersMap(cfg.Authentication{DefaultAdminRecovery: tc.Recovery}, log.New("test", "debug"), db)
+			f := prvs[types.ProviderForm].(*provider.Form)
+
+			username, password := "admin", "f0kt3Rf$"
+			_, _, u, _, _, err := f.Login(context.Background(), "default", provider.LoginArgs{
+				FormUsername: &username,
+				FormPassword: &password,
+			})
+
+			if tc.ExpectedErr != nil {
+				assert.ErrorIs(err, tc.ExpectedErr)
+			} else {
+				assert.Nil(err)
+				assert.Equal("admin", u.UID)
+			}
+
+			db.AssertExpectations(t)
+		})
+	}
+}

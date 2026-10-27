@@ -333,7 +333,7 @@ export const isReloadOf = ({ url, hiddenAt }: Pick<StashedToken, 'url' | 'hidden
 }
 
 // TODO: Type this!
-type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
+type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category' | 'provider_disabled'
 type RegisterError =
   | ErrorResponse['error']
   | AuthLoginError['error']
@@ -346,7 +346,7 @@ interface LoginRegisterReturn {
 }
 
 export const checkLoginRegister = (
-  error: { error?: string | null }, // TODO: check this type
+  error: { error?: string | null; error_message?: string | null }, // TODO: check this type
   response: Response,
   skipTokenCheck = false // for register
 ): LoginRegisterReturn | undefined => {
@@ -363,6 +363,13 @@ export const checkLoginRegister = (
 
     if (error.error) {
       return { error: error.error }
+    }
+
+    // A login whose provider isn't enabled (the form with local and LDAP
+    // disabled) has no typed error: the authentication service answers an
+    // untyped 500 carrying this message
+    if (response.status === 500 && error.error_message === 'unknown identity provider') {
+      return { error: 'provider_disabled' }
     }
 
     return { error: 'unknown' }

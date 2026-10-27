@@ -1643,6 +1643,7 @@
         "invalid_credentials": "Erabiltzailea edo pasahitza ez dira zuzenak",
         "user_disabled": "Erabiltzailea desgaituta dago",
         "user_disallowed": "Erabiltzaileak ezin du IsardVDI erabili",
+        "provider_disabled": "Erabiltzaile eta pasahitzarekin saioa hastea desgaituta dago",
         "rate_limit_date": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro {time}-an",
         "rate_limit": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro geroago"
       }

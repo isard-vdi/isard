@@ -24,6 +24,7 @@ type Authentication struct {
 	Secret                    string
 	ImpersonateExpirationTime time.Duration        `mapstructure:"impersonate_expiration_time"`
 	Limits                    AuthenticationLimits `mapstructure:"limits"`
+	DefaultAdminRecovery      bool                 `mapstructure:"default_admin_recovery"`
 }
 
 type AuthenticationLimits struct {
@@ -71,6 +72,7 @@ func setDefaults() {
 		"host":                        getEnv("AUTHENTICATION_AUTHENTICATION_HOST", getEnv("DOMAIN", "localhost")),
 		"secret":                      "",
 		"impersonate_expiration_time": getEnv("AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME", "30m"),
+		"default_admin_recovery":      false,
 		"limits": map[string]interface{}{
 			"enabled":          true,
 			"max_attempts":     10,

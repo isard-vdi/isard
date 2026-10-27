@@ -3110,6 +3110,7 @@
         "invalid_credentials": "Incorrect user or password",
         "user_disabled": "The user is disabled",
         "user_disallowed": "The user can't use IsardVDI",
+        "provider_disabled": "Login with username and password is disabled",
         "rate_limit_date": "Too many login attempts, please try again at {time}",
         "rate_limit": "Too many login attempts, please try again later"
       }

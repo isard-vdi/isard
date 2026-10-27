@@ -38,6 +38,8 @@ func TestLogin(t *testing.T) {
 		PrepareAPI      func(*apiv4.MockInvoker)
 		PrepareSessions func(*grpcmock.Server)
 
+		DefaultAdminRecovery bool
+
 		RemoteAddr  string
 		Provider    string
 		CategoryID  string
@@ -829,6 +831,132 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 		},
+		"should log the default admin in through the recovery provider if local is disabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []any{
+					"admin",
+					"default",
+					"local",
+				})).Return([]any{
+					map[string]any{
+						"id":                      "local-default-admin-admin",
+						"uid":                     "admin",
+						"username":                "admin",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "admin",
+						"group":                   "default-default",
+						"name":                    "Administrator",
+						"email":                   "admin@isard.io",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("local-default-admin-admin")).Return([]any{
+					map[string]any{
+						"id":                      "local-default-admin-admin",
+						"uid":                     "admin",
+						"username":                "admin",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "admin",
+						"group":                   "default-default",
+						"name":                    "Administrator",
+						"email":                   "admin@isard.io",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("local-default-admin-admin").Update(map[string]any{
+					"id":                       "local-default-admin-admin",
+					"uid":                      "admin",
+					"username":                 "admin",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"password_reset_token":     "",
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "admin",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Administrator",
+					"email":                    "admin@isard.io",
+					"email_verified":           r.MockAnything(),
+					"email_verification_token": "",
+					"photo":                    "",
+					"accessed":                 r.MockAnything(),
+					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]any{
+					map[string]any{
+						"id": "default",
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "local-default-admin-admin"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckMigrationRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckMigrationRequiredParams{UserID: "local-default-admin-admin"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "local-default-admin-admin"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "local-default-admin-admin"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "local-default-admin-admin", Trigger: apiv4.NotificationTriggerEnumLogin}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []apiv4.NotificationDisplayEnum{}}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "local-default-admin-admin",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			DefaultAdminRecovery: true,
+			RemoteAddr:           "127.0.0.1",
+			Provider:             "form",
+			CategoryID:           "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "admin"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				if !assert.NoError(err) {
+					return
+				}
+
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "local-default-admin-admin",
+					RoleID:     "admin",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Administrator",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
 		"should return an error if the user doesn't exist": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
@@ -896,6 +1024,48 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "",
 			ExpectedErr:      fmt.Errorf("login: %w: local: invalid password", provider.ErrInvalidCredentials).Error(),
+		},
+		"should return an error if local is disabled and the default admin recovery isn't enabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "admin"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      fmt.Errorf("login: %w: no active provider was found for the form login", provider.ErrUnknownIDP).Error(),
+		},
+		"should return an error if local is disabled and the user isn't the default admin": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					Host:         "example.com",
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      fmt.Errorf("login: %w: no active provider was found for the form login", provider.ErrUnknownIDP).Error(),
 		},
 		"should return an error if the user is disabled": {
 			PrepareDB: func(m *r.Mock) {
@@ -1846,6 +2016,8 @@ func TestLogin(t *testing.T) {
 			defer cancel()
 
 			cfg := cfg.New()
+			cfg.Authentication.DefaultAdminRecovery = tc.DefaultAdminRecovery
+
 			log := log.New("authentication-test", "debug")
 
 			dbMock := r.NewMock()

@@ -181,6 +181,11 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 # for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 
+# Let the default admin (user 'admin' of the 'default' category) log in with its local password through
+# /login/form/default even when the local provider is disabled. Enable it only to recover a broken authentication
+# configuration, and disable it again afterwards.
+#AUTHENTICATION_AUTHENTICATION_DEFAULT_ADMIN_RECOVERY=false
+
 # ------ Backups -------------------------------------------------------------
 
 ## Automated backups (https://0xacab.org/liberate/backupninja)

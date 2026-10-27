@@ -250,6 +250,16 @@ const error = computed(
  */
 const showProvider = (provider: Provider): ComputedRef<boolean> =>
   computed(() => {
+    // /login/form/default always shows the form: it's how the default admin logs
+    // in to recover the configuration when local login is disabled
+    if (
+      provider === Provider.Form &&
+      routeProvider.value === Provider.Form &&
+      routeCategory.value === 'default'
+    ) {
+      return true
+    }
+
     // Check that the provider is enabled by authentication
     if (!providers.value?.providers.includes(provider)) {
       return false
@@ -372,7 +382,7 @@ const description = computed(() => {
 })
 
 // TODO: Type this!
-type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
+type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category' | 'provider_disabled'
 
 const isLoginError = (error: string): error is LoginError => {
   switch (error) {
@@ -382,6 +392,7 @@ const isLoginError = (error: string): error is LoginError => {
     case 'user_disabled':
     case 'user_disallowed':
     case 'rate_limit':
+    case 'provider_disabled':
       return true
 
     default:

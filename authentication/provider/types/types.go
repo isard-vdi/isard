@@ -12,6 +12,14 @@ const (
 	ProviderGoogle   = "google"
 )
 
+// DefaultAdminCategory and DefaultAdminUID identify the seeded default admin
+// (local provider). It must never be locked out, so it can always recover a
+// broken authentication configuration.
+const (
+	DefaultAdminCategory = "default"
+	DefaultAdminUID      = "admin"
+)
+
 type ProviderUserData struct {
 	Provider string `json:"provider"`
 	Category string `json:"category"`

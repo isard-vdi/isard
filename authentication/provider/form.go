@@ -31,6 +31,9 @@ type Form struct {
 
 	mux       sync.RWMutex
 	providers map[string]Provider
+	// recovery checks the default admin credentials when local isn't enabled,
+	// so it can never be locked out. It isn't listed as a sub-provider.
+	recovery *Local
 }
 
 func InitForm(cfg cfg.Authentication, log *zerolog.Logger, local *Local, ldap *LDAP) *Form {
@@ -94,7 +97,17 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	f.mux.RLock()
 	local, hasLocal := f.providers[types.ProviderLocal]
 	ldap, hasLdap := f.providers[types.ProviderLDAP]
+	recovery := f.recovery
 	f.mux.RUnlock()
+
+	// Never lock out the default admin: when local isn't enabled in this form,
+	// still check its credentials against the local provider so it can recover
+	// the authentication configuration.
+	if !hasLocal && recovery != nil && categoryID == types.DefaultAdminCategory && *args.FormUsername == types.DefaultAdminUID {
+		f.log.Warn().Msg("local provider not enabled, checking the default admin against the recovery local provider")
+
+		local, hasLocal = recovery, true
+	}
 
 	var invCreds *ProviderError
 
@@ -223,6 +236,15 @@ func (f *Form) DisableProvider(name string) {
 
 	delete(f.providers, name)
 	f.log.Info().Str("provider", name).Msg("form provider disabled")
+}
+
+// EnableRecovery sets the local provider that logs the default admin in when
+// local isn't enabled in the form.
+func (f *Form) EnableRecovery(local *Local) {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+
+	f.recovery = local
 }
 
 func (f *Form) Healthcheck() error {

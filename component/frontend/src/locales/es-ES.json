@@ -3110,6 +3110,7 @@
         "invalid_credentials": "Usuario o contraseña incorrecta",
         "user_disabled": "El usuario está deshabilitado",
         "user_disallowed": "El usuario no puede utilizar IsardVDI",
+        "provider_disabled": "El inicio de sesión con usuario y contraseña está deshabilitado",
         "rate_limit_date": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo a {time}",
         "rate_limit": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo mas tarde"
       }
