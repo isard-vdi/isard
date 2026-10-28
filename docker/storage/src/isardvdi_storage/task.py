@@ -1889,52 +1889,25 @@ def _dependent_candidates():
         if "/utils" not in sys.path:
             sys.path.insert(0, "/utils")
         from storage_lib.scanning import scan_isard_dirs
-    return [p for p in scan_isard_dirs() if p.endswith(".qcow2")]
-
-
-# Workers fork per job and several drain the delete lane, so the pool scan and
-# its backing index are shared through Redis (not an in-process cache) once per
-# short window, instead of every worker re-reading every header.
-_PURGE_BIDX_BUCKET_S = 60
-_PURGE_BIDX_TTL_S = 150
-_PURGE_BIDX_PREFIX = "storage:purge_backing_index:"
+    # deleted/ and to_delete/ hold disks that are themselves deleted
+    return [
+        p
+        for p in scan_isard_dirs()
+        if p.endswith(".qcow2") and "/deleted/" not in p and "/to_delete/" not in p
+    ]
 
 
 def _shared_backing_index(build_backing_index):
-    """The pool's qcow2 backing index for this window: reused from Redis when a
-    sibling delete worker already built it, else built here (one header read per
-    file) and cached for the rest of the purge. Redis down just means a fresh
-    build without the sharing, never a wrong answer."""
-    import json
-    from time import time as _now
+    """Shared incremental backing index of the pool."""
+    from isardvdi_common.lib.storage.backing_index import shared_backing_index
 
     try:
         redis = _redis_connection()
     except Exception:
         redis = None
-
-    key = None
-    if redis is not None:
-        key = _PURGE_BIDX_PREFIX + str(int(_now() // _PURGE_BIDX_BUCKET_S))
-        try:
-            cached = redis.get(key)
-        except Exception:
-            cached = None
-        if cached is not None:
-            try:
-                return json.loads(
-                    cached.decode() if isinstance(cached, bytes) else cached
-                )
-            except ValueError:
-                pass
-
-    index = build_backing_index(_dependent_candidates())
-    if redis is not None:
-        try:
-            redis.set(key, json.dumps(index), ex=_PURGE_BIDX_TTL_S)
-        except Exception:
-            pass
-    return index
+    return shared_backing_index(
+        _dependent_candidates, build_backing_index, redis, log=log.info
+    )
 
 
 def _on_disk_dependents(path, covered_paths):

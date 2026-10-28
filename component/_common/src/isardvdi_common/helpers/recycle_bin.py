@@ -31,6 +31,14 @@ from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from isardvdi_common.schemas.storage import StorageStatusEnum
 from rethinkdb import r
 
+# STORAGE_DELETE_RETRY=0 disables the worker-side retry of a purge delete
+_DELETE_TASK_RETRY = (
+    int(os.environ["STORAGE_DELETE_RETRY"])
+    if os.environ.get("STORAGE_DELETE_RETRY")
+    else 2
+)
+_DELETE_TASK_RETRY_INTERVALS = [30, 120]
+
 _get_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
 _get_category_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=50, ttl=30
@@ -2485,6 +2493,8 @@ class RecycleBin(RethinkSharedConnection):
                                         ],
                                     }
                                 ],
+                                retry=_DELETE_TASK_RETRY,
+                                retry_intervals=_DELETE_TASK_RETRY_INTERVALS,
                                 # create the job DEFERRED (created +
                                 # saved, id known, dependents deferred) but do
                                 # NOT enqueue it yet. We register it in the
