@@ -186,17 +186,43 @@ class TestDeleteRefusesLiveBacking:
         task.delete(child, covered_paths=[])
         assert not Path(child).exists()
 
-    def test_an_unreadable_candidate_does_not_block_the_purge(
+    def test_an_unreadable_candidate_blocks_when_liveness_is_unknown(
         self, tmp_path, monkeypatch
     ):
-        # A live child is always a readable qcow2, so an unreadable candidate
-        # cannot be one. Blocking on it (a disk mid-creation, a placeholder)
-        # would strand every purge, so it is logged, not blocked.
+        # with live_uuids=None (the enqueuer could not read the DB) an
+        # unreadable candidate might be a live disk, so it blocks rather than let
+        # the base be unlinked silently.
         base = _mk(tmp_path / "base.qcow2")
         junk = tmp_path / "corrupt.qcow2"
         junk.write_bytes(b"not a qcow2 at all")
         monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, str(junk)])
-        task.delete(base, covered_paths=[])
+        with pytest.raises(task.BackingInUseError):
+            task.delete(base, covered_paths=[])  # live_uuids defaults to None
+        assert Path(base).exists()
+
+    def test_an_unreadable_live_disk_blocks(self, tmp_path, monkeypatch):
+        # the unreadable candidate's id is in the live set, so it is a
+        # live disk whose header we could not read -> block, never silent delete.
+        base = _mk(tmp_path / "base.qcow2")
+        live_u = "c0000000-0000-0000-0000-000000000002"
+        junk = tmp_path / f"{live_u}.qcow2"
+        junk.write_bytes(b"not a qcow2 at all")
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, str(junk)])
+        with pytest.raises(task.BackingInUseError):
+            task.delete(base, covered_paths=[], live_uuids=[live_u])
+        assert Path(base).exists()
+
+    def test_an_unreadable_non_live_file_does_not_strand_the_purge(
+        self, tmp_path, monkeypatch
+    ):
+        # a placeholder / mid-creation / junk unreadable file whose id is
+        # not live must not strand the purge.
+        base = _mk(tmp_path / "base.qcow2")
+        junk_u = "d0000000-0000-0000-0000-000000000003"
+        junk = tmp_path / f"{junk_u}.qcow2"
+        junk.write_bytes(b"not a qcow2 at all")
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, str(junk)])
+        task.delete(base, covered_paths=[], live_uuids=[])  # nothing is live
         assert not Path(base).exists()
 
     def test_a_readable_child_still_blocks_despite_an_unreadable_sibling(
@@ -238,6 +264,45 @@ class TestDeleteRefusesLiveBacking:
         )
         task.delete(base, covered_paths=[])  # must NOT raise
         assert not Path(base).exists()
+
+    def test_a_non_live_child_does_not_block_the_purge(self, tmp_path, monkeypatch):
+        # a junk / recycled child whose id is not in the live set must
+        # not pin the base, so the recycle bin can empty. Red on main: the guard
+        # blocked on any on-disk child regardless of liveness.
+        base = _mk(tmp_path / "base.qcow2")
+        junk_u = "d0000000-0000-0000-0000-000000000003"
+        child = _mk(tmp_path / f"{junk_u}.qcow2", backing=base)
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, child])
+        task.delete(base, covered_paths=[], live_uuids=[])  # the child is not live
+        assert not Path(base).exists()
+
+    def test_a_live_child_blocks_even_if_the_db_graph_missed_it(
+        self, tmp_path, monkeypatch
+    ):
+        # a child whose id IS live still blocks (the guard's reason to
+        # exist: a live child the domain graph cannot see).
+        base = _mk(tmp_path / "base.qcow2")
+        live_u = "c0000000-0000-0000-0000-000000000002"
+        child = _mk(tmp_path / f"{live_u}.qcow2", backing=base)
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, child])
+        with pytest.raises(task.BackingInUseError):
+            task.delete(base, covered_paths=[], live_uuids=[live_u])
+        assert Path(base).exists()
+
+    def test_a_live_leaf_behind_a_non_live_intermediate_still_blocks(
+        self, tmp_path, monkeypatch
+    ):
+        # base <- mid (not live) <- leaf (live). Deleting base
+        # would orphan the live leaf's chain, so the transitive live walk blocks.
+        base = _mk(tmp_path / "base.qcow2")
+        mid_u = "c0000000-0000-0000-0000-00000000000a"
+        leaf_u = "e0000000-0000-0000-0000-00000000000b"
+        mid = _mk(tmp_path / f"{mid_u}.qcow2", backing=base)
+        leaf = _mk(tmp_path / f"{leaf_u}.qcow2", backing=mid)
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, mid, leaf])
+        with pytest.raises(task.BackingInUseError):
+            task.delete(base, covered_paths=[], live_uuids=[leaf_u])
+        assert Path(base).exists()
 
 
 class TestSharedIndexScales:

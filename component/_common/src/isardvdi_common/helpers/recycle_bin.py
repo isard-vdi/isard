@@ -39,6 +39,9 @@ _DELETE_TASK_RETRY = (
 )
 _DELETE_TASK_RETRY_INTERVALS = [30, 120]
 
+# every other status counts as a live disk that blocks its base's purge
+_PURGE_NON_LIVE_STATUSES = frozenset({"deleted", "orphan", "broken_chain", "recycled"})
+
 _get_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
 _get_category_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=50, ttl=30
@@ -2278,6 +2281,27 @@ class RecycleBin(RethinkSharedConnection):
                 covered_paths = [
                     Storage(sid).path for sid in covered_ids if Storage.exists(sid)
                 ]
+                # the worker has no database; None keeps its guard conservative
+                try:
+                    with self._rdb_context():
+                        _storage_rows = list(
+                            r.table("storage")
+                            .pluck("id", "status")
+                            .run(self._rdb_connection)
+                        )
+                    live_uuids = [
+                        row["id"]
+                        for row in _storage_rows
+                        if row.get("status") not in _PURGE_NON_LIVE_STATUSES
+                        and row["id"] not in covered_ids
+                    ]
+                except Exception:
+                    log.warning(
+                        "RecycleBin %s delete_storage: could not read the live "
+                        "storage set; the purge guard will block conservatively",
+                        self.id,
+                    )
+                    live_uuids = None
                 for entry, rb, all_deleted in loaded:
                     if all_deleted:
                         start = time.time()
@@ -2448,6 +2472,7 @@ class RecycleBin(RethinkSharedConnection):
                                         # Disks going away in this pass, so the
                                         # worker's on-disk guard does not count them.
                                         "covered_paths": covered_paths,
+                                        "live_uuids": live_uuids,
                                     },
                                 },
                                 dependents=[
