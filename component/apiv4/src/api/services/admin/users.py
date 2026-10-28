@@ -177,6 +177,7 @@ class AdminUsersService:
             data["uid"], data["category"], data["provider"]
         )
         AdminUsersService.owns_category_id(payload, data["category"])
+        AdminUsersService._check_role_elevation(payload, data["id"], data, None)
 
         if data.get("secondary_groups"):
             if len(data["secondary_groups"]) > 0:
@@ -247,6 +248,16 @@ class AdminUsersService:
                 "bad_request",
                 f"Unknown role '{new_role}'",
                 description_code="bad_request",
+            )
+
+        if (
+            current_role is not None
+            and AdminUsersService._ROLE_RANK.get(current_role, -1) > caller_rank
+        ):
+            raise Error(
+                "forbidden",
+                f"Cannot change the role of a '{current_role}' from role '{caller_role}'",
+                description_code="not_enough_rights",
             )
 
         # Block granting a role above the caller's own rank.
@@ -532,6 +543,10 @@ class AdminUsersService:
             # Validate every row before writing any, so a refused row doesn't
             # leave the CSV half applied.
             CommonUsers.check_default_admin_update(user_data["id"], update_payload)
+            user = Caches.get_document("users", user_data["id"])
+            AdminUsersService._check_role_elevation(
+                payload, user_data["id"], update_payload, user.get("role")
+            )
             update_payloads.append((user_data["id"], update_payload))
         for user_id, update_payload in update_payloads:
             CommonUsers.update_user(user_id, update_payload)

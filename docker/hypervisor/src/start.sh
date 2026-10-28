@@ -181,6 +181,18 @@ else
   echo "    /dev/hugepages is not a hugetlbfs mount, skipping"
 fi
 
+echo "---> Configuring viewer port range..."
+# libvirt must not hand out display ports the video proxies refuse
+DISPLAY_PORTS=${VIDEO_HYPERVISOR_PORTS:-5900-7899}
+if echo "$DISPLAY_PORTS" | grep -Eq '^[0-9]+-[0-9]+$'; then
+  sed -i -e '/^remote_display_port_min/d' -e '/^remote_display_port_max/d' /etc/libvirt/qemu.conf
+  echo "remote_display_port_min = ${DISPLAY_PORTS%-*}" >> /etc/libvirt/qemu.conf
+  echo "remote_display_port_max = ${DISPLAY_PORTS#*-}" >> /etc/libvirt/qemu.conf
+  echo "    display ports $DISPLAY_PORTS"
+else
+  echo "    VIDEO_HYPERVISOR_PORTS=$DISPLAY_PORTS is not a single range, keeping the libvirt default"
+fi
+
 echo "---> Starting libvirt daemon..."
 chown root:kvm /dev/kvm
 /usr/sbin/virtlogd -d

@@ -103,11 +103,154 @@ class TestRoleElevation:
             )
         assert "Unknown role 'superadmin'" in str(exc.value)
 
+    def test_manager_cannot_demote_an_admin(self):
+        with pytest.raises(Error) as exc:
+            AdminUsersService._check_role_elevation(
+                self.MANAGER, "u-victim", {"role": "user"}, "admin"
+            )
+        assert "Cannot change the role of a 'admin' from role 'manager'" in str(
+            exc.value
+        )
+
+    def test_manager_can_change_a_peer_manager(self):
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"role": "advanced"}, "manager"
+        )
+
     def test_unchanged_role_is_noop(self):
         # Re-sending the target's current role is not an elevation.
         AdminUsersService._check_role_elevation(
             self.MANAGER, "u-victim", {"role": "admin"}, "admin"
         )
+
+
+class TestRoleElevationEntryPoints:
+    """The gate must be reached from every path that writes ``role``."""
+
+    MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+
+    class _Reached(Exception):
+        pass
+
+    @patch("api.services.admin.users.AdminUsersService.owns_category_id")
+    @patch("api.services.admin.users.AdminUsersService._check_duplicate_user")
+    def test_create_user_rejects_manager_granting_admin(self, _dup, _owns):
+        with pytest.raises(Error) as exc:
+            AdminUsersService.create_user(
+                self.MANAGER,
+                {
+                    "username": "victim",
+                    "provider": "local",
+                    "category": "cat-a",
+                    "group": "grp-a",
+                    "role": "admin",
+                    "password": "x",
+                },
+            )
+        assert "Cannot grant role 'admin' from role 'manager'" in str(exc.value)
+
+    @patch("api.services.admin.users.AdminUsersService.owns_category_id")
+    @patch("api.services.admin.users.AdminUsersService._check_duplicate_user")
+    def test_create_user_checks_with_no_current_role(self, _dup, _owns):
+        seen = {}
+
+        def spy(payload, user_id, data, current_role):
+            seen.update(
+                payload=payload,
+                user_id=user_id,
+                role=data.get("role"),
+                current_role=current_role,
+            )
+            raise self._Reached
+
+        with patch.object(
+            AdminUsersService, "_check_role_elevation", staticmethod(spy)
+        ):
+            with pytest.raises(self._Reached):
+                AdminUsersService.create_user(
+                    self.MANAGER,
+                    {
+                        "username": "victim",
+                        "provider": "local",
+                        "category": "cat-a",
+                        "group": "grp-a",
+                        "role": "advanced",
+                        "password": "x",
+                    },
+                )
+        assert seen["current_role"] is None, (
+            "a new user has no previous role, so any role above the caller's "
+            "rank must be refused"
+        )
+        assert seen["role"] == "advanced"
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_edit_csv_rejects_manager_demoting_an_admin(self, _owns, cached, update):
+        cached.return_value = {"id": "u-victim", "role": "admin"}
+        with pytest.raises(Error):
+            AdminUsersService.edit_csv_users(
+                self.MANAGER, {"users": [{"id": "u-victim", "role": "user"}]}
+            )
+        update.assert_not_called()
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_edit_csv_rejects_manager_granting_admin(self, _owns, cached, update):
+        cached.return_value = {"id": "u-victim", "role": "user"}
+        with pytest.raises(Error) as exc:
+            AdminUsersService.edit_csv_users(
+                self.MANAGER, {"users": [{"id": "u-victim", "role": "admin"}]}
+            )
+        assert "Cannot grant role 'admin' from role 'manager'" in str(exc.value)
+        update.assert_not_called()
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_edit_csv_applies_nothing_when_a_later_row_is_refused(
+        self, _owns, cached, update
+    ):
+        cached.return_value = {"id": "whatever", "role": "user"}
+        with pytest.raises(Error):
+            AdminUsersService.edit_csv_users(
+                self.MANAGER,
+                {
+                    "users": [
+                        {"id": "u-ok", "name": "fine"},
+                        {"id": "u-victim", "role": "admin"},
+                    ]
+                },
+            )
+        assert update.call_count == 0, (
+            "rows must be authorised before any of them is written, or a "
+            "refusal halfway through leaves the earlier ones applied"
+        )
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_edit_csv_allows_a_grant_within_rank(self, _owns, cached, update):
+        cached.return_value = {"id": "u-victim", "role": "user"}
+        AdminUsersService.edit_csv_users(
+            self.MANAGER, {"users": [{"id": "u-victim", "role": "advanced"}]}
+        )
+        assert update.call_count == 1
+        assert update.call_args[0][1]["role"] == "advanced"
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_edit_csv_rejects_self_role_change(self, _owns, cached, update):
+        cached.return_value = {"id": "u-mgr", "role": "manager"}
+        with pytest.raises(Error) as exc:
+            AdminUsersService.edit_csv_users(
+                self.MANAGER, {"users": [{"id": "u-mgr", "role": "advanced"}]}
+            )
+        assert "Cannot mutate own role" in str(exc.value)
+        update.assert_not_called()
 
 
 class TestGetImpersonateJwt:
