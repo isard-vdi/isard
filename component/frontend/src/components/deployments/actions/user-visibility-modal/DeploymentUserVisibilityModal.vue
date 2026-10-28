@@ -116,7 +116,8 @@ const save = async (stopStartedDomains: boolean) => {
 }
 
 const headers = computed(() => [
-  { name: '', key: 'visible', width: 'max-content' },
+  // Selection column: kept tight against the desktop name.
+  { name: '', key: 'visible', width: 'max-content', headerClass: 'pr-0', cellClass: 'pr-0' },
   {
     name: t('components.deployments.user-visibility-modal.headers.desktop'),
     key: 'name',

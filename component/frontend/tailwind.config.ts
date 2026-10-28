@@ -129,6 +129,7 @@ export default {
           border: 'var(--base-border)',
         },
         brand: {
+          50: 'var(--brand-50)',
           100: 'var(--brand-100)',
           200: 'var(--brand-200)',
           600: 'var(--brand-600)',

@@ -59,7 +59,10 @@ const headers = computed(() => [
   {
     name: '',
     key: 'select',
-    width: 'max-content'
+    width: 'max-content',
+    // Selection column: kept tight against the desktop name.
+    headerClass: 'pr-0',
+    cellClass: 'pr-0'
   },
   {
     name: t('components.deployments.delete-desktops-modal.headers.desktop'),

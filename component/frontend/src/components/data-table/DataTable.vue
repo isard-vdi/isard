@@ -140,7 +140,8 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
 // div, and rows are real grid items (`grid-cols-subgrid`) rather than
 // `display: contents`, so a sticky cell resolves against that scroller.
 // It needs an opaque background, which would otherwise swallow the row
-// hover — pass `row-class="group"` to keep the hover working.
+// hover — pass `row-class="group"` to keep the hover working. The column's
+// own `headerClass`/`cellClass` go after these, so it can tint the pinned column.
 const STICKY_HEAD_CLASSES = 'sticky left-0 z-20 bg-base-white'
 const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gray-warm-50'
 </script>
@@ -155,7 +156,7 @@ const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gra
           v-for="(header, index) in headers"
           :key="'header-' + index"
           :class="
-            cn(density.head, header.headerClass, header.sticky === 'left' && STICKY_HEAD_CLASSES)
+            cn(density.head, header.sticky === 'left' && STICKY_HEAD_CLASSES, header.headerClass)
           "
           :sortable="header.sortable"
           :sorted="table.getColumn(header.key)?.getIsSorted()"
@@ -191,8 +192,8 @@ const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gra
                 cn(
                   density.cell,
                   props.cellClass,
-                  header.cellClass,
-                  header.sticky === 'left' && STICKY_CELL_CLASSES
+                  header.sticky === 'left' && STICKY_CELL_CLASSES,
+                  header.cellClass
                 )
               "
             >
