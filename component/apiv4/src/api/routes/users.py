@@ -1216,37 +1216,6 @@ async def get_user_applied_quota(request: Request):
         )
 
 
-@token_router.get(
-    "/item/user/bastion-allowed",
-    tags=[tag],
-    response_model=dict,
-    summary="Check bastion access",
-    description="Returns whether the current user is allowed to use bastion.",
-    responses={
-        200: {"description": "Bastion access check completed"},
-        500: {"description": "Failed to check bastion access"},
-    },
-)
-async def get_bastion_allowed(request: Request):
-    try:
-        result = await asyncio.to_thread(
-            UsersService.get_bastion_allowed,
-            payload=request.token_payload,
-        )
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to check bastion access",
-            traceback.format_exc(),
-        )
-
-
 @direct_viewer_router.post(
     "/item/user/owns-desktop",
     tags=[tag],
