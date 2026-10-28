@@ -52,7 +52,7 @@ const usersCountLabel = computed(() =>
 // the trigger, the headers and one row of chips.
 const rootClass = computed(() =>
   cn(
-    'mb-4 flex flex-col rounded-lg border border-gray-warm-200 bg-base-white',
+    'mt-4 flex flex-col rounded-lg border border-gray-warm-200 bg-base-white',
     open.value && 'min-h-26'
   )
 )
