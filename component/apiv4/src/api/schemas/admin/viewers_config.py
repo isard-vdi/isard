@@ -18,9 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ViewerConfigUpdateRequest(BaseModel):
@@ -41,3 +41,26 @@ class ViewerConfigItem(BaseModel):
     custom: Optional[str] = None
     default: Optional[str] = None
     fixed: Optional[str] = None
+
+
+class RdpSecurityConfig(BaseModel):
+    """Which security levels a guest RDP may serve, and how RDP files check its certificate."""
+
+    allowed_protocols: list[Literal["rdp", "tls", "nla"]] = Field(
+        min_length=1,
+        description=(
+            "Security levels a guest RDP may negotiate for its RDP viewers to open:"
+            " rdp (standard RDP security, no TLS), tls and nla. A guest that"
+            " negotiates a level not listed is refused for every RDP viewer."
+            " All three by default."
+        ),
+    )
+    certificate_check: Optional[Literal[0, 1, 2]] = Field(
+        default=None,
+        description=(
+            "``authentication level`` of the RDP files: 0 connects without warning"
+            " about a guest certificate it cannot verify, 1 does not connect, 2 warns."
+            " Read from and written to the custom part of file_rdpgw and file_rdpvpn;"
+            " null leaves them as they are."
+        ),
+    )

@@ -350,11 +350,16 @@ class DesktopRdpState(BaseModel):
     state: str = Field(
         description=(
             "How far the RDP service of the guest has been verified: waiting, "
-            "verifying, refused, unverified, auth_failed or ready."
+            "verifying, refused, unverified, auth_failed or ready. A security "
+            "level the administrator does not allow reads as refused with the "
+            "reason security_not_allowed."
         ),
     )
     protocol: Optional[str] = Field(
-        default=None, description="Security protocol the guest offered."
+        default=None,
+        description=(
+            "Security the guest negotiated: rdp (standard RDP security), tls or nla."
+        ),
     )
     reason: Optional[str] = Field(
         default=None, description="Why the guest is not ready, when it is not."

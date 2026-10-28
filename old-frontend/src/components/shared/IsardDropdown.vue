@@ -1,5 +1,6 @@
 <template>
   <b-dropdown
+    :id="dropdownId"
     :disabled="ddDisabled"
     :variant="!(waitingIp && needsIp(defaultViewer)) ? variant : 'secondary'"
     :class="cssClass"
@@ -20,27 +21,31 @@
         :aria-valuetext="statusText || ''"
         :aria-label="statusText || ''"
       />
-      <div
-        v-b-tooltip="{ title: (statusText && needsIp(defaultViewer)) ? statusText : `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-        class="dropdown-default-text rdp-above"
-      >
+      <b-tooltip
+        :target="`${dropdownId}__BV_button_`"
+        :title="buttonTooltip"
+        placement="top"
+        custom-class="isard-tooltip"
+        triggers="hover"
+      />
+      <div class="dropdown-default-text rdp-above">
         {{ viewerText }}
       </div>
       <b-icon
-        v-if="defaultViewer && statusError && needsIp(defaultViewer)"
+        v-if="defaultViewer && statusError && needsIp(defaultViewer) && !statusOutside"
         icon="exclamation-triangle-fill"
         class="item-spinner rdp-status-error rdp-above"
       />
       <b-icon
-        v-else-if="defaultViewer && statusWarn && needsIp(defaultViewer)"
+        v-else-if="defaultViewer && statusWarn && needsIp(defaultViewer) && !statusOutside"
         icon="exclamation-triangle"
         class="item-spinner rdp-status-warn rdp-above"
       />
       <b-spinner
-        v-else-if="defaultViewer && (waitingIp && needsIp(defaultViewer))"
+        v-else-if="defaultViewer && (waitingIp && needsIp(defaultViewer)) && !statusError && !statusWarn"
         small
         type="grow"
-        class="item-spinner rdp-above"
+        class="item-spinner rdp-above flex-shrink-0"
       />
     </template>
     <b-dropdown-item
@@ -97,7 +102,18 @@ export default {
     statusError: Boolean,
     statusWarn: Boolean,
     statusProgress: Number,
-    statusTone: String
+    statusTone: String,
+    // the parent shows the default viewer's warning/error outside the dropdown
+    statusOutside: Boolean
+  },
+  computed: {
+    dropdownId () {
+      return `viewers-dd-${this.desktop.id}`
+    },
+    // on the whole split button, not only on its text
+    buttonTooltip () {
+      return (this.statusText && this.needsIp(this.defaultViewer) && (!this.statusOutside || this.statusError)) ? this.statusText : `${this.fullViewerText}`
+    }
   },
   methods: {
     getViewerText (viewer) {

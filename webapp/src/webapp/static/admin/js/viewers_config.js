@@ -101,6 +101,53 @@ $(document).ready(function () {
         }
     })
 
+    // RDP security policy: allowed guest security levels and the certificate
+    // check of the RDP files (stored in their custom part, so reload the table).
+    function setChecked(el, value) {
+        if ($.fn.iCheck && $(el).parent().hasClass('icheckbox_flat-green')) {
+            $(el).iCheck(value ? 'check' : 'uncheck')
+        } else {
+            $(el).prop('checked', value)
+        }
+    }
+
+    function loadRdpSecurity() {
+        $.ajax({
+            url: '/api/v4/admin/item/rdp-security',
+            method: 'GET'
+        }).done(function (data) {
+            $('#rdp-security .rdp-security-level').each(function () {
+                setChecked(this, data.allowed_protocols.includes($(this).val()))
+            })
+            $('#rdp-certificate-check').val(data.certificate_check === null ? '' : String(data.certificate_check))
+        })
+    }
+    loadRdpSecurity()
+
+    $('#rdp-security-save').off('click').on('click', function () {
+        const allowed = $('#rdp-security .rdp-security-level:checked').map(function () { return $(this).val() }).get()
+        if (!allowed.length) {
+            new PNotify({ title: 'ERROR', text: 'Allow at least one RDP security level', type: 'error', hide: true, delay: 5000, opacity: 1 })
+            return
+        }
+        const check = $('#rdp-certificate-check').val()
+        $.ajax({
+            url: '/api/v4/admin/item/rdp-security',
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                allowed_protocols: allowed,
+                certificate_check: check === '' || check === null ? null : parseInt(check, 10)
+            })
+        }).done(function () {
+            viewersConfTable.ajax.reload()
+            loadRdpSecurity()
+            new PNotify({ title: 'RDP security updated', text: '', hide: true, delay: 2000, type: 'success', opacity: 0.9, icon: 'fa fa-check' })
+        }).fail(function (xhr) {
+            new PNotify({ title: 'ERROR', text: (xhr.responseJSON && xhr.responseJSON.description) || 'Could not update the RDP security', type: 'error', hide: true, delay: 5000, opacity: 1 })
+        })
+    })
+
     $('#modalEditViewersConfig #send').off('click').on('click', function(e){
         var notice = new PNotify({
             text: 'Updating viewer custom options...',

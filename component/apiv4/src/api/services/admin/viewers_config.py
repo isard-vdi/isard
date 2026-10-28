@@ -37,3 +37,11 @@ class AdminViewersConfigService:
         # Route layer constrains ``viewer`` to
         # ``Literal["file_rdpgw", "file_rdpvpn", "file_spice"]``.
         ViewersConfig.reset_viewers_config(viewer)
+
+    @staticmethod
+    def get_rdp_security() -> dict:
+        return ViewersConfig.get_rdp_security()
+
+    @staticmethod
+    def update_rdp_security(allowed_protocols: list, certificate_check) -> None:
+        ViewersConfig.update_rdp_security(allowed_protocols, certificate_check)

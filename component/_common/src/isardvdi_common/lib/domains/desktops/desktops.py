@@ -51,6 +51,10 @@ from isardvdi_common.helpers.isard_viewer import (
 )
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.rdp_security import (
+    current_allowed_rdp_security,
+    rdp_effective,
+)
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.rules import get_unused_item_timeout
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
@@ -315,7 +319,10 @@ class DesktopsProcessed(RethinkSharedConnection):
                 i["id"] for i in desktop["create_dict"]["hardware"]["interfaces"]
             ]:
                 desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
-                rdp = desktop.get("viewer", {}).get("rdp")
+                rdp = rdp_effective(
+                    desktop.get("viewer", {}).get("rdp"),
+                    current_allowed_rdp_security(),
+                )
                 if not rdp and desktop["ip"] and has_rdp_viewer(gp.get("viewers")):
                     rdp = {"state": "pending"}
                 if rdp and desktop.get("viewer", {}).get("rdp_last"):

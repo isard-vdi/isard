@@ -27,9 +27,11 @@ VERIFY_ATTEMPTS = 3
 # TPKT + X.224 Connection Request + RDP_NEG_REQ asking for TLS, CredSSP and CredSSP with Early User Auth
 NEG_REQUEST = bytes.fromhex("030000130ee00000000000010008000b000000")
 PROTOCOLS = {0: "rdp", 1: "tls", 2: "nla", 8: "nla"}
+# SSL_NOT_ALLOWED_BY_SERVER: the guest only serves standard RDP security, which
+# every client (mstsc, guacd, FreeRDP) negotiates next: it answers, it is not refused.
+STANDARD_SECURITY_ONLY = 2
 NEG_FAILURES = {
     1: "tls_required",
-    2: "tls_not_allowed",
     3: "certificate_missing",
     4: "inconsistent_flags",
     5: "nla_required",
@@ -103,6 +105,8 @@ def probe(ip, port=3389, timeout=PROBE_TIMEOUT):
     kind, value = data[11], int.from_bytes(data[15:19], "little")
     if kind == 2:
         return "answers", PROTOCOLS.get(value, "rdp")
+    if kind == 3 and value == STANDARD_SECURITY_ONLY:
+        return "answers", "rdp"
     if kind == 3:
         return "refused", NEG_FAILURES.get(value, f"negotiation_failure_{value}")
     return "waiting", "not_rdp"

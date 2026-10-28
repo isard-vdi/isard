@@ -84,7 +84,9 @@ def _confirm(kind, value):
         (_confirm(2, 8), ("answers", "nla")),
         (_confirm(2, 1), ("answers", "tls")),
         (_confirm(3, 5), ("refused", "nla_required")),
-        (_confirm(3, 2), ("refused", "tls_not_allowed")),
+        # standard RDP security only: every client connects with it, so it answers
+        (_confirm(3, 2), ("answers", "rdp")),
+        (_confirm(3, 1), ("refused", "tls_required")),
         (b"HTTP/1.1 400 Bad Request\r\n\r\n", ("waiting", "not_rdp")),
         (b"", ("waiting", "not_rdp")),
     ],
@@ -131,6 +133,12 @@ def test_rejected_credentials_are_settled_and_not_retried():
 def test_a_guest_without_nla_cannot_have_its_credentials_verified():
     result, calls = _verdict(("answers", "tls"))
     assert result == ("unverified", "tls", None, None)
+    assert calls == []
+
+
+def test_a_standard_security_guest_opens_unverified_without_a_credential_check():
+    result, calls = _verdict(("answers", "rdp"))
+    assert result == ("unverified", "rdp", None, None)
     assert calls == []
 
 

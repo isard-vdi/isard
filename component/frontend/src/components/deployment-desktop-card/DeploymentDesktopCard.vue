@@ -247,7 +247,8 @@ import DomainImage from '@/components/domain/DomainImage.vue'
                                 props.desktop.ip,
                                 props.desktop.rdp,
                                 rdpBypass,
-                                t
+                                t,
+                                authStore.user?.role_id === 'admin'
                               )
                             "
                             :tooltip-dismissed="viewerTooltipDismissed"

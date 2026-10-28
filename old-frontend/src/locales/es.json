@@ -435,6 +435,8 @@
         "ready": "RDP: listo",
         "last_failed": "RDP: la última conexión ha fallado",
         "waiting_ip": "RDP: esperando a que el escritorio tenga IP",
+        "unverified_standard": "RDP: disponible con la seguridad RDP estándar, sin TLS ni NLA — puedes conectar",
+        "security_not_allowed": "RDP: la seguridad del escritorio no está permitida por el administrador: {reason}",
         "reason": {
           "port_closed": "el servicio RDP del escritorio aún no escucha",
           "unreachable": "el escritorio no responde en la red",
@@ -446,6 +448,7 @@
           "security_refused": "el escritorio ha rechazado la seguridad de la conexión; revisa la configuración RDP del invitado",
           "account_blocked": "la cuenta del escritorio está bloqueada o caducada",
           "no_credentials": "el escritorio no tiene credenciales RDP guardadas",
+          "security_not_allowed": "el escritorio solo ofrece la seguridad RDP estándar (sin TLS ni NLA) y el administrador no la permite; activa TLS o NLA en el invitado",
           "other": "la negociación RDP con el escritorio ha fallado; revisa la configuración RDP del invitado"
         }
       },

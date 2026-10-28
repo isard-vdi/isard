@@ -103,3 +103,49 @@ def test_a_stopped_desktop_is_answered_as_not_started_not_as_rdp_pending(no_db):
     with pytest.raises(ErrorBase) as err:
         DDV.desktop_viewer("d1", "browser-rdp", desktop=stopped)
     assert err.value.error["description_code"] == "unable_to_get_viewer"
+
+
+def _rdp_desktop(rdp):
+    desktop = _desktop()
+    desktop["viewer"]["rdp"] = rdp
+    return desktop
+
+
+@pytest.fixture
+def policy(monkeypatch):
+    """Set the allowed RDP security levels the gate reads."""
+
+    def set_allowed(*levels):
+        monkeypatch.setattr(mod, "current_allowed_rdp_security", lambda: levels)
+
+    return set_allowed
+
+
+def test_a_guest_with_standard_rdp_security_only_is_open(policy):
+    policy("rdp", "tls", "nla")
+    # what the vpn of older versions stored for it
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "refused", "reason": "tls_not_allowed"}), "user", "cat-a"
+    )
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "unverified", "protocol": "rdp"}), "user", "cat-a"
+    )
+
+
+def test_a_security_level_outside_the_policy_is_refused_with_its_own_code(policy):
+    policy("tls", "nla")
+    with pytest.raises(ErrorBase) as raised:
+        DDV.check_rdp_open(
+            _rdp_desktop({"state": "unverified", "protocol": "rdp"}), "user", "cat-a"
+        )
+    assert raised.value.error["description_code"] == "rdp_security_not_allowed"
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "ready", "protocol": "nla"}), "user", "cat-a"
+    )
+
+
+def test_an_admin_can_still_open_a_guest_outside_the_policy(policy):
+    policy("nla")
+    DDV.check_rdp_open(
+        _rdp_desktop({"state": "unverified", "protocol": "tls"}), "admin", "cat-b"
+    )

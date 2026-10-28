@@ -124,7 +124,7 @@
                 </span>
               </template>
               <template #cell(viewers)="data">
-                <div class="">
+                <div class="d-flex align-items-center">
                   <DesktopButton
                     v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
                     :active="getItemState(data.item) === desktopStates.started && !(viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).blocked)"
@@ -133,8 +133,8 @@
                     variant="primary"
                     :spinner-active="waitingIp"
                     :blocked="viewerNeedsIp(data.item.viewers[0]) && rdpView(data.item).blocked && !!rdpView(data.item).text"
-                    :tooltip="viewerNeedsIp(data.item.viewers[0]) ? rdpView(data.item).text : ''"
-                    :icon-name="viewerNeedsIp(data.item.viewers[0]) ? rdpIcon(data.item) : undefined"
+                    :tooltip="viewerNeedsIp(data.item.viewers[0]) && (!rdpNotice(data.item) || rdpView(data.item).error) ? rdpView(data.item).text : ''"
+                    :icon-name="viewerNeedsIp(data.item.viewers[0]) && !rdpNotice(data.item) ? rdpIcon(data.item) : undefined"
                     :progress="viewerNeedsIp(data.item.viewers[0]) ? rdpView(data.item).progress : undefined"
                     :progress-tone="rdpTone(data.item)"
                     @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})"
@@ -157,8 +157,14 @@
                     :status-warn="rdpView(data.item).warn"
                     :status-progress="rdpView(data.item).progress"
                     :status-tone="rdpTone(data.item)"
+                    :status-outside="rdpNotice(data.item)"
                     @dropdownClicked="openDesktop"
                     @notifyWaitingIp="notifyRdpStep(data.item)"
+                  />
+                  <RdpNotice
+                    v-if="rdpNotice(data.item)"
+                    :text="rdpView(data.item).text"
+                    :error="rdpView(data.item).error"
                   />
                 </div>
               </template>
@@ -346,6 +352,7 @@ import { desktopStates, status } from '@/shared/constants'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
+import RdpNotice from '@/components/desktops/RdpNotice.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { ErrorUtils } from '@/utils/errorUtils'
@@ -353,7 +360,7 @@ import { ref, watch } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 
 export default {
-  components: { DesktopButton, IsardDropdown, ListItemSkeleton },
+  components: { DesktopButton, IsardDropdown, ListItemSkeleton, RdpNotice },
   props: {
     listTitle: String,
     templates: {
@@ -582,6 +589,12 @@ export default {
     },
     rdpView (desktop) {
       return DesktopUtils.rdpViewerState(desktop, this.getUser.role_id)
+    },
+    // the selected RDP viewer has a warning or an error: a triangle right of the button, its text on hover
+    rdpNotice (desktop) {
+      const viewer = desktop.viewers && desktop.viewers.length === 1 ? desktop.viewers[0] : this.getDefaultViewer(desktop)
+      const view = this.rdpView(desktop)
+      return !this.hideViewers(desktop) && DesktopUtils.viewerNeedsIp(viewer) && (view.error || view.warn) && !!view.text
     },
     rdpTone (desktop) {
       const view = this.rdpView(desktop)

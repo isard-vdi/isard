@@ -15,6 +15,7 @@ import {
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Icon } from '@/components/icon'
 import { toast } from '@/components/ui/toast'
 import { type Viewer, ViewerSelectDropdownItem } from '.'
 
@@ -89,6 +90,15 @@ const viewerIcon = (viewer: Viewer) => {
   return ''
 }
 
+// A selected RDP viewer's error is shown below the button; a warning is only the triangle, its text on hover.
+const outsideNotice = computed(
+  () =>
+    props.size !== 'compact' &&
+    !!selectedViewer.value?.id.includes('rdp') &&
+    !!selectedViewer.value.status &&
+    selectedViewer.value.tone === 'error'
+)
+
 // The RDP readiness tone keys the left-to-right background fill.
 const progressTone = (viewer: Viewer) => `viewer-progress--${viewer.tone || 'wait'}`
 
@@ -109,89 +119,103 @@ const selectViewer = (viewer: Viewer) => {
 </script>
 
 <template>
-  <ButtonGroup v-if="selectedViewer" :class="cn('min-w-0', props.dense && 'w-full')">
-    <!-- TODO: rework component to update loading state dynamically -->
-    <Tooltip
-      v-if="props.size !== 'compact'"
-      :open="tooltipOpen"
-      :disabled="viewerTooltipDismissed && !selectedViewer.status"
-      @update:open="tooltipOpen = $event"
-    >
-      <TooltipTrigger as-child>
-        <Button
-          :class="
-            cn(
-              'relative isolate min-w-0 overflow-hidden',
-              props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs',
-              selectedViewer.loading && selectedViewer.status && 'opacity-60 cursor-not-allowed'
-            )
-          "
-          :size="props.buttonSize"
-          :icon="viewerIcon(selectedViewer)"
-          :icon-size="props.dense ? 'xs' : undefined"
-          :icon-class="
-            cn(
-              'relative z-10',
-              selectedViewer.loading &&
-                selectedViewer.tone !== 'error' &&
-                selectedViewer.tone !== 'warn' &&
-                'motion-safe:animate-[spin_2s_linear_infinite]'
-            )
-          "
-          :disabled="selectedViewer.loading && !selectedViewer.status"
-          :aria-disabled="selectedViewer.loading ? 'true' : undefined"
-          :data-viewer-status="selectedViewer.status ? selectedViewer.tone || 'info' : undefined"
-          @click="selectViewer(selectedViewer)"
-          ><span
-            v-if="selectedViewer.progress !== undefined"
-            class="viewer-progress"
-            :class="progressTone(selectedViewer)"
-            :style="{ width: selectedViewer.progress + '%' }"
-            role="progressbar"
-            :aria-valuenow="selectedViewer.progress"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            :aria-valuetext="selectedViewer.status"
-            :aria-label="selectedViewer.status"
-          /><span class="relative z-10 min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
-        >
-      </TooltipTrigger>
-      <TooltipContent
-        v-if="selectedViewer.status"
-        :title="selectedViewer.status"
-        data-testid="viewer-status-tooltip"
-      />
-      <TooltipContent
-        v-else
-        :title="selectedViewerTooltipTitle"
-        :subtitle="selectedViewerTooltipDescription"
-        :dismiss-label="t('viewers.tooltip-dismiss')"
-        @dismiss="dismissTooltip"
-      />
-    </Tooltip>
-
-    <template v-if="props.viewers.length > 1">
-      <ButtonGroupSeparator v-if="props.size !== 'compact'" color="brand-800" />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger @click.stop>
+  <div
+    v-if="selectedViewer"
+    :class="cn('flex min-w-0 flex-col items-end gap-1', props.dense && 'w-full items-stretch')"
+  >
+    <ButtonGroup :class="cn('min-w-0', props.dense && 'w-full')">
+      <!-- TODO: rework component to update loading state dynamically -->
+      <Tooltip
+        v-if="props.size !== 'compact'"
+        :open="tooltipOpen"
+        :disabled="viewerTooltipDismissed && (!selectedViewer.status || outsideNotice)"
+        @update:open="tooltipOpen = $event"
+      >
+        <TooltipTrigger as-child>
           <Button
-            :aria-label="t('common.actions.other-viewers')"
-            icon="chevron-down"
-            :size="props.buttonSize"
-            :icon-size="props.dense ? 'sm' : undefined"
             :class="
               cn(
-                props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none px-2',
-                props.dense && 'h-7 shrink-0 px-1.5 py-0'
+                'relative isolate min-w-0 overflow-hidden',
+                props.dense && 'h-7 flex-1 gap-1 px-2 py-0 text-xs',
+                selectedViewer.loading && selectedViewer.status && 'opacity-60 cursor-not-allowed'
               )
             "
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent class="bg-white border border-[#D7D3D0] rounded-lg" align="end">
-          <DropdownMenuGroup>
-            <template v-for="viewer in viewers" :key="viewer.id">
-              <!-- <DropdownMenuItem v-if="viewer.id !== selectedViewer.id">
+            :size="props.buttonSize"
+            :icon="selectedViewer.tone === 'warn' ? '' : viewerIcon(selectedViewer)"
+            :icon-stroke-color="selectedViewer.tone === 'error' ? 'error-600' : undefined"
+            :icon-size="props.dense ? 'xs' : undefined"
+            :icon-class="
+              cn(
+                'relative z-10',
+                selectedViewer.loading &&
+                  selectedViewer.tone !== 'error' &&
+                  selectedViewer.tone !== 'warn' &&
+                  'motion-safe:animate-[spin_2s_linear_infinite]'
+              )
+            "
+            :disabled="selectedViewer.loading && !selectedViewer.status"
+            :aria-disabled="selectedViewer.loading ? 'true' : undefined"
+            :data-viewer-status="
+              selectedViewer.status && !outsideNotice ? selectedViewer.tone || 'info' : undefined
+            "
+            @click="selectViewer(selectedViewer)"
+            ><span
+              v-if="selectedViewer.progress !== undefined"
+              class="viewer-progress"
+              :class="progressTone(selectedViewer)"
+              :style="{ width: selectedViewer.progress + '%' }"
+              role="progressbar"
+              :aria-valuenow="selectedViewer.progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-valuetext="selectedViewer.status"
+              :aria-label="selectedViewer.status" /><span class="relative z-10 min-w-0 truncate">{{
+              selectedViewerLabel
+            }}</span
+            ><Icon
+              v-if="selectedViewer.tone === 'warn'"
+              name="alert-triangle"
+              :size="props.dense ? 'xs' : undefined"
+              stroke-color="warning-600"
+              class="relative z-10 shrink-0"
+          /></Button>
+        </TooltipTrigger>
+        <TooltipContent
+          v-if="selectedViewer.status && !outsideNotice"
+          :title="selectedViewer.status"
+          data-testid="viewer-status-tooltip"
+        />
+        <TooltipContent
+          v-else
+          :title="selectedViewerTooltipTitle"
+          :subtitle="selectedViewerTooltipDescription"
+          :dismiss-label="t('viewers.tooltip-dismiss')"
+          @dismiss="dismissTooltip"
+        />
+      </Tooltip>
+
+      <template v-if="props.viewers.length > 1">
+        <ButtonGroupSeparator v-if="props.size !== 'compact'" color="brand-800" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger @click.stop>
+            <Button
+              :aria-label="t('common.actions.other-viewers')"
+              icon="chevron-down"
+              :size="props.buttonSize"
+              :icon-size="props.dense ? 'sm' : undefined"
+              :class="
+                cn(
+                  props.size === 'compact' ? 'p-[10px]' : 'rounded-l-none px-2',
+                  props.dense && 'h-7 shrink-0 px-1.5 py-0'
+                )
+              "
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="bg-white border border-[#D7D3D0] rounded-lg" align="end">
+            <DropdownMenuGroup>
+              <template v-for="viewer in viewers" :key="viewer.id">
+                <!-- <DropdownMenuItem v-if="viewer.id !== selectedViewer.id">
                 <Tooltip
                   :disabled="viewerTooltipDismissed"
                   :open="dropdownTooltipOpen[viewer.id]"
@@ -219,19 +243,43 @@ const selectViewer = (viewer: Viewer) => {
                   />
                 </Tooltip>
               </DropdownMenuItem> -->
-              <ViewerSelectDropdownItem
-                v-if="viewer.id !== selectedViewer.id"
-                :viewer="viewer"
-                :tooltip-dismissed="viewerTooltipDismissed"
-                @select="selectViewer(viewer)"
-                @dismiss-tooltip="dismissTooltip"
-              />
-            </template>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </template>
-  </ButtonGroup>
+                <ViewerSelectDropdownItem
+                  v-if="viewer.id !== selectedViewer.id"
+                  :viewer="viewer"
+                  :tooltip-dismissed="viewerTooltipDismissed"
+                  @select="selectViewer(viewer)"
+                  @dismiss-tooltip="dismissTooltip"
+                />
+              </template>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </template>
+    </ButtonGroup>
+    <Tooltip v-if="outsideNotice">
+      <TooltipTrigger as-child>
+        <p
+          :class="
+            cn(
+              'flex w-0 min-w-full items-center gap-1 text-xs',
+              selectedViewer.tone === 'error' ? 'text-error-700' : 'text-warning-800'
+            )
+          "
+          role="status"
+          :data-viewer-status="selectedViewer.tone"
+          data-testid="viewer-status-notice"
+        >
+          <Icon
+            :name="selectedViewer.tone === 'error' ? 'alert-circle' : 'alert-triangle'"
+            size="xs"
+            stroke-color=""
+            class="shrink-0"
+          /><span class="min-w-0 truncate">{{ selectedViewer.status }}</span>
+        </p>
+      </TooltipTrigger>
+      <TooltipContent :title="selectedViewer.status" />
+    </Tooltip>
+  </div>
 </template>
 
 <style scoped>

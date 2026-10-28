@@ -223,3 +223,92 @@ class TestResetViewerConfig:
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 500
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET/PUT /admin/item/rdp-security
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestRdpSecurity:
+    URL = "/admin/item/rdp-security"
+    SERVICE = "api.routes.admin.viewers_config.AdminViewersConfigService"
+
+    def test_admin_reads_the_policy(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            f"{self.SERVICE}.get_rdp_security",
+            staticmethod(
+                lambda: {
+                    "allowed_protocols": ["rdp", "tls", "nla"],
+                    "certificate_check": 2,
+                }
+            ),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        assert response.json() == {
+            "allowed_protocols": ["rdp", "tls", "nla"],
+            "certificate_check": 2,
+        }
+
+    def test_admin_narrows_the_policy_and_sets_the_certificate_check(
+        self, monkeypatch, test_client
+    ):
+        captured = {}
+        monkeypatch.setattr(
+            f"{self.SERVICE}.update_rdp_security",
+            staticmethod(lambda allowed, check: captured.update(a=allowed, c=check)),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            body={"allowed_protocols": ["nla", "tls", "nla"], "certificate_check": 0},
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 204
+        assert captured == {"a": ["nla", "tls"], "c": 0}
+
+    def test_the_certificate_check_is_optional(self, monkeypatch, test_client):
+        captured = {}
+        monkeypatch.setattr(
+            f"{self.SERVICE}.update_rdp_security",
+            staticmethod(lambda allowed, check: captured.update(a=allowed, c=check)),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            body={"allowed_protocols": ["rdp"]},
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 204
+        assert captured == {"a": ["rdp"], "c": None}
+
+    def test_no_allowed_level_or_an_unknown_one_is_rejected(
+        self, monkeypatch, test_client
+    ):
+        monkeypatch.setattr(
+            f"{self.SERVICE}.update_rdp_security",
+            staticmethod(lambda allowed, check: None),
+        )
+        for body in (
+            {"allowed_protocols": []},
+            {"allowed_protocols": ["ssl"]},
+            {"allowed_protocols": ["nla"], "certificate_check": 3},
+        ):
+            response = test_client(
+                url=self.URL, method="PUT", body=body, jwt=MockJWT(role_id="admin")
+            )
+            assert response.status_code in (400, 422), body
+
+    def test_a_manager_cannot_change_it(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            f"{self.SERVICE}.update_rdp_security",
+            staticmethod(lambda allowed, check: None),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            body={"allowed_protocols": ["rdp"]},
+            jwt=MockJWT(role_id="manager"),
+        )
+        assert response.status_code == 403

@@ -10,6 +10,7 @@ import { Button, type ButtonVariants } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
 import { ViewerSelect } from '@/components/viewer-select'
 import { rdpViewerEntry, type DesktopRdp } from '@/lib/rdpViewer'
+import { useAuthStore } from '@/stores/auth'
 
 import { CARD_SIZE_INJECTION_KEY } from '..'
 
@@ -42,9 +43,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 // The RDP step rides on the RDP viewer buttons (icon + tooltip, toast on tap)
 // instead of a line of text, so the card keeps the same height in every state.
+const authStore = useAuthStore()
 const viewers = computed(() =>
   (props.desktopViewers || []).map((viewer) =>
-    rdpViewerEntry(viewer, props.desktopIp, props.desktopRdp, props.rdpBypass, t)
+    rdpViewerEntry(
+      viewer,
+      props.desktopIp,
+      props.desktopRdp,
+      props.rdpBypass,
+      t,
+      authStore.user?.role_id === 'admin'
+    )
   )
 )
 
