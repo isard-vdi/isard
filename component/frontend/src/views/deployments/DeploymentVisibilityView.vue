@@ -2,10 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useQuery } from '@tanstack/vue-query'
+import { useMutationState, useQuery } from '@tanstack/vue-query'
 
 import { getDeploymentOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import type { DeploymentUserDetail } from '@/gen/oas/apiv4'
+import type { DeploymentUserDetail, SetDeploymentVisibilityData } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/badge'
@@ -29,7 +29,11 @@ import { toast } from '@/components/ui/toast'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { DeploymentVisibilityModal } from '@/components/deployments/actions/visibility-modal'
-import { useDeploymentVisibility } from '@/composables/useDeploymentVisibility'
+import {
+  DEPLOYMENT_VISIBILITY_MUTATION_KEY,
+  isSelected,
+  useDeploymentVisibility
+} from '@/composables/useDeploymentVisibility'
 import { desktopStatusLabel } from '@/lib/desktops'
 import {
   cellFor,
@@ -69,9 +73,36 @@ const columns = computed(() => desktopColumns(info.value?.desktops ?? []))
 const allCells = computed(() => users.value.flatMap(userDesktops))
 const masterState = computed(() => deploymentState(users.value, !!info.value?.tag_visible))
 
-const { mutate: setVisibility, isPending: isSettingVisibility } = useDeploymentVisibility(
+const { mutate: setVisibility, mutateAsync: setVisibilityAsync } = useDeploymentVisibility(
   () => deploymentId.value
 )
+
+const pendingWrites = useMutationState({
+  filters: { mutationKey: DEPLOYMENT_VISIBILITY_MUTATION_KEY, status: 'pending' },
+  select: (mutation) =>
+    mutation.state.variables as Pick<SetDeploymentVisibilityData, 'path' | 'body'>
+})
+
+const pendingBodies = computed(() =>
+  pendingWrites.value
+    .filter((write) => write.path.deployment_id === deploymentId.value)
+    .map((write) => write.body)
+)
+
+const changingDesktopIds = computed(() => {
+  const bodies = pendingBodies.value
+  if (!bodies.length) return new Set<string>()
+  return new Set(
+    users.value.flatMap((user) =>
+      userDesktops(user)
+        .filter((desktop) => bodies.some((body) => isSelected(desktop, user.id, body)))
+        .map((desktop) => desktop.desktop_id)
+    )
+  )
+})
+
+const isChanging = (desktops: MatrixDesktop[]) =>
+  desktops.some((desktop) => changingDesktopIds.value.has(desktop.desktop_id))
 
 // ─── Filtering ─────────────────────────────────────────────────────────
 
@@ -187,7 +218,7 @@ function confirmPending(stopStartedDomains: boolean) {
   if (action) applyVisibility(action, stopStartedDomains)
 }
 
-function applyVisibility(action: VisibilityAction, stopStartedDomains: boolean) {
+async function applyVisibility(action: VisibilityAction, stopStartedDomains: boolean) {
   const { affected } = action
 
   // Snapshot the exact prior partition. Undoing with the inverse rectangle
@@ -211,8 +242,8 @@ function applyVisibility(action: VisibilityAction, stopStartedDomains: boolean) 
     }
   }
 
-  setVisibility(
-    {
+  try {
+    await setVisibilityAsync({
       path: { deployment_id: deploymentId.value },
       body: {
         visible: action.visible,
@@ -220,26 +251,20 @@ function applyVisibility(action: VisibilityAction, stopStartedDomains: boolean) 
         tag_desktop_ids: action.tagDesktopIds ?? null,
         stop_started_domains: stopStartedDomains
       }
-    },
-    {
-      onSuccess: () => {
-        toast.success(action.message, {
-          // One shared id: a new change replaces the previous toast in place
-          // and restarts its countdown, instead of stacking toasts where only
-          // the newest counts down and Undo is ambiguous.
-          id: VISIBILITY_TOAST_ID,
-          // Required: an actioned toast is sticky by default.
-          duration: 8000,
-          // Undo restores visibility, and nothing can restore a stopped
-          // desktop, so a hide that stopped desktops is not offered as undoable.
-          action: stopStartedDomains
-            ? undefined
-            : { label: t('common.actions.undo'), onClick: undo }
-        })
-      },
-      onError: () => toast.error(t('views.deployment.visibility.toast.error'))
-    }
-  )
+    })
+  } catch {
+    toast.error(t('views.deployment.visibility.toast.error'))
+    return
+  }
+
+  toast.success(action.message, {
+    // Shared id: a new change replaces the toast instead of stacking another.
+    id: VISIBILITY_TOAST_ID,
+    // An actioned toast is sticky by default.
+    duration: 8000,
+    // Undo cannot restart a stopped desktop.
+    action: stopStartedDomains ? undefined : { label: t('common.actions.undo'), onClick: undo }
+  })
 }
 
 // Which way a click goes. The tooltips read the direction from here rather
@@ -253,6 +278,16 @@ const rowWillShow = (user: DeploymentUserDetail) => rowState(user) !== true
 
 const cellWillShow = (user: DeploymentUserDetail, column: DesktopColumn) =>
   !cellFor(user, column.tagDesktopId)?.visible
+
+const columnChanging = (column: DesktopColumn) =>
+  isChanging(columnCells(users.value, column.tagDesktopId))
+
+const rowChanging = (user: DeploymentUserDetail) => isChanging(userDesktops(user))
+
+const cellChanging = (user: DeploymentUserDetail, column: DesktopColumn) => {
+  const desktop = cellFor(user, column.tagDesktopId)
+  return !!desktop && isChanging([desktop])
+}
 
 // The sentence that names the click, shared by the tooltip and the title of
 // the confirmation, so the modal cannot describe a different change.
@@ -437,7 +472,7 @@ const goBack = () =>
           hierarchy="secondary-gray"
           icon="eye"
           size="sm"
-          :disabled="isSettingVisibility || masterState === true"
+          :disabled="pendingBodies.length > 0 || masterState === true"
           @click="toggleAll(true)"
         >
           {{ t('views.deployment-visibility.show-all') }}
@@ -446,7 +481,7 @@ const goBack = () =>
           hierarchy="secondary-gray"
           icon="eye-off"
           size="sm"
-          :disabled="isSettingVisibility || masterState === false"
+          :disabled="pendingBodies.length > 0 || masterState === false"
           @click="toggleAll(false)"
         >
           {{ t('views.deployment-visibility.hide-all') }}
@@ -526,7 +561,7 @@ const goBack = () =>
                     <Checkbox
                       :model-value="columnState(users, column.tagDesktopId)"
                       :indeterminate="columnState(users, column.tagDesktopId) === 'indeterminate'"
-                      :disabled="isSettingVisibility"
+                      :disabled="columnChanging(column)"
                       :aria-label="
                         t('views.deployment.visibility.column-label', { desktop: column.name })
                       "
@@ -559,7 +594,8 @@ const goBack = () =>
                   :model-value="rowState(row as DeploymentUserDetail)"
                   :indeterminate="rowState(row as DeploymentUserDetail) === 'indeterminate'"
                   :disabled="
-                    isSettingVisibility || !userDesktops(row as DeploymentUserDetail).length
+                    rowChanging(row as DeploymentUserDetail) ||
+                    !userDesktops(row as DeploymentUserDetail).length
                   "
                   :aria-label="rowLabel(row as DeploymentUserDetail)"
                   size="md"
@@ -617,7 +653,7 @@ const goBack = () =>
                       :model-value="
                         !!cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.visible
                       "
-                      :disabled="isSettingVisibility"
+                      :disabled="cellChanging(row as DeploymentUserDetail, column)"
                       size="md"
                       class="bg-base-white"
                       :aria-label="

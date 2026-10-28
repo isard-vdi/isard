@@ -20,7 +20,7 @@ import { patchEntityList } from '@/lib/utils'
 export const DEPLOYMENT_VISIBILITY_MUTATION_KEY = ['deploymentVisibility'] as const
 
 /** Does this desktop fall inside the scope the request selects? */
-function isSelected(
+export function isSelected(
   desktop: { desktop_id: string; tag_desktop_id?: string | null },
   userId: string,
   body: SetDeploymentVisibilityRequest
@@ -55,10 +55,19 @@ export function patchVisibility(
   })
 }
 
-/** What `onMutate` hands to `onError` so a failed write can be rolled back. */
+/** The cells this write flipped; a whole snapshot would also revert other in-flight writes. */
 interface RollbackContext {
-  previous: GetDeploymentResponse | undefined
+  wasVisible: string[]
+  wasHidden: string[]
 }
+
+const restoreVisibility = (
+  cached: GetDeploymentResponse | undefined,
+  visible: boolean,
+  desktopIds: string[]
+) =>
+  // An empty `desktop_ids` would select every desktop.
+  desktopIds.length ? patchVisibility(cached, { visible, desktop_ids: desktopIds }) : cached
 
 export function useDeploymentVisibility(deploymentId: () => string) {
   const queryClient = useQueryClient()
@@ -72,11 +81,19 @@ export function useDeploymentVisibility(deploymentId: () => string) {
       // Stop in-flight refetches so a response computed before the write
       // cannot land on top of the optimistic patch.
       await queryClient.cancelQueries({ queryKey: queryKey() })
-      const previous = queryClient.getQueryData<GetDeploymentResponse>(queryKey())
-      queryClient.setQueryData<GetDeploymentResponse>(queryKey(), (cached) =>
-        patchVisibility(cached, variables.body as SetDeploymentVisibilityRequest)
+      const body = variables.body as SetDeploymentVisibilityRequest
+      const selected = (
+        queryClient.getQueryData<GetDeploymentResponse>(queryKey())?.users ?? []
+      ).flatMap((user) =>
+        (user.desktops ?? []).filter((desktop) => isSelected(desktop, user.id, body))
       )
-      return { previous }
+      queryClient.setQueryData<GetDeploymentResponse>(queryKey(), (cached) =>
+        patchVisibility(cached, body)
+      )
+      return {
+        wasVisible: selected.filter((desktop) => desktop.visible).map((d) => d.desktop_id),
+        wasHidden: selected.filter((desktop) => !desktop.visible).map((d) => d.desktop_id)
+      } satisfies RollbackContext
     },
 
     // The response is the recomputed aggregate, so reconciling from it costs
@@ -116,6 +133,8 @@ export function useDeploymentVisibility(deploymentId: () => string) {
       // The optimistic patch flipped the cells the selectors matched; the
       // server counted the rows that actually exist. A disagreement means the
       // cache is missing or holding a stale row, and only a read can fix it.
+      // Only the last write to settle checks; `isMutating` still counts this one.
+      if (queryClient.isMutating({ mutationKey: DEPLOYMENT_VISIBILITY_MUTATION_KEY }) > 1) return
       const patched = queryClient.getQueryData<GetDeploymentResponse>(queryKey())
       const cells = (patched?.users ?? []).flatMap((user) => user.desktops ?? [])
       if (cells.length && cells.filter((cell) => cell.visible).length !== result.visible_desktops) {
@@ -127,7 +146,14 @@ export function useDeploymentVisibility(deploymentId: () => string) {
     // and types it `unknown`, so narrow it here to keep the rollback typed.
     onError: (_error, _variables, onMutateResult) => {
       const context = onMutateResult as RollbackContext | undefined
-      if (context?.previous) queryClient.setQueryData(queryKey(), context.previous)
+      if (!context) return
+      queryClient.setQueryData<GetDeploymentResponse>(queryKey(), (cached) =>
+        restoreVisibility(
+          restoreVisibility(cached, true, context.wasVisible),
+          false,
+          context.wasHidden
+        )
+      )
     }
   })
 }
