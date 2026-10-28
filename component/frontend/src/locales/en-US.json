@@ -1714,7 +1714,7 @@
         "hardwareGroups": {
           "hardware": "Hardware",
           "system": "System",
-          "peripherals": "Peripherals",
+          "media": "Media",
           "reservables": "Reservables"
         },
         "networks": {
@@ -2008,8 +2008,8 @@
           "fullscreen-enabled": "Fullscreen enabled",
           "fullscreen-disabled": "Fullscreen disabled"
         },
-        "peripherals": {
-          "title": "Peripherals"
+        "media": {
+          "title": "Media"
         },
         "reservables": {
           "title": "Reservables"
@@ -2665,8 +2665,8 @@
       "networks": {
         "title": "Networks"
       },
-      "peripherals": {
-        "title": "Peripherals"
+      "media": {
+        "title": "Media"
       },
       "reservables": {
         "title": "Reservables"

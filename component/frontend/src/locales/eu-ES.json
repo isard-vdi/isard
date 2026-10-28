@@ -1124,8 +1124,8 @@
           "fullscreen-enabled": "Pantaila osoa gaituta",
           "fullscreen-disabled": "Pantaila osoa desgaituta"
         },
-        "peripherals": {
-          "title": "Periferikoak"
+        "media": {
+          "title": "Euskarriak"
         },
         "reservables": {
           "title": "Erreserbagarriak"
@@ -1522,8 +1522,8 @@
       "networks": {
         "title": "Sareak"
       },
-      "peripherals": {
-        "title": "Periferikoak"
+      "media": {
+        "title": "Euskarriak"
       },
       "reservables": {
         "title": "Erreserbagarriak"

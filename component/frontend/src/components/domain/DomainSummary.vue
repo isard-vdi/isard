@@ -250,11 +250,11 @@ const hasReservables = computed(
           />
         </SummaryRow>
 
-        <!-- Peripherals -->
+        <!-- Media -->
         <SummaryRow
           v-if="hasPeripherals"
           icon="disc-02"
-          :label="t('components.domain-hardware-summary.peripherals.title')"
+          :label="t('components.domain-hardware-summary.media.title')"
         >
           <SummaryValue
             v-for="(iso, index) in props.isos"

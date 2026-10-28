@@ -2024,8 +2024,8 @@
         "ip": {
           "title": "Adreça IP"
         },
-        "peripherals": {
-          "title": "Perifèrics"
+        "media": {
+          "title": "Mitjans"
         },
         "reservables": {
           "title": "Reservables"
@@ -2061,8 +2061,8 @@
       "networks": {
         "title": "Xarxes"
       },
-      "peripherals": {
-        "title": "Perifèrics"
+      "media": {
+        "title": "Mitjans"
       },
       "reservables": {
         "title": "Reservables"
@@ -2510,7 +2510,7 @@
         "hardwareGroups": {
           "hardware": "Maquinari",
           "system": "Sistema",
-          "peripherals": "Perifèrics",
+          "media": "Mitjans",
           "reservables": "Reservables"
         },
         "networks": {
