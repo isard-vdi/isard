@@ -1,3 +1,13 @@
-#!/bin/sh  
-export QEMU_AUDIO_DRV=spice 
-exec /usr/bin/qemu-system-x86_64 $@
+#!/bin/sh
+export QEMU_AUDIO_DRV=spice
+# never offer checksum offload to guests: CHECKSUM_PARTIAL with a bad csum_start corrupts host memory
+exec /usr/bin/qemu-system-x86_64 \
+    -global virtio-net-device.csum=off \
+    -global virtio-net-device.host_tso4=off \
+    -global virtio-net-device.host_tso6=off \
+    -global virtio-net-device.host_ecn=off \
+    -global virtio-net-device.host_ufo=off \
+    -global virtio-net-device.host_uso=off \
+    -global virtio-net-device.host_tunnel=off \
+    -global virtio-net-device.host_tunnel_csum=off \
+    "$@"

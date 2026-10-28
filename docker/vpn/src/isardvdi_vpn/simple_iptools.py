@@ -106,11 +106,18 @@ class UserIpTools(object):
         try:
             with vpn_rethink_conn() as conn:
                 user = r.table("users").get(user_id).run(conn)
-            user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
             # str(e): concatenating the exception itself raised a TypeError
             # from inside the handler, replacing the real cause with its own.
             log.error("EXCEPTION READING USERS: " + str(e))
+            return
+
+        try:
+            user_addr = user["vpn"]["wireguard"]["Address"]
+        except Exception as e:
+            # remotevpn rules key on the desktop alone and nothing else removes them.
+            log.error("EXCEPTION READING USER ADDRESS: " + str(e))
+            self.remove_remote_vpn(None, desktop_ip)
             return
 
         log.debug(
