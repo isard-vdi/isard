@@ -218,11 +218,11 @@ function rdpViewerStatus(data){
     // words the vpn writes, so it is safe inside the HTML attribute.
     const code = (typeof rdp.reason === 'string' && /^[a-z0-9_]{1,40}$/.test(rdp.reason)) ? ' [' + rdp.reason + ']' : ''
     const progress = RDP_PROGRESS[rdp.state]
-    if (rdp.state === 'refused' && rdp.reason === 'security_not_allowed') return { tone: 'error', icon: 'fa-exclamation-triangle', progress: progress, fill: RDP_FILL.error, text: texts.security_not_allowed + code }
-    if (['refused', 'auth_failed'].includes(rdp.state)) return { tone: 'error', icon: 'fa-exclamation-triangle', progress: progress, fill: RDP_FILL.error, text: texts[rdp.state] + code }
+    if (rdp.state === 'refused' && rdp.reason === 'security_not_allowed') return { tone: 'error', icon: 'fa-exclamation-triangle', progress: 100, fill: RDP_FILL.error, text: texts.security_not_allowed + code }
+    if (['refused', 'auth_failed'].includes(rdp.state)) return { tone: 'error', icon: 'fa-exclamation-triangle', progress: 100, fill: RDP_FILL.error, text: texts[rdp.state] + code }
     // A probe that could not verify (no NLA, no credentials, or a failed check)
     // does not block: the admin may connect, with a warning.
-    if (rdp.state === 'unverified') return { tone: 'warn', icon: 'fa-exclamation-triangle', progress: progress, fill: RDP_FILL.warn, text: rdp.protocol === 'rdp' ? texts.unverified_standard : texts.unverified }
+    if (rdp.state === 'unverified') return { tone: 'warn', icon: 'fa-exclamation-triangle', progress: 100, fill: RDP_FILL.warn, text: rdp.protocol === 'rdp' ? texts.unverified_standard : texts.unverified }
     return { tone: 'wait', icon: 'fa-spinner fa-pulse', progress: progress, fill: RDP_FILL.wait, text: texts[rdp.state] }
 }
 

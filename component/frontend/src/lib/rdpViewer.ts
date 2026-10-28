@@ -36,6 +36,7 @@ const reasonKey = (reason?: string | null) =>
 
 // States in which the server already lets anybody open an RDP viewer.
 const RDP_OPEN_STATES = ['ready', 'unverified']
+const RDP_CHECKING_STATES = ['pending', 'waiting', 'verifying']
 
 // How far the check has got (IP -> RDP port -> credentials), to fill the button; open is full.
 const RDP_PROGRESS: Record<string, number> = {
@@ -65,7 +66,8 @@ export function rdpViewerEntry(
   ip: string | null | undefined,
   rdp: DesktopRdp | null | undefined,
   bypass: boolean,
-  t: Translate
+  t: Translate,
+  showUnverified = false
 ): Viewer {
   if (!viewer.includes('rdp')) return { id: viewer, loading: false }
   if (!ip) {
@@ -79,6 +81,8 @@ export function rdpViewerEntry(
   }
   if (!rdp) return { id: viewer, loading: false }
   const blocked = !RDP_OPEN_STATES.includes(rdp.state)
+  // the check is still running: opening would fail, so nobody bypasses it
+  const checking = RDP_CHECKING_STATES.includes(rdp.state)
   const lastFailed = !blocked && !!rdp.last && !rdp.last.connected
   const refused = ['refused', 'auth_failed'].includes(rdp.state)
   let status = ''
@@ -99,6 +103,8 @@ export function rdpViewerEntry(
       reason: t('components.desktops.desktop-card.rdp.reason.security_not_allowed')
     })
     tone = 'error'
+  } else if (rdp.state === 'unverified' && !showUnverified) {
+    // a user may connect: a warning would read as a block
   } else if (rdp.state === 'unverified' && rdp.protocol === 'rdp') {
     // standard RDP security has no credential check to run before connecting
     status = t('components.desktops.desktop-card.rdp.unverified_standard')
@@ -117,9 +123,11 @@ export function rdpViewerEntry(
   }
   return {
     id: viewer,
-    loading: blocked && !bypass,
+    loading: checking || (blocked && !bypass),
     status: status || undefined,
     tone: status ? tone : undefined,
-    progress: status ? (RDP_PROGRESS[rdp.state] ?? (blocked ? 50 : 100)) : undefined
+    // a warning or an error is not a step in progress: no fill
+    progress:
+      status && tone === 'wait' ? (RDP_PROGRESS[rdp.state] ?? (blocked ? 50 : 100)) : undefined
   }
 }

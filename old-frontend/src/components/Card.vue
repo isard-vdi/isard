@@ -285,17 +285,17 @@
           <div class="ml-1 mb-1">
             {{ $t("components.desktop-cards.open-with") }}:
           </div>
-          <div>
+          <div class="d-flex align-items-center">
             <DesktopButton
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
               :active="(desktopState === desktopStates.started && !(singleViewerNeedsIp && rdpBlocked)) || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
-              :button-class="!singleViewerNeedsIp ? 'btn-green' : buttViewerCssColor"
+              :button-class="!singleViewerNeedsIp ? 'btn-green' : (rdpPending ? 'btn-orange' : buttViewerCssColor)"
               :butt-text="getViewerText"
               variant="primary"
               :spinner-active="waitingIp || (singleViewerNeedsIp && rdpBlocked && !rdpFailed)"
               :blocked="singleViewerNeedsIp && !!rdpStepText && (waitingIp || rdpBlocked)"
-              :tooltip="singleViewerNeedsIp ? rdpStepText : ''"
-              :icon-name="singleViewerNeedsIp ? rdpIcon : undefined"
+              :tooltip="singleViewerNeedsIp && (!rdpNotice || rdpFailed) ? rdpStepText : ''"
+              :icon-name="singleViewerNeedsIp && !rdpNotice ? rdpIcon : undefined"
               :progress="singleViewerNeedsIp ? rdpProgress : undefined"
               :progress-tone="rdpTone"
               @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
@@ -305,7 +305,7 @@
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
               :dd-disabled="!showDropDown"
               css-class="viewers-dropdown m-0"
-              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp || rdpBlocked), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp && !rdpBlocked) }"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp || rdpPending), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp && !rdpPending) }"
               variant="light"
               :viewers="filterViewerFromList"
               :desktop="desktop"
@@ -318,8 +318,14 @@
               :status-warn="rdpWarn"
               :status-progress="rdpProgress"
               :status-tone="rdpTone"
+              :status-outside="rdpNotice"
               @dropdownClicked="openDesktop"
               @notifyWaitingIp="waitingIp ? notifyWaitingIp() : notifyRdpStep(rdpStepText)"
+            />
+            <RdpNotice
+              v-if="rdpNotice"
+              :text="rdpStepText"
+              :error="rdpFailed"
             />
           </div>
         </div>
@@ -335,6 +341,7 @@ import { ErrorUtils } from '@/utils/errorUtils'
 import { mapActions, mapGetters } from 'vuex'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
+import RdpNotice from '@/components/desktops/RdpNotice.vue'
 import { desktopStates, status } from '@/shared/constants'
 import { DateUtils } from '@/utils/dateUtils'
 
@@ -345,7 +352,7 @@ const MAX_VIEWER_TEXT_SIZE = 40
 const MAX_BOOKING_TEXT_SIZE = 30
 
 export default {
-  components: { DesktopButton, IsardDropdown },
+  components: { DesktopButton, IsardDropdown, RdpNotice },
   props: {
     desktop: Object,
     templates: {
@@ -507,6 +514,10 @@ export default {
     rdpBlocked () {
       return this.desktopState === desktopStates.started && this.rdpView.blocked
     },
+    // not ready yet: painted as waiting for everybody, though admins and managers may still open it
+    rdpPending () {
+      return this.desktopState === desktopStates.started && !DesktopUtils.rdpReady(this.desktop)
+    },
     rdpFailed () {
       return this.rdpView.error
     },
@@ -518,6 +529,11 @@ export default {
     },
     rdpProgress () {
       return this.rdpView.progress
+    },
+    // the selected RDP viewer has a warning or an error: a triangle right of the button, its text on hover
+    rdpNotice () {
+      const viewer = this.desktop.viewers && this.desktop.viewers.length === 1 ? this.desktop.viewers[0] : this.getDefaultViewer
+      return !this.hideViewers && DesktopUtils.viewerNeedsIp(viewer) && (this.rdpFailed || this.rdpWarn) && !!this.rdpStepText
     },
     rdpTone () {
       return this.rdpView.error ? 'error' : (this.rdpView.warn ? 'warn' : 'wait')

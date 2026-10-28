@@ -212,6 +212,8 @@ export class DesktopUtils {
     } else if (rdp.state === 'refused' && rdp.reason === 'security_not_allowed') {
       // the guest answers, but with a security level the administrator does not allow
       text = i18n.t('components.desktop-cards.rdp.security_not_allowed', { reason: DesktopUtils.rdpReason(rdp.reason) })
+    } else if (rdp.state === 'unverified' && roleId !== 'admin') {
+      // a user may connect: a warning would read as a block
     } else if (rdp.state === 'unverified' && rdp.protocol === 'rdp') {
       // standard RDP security has no credential check to run before connecting
       text = i18n.t('components.desktop-cards.rdp.unverified_standard')
@@ -222,13 +224,15 @@ export class DesktopUtils {
     }
     const error = ['refused', 'auth_failed'].includes(rdp.state) || lastFailed
     // ``unverified`` opens with a warning, never a hard block (a failed probe must not cut service).
-    const warn = !error && rdp.state === 'unverified'
+    const warn = !error && rdp.state === 'unverified' && !!text
     return {
-      blocked: pending && !['admin', 'manager'].includes(roleId),
+      // the check is still running: opening would fail, so nobody bypasses it
+      blocked: ['pending', 'waiting', 'verifying'].includes(rdp.state) || (pending && !['admin', 'manager'].includes(roleId)),
       error,
       warn,
       text,
-      progress: text ? (DesktopUtils.RDP_PROGRESS[rdp.state] !== undefined ? DesktopUtils.RDP_PROGRESS[rdp.state] : (pending ? 50 : 100)) : undefined
+      // a warning or an error is a final state, not a step in progress: no fill
+      progress: text && !error && !warn ? (DesktopUtils.RDP_PROGRESS[rdp.state] !== undefined ? DesktopUtils.RDP_PROGRESS[rdp.state] : (pending ? 50 : 100)) : undefined
     }
   }
 

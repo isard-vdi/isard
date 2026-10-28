@@ -19,7 +19,7 @@ describe('rdpViewerEntry', () => {
     })
   })
 
-  it('blocks RDP while the guest RDP is not verified, unless the user may bypass it', () => {
+  it('blocks RDP while the check runs, for those who may bypass it too', () => {
     const rdp = { state: 'waiting' }
     expect(rdpViewerEntry('file-rdpgw', '10.2.0.5', rdp, false, t)).toMatchObject({
       loading: true,
@@ -27,8 +27,15 @@ describe('rdpViewerEntry', () => {
       tone: 'wait'
     })
     expect(rdpViewerEntry('file-rdpgw', '10.2.0.5', rdp, true, t)).toMatchObject({
-      loading: false,
+      loading: true,
       status: 'waiting'
+    })
+  })
+
+  it('lets those who may bypass it open a refused RDP', () => {
+    expect(rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'refused' }, true, t)).toMatchObject({
+      loading: false,
+      tone: 'error'
     })
   })
 
@@ -40,22 +47,44 @@ describe('rdpViewerEntry', () => {
 
   it('opens an unverified RDP with a warning, never a block (a failed probe must not cut the service)', () => {
     expect(
-      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'unverified' }, false, t)
-    ).toMatchObject({ loading: false, status: 'unverified', tone: 'warn', progress: 100 })
+      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'unverified' }, true, t, true)
+    ).toMatchObject({ loading: false, status: 'unverified', tone: 'warn', progress: undefined })
+  })
+
+  it('opens an unverified RDP for a user or a manager with no warning', () => {
+    expect(
+      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'unverified', protocol: 'rdp' }, false, t)
+    ).toMatchObject({ loading: false, status: undefined, tone: undefined, progress: undefined })
+    expect(
+      rdpViewerEntry('browser-rdp', '10.2.0.5', { state: 'unverified', protocol: 'rdp' }, true, t)
+    ).toMatchObject({ loading: false, status: undefined, tone: undefined })
   })
 
   it('opens a guest with standard RDP security with its own warning', () => {
     expect(
-      rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'unverified', protocol: 'rdp' }, false, t)
-    ).toMatchObject({ loading: false, status: 'unverified_standard', tone: 'warn', progress: 100 })
+      rdpViewerEntry(
+        'file-rdpgw',
+        '10.2.0.5',
+        { state: 'unverified', protocol: 'rdp' },
+        true,
+        t,
+        true
+      )
+    ).toMatchObject({
+      loading: false,
+      status: 'unverified_standard',
+      tone: 'warn',
+      progress: undefined
+    })
     // without stored credentials too: there is nothing to check them against
     expect(
       rdpViewerEntry(
         'file-rdpgw',
         '10.2.0.5',
         { state: 'unverified', protocol: 'rdp', reason: 'no_credentials' },
-        false,
-        t
+        true,
+        t,
+        true
       )
     ).toMatchObject({ status: 'unverified_standard', tone: 'warn' })
   })
@@ -76,9 +105,9 @@ describe('rdpViewerEntry', () => {
     expect(
       rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'verifying' }, false, t)
     ).toMatchObject({ loading: true, status: 'verifying', tone: 'wait', progress: 80 })
-    // an admin/manager may bypass the block but still sees the step
+    // an admin/manager waits for the check too
     expect(rdpViewerEntry('file-rdpgw', '10.2.0.5', { state: 'verifying' }, true, t)).toMatchObject(
-      { loading: false, status: 'verifying', tone: 'wait', progress: 80 }
+      { loading: true, status: 'verifying', tone: 'wait', progress: 80 }
     )
   })
 
@@ -90,7 +119,8 @@ describe('rdpViewerEntry', () => {
     expect(progress('10.2.0.5', 'waiting')).toBe(50)
     expect(progress('10.2.0.5', 'verifying')).toBe(80)
     expect(progress('10.2.0.5', 'ready')).toBeUndefined() // ready: plain active button
-    expect(progress('10.2.0.5', 'unverified')).toBe(100)
+    expect(progress('10.2.0.5', 'unverified')).toBeUndefined() // warning: no fill
+    expect(progress('10.2.0.5', 'auth_failed')).toBeUndefined() // error: no fill
   })
 
   it('opens a ready RDP with no status, and flags a failed last connection', () => {
