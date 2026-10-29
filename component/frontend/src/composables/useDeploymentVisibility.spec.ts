@@ -131,7 +131,13 @@ describe('useDeploymentVisibility', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    queryClient.current = { setQueryData, getQueryData, invalidateQueries, cancelQueries: vi.fn() }
+    queryClient.current = {
+      setQueryData,
+      getQueryData,
+      invalidateQueries,
+      cancelQueries: vi.fn(),
+      isMutating: vi.fn(() => 1)
+    }
     useDeploymentVisibility(() => 'dep-1')
   })
 
