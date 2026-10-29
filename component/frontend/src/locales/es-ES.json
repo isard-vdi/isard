@@ -2023,8 +2023,8 @@
         "ip": {
           "title": "Dirección IP"
         },
-        "peripherals": {
-          "title": "Periféricos"
+        "media": {
+          "title": "Medios"
         },
         "reservables": {
           "title": "Reservables"
@@ -2116,8 +2116,8 @@
       "networks": {
         "title": "Redes"
       },
-      "peripherals": {
-        "title": "Periféricos"
+      "media": {
+        "title": "Medios"
       },
       "reservables": {
         "title": "Reservables"
@@ -2521,7 +2521,7 @@
         "hardwareGroups": {
           "hardware": "Hardware",
           "system": "Sistema",
-          "peripherals": "Periféricos",
+          "media": "Medios",
           "reservables": "Reservables"
         },
         "networks": {

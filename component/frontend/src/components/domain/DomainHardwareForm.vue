@@ -864,7 +864,7 @@ defineExpose({
           <div class="flex items-center gap-2">
             <Icon name="hdd" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
             <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
-              {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
+              {{ t('components.domain.hardware.hardwareGroups.media') }}
             </h4>
             <Separator class="flex-1" />
           </div>
