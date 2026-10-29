@@ -466,10 +466,3 @@ class UsersService:
         Get the applied quota for a user.
         """
         return Quotas.get_applied_quota(user_id)
-
-    @staticmethod
-    def get_bastion_allowed(payload: dict) -> bool:
-        """
-        Check if the user can use bastion.
-        """
-        return Helpers.can_use_bastion(payload)
