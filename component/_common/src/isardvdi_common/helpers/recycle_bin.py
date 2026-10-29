@@ -42,6 +42,8 @@ _DELETE_TASK_RETRY_INTERVALS = [30, 120]
 # every other status counts as a live disk that blocks its base's purge
 _PURGE_NON_LIVE_STATUSES = frozenset({"deleted", "orphan", "broken_chain", "recycled"})
 
+_PURGE_TASK_TERMINAL_STATUSES = frozenset({"finished", "failed", "canceled"})
+
 _get_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
 _get_category_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=50, ttl=30
@@ -981,6 +983,49 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
+    def _release_unfinished_purge(cls, recycle_bin_id, entry):
+        """Hand a purge that ended with a failed or canceled task back to recycled."""
+        with cls._rdb_context():
+            result = (
+                r.table("recycle_bin")
+                .get(recycle_bin_id)
+                .update(
+                    lambda doc: r.branch(
+                        doc["status"] == RecycleBinStatusEnum.deleting.value,
+                        {"status": RecycleBinStatusEnum.recycled.value},
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(cls._rdb_connection)
+            )
+        if not result.get("changes"):
+            return
+        cls.clear_get_item_count_cache()
+        cls.clear_get_count_cache()
+        cls.clear_get_user_amount_cache()
+        cls.clear_get_user_recycle_bin_ids_cache()
+        tasks = entry.get("tasks") or []
+        blocked = any(t.get("blocked") for t in tasks)
+        log.warning(
+            "RecycleBin %s update_task_status: %s of %s purge task(s) did not finish%s, back to recycled",
+            recycle_bin_id,
+            sum(t["status"] != "finished" for t in tasks),
+            len(tasks),
+            " (a disk still backs a live one)" if blocked else "",
+        )
+        Helpers.add_log(
+            "delete_blocked_dependents" if blocked else "delete_failed",
+            recycle_bin_id,
+            entry["agent_type"],
+            entry["agent_id"],
+            entry["agent_name"],
+            entry["agent_category_id"],
+            entry["agent_category_name"],
+            entry["agent_role"],
+        )
+
+    @classmethod
     def update_task_status(cls, task):
 
         # First, atomically update the task status and get the updated document
@@ -994,7 +1039,11 @@ class Helpers(RethinkSharedConnection):
                         "tasks": r.row["tasks"].map(
                             lambda rb_task: r.branch(
                                 rb_task["id"] == task["id"],
-                                rb_task.merge({"status": task["status"]}),
+                                rb_task.merge(
+                                    {"status": task["status"]}
+                                    if not task.get("blocked")
+                                    else {"status": task["status"], "blocked": True}
+                                ),
                                 rb_task,
                             )
                         )
@@ -1035,6 +1084,10 @@ class Helpers(RethinkSharedConnection):
         # Done means every task this entry STARTED has finished, which is not one
         # per storage: the delete loop skips rows already gone or already deleted.
         tasks = updated_rb.get("tasks") or []
+        if len(finished_tasks) < len(tasks) and all(
+            t["status"] in _PURGE_TASK_TERMINAL_STATUSES for t in tasks
+        ):
+            cls._release_unfinished_purge(task["recycle_bin_id"], updated_rb)
         if len(finished_tasks) == len(tasks) and updated_rb.get("status") != "deleted":
             start = time.time()
             with cls._rdb_context():

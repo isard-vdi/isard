@@ -58,10 +58,14 @@ def helpers(monkeypatch):
 
     state = {"updates": 0, "logs": []}
 
-    def _drive(entry):
+    def _drive(entry, report=None, second_write_changes=True):
         runs = [
             {"changes": [{"new_val": entry}]},
-            {"changes": [{"new_val": dict(entry, status="deleted")}]},
+            (
+                {"changes": [{"new_val": dict(entry, status="deleted")}]}
+                if second_write_changes
+                else {"changes": []}
+            ),
         ]
 
         def fake_table(_name):
@@ -82,8 +86,15 @@ def helpers(monkeypatch):
             "add_log",
             staticmethod(lambda kind, *a, **kw: state["logs"].append(kind)),
         )
+        for clear in (
+            "clear_get_item_count_cache",
+            "clear_get_count_cache",
+            "clear_get_user_amount_cache",
+            "clear_get_user_recycle_bin_ids_cache",
+        ):
+            monkeypatch.setattr(mod.Helpers, clear, classmethod(lambda cls: None))
         mod.Helpers.update_task_status(
-            {"id": "t1", "recycle_bin_id": "rb1", "status": "finished"}
+            report or {"id": "t1", "recycle_bin_id": "rb1", "status": "finished"}
         )
         # The first update is the per-task status write, which always happens.
         return {"flipped": state["updates"] > 1, "logs": list(state["logs"])}
@@ -158,3 +169,69 @@ def test_an_entry_already_deleted_is_not_flipped_again(helpers):
         )
     )
     assert out["flipped"] is False
+
+
+def _failed(blocked=False):
+    return {"id": "t2", "recycle_bin_id": "rb1", "status": "failed", "blocked": blocked}
+
+
+def test_a_purge_whose_last_task_failed_goes_back_to_recycled(helpers):
+    """The worker refused one disk and the rest finished: before, the entry stayed in deleting for good."""
+    out = helpers(
+        _entry(
+            storages=[{"id": "s1"}, {"id": "s2"}],
+            tasks=[
+                {"id": "t1", "status": "finished"},
+                {"id": "t2", "status": "failed"},
+            ],
+        ),
+        report=_failed(),
+    )
+    assert out["flipped"] is True, "the entry was left in deleting"
+    assert out["logs"] == ["delete_failed"]
+
+
+def test_a_purge_refused_by_a_live_child_logs_it_like_the_db_guard(helpers):
+    out = helpers(
+        _entry(
+            storages=[{"id": "s1"}],
+            tasks=[{"id": "t2", "status": "failed", "blocked": True}],
+        ),
+        report=_failed(blocked=True),
+    )
+    assert out["flipped"] is True
+    assert out["logs"] == ["delete_blocked_dependents"]
+
+
+def test_a_canceled_task_also_releases_the_entry(helpers):
+    out = helpers(
+        _entry(storages=[{"id": "s1"}], tasks=[{"id": "t2", "status": "canceled"}]),
+        report={"id": "t2", "recycle_bin_id": "rb1", "status": "canceled"},
+    )
+    assert out["flipped"] is True
+    assert out["logs"] == ["delete_failed"]
+
+
+def test_a_failed_task_with_work_still_running_waits(helpers):
+    out = helpers(
+        _entry(
+            storages=[{"id": "s1"}, {"id": "s2"}],
+            tasks=[
+                {"id": "t1", "status": "queued"},
+                {"id": "t2", "status": "failed"},
+            ],
+        ),
+        report=_failed(),
+    )
+    assert out["flipped"] is False
+    assert out["logs"] == []
+
+
+def test_an_entry_no_longer_deleting_is_not_logged_again(helpers):
+    """A restore, or a second report racing this one, already moved the entry."""
+    out = helpers(
+        _entry(storages=[{"id": "s1"}], tasks=[{"id": "t2", "status": "failed"}]),
+        report=_failed(),
+        second_write_changes=False,
+    )
+    assert out["logs"] == []

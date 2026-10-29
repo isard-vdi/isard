@@ -549,15 +549,42 @@ def test_recycle_bin_update_calls_common_helper_with_root_status():
     """change-handler shortcuts the apiv4 hop and calls _common directly with the chain root's status."""
     from isardvdi_change_handler.task_results import media
 
-    root = SimpleNamespace(id="root-task", status="finished")
+    root = SimpleNamespace(id="root-task", status="finished", exc_info=None)
     parent = SimpleNamespace(dependencies=[root])
     task = SimpleNamespace(id="dep-task", dependencies=[parent])
 
     with patch.object(media, "RecycleBinHelpers") as mock_helpers:
         media.handle_recycle_bin_update(task, recycle_bin_id="rb-42")
     mock_helpers.update_task_status.assert_called_once_with(
-        {"recycle_bin_id": "rb-42", "id": "root-task", "status": "finished"}
+        {
+            "recycle_bin_id": "rb-42",
+            "id": "root-task",
+            "status": "finished",
+            "blocked": False,
+        }
     )
+
+
+@pytest.mark.parametrize(
+    "exc_info, blocked",
+    [
+        (
+            "Traceback ...\ntask.BackingInUseError: refusing to delete /p.qcow2",
+            True,
+        ),
+        ("Traceback ...\nOSError: [Errno 5] Input/output error", False),
+    ],
+)
+def test_recycle_bin_update_flags_a_purge_refused_by_a_live_child(exc_info, blocked):
+    from isardvdi_change_handler.task_results import media
+
+    root = SimpleNamespace(id="root-task", status="failed", exc_info=exc_info)
+    task = SimpleNamespace(
+        id="dep-task", dependencies=[SimpleNamespace(dependencies=[root])]
+    )
+    with patch.object(media, "RecycleBinHelpers") as mock_helpers:
+        media.handle_recycle_bin_update(task, recycle_bin_id="rb-42")
+    assert mock_helpers.update_task_status.call_args.args[0]["blocked"] is blocked
 
 
 def test_recycle_bin_update_skips_when_recycle_bin_id_missing():
