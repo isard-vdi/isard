@@ -347,15 +347,18 @@ done
 report_step 8 "Firewall rules" None
 
 echo "---> Applying NOTRACK rules for tunnel traffic (reduces conntrack overhead)..."
-# In both modes the on-the-wire tunnel port is WG_HYPERS_PORT:
-#   wireguard+geneve: WireGuard UDP on WG_HYPERS_PORT (Geneve 6081 runs inside the tunnel)
-#   geneve:           plain Geneve UDP on WG_HYPERS_PORT
+# Outgoing tunnel packets have a hashed source port: they need --dport to skip conntrack.
 _tunnel_port=${WG_HYPERS_PORT:-4443}
-iptables -t raw -C PREROUTING -p udp --dport "$_tunnel_port" -j NOTRACK 2>/dev/null || \
-    iptables -t raw -I PREROUTING 1 -p udp --dport "$_tunnel_port" -j NOTRACK
-iptables -t raw -C OUTPUT -p udp --sport "$_tunnel_port" -j NOTRACK 2>/dev/null || \
-    iptables -t raw -I OUTPUT 1 -p udp --sport "$_tunnel_port" -j NOTRACK
-echo "  Tunnel traffic (UDP $_tunnel_port): NOTRACK applied"
+_geneve_port=6081
+for _port in $_tunnel_port $_geneve_port; do
+    iptables -t raw -C PREROUTING -p udp --dport "$_port" -j NOTRACK 2>/dev/null || \
+        iptables -t raw -I PREROUTING 1 -p udp --dport "$_port" -j NOTRACK
+    iptables -t raw -C OUTPUT -p udp --dport "$_port" -j NOTRACK 2>/dev/null || \
+        iptables -t raw -I OUTPUT 1 -p udp --dport "$_port" -j NOTRACK
+    iptables -t raw -C OUTPUT -p udp --sport "$_port" -j NOTRACK 2>/dev/null || \
+        iptables -t raw -I OUTPUT 1 -p udp --sport "$_port" -j NOTRACK
+done
+echo "  Tunnel traffic (UDP $_tunnel_port, $_geneve_port): NOTRACK applied"
 
 echo "---> Applying Video Traffic Prioritization..."
 /src/tc/tc_video.sh
