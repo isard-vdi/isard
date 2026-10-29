@@ -27,7 +27,7 @@ import { DesktopStatusBadge } from '@/components/desktops'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import { toast } from '@/components/ui/toast'
 
-import { VisibilityLegend, VisibilityToggle } from '@/components/deployments/visibility'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DeploymentVisibilityModal } from '@/components/deployments/actions/visibility-modal'
 import { useDeploymentVisibility } from '@/composables/useDeploymentVisibility'
 import { desktopStatusLabel } from '@/lib/desktops'
@@ -111,8 +111,8 @@ const header = computed<HeaderCell[]>(() => [
     // DataTableHead is `h-10` by default, so this cell would keep a fixed 40px
     // and sit at the top of a header row the desktop columns make taller.
     // Bottom-padded so the label lands on the desktop columns' sub-label line:
-    // the header's own 8px, the inner block's 8px, the 24px toggle and its 6px gap.
-    headerClass: 'h-auto min-h-28 py-2 items-end pb-[46px]',
+    // the header's own 8px, the inner block's 8px, the 20px checkbox and its 6px gap.
+    headerClass: 'h-auto min-h-28 py-2 items-end pb-[42px]',
     // Elastic so the matrix keeps the same width whatever the deployment holds:
     // whatever the capped desktop columns leave over lands here.
     width: 'minmax(200px, 1fr)'
@@ -122,7 +122,7 @@ const header = computed<HeaderCell[]>(() => [
     key: 'all',
     sortable: false,
     width: '88px',
-    headerClass: 'h-auto min-h-28 py-2 justify-center items-end pb-[46px]',
+    headerClass: 'h-auto min-h-28 py-2 justify-center items-end pb-[42px]',
     cellClass: 'justify-center'
   },
   ...columns.value.map((column) => ({
@@ -485,169 +485,165 @@ const goBack = () =>
     </div>
 
     <template v-else-if="filteredUsers.length > 0">
-      <!-- Grouped with the table so PageContainer's gap-6 does not push the
-           legend away from it. -->
-      <div class="flex flex-col gap-2">
-        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <VisibilityLegend />
-          <!-- The toggles are boxed icons, so say out loud that they are ours to click. -->
-          <p class="flex items-center gap-1.5 pr-2 text-xs text-gray-warm-500">
-            <Icon
-              name="cursor-click-01"
-              size="xs"
-              stroke-color="gray-warm-500"
-              aria-hidden="true"
+      <DataTable
+        :rows="filteredUsers"
+        :headers="header"
+        cell-class="h-16"
+        row-class="group"
+        :is-clickable="false"
+      >
+        <!-- A column header applies to every user of the deployment,
+             including those on other pages of the table. -->
+        <template v-for="column in columns" :key="column.key" #[`head-${column.key}`]>
+          <!-- Title at the top, controls pinned to the bottom, so every
+               column's title and checkbox share a line across the table. -->
+          <div class="flex h-full w-full flex-col items-center justify-between gap-3 py-2">
+            <!-- `px-2`: a two-line name would otherwise run into the rules
+                 that separate one desktop from the next. Clamped at two
+                 lines, so only a longer name gets the tooltip. -->
+            <TruncatedText
+              as="span"
+              :lines="2"
+              :title="column.name"
+              class="max-w-full px-2 text-center text-xs font-medium"
             />
-            {{ t('views.deployment-visibility.click-hint') }}
-          </p>
-        </div>
-        <DataTable
-          :rows="filteredUsers"
-          :headers="header"
-          cell-class="h-16"
-          row-class="group"
-          :is-clickable="false"
-        >
-          <!-- A column header applies to every user of the deployment,
-               including those on other pages of the table. -->
-          <template v-for="column in columns" :key="column.key" #[`head-${column.key}`]>
-            <!-- Title at the top, controls pinned to the bottom, so every
-                 column's title and toggle share a line across the table. -->
-            <div class="flex h-full w-full flex-col items-center justify-between gap-3 py-2">
-              <!-- `px-2`: a two-line name would otherwise run into the rules
-                   that separate one desktop from the next. Clamped at two
-                   lines, so only a longer name gets the tooltip. -->
-              <TruncatedText
-                as="span"
-                :lines="2"
-                :title="column.name"
-                class="max-w-full px-2 text-center text-xs font-medium"
-              />
-              <!-- Same tracks as every cell below, so the divider and the
-                   two sub-columns line up down the whole table. -->
-              <div class="grid w-full grid-cols-2">
-                <span class="flex flex-col items-center gap-1.5">
-                  <!-- Label and count on one line: stacked they cost a row of
-                       header height and squeeze the title above them. -->
-                  <span
-                    class="flex items-baseline gap-1 text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase"
-                  >
-                    {{ t('views.deployments.visibility.visible') }}
-                    <span class="text-xs normal-case">{{ columnCount(column.tagDesktopId) }}</span>
-                  </span>
-                  <!-- Only the toggle carries the warning: on the whole header
-                       it fired over the title too and read as a column hint. -->
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <VisibilityToggle
-                        :model-value="columnState(users, column.tagDesktopId)"
-                        :disabled="isSettingVisibility"
-                        :label="
-                          t('views.deployment.visibility.column-label', { desktop: column.name })
-                        "
-                        @update:model-value="toggleColumn(column)"
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent :title="columnTooltip(column)" />
-                  </Tooltip>
+            <!-- Same tracks as every cell below, so the divider and the
+                 two sub-columns line up down the whole table. -->
+            <div class="grid w-full grid-cols-2">
+              <span class="flex flex-col items-center gap-1.5">
+                <!-- Label and count on one line: stacked they cost a row of
+                     header height and squeeze the title above them. -->
+                <span
+                  class="flex items-baseline gap-1 text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase"
+                >
+                  {{ t('views.deployments.visibility.visible') }}
+                  <span class="text-xs normal-case">{{ columnCount(column.tagDesktopId) }}</span>
                 </span>
-                <span class="flex flex-col items-center self-stretch">
-                  <span class="text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase">
-                    {{ t('views.deployment-visibility.headers.state') }}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-name="{ row }">
-            <AvatarLabel :src="row.photo" :name="row.name" />
-          </template>
-
-          <template #cell-all="{ row }">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <span class="inline-flex">
-                  <VisibilityToggle
-                    :model-value="rowState(row as DeploymentUserDetail)"
-                    :disabled="
-                      isSettingVisibility || !userDesktops(row as DeploymentUserDetail).length
-                    "
-                    :label="rowLabel(row as DeploymentUserDetail)"
-                    @update:model-value="toggleUser(row as DeploymentUserDetail)"
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent :title="rowTooltip(row as DeploymentUserDetail)" />
-            </Tooltip>
-          </template>
-
-          <template
-            v-for="column in columns"
-            :key="`cell-${column.key}`"
-            #[`cell-${column.key}`]="{ row }"
-          >
-            <!-- Visibility and run state are different things, so they get a
-                 track each instead of sharing the cell around the toggle. -->
-            <div class="grid w-full grid-cols-2 items-center">
-              <span class="flex justify-center">
-                <Tooltip v-if="!cellFor(row as DeploymentUserDetail, column.tagDesktopId)">
+                <!-- Only the checkbox carries the warning: on the whole header
+                     it fired over the title too and read as a column hint. -->
+                <Tooltip>
                   <TooltipTrigger as-child>
-                    <span class="inline-flex">
-                      <VisibilityToggle
-                        :model-value="false"
-                        disabled
-                        :label="
-                          t('views.deployment.visibility.no-desktop', {
-                            desktop: column.name,
-                            user: row.name
-                          })
-                        "
-                      />
-                    </span>
+                    <Checkbox
+                      :model-value="columnState(users, column.tagDesktopId)"
+                      :indeterminate="columnState(users, column.tagDesktopId) === 'indeterminate'"
+                      :disabled="isSettingVisibility"
+                      :aria-label="
+                        t('views.deployment.visibility.column-label', { desktop: column.name })
+                      "
+                      size="md"
+                      class="bg-base-white"
+                      @update:model-value="toggleColumn(column)"
+                    />
                   </TooltipTrigger>
-                  <TooltipContent
-                    :title="
-                      t('views.deployment.visibility.no-desktop', {
-                        desktop: column.name,
-                        user: row.name
-                      })
-                    "
-                  />
-                </Tooltip>
-                <Tooltip v-else>
-                  <TooltipTrigger as-child>
-                    <span class="inline-flex">
-                      <VisibilityToggle
-                        :model-value="
-                          !!cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.visible
-                        "
-                        :disabled="isSettingVisibility"
-                        :label="
-                          t('views.deployment.visibility.cell-label', {
-                            desktop: column.name,
-                            user: row.name
-                          })
-                        "
-                        @update:model-value="toggleCell(row as DeploymentUserDetail, column)"
-                      />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent :title="cellTooltip(row as DeploymentUserDetail, column)" />
+                  <TooltipContent :title="columnTooltip(column)" />
                 </Tooltip>
               </span>
+              <span class="flex flex-col items-center self-stretch">
+                <span class="text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase">
+                  {{ t('views.deployment-visibility.headers.state') }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </template>
 
-              <span class="flex h-full min-w-0 items-center justify-center px-2">
-                <DesktopStatusBadge
-                  v-if="cellFor(row as DeploymentUserDetail, column.tagDesktopId)"
-                  :status="cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.status"
-                  class="max-w-full min-w-0 [&>span]:truncate"
+        <template #cell-name="{ row }">
+          <AvatarLabel :src="row.photo" :name="row.name" />
+        </template>
+
+        <template #cell-all="{ row }">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="inline-flex">
+                <Checkbox
+                  :model-value="rowState(row as DeploymentUserDetail)"
+                  :indeterminate="rowState(row as DeploymentUserDetail) === 'indeterminate'"
+                  :disabled="
+                    isSettingVisibility || !userDesktops(row as DeploymentUserDetail).length
+                  "
+                  :aria-label="rowLabel(row as DeploymentUserDetail)"
+                  size="md"
+                  :class="[
+                    'bg-base-white',
+                    !userDesktops(row as DeploymentUserDetail).length && 'opacity-50'
+                  ]"
+                  @update:model-value="toggleUser(row as DeploymentUserDetail)"
                 />
               </span>
-            </div>
-          </template>
-        </DataTable>
-      </div>
+            </TooltipTrigger>
+            <TooltipContent :title="rowTooltip(row as DeploymentUserDetail)" />
+          </Tooltip>
+        </template>
+
+        <template
+          v-for="column in columns"
+          :key="`cell-${column.key}`"
+          #[`cell-${column.key}`]="{ row }"
+        >
+          <!-- Visibility and run state are different things, so they get a
+               track each instead of sharing the cell around the checkbox. -->
+          <div class="grid w-full grid-cols-2 items-center">
+            <span class="flex justify-center">
+              <Tooltip v-if="!cellFor(row as DeploymentUserDetail, column.tagDesktopId)">
+                <TooltipTrigger as-child>
+                  <span class="inline-flex">
+                    <Checkbox
+                      :model-value="false"
+                      disabled
+                      size="md"
+                      class="bg-base-white opacity-50"
+                      :aria-label="
+                        t('views.deployment.visibility.no-desktop', {
+                          desktop: column.name,
+                          user: row.name
+                        })
+                      "
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent
+                  :title="
+                    t('views.deployment.visibility.no-desktop', {
+                      desktop: column.name,
+                      user: row.name
+                    })
+                  "
+                />
+              </Tooltip>
+              <Tooltip v-else>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex">
+                    <Checkbox
+                      :model-value="
+                        !!cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.visible
+                      "
+                      :disabled="isSettingVisibility"
+                      size="md"
+                      class="bg-base-white"
+                      :aria-label="
+                        t('views.deployment.visibility.cell-label', {
+                          desktop: column.name,
+                          user: row.name
+                        })
+                      "
+                      @update:model-value="toggleCell(row as DeploymentUserDetail, column)"
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent :title="cellTooltip(row as DeploymentUserDetail, column)" />
+              </Tooltip>
+            </span>
+
+            <span class="flex h-full min-w-0 items-center justify-center px-2">
+              <DesktopStatusBadge
+                v-if="cellFor(row as DeploymentUserDetail, column.tagDesktopId)"
+                :status="cellFor(row as DeploymentUserDetail, column.tagDesktopId)?.status"
+                class="max-w-full min-w-0 [&>span]:truncate"
+              />
+            </span>
+          </div>
+        </template>
+      </DataTable>
     </template>
 
     <EmptyState v-else kind="deployment-users" :variant="hasFilters ? 'no-results' : 'first-run'" />

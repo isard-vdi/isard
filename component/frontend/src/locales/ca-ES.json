@@ -1163,7 +1163,6 @@
       "show-all": "Mostra-ho tot",
       "hide-all": "Amaga-ho tot",
       "search-placeholder": "Cerca un usuari",
-      "click-hint": "Fes clic a les icones per mostrar o amagar cada escriptori",
       "headers": {
         "user": "Usuari",
         "all": "Tots",
