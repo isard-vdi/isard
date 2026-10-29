@@ -2848,6 +2848,13 @@
           "viewing": "Estàs veient aquest escriptori",
           "no-web-viewer": "Aquest escriptori no té visor web; obre'l des del menú de visors"
         }
+      },
+      "started-desktops-modal": {
+        "title": "{count} escriptori no està aturat | {count} escriptoris no estan aturats",
+        "description": "Un desplegament no es pot editar fins que tots els seus escriptoris estiguin aturats.",
+        "manage-hint": "Podeu aturar-los des de la gestió del desplegament.",
+        "close": "Tanca",
+        "manage": "Ves a la gestió del desplegament"
       }
     },
     "change-image-modal": {

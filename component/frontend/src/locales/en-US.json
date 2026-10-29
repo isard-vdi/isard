@@ -2939,6 +2939,13 @@
           "viewing": "You are viewing this desktop",
           "no-web-viewer": "This desktop has no web viewer; open it from the viewers menu"
         }
+      },
+      "started-desktops-modal": {
+        "title": "{count} desktop is not stopped | {count} desktops are not stopped",
+        "description": "A deployment cannot be edited until all of its desktops are stopped.",
+        "manage-hint": "You can stop them from the deployment's management page.",
+        "close": "Close",
+        "manage": "Go to deployment management"
       }
     },
     "bookings": {

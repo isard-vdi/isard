@@ -30,11 +30,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
+import { DeploymentStartedDesktopsModal } from '@/components/deployments/actions/started-desktops-modal'
+import { useDeploymentEditGuard } from '@/composables/useDeploymentEditGuard'
 import { EmptyState, PageContainer, PageToolbar, SearchInput } from '@/components/page'
 import {
   FilterTags,
@@ -45,6 +47,8 @@ import {
 
 const { t } = useI18n()
 const router = useRouter()
+
+const { guarded, editRoute, onEditClick, closeGuard } = useDeploymentEditGuard()
 const route = useRoute()
 const queryClient = useQueryClient()
 
@@ -221,7 +225,8 @@ interface DeploymentAction {
   disabledFor?: (deployment: OwnedDeployment) => boolean
   disabledTooltip?: string
   hiddenFor?: (deployment: OwnedDeployment) => boolean
-  fn: (deployment: OwnedDeployment) => void
+  to?: (deployment: OwnedDeployment) => RouteLocationRaw
+  fn: (deployment: OwnedDeployment, event: MouseEvent) => void
 }
 
 const dropdownActions = computed<DeploymentAction[]>(() => [
@@ -229,11 +234,8 @@ const dropdownActions = computed<DeploymentAction[]>(() => [
     key: 'edit',
     icon: 'edit-01',
     label: t('views.deployments.dropdown.buttons.edit'),
-    fn: (deployment: OwnedDeployment) => ({
-      name: 'edit-deployment',
-      params: { deploymentId: deployment.id }
-    }),
-    routerLink: true
+    to: (deployment: OwnedDeployment) => editRoute(deployment.id),
+    fn: (deployment: OwnedDeployment, event: MouseEvent) => onEditClick(event, deployment.id)
   },
   {
     key: 'alloweds',
@@ -499,6 +501,14 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
     :on-success="closeDeleteModal"
     @close="closeDeleteModal"
   />
+  <DeploymentStartedDesktopsModal
+    v-if="guarded"
+    open
+    :deployment-id="guarded.deploymentId"
+    :started-count="guarded.startedCount"
+    show-manage-link
+    @close="closeGuard"
+  />
   <PageContainer>
     <div v-if="deploymentsIsError" class="text-center text-error-500">
       <pre>{{ deploymentsError }}</pre>
@@ -580,9 +590,9 @@ const DEPLOYMENTS_SEARCH_INPUT_ID = 'deployments-search'
                         v-for="action in visibleDropdownActions(row)"
                         :key="action.key"
                         :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
-                        :as="action.routerLink ? RouterLink : undefined"
-                        :to="action.routerLink ? action.fn(row) : null"
-                        @click="action.routerLink ? null : action.fn(row)"
+                        :as="action.to ? RouterLink : undefined"
+                        :to="action.to?.(row)"
+                        @click.capture="action.fn(row, $event)"
                       >
                         <Button
                           size="sm"

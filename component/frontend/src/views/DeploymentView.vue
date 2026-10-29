@@ -37,6 +37,8 @@ import { RecreateModal } from '@/components/deployments/actions/recreate-modal'
 import { DeleteModal } from '@/components/deployments/actions/delete-modal'
 import { DownloadCsvModal } from '@/components/deployments/actions/download-csv-modal'
 import { DeleteDesktopsModal } from '@/components/deployments/actions/delete-desktops-modal'
+import { DeploymentStartedDesktopsModal } from '@/components/deployments/actions/started-desktops-modal'
+import { useDeploymentEditGuard } from '@/composables/useDeploymentEditGuard'
 import { DeploymentUserVisibilityModal } from '@/components/deployments/actions/user-visibility-modal'
 import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
 import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
@@ -52,6 +54,14 @@ const { t, d, locale } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
+
+const {
+  guarded,
+  pending: editPending,
+  editRoute,
+  onEditClick,
+  closeGuard
+} = useDeploymentEditGuard()
 const deploymentId = computed(() => {
   const param = route.params.deploymentId || route.params.id
   if (Array.isArray(param)) return param[0] || ''
@@ -265,11 +275,9 @@ const dropdownActions = computed(() => [
     key: 'edit',
     icon: 'edit-01',
     label: t('views.deployments.dropdown.buttons.edit'),
-    fn: (deployment?: { id?: string }) => ({
-      name: 'edit-deployment',
-      params: { deploymentId: deployment?.id || '' }
-    }),
-    routerLink: true
+    disabled: editPending.value,
+    to: editRoute(deploymentId.value),
+    fn: (event: MouseEvent) => onEditClick(event, deploymentId.value)
   },
   {
     key: 'download',
@@ -573,6 +581,13 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
     :deployment="deploymentEntry"
     @close="showProvisioningModal = false"
   />
+  <DeploymentStartedDesktopsModal
+    v-if="guarded"
+    open
+    :deployment-id="guarded.deploymentId"
+    :started-count="guarded.startedCount"
+    @close="closeGuard"
+  />
   <StopAllDesktopsModal
     :open="showStopAllModal"
     :started-count="startedDesktopsCount"
@@ -717,9 +732,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                 :key="action.key"
                 :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
                 :disabled="action.disabled"
-                :as="action.routerLink ? RouterLink : undefined"
-                :to="action.routerLink ? action.fn(deploymentEntry?.info) : null"
-                @click="action.routerLink ? null : action.fn(deploymentEntry?.info)"
+                :as="action.to ? RouterLink : undefined"
+                :to="action.to"
+                @click.capture="action.fn($event)"
               >
                 <Button
                   size="sm"
