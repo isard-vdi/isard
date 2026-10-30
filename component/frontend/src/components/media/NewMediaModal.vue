@@ -78,6 +78,7 @@ const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['getUserMedia'] })
     form.reset()
+    nameTouchedByUser.value = false
     creationError.value = null
     emit('close')
   },
@@ -136,15 +137,27 @@ const isFormDirty = form.useStore(
   (state) => !!(state.values.name || state.values.url || state.values.description)
 )
 
-function setMediaNameFromUrl() {
-  const name = form.getFieldValue('name')
-  if (!name) {
-    const url = form.getFieldValue('url')
-    const lastSegment = url.split('/').pop() || ''
-    if (lastSegment) {
-      form.setFieldValue('name', lastSegment)
-    }
+// The name follows the URL until the user edits it (even to clear it).
+const nameTouchedByUser = ref(false)
+const mediaUrl = form.useStore((state) => state.values.url)
+
+function mediaNameFromUrl(url: string): string {
+  try {
+    const segment = new URL(url.trim()).pathname.split('/').filter(Boolean).pop() || ''
+    return decodeURIComponent(segment).slice(0, 50)
+  } catch {
+    return ''
   }
+}
+
+watch(mediaUrl, (url) => {
+  if (nameTouchedByUser.value) return
+  form.setFieldValue('name', mediaNameFromUrl(url), { dontUpdateMeta: true })
+})
+
+function handleNameInput(field: any, value: string) {
+  nameTouchedByUser.value = true
+  field.handleChange(value)
 }
 
 function isInvalid(field: any) {
@@ -154,6 +167,7 @@ function isInvalid(field: any) {
 const handleClose = () => {
   if (createMediaIsPending.value) return
   form.reset()
+  nameTouchedByUser.value = false
   creationError.value = null
   emit('close')
 }
@@ -211,12 +225,7 @@ const handleClose = () => {
               autocomplete="off"
               type="text"
               class="w-full"
-              @blur="
-                () => {
-                  field.handleBlur()
-                  setMediaNameFromUrl()
-                }
-              "
+              @blur="field.handleBlur"
               @input="field.handleChange($event.target.value)"
             />
           </FieldContent>
@@ -242,7 +251,7 @@ const handleClose = () => {
               maxlength="50"
               class="w-full"
               @blur="field.handleBlur"
-              @input="field.handleChange($event.target.value)"
+              @input="handleNameInput(field, $event.target.value)"
             />
           </FieldContent>
           <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
