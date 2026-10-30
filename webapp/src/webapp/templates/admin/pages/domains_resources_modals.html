@@ -237,6 +237,28 @@
                                             </i>
                                         </label>
 
+                                        <label class="control-label" style="cursor:pointer; display:block; font-weight:normal; text-align:left;">
+                                            <input type="checkbox" id="lab_unicast_limit" name="lab_unicast_limit"
+                                                   value="true" autocomplete="off" style="margin-right:6px;">
+                                            Limit unicast rate
+                                            <i class="fa fa-info-circle" style="color:#3498db; margin-left:4px; cursor:help;"
+                                               data-toggle="tooltip" data-placement="right" data-html="true"
+                                               title="<b>What is installed.</b> A per-desktop packets/s meter on the own-MAC unicast catch-all (flow priority=198) of this overlay network. <b>Off by default</b> (an upgrade changes nothing): enable it per network. Suggested <b>10000 pps / burst 20000</b>. It bounds a single desktop flooding the geneve overlay with tiny packets (e.g. <code>hping3 --flood</code>); because it counts datapath packets, bulk TCP (large GSO segments) and ordinary UDP stay far below the cap.<br><br><b>Rate / burst.</b> Set the per-network values below (packets/s). The burst must be &gt;= the rate. apiv4 bounds the rate to 1000..1000000 pps.<br><br><b>Scope.</b> Applies only to desktops started AFTER the change (written to the XML metadata at start). VLAN 4095 (infra) is unaffected.">
+                                            </i>
+                                        </label>
+                                        <div id="lab_unicast_fields" style="margin:2px 0 6px 22px; font-weight:normal; text-align:left;">
+                                            <label class="control-label" style="font-weight:normal; margin-right:12px;">Rate (pps)
+                                                <input type="number" id="lab_unicast_rate" name="lab_unicast_rate"
+                                                       min="1000" max="1000000" value="10000"
+                                                       style="width:95px; margin-left:4px;">
+                                            </label>
+                                            <label class="control-label" style="font-weight:normal;">Burst
+                                                <input type="number" id="lab_unicast_burst" name="lab_unicast_burst"
+                                                       min="1000" max="2000000" value="20000"
+                                                       style="width:95px; margin-left:4px;">
+                                            </label>
+                                        </div>
+
                                         <div id="lab_opts_warning" class="alert alert-warning"
                                              style="display:none; margin-top:8px; margin-bottom:0; padding:6px 10px; font-size:11px;">
                                             <i class="fa fa-exclamation-triangle"></i>

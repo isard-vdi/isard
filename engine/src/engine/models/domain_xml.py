@@ -306,12 +306,19 @@ LAB_OPT_ATTRS = {
 
 def normalize_lab_opts(lab_opts):
     """Strict bool coercion at the boundary: only an actual Python ``True``
-    enables an option. Defends against stringly-typed DB values ("false" is
-    truthy in Python) and missing keys from non-API writers (populate.py,
-    upgrade.py, direct rdb writes). Returns a dict with every known lab_opts
-    key set to a real bool."""
+    enables a relaxation flag. Defends against stringly-typed DB values ("false"
+    is truthy in Python) and missing keys from non-API writers (populate.py,
+    upgrade.py, direct rdb writes). The opt-in unicast meter keys are omitted
+    when absent so a legacy row stays unmetered."""
     src = lab_opts if isinstance(lab_opts, dict) else {}
-    return {key: src.get(key) is True for key in LAB_OPT_ATTRS}
+    out = {key: src.get(key) is True for key in LAB_OPT_ATTRS}
+    if "unicast_limit" in src:
+        out["unicast_limit"] = src.get("unicast_limit") is True
+    if isinstance(src.get("unicast_rate"), int) and src["unicast_rate"] > 0:
+        out["unicast_rate"] = src["unicast_rate"]
+    if isinstance(src.get("unicast_burst"), int) and src["unicast_burst"] > 0:
+        out["unicast_burst"] = src["unicast_burst"]
+    return out
 
 
 def set_domain_type_and_emulator(tree, type="kvm", emulator="/usr/bin/qemu-kvm"):
@@ -1239,6 +1246,16 @@ class DomainXML(object):
                     mapping_elem.set(
                         attr_name, "true" if lab.get(opt_key) is True else "false"
                     )
+                # absent fields keep the hypervisor's flow 198 unmetered
+                if "unicast_limit" in lab:
+                    mapping_elem.set(
+                        "lab_unicast_limit",
+                        "true" if lab.get("unicast_limit") is True else "false",
+                    )
+                if isinstance(lab.get("unicast_rate"), int):
+                    mapping_elem.set("lab_unicast_rate", str(lab["unicast_rate"]))
+                if isinstance(lab.get("unicast_burst"), int):
+                    mapping_elem.set("lab_unicast_burst", str(lab["unicast_burst"]))
             elif mapping["kind"] == "user_network":
                 mapping_elem.set("network_id", mapping.get("network_id", ""))
                 mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))

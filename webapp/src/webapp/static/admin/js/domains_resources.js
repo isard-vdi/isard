@@ -685,6 +685,11 @@ $(document).ready(function () {
         LAB_OPT_IDS.forEach(function (id) {
             $('#modalInterfaces #' + id).iCheck('uncheck').iCheck('update')
         })
+        // The unicast limit is OPT-IN (off by default): reset unchecked, with the
+        // suggested rate/burst prefilled for when the admin enables it.
+        $('#modalInterfaces #lab_unicast_limit').iCheck('uncheck').iCheck('update')
+        $('#modalInterfaces #lab_unicast_rate').val(10000)
+        $('#modalInterfaces #lab_unicast_burst').val(20000)
         $('#lab_opts_warning').hide()
     }
     function netRangeIncludes4095(s) {
@@ -738,6 +743,12 @@ $(document).ready(function () {
     // iCheck-wrapped checkboxes fire ifChanged/ifChecked/ifUnchecked, NOT the
     // native 'change' event, so bind the iCheck event.
     $('#modalInterfaces #lab_mac_spoofing').on('ifChanged', refreshLabOptsWarning)
+    // Grey out the rate/burst inputs when the unicast limit is unchecked.
+    function refreshUnicastFields() {
+        $('#modalInterfaces #lab_unicast_rate, #modalInterfaces #lab_unicast_burst')
+            .prop('disabled', !$('#modalInterfaces #lab_unicast_limit').is(':checked'))
+    }
+    $('#modalInterfaces #lab_unicast_limit').on('ifChanged', refreshUnicastFields)
 
     // Initialise the data-html tooltips on the info icons (Bootstrap does not
     // do this automatically; without it the markup renders as literal text).
@@ -869,6 +880,16 @@ $(document).ready(function () {
                                 .iCheck(on ? 'check' : 'uncheck')
                                 .iCheck('update')
                         })
+                        // unicast limit: opt-in, ON only when explicitly true;
+                        // rate/burst fall back to the suggested values otherwise.
+                        $('#modalInterfacesForm #lab_unicast_limit')
+                            .iCheck(lab.unicast_limit === true ? 'check' : 'uncheck')
+                            .iCheck('update')
+                        $('#modalInterfacesForm #lab_unicast_rate')
+                            .val(lab.unicast_rate != null ? lab.unicast_rate : 10000)
+                        $('#modalInterfacesForm #lab_unicast_burst')
+                            .val(lab.unicast_burst != null ? lab.unicast_burst : 20000)
+                        refreshUnicastFields()
                         refreshLabOptsWarning()
                         refreshLabOptsVisibility()
                     }
@@ -948,6 +969,14 @@ $(document).ready(function () {
                 data['lab_opts'][LAB_OPT_KEYS[id]] = $('#modalInterfaces #' + id).is(':checked')
                 delete data[id]
             })
+            // Per-network unicast meter: enable flag + rate/burst (ints). NaN/empty
+            // falls back to the defaults so the payload never carries null.
+            data['lab_opts']['unicast_limit'] = $('#modalInterfaces #lab_unicast_limit').is(':checked')
+            data['lab_opts']['unicast_rate'] = parseInt($('#modalInterfaces #lab_unicast_rate').val(), 10) || 10000
+            data['lab_opts']['unicast_burst'] = parseInt($('#modalInterfaces #lab_unicast_burst').val(), 10) || 20000
+            delete data['lab_unicast_limit']
+            delete data['lab_unicast_rate']
+            delete data['lab_unicast_burst']
             if (data['id'] == "") {
                 //Insert
                 data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }

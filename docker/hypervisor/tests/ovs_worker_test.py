@@ -46,6 +46,27 @@ def _all_lab_attrs(value: str) -> str:
     return _lab_attrs(**{f: value for f in _LAB_FLAGS})
 
 
+def _unicast_attrs(limit=None, rate=None, burst=None) -> str:
+    """Build the per-network unicast-limit XML attribute string."""
+    out = ""
+    if limit is not None:
+        out += f' lab_unicast_limit="{limit}"'
+    if rate is not None:
+        out += f' lab_unicast_rate="{rate}"'
+    if burst is not None:
+        out += f' lab_unicast_burst="{burst}"'
+    return out
+
+
+def _expect_lab_opts(bools_value, unicast_limit=False, rate=10000, burst=20000):
+    """The full parse_lab_opts shape: four relaxation bools + the per-network
+    unicast meter (OPT-IN: off by default, rate/burst parsed to the module
+    defaults so they are ready if enabled)."""
+    d = {f: bools_value for f in _LAB_FLAGS}
+    d.update(unicast_limit=unicast_limit, unicast_rate=rate, unicast_burst=burst)
+    return d
+
+
 # --------------------------------------------------------------------------
 # _parse_mac2network_metadata: lab_* attributes -> iface["lab_opts"] dict
 # --------------------------------------------------------------------------
@@ -57,7 +78,7 @@ def test_parse_mac2network_all_lab_flags_true():
         ' interface_id="if-lab" vlan_id="1002"' + _all_lab_attrs("true") + "/>"
     )
     parsed = _worker_without_init()._parse_mac2network_metadata(xml)
-    assert parsed["52:54:00:aa:bb:01"]["lab_opts"] == {f: True for f in _LAB_FLAGS}
+    assert parsed["52:54:00:aa:bb:01"]["lab_opts"] == _expect_lab_opts(True)
 
 
 def test_parse_mac2network_all_lab_flags_false_explicit():
@@ -66,7 +87,7 @@ def test_parse_mac2network_all_lab_flags_false_explicit():
         ' interface_id="if-prod" vlan_id="1003"' + _all_lab_attrs("false") + "/>"
     )
     parsed = _worker_without_init()._parse_mac2network_metadata(xml)
-    assert parsed["52:54:00:aa:bb:02"]["lab_opts"] == {f: False for f in _LAB_FLAGS}
+    assert parsed["52:54:00:aa:bb:02"]["lab_opts"] == _expect_lab_opts(False)
 
 
 def test_parse_mac2network_lab_flags_missing_default_false():
@@ -76,7 +97,7 @@ def test_parse_mac2network_lab_flags_missing_default_false():
         ' interface_id="if-legacy" vlan_id="1004"/>'
     )
     parsed = _worker_without_init()._parse_mac2network_metadata(xml)
-    assert parsed["52:54:00:aa:bb:03"]["lab_opts"] == {f: False for f in _LAB_FLAGS}
+    assert parsed["52:54:00:aa:bb:03"]["lab_opts"] == _expect_lab_opts(False)
 
 
 @pytest.mark.parametrize("flag", _LAB_FLAGS)
@@ -163,7 +184,7 @@ def test_parse_interfaces_lab_opts_missing_defaults_all_false():
     """Legacy domain XML without lab_* attributes -> all flags False."""
     xml = _full_domain_xml("vnet99", "52:54:00:00:01:03", lab_attrs="")
     interfaces = _worker_without_init()._parse_interfaces(xml)
-    assert interfaces[0]["lab_opts"] == {f: False for f in _LAB_FLAGS}
+    assert interfaces[0]["lab_opts"] == _expect_lab_opts(False)
 
 
 # --------------------------------------------------------------------------
@@ -846,3 +867,172 @@ def test_wireguard_geneve_port_is_named_after_the_domain(monkeypatch):
     )
     worker = _worker_without_init()
     assert worker._discover_geneve_port() == "3"
+
+
+# --------------------------------------------------------------------------
+# Per-network unicast rate meter on the strict (non-4095) flow 198. OPT-IN:
+# absent -> off (plain NORMAL, as main). Covers parsing, the unset/legacy
+# default (no meter), enabling with a value, the disable path, and VLAN 4095.
+# --------------------------------------------------------------------------
+
+
+def _parse_one(mac, vlan, lab_attrs=""):
+    xml = _domain_xml_with_vlan(mac, vlan, lab_attrs)
+    return _worker_without_init()._parse_mac2network_metadata(xml)[mac]["lab_opts"]
+
+
+def test_parse_unicast_limit_absent_is_disabled():
+    lab = _parse_one("52:54:00:00:20:01", "1002")
+    assert lab["unicast_limit"] is False
+    # rate/burst still parse to the module defaults, ready if enabled later
+    assert lab["unicast_rate"] == ovs_worker.STRICT_UNICAST_RATE
+    assert lab["unicast_burst"] == ovs_worker.STRICT_UNICAST_BURST
+
+
+def test_parse_unicast_limit_enabled_custom_values():
+    lab = _parse_one(
+        "52:54:00:00:20:02",
+        "1002",
+        _unicast_attrs(limit="true", rate=50000, burst=80000),
+    )
+    assert lab["unicast_limit"] is True
+    assert lab["unicast_rate"] == 50000
+    assert lab["unicast_burst"] == 80000
+
+
+def test_parse_unicast_limit_only_true_enables():
+    # explicit false and any non-"true" string alike leave it disabled
+    assert (
+        _parse_one("52:54:00:00:20:03", "1002", _unicast_attrs(limit="false"))[
+            "unicast_limit"
+        ]
+        is False
+    )
+    assert (
+        _parse_one("52:54:00:00:20:06", "1002", _unicast_attrs(limit="1"))[
+            "unicast_limit"
+        ]
+        is False
+    )
+    assert (
+        _parse_one("52:54:00:00:20:07", "1002", _unicast_attrs(limit="true"))[
+            "unicast_limit"
+        ]
+        is True
+    )
+
+
+def test_parse_unicast_burst_clamped_to_rate():
+    lab = _parse_one("52:54:00:00:20:04", "1002", _unicast_attrs(rate=40000, burst=10))
+    assert lab["unicast_rate"] == 40000
+    assert lab["unicast_burst"] == 40000  # burst < rate -> clamped up to rate
+
+
+def test_parse_unicast_invalid_rate_uses_default():
+    lab = _parse_one("52:54:00:00:20:05", "1002", _unicast_attrs(rate="abc"))
+    assert lab["unicast_rate"] == ovs_worker.STRICT_UNICAST_RATE
+
+
+def test_flow_add_strict_unicast_unset_is_plain_normal(monkeypatch):
+    """No unicast attributes (upgrade / untouched network) -> flow 198 stays bare
+    NORMAL and no unicast meter is created: identical to main."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add("dom", _domain_xml_with_vlan("52:54:00:00:20:10", "1002"))
+    p198 = [f for f in flows if "priority=198,in_port=" in f and "dl_src=" in f]
+    assert p198
+    for f in p198:
+        assert "meter:" not in f and "NORMAL" in f
+    assert _meter_rate(meters, _METER_UNICAST) is None
+
+
+def test_flow_add_strict_unicast_enabled_is_metered(monkeypatch):
+    """Enabling the limit (no explicit rate) meters flow 198 at the module rate
+    and creates the unicast meter."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom",
+        _domain_xml_with_vlan(
+            "52:54:00:00:20:15", "1002", _unicast_attrs(limit="true")
+        ),
+    )
+    p198 = [f for f in flows if "priority=198,in_port=" in f and "dl_src=" in f]
+    assert any(f"meter:{_METER_UNICAST}" in f and "NORMAL" in f for f in p198)
+    assert _meter_rate(meters, _METER_UNICAST) == ovs_worker.STRICT_UNICAST_RATE
+
+
+def test_flow_add_strict_unicast_enabled_custom_rate(monkeypatch):
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom",
+        _domain_xml_with_vlan(
+            "52:54:00:00:20:11",
+            "1002",
+            _unicast_attrs(limit="true", rate=50000, burst=90000),
+        ),
+    )
+    assert any(
+        f"meter:{_METER_UNICAST}" in f for f in flows if "priority=198,in_port=" in f
+    )
+    assert _meter_rate(meters, _METER_UNICAST) == 50000
+
+
+def test_flow_add_strict_unicast_disabled_is_plain_normal(monkeypatch):
+    """Explicitly disabling the limit leaves flow 198 as bare NORMAL and creates
+    no unicast meter."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom",
+        _domain_xml_with_vlan(
+            "52:54:00:00:20:12", "1002", _unicast_attrs(limit="false")
+        ),
+    )
+    p198 = [f for f in flows if "priority=198,in_port=" in f and "dl_src=" in f]
+    assert p198
+    for f in p198:
+        assert "meter:" not in f and "NORMAL" in f
+    assert _meter_rate(meters, _METER_UNICAST) is None
+
+
+def test_flow_add_vlan_4095_unicast_not_metered(monkeypatch):
+    """VLAN 4095 (infra) keeps its flow-204 path: flow 198 stays bare NORMAL even
+    when the network enables the unicast limit."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom-4095",
+        _domain_xml_with_vlan(
+            "52:54:00:00:40:96", "4095", _unicast_attrs(limit="true", rate=50000)
+        ),
+    )
+    p198 = [f for f in flows if "priority=198,in_port=" in f]
+    assert p198
+    for f in p198:
+        assert "meter:" not in f
+    assert _meter_rate(meters, _METER_UNICAST) is None
+
+
+def test_flow_add_legacy_no_unicast_attr_is_unmetered(monkeypatch):
+    """Backward compat: a domain from an OLD engine carries no lab_unicast_*
+    attributes -> NO meter (identical to main). An upgrade changes nothing."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add("dom", _domain_xml_with_vlan("52:54:00:00:20:13", "1002"))
+    assert _meter_rate(meters, _METER_UNICAST) is None
+
+
+def test_flow_add_mac_spoofing_unicast_meter_unchanged(monkeypatch):
+    """mac_spoofing keeps its own unicast meter rate, independent of the strict
+    per-network limit."""
+    flows, meters = [], []
+    worker = _worker_ready_for_flow_add(monkeypatch, flows, meters)
+    worker._flow_add(
+        "dom",
+        _domain_xml_with_vlan(
+            "52:54:00:00:20:14", "1002", _lab_attrs(mac_spoofing="true")
+        ),
+    )
+    assert _meter_rate(meters, _METER_UNICAST) == ovs_worker.MAC_SPOOF_UNICAST_RATE

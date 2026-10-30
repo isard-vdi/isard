@@ -267,7 +267,7 @@ class TestInterfaceLabOptsValidation:
 
     @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
     @patch("api.services.admin.tables.Helpers.check_duplicate")
-    def test_lab_opts_normalized_to_all_four_bools(self, _dup, mock_insert):
+    def test_lab_opts_normalized_to_canonical_document(self, _dup, mock_insert):
         data = self._iface(lab_opts={"mac_spoofing": True})
         AdminTablesService.insert_table_item("interfaces", data)
         stored = mock_insert.call_args[0][1]
@@ -276,7 +276,74 @@ class TestInterfaceLabOptsValidation:
             "stp_bpdu": False,
             "broadcast_unlimited": False,
             "multicast_unlimited": False,
+            # the per-network unicast meter is OPT-IN: off by default, with the
+            # suggested rate/burst carried for when an admin enables it
+            "unicast_limit": False,
+            "unicast_rate": 10000,
+            "unicast_burst": 20000,
         }
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_unicast_limit_disabled_by_default(self, _dup, mock_insert):
+        # lab_opts present but empty -> limit off (an upgrade changes nothing)
+        AdminTablesService.insert_table_item("interfaces", self._iface(lab_opts={}))
+        stored = mock_insert.call_args[0][1]
+        assert stored["lab_opts"]["unicast_limit"] is False
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_unicast_enable_custom_rate_accepted_on_ovs(self, _dup, mock_insert):
+        AdminTablesService.insert_table_item(
+            "interfaces",
+            self._iface(
+                lab_opts={
+                    "unicast_limit": True,
+                    "unicast_rate": 50000,
+                    "unicast_burst": 90000,
+                }
+            ),
+        )
+        stored = mock_insert.call_args[0][1]
+        assert stored["lab_opts"]["unicast_limit"] is True
+        assert stored["lab_opts"]["unicast_rate"] == 50000
+        assert stored["lab_opts"]["unicast_burst"] == 90000
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_unicast_rate_out_of_range_rejected(self, _dup, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        for rate in (999, 1000001):
+            with pytest.raises(Error):
+                AdminTablesService.insert_table_item(
+                    "interfaces", self._iface(lab_opts={"unicast_rate": rate})
+                )
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_unicast_burst_below_rate_rejected(self, _dup, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error):
+            AdminTablesService.insert_table_item(
+                "interfaces",
+                self._iface(lab_opts={"unicast_rate": 50000, "unicast_burst": 1000}),
+            )
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_unicast_enable_is_tightening_not_gated(self, _dup, mock_insert):
+        # Enabling the limit is a tightening, not a relaxation: accepted even on
+        # VLAN 4095 (where it is a harmless no-op), unlike the lab relaxations.
+        AdminTablesService.insert_table_item(
+            "interfaces", self._iface(net="4095", lab_opts={"unicast_limit": True})
+        )
+        assert mock_insert.called
 
     @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
     @patch("api.services.admin.tables.Helpers.check_duplicate")
