@@ -72,6 +72,11 @@ from rq.registry import StartedJobRegistry
 
 log = logging.getLogger(__name__)
 
+
+class LeaseLost(Exception):
+    """The advance lease could not be renewed mid-pass; abort before writing."""
+
+
 DEFAULT_PRIORITY = "default"
 RSYNC_TIMEOUT = 43200  # 12h, matching Storage.rsync
 #: Refresh the destination free-space reading (pool_free_space probe) at least
@@ -307,12 +312,27 @@ class MigrationRunner:
         StorageMigrationItem.update_document(item["id"], fields, validate=False)
         item.update(fields)
         if state_changed:
+            self._progressed = True
             if self._incremental:
                 self.migration.record_activity(
                     totals_delta(old_state, fields["state"], item.get("size_bytes"))
                 )
             else:
                 self._touch()
+
+    def _renew_lease(self):
+        """Renew the drain's lease (rate-limited); raise LeaseLost if it cannot."""
+        lease = getattr(self, "_lease", None)
+        if lease is None:
+            return
+        now = time()
+        if now - getattr(self, "_last_renew", 0.0) < LEASE_RENEW_INTERVAL:
+            return
+        try:
+            lease.reacquire()
+        except RedisError as exc:
+            raise LeaseLost(type(exc).__name__) from exc
+        self._last_renew = now
 
     def _touch(self):
         """Stamp job-level last activity. ``updated_at`` is written only by API
@@ -570,10 +590,15 @@ class MigrationRunner:
         if not mig.should_rescan(cadence, key, last, self.is_complete(), True):
             return False
         if is_edge:
-            # New occurrence: re-arm failed/skipped disks (quarantine per policy)
-            # AND insert newly-matching disks, keyed by this occurrence.
-            self._rearm_for_occurrence(key)
-            self.migration.last_occurrence = key
+            # one re-arm per occurrence: only the atomic-marker winner runs it
+            if not self.migration.claim_occurrence(key):
+                return False
+            try:
+                self._rearm_for_occurrence(key)
+            except Exception:
+                # roll the marker back so the occurrence is not skipped for ever
+                self.migration.release_occurrence(key, last)
+                raise
         else:
             # Same occurrence, batch drained: pick up new disks only.
             self._rescan_insert_new()
@@ -598,12 +623,14 @@ class MigrationRunner:
             # job's age-based split follow real usage as disks warm and cool.
             usage_age_days=self.config.get("usage_age_days"),
             include_never_used=bool(self.config.get("include_never_used")),
+            heartbeat=self._renew_lease,
         )
         self._skip_stale_trees({it["storage_id"] for it in items})
         existing = {it["storage_id"] for it in self._items()}
         for item in items:
+            self._renew_lease()
             if item["storage_id"] not in existing:
-                StorageMigrationItem.upsert(item)
+                StorageMigrationItem.insert_absent(item)
                 self._snapshot = None
 
     def _skip_stale_trees(self, planned_sids):
@@ -612,6 +639,7 @@ class MigrationRunner:
         for it in self._items():
             trees.setdefault(it["tree_id"], []).append(it)
         for tree_items in trees.values():
+            self._renew_lease()
             if mig.tree_phase([it["state"] for it in tree_items]) != "not_started":
                 continue
             if any(it["storage_id"] in planned_sids for it in tree_items):
@@ -649,6 +677,7 @@ class MigrationRunner:
             # out of the age-based selection accordingly.
             usage_age_days=self.config.get("usage_age_days"),
             include_never_used=bool(self.config.get("include_never_used")),
+            heartbeat=self._renew_lease,
         )
         self._skip_stale_trees({p["storage_id"] for p in planned})
         existing = {it["storage_id"]: it for it in self._items()}
@@ -660,6 +689,7 @@ class MigrationRunner:
             by_tree.setdefault(item["tree_id"], []).append(item)
         planned_by_sid = {p["storage_id"]: p for p in planned}
         for planned_items in by_tree.values():
+            self._renew_lease()
             ledger = [
                 existing[p["storage_id"]]
                 for p in planned_items
@@ -681,7 +711,7 @@ class MigrationRunner:
             # Insert genuinely new disks in this tree (or a brand-new tree).
             for p in planned_items:
                 if p["storage_id"] not in existing:
-                    StorageMigrationItem.upsert(p)
+                    StorageMigrationItem.insert_absent(p)
                     self._snapshot = None
 
     def _rearm_returned(self, item, planned):
@@ -1365,6 +1395,85 @@ class MigrationRunner:
             move_started_at=time(),
         )
 
+    def _reconcile_regressed_pending(self, item):
+        """Settle a pending disk that still carries a move id where it really is."""
+        sid = item["storage_id"]
+        if item.get("verify_passed") and self._row_at_destination(item):
+            # an unhandled source goes back through release, never skipped
+            if self._source_step_done(item):
+                target = MigrationItemState.RELEASED.value
+            else:
+                target = MigrationItemState.DB_UPDATED.value
+            log.warning(
+                "migration %s: disk %s was pending with a stale move id but its row "
+                "already points at the verified destination; settling it %s",
+                self.migration_id,
+                sid,
+                target,
+            )
+            self._set(item, state=target, move_task_id=None)
+            return
+        # A live move id on a row a re-scan rewound to pending means the copy is
+        # already on the destination: rejoin the saga where the move left it and let
+        # the verify gate settle it. Clearing + re-preflighting trips destination_exists.
+        move_status = (
+            self.job_status_fn(item["move_task_id"])
+            if item.get("move_task_id")
+            else None
+        )
+        if mig._job_finished(move_status):
+            log.warning(
+                "migration %s: disk %s was rewound to pending but its move had "
+                "finished; rejoining the saga at moved",
+                self.migration_id,
+                sid,
+            )
+            self._set(item, state=MigrationItemState.MOVED.value)
+            return
+        if move_status is not None and not mig._job_failed(move_status):
+            log.warning(
+                "migration %s: disk %s was rewound to pending while its move was in "
+                "flight; restoring moving",
+                self.migration_id,
+                sid,
+            )
+            self._set(item, state=MigrationItemState.MOVING.value)
+            return
+        log.warning(
+            "migration %s: clearing a stale move id left on pending disk %s by a "
+            "re-scan; it will restart cleanly",
+            self.migration_id,
+            sid,
+        )
+        self._restore_storage_status(item)
+        self._set(
+            item,
+            preflight_task_id=None,
+            move_task_id=None,
+            move_started_at=None,
+            move_delete_task_id=None,
+            verify_task_id=None,
+            verify_passed=False,
+            dst_owned=False,
+            storage_orig_status=None,
+            maintenance_domains=None,
+        )
+
+    def _source_step_done(self, item):
+        """Whether the source has been handled (parked/deleted or retained)."""
+        if item.get("source_retained"):
+            return True
+        task = item.get("move_delete_task_id")
+        return bool(task) and mig._job_finished(self.job_status_fn(task))
+
+    def _row_at_destination(self, item):
+        sid = item["storage_id"]
+        if self._is_media(item):
+            return Media.exists(sid) and Media(sid).path == item.get("dst_path")
+        return Storage.exists(sid) and Storage(sid).directory_path == item.get(
+            "dst_dir"
+        )
+
     def _prepare_disk_for_move(self, item):
         # Record the storage's pre-migration status ONCE (before maintenance) so
         # release/failure restore the ORIGINAL status rather than a hardcoded
@@ -1891,6 +2000,7 @@ class MigrationRunner:
     _ACTIONS = {
         "start_preflight": _start_preflight,
         "destination_exists": _destination_exists,
+        "reconcile_pending": _reconcile_regressed_pending,
         "start_move": _start_move,
         "skip_move": _skip_move,
         "mark_moved": _mark_moved,
@@ -2133,6 +2243,7 @@ class MigrationRunner:
         ``(tree_id, item_id|None, action)`` describing what happened."""
         self._incremental = False
         self._snapshot = None
+        self._progressed = False
         self._restored = set()
         self.migration.fresh_status()
         # re-read config so a mid-drain update_config edit is honoured this tick
@@ -2246,6 +2357,7 @@ class MigrationRunner:
         failed_this_tick = False
         self._space_deferred = False
         for tree_id, tree_items in trees.items():
+            self._renew_lease()
             if phases[tree_id] == "not_started":
                 if finishing:
                     # Canceling: a tree that has not moved any disk is skipped
@@ -2433,6 +2545,33 @@ class MigrationRunner:
         # not just a disk moving; item-state changes already touched via _set.
         if str(self.migration.status) != cur:
             self._touch()
+        fresh_trees = {}
+        for it in fresh:
+            fresh_trees.setdefault(it["tree_id"], []).append(str(it["state"]))
+        active_count = sum(
+            1
+            for states in fresh_trees.values()
+            if mig.tree_phase(states) == "in_flight"
+        )
+        if (
+            not finishing
+            and not held
+            and not space_paused
+            and win_open
+            and not self.is_complete()
+            and mig.drive_is_stalled(
+                active_count,
+                self.config.get("parallelism"),
+                progressed=self._progressed,
+                awaiting=any(a == "wait" for (_t, _i, a) in results),
+            )
+        ):
+            log.warning(
+                "migration %s: a drive pass filled every slot (parallelism=%s) but no "
+                "disk advanced and none awaits a task, so it is not making progress",
+                self.migration_id,
+                self.config.get("parallelism"),
+            )
         # Signal the change-handler to broadcast the aggregate to admins; a
         # status change this tick forces past the throttle.
         self._publish_progress(force=str(self.migration.status) != cur)
@@ -2774,6 +2913,8 @@ _DRIVABLE_STATUSES = {
 #: headroom over the 30s pool timeout. (Calibrate against measured p99 before the
 #: multi-driver Stage 2 turns the lease into a load-bearing efficiency guard.)
 ADVANCE_LOCK_TTL = 90
+#: Seconds between real redis renewals of the mid-pass heartbeat.
+LEASE_RENEW_INTERVAL = 10
 #: Bounded backstop against a runaway drain (mirrors the historical 500-cap in
 #: scheduler.lib.actions); a normal drain breaks out after 1-2 iterations once
 #: every tree is waiting on an in-flight RQ task.
@@ -2942,6 +3083,9 @@ def _take_wakes(conn, wake_key):
 def _drain(lock, conn, wake_key, migration_id, job_status_fn):
     """Run full passes or per-tree drives until nothing is left to do."""
     runner = MigrationRunner(migration_id, job_status_fn=job_status_fn)
+    # the runner renews it inside a long pass too, not only between passes
+    runner._lease = lock
+    runner._last_renew = time()
     planned = False
     for _ in range(ADVANCE_MAX_ITERATIONS):
         # Watchdog at the TOP of the loop: renew the lease BEFORE doing work, so
@@ -2958,17 +3102,25 @@ def _drain(lock, conn, wake_key, migration_id, job_status_fn):
                 type(exc).__name__,
             )
             return "aborted"
-        # a full pass repeats only after a per-tree drive, never back to back
-        if not planned and runner.needs_full_pass():
-            _take_wakes(conn, wake_key)
-            results = runner.tick()
-            if not runner.is_complete() and mig.tick_made_progress(results):
-                continue
-            runner.save_drive()
-            planned = True
-        wakes = _take_wakes(conn, wake_key)
-        if not wakes:
-            break
-        runner.drive_trees(None if _ALL_TREES in wakes else sorted(wakes))
-        planned = False
+        try:
+            # a full pass repeats only after a per-tree drive, never back to back
+            if not planned and runner.needs_full_pass():
+                _take_wakes(conn, wake_key)
+                results = runner.tick()
+                if not runner.is_complete() and mig.tick_made_progress(results):
+                    continue
+                runner.save_drive()
+                planned = True
+            wakes = _take_wakes(conn, wake_key)
+            if not wakes:
+                break
+            runner.drive_trees(None if _ALL_TREES in wakes else sorted(wakes))
+            planned = False
+        except LeaseLost:
+            log.warning(
+                "migration: advance lost its lease mid-pass for %s; aborting "
+                "(backstop will resume)",
+                migration_id,
+            )
+            return "aborted"
     return "done"
