@@ -28,6 +28,11 @@ from api.schemas.admin.storage import (
     AdminStorageFilterRequest,
     AdminStorageInfo,
     AdminStorageItem,
+    AdminStorageReconcileReportRequest,
+    AdminStorageReconcileReportResponse,
+    AdminStorageReconcileReportStoreResponse,
+    AdminStorageReconcileRequest,
+    AdminStorageReconcileResponse,
     AdminStorageRefreshResponse,
     AdminStorageStatusCount,
 )
@@ -532,5 +537,100 @@ async def admin_storage_refresh_running_sizes(request: Request):
             request,
             "internal_server",
             "Failed to refresh running storage sizes",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/reconcile",
+    tags=[tag],
+    response_model=AdminStorageReconcileResponse,
+    summary="Reconcile every storage pool against the storage/media table",
+    description=(
+        "Enqueue one reconcile_pool task per enabled storage pool on its "
+        "background lane (at most one per pool: a pool that already has one "
+        "queued or running is skipped). Each task scans its pool with stat + "
+        "qcow2 header (no qemu-img), reads the rows through apiv4, classifies "
+        "the drift and publishes per-pool metrics. With apply=true it also "
+        "re-measures ready size drift through apiv4; otherwise it reports only. "
+        "Intended to be driven by the scheduler (nightly). Admin only."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_storage_reconcile(
+    request: Request, data: AdminStorageReconcileRequest | None = None
+):
+    try:
+        apply = bool(data.apply) if data else False
+        result = await asyncio.to_thread(AdminStorageService.reconcile_pools, apply)
+        return AdminStorageReconcileResponse(
+            enqueued=result["enqueued"], apply=result["apply"]
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to enqueue storage reconciliation",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/admin/storage/reconcile/report",
+    tags=[tag],
+    response_model=AdminStorageReconcileReportStoreResponse,
+    summary="Store one pool's last reconcile report",
+    description=(
+        "The storage worker posts each pool's reconcile report here so it is "
+        "persisted through apiv4 (the worker never writes RethinkDB). Admin only."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_storage_reconcile_report_store(
+    request: Request, data: AdminStorageReconcileReportRequest
+):
+    try:
+        await asyncio.to_thread(
+            AdminStorageService.store_reconcile_report,
+            data.pool,
+            data.metrics,
+            data.size_drift,
+        )
+        return {"stored": data.pool}
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to store the reconcile report",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/storage/reconcile/report",
+    tags=[tag],
+    response_model=AdminStorageReconcileReportResponse,
+    summary="Last storage reconcile report (per pool and per category)",
+    description=(
+        "The last reconcile report the nightly job (or a manual run) produced: "
+        "drifts per class and bytes per pool, plus drift bytes per category. "
+        "Admin only."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_storage_reconcile_report_get(request: Request):
+    try:
+        return await asyncio.to_thread(AdminStorageService.reconcile_report)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to read the reconcile report",
             traceback.format_exc(),
         )

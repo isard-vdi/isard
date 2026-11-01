@@ -44,6 +44,60 @@ class AdminStorageRefreshResponse(BaseModel):
     enqueued: int = Field(description="Number of qemu-img-info refresh tasks enqueued.")
 
 
+class AdminStorageReconcileRequest(BaseModel):
+    """Request body for the reconcile endpoint."""
+
+    apply: bool = Field(
+        default=False,
+        description="When true, correct ready size drift through apiv4; "
+        "otherwise report and publish metrics only.",
+    )
+
+
+class AdminStorageReconcileReportRequest(BaseModel):
+    """One pool's last reconcile report, posted by the storage worker so the
+    webapp can read it through apiv4 (the worker never writes RethinkDB)."""
+
+    pool: str = Field(description="Pool id the report belongs to.")
+    metrics: dict = Field(description="Per-class drift counts and bytes for the pool.")
+    size_drift: list[dict] = Field(
+        default_factory=list,
+        description="Drifted ready disks ({id, drift, ...}) for the per-category breakdown.",
+    )
+
+
+class AdminStorageReconcileReportStoreResponse(BaseModel):
+    """Acknowledgement of a stored per-pool reconcile report."""
+
+    stored: str = Field(description="Pool id whose report was stored.")
+
+
+class AdminStorageReconcileReportResponse(BaseModel):
+    """Last reconcile report: per-pool entries plus drift bytes per category."""
+
+    pools: dict = Field(
+        default_factory=dict,
+        description="Per pool: {metrics, size_drift, updated_at}.",
+    )
+    bytes_per_category: dict = Field(
+        default_factory=dict,
+        description="Absolute drift bytes summed per owning category.",
+    )
+
+
+class AdminStorageReconcileResponse(BaseModel):
+    """Result of enqueuing the per-pool storage reconciliation."""
+
+    enqueued: int = Field(
+        description="reconcile_pool tasks enqueued (one per enabled pool that did "
+        "not already have one queued or running)."
+    )
+    apply: bool = Field(
+        description="Whether the tasks will auto-correct ready size drift; "
+        "false means report + metrics only."
+    )
+
+
 class AdminStorageItem(BaseModel):
     """One row of ``GET /admin/items/storage`` and the by-status / by-role
     variants. Permissive (``ConfigDict(extra="allow")``) because the

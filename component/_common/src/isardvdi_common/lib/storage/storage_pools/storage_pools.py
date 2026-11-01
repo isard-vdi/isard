@@ -238,6 +238,125 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                 total += redis.llen(key)
         return total
 
+    #: node_exporter textfile collector dir the reconcile metrics land in.
+    RECONCILE_METRICS_DIR = "/var/lib/node-exporter"
+
+    @classmethod
+    def _enabled_pools(cls):
+        """``[{id, mountpoint}]`` for every enabled storage pool."""
+        with cls._rdb_context():
+            return list(
+                r.table("storage_pool")
+                .filter(lambda p: p["enabled"].default(True) != False)
+                .pluck("id", "mountpoint")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def _reconcile_pending(cls, queue_name):
+        """True when a reconcile_pool task is already queued or running on queue_name."""
+        from rq import Queue
+        from rq.job import Job
+        from rq.registry import StartedJobRegistry
+
+        redis = Task._redis
+        queue = Queue(queue_name, connection=redis)
+        job_ids = list(queue.get_job_ids()) + list(
+            StartedJobRegistry(queue=queue).get_job_ids()
+        )
+        for job_id in job_ids:
+            try:
+                job = Job.fetch(job_id, connection=redis)
+            except Exception:
+                continue
+            if job and job.func_name == "task.reconcile_pool":
+                return True
+        return False
+
+    @classmethod
+    def enqueue_reconciles(cls, apply=False, threshold=None, metrics_dir=None):
+        """Enqueue a reconcile_pool per enabled pool with none pending; return those."""
+        if metrics_dir is None:
+            metrics_dir = cls.RECONCILE_METRICS_DIR
+        enqueued = []
+        for pool in cls._enabled_pools():
+            mountpoint = pool.get("mountpoint")
+            if not mountpoint:
+                continue
+            queue_name = f"storage.{pool['id']}.background"
+            if cls._reconcile_pending(queue_name):
+                continue
+            kwargs = {"path": mountpoint, "apply": bool(apply)}
+            if threshold is not None:
+                kwargs["threshold"] = int(threshold)
+            if metrics_dir:
+                kwargs["metrics_file"] = (
+                    f"{metrics_dir}/isardvdi_storage_reconcile_{pool['id']}.prom"
+                )
+            task = Task(
+                task="reconcile_pool", queue=queue_name, job_kwargs={"kwargs": kwargs}
+            )
+            enqueued.append(
+                {"pool": pool["id"], "path": mountpoint, "task_id": task.id}
+            )
+        return enqueued
+
+    #: config-doc key holding the last reconcile report per pool, so the webapp
+    #: reads it through apiv4 without the storage worker touching RethinkDB.
+    RECONCILE_REPORT_KEY = "storage_reconcile_report"
+
+    @classmethod
+    def store_reconcile_report(cls, pool, metrics, size_drift):
+        """Persist one pool's last reconcile report (worker -> apiv4 -> here)."""
+        entry = {
+            "metrics": metrics,
+            "size_drift": size_drift or [],
+            "updated_at": time.time(),
+        }
+        with cls._rdb_context():
+            r.table("config").update({cls.RECONCILE_REPORT_KEY: {pool: entry}}).run(
+                cls._rdb_connection
+            )
+
+    @classmethod
+    def reconcile_report(cls):
+        """The last report per pool plus drift bytes aggregated per category."""
+        with cls._rdb_context():
+            pools = (
+                r.table("config")
+                .nth(0)[cls.RECONCILE_REPORT_KEY]
+                .default({})
+                .run(cls._rdb_connection)
+            )
+        drift_by_id = {
+            d["id"]: abs(d.get("drift", 0))
+            for data in pools.values()
+            for d in data.get("size_drift", [])
+            if d.get("id")
+        }
+        per_category: dict = {}
+        if drift_by_id:
+            with cls._rdb_context():
+                rows = list(
+                    r.table("storage")
+                    .get_all(r.args(list(drift_by_id)))
+                    .pluck("id", "user_id")
+                    .run(cls._rdb_connection)
+                )
+            user_ids = list({row["user_id"] for row in rows if row.get("user_id")})
+            with cls._rdb_context():
+                category = {
+                    u["id"]: u.get("category")
+                    for u in r.table("users")
+                    .get_all(r.args(user_ids))
+                    .pluck("id", "category")
+                    .run(cls._rdb_connection)
+                }
+            for row in rows:
+                cat = category.get(row.get("user_id")) or "[unknown]"
+                per_category[cat] = per_category.get(cat, 0) + drift_by_id[row["id"]]
+        return {"pools": pools, "bytes_per_category": per_category}
+
     #: Past this, a declaration is a decommissioned row nobody deleted, and
     #: counting it would silence the orphan alarm for ever.
     DECLARATION_STALE_S = int(

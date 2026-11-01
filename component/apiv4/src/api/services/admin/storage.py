@@ -23,6 +23,9 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.media.media import MediaProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.lib.storage.storage_pools.storage_pools import (
+    StoragePoolsProcessed,
+)
 from isardvdi_common.lib.task_index import last_task_ids
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
@@ -46,6 +49,22 @@ class AdminStorageService:
         Returns the number of refresh tasks enqueued.
         """
         return StorageProcessed.enqueue_running_desktops_size_refresh()
+
+    @staticmethod
+    def reconcile_pools(apply: bool) -> dict:
+        """Enqueue one reconcile_pool task per enabled storage pool (idempotent)."""
+        enqueued = StoragePoolsProcessed.enqueue_reconciles(apply=apply)
+        return {"enqueued": len(enqueued), "apply": bool(apply), "tasks": enqueued}
+
+    @staticmethod
+    def store_reconcile_report(pool: str, metrics: dict, size_drift: list) -> None:
+        """Persist one pool's last reconcile report (posted by the worker)."""
+        StoragePoolsProcessed.store_reconcile_report(pool, metrics, size_drift)
+
+    @staticmethod
+    def reconcile_report() -> dict:
+        """The last reconcile report per pool plus drift bytes per category."""
+        return StoragePoolsProcessed.reconcile_report()
 
     @staticmethod
     def get_storages(

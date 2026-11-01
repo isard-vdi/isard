@@ -70,11 +70,29 @@ class TestReadHeader:
 
     def test_v2_header(self, tmp_path):
         img = make_qcow2(tmp_path / "c.qcow2", version=2, backing="/p/b.qcow2")
-        assert read_header(img) == (2, "/p/b.qcow2", None)
+        assert read_header(img) == (2, "/p/b.qcow2", None, 1 << 30, False, False)
 
     def test_backing_format_extension(self, tmp_path):
         img = make_qcow2(tmp_path / "c.qcow2", backing="/p/b.qcow2", fmt="qcow2")
-        assert read_header(img) == (3, "/p/b.qcow2", "qcow2")
+        assert read_header(img) == (3, "/p/b.qcow2", "qcow2", 1 << 30, False, False)
+
+    def test_virtual_size_from_header(self, tmp_path):
+        img = make_qcow2(tmp_path / "c.qcow2", cluster_bits=16)
+        assert read_header(img).virtual_size == (1 << 30)
+
+    @pytest.mark.parametrize(
+        "incompatible,dirty,corrupt",
+        [(0, False, False), (1, True, False), (2, False, True), (3, True, True)],
+    )
+    def test_v3_dirty_and_corrupt_bits(self, tmp_path, incompatible, dirty, corrupt):
+        img = make_qcow2(tmp_path / "c.qcow2", incompatible=incompatible)
+        header = read_header(img)
+        assert (header.dirty, header.corrupt) == (dirty, corrupt)
+
+    def test_v2_carries_no_dirty_or_corrupt(self, tmp_path):
+        img = make_qcow2(tmp_path / "c.qcow2", version=2)
+        header = read_header(img)
+        assert header.dirty is False and header.corrupt is False
 
     def test_empty_file_is_rejected(self, tmp_path):
         img = tmp_path / "e.qcow2"
@@ -246,9 +264,20 @@ class TestParityWithQemuImg:
         v2 = create(
             child / "v2f.qcow2", "-o", "compat=0.10", "-F", "qcow2", "-b", str(base)
         )
-        assert read_header(with_fmt) == (3, str(base), "qcow2")
-        assert read_header(without) == (3, str(base), None)
-        assert read_header(v2) == (2, str(base), "qcow2")
+        assert read_header(with_fmt) == (3, str(base), "qcow2", 1 << 20, False, False)
+        assert read_header(without) == (3, str(base), None, 1 << 20, False, False)
+        assert read_header(v2) == (2, str(base), "qcow2", 1 << 20, False, False)
+
+    def test_virtual_size_matches_qemu_img(self, pool):
+        for img in self.cases(pool):
+            info = json.loads(
+                subprocess.run(
+                    ["qemu-img", "info", "-U", "--output=json", str(img)],
+                    capture_output=True,
+                    text=True,
+                ).stdout
+            )
+            assert read_header(img).virtual_size == info["virtual-size"], img
 
     def test_what_it_refuses_qemu_img_reads_as_no_backing(self, tmp_path):
         raw = tmp_path / "raw.qcow2"

@@ -216,6 +216,25 @@
 <div class="row">
   <div class="x_panel">
     <div class="x_title">
+      <h3>Reconcile<small> Compare the pool files against the storage/media table</small></h3>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30">
+        Report scans every pool and publishes drift metrics without changing anything.
+        Apply additionally re-measures the ready disks whose size drifted.
+      </p>
+      <button type="button" id="btn-reconcile-report" class="btn btn-info">Report</button>
+      <button type="button" id="btn-reconcile-apply" class="btn btn-warning">Apply</button>
+      <span id="reconcile-progress" style="margin-left:1em;"></span>
+      <div id="reconcile-report" style="margin-top:1em;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
       <h3>Storage files found with duplicated UUIDs<small> Select status to load</small></h3>
       <div class="clearfix"></div>
     </div>
@@ -252,4 +271,5 @@
 <script src="/isard-admin/static/admin/js/storage_actions.js"></script>
 <script src="/isard-admin/static/admin/js/storage_increase.js"></script>
 <script src="/isard-admin/static/admin/js/storage.js"></script>
+<script src="/isard-admin/static/admin/js/storage_reconcile.js"></script>
 {% endblock %}

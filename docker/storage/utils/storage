@@ -42,7 +42,7 @@ import shutil
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from time import sleep, time
+from time import monotonic, sleep, time
 
 from isardvdi_common.lib.storage.paths import RECYCLE_BIN_DIR
 from storage_lib.api import (
@@ -3349,6 +3349,109 @@ def cmd_space(args):
     return 0
 
 
+# ─── reconcile subcommand ─────────────────────────────────────────────────────
+
+
+def cmd_reconcile(args):
+    """Reconcile a pool's files against the storage/media table (read via apiv4).
+
+    Scans with stat + the qcow2 header (no qemu-img), classifies the differences
+    and, only with ``--apply``, asks the product to re-measure the ready disks
+    whose size drifted. Everything else is reported for an operator. Budgeted
+    and nice/ionice-d so it is safe to run nightly on a live pool.
+    """
+    import subprocess
+
+    from storage_lib import reconcile
+    from storage_lib.api import (
+        fetch_medias,
+        fetch_storages,
+        refresh_storage_measurements,
+    )
+
+    try:
+        os.nice(args.nice)
+    except OSError:
+        pass
+    if args.ionice is not None and args.ionice >= 0:
+        try:
+            subprocess.run(
+                ["ionice", "-c", str(args.ionice), "-p", str(os.getpid())],
+                check=False,
+            )
+        except OSError:
+            pass
+
+    pool_prefixes = tuple(p.rstrip("/") + "/" for p in args.path)
+    pool_id = args.pool or ",".join(args.path)
+
+    storages = fetch_storages()
+    if storages is None:
+        log("ERROR: could not read the storage table from the API")
+        return 1
+    medias = fetch_medias() or []
+    rows = reconcile.rows_from_api(storages, medias)
+
+    deadline = (monotonic() + args.time_budget) if args.time_budget else None
+    scanned = reconcile.scan_pool(
+        list(args.path), max_files=args.max_files, deadline=deadline
+    )
+    budget_hit = scanned.pop("_budget_hit", False)
+
+    classified = reconcile.classify(rows, scanned, pool_prefixes, args.threshold)
+    metrics = reconcile.drift_metrics(pool_id, classified)
+    gib = lambda n: f"{n / (1 << 30):,.2f} GiB"  # noqa: E731
+
+    print(f"\nreconcile pool {pool_id} ({len(scanned)} files scanned):")
+    print(
+        f"  size drift (ready)     {metrics['size_drift_files']} disks, {gib(metrics['size_drift_bytes'])}"
+    )
+    print(f"  rows without a file    {metrics['row_without_file']}")
+    print(f"  rows on another pool   {metrics['row_on_other_pool']}")
+    print(
+        f"  files without a row    {metrics['file_without_row_files']}, {gib(metrics['file_without_row_bytes'])}"
+    )
+    print(f"  dirty / corrupt files  {metrics['dirty_or_corrupt']}")
+    if budget_hit:
+        print("  (budget reached: the scan stopped early; drift is a lower bound)")
+
+    if args.json:
+        with open(args.json, "w") as fh:
+            json.dump(
+                {
+                    "pool": pool_id,
+                    "budget_hit": budget_hit,
+                    "metrics": metrics,
+                    "classified": classified,
+                },
+                fh,
+                indent=1,
+                default=str,
+            )
+        print(f"  full report: {args.json}")
+    if args.metrics_file:
+        reconcile.write_metrics_textfile(args.metrics_file, metrics)
+        print(f"  metrics: {args.metrics_file}")
+
+    correctable = reconcile.correctable_ids(classified)
+    if not correctable:
+        return 1 if budget_hit else 0
+    if not args.apply:
+        print(
+            f"  report-only: {len(correctable)} ready disks would be re-measured (use --apply)"
+        )
+        return 1 if budget_hit else 0
+    for i in range(0, len(correctable), args.batch):
+        batch = correctable[i : i + args.batch]
+        refresh_storage_measurements(batch)
+        log(
+            f"asked the product to re-measure {min(i + args.batch, len(correctable))}"
+            f"/{len(correctable)} ready disks"
+        )
+        sleep(args.pause)
+    return 1 if budget_hit else 0
+
+
 # ─── consistency subcommand ───────────────────────────────────────────────────
 
 
@@ -5088,6 +5191,64 @@ def build_parser():
         "--pause", type=float, default=5.0, help="seconds between batches"
     )
     p_space.set_defaults(func=cmd_space)
+
+    p_reconcile = subparsers.add_parser(
+        "reconcile",
+        help="Reconcile a pool's files against the storage/media table; with --apply, re-measure drifted ready disks",
+    )
+    p_reconcile.add_argument(
+        "path",
+        nargs="+",
+        help="pool directories to scan (e.g. /isard/groups /isard/templates)",
+    )
+    p_reconcile.add_argument(
+        "--pool", help="pool id/name used in the report and metric labels"
+    )
+    p_reconcile.add_argument(
+        "--threshold",
+        type=int,
+        default=DEFAULT_DRIFT_BYTES,
+        help="drift in bytes above which a ready disk is listed (default 64 MiB)",
+    )
+    p_reconcile.add_argument(
+        "--max-files",
+        type=int,
+        default=None,
+        dest="max_files",
+        help="scan at most this many files (budget)",
+    )
+    p_reconcile.add_argument(
+        "--time-budget",
+        type=float,
+        default=None,
+        dest="time_budget",
+        help="stop scanning after this many seconds (budget)",
+    )
+    p_reconcile.add_argument(
+        "--nice", type=int, default=10, help="process niceness (default 10)"
+    )
+    p_reconcile.add_argument(
+        "--ionice",
+        type=int,
+        default=3,
+        help="ionice class (3=idle, default; negative to leave it alone)",
+    )
+    p_reconcile.add_argument("--json", help="write the full classification here")
+    p_reconcile.add_argument(
+        "--metrics-file",
+        dest="metrics_file",
+        help="write per-pool drift gauges as a Prometheus textfile",
+    )
+    p_reconcile.add_argument(
+        "--apply",
+        action="store_true",
+        help="re-measure drifted ready disks through the product path (default: report only)",
+    )
+    p_reconcile.add_argument("--batch", type=int, default=50)
+    p_reconcile.add_argument(
+        "--pause", type=float, default=5.0, help="seconds between re-measure batches"
+    )
+    p_reconcile.set_defaults(func=cmd_reconcile)
 
     # recover
     p_recover = subparsers.add_parser(
