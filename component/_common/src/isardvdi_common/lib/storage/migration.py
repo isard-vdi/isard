@@ -850,6 +850,9 @@ def decide_item_action(item, job_status_fn):
     is_root = item.get("topo_index", 0) == 0 or not item.get("parent_dst_path")
 
     if state == "pending":
+        # the resume claim needs state=moving and would fail here without a trace
+        if item.get("move_task_id"):
+            return "reconcile_pending"
         # dst == src: nothing to move (the file is already there); never rsync a
         # disk onto itself. Advance straight to moved.
         if item_in_place(item):
@@ -1030,6 +1033,7 @@ def descendant_item_ids(items, storage_id, include_self=False):
 #: tick yields none of these — every tree is then waiting and re-ticking now
 #: would just spin.
 PROGRESS_ACTIONS = {
+    "reconcile_pending",
     "start_move",
     "skip_move",
     "mark_moved",
@@ -1048,6 +1052,15 @@ def tick_made_progress(results):
     """True if any tree advanced this tick. ``results`` is the
     ``[(tree_id, item_id, action), ...]`` list returned by ``tick``."""
     return any(action in PROGRESS_ACTIONS for (_tree, _item, action) in results)
+
+
+def drive_is_stalled(active_count, parallelism, *, progressed, awaiting):
+    """Wedged: every slot filled, yet no disk advanced and none awaits a task."""
+    return (
+        active_count >= max(1, int(parallelism or 1))
+        and not progressed
+        and not awaiting
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -2440,6 +2453,7 @@ def build_plan_for_roots(
     usage_age_days=None,
     include_never_used=False,
     now=None,
+    heartbeat=None,
 ):
     """Build pending ``storage_migration_item`` dicts for every tree rooted at
     ``root_ids``, migrating into ``dst_pool`` (a ``StoragePool``).
@@ -2491,7 +2505,11 @@ def build_plan_for_roots(
 
     #: The disks this plan MOVES. A disk outside this set stays put, and its
     #: destination must never be resolved: its pool may serve no such path.
-    tree_orders = {rid: walk_tree_topo(rid, get_children) for rid in root_ids}
+    hb = heartbeat or (lambda: None)
+    tree_orders = {}
+    for rid in root_ids:
+        hb()
+        tree_orders[rid] = walk_tree_topo(rid, get_children)
     walked = {nid for topo in tree_orders.values() for nid in topo}
     selected_kinds = set(item_kinds or ())
 
@@ -2603,6 +2621,7 @@ def build_plan_for_roots(
     excluded = []
     excluded_nodes = set()
     for root_id in root_ids:
+        hb()
         topo = tree_orders[root_id]
         tree_items = []
         try:

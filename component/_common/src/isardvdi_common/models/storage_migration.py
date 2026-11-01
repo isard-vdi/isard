@@ -662,6 +662,12 @@ class StorageMigrationItem(RethinkCustomBase):
         """Idempotent create/update keyed by ``id`` (at-least-once safe)."""
         return cls.insert_document(data, conflict="update")
 
+    @classmethod
+    def insert_absent(cls, data: dict) -> bool:
+        """Insert a new row; a no-op on an existing id (never ``upsert``'s merge)."""
+        res = cls.insert_document(data, conflict="error") or {}
+        return bool(res.get("inserted", 0))
+
     def advance(self, state, **fields):
         """Persist a new state (+ optional fields) and append a checkpoint.
 
@@ -885,6 +891,44 @@ class StorageMigration(RethinkCustomBase):
                 {"drive": r.literal(drive)}
             ).run(self._rdb_connection)
         self._update_cache(drive=drive)
+
+    def claim_occurrence(self, key):
+        """Atomically mark ``key`` scanned; ``True`` only for the caller that set it."""
+        with self._rdb_context():
+            res = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .update(
+                    lambda row: r.branch(
+                        row["last_occurrence"].default(None).eq(key),
+                        {},
+                        {"last_occurrence": key},
+                    )
+                )
+                .run(self._rdb_connection)
+            )
+        if bool(res.get("replaced", 0)):
+            self._update_cache(last_occurrence=key)
+            return True
+        return False
+
+    def release_occurrence(self, key, prev):
+        """Roll the occurrence marker back to ``prev`` while it still reads ``key``."""
+        with self._rdb_context():
+            res = (
+                r.table(self._rdb_table)
+                .get(self.id)
+                .update(
+                    lambda row: r.branch(
+                        row["last_occurrence"].default(None).eq(key),
+                        {"last_occurrence": prev},
+                        {},
+                    )
+                )
+                .run(self._rdb_connection)
+            )
+        if bool(res.get("replaced", 0)):
+            self._update_cache(last_occurrence=prev)
 
     def drive_active(self, add=(), remove=()):
         """Atomically add/remove tree ids in ``drive.active``; returns the new list."""
