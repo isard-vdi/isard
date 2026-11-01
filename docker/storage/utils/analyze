@@ -31,6 +31,7 @@ from pathlib import Path
 from time import time
 
 from rethinkdb import r
+from storage_lib import qcow_header
 
 
 @contextmanager
@@ -131,6 +132,10 @@ def older_first(storage_paths):
 
 def get_qcow_info(file_path):
     """Get Qcow2 file metadata using qemu-img, suppressing output and errors."""
+    try:
+        return qcow_header.backing_file(file_path)
+    except (qcow_header.Qcow2HeaderError, OSError):
+        pass
     try:
         result = subprocess.run(
             ["qemu-img", "info", "-U", "--output=json", file_path],
