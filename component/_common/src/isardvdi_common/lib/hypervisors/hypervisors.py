@@ -1604,8 +1604,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             pci_bus_id = gpu.get("pci_bus_id")
             if not pci_bus_id or not gpu.get("_resolved_model"):
                 continue
-            if gpu.get("vgpu_profiles") is None:
-                continue  # DISCOVERY_FAILED -> no target, leave to the engine
+            vgpu_profiles = gpu.get("vgpu_profiles")
             vgpu_id = cls._vgpu_id_for(hyper_id, pci_bus_id)
             with cls._rdb_context():
                 cards = list(
@@ -1632,6 +1631,34 @@ class HypervisorsProcessed(RethinkSharedConnection):
             if requested_profile is None and not operator_passthrough:
                 requested_profile = card.get("operator_requested_profile")
                 operator_passthrough = bool(card.get("operator_passthrough"))
+            if vgpu_profiles is None:
+                # Discovery came back ambiguous (None sentinel: the hypervisor
+                # retried the vGPU-profile read and gave up, or a passthrough-only
+                # board whose SR-IOV hardware exposes totalvfs>0 reports no profiles
+                # while still bound to the nvidia driver). Normally such a card is
+                # left to the engine so a transient vGPU read failure never triggers
+                # a destructive carve. BUT a card whose DURABLE operator intent is
+                # passthrough must still be (re)bound after a host reboot: the vgpus
+                # row is recreated empty on restart, so skipping here leaves the card
+                # unapplied (applied_by_hypervisor stays False) and the scheduler can
+                # never place it -- it has to be re-forced by hand with a profile PUT
+                # after EVERY boot (the recurring passthrough-only-card regression).
+                # Re-applying passthrough is idempotent and never destroys a vGPU
+                # carve, so emitting it here is safe; a card whose durable intent is a
+                # real vGPU profile is still left to the engine (we never guess a
+                # carve during a discovery failure).
+                wants_passthrough = operator_passthrough or (
+                    requested_profile is not None
+                    and canonical_suffix(requested_profile) == "passthrough"
+                )
+                if wants_passthrough:
+                    targets[pci_bus_id] = {
+                        "vgpu_id": vgpu_id,
+                        "card_id": card_id,
+                        "action": "apply",
+                        "target_profile": "passthrough",
+                    }
+                continue
             available_types = {s: {} for s in (realizable_suffixes(gpu) or set())}
             # Default an un-booked, un-intented card to the profile it is ALREADY
             # running (keep_current, ephemeral -- no requested_profile write)
