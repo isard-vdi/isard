@@ -123,3 +123,53 @@ def test_an_unknown_curl_exit_code_still_names_the_code(monkeypatch, tmp_path):
         _download(task, "https://example.org/x.iso", tmp_path / "x.iso")
 
     assert str(exc.value) == "the download failed (curl exit 99)"
+
+
+def test_the_progress_meter_glued_to_the_curl_error_stays_out_of_the_reason(
+    monkeypatch, tmp_path
+):
+    from isardvdi_storage import task
+
+    _wire(monkeypatch, task)
+    # a name that does not resolve fails before curl ends the progress line
+    stderr = (
+        b"\r  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--"
+        b"     0curl: (6) Could not resolve host: nx.invalid\n"
+    )
+    monkeypatch.setattr(
+        task, "Popen", lambda *a, **k: _FailingCurl(stderr, 6), raising=False
+    )
+
+    with pytest.raises(task.DownloadError) as exc:
+        _download(task, "https://nx.invalid/x.iso", tmp_path / "x.iso")
+
+    assert str(exc.value) == (
+        "could not resolve the host (curl exit 6): "
+        "curl: (6) Could not resolve host: nx.invalid"
+    )
+
+
+def test_an_http_error_fails_the_download_with_its_status(monkeypatch, tmp_path):
+    from isardvdi_storage import task
+
+    _wire(monkeypatch, task)
+    stderr = (
+        b"\r  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--"
+        b"     0\ncurl: (22) The requested URL returned error: 503\n"
+    )
+    commands = []
+
+    def popen(cmd, *a, **k):
+        commands.append(cmd)
+        return _FailingCurl(stderr, 22)
+
+    monkeypatch.setattr(task, "Popen", popen, raising=False)
+
+    with pytest.raises(task.DownloadError) as exc:
+        _download(task, "https://example.org/x.iso", tmp_path / "x.iso")
+
+    assert "--fail" in commands[0]
+    assert str(exc.value) == (
+        "the server returned an HTTP error (curl exit 22): "
+        "curl: (22) The requested URL returned error: 503"
+    )
