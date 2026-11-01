@@ -1836,7 +1836,7 @@ def move(
     return _remove_copied_source(origin_path)
 
 
-def move_delete(path, pool_root=None, covered_paths=None):
+def move_delete(path, pool_root=None, covered_paths=None, live_uuids=None):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
 
@@ -1847,10 +1847,11 @@ def move_delete(path, pool_root=None, covered_paths=None):
     :param covered_paths: see :func:`delete`; a move-delete still strands a
         child's backing, so it carries the same guard.
     :type covered_paths: list or None
+    :param live_uuids: see :func:`delete`.
     :rtype: int
     """
     if covered_paths is not None:
-        _refuse_if_backs_live_disks(path, covered_paths)
+        _refuse_if_backs_live_disks(path, covered_paths, live_uuids)
     if isfile(path):
         delete_path = join(dirname(path), "deleted")
         if not isdir(delete_path):
@@ -1889,85 +1890,68 @@ def _dependent_candidates():
         if "/utils" not in sys.path:
             sys.path.insert(0, "/utils")
         from storage_lib.scanning import scan_isard_dirs
-    return [p for p in scan_isard_dirs() if p.endswith(".qcow2")]
-
-
-# Workers fork per job and several drain the delete lane, so the pool scan and
-# its backing index are shared through Redis (not an in-process cache) once per
-# short window, instead of every worker re-reading every header.
-_PURGE_BIDX_BUCKET_S = 60
-_PURGE_BIDX_TTL_S = 150
-_PURGE_BIDX_PREFIX = "storage:purge_backing_index:"
+    # deleted/ and to_delete/ hold disks that are themselves deleted
+    return [
+        p
+        for p in scan_isard_dirs()
+        if p.endswith(".qcow2") and "/deleted/" not in p and "/to_delete/" not in p
+    ]
 
 
 def _shared_backing_index(build_backing_index):
-    """The pool's qcow2 backing index for this window: reused from Redis when a
-    sibling delete worker already built it, else built here (one header read per
-    file) and cached for the rest of the purge. Redis down just means a fresh
-    build without the sharing, never a wrong answer."""
-    import json
-    from time import time as _now
+    """Shared incremental backing index of the pool."""
+    from isardvdi_common.lib.storage.backing_index import shared_backing_index
 
     try:
         redis = _redis_connection()
     except Exception:
         redis = None
-
-    key = None
-    if redis is not None:
-        key = _PURGE_BIDX_PREFIX + str(int(_now() // _PURGE_BIDX_BUCKET_S))
-        try:
-            cached = redis.get(key)
-        except Exception:
-            cached = None
-        if cached is not None:
-            try:
-                return json.loads(
-                    cached.decode() if isinstance(cached, bytes) else cached
-                )
-            except ValueError:
-                pass
-
-    index = build_backing_index(_dependent_candidates())
-    if redis is not None:
-        try:
-            redis.set(key, json.dumps(index), ex=_PURGE_BIDX_TTL_S)
-        except Exception:
-            pass
-    return index
+    return shared_backing_index(
+        _dependent_candidates, build_backing_index, redis, log=log.info
+    )
 
 
-def _on_disk_dependents(path, covered_paths):
-    """``(dependents, unreadable)`` for ``path`` from the one dependents
-    primitive over the window's shared backing index (direct children only)."""
+def _on_disk_dependents(path, covered_paths, live_uuids=None):
+    """``(dependents, unreadable)`` of ``path``, only live ones when ``live_uuids`` is set."""
     from isardvdi_common.lib.storage.dependents import (
         build_backing_index,
         dependents_of,
     )
 
     index = _shared_backing_index(build_backing_index)
-    return dependents_of(path, index, covered_paths=covered_paths)
+    return dependents_of(
+        path,
+        index,
+        transitive=True,
+        covered_paths=covered_paths,
+        live_uuids=None if live_uuids is None else set(live_uuids),
+    )
 
 
-def _refuse_if_backs_live_disks(path, covered_paths):
-    """Refuse to unlink/move a base that still backs a live disk outside this
-    deletion: the child the DB graph cannot see (row with no ``parent``). A live
-    child is always a readable qcow2, so an unreadable candidate cannot be one;
-    it is logged, not blocked -- blocking on every transiently unreadable pool
-    file (a disk mid-creation, a placeholder) would strand every purge."""
-    dependents, unknown = _on_disk_dependents(path, covered_paths or [])
-    if unknown:
+def _refuse_if_backs_live_disks(path, covered_paths, live_uuids=None):
+    """Refuse to remove a base that still backs a live disk outside this deletion."""
+    from isardvdi_common.lib.storage.dependents import uuid_from_path
+
+    dependents, unreadable = _on_disk_dependents(path, covered_paths or [], live_uuids)
+    if live_uuids is None:
+        blocking_unreadable = unreadable
+    else:
+        lu = set(live_uuids)
+        blocking_unreadable = [p for p in unreadable if uuid_from_path(p) in lu]
+    skipped = set(unreadable) - set(blocking_unreadable)
+    if skipped:
         log.warning(
-            "delete %s: %d candidate(s) could not be read to check backing "
-            "(not blocking): %s",
+            "delete %s: %d unreadable candidate(s) are not live disks, not "
+            "blocking: %s",
             path,
-            len(unknown),
-            unknown[:3],
+            len(skipped),
+            sorted(skipped)[:3],
         )
-    if dependents:
+    if dependents or blocking_unreadable:
         raise BackingInUseError(
             f"refusing to delete {path}: it still backs {len(dependents)} live "
-            f"disk(s) not part of this deletion (e.g. {dependents[:3]})"
+            f"disk(s) and {len(blocking_unreadable)} unreadable live candidate(s) "
+            f"not part of this deletion (e.g. {(dependents + blocking_unreadable)[:3]})"
         )
 
 
@@ -2384,7 +2368,7 @@ def _absent_on_a_live_volume(path, pool_root=None):
         return next(entries, None) is not None
 
 
-def delete(path, pool_root=None, covered_paths=None):
+def delete(path, pool_root=None, covered_paths=None, live_uuids=None):
     """
     Delete disk.
 
@@ -2397,9 +2381,13 @@ def delete(path, pool_root=None, covered_paths=None):
         ``path`` still backs a live disk outside that set. ``None`` leaves the
         direct-delete path (already DB-guarded) unchanged and skips the scan.
     :type covered_paths: list or None
+    :param live_uuids: active storage ids from the enqueuer (which has the
+        database); only a child whose own id is live blocks, so a junk or
+        recycled qcow2 never does. ``None`` means unknown -> block on any.
+    :type live_uuids: list or None
     """
     if covered_paths is not None:
-        _refuse_if_backs_live_disks(path, covered_paths)
+        _refuse_if_backs_live_disks(path, covered_paths, live_uuids)
     if isfile(path):
         remove(path)
         return

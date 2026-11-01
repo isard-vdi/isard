@@ -174,5 +174,6 @@ def handle_recycle_bin_update(task, **recycle_bin_dict):
             "recycle_bin_id": recycle_bin_id,
             "id": root.id,
             "status": root.status,
+            "blocked": "BackingInUseError" in (root.exc_info or ""),
         }
     )

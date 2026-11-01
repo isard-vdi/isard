@@ -28,7 +28,27 @@ def uuid_from_path(path):
     return m.group(0) if m else None
 
 
-def read_backing(path, _read=65536):
+def _has_protocol(name):
+    """True if *name* is a qemu protocol reference (``json:``…): a ``:`` before any ``/``."""
+    for ch in name:
+        if ch == "/":
+            return False
+        if ch == ":":
+            return True
+    return False
+
+
+def full_backing_filename(image_path, backing_file):
+    """Resolve a backing reference relative to the image's directory, as qemu does."""
+    if not backing_file:
+        return None
+    if backing_file.startswith("/") or _has_protocol(backing_file):
+        return os.path.normpath(backing_file)
+    base = os.path.dirname(str(image_path))
+    return os.path.normpath(os.path.join(base, backing_file))
+
+
+def read_backing(path, _read=4096):
     """Read a qcow2's backing-file reference straight from its header.
 
     :return: ``(backing_str, readable)`` -- ``backing_str`` is the raw stored
@@ -70,6 +90,8 @@ def build_backing_index(paths):
             "uuid": uuid_from_path(p),
             "size": size,
             "backing_raw": backing_raw,
+            # resolved so a relative pointer compares to an absolute target
+            "backing_path": full_backing_filename(p, backing_raw),
             "backing_uuid": uuid_from_path(backing_raw) if backing_raw else None,
             "readable": readable,
         }
@@ -77,11 +99,16 @@ def build_backing_index(paths):
 
 
 def _reads_through(entry, target_path, target_uuid):
-    """Whether an index entry's backing resolves to target, uuid first (robust
-    to a moved pointer), exact path otherwise."""
-    if target_uuid and entry["backing_uuid"] == target_uuid:
+    """Whether the entry's backing resolves to target, by uuid, path or raw string."""
+    if target_uuid and entry.get("backing_uuid") == target_uuid:
         return True
-    return bool(entry["backing_raw"]) and entry["backing_raw"] == target_path
+    raw = entry.get("backing_raw")
+    if not raw:
+        return False
+    if raw == target_path:
+        return True
+    resolved = entry.get("backing_path")
+    return bool(resolved) and resolved == os.path.normpath(target_path)
 
 
 def dependents_of(

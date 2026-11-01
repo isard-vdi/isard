@@ -31,6 +31,19 @@ from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from isardvdi_common.schemas.storage import StorageStatusEnum
 from rethinkdb import r
 
+# STORAGE_DELETE_RETRY=0 disables the worker-side retry of a purge delete
+_DELETE_TASK_RETRY = (
+    int(os.environ["STORAGE_DELETE_RETRY"])
+    if os.environ.get("STORAGE_DELETE_RETRY")
+    else 2
+)
+_DELETE_TASK_RETRY_INTERVALS = [30, 120]
+
+# every other status counts as a live disk that blocks its base's purge
+_PURGE_NON_LIVE_STATUSES = frozenset({"deleted", "orphan", "broken_chain", "recycled"})
+
+_PURGE_TASK_TERMINAL_STATUSES = frozenset({"finished", "failed", "canceled"})
+
 _get_status_cache: SynchronizedTTLCache = SynchronizedTTLCache(maxsize=10, ttl=30)
 _get_category_data_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=50, ttl=30
@@ -970,6 +983,49 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
+    def _release_unfinished_purge(cls, recycle_bin_id, entry):
+        """Hand a purge that ended with a failed or canceled task back to recycled."""
+        with cls._rdb_context():
+            result = (
+                r.table("recycle_bin")
+                .get(recycle_bin_id)
+                .update(
+                    lambda doc: r.branch(
+                        doc["status"] == RecycleBinStatusEnum.deleting.value,
+                        {"status": RecycleBinStatusEnum.recycled.value},
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(cls._rdb_connection)
+            )
+        if not result.get("changes"):
+            return
+        cls.clear_get_item_count_cache()
+        cls.clear_get_count_cache()
+        cls.clear_get_user_amount_cache()
+        cls.clear_get_user_recycle_bin_ids_cache()
+        tasks = entry.get("tasks") or []
+        blocked = any(t.get("blocked") for t in tasks)
+        log.warning(
+            "RecycleBin %s update_task_status: %s of %s purge task(s) did not finish%s, back to recycled",
+            recycle_bin_id,
+            sum(t["status"] != "finished" for t in tasks),
+            len(tasks),
+            " (a disk still backs a live one)" if blocked else "",
+        )
+        Helpers.add_log(
+            "delete_blocked_dependents" if blocked else "delete_failed",
+            recycle_bin_id,
+            entry["agent_type"],
+            entry["agent_id"],
+            entry["agent_name"],
+            entry["agent_category_id"],
+            entry["agent_category_name"],
+            entry["agent_role"],
+        )
+
+    @classmethod
     def update_task_status(cls, task):
 
         # First, atomically update the task status and get the updated document
@@ -983,7 +1039,11 @@ class Helpers(RethinkSharedConnection):
                         "tasks": r.row["tasks"].map(
                             lambda rb_task: r.branch(
                                 rb_task["id"] == task["id"],
-                                rb_task.merge({"status": task["status"]}),
+                                rb_task.merge(
+                                    {"status": task["status"]}
+                                    if not task.get("blocked")
+                                    else {"status": task["status"], "blocked": True}
+                                ),
                                 rb_task,
                             )
                         )
@@ -1024,6 +1084,10 @@ class Helpers(RethinkSharedConnection):
         # Done means every task this entry STARTED has finished, which is not one
         # per storage: the delete loop skips rows already gone or already deleted.
         tasks = updated_rb.get("tasks") or []
+        if len(finished_tasks) < len(tasks) and all(
+            t["status"] in _PURGE_TASK_TERMINAL_STATUSES for t in tasks
+        ):
+            cls._release_unfinished_purge(task["recycle_bin_id"], updated_rb)
         if len(finished_tasks) == len(tasks) and updated_rb.get("status") != "deleted":
             start = time.time()
             with cls._rdb_context():
@@ -2270,6 +2334,27 @@ class RecycleBin(RethinkSharedConnection):
                 covered_paths = [
                     Storage(sid).path for sid in covered_ids if Storage.exists(sid)
                 ]
+                # the worker has no database; None keeps its guard conservative
+                try:
+                    with self._rdb_context():
+                        _storage_rows = list(
+                            r.table("storage")
+                            .pluck("id", "status")
+                            .run(self._rdb_connection)
+                        )
+                    live_uuids = [
+                        row["id"]
+                        for row in _storage_rows
+                        if row.get("status") not in _PURGE_NON_LIVE_STATUSES
+                        and row["id"] not in covered_ids
+                    ]
+                except Exception:
+                    log.warning(
+                        "RecycleBin %s delete_storage: could not read the live "
+                        "storage set; the purge guard will block conservatively",
+                        self.id,
+                    )
+                    live_uuids = None
                 for entry, rb, all_deleted in loaded:
                     if all_deleted:
                         start = time.time()
@@ -2440,6 +2525,7 @@ class RecycleBin(RethinkSharedConnection):
                                         # Disks going away in this pass, so the
                                         # worker's on-disk guard does not count them.
                                         "covered_paths": covered_paths,
+                                        "live_uuids": live_uuids,
                                     },
                                 },
                                 dependents=[
@@ -2485,6 +2571,8 @@ class RecycleBin(RethinkSharedConnection):
                                         ],
                                     }
                                 ],
+                                retry=_DELETE_TASK_RETRY,
+                                retry_intervals=_DELETE_TASK_RETRY_INTERVALS,
                                 # create the job DEFERRED (created +
                                 # saved, id known, dependents deferred) but do
                                 # NOT enqueue it yet. We register it in the

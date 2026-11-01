@@ -124,3 +124,56 @@ def test_an_unreadable_candidate_is_reported_never_assumed_safe():
     }
     _, unreadable = dependents.dependents_of(f"{POOL}/{BASE}.qcow2", idx)
     assert unreadable == [f"{POOL}/bad.qcow2"]
+
+
+# --- relative backing resolution ---------------------------------------------
+
+
+def test_full_backing_filename_resolves_relative_against_the_image_dir():
+    assert (
+        dependents.full_backing_filename("/p/d/c.qcow2", "/abs/b.qcow2")
+        == "/abs/b.qcow2"
+    )
+    assert (
+        dependents.full_backing_filename("/p/d/c.qcow2", "../b.qcow2") == "/p/b.qcow2"
+    )
+    assert (
+        dependents.full_backing_filename("/p/d/c.qcow2", "sib.qcow2")
+        == "/p/d/sib.qcow2"
+    )
+    # a qemu protocol reference is kept verbatim, never joined to a dir
+    assert dependents.full_backing_filename("/p/c.qcow2", "json:x") == "json:x"
+    assert dependents.full_backing_filename("/p/c.qcow2", None) is None
+
+
+def test_a_relative_backing_to_a_non_uuid_base_is_detected(tmp_path):
+    """A child whose header stores a RELATIVE backing to a base whose filename
+    carries no uuid must still be seen as a dependent. Red on main: ``_reads_
+    through`` compared the raw relative string against the absolute target and
+    missed it, so the guard would unlink a base that still backs a live child
+    (data loss). Green with the resolved ``backing_path``."""
+    base = _qcow2(tmp_path / "plainbase.qcow2")  # root, NO uuid in the name
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    child = _qcow2(sub / "child.qcow2", backing="../plainbase.qcow2")
+    idx = dependents.build_backing_index([base, child])
+    deps, _ = dependents.dependents_of(base, idx)
+    assert deps == [child]
+
+
+# --- minimal header read keeps the beyond-4KiB fallback correct ------------
+
+
+def test_read_backing_still_finds_a_backing_string_past_the_first_4k(tmp_path):
+    """The default read shrank 64 KiB -> 4 KiB; a backing reference stored beyond
+    the first 4 KiB must still be found via the seek+read fallback."""
+    off = 5000
+    head = bytearray(off)
+    head[0:4] = dependents.QCOW2_MAGIC
+    raw = b"/isard/templates/far.qcow2"
+    head[8:16] = struct.pack(">Q", off)
+    head[16:20] = struct.pack(">I", len(raw))
+    head += raw
+    p = tmp_path / "far.qcow2"
+    p.write_bytes(bytes(head))
+    assert dependents.read_backing(str(p)) == ("/isard/templates/far.qcow2", True)
