@@ -83,6 +83,16 @@ class _Mig:
     def set_budget_spent(self, occurrence, size):
         self.budget_spent = {"occurrence": occurrence, "bytes": size}
 
+    def claim_occurrence(self, key):
+        if self.last_occurrence == key:
+            return False
+        self.last_occurrence = key
+        return True
+
+    def release_occurrence(self, key, prev):
+        if self.last_occurrence == key:
+            self.last_occurrence = prev
+
 
 class _Pipe:
     def __init__(self, conn):
@@ -218,6 +228,19 @@ def _runner(
         mr.StorageMigrationItem,
         "upsert",
         classmethod(lambda cls, data: items.append(data)),
+    )
+
+    def _insert_absent(cls, data):
+        if any(it["id"] == data["id"] for it in items):
+            return False
+        items.append(data)
+        return True
+
+    monkeypatch.setattr(
+        mr.StorageMigrationItem,
+        "insert_absent",
+        classmethod(_insert_absent),
+        raising=False,
     )
     monkeypatch.setattr(
         mig,
