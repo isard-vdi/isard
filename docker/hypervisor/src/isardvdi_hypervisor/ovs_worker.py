@@ -55,6 +55,10 @@ BCAST_LAB_RATE, BCAST_LAB_BURST = 1000, 2000
 MCAST_LAB_RATE, MCAST_LAB_BURST = 5000, 10000
 MAC_SPOOF_UNICAST_RATE, MAC_SPOOF_UNICAST_BURST = 10000, 20000
 
+# Opt-in per-network unicast meter (flow 198) defaults: off until an admin
+# enables the limit per network, so an upgrade leaves every network unmetered.
+STRICT_UNICAST_RATE, STRICT_UNICAST_BURST = 10000, 20000
+
 # QEMU/KVM OUI (first three octets) — every IsardVDI desktop NIC is assigned a
 # 52:54:00:xx:xx:xx MAC (engine gen_random_mac). In mac_spoofing mode this OUI
 # is reserved: only the desktop's own MAC may use it; any other 52:54:00 source
@@ -104,15 +108,32 @@ def bpdu_group_local(vlan):
     return 8000 + int(vlan)
 
 
+def _pos_int(value, default):
+    """A strictly-positive int from an XML attribute value, else the default
+    (absent / empty / non-integer / non-positive all fall back)."""
+    try:
+        n = int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    return n if n > 0 else default
+
+
 def parse_lab_opts(mapping):
-    """Read the lab_* attributes from a mac2network mapping dict into a
-    {key: bool} dict. Missing attributes default to False (strict). Only the
-    exact string "true" (case-insensitive) enables an option — defends against
-    stringly-typed values surviving from non-API writers."""
-    return {
+    """lab_* attributes -> opts dict. The four relaxation flags default False
+    (strict). The unicast meter is opt-in: absent lab_unicast_limit means OFF
+    (flow 198 stays NORMAL, as main); rate/burst default to STRICT_UNICAST_*."""
+    opts = {
         key: str(mapping.get(attr, "false")).lower() == "true"
         for attr, key in LAB_OPT_XML_ATTRS.items()
     }
+    opts["unicast_limit"] = (
+        str(mapping.get("lab_unicast_limit", "false")).lower() == "true"
+    )
+    rate = _pos_int(mapping.get("lab_unicast_rate"), STRICT_UNICAST_RATE)
+    burst = _pos_int(mapping.get("lab_unicast_burst"), STRICT_UNICAST_BURST)
+    opts["unicast_rate"] = rate
+    opts["unicast_burst"] = burst if burst >= rate else rate
+    return opts
 
 
 def now_ms() -> int:
@@ -1446,6 +1467,12 @@ class OvsWorker:
             mac_spoofing = bool(lab.get("mac_spoofing"))
             broadcast_unlimited = bool(lab.get("broadcast_unlimited"))
             multicast_unlimited = bool(lab.get("multicast_unlimited"))
+            # Per-network unicast meter (flow 198), opt-in (absent -> off).
+            unicast_limit = bool(lab.get("unicast_limit"))
+            unicast_rate = _pos_int(lab.get("unicast_rate"), STRICT_UNICAST_RATE)
+            unicast_burst = _pos_int(lab.get("unicast_burst"), STRICT_UNICAST_BURST)
+            if unicast_burst < unicast_rate:
+                unicast_burst = unicast_rate
             # lab.get("stp_bpdu") drives BPDU tunneling, added in the
             # dedicated block below (group-based MAC rewrite over the overlay).
 
@@ -1647,9 +1674,15 @@ class OvsWorker:
                 #     mask, and equal-priority overlap is undefined in
                 #     OpenFlow — the split pins broadcast to meter_bcast)
                 #   - priority=197 drops anything else (anti-MAC-spoofing)
-                # Allow traffic with correct source MAC -> NORMAL switching
+                # Own-MAC unicast -> NORMAL, metered on non-4095 networks that
+                # opt in. Counts datapath packets, so GSO-bulk TCP is unaffected.
+                if vlan != "4095" and unicast_limit:
+                    meter_specs.append((meter_unicast, unicast_rate, unicast_burst))
+                    unicast_action = f"meter:{meter_unicast},NORMAL"
+                else:
+                    unicast_action = "NORMAL"
                 flows.append(
-                    f"priority=198,in_port={nport},dl_src={mac},actions=NORMAL"
+                    f"priority=198,in_port={nport},dl_src={mac},actions={unicast_action}"
                 )
                 # Rate-limit broadcasts (per-VM meter)
                 flows.append(

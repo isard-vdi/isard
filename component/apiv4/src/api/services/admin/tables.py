@@ -141,28 +141,27 @@ def _net_range_includes_4095(net) -> bool:
 
 
 def _validate_lab_opts(table: str, data: dict) -> None:
-    """Gate the per-interface lab options and normalise them to a canonical
-    four-bool document.
-
-    apiv3 enforced this via the Cerberus ``validate_lab_opts_allowed``
-    ``check_with``; the apiv4 raw-dict path re-asserts it on INSERT and UPDATE.
-    Any enabled flag (``mac_spoofing``, ``stp_bpdu``, ``broadcast_unlimited``,
-    ``multicast_unlimited``) is refused unless the interface is OVS-family
-    (``kind`` in {ovs, personal}) and not on VLAN 4095. An all-false (or
-    absent) ``lab_opts`` is always accepted. The UI already hides the controls
-    in those cases; this is the server-side belt-and-suspenders for direct API
-    users. Mirrors ``normalize_lab_opts`` in the engine's domain_xml.
+    """Normalise lab_opts (LabOptsModel validates ints/ranges) and gate
+    relaxations. A relaxation — any of the four lab flags enabled — is refused
+    unless the interface is OVS-family (kind in {ovs, personal}) and not VLAN
+    4095. The per-network unicast limit is a tightening (opt-in), not a
+    relaxation, so it is accepted anywhere. Mirrors engine normalize_lab_opts.
     """
     if table != "interfaces" or "lab_opts" not in data:
         return
     try:
         lab_opts = LabOptsModel(**(data.get("lab_opts") or {})).model_dump()
-    except ValidationError:
+    except (ValidationError, ValueError):
         raise Error("bad_request", "Invalid lab_opts for interface")
-    # Persist the canonical four-bool document so the engine reads a definite
-    # value for every flag regardless of what the caller submitted.
+    # Persist the canonical document so the engine reads a definite value.
     data["lab_opts"] = lab_opts
-    if not any(lab_opts.values()):
+    relaxed = (
+        lab_opts["mac_spoofing"]
+        or lab_opts["stp_bpdu"]
+        or lab_opts["broadcast_unlimited"]
+        or lab_opts["multicast_unlimited"]
+    )
+    if not relaxed:
         return
     # On a partial UPDATE the kind/net may live only on the stored row; fetch
     # and merge so the gate sees the effective document (mirrors apiv3

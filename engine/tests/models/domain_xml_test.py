@@ -1537,6 +1537,95 @@ def test_mac2network_lab_opts_missing_from_mapping_defaults_to_false():
     mapping = _mapping_of(x)
     for attr in _LAB_FLAG_TO_ATTR.values():
         assert mapping[0].get(attr) == "false"
+    # And the per-network unicast attributes are NOT emitted for a legacy row,
+    # so the hypervisor applies its default (enabled at its module rate).
+    for attr in ("lab_unicast_limit", "lab_unicast_rate", "lab_unicast_burst"):
+        assert mapping[0].get(attr) is None
+
+
+# --------------------------------------------------------------------------
+# Per-network unicast rate meter: normalize + XML emit
+# --------------------------------------------------------------------------
+
+
+def test_normalize_preserves_unicast_fields():
+    out = dxml.normalize_lab_opts(
+        {"unicast_limit": True, "unicast_rate": 50000, "unicast_burst": 80000}
+    )
+    assert out["unicast_limit"] is True
+    assert out["unicast_rate"] == 50000
+    assert out["unicast_burst"] == 80000
+
+
+def test_normalize_omits_absent_unicast_fields():
+    """Absent -> omitted so the hypervisor default applies (not fabricated here)."""
+    out = dxml.normalize_lab_opts({})
+    assert "unicast_limit" not in out
+    assert "unicast_rate" not in out
+    assert "unicast_burst" not in out
+
+
+def test_normalize_unicast_only_actual_true_enables():
+    assert dxml.normalize_lab_opts({"unicast_limit": True})["unicast_limit"] is True
+    # stringly-typed value must NOT enable the limit (stays off, strict)
+    assert dxml.normalize_lab_opts({"unicast_limit": "true"})["unicast_limit"] is False
+
+
+def test_normalize_unicast_rejects_non_positive_or_nonint():
+    out = dxml.normalize_lab_opts({"unicast_rate": 0, "unicast_burst": "80000"})
+    assert "unicast_rate" not in out
+    assert "unicast_burst" not in out
+
+
+def test_mac2network_unicast_values_propagate(monkeypatch):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs",
+        "52:54:00:aa:bb:20",
+        "dom1",
+        "if-uni",
+        net="1002",
+        lab_opts={"unicast_limit": True, "unicast_rate": 50000, "unicast_burst": 80000},
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert mapping[0].get("lab_unicast_limit") == "true"
+    assert mapping[0].get("lab_unicast_rate") == "50000"
+    assert mapping[0].get("lab_unicast_burst") == "80000"
+
+
+def test_mac2network_unicast_disabled_propagates(monkeypatch):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface(
+        "ovs",
+        "52:54:00:aa:bb:21",
+        "dom1",
+        "if-uni2",
+        net="1002",
+        lab_opts={"unicast_limit": False},
+    )
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    assert mapping[0].get("lab_unicast_limit") == "false"
+
+
+def test_mac2network_unicast_absent_not_emitted(monkeypatch):
+    """A network with no unicast setting emits no lab_unicast_* attributes."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_domain_xml_with_isard_metadata())
+    x.add_interface("ovs", "52:54:00:aa:bb:22", "dom1", "if-plain", net="1002")
+    x.add_mac2network_metadata(x.mac2network_mappings)
+    mapping = _mapping_of(x)
+    for attr in ("lab_unicast_limit", "lab_unicast_rate", "lab_unicast_burst"):
+        assert mapping[0].get(attr) is None
 
 
 class TestHypervDependencyChain:
