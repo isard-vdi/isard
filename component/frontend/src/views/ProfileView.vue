@@ -220,7 +220,10 @@ onMounted(() => {
               class="w-32 h-32 mx-auto lg:mx-0 ring-4 ring-base-white shadow-lg border border-black/10"
             >
               <AvatarImage :src="user.photo || ''" :alt="user.name" />
-              <AvatarFallback class="font-bold text-9xl text-gray-warm-800 leading-none">
+              <AvatarFallback
+                class="font-regular text-gray-warm-800 leading-none"
+                :class="userInitials.length <= 3 ? 'text-display-lg' : 'text-display-md'"
+              >
                 {{ userInitials }}
               </AvatarFallback>
             </Avatar>
