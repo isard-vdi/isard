@@ -13,7 +13,9 @@ _DECLARATION = re.compile(
 )
 
 
-@pytest.mark.parametrize("part", ["apiv4.yml", "change-handler.yml", "engine.yml"])
+@pytest.mark.parametrize(
+    "part", ["apiv4.yml", "change-handler.yml", "engine.yml", "scheduler.yml"]
+)
 def test_task_producers_receive_the_ttl_with_its_default(part):
     text = (_PARTS / part).read_text(encoding="utf-8")
     assert _DECLARATION.search(text), f"{part} must pass REDIS_TASK_RESULT_TTL"
