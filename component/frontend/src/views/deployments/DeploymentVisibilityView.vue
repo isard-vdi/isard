@@ -582,6 +582,17 @@ const goBack = () =>
           </div>
         </template>
 
+        <template #head-all="{ header: allHeader }">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="cursor-help underline decoration-dotted underline-offset-4">
+                {{ allHeader.name }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :title="t('views.deployment-visibility.headers.all-tooltip')" />
+          </Tooltip>
+        </template>
+
         <template #cell-name="{ row }">
           <AvatarLabel :src="row.photo" :name="row.name" />
         </template>
