@@ -438,6 +438,7 @@
         },
         "failed-badge": "Plantilla amb errors",
         "failed-message": "Aquesta plantilla ha fallat i no es pot fer servir per crear escriptoris ni desplegaments",
+        "not-ready-message": "Aquesta plantilla encara no està llesta i no es pot fer servir per crear escriptoris ni desplegaments",
         "hidden-badge": "Plantilla amagada",
         "hidden-message": "Aquesta plantilla està amagada: altres usuaris no poden crear escriptoris a partir d'ella"
       }
@@ -757,7 +758,10 @@
         "stage2-title": "Etapa 2 — Aprovisionant emmagatzematge",
         "stage2-pending": "Esperant que l'Etapa 1 acabi abans d'aprovisionar emmagatzematge",
         "stage2-progress": "{current} de {total} escriptoris aprovisionats",
-        "stage2-done": "{total} de {total} escriptoris aprovisionats"
+        "stage2-done": "{total} de {total} escriptoris aprovisionats",
+        "failures-title": "No s'han pogut crear alguns escriptoris",
+        "failures-reason-template_not_ready": "la plantilla encara no estava llesta",
+        "failures-reason-unknown": "s'ha produït un error inesperat"
       },
       "actions": {
         "access": "Accedeix",
