@@ -1858,6 +1858,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 )
 
             TemplatesProcessed.check_template_status(None, template)
+            # Reject synchronously before the deployment's create_dict is rewritten.
+            DesktopsProcessed.assert_template_usable(template)
             if not Alloweds.is_allowed(payload, template, "domains"):
                 raise Error(
                     "forbidden",

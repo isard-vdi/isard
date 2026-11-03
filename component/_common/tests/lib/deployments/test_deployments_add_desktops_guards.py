@@ -140,3 +140,33 @@ class TestAddDesktopsGuards:
                 [{"template_id": "t-1", "hardware": {"virtualization_nested": True}}],
             )
         assert ("virtualization_nested" in seen[0]) is kept
+
+
+def _parse(desktops):
+    return DP._parse_new_deployment_desktops({"user_id": "u-1"}, desktops)
+
+
+class TestAddDesktopsTemplateNotReady:
+    """Adding a desktop type whose template is not ready must be rejected, like
+    create and recreate, before the deployment's create_dict is rewritten."""
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            "CreatingTemplate",
+            "Failed",
+            "Maintenance",
+            "DownloadStarting",
+            "Downloading",
+        ],
+    )
+    def test_not_ready_template_rejected(self, env, status):
+        env["template"]["status"] = status
+        with pytest.raises(Error) as exc:
+            _parse([{"template_id": "t-1"}])
+        assert exc.value.error["error"] == "precondition_required"
+        assert exc.value.error["description_code"] == "template_not_ready"
+
+    def test_ready_template_passes(self, env):
+        env["template"]["status"] = "Stopped"
+        assert len(_parse([{"template_id": "t-1"}])) == 1
