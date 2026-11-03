@@ -334,6 +334,7 @@ async def delete_deployment(
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         409: {"model": DesktopNameExistsErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
     dependencies=[
@@ -686,6 +687,7 @@ async def count_recreate_deployment_desktops(
     description="Creates the desktops that are missing for the deployment's currently allowed users. Existing desktops are left untouched.",
     responses={
         404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )

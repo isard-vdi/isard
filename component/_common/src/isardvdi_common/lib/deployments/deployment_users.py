@@ -277,6 +277,17 @@ class DeploymentUsers(RethinkSharedConnection):
                 r.table("deployments").get(deployment_id).run(cls._rdb_connection)
             )
 
+        # Reject before mutating ``allowed`` below. Local import avoids a cycle.
+        from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+
+        for recipe in deployment.get("create_dict") or []:
+            template_id = recipe.get("template")
+            template = (
+                Caches.get_document("domains", template_id) if template_id else None
+            )
+            if template:
+                DesktopsProcessed.assert_template_usable(template)
+
         # Local import to avoid the deployments <-> deployment_users
         # circular module dependency.
         from isardvdi_common.lib.deployments.deployments import (  # noqa: E501
