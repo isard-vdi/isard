@@ -132,6 +132,14 @@ watch(pageSize, (value) => {
   table.setPageSize(value)
 })
 
+watch(
+  () => table.getPageCount(),
+  (count) => {
+    const lastPage = Math.max(count - 1, 0)
+    if (table.getState().pagination.pageIndex > lastPage) table.setPageIndex(lastPage)
+  }
+)
+
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
