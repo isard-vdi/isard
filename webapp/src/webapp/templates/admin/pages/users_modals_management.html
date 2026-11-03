@@ -2740,7 +2740,7 @@
                     <input hidden name="id" id="id">
                     <div class="x_panel">
                         <div class="x_title">
-                            <h4><i class="fa fa-user"></i> Domain</h4>
+                            <h4><i class="fa fa-shield"></i> Bastion domain</h4>
                             <div class="clearfix"></div>
                         </div>
                         <div class="x_content" id="bastion-panel">
@@ -2756,7 +2756,7 @@
                                 </div>
                             </div>
                             <div class="item form-group" id="bastion-domain-panel">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="bastion-domain">Domain</label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="bastion-domain">Bastion domain</label>
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="text" name="bastion-domain" id="bastion-domain" class="form-control" style="width: 100%;">
                                 </div>
@@ -2765,11 +2765,11 @@
                     </div>
                     <div class="x_panel" id="wildcard-domain-alert" style="margin-bottom: 0; display:none;">
                         <div class="alert alert-info" style="margin-bottom: 0; color: white;">
-                            <i class="fa fas fa-info-circle"></i> In order to work you will have to add the following DNS records pointing to the IsardVDI server:
+                            <i class="fa fas fa-info-circle"></i> This domain only provides bastion access: the SSH gateway and per-desktop subdomains. It does not serve the web portal or its certificate. For it to work, add the following DNS records pointing to the IsardVDI server:
                             <br>
-                            <strong>A wildcard DNS record:</strong> <code>*.<span id="domain-name">@</span></code>
+                            <strong>A wildcard DNS record:</strong> <code>*.<span class="bastion-domain-name">@</span></code>
                             <br>
-                            <strong>A regular DNS record:</strong> <code><span id="domain-name">@</span></code>
+                            <strong>A regular DNS record:</strong> <code><span class="bastion-domain-name">@</span></code>
                         </div>
                     </div>
                     <div class="x_panel" id="domain-ownership-alert" style="display:none;">
@@ -2778,7 +2778,7 @@
                             <br>
                             <strong>Record type:</strong> <code>TXT</code>
                             <br>
-                            <strong>Record name:</strong> <code id="record-name">_isardvdi-bastion-category.<span id="domain-name">@</span></code>
+                            <strong>Record name:</strong> <code id="record-name">_isardvdi-bastion-category.<span class="bastion-domain-name">@</span></code>
                             <br>
                             <strong>Record content:</strong> <code id="record-content"></code>
                         </div>
