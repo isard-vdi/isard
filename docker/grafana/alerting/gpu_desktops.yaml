@@ -1,15 +1,16 @@
 apiVersion: 1
 
-# nvidia-vgpu-mgr disables the vGPU of a guest whose NVIDIA driver is older than
-# the host accepts; the line is only in the host journal (grafana-alloy journal.alloy).
+# GPU desktops that run degraded without anything else saying so: a vGPU the
+# nvidia-vgpu-mgr disabled (host journal, grafana-alloy journal.alloy), and a GPU
+# start with 4K pages (isard-engine warning).
 # Telegram is opt-in: docker/grafana/run.sh removes this file without a token.
 # P8E80F9AEF21F6940 is the provisioned Loki datasource uid.
 
 contactPoints:
   - orgId: 1
-    name: vgpu-telegram
+    name: gpu-telegram
     receivers:
-      - uid: vgpu-telegram
+      - uid: gpu-telegram
         type: telegram
         settings:
           bottoken: ${GRAFANA_TELEGRAM_TOKEN}
@@ -19,7 +20,7 @@ contactPoints:
 
 groups:
   - orgId: 1
-    name: vgpu
+    name: gpu-desktops
     folder: Alerts
     interval: 1m
     rules:
@@ -44,7 +45,7 @@ groups:
             domain="{{ $labels.domain }}"} |= "Driver Version". Update the guest
             driver of the templates they come from.
         notification_settings:
-          receiver: vgpu-telegram
+          receiver: gpu-telegram
         data:
           - refId: A
             relativeTimeRange:
@@ -59,6 +60,74 @@ groups:
               editorMode: code
               queryType: instant
               expr: 'sum by (domain) (count_over_time({job="journal", unit="nvidia-vgpu-mgr.service"} |= `Incompatible Guest/Host drivers` [15m]))'
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange:
+              from: 900
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]
+
+      - uid: gpu-desktop-started-with-4k-pages
+        title: GpuDesktopStartedWith4kPages
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+          service: isard-engine
+          area: hypervisors
+        annotations:
+          summary: GPU desktops started with 4K pages
+          description: >-
+            {{ $values.B }} GPU desktop start(s) in the last 15m got 4K pages
+            instead of hugepages, so VFIO maps their memory far slower and the
+            start can take minutes. The engine warning says why (the host has no
+            hugepage pool, or the free pool does not fit the desktop): Loki
+            {container_name="isard-engine"} |= "starting with 4K pages". Check the
+            hypervisor gpu_warnings and the hugepage pool of that host.
+        notification_settings:
+          receiver: gpu-telegram
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              editorMode: code
+              queryType: instant
+              expr: 'sum(count_over_time({container_name="isard-engine"} |= `starting with 4K pages` [15m]))'
               intervalMs: 1000
               maxDataPoints: 43200
           - refId: B
