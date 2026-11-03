@@ -697,6 +697,27 @@ const TEMPLATE_DEFAULT_SORT = { key: 'accessed', desc: true }
                         </Button>
                       </DropdownMenuItem>
                       <DropdownMenuItem
+                        :disabled="templateCreationCheckIsPending || isFailed(row)"
+                        @click="
+                          handleWithTemplateQuotaCheck(() =>
+                            router.push({
+                              name: 'duplicate-template',
+                              params: { templateId: row.id }
+                            })
+                          )
+                        "
+                      >
+                        <Button
+                          size="sm"
+                          class="mr-2 w-full justify-start"
+                          hierarchy="link-gray"
+                          icon="copy-07"
+                          icon-size="md"
+                        >
+                          {{ t('views.templates.table.actions.duplicate') }}
+                        </Button>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         class="hover:bg-error-50 focus:bg-error-50"
                         @click="deleteModalData = { id: row.id, name: row.name }"
                       >
