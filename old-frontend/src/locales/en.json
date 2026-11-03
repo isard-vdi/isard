@@ -1781,6 +1781,8 @@
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
+        "template_not_ready": "This template isn't ready yet. Wait for it to finish or pick another template",
+        "deployment_desktops_failed": "{count} desktops in the deployment could not be created",
         "template_storage_not_ready": "This template's disk is not ready, so it can't be used yet, please contact the administrator",
         "media_invalid": "The downloaded file is not a valid media file. The link must download the file directly (for example, a link ending in .iso), not open a web page. It should be deleted since it can't be used",
         "desktop_storage_not_ready": "Desktop storage is not ready",
