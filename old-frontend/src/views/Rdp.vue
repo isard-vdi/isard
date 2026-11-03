@@ -113,8 +113,11 @@ export default {
       this.username = params.vmUsername
       this.password = params.vmPassword
 
+      const pixelDensity = window.devicePixelRatio || 1
       const queryParams = {
         scheme: 'rdp',
+        width: Math.floor(window.innerWidth * pixelDensity),
+        height: Math.floor(window.innerHeight * pixelDensity),
         hostname: this.desktopIp,
         'ignore-cert': true,
         session: cookies.getCookie('viewerToken'),
