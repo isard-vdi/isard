@@ -2860,6 +2860,13 @@
           "viewing": "Estás viendo este escritorio",
           "no-web-viewer": "Este escritorio no tiene visor web; ábrelo desde el menú de visores"
         }
+      },
+      "started-desktops-modal": {
+        "title": "{count} escritorio no está detenido | {count} escritorios no están detenidos",
+        "description": "Un despliegue no se puede editar hasta que todos sus escritorios estén detenidos.",
+        "manage-hint": "Puedes detenerlos desde la gestión del despliegue.",
+        "close": "Cerrar",
+        "manage": "Ir a la gestión del despliegue"
       }
     },
     "change-image-modal": {
