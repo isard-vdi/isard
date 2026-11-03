@@ -17,7 +17,7 @@ loki.relabel "journal" {
 	rule {
 		source_labels = ["__journal__transport", "__journal__systemd_unit"]
 		separator     = ";"
-		regex         = "kernel;.*|[^;]*;(iscsid|multipathd|nfs-server|nfs-mountd|rpc-statd|nfsdcld|pacemaker|corosync|sbd|drbd|libvirtd|virtqemud|docker|containerd|chronyd|systemd-timesyncd|systemd-oomd|smartd|mdmonitor)\\.service"
+		regex         = "kernel;.*|[^;]*;(iscsid|multipathd|nfs-server|nfs-mountd|rpc-statd|nfsdcld|pacemaker|corosync|sbd|drbd|libvirtd|virtqemud|nvidia-vgpu-mgr|docker|containerd|chronyd|systemd-timesyncd|systemd-oomd|smartd|mdmonitor)\\.service"
 		action        = "keep"
 	}
 

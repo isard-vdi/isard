@@ -31,7 +31,10 @@ tasks, OOM kills, a cluster resource moving.
   nothing.
 - **Allow-list, not deny-list:** the kernel plus the units named in the relabel
   rule. `sshd`, `sudo` and `systemd-logind` stay on the host on purpose: they name
-  people. Adding a unit means adding it to the regex.
+  people. Adding a unit means adding it to the regex. `nvidia-vgpu-mgr` is there
+  because it is the only place that says a vGPU was disabled at start (a guest
+  driver older than the host accepts): the desktop boots without its GPU and
+  nothing else records it.
 - **Dropped:** firewall per-packet kernel lines (`[UFW …]`, `IN=… OUT=… SRC=`),
   which carry client IPs and can be thousands per minute on a public host.
 - **Rate limit:** 20 lines/s with a burst of 200, so a kernel stuck in a loop cannot
