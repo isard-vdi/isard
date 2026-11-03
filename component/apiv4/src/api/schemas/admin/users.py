@@ -725,6 +725,8 @@ class AdminCategoryDetailResponse(BaseModel):
     branding: Optional[dict] = None
     manager_permissions: Optional[dict] = None
     maintenance: Optional[bool] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
+    gpu_use_global_pool: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
 
 

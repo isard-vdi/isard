@@ -816,6 +816,25 @@ def test_admin_get_category(monkeypatch, test_client):
     assert body["name"] == "Category 1"
 
 
+def test_admin_get_category_returns_ephimeral_and_gpu_pool(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = {
+        "id": "cat-1",
+        "name": "Category 1",
+        "ephimeral": {"minutes": 30, "action": "Stopping"},
+        "gpu_use_global_pool": False,
+    }
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.get_category",
+        staticmethod(lambda category_id: stub),
+    )
+
+    body = test_client(url="/admin/item/category/cat-1", jwt=jwt).json()
+
+    assert body["ephimeral"] == {"minutes": 30, "action": "Stopping"}
+    assert body["gpu_use_global_pool"] is False
+
+
 def test_admin_create_category(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
