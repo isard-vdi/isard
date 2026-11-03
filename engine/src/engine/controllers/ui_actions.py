@@ -697,16 +697,18 @@ class UiActions(object):
                             )
                             if page is None:
                                 log.warning(
-                                    f"GPU desktop {id_domain}: no hugepage size fits "
-                                    f"{domain_memory_kb}KB with {hp_free_kb}KB free, "
-                                    f"starting with 4K pages (slower VFIO mapping)"
+                                    f"GPU desktop {id_domain} on {next_hyp}: starting "
+                                    f"with 4K pages, no hugepage size fits "
+                                    f"{domain_memory_kb}KB with {hp_free_kb}KB free"
                                 )
                                 expects_slow_createxml = True
                             elif _allow["memory_backing"]:
                                 xml = add_memory_backing(xml, *page)
                         else:
-                            # GPU start on a host without a mounted hugepages
-                            # pool — 4K-page mapping is the only option.
+                            log.warning(
+                                f"GPU desktop {id_domain} on {next_hyp}: starting "
+                                f"with 4K pages, the host has no hugepage pool"
+                            )
                             expects_slow_createxml = True
                     elif "memory_backing" in extra_info:
                         # Non-GPU: the balancer decided it (memory_placement)

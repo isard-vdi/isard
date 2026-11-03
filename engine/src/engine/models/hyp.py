@@ -31,6 +31,7 @@ from lxml import etree
 
 from engine.config import *
 from engine.models._gpu_pool import _profile_pool_size
+from engine.models.memory_placement import gpu_hugepages_warnings, nvidia_gpu_numa_nodes
 from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
@@ -1520,6 +1521,12 @@ class hyp(object):
                         )
                     for n in gpu.get("notes", []):
                         self._gpu_notes.append(f"GPU {gpu.get('pci_bus_id', '?')}: {n}")
+                self._gpu_warnings.extend(
+                    gpu_hugepages_warnings(
+                        nvidia_gpu_numa_nodes(self.hypervisor.get("pci_devices")),
+                        self.hypervisor.get("hugepages_info"),
+                    )
+                )
         except Exception:
             pass
 

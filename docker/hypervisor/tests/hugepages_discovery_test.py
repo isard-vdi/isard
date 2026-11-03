@@ -66,3 +66,36 @@ def test_unreadable_mounts_back_nothing(tmp_path):
 def test_discover_hugepages_reports_the_mount_sizes(monkeypatch):
     monkeypatch.setattr(mod, "_hugetlbfs_mount_sizes", lambda: ["1G"])
     assert mod.discover_hugepages()["mount_sizes"] == ["1G"]
+
+
+def _node(root, node, pages_1g=None, pages_2m=None):
+    for size_kb, pages in ((1048576, pages_1g), (2048, pages_2m)):
+        if pages is None:
+            continue
+        d = root / f"node{node}" / "hugepages" / f"hugepages-{size_kb}kB"
+        d.mkdir(parents=True)
+        (d / "nr_hugepages").write_text(f"{pages}\n")
+
+
+def test_numa_totals_are_read_per_node_and_size(tmp_path):
+    _node(tmp_path, 0, pages_1g=168, pages_2m=0)
+    _node(tmp_path, 1, pages_1g=0, pages_2m=512)
+    (tmp_path / "possible").write_text("0-1\n")
+    assert mod._numa_hugepages_totals(str(tmp_path)) == {
+        "0": {"1G": 168, "2M": 0},
+        "1": {"1G": 0, "2M": 512},
+    }
+
+
+def test_a_node_without_a_size_counts_zero_of_it(tmp_path):
+    _node(tmp_path, 0, pages_1g=4)
+    assert mod._numa_hugepages_totals(str(tmp_path)) == {"0": {"1G": 4, "2M": 0}}
+
+
+def test_no_numa_sysfs_reports_no_nodes(tmp_path):
+    assert mod._numa_hugepages_totals(str(tmp_path / "absent")) == {}
+
+
+def test_discover_hugepages_reports_the_numa_totals(monkeypatch):
+    monkeypatch.setattr(mod, "_numa_hugepages_totals", lambda: {"0": {"1G": 2}})
+    assert mod.discover_hugepages()["numa"] == {"0": {"1G": 2}}
