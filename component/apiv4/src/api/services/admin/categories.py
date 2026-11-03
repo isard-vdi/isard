@@ -27,6 +27,7 @@ from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.category import Category
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.users.categories.categories import CategoriesProcessed
 
 _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
@@ -81,6 +82,22 @@ class AdminCategoryService:
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "branding"
         )
+
+        incoming_domain = (data or {}).get("domain") or {}
+        if (
+            incoming_domain.get("enabled")
+            and incoming_domain.get("certificate_source") == "custom"
+            and not incoming_domain.get("certificate_data")
+            and not ((Category(category_id).branding or {}).get("domain") or {}).get(
+                "certificate_data"
+            )
+        ):
+            raise Error(
+                "bad_request",
+                "A custom certificate source requires a certificate file.",
+                description_code="branding_custom_certificate_required",
+            )
+
         try:
             Category(category_id).branding = data
         except ValueError as e:
@@ -109,9 +126,15 @@ class AdminCategoryService:
                     f"{f.domain}: {Bastion.readable_sync_error(f.error)}"
                     for f in relevant
                 )
+                ApiAdmin.update_table_item(
+                    "categories",
+                    {"id": category_id, "branding": {"domain": {"enabled": False}}},
+                )
+                clear_logo_cache()
                 raise Error(
                     "internal_server",
-                    f"HAProxy domain sync reported failures: {details}",
+                    "The branding domain was saved but could not be served and "
+                    f"was left disabled: {details}",
                     description_code="branding_sync_failed",
                 )
 

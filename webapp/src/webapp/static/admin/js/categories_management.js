@@ -45,9 +45,8 @@ function ajaxPutWithNotice(url, data, entityName, onSuccess) {
                 title: 'ERROR updating ' + entityName,
                 text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                 type: 'error',
-                hide: true,
+                hide: false,
                 icon: 'fa fa-warning',
-                delay: 5000,
                 opacity: 1
             });
         }
