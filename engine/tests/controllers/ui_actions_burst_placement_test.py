@@ -243,7 +243,9 @@ def test_the_only_host_out_of_memory_refuses_the_start_instead_of_oom(burst):
 
 def test_a_host_out_of_memory_is_skipped_for_one_with_room(burst):
     full = _host("h1", pool_free_gb=0, available_gb=10, guests_gb=150)
-    roomy = _host("h2", total_gb=60, pool_gb=0, pool_free_gb=0, available_gb=50)
+    roomy = _host(
+        "h2", total_gb=60, pool_gb=0, pool_free_gb=0, available_gb=50, guests_gb=8
+    )
     roomy["hugepages_info"] = {}
     placed, _, failed = burst([full, roomy], starts=2, balancer_type="round_robin")
 
@@ -252,10 +254,45 @@ def test_a_host_out_of_memory_is_skipped_for_one_with_room(burst):
     assert not failed
 
 
-def test_a_host_without_a_pool_starts_desktops_as_before(burst):
-    host = _host("h1", total_gb=96, pool_gb=0, pool_free_gb=0, available_gb=4)
+def test_a_host_without_a_pool_or_a_reserve_starts_desktops_as_before(burst):
+    host = _host(
+        "h1", total_gb=96, pool_gb=0, pool_free_gb=0, available_gb=4, min_free_gb=0
+    )
     host["hugepages_info"] = {}
     placed, _, failed = burst([host], starts=3)
 
     assert placed["h1"] == {"regular": 3, "hugepages": 0}
     assert not failed
+
+
+@pytest.mark.parametrize("refresh", [False, True])
+def test_a_burst_on_a_host_without_a_pool_stops_at_its_reserve(burst, refresh):
+    # A fresh host: measured memory stays near total while the guests boot.
+    fresh = _host(
+        "h1", total_gb=96, pool_gb=0, pool_free_gb=0, available_gb=90, guests_gb=0
+    )
+    fresh["hugepages_info"] = {}
+    other = _host(
+        "h2", total_gb=96, pool_gb=0, pool_free_gb=0, available_gb=60, guests_gb=30
+    )
+    # hugetlbfs mounted with no pages, as on a host never given a pool
+    other["hugepages_info"] = {"mounted": True, "2M": {"total": 0}}
+    placed, _, failed = burst([fresh, other], starts=16, refresh=refresh)
+
+    # 96 GiB minus the 8 GiB reserve: at most 11 desktops of 8 GiB on h1.
+    assert placed["h1"]["regular"] <= 11
+    assert _regular_after(fresh, placed["h1"]) <= _regular_capacity_kb(fresh)
+    assert _regular_after(other, placed["h2"]) <= _regular_capacity_kb(other)
+    assert placed["h1"]["regular"] + placed["h2"]["regular"] == 16
+    assert not failed
+
+
+def test_a_burst_without_room_anywhere_fails_with_a_memory_reason(burst):
+    host = _host(
+        "h1", total_gb=96, pool_gb=0, pool_free_gb=0, available_gb=90, guests_gb=80
+    )
+    host["hugepages_info"] = {}
+    placed, _, failed = burst([host], starts=3)
+
+    assert placed["h1"] == {"regular": 1, "hugepages": 0}
+    assert len(failed) == 2 and "memory" in (failed[0][1] or "")

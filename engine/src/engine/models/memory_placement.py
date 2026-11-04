@@ -65,22 +65,31 @@ def plan_memory_backing(
     pending_hugepages_kb=0,
 ):
     """``REGULAR``, ``HUGEPAGES`` or ``None`` when the host has no room for it."""
-    if not (hugepages_info or {}).get("mounted"):
+    hugepages_info = hugepages_info or {}
+    mounted = hugepages_info.get("mounted")
+    min_free_kb = int(min_free_mem_gb or 0) * GIB_KB
+    if not mounted and not min_free_kb:
         return REGULAR
     mem_stats = mem_stats or {}
     if "available" not in mem_stats:
         # no stats sampled yet: nothing to decide on, start it as before
         return REGULAR
-    min_free_kb = int(min_free_mem_gb or 0) * GIB_KB
     measured, committed = regular_room_kb(mem_stats, min_free_kb, pending_regular_kb)
     fits_measured = measured >= domain_memory_kb
     fits_committed = committed is None or committed >= domain_memory_kb
     if fits_measured and fits_committed:
         return REGULAR
+    has_pool = mounted and any(
+        (hugepages_info.get(label) or {}).get("total")
+        for _, label, _ in _HUGEPAGE_SIZES
+    )
+    if not has_pool:
+        # hugetlbfs is mounted by default with no pages: the reserve is the only cap
+        return REGULAR if fits_measured and not min_free_kb else None
     hp_free_kb = int(mem_stats.get("hugepages_free_kb", 0) or 0) - pending_hugepages_kb
     if pick_hugepage_size(domain_memory_kb, hugepages_info, hp_free_kb) is not None:
         return HUGEPAGES
     if fits_measured:
-        # committed alone never refuses: hosts without a pool run over-committed too
+        # with a pool, committed alone never refuses once the pool is spoken for
         return REGULAR
     return None
