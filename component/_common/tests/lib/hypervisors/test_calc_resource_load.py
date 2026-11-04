@@ -70,3 +70,73 @@ class TestCalcResourceLoad:
             "cpu": {"total": 100, "used": 41, "free": 59},
             "ram": {"total": 65536, "used": 32768, "free": 32768},
         }
+
+
+GIB = 1024 * 1024
+
+
+class TestRamFreeCountsCommittedMemory:
+    """A host that just took a burst looks empty until its guests touch memory."""
+
+    def test_free_is_capped_by_the_memory_guests_can_claim(self):
+        stats = {
+            "cpu_5min": {"used": 0.0, "idle": 100.0},
+            # 504 GiB host, 100 GiB measured in use, 591 GiB promised to guests
+            "mem_stats": {
+                "total": 504 * GIB,
+                "used": 100 * GIB,
+                "guests_kb": 591 * GIB,
+            },
+        }
+
+        result = HypervisorsProcessed.calc_resource_load(stats)
+
+        assert result["ram"] == {"total": 504 * 1024, "used": 100 * 1024, "free": 0}
+
+    def test_free_is_the_measured_one_when_guests_promise_less(self):
+        stats = {
+            "cpu_5min": {"used": 0.0, "idle": 100.0},
+            "mem_stats": {"total": 64 * GIB, "used": 40 * GIB, "guests_kb": 10 * GIB},
+        }
+
+        result = HypervisorsProcessed.calc_resource_load(stats)
+
+        assert result["ram"]["free"] == 24 * 1024
+
+    def test_promised_memory_leaves_the_rest_free(self):
+        stats = {
+            "cpu_5min": {"used": 0.0, "idle": 100.0},
+            "mem_stats": {"total": 64 * GIB, "used": 8 * GIB, "guests_kb": 40 * GIB},
+        }
+
+        result = HypervisorsProcessed.calc_resource_load(stats)
+
+        assert result["ram"]["free"] == 24 * 1024
+
+    def test_hugepage_guests_are_not_counted_twice(self):
+        # the pool is already in ``used``: guests on it take nothing more
+        stats = {
+            "cpu_5min": {"used": 0.0, "idle": 100.0},
+            "mem_stats": {
+                "total": 64 * GIB,
+                "used": 34 * GIB,
+                # 32 GiB of guests on the pool plus 8 GiB of regular memory
+                "guests_kb": 40 * GIB,
+                "hugepages_used_kb": 32 * GIB,
+            },
+        }
+
+        result = HypervisorsProcessed.calc_resource_load(stats)
+
+        assert result["ram"]["free"] == 24 * 1024
+
+    def test_unknown_guest_memory_keeps_the_measured_free(self):
+        for guests in (None, "x", True):
+            stats = {
+                "cpu_5min": {"used": 0.0, "idle": 100.0},
+                "mem_stats": {"total": 64 * GIB, "used": 8 * GIB, "guests_kb": guests},
+            }
+
+            result = HypervisorsProcessed.calc_resource_load(stats)
+
+            assert result["ram"]["free"] == 56 * 1024
