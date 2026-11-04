@@ -414,6 +414,58 @@ func TestStartLogin(t *testing.T) {
 
 			ExpectedErr: provider.ErrUserDisallowed.Error(),
 		},
+		"should reject login when the user role exceeds the provider max_role": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"local",
+				})).Return([]interface{}{
+					map[string]interface{}{
+						"id":       "user ID",
+						"uid":      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"category": "default",
+						"provider": "local",
+						"username": "nefix",
+						"name":     "Néfix Estrada",
+						"email":    "nefix@example.org",
+						"role":     "manager",
+						"active":   true,
+					},
+				}, nil)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"disabled":                 false,
+								"max_role":                 "advanced",
+								"email_domain_restriction": map[string]interface{}{"enabled": false},
+							},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("String").Return("local")
+			},
+
+			Provider:   "local",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				return &types.ProviderUserData{
+					Provider: "local",
+					Category: "default",
+					UID:      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: provider.ErrInvalidCredentials.Error(),
+		},
 		"should allow default admin even when provider is disabled": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{

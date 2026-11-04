@@ -37,6 +37,7 @@ type CategoryAuthLocal struct {
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
 	Status                 ProviderStatus                               `rethinkdb:"status"`
+	MaxRole                Role                                         `rethinkdb:"max_role"`
 }
 
 type CategoryAuthLDAP struct {
@@ -44,6 +45,7 @@ type CategoryAuthLDAP struct {
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
 	Status                 ProviderStatus                               `rethinkdb:"status"`
+	MaxRole                Role                                         `rethinkdb:"max_role"`
 	LDAPConfig             *LDAPConfig                                  `rethinkdb:"ldap_config"`
 }
 
@@ -52,6 +54,7 @@ type CategoryAuthSAML struct {
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
 	Status                 ProviderStatus                               `rethinkdb:"status"`
+	MaxRole                Role                                         `rethinkdb:"max_role"`
 	SAMLConfig             *SAMLConfig                                  `rethinkdb:"saml_config"`
 }
 
@@ -60,6 +63,7 @@ type CategoryAuthGoogle struct {
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
 	Status                 ProviderStatus                               `rethinkdb:"status"`
+	MaxRole                Role                                         `rethinkdb:"max_role"`
 	GoogleConfig           *GoogleConfig                                `rethinkdb:"google_config"`
 }
 

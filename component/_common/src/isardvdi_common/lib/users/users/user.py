@@ -25,6 +25,7 @@ import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
 from os import getenv
+from typing import get_args
 
 import jwt
 from cachetools import cached
@@ -37,6 +38,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.category import Category
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
+from isardvdi_common.schemas.user import USER_ROLE
 from rethinkdb import r
 
 from ....connections.api_notifier import send_verification_email
@@ -182,6 +184,28 @@ class UsersProcessed(RethinkSharedConnection):
                 r.table(cls._rdb_table)
                 .get_all([uid, category_id, provider], index="uid_category_provider")
                 .run(cls._rdb_connection)
+            )
+
+    _ROLE_RANK = {role: rank for rank, role in enumerate(get_args(USER_ROLE))}
+
+    @classmethod
+    def check_max_role(cls, category_id, provider, role):
+        """Reject a role above the category's ``authentication.<provider>.max_role``."""
+        # A single key returns its value: this is the authentication dict itself.
+        authentication = Caches.get_document(
+            "categories", category_id, ["authentication"]
+        )
+        max_role = ((authentication or {}).get(provider) or {}).get("max_role")
+        if not max_role:
+            return
+        if cls._ROLE_RANK.get(role, -1) > cls._ROLE_RANK.get(
+            max_role, len(cls._ROLE_RANK)
+        ):
+            raise Error(
+                "forbidden",
+                f"Role '{role}' exceeds the '{max_role}' max_role of provider "
+                f"'{provider}' in this category",
+                description_code="role_above_provider_max_role",
             )
 
     @classmethod
@@ -389,6 +413,8 @@ class UsersProcessed(RethinkSharedConnection):
         # Always persist the rows that passed validation — earlier behavior
         # silently discarded the entire batch when any single row errored.
         if new_users:
+            for nu in new_users:
+                cls.check_max_role(nu["category"], nu["provider"], nu["role"])
             cls.bulk_create(new_users)
 
         if errors:

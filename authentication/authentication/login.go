@@ -121,6 +121,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		providerConfigured bool
 		providerDisabled   bool
 		emailRestriction   model.CategoryAuthenticationEmailDomainRestriction
+		maxRole            model.Role
 	)
 
 	if c.Authentication != nil {
@@ -130,24 +131,28 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				providerConfigured = true
 				providerDisabled = c.Authentication.Local.Disabled
 				emailRestriction = c.Authentication.Local.EmailDomainRestriction
+				maxRole = c.Authentication.Local.MaxRole
 			}
 		case types.ProviderLDAP:
 			if c.Authentication.LDAP != nil {
 				providerConfigured = true
 				providerDisabled = c.Authentication.LDAP.Disabled
 				emailRestriction = c.Authentication.LDAP.EmailDomainRestriction
+				maxRole = c.Authentication.LDAP.MaxRole
 			}
 		case types.ProviderSAML:
 			if c.Authentication.SAML != nil {
 				providerConfigured = true
 				providerDisabled = c.Authentication.SAML.Disabled
 				emailRestriction = c.Authentication.SAML.EmailDomainRestriction
+				maxRole = c.Authentication.SAML.MaxRole
 			}
 		case types.ProviderGoogle:
 			if c.Authentication.Google != nil {
 				providerConfigured = true
 				providerDisabled = c.Authentication.Google.Disabled
 				emailRestriction = c.Authentication.Google.EmailDomainRestriction
+				maxRole = c.Authentication.Google.MaxRole
 			}
 		}
 	}
@@ -289,6 +294,14 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				}
 			}
 		}
+	}
+
+	// The default admin is exempt so a bad cap cannot lock it out.
+	if providerConfigured && !isDefaultAdmin(u) && maxRole != "" && u.Role.HasMorePrivileges(maxRole) {
+		a.Log.Info().Str("usr", u.UID).Str("cat", u.Category).
+			Str("role", string(u.Role)).
+			Msg("login rejected: role exceeds category provider max_role")
+		return "", "", provider.ErrInvalidCredentials
 	}
 
 	if !uExists {

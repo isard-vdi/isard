@@ -295,6 +295,12 @@ $(document).ready(function () {
         if (!validateForm(form)) return;
         var modal = "#modalAuthentication";
         var data = collectFormData($(modal + " form"));
+        // collectFormData also reads disabled inputs; omitting max_role keeps the stored one.
+        if ($('#user_data').data('role') !== 'admin') {
+          $.each(data.authentication || {}, function (_, providerData) {
+            if (providerData && typeof providerData === "object") delete providerData.max_role;
+          });
+        }
         ajaxPutWithNotice(
             "/api/v4/admin/item/category/" + $(modal + " #id").val() + "/authentication",
             data,
@@ -745,6 +751,11 @@ function actionsCategoryDetail() {
 
           // Fill form with current saved data
           fillFormData($(modal + " form"), { authentication });
+
+          // A manager only sees the saved max_role; the API enforces it too.
+          if ($('#user_data').data('role') !== 'admin') {
+            $(modal + " select[name$='[max_role]']").prop('disabled', true);
+          }
 
           // Show the resolved provider name in each panel title
           $.each(["local", "google", "saml", "ldap"], function (_, provider) {
