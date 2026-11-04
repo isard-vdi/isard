@@ -3004,7 +3004,7 @@
       "options": {
         "go-to-login": "Ir al inicio de sesión",
         "logout": "Cerrar sesión",
-        "renew": "Renovar la sesión actual"
+        "renew": "Renovar la sesión"
       },
       "title": "Sesión caducada"
     },

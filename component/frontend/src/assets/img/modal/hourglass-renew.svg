@@ -1,0 +1,55 @@
+<svg width="384" height="234" viewBox="0 0 384 234" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.1" d="M0 156C120 150 250 95 384 78V234H0Z" fill="black"/>
+<g transform="translate(82 15)">
+<defs><clipPath id="sand-clip"><path d="M74 24H146V48C146 70 112 80 112 94C112 108 146 118 146 140V164H74V140C74 118 108 108 108 94C108 80 74 70 74 48Z"/></clipPath></defs>
+<ellipse opacity="0.2" cx="106" cy="195" rx="56" ry="7.5" fill="black"/>
+<g transform="rotate(10 110 94)">
+<path d="M46 94H26M170 120L186 130" stroke="#FBF4E4" stroke-width="5" stroke-linecap="round"/>
+<path opacity="0.5" d="M50 120L34 130M170 68L186 58" stroke="#FBF4E4" stroke-width="5" stroke-linecap="round"/>
+<path transform="translate(42 63) rotate(-58.0)" d="M-0.30 -7.29L-2.39 -0.34L-6.25 -0.20L-2.10 -11.47L1.26 -11.59L6.20 -0.64L2.34 -0.51ZM0.13 4.51L-1.96 11.46L-5.83 11.60L-1.68 0.33L1.68 0.21L6.63 11.16L2.76 11.29Z" fill="#FBF4E4"/>
+<path transform="translate(184 94) rotate(90.0)" d="M-0.30 -7.29L-2.39 -0.34L-6.25 -0.20L-2.10 -11.47L1.26 -11.59L6.20 -0.64L2.34 -0.51ZM0.13 4.51L-1.96 11.46L-5.83 11.60L-1.68 0.33L1.68 0.21L6.63 11.16L2.76 11.29Z" fill="#FBF4E4"/>
+<path d="M70 24H150V48C150 72 116 80 116 94C116 108 150 116 150 140V164H70V140C70 116 104 108 104 94C104 80 70 72 70 48Z" fill="#FBF4E4"/>
+<g clip-path="url(#sand-clip)">
+<path d="M60 60Q110 70 160 60V94H60Z" fill="#EB7045"/>
+<rect x="108.5" y="90" width="3" height="42" fill="#EB7045"/>
+<path d="M60 164V150C84 150 98 126 110 126C122 126 136 150 160 150V164Z" fill="#EDAD6D"/>
+<path d="M60 164V158C84 158 98 138 110 138C122 138 136 158 160 158V164Z" fill="#EB7045"/>
+<circle cx="80.5" cy="146.5" r="1.4" fill="#EB7045"/>
+<circle cx="80.5" cy="152.5" r="1.4" fill="#EB7045"/>
+<circle cx="86.5" cy="146.5" r="1.8" fill="#EB7045"/>
+<circle cx="86.5" cy="158.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="92.5" cy="68.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="92.5" cy="152.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="92.5" cy="158.5" r="1.2" fill="#EDAD6D"/>
+<circle cx="98.5" cy="68.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="98.5" cy="74.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="98.5" cy="140.5" r="1.4" fill="#EB7045"/>
+<circle cx="98.5" cy="158.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="104.5" cy="68.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="104.5" cy="74.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="104.5" cy="80.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="104.5" cy="146.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="104.5" cy="158.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="110.5" cy="68.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="110.5" cy="86.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="110.5" cy="134.5" r="1.4" fill="#EB7045"/>
+<circle cx="110.5" cy="146.5" r="1.2" fill="#EDAD6D"/>
+<circle cx="110.5" cy="158.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="116.5" cy="68.5" r="1.2" fill="#EDAD6D"/>
+<circle cx="116.5" cy="146.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="116.5" cy="152.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="122.5" cy="140.5" r="1.4" fill="#EB7045"/>
+<circle cx="122.5" cy="146.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="122.5" cy="152.5" r="1.4" fill="#EDAD6D"/>
+<circle cx="122.5" cy="158.5" r="1.2" fill="#EDAD6D"/>
+<circle cx="128.5" cy="68.5" r="1.2" fill="#EDAD6D"/>
+<circle cx="128.5" cy="146.5" r="1.8" fill="#EB7045"/>
+<circle cx="128.5" cy="158.5" r="1.8" fill="#EDAD6D"/>
+<circle cx="134.5" cy="146.5" r="1.4" fill="#EB7045"/>
+<circle cx="140.5" cy="146.5" r="1.4" fill="#EB7045"/>
+</g>
+<rect x="60" y="10" width="100" height="14" rx="4" fill="#0D4057"/>
+<rect x="60" y="164" width="100" height="14" rx="4" fill="#0D4057"/>
+</g>
+</g>
+</svg>
