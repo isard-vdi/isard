@@ -194,6 +194,7 @@ function actionsGroupDetail(){
     $("#modalEditQuota #send").off('click').on('click', function(e){
         form = $('#modalEditQuotaForm')
         pk=$('#modalEditQuotaForm #id').val();
+        var quotaKind=($('#modalEditQuota .kind').first().text()||'').trim();
         form.parsley().validate();
         formdata=form.serializeObject()
         if (form.parsley().isValid() || 'unlimited' in formdata){
@@ -217,7 +218,7 @@ function actionsGroupDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v4/admin/item/quota/group/"+pk ,
+                url:"/api/v4/admin/item/quota/"+(quotaKind==='group'?'group':'category')+"/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)

@@ -73,6 +73,31 @@ export async function provisionManagerCategory(
   };
 }
 
+// As admin, create an isolated category and a group in it (no manager).
+// Returns handles for the quota routing spec; clean up with
+// cleanupManagerCategory (deleting the category cascades the group).
+export async function provisionCategoryWithGroup(
+  adminRequest,
+  { suffix = "" } = {},
+) {
+  const uniq = `${Date.now()}${suffix}${Math.floor(Math.random() * 1e6)}`;
+  const catName = `E2E Quota ${uniq}`;
+  const cat = await postJson(adminRequest, "/api/v4/admin/item/category", {
+    name: catName,
+    description: "E2E quota-routing spec (isolated, self-cleaned)",
+    frontend: false,
+    custom_url_name: `e2equota${uniq}`,
+    manager_permissions: {},
+  });
+  const groupName = `E2E QGrp ${uniq}`;
+  const grp = await postJson(adminRequest, "/api/v4/admin/item/group", {
+    name: groupName,
+    description: "E2E group",
+    parent_category: cat.id,
+  });
+  return { catId: cat.id, catName, groupId: grp.id, groupName };
+}
+
 export async function cleanupManagerCategory(adminRequest, handles) {
   if (!handles || !handles.catId) return;
   await adminRequest
