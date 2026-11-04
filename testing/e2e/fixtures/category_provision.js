@@ -78,6 +78,36 @@ export async function cleanupManagerCategory(adminRequest, handles) {
   await adminRequest
     .delete(`/api/v4/admin/item/category/${handles.catId}`)
     .catch(() => {});
+  // Deleting a category moves it (with its group and user) into the recycle
+  // bin as one entry; purge it permanently so the recycle-bin specs see
+  // nothing of ours. Best-effort: never throw from teardown.
+  const mineOf = (entries) =>
+    (entries || []).filter(
+      (e) =>
+        e.owner_category_id === handles.catId ||
+        e.item_name === handles.catName,
+    );
+  for (let i = 0; i < 20; i += 1) {
+    let entries = [];
+    try {
+      const resp = await adminRequest.get(
+        "/api/v4/items/recycle-bin/admin-entries",
+      );
+      if (resp.ok()) entries = await resp.json();
+    } catch (_e) {
+      // retry
+    }
+    const mine = mineOf(entries);
+    if (mine.length) {
+      await adminRequest
+        .put("/api/v4/items/recycle-bin/delete", {
+          data: { recycle_bin_ids: mine.map((e) => e.id) },
+        })
+        .catch(() => {});
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
 }
 
 // Log the provisioned manager in on a fresh context and bridge the admin
