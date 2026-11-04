@@ -42,7 +42,6 @@ const sortButtonIcon = computed(() => {
         'h-10 px-2',
         'flex items-center justify-start overflow-hidden',
         'font-semibold text-gray-warm-600 text-xs',
-        '[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-0.5',
         props.class
       )
     "

@@ -133,6 +133,19 @@ const hasFilters = computed(() => !!inputSearch.value.trim() || stateFilter.valu
 
 // ─── Table ─────────────────────────────────────────────────────────────
 
+const USER_COLUMN_WIDTH = 'minmax(180px, 280px)'
+const ALL_COLUMN_WIDTH = '88px'
+const DESKTOP_COLUMN_WIDTH = 'minmax(200px, 1fr)'
+
+// The column count is unknown until the deployment loads; three reads as a
+// matrix without promising a shape.
+const SKELETON_DESKTOPS = 3
+const SKELETON_ROWS = 4
+const SKELETON_COLUMNS = `${USER_COLUMN_WIDTH} ${ALL_COLUMN_WIDTH} repeat(${SKELETON_DESKTOPS}, ${DESKTOP_COLUMN_WIDTH})`
+
+const TINT_RULES = 'border-gray-warm-300 shadow-[0_1px_0_var(--gray-warm-300)]'
+const HEAD_TINT = `text-gray-warm-800 ${TINT_RULES}`
+
 const header = computed<HeaderCell[]>(() => [
   {
     name: t('views.deployment-visibility.headers.user'),
@@ -143,29 +156,29 @@ const header = computed<HeaderCell[]>(() => [
     // and sit at the top of a header row the desktop columns make taller.
     // Bottom-padded so the label lands on the desktop columns' sub-label line:
     // the header's own 8px, the inner block's 8px, the 20px checkbox and its 6px gap.
-    headerClass: 'h-auto min-h-28 py-2 items-end pb-[42px]',
-    // Elastic so the matrix keeps the same width whatever the deployment holds:
-    // whatever the capped desktop columns leave over lands here.
-    width: 'minmax(200px, 1fr)'
+    headerClass: `h-auto min-h-28 py-2 pl-6 items-end pb-[42px] border-r bg-gray-warm-100 ${HEAD_TINT}`,
+    cellClass: `pl-6 border-r bg-gray-warm-50 group-hover:bg-gray-warm-100 ${TINT_RULES}`,
+    // Capped so a deployment with few desktops does not push the checkboxes away
+    // from the name they belong to; long names truncate, with a tooltip.
+    width: USER_COLUMN_WIDTH
   },
   {
     name: t('views.deployment-visibility.headers.all'),
     key: 'all',
     sortable: false,
-    width: '88px',
-    headerClass: 'h-auto min-h-28 py-2 justify-center items-end pb-[42px]',
+    width: ALL_COLUMN_WIDTH,
+    headerClass: `h-auto min-h-28 py-2 justify-center items-end pb-[42px] bg-gray-warm-100 ${HEAD_TINT}`,
     cellClass: 'justify-center'
   },
   ...columns.value.map((column) => ({
     name: column.name,
     key: column.key,
     sortable: false,
-    // Ceiling so one desktop does not stretch its column across the page: the
-    // columns measure the same whether the deployment has one or a dozen. The
-    // floor keeps a two-line name readable; the tooltip carries the full one.
-    width: 'minmax(200px, 360px)',
-    headerClass:
-      'h-auto min-h-28 py-2 justify-center items-stretch overflow-visible border-l border-gray-warm-200',
+    // The desktops share whatever the capped user column leaves over, so the
+    // matrix fills the card. The floor keeps a two-line name readable; the
+    // tooltip carries the full one.
+    width: DESKTOP_COLUMN_WIDTH,
+    headerClass: `h-auto min-h-28 py-2 justify-center items-stretch overflow-visible border-l bg-gray-warm-100 ${HEAD_TINT}`,
     cellClass: 'justify-center border-l border-gray-warm-200'
   }))
 ])
@@ -515,16 +528,76 @@ const goBack = () =>
       </template>
     </PageToolbar>
 
-    <div v-if="isPending" class="flex flex-col gap-4">
-      <Skeleton v-for="n in 4" :key="'skeleton-' + n" class="h-16 w-full rounded-r-2xl" />
+    <div
+      v-if="isPending"
+      class="overflow-hidden rounded-lg border border-gray-warm-300 bg-base-white pb-4"
+      aria-busy="true"
+    >
+      <div class="overflow-x-auto">
+        <div class="grid" :style="{ gridTemplateColumns: SKELETON_COLUMNS }">
+          <div class="col-span-full grid grid-cols-subgrid border-b border-gray-warm-300">
+            <div
+              class="flex min-h-28 items-end border-r border-gray-warm-300 bg-gray-warm-100 py-2 pb-[42px] pl-6"
+            >
+              <Skeleton class="h-3 w-16" />
+            </div>
+            <div class="flex min-h-28 items-end justify-center bg-gray-warm-100 py-2 pb-[42px]">
+              <Skeleton class="h-3 w-10" />
+            </div>
+            <div
+              v-for="n in SKELETON_DESKTOPS"
+              :key="'skeleton-head-' + n"
+              class="flex min-h-28 flex-col items-center justify-between gap-3 border-l border-gray-warm-300 bg-gray-warm-100 px-2 py-4"
+            >
+              <Skeleton class="h-4 w-28" />
+              <div
+                class="-mx-2 -mb-4 grid grid-cols-2 self-stretch border-t border-gray-warm-300 bg-gray-warm-100 px-2 pt-2 pb-4"
+              >
+                <span class="flex flex-col items-center gap-1.5">
+                  <Skeleton class="h-3 w-16" />
+                  <Skeleton class="size-5 rounded-md" />
+                </span>
+                <span class="flex justify-center">
+                  <Skeleton class="h-3 w-12" />
+                </span>
+              </div>
+            </div>
+          </div>
+          <div
+            v-for="row in SKELETON_ROWS"
+            :key="'skeleton-row-' + row"
+            class="col-span-full grid grid-cols-subgrid border-b border-gray-warm-200"
+          >
+            <div
+              class="flex h-16 items-center gap-2.5 border-r border-gray-warm-300 bg-gray-warm-50 shadow-[0_1px_0_var(--gray-warm-300)] p-2 pl-6"
+            >
+              <Skeleton class="size-8 shrink-0 rounded-full" />
+              <Skeleton class="h-4 w-32" />
+            </div>
+            <div class="flex h-16 items-center justify-center p-2">
+              <Skeleton class="size-5 rounded-md" />
+            </div>
+            <div
+              v-for="n in SKELETON_DESKTOPS"
+              :key="'skeleton-cell-' + row + '-' + n"
+              class="grid h-16 grid-cols-2 items-center border-l border-gray-warm-200 p-2"
+            >
+              <span class="flex justify-center"><Skeleton class="size-5 rounded-md" /></span>
+              <span class="flex justify-center"><Skeleton class="size-2.5 rounded-full" /></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Skeleton class="mx-6 mt-4 h-4 w-20" />
     </div>
 
     <template v-else-if="filteredUsers.length > 0">
       <DataTable
+        class="overflow-hidden p-0 pb-4 [&>:last-child]:px-6"
         :rows="filteredUsers"
         :headers="header"
         cell-class="h-16"
-        row-class="group"
+        row-class="group last:border-b! hover:bg-gray-warm-50"
         :is-clickable="false"
       >
         <!-- A column header applies to every user of the deployment,
@@ -540,19 +613,24 @@ const goBack = () =>
               as="span"
               :lines="2"
               :title="column.name"
-              class="max-w-full px-2 text-center text-xs font-medium"
+              class="max-w-full px-2 text-center text-sm font-semibold text-gray-warm-800"
             />
             <!-- Same tracks as every cell below, so the divider and the
-                 two sub-columns line up down the whole table. -->
-            <div class="grid w-full grid-cols-2">
+                 two sub-columns line up down the whole table. The rule sets
+                 the sub-labels apart from the desktop name above. -->
+            <div
+              class="-mx-2 -mb-4 grid grid-cols-2 items-baseline self-stretch border-t border-gray-warm-300 bg-gray-warm-100 px-2 pt-2 pb-4"
+            >
               <span class="flex flex-col items-center gap-1.5">
                 <!-- Label and count on one line: stacked they cost a row of
                      header height and squeeze the title above them. -->
                 <span
-                  class="flex items-baseline gap-1 text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase"
+                  class="flex items-baseline gap-1 text-[10px] leading-3 tracking-wide text-gray-warm-600 uppercase"
                 >
                   {{ t('views.deployments.visibility.visible') }}
-                  <span class="text-xs normal-case">{{ columnCount(column.tagDesktopId) }}</span>
+                  <span class="text-xs font-semibold text-gray-warm-800 normal-case">{{
+                    columnCount(column.tagDesktopId)
+                  }}</span>
                 </span>
                 <!-- Only the checkbox carries the warning: on the whole header
                      it fired over the title too and read as a column hint. -->
@@ -573,8 +651,8 @@ const goBack = () =>
                   <TooltipContent :title="columnTooltip(column)" />
                 </Tooltip>
               </span>
-              <span class="flex flex-col items-center self-stretch">
-                <span class="text-[10px] leading-3 tracking-wide text-gray-warm-500 uppercase">
+              <span class="flex flex-col items-center">
+                <span class="text-[10px] leading-3 tracking-wide text-gray-warm-600 uppercase">
                   {{ t('views.deployment-visibility.headers.state') }}
                 </span>
               </span>
@@ -594,7 +672,13 @@ const goBack = () =>
         </template>
 
         <template #cell-name="{ row }">
-          <AvatarLabel :src="row.photo" :name="row.name" />
+          <!-- `min-w-0` down the chain, or the flex items keep the full
+               name's width and the column cap never truncates it. -->
+          <AvatarLabel :src="row.photo" :name="row.name" class="min-w-0 [&>div:last-child]:min-w-0">
+            <template #name>
+              <TruncatedText as="span" :title="row.name" class="block" />
+            </template>
+          </AvatarLabel>
         </template>
 
         <template #cell-all="{ row }">
