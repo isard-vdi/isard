@@ -61,8 +61,8 @@ def test_pool_pages_already_promised_to_starts_in_flight_are_not_free():
     plan = plan_memory_backing(
         mem, POOL, 8, 8 * GIB, pending_regular_kb=24 * GIB, pending_hugepages_kb=8 * GIB
     )
-    # Pool spoken for and regular committed, but measured memory has room: it
-    # starts over committed, as a host without a pool does.
+    # Pool spoken for and regular committed, but measured memory has room: a
+    # pool host still starts it over committed.
     assert plan == REGULAR
 
 
@@ -71,10 +71,52 @@ def test_no_room_anywhere_is_none():
     assert plan_memory_backing(mem, POOL, 8, 8 * GIB) is None
 
 
-def test_a_host_without_a_pool_is_never_refused():
-    mem = _mem(pool_gb=0, pool_free_gb=0, available_gb=0)
-    assert plan_memory_backing(mem, {}, 8, 8 * GIB) == REGULAR
-    assert plan_memory_backing(mem, {"mounted": False}, 8, 8 * GIB) == REGULAR
+def test_a_host_without_a_pool_or_a_reserve_is_never_refused():
+    mem = _mem(pool_gb=0, pool_free_gb=0, available_gb=0, guests_gb=500)
+    assert plan_memory_backing(mem, {}, 0, 8 * GIB) == REGULAR
+    assert plan_memory_backing(mem, {"mounted": False}, None, 8 * GIB) == REGULAR
+
+
+def _no_pool(available_gb=480, guests_gb=0):
+    return _mem(
+        total_gb=504,
+        pool_gb=0,
+        pool_free_gb=0,
+        available_gb=available_gb,
+        guests_gb=guests_gb,
+    )
+
+
+def test_without_a_pool_the_reserve_caps_committed_memory():
+    # A burst on a fresh 504 GiB host: measured memory looks free, the guests
+    # have not touched theirs yet, but 450 GiB are already promised.
+    assert plan_memory_backing(_no_pool(guests_gb=450), {}, 50, 8 * GIB) is None
+    assert plan_memory_backing(_no_pool(guests_gb=446), {}, 50, 8 * GIB) == REGULAR
+
+
+def test_without_a_pool_starts_in_flight_count_against_the_reserve():
+    mem = _no_pool(guests_gb=400)
+    assert plan_memory_backing(mem, {}, 50, 8 * GIB) == REGULAR
+    plan = plan_memory_backing(mem, {}, 50, 8 * GIB, pending_regular_kb=48 * GIB)
+    assert plan is None
+
+
+def test_without_a_pool_the_reserve_also_guards_measured_memory():
+    mem = _no_pool(available_gb=55, guests_gb=100)
+    assert plan_memory_backing(mem, {}, 50, 8 * GIB) is None
+
+
+def test_a_mounted_but_empty_pool_is_no_pool():
+    # hugetlbfs is mounted by default: no pages means only the reserve caps it.
+    empty = {"mounted": True, "2M": {"total": 0}, "mount_sizes": ["2M"]}
+    assert plan_memory_backing(_no_pool(guests_gb=450), empty, 50, 8 * GIB) is None
+    assert plan_memory_backing(_no_pool(guests_gb=450), empty, 0, 8 * GIB) == REGULAR
+
+
+def test_without_a_pool_unknown_guests_memory_falls_back_to_measured():
+    mem = _no_pool(guests_gb=450)
+    del mem["guests_kb"]
+    assert plan_memory_backing(mem, {"mounted": False}, 50, 8 * GIB) == REGULAR
 
 
 @pytest.mark.parametrize("memory_kb", [512 * 1024, 1536 * 1024])

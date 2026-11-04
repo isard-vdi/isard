@@ -478,8 +478,8 @@ class BalancerInterface:
             with_room = [h for h in hypers_w_threads if plans[h["id"]] is not None]
             if not with_room:
                 reason = (
-                    "no hypervisor has memory for a %s GiB desktop: hugepage pool "
-                    "full and regular memory below the reserve on %s"
+                    "no hypervisor has memory for a %s GiB desktop: regular memory "
+                    "below the reserve and no hugepage pool room on %s"
                     % (domain_memory_gb, sorted(plans))
                 )
                 logs.main.error(
