@@ -30,5 +30,5 @@ watch(
 </script>
 
 <template>
-  <img :src="src" alt="IsardVDI logo" @error="failed = true" />
+  <img :src="src" alt="Logo" @error="failed = true" />
 </template>
