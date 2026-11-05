@@ -128,6 +128,7 @@ $(document).ready(function () {
                     success: function (notification) {
                         $(modal + " #name").val(notification.name);
                         $(modal + " #enabled").iCheck(notification.enabled ? 'check' : 'uncheck').iCheck('update');
+                        $(modal + " #item_type").val(notification.item_type);
                         $(modal + " #action_id").val(notification.action_id);
                         $(modal + " #trigger").val(notification.trigger);
                         $(modal + " #display").val(notification.display).trigger('change');
