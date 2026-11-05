@@ -197,6 +197,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
         CPU ``used`` rounds up and free rounds down; free counts iowait,
         which is CPU available to other work. RAM converts KB to MB with
         integer division and ``free`` comes from the KB difference.
+
+        ``free`` is also capped by the memory the running guests can still
+        claim (``guests_kb``, the same bound the engine places with): a host
+        that just took a burst looks empty until its guests touch memory.
         """
         if not stats:
             return {
@@ -208,6 +212,12 @@ class HypervisorsProcessed(RethinkSharedConnection):
         mem = stats.get("mem_stats") or {}
         total = int(mem.get("total", 0))
         used = int(mem.get("used", 0))
+        free = total - used
+        guests = mem.get("guests_kb")
+        if isinstance(guests, (int, float)) and not isinstance(guests, bool):
+            # guests on hugepages sit in the pool, which ``used`` already holds
+            claimed = max(int(guests), int(mem.get("hugepages_used_kb", 0) or 0))
+            free = min(free, max(0, total - claimed))
         return {
             "cpu": {
                 "total": 100,
@@ -217,7 +227,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "ram": {
                 "total": total // 1024,
                 "used": used // 1024,
-                "free": (total - used) // 1024,
+                "free": free // 1024,
             },
         }
 

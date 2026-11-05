@@ -166,6 +166,7 @@ class OrchestratorHypervisorStatsMem(BaseModel):
     hugepages_total_kb: Optional[int] = None
     hugepages_free_kb: Optional[int] = None
     hugepages_used_kb: Optional[int] = None
+    guests_kb: Optional[int] = None
 
 
 class OrchestratorHypervisorStats(BaseModel):
