@@ -199,7 +199,7 @@ const hasReservables = computed(
         <!-- Credentials -->
         <SummaryRow
           v-if="showCredentials"
-          icon="user-03"
+          icon="key-01"
           :label="t('components.domain-access-summary.credentials.title')"
         >
           <SummaryValue

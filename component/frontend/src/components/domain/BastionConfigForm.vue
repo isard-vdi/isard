@@ -314,6 +314,13 @@ const removeCustomDomain = (index: number) => {
                 <form.Field v-slot="{ field: httpField }" name="http.httpPort">
                   <Field>
                     <FieldLabel :for="httpField.name">
+                      <Icon
+                        name="globe-01"
+                        size="sm"
+                        stroke-color=""
+                        aria-hidden="true"
+                        class="text-gray-warm-500"
+                      />
                       {{ t('components.domain.access.bastion.http-https.http-port.label') }}
                     </FieldLabel>
                     <InputField
@@ -332,6 +339,13 @@ const removeCustomDomain = (index: number) => {
                 <form.Field v-slot="{ field: httpsField }" name="http.httpsPort">
                   <Field>
                     <FieldLabel :for="httpsField.name">
+                      <Icon
+                        name="lock-01"
+                        size="sm"
+                        stroke-color=""
+                        aria-hidden="true"
+                        class="text-gray-warm-500"
+                      />
                       {{ t('components.domain.access.bastion.http-https.https-port.label') }}
                     </FieldLabel>
                     <InputField
@@ -389,6 +403,13 @@ const removeCustomDomain = (index: number) => {
               <div v-if="showCustomDomains" class="flex flex-col gap-2">
                 <div class="flex items-center justify-between gap-2">
                   <FieldLabel>
+                    <Icon
+                      name="link-01"
+                      size="sm"
+                      stroke-color=""
+                      aria-hidden="true"
+                      class="text-gray-warm-500"
+                    />
                     {{ t('components.domain.access.bastion.http-https.custom-domains.label') }}
                   </FieldLabel>
                   <Button size="sm" hierarchy="secondary" @click="addCustomDomain">
@@ -514,6 +535,13 @@ const removeCustomDomain = (index: number) => {
               <form.Field v-slot="{ field: sshPortField }" name="ssh.sshPort">
                 <Field>
                   <FieldLabel :for="sshPortField.name">
+                    <Icon
+                      name="terminal"
+                      size="sm"
+                      stroke-color=""
+                      aria-hidden="true"
+                      class="text-gray-warm-500"
+                    />
                     {{ t('components.domain.access.bastion.ssh.port.label') }}
                   </FieldLabel>
                   <InputField
@@ -532,6 +560,13 @@ const removeCustomDomain = (index: number) => {
               <form.Field v-slot="{ field: keysField }" name="ssh.authorizedKeys">
                 <Field>
                   <FieldLabel :for="keysField.name">
+                    <Icon
+                      name="key-01"
+                      size="sm"
+                      stroke-color=""
+                      aria-hidden="true"
+                      class="text-gray-warm-500"
+                    />
                     {{ t('components.domain.access.bastion.ssh.authorized-keys.label') }}
                   </FieldLabel>
                   <Textarea
