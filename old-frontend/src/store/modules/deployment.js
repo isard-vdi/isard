@@ -298,7 +298,7 @@ export default {
       })
     },
     downloadDirectViewerCSV (_, payload) {
-      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/download-csv`, { params: { reset: payload.reset } }).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/download-csv`, { params: { regenerate: payload.reset } }).then(response => {
         this._vm.$snotify.clear()
         const el = document.createElement('a')
         el.setAttribute(
