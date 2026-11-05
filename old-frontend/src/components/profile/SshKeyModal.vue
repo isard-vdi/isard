@@ -55,10 +55,7 @@
 </template>
 <script>
 import { computed, ref, watch } from '@vue/composition-api'
-
-// Mirrors the server-side validation in apiv4 `validate_ssh_public_key`:
-// a single known key type followed by a base64 blob and an optional comment.
-const SSH_KEY_RE = /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s+[A-Za-z0-9+/]+={0,3}(\s+\S.*)?$/
+import { SSH_KEY_RE } from '@/utils/sshKeys'
 
 export default {
   setup (_, context) {

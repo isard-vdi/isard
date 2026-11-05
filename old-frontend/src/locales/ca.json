@@ -1426,7 +1426,8 @@
         "ssh": {
           "checkbox": "SSH",
           "port": "Port SSH",
-          "authorized-keys": "Claus autoritzades (una per línia)"
+          "authorized-keys": "Claus autoritzades (una per línia)",
+          "invalid-keys": "Clau pública SSH no vàlida a la línia {lines}."
         },
         "port-tooltip": "El port utilitzat pel teu escriptori. Externament, s'assignarà al port {port}.",
         "copy": "Copiar al porta-retalls",
@@ -1738,7 +1739,8 @@
     "storage_not_found": "No s'ha trobat el disc de l'escriptori. Contacta amb l'administrador.",
     "storage_repair_not_allowed": "Només un administrador, o un usuari que un administrador hagi permès, pot executar aquesta reparació.",
     "storage_fix_not_needed": "El disc ja no necessita aquest arranjament.",
-    "storage_fix_in_progress": "Ja s'està treballant en el disc. Espera que acabi."
+    "storage_fix_in_progress": "Ja s'està treballant en el disc. Espera que acabi.",
+    "bastion_ssh_key_invalid": "La clau pública SSH proporcionada no és vàlida."
   },
   "messages": {
     "title": {

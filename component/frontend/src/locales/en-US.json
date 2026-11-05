@@ -1631,7 +1631,8 @@
                   "description": "You don't have a bastion SSH key in your profile yet, you can add it to get SSH access automatically on all your desktops.",
                   "button": "Add it to your profile"
                 }
-              }
+              },
+              "invalid": "Invalid SSH public key on line {lines}."
             }
           }
         },
@@ -3365,7 +3366,8 @@
         "one_viewer_minimum": "At least one viewer must be selected.",
         "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option.",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
-        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
+        "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host.",
+        "bastion_ssh_key_invalid": "One of the authorized SSH keys is not a valid SSH public key."
       }
     },
     "increase-storage": {

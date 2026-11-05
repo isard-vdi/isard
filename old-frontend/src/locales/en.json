@@ -175,7 +175,8 @@
                 "ssh": {
                     "checkbox": "SSH",
                     "port": "SSH port",
-                    "authorized-keys": "Authorized keys (one per line)"
+                    "authorized-keys": "Authorized keys (one per line)",
+                    "invalid-keys": "Invalid SSH public key on line {lines}."
                 },
                 "port-tooltip": "The port used by your desktop. Externaly, it will be assigned to port {port}.",
                 "copy": "Copy to clipboard",
@@ -1837,7 +1838,8 @@
         "storage_not_found": "The desktop's disk could not be found. Contact your administrator.",
         "storage_repair_not_allowed": "Only an administrator, or a user an administrator allowed, can run this repair.",
         "storage_fix_not_needed": "The disk no longer needs this fix.",
-        "storage_fix_in_progress": "The disk is already being worked on. Wait until it finishes."
+        "storage_fix_in_progress": "The disk is already being worked on. Wait until it finishes.",
+        "bastion_ssh_key_invalid": "This doesn't look like a valid SSH public key."
     },
     "router": {
         "titles": {

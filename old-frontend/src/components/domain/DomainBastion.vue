@@ -341,8 +341,12 @@
               size="sm"
               rows="3"
               no-resize
+              :state="invalidKeyLines.length ? false : null"
               placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
             />
+            <b-form-invalid-feedback :state="invalidKeyLines.length ? false : null">
+              {{ $t('forms.domain.bastion.ssh.invalid-keys', { lines: invalidKeyLines.join(', ') }) }}
+            </b-form-invalid-feedback>
           </b-col>
         </b-row>
       </template>
@@ -354,8 +358,10 @@
 <script>
 import { computed, watch, ref } from '@vue/composition-api'
 import { mapGetters } from 'vuex'
+import useVuelidate from '@vuelidate/core'
 import i18n from '@/i18n'
 import { ErrorUtils } from '@/utils/errorUtils'
+import { invalidAuthorizedKeyLines } from '@/utils/sshKeys'
 
 export default {
   setup (props, context) {
@@ -520,6 +526,9 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
+    const invalidKeyLines = computed(() => sshEnabled.value
+      ? invalidAuthorizedKeyLines(sshAuthorizedKeys.value, $store.getters.getStoredAuthorizedKeys)
+      : [])
     const copyTooltipText = ref(i18n.t('forms.domain.bastion.copy'))
     const copyToClipboard = (text) => {
       navigator.clipboard.writeText(text)
@@ -558,8 +567,13 @@ export default {
       sshEnabled,
       sshPort,
       sshAuthorizedKeys,
+      invalidKeyLines,
       copyTooltipText,
-      copyToClipboard
+      copyToClipboard,
+      // DomainEdit focuses the element whose id is the failing property name.
+      v$: useVuelidate({
+        sshAuthorizedKeysField: { validKeys: () => invalidKeyLines.value.length === 0 }
+      }, { sshAuthorizedKeysField: sshAuthorizedKeys })
     }
   },
   computed: {

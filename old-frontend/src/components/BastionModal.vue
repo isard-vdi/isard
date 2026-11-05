@@ -303,11 +303,16 @@
           size="sm"
           rows="3"
           no-resize
+          :state="invalidKeyLines.length ? false : null"
           placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
         />
+        <b-form-invalid-feedback :state="invalidKeyLines.length ? false : null">
+          {{ $t('forms.domain.bastion.ssh.invalid-keys', { lines: invalidKeyLines.join(', ') }) }}
+        </b-form-invalid-feedback>
         <div class="w-100">
           <b-button
             class="mt-2 btn-blue float-right"
+            :disabled="invalidKeyLines.length > 0"
             @click="updateSshAuthorizedKeys"
           >
             {{ $t('views.desktop.bastion_modal.buttons.update-authorized-keys') }}
@@ -320,6 +325,7 @@
 <script>
 import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
+import { invalidAuthorizedKeyLines } from '@/utils/sshKeys'
 
 export default {
   setup (_, context) {
@@ -372,14 +378,16 @@ export default {
     const hasOwnKey = computed(() => !!$store.getters.getUserBastionSshKey)
 
     const otherAuthorizedKeys = ref('')
+    const storedAuthorizedKeys = computed(() => modal.value && modal.value.bastion && modal.value.bastion.ssh && modal.value.bastion.ssh.authorized_keys)
     watch(
-      () => modal.value && modal.value.bastion && modal.value.bastion.ssh && modal.value.bastion.ssh.authorized_keys,
+      storedAuthorizedKeys,
       (keys) => {
         const list = (keys || []).filter(k => k && k.trim())
         otherAuthorizedKeys.value = joinNewLine(list)
       },
       { immediate: true }
     )
+    const invalidKeyLines = computed(() => invalidAuthorizedKeyLines(otherAuthorizedKeys.value, storedAuthorizedKeys.value || []))
 
     const updateSshAuthorizedKeys = () => {
       const others = splitNewLine(otherAuthorizedKeys.value).map(k => k.trim()).filter(k => k)
@@ -485,6 +493,7 @@ export default {
       httpsUrl,
       copyToClipboard,
       otherAuthorizedKeys,
+      invalidKeyLines,
       hasOwnKey,
       joinNewLine,
       updateSshAuthorizedKeys,

@@ -4,6 +4,7 @@ import { ref, computed, watch, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
+import { z } from 'zod'
 
 import {
   getUserConfigOptions,
@@ -18,6 +19,7 @@ import { toast } from '@/components/ui/toast'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Code } from '@/components/code'
+import { FieldError } from '@/components/ui/field'
 import { Icon, CopyIcon } from '@/components/icon'
 import { InputField } from '@/components/input-field'
 import { Label } from '@/components/ui/label'
@@ -27,8 +29,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { TruncatedText } from '@/components/truncated-text'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { RouterLink } from 'vue-router'
+import { describeApiError } from '@/lib/api-errors'
+import { invalidAuthorizedKeyLines } from '@/lib/sshKeys'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 interface Props {
   open?: boolean
@@ -208,21 +212,43 @@ const domainNameForm = useForm({
   }
 })
 
+const authorizedKeysSchema = z.object({
+  authorizedKeys: z.string().superRefine((value, ctx) => {
+    const lines = invalidAuthorizedKeyLines(value, bastionAuthorizedKeys.value)
+    if (lines.length) {
+      ctx.addIssue({
+        code: 'custom',
+        message: t('components.domain.access.bastion.ssh.authorized-keys.invalid', {
+          lines: lines.join(', ')
+        })
+      })
+    }
+  })
+})
+
 const authorizedKeysForm = useForm({
   defaultValues: reactive({
     authorizedKeys: computed(() => bastionAuthorizedKeys.value)
   }),
+  validators: {
+    onChange: authorizedKeysSchema
+  },
   onSubmit: async ({ value }) => {
-    await saveBastionSshAuthorizedKeysAsync({
-      body: {
-        authorized_keys: value.authorizedKeys.split('\n').filter((k) => k.trim().length > 0)
-      },
-      path: {
-        desktop_id: props.desktopId
-      }
-    })
+    try {
+      await saveBastionSshAuthorizedKeysAsync({
+        body: {
+          authorized_keys: value.authorizedKeys.split('\n').filter((k) => k.trim().length > 0)
+        },
+        path: {
+          desktop_id: props.desktopId
+        }
+      })
+    } catch (error) {
+      toast.error(describeApiError(error, { t, te }, 'edit-desktop'))
+    }
   }
 })
+const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isValid)
 </script>
 
 <template>
@@ -497,23 +523,26 @@ const authorizedKeysForm = useForm({
               @submit.prevent.stop="authorizedKeysForm.handleSubmit"
             >
               <authorizedKeysForm.Field v-slot="{ field }" name="authorizedKeys">
-                <Textarea
-                  :id="field.name"
-                  class="flex-1 bg-base-white h-32 font-mono text-sm whitespace-pre"
-                  :placeholder="
-                    t('components.domain.access.bastion.ssh.authorized-keys.placeholder')
-                  "
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  @blur="field.handleBlur"
-                  @input="field.handleChange($event.target.value)"
-                />
+                <div class="flex-1 min-w-0 flex flex-col gap-1">
+                  <Textarea
+                    :id="field.name"
+                    class="w-full bg-base-white h-32 font-mono text-sm whitespace-pre"
+                    :placeholder="
+                      t('components.domain.access.bastion.ssh.authorized-keys.placeholder')
+                    "
+                    :name="field.name"
+                    :model-value="field.state.value"
+                    @blur="field.handleBlur"
+                    @input="field.handleChange($event.target.value)"
+                  />
+                  <FieldError :errors="field.state.meta.errors" />
+                </div>
               </authorizedKeysForm.Field>
               <Button
                 :aria-label="t('common.actions.save')"
                 hierarchy="primary"
                 icon="save-02"
-                :disabled="saveBastionSshAuthorizedKeysIsPending"
+                :disabled="saveBastionSshAuthorizedKeysIsPending || !authorizedKeysIsValid"
                 type="submit"
               />
             </form>

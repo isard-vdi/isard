@@ -19,6 +19,7 @@
 
 import os
 
+from api.services.users import validate_ssh_public_key
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.caches import Caches
@@ -27,7 +28,38 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.models.targets import Targets
 
 
+def normalize_authorized_keys(
+    authorized_keys: list[str | None] | None,
+    stored: list[str | None] | None = None,
+) -> list[str]:
+    """Trim, drop blanks and dedupe in order, validating keys not in ``stored``."""
+    known = {key.strip() for key in stored or [] if isinstance(key, str)}
+    keys: list[str] = []
+    for key in authorized_keys or []:
+        if not isinstance(key, str) or not key.strip():
+            continue
+        key = key.strip()
+        # Stored rows predate validation and can hold lines the bastion still honours.
+        if key not in known:
+            validate_ssh_public_key(key)
+        if key not in keys:
+            keys.append(key)
+    return keys
+
+
 class BastionService:
+    @staticmethod
+    def normalize_request_keys(desktop_id: str | None, data: dict) -> None:
+        """Normalize in place the authorized keys of a bastion request, if any."""
+        ssh = data.get("ssh")
+        if not ssh or "authorized_keys" not in ssh:
+            return
+        target = Targets.find_domain_target(desktop_id) if desktop_id else None
+        ssh["authorized_keys"] = normalize_authorized_keys(
+            ssh["authorized_keys"],
+            ((target or {}).get("ssh") or {}).get("authorized_keys"),
+        )
+
     @staticmethod
     def apply_bastion_config(desktop_id: str, config: dict) -> None:
         """Apply a bastion config (ssh/http enable + ports) to a desktop's
@@ -246,6 +278,8 @@ class BastionService:
         Update the bastion target for a desktop.
         If the user cannot use individual domains, the domains are cleared.
         """
+        BastionService.normalize_request_keys(desktop_id, data)
+
         if not can_use_individual_domains:
             data["domains"] = []
 
@@ -315,9 +349,10 @@ class BastionService:
         """Replace the "other people's" SSH keys for a desktop's bastion target.
 
         The list is stored verbatim (blank entries dropped, duplicates removed,
-        order kept); an empty list simply means "no other keys". Nobody's
-        profile key belongs here — the bastion resolves the desktop owner's and
-        the deployment owner/co-owners' keys live at connection time.
+        order kept); an empty list simply means "no other keys". Keys not yet on
+        the target must be valid SSH public keys. Nobody's profile key belongs
+        here — the bastion resolves the desktop owner's and the deployment
+        owner/co-owners' keys live at connection time.
 
         Raises 404 when the desktop has no bastion target; unlike
         ``Targets.update_domain_target`` this never creates one. Writes only
@@ -330,13 +365,7 @@ class BastionService:
         ssh = dict(target.get("ssh") or {})
         original = list(ssh.get("authorized_keys") or [])
 
-        keys = []
-        for key in authorized_keys or []:
-            if not isinstance(key, str) or not key.strip():
-                continue
-            key = key.strip()
-            if key not in keys:
-                keys.append(key)
+        keys = normalize_authorized_keys(authorized_keys, original)
 
         if keys != original:
             ssh["authorized_keys"] = keys

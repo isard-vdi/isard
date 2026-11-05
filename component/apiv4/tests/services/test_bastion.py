@@ -13,6 +13,8 @@ import pytest
 from api.services.bastion import BastionService
 from isardvdi_common.helpers.error_factory import Error
 
+NEW_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB ex@mple.com"
+
 
 class TestGetDesktopBastion:
     @patch(
@@ -68,9 +70,9 @@ class TestUpdateBastionAuthorizedKeys:
         },
     )
     def test_replaces_other_keys(self, _mock_get, mock_update):
-        BastionService.update_bastion_authorized_keys("desk-1", ["new-key"])
+        BastionService.update_bastion_authorized_keys("desk-1", [NEW_KEY])
         forwarded = mock_update.call_args[0][1]["ssh"]["authorized_keys"]
-        assert forwarded == ["new-key"]
+        assert forwarded == [NEW_KEY]
 
     @patch("api.services.bastion.Targets.update_domain_target")
     @patch(
@@ -84,7 +86,7 @@ class TestUpdateBastionAuthorizedKeys:
     def test_preserves_enabled_and_port(self, _mock_get, mock_update):
         # update_domain_target replaces target["ssh"] wholesale, so the write
         # must carry the rest of the subdocument or SSH silently turns off.
-        BastionService.update_bastion_authorized_keys("desk-1", ["new-key"])
+        BastionService.update_bastion_authorized_keys("desk-1", [NEW_KEY])
         forwarded = mock_update.call_args[0][1]["ssh"]
         assert forwarded["enabled"] is True
         assert forwarded["port"] == 2222
