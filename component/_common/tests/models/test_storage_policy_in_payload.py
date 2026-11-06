@@ -250,3 +250,36 @@ def test_rsync_move_carries_the_resolved_floor():
         s.rsync(user_id="u1", destination_path="/isard/templates/x.qcow2")
     kwargs = mock_create.call_args.kwargs["job_kwargs"]["kwargs"]
     assert kwargs["min_free_bytes"] == 5368709120
+
+
+@pytest.mark.parametrize(
+    "kwargs, method",
+    [({}, "rsync"), ({"method": "auto"}, "auto")],
+    ids=["copies-by-default", "renames-when-asked"],
+)
+def test_rsync_move_carries_the_method(kwargs, method):
+    """The worker renames only on ``auto``; every other caller keeps the copy
+    it asked for."""
+    s = _bare()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(
+            Storage, "pool", new_callable=PropertyMock, return_value=MagicMock(id="pA")
+        ),
+        patch.object(
+            Storage,
+            "status",
+            new_callable=PropertyMock,
+            return_value="ready",
+            create=True,
+        ),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+        patch(
+            "isardvdi_common.models.storage.get_queue_from_storage_pools",
+            return_value="pA",
+        ),
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="pA")
+        s.rsync(user_id="u1", destination_path="/isard/desktops/x.qcow2", **kwargs)
+    assert mock_create.call_args.kwargs["job_kwargs"]["kwargs"]["method"] == method

@@ -1534,11 +1534,12 @@ class DesktopsProcessed(RethinkSharedConnection):
                 template.storages[0].id, {"perms": ["r", "w"]}, validate=False
             )
             try:
-                # TODO: change to mv once properly implemented
-                template.storages[0].rsync(
+                storage = template.storages[0]
+                storage.rsync(
                     template.user,
-                    template.storages[0].directory_path_as_usage("desktop"),
+                    f"{storage.directory_path_as_usage('desktop')}/{storage.id}.{storage.type}",
                     priority="low",
+                    method="auto",
                 )
             except Error:
                 # Already a typed Error — let it propagate so the
