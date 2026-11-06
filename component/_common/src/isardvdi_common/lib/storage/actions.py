@@ -48,6 +48,8 @@ class DiskAction:
     supersedes: tuple = ()
     #: long or heavy on the file: interactively only an admin or an allowed user runs it
     costly: bool = False
+    #: refused when the disk has no backing file to fold in
+    refuse_without_parent: bool = False
 
 
 def _reader(**kwargs):
@@ -126,7 +128,8 @@ DISK_ACTIONS = {
         status_refusal="storage_invalid_status_for_repair",
         domains=("Stopped", "Failed"),
     ),
-    "disconnect": _WRITER,
+    # Without a parent there is nothing to fold; it would only rewrite the file.
+    "disconnect": DiskAction(Access.WRITE, refuse_without_parent=True),
     "convert": _COSTLY_WRITER,
     "recreate": _COSTLY_WRITER,
     "set_path": _WRITER,
@@ -189,6 +192,7 @@ def refusal(
     domains=(),
     has_children=None,
     perms=None,
+    has_parent=None,
     storage_id="",
 ):
     """The ``(description_code, message)`` that refuses ``action``, or None."""
@@ -197,6 +201,11 @@ def refusal(
     has_children = _asked_once(has_children)
     if entry.statuses is not None and status not in entry.statuses:
         return status_refusal(action, storage_id, status)
+    if entry.refuse_without_parent and has_parent is not None and not has_parent:
+        return (
+            "storage_has_no_parent",
+            f"Storage {storage_id} has no backing file; there is nothing to disconnect",
+        )
     template_disk = bool(domains) and all(kind == "template" for kind, _ in domains)
     base = is_base(action, domains, has_children)
     if (
@@ -268,7 +277,13 @@ def is_base(action, domains, has_children):
 
 
 def allowed_actions(
-    *, status, domains=(), has_children=False, has_deleted_children=False, perms=None
+    *,
+    status,
+    domains=(),
+    has_children=False,
+    has_deleted_children=False,
+    perms=None,
+    has_parent=None,
 ):
     """Every registered action the guard would admit on a disk with these facts."""
 
@@ -286,6 +301,7 @@ def allowed_actions(
             domains=domains,
             has_children=children(action),
             perms=perms,
+            has_parent=has_parent,
         )
         is None
     )

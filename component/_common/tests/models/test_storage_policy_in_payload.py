@@ -20,6 +20,16 @@ from isardvdi_common.models.storage import Storage
 
 
 @pytest.fixture(autouse=True)
+def _guards_admit(monkeypatch):
+    """The payload is under test here; the guards have their own tests."""
+    from isardvdi_common.models import storage as mod
+
+    monkeypatch.setattr(Storage, "guard", lambda self, *a, **k: None)
+    monkeypatch.setattr(mod.queue_coverage, "check_shed", lambda *a, **k: None)
+    monkeypatch.setattr(Storage, "category", None)
+
+
+@pytest.fixture(autouse=True)
 def _env(monkeypatch):
     qcow2_geometry._cached = None
     monkeypatch.setenv("QCOW2_CLUSTER_SIZE", "128k")

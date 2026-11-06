@@ -609,6 +609,7 @@ class StorageProcessed(RethinkSharedConnection):
                     lambda sid: {
                         "id": sid,
                         "perms": r.table("storage").get(sid)["perms"].default(None),
+                        "parent": r.table("storage").get(sid)["parent"].default(None),
                         "domains": r.table("domains")
                         .get_all(sid, index="storage_ids")
                         .pluck("kind", "status")
@@ -632,6 +633,7 @@ class StorageProcessed(RethinkSharedConnection):
                 has_children=any(c != "deleted" for c in children),
                 has_deleted_children=any(c == "deleted" for c in children),
                 perms=fact.get("perms"),
+                has_parent=bool(fact.get("parent")),
             )
         return rows
 

@@ -1241,6 +1241,8 @@ class StorageService:
     ) -> str:
         """Rsync a storage to a storage pool."""
         storage = get_storage(payload, storage_id)
+        # Before resolving the destination, which can fail on a half-configured pool.
+        storage.guard("move")
         if not StoragePool.exists(destination_storage_pool_id):
             raise Error(
                 "not_found",

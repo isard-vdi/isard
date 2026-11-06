@@ -1270,6 +1270,7 @@ class Storage(RethinkCustomBase):
                 self, include_deleted=entry.children_include_deleted
             ),
             perms=self.perms if entry.refuse_read_only else None,
+            has_parent=bool(self.parent) if entry.refuse_without_parent else None,
             storage_id=self.id,
         )
 
@@ -1412,6 +1413,8 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        # Guard first: a pool or lane failure must not hide the disk's own refusal.
+        self.guard("move")
         # Capture original status to preserve it after move
         original_status = self.status
         final_status = "recycled" if original_status == "recycled" else "ready"
@@ -1420,6 +1423,13 @@ class Storage(RethinkCustomBase):
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
+        # Before set_maintenance, so a refused lane does not leave the disk parked.
+        queue_coverage.check_shed(
+            Task._redis,
+            queue_tiers.retier_queue(
+                queue_rsync, "move", queue_tiers.resolve_category(self.category)
+            ),
+        )
         # Before set_maintenance so a malformed value raises first.
         min_free_bytes = storage_min_free_bytes()
         self.set_maintenance("move")
@@ -2239,6 +2249,8 @@ class Storage(RethinkCustomBase):
         :param priority: Priority
         :type priority: str
         """
+        # Guard first: a pool or lane failure must not hide the disk's own refusal.
+        self.guard("disconnect")
         disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
         geometry = qcow2_geometry.policy()

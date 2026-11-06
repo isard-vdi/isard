@@ -238,3 +238,64 @@ def test_search_info_carries_what_the_registry_admits(monkeypatch):
     assert "dig_holes" in template_leaf["allowed_actions"]
     assert "dig_holes" not in orphaned["allowed_actions"]
     assert "sparsify" in orphaned["allowed_actions"]
+
+
+class TestDisconnectNeedsAParent:
+    """With no parent there is nothing to fold, only a full rewrite."""
+
+    def _disconnect(self, has_parent):
+        refused = actions.refusal(
+            "disconnect",
+            status="ready",
+            domains=[DESKTOP],
+            has_children=lambda: False,
+            has_parent=has_parent,
+            storage_id="s1",
+        )
+        return refused and refused[0]
+
+    def test_a_disk_without_parent_is_refused(self):
+        assert self._disconnect(False) == "storage_has_no_parent"
+
+    def test_a_derived_disk_is_admitted(self):
+        assert self._disconnect(True) is None
+
+    def test_no_other_action_asks_for_a_parent(self):
+        for action in actions.DISK_ACTIONS:
+            if action == "disconnect":
+                continue
+            assert not actions.spec(action).refuse_without_parent, action
+
+    def test_search_info_hides_disconnect_on_a_disk_without_parent(self, monkeypatch):
+        _query(
+            monkeypatch,
+            lib,
+            [
+                {
+                    "id": "derived",
+                    "parent": "base",
+                    "perms": ["r", "w"],
+                    "domains": [{"kind": "desktop", "status": "Stopped"}],
+                    "children": [],
+                },
+                {
+                    "id": "standalone",
+                    "parent": None,
+                    "perms": ["r", "w"],
+                    "domains": [{"kind": "desktop", "status": "Stopped"}],
+                    "children": [],
+                },
+            ],
+        )
+        monkeypatch.setattr(
+            lib.StorageProcessed, "_rdb_context", classmethod(lambda c: MagicMock())
+        )
+        derived, standalone = lib.StorageProcessed.add_allowed_actions(
+            [
+                {"id": "derived", "status": "ready"},
+                {"id": "standalone", "status": "ready"},
+            ]
+        )
+        assert "disconnect" in derived["allowed_actions"]
+        assert "disconnect" not in standalone["allowed_actions"]
+        assert "sparsify" in standalone["allowed_actions"]
