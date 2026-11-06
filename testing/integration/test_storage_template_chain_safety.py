@@ -27,6 +27,7 @@ from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopReq
 from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 
 from .helpers.client import IsardClient
+from .helpers.fsck import fsck_damage
 from .helpers.responses import created_id
 from .helpers.waits import poll_for
 
@@ -49,8 +50,6 @@ MiB = 1 << 20
 #: the source template has qemu-guest-agent: check the descendants from inside
 GUEST_AGENT = os.environ.get("CHAIN_GUEST_AGENT") == "1"
 GUEST_FILE = "/var/tmp/chain-ctl"
-#: summary counters a mounted filesystem keeps in memory; not damage
-FSCK_BENIGN = ("count wrong", "Padding at end")
 
 
 def _connect():
@@ -381,18 +380,7 @@ class Chain:
             disk.domain_id, "sync; e2fsck -fn $(findmnt -no SOURCE /) 2>&1; echo rc=$?"
         )
         dev = "/"
-        code, damage, skip = "?", [], False
-        for line in out.splitlines():
-            line = line.strip()
-            if line.startswith("rc="):
-                code = line[3:]
-            elif skip and line.startswith("Fix?"):
-                skip = False
-            elif any(benign in line for benign in FSCK_BENIGN):
-                skip = True
-            elif "?" in line or "error" in line.lower():
-                damage.append(line)
-                skip = False
+        code, damage = fsck_damage(out)
         # 4 = "left uncorrected": a mounted root differs only in its summary counters
         if code not in ("0", "4") or damage:
             problems.append(f"{disk.name}: fsck -n of {dev}: rc={code} {damage[:3]}")
