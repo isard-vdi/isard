@@ -1478,7 +1478,8 @@ class MigrationRunner:
         # Record the storage's pre-migration status ONCE (before maintenance) so
         # release/failure restore the ORIGINAL status rather than a hardcoded
         # "ready" that would un-bin a recycled disk (saga-5).
-        if item.get("storage_orig_status") is None:
+        first_park = item.get("storage_orig_status") is None
+        if first_park:
             try:
                 cur = Storage(item["storage_id"]).status
             except Exception:
@@ -1503,14 +1504,33 @@ class MigrationRunner:
         # Per-disk maintenance marker (durable storage-layer start-block).
         # NOT set_maintenance("move") — that refuses a parent-with-children;
         # migration legitimately moves parents (children rebase afterwards).
+        # a task that parked the disk in between (a dig of a base) keeps it
         try:
-            Storage.update_document(
-                item["storage_id"], {"status": "maintenance"}, validate=False
-            )
+            if first_park:
+                parked = Storage.update_document_if(
+                    item["storage_id"],
+                    {"status": "maintenance"},
+                    field="status",
+                    values=(item["storage_orig_status"],),
+                    validate=False,
+                )
+            else:
+                parked = True
+                Storage.update_document(
+                    item["storage_id"], {"status": "maintenance"}, validate=False
+                )
         except Exception:
+            parked = True
             log.exception(
                 "migration: could not set maintenance on %s", item["storage_id"]
             )
+        if not parked:
+            self._set(
+                item,
+                error="another task parked the disk before the migration could",
+            )
+            self._fail(item)
+            return False
         # ...and the domains follow their disk in, as set_maintenance would have
         # done for us.
         self._park_domains(item)
