@@ -3,10 +3,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Modal } from '@/components/modal'
 import type { DesktopTemplate } from '@/gen/oas/apiv4'
-import { DesktopStatusEnum } from '@/gen/oas/apiv4'
-import Badge from '@/components/badge/Badge.vue'
 import DomainInfoContent, { type DomainInfoInterface } from './DomainInfoContent.vue'
-import { desktopStatusLabel } from '@/lib/desktops'
+import DesktopStatusBadge from './DesktopStatusBadge.vue'
 import { Icon } from '@/components/icon'
 import { domainKindStyle, resolveDomainKind, type DesktopKind } from '@/lib/domainKind'
 
@@ -14,8 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
-const i18n = useI18n()
-const { t } = i18n
+const { t } = useI18n()
 
 export interface DomainInfoItem {
   domainId?: string
@@ -143,15 +140,6 @@ const closeModal = () => {
   emit('close')
 }
 
-const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
-
-const statusBadgeColor = (status?: string): 'green' | 'gray' | 'red' | 'lightyellow' => {
-  if (status === DesktopStatusEnum.STARTED) return 'green'
-  if (status === DesktopStatusEnum.FAILED) return 'red'
-  if (status === DesktopStatusEnum.STOPPED) return 'gray'
-  return 'lightyellow'
-}
-
 const itemStyle = (item: DomainInfoItem) =>
   domainKindStyle(resolveDomainKind(item.kind, item.desktopKind))
 
@@ -226,14 +214,7 @@ const kindLabel = (item: DomainInfoItem): string => {
             <span class="shrink-0 text-sm font-regular">{{ kindLabel(item) }}</span>
             <span class="min-w-0 break-words">{{ item.name }}</span>
           </h3>
-          <Badge
-            v-if="item.status && item.kind === 'desktop'"
-            :color="statusBadgeColor(item.status)"
-            :content="statusLabel(item.status)"
-            shape="square"
-            size="sm"
-            class="font-bold shrink-0"
-          />
+          <DesktopStatusBadge v-if="item.status && item.kind === 'desktop'" :status="item.status" />
         </div>
         <Separator class="my-1.5" />
         <DomainInfoContent v-bind="item" :show-id="showId" />

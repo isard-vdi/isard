@@ -1,13 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <path
-        d="M19.47054 3.885861C19.28189 3.158222 18.62519 2.650022 17.87345 2.650022H6.126792C5.375074 2.650022 4.718297 3.158222 4.529669 3.885861L1.140723 16.40715C1.047267 16.7674 1 17.13865 1 17.511V21.35C1 21.95775 1.492639 22.45 2.1 22.45H21.9C22.50753 22.45 23 21.95775 23 21.35V17.511C23 17.13865 22.9527 16.7674 22.85942 16.40715L19.47054 3.885861Z"
-        stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" />
-    <path d="M1 16.95H23" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-        stroke-width="1" />
-    <path d="M3.2 19.7H4.3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-        stroke-width="1" />
-    <path d="M5.4 19.7H6.500022" stroke="currentColor" stroke-linecap="round"
-        stroke-linejoin="round" stroke-width="1" />
-    <path d="M7.6 19.7H8.7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-        stroke-width="1" />
+<svg xmlns="http://www.w3.org/2000/svg"  fill="none" viewBox="0 0 24 24">
+  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.5 14h19M6 17.5h.01M8.967 4h6.066c1.077 0 1.616 0 2.091.164a3 3 0 0 1 1.121.693c.36.352.6.833 1.082 1.796l2.166 4.333c.19.378.284.567.35.765.06.177.102.357.128.541.029.207.029.418.029.841V15.2c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311C19.72 20 18.88 20 17.2 20H6.8c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311C2 17.72 2 16.88 2 15.2v-2.067c0-.422 0-.634.029-.84.026-.184.068-.365.128-.541.066-.199.16-.388.35-.766l2.166-4.333c.482-.963.723-1.444 1.082-1.796a3 3 0 0 1 1.12-.693C7.352 4 7.89 4 8.968 4Z"/>
 </svg>

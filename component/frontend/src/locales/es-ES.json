@@ -421,6 +421,7 @@
         "headers": {
           "name": "Nombre",
           "description": "Descripción",
+          "created": "Fecha de creación",
           "owner": "Propietario",
           "category": "Categoría",
           "group": "Grupo"
@@ -1162,10 +1163,10 @@
       "show-all": "Mostrarlo todo",
       "hide-all": "Ocultarlo todo",
       "search-placeholder": "Buscar un usuario",
-      "click-hint": "Haz clic en los iconos para mostrar u ocultar cada escritorio",
       "headers": {
         "user": "Usuario",
         "all": "Todos",
+        "all-tooltip": "Todos los escritorios del usuario: marca la casilla de su fila para mostrarlos u ocultarlos todos a la vez",
         "state": "Estado"
       },
       "filter": {
@@ -1173,10 +1174,6 @@
         "visible": "Totalmente visibles",
         "hidden": "Totalmente ocultos",
         "mixed": "Parcialmente visibles"
-      },
-      "legend": {
-        "started": "Iniciado",
-        "stopped": "Parado"
       }
     }
   },
@@ -2030,8 +2027,8 @@
         "ip": {
           "title": "Dirección IP"
         },
-        "peripherals": {
-          "title": "Periféricos"
+        "media": {
+          "title": "Medios"
         },
         "reservables": {
           "title": "Reservables"
@@ -2123,8 +2120,8 @@
       "networks": {
         "title": "Redes"
       },
-      "peripherals": {
-        "title": "Periféricos"
+      "media": {
+        "title": "Medios"
       },
       "reservables": {
         "title": "Reservables"
@@ -2528,7 +2525,7 @@
         "hardwareGroups": {
           "hardware": "Hardware",
           "system": "Sistema",
-          "peripherals": "Periféricos",
+          "media": "Medios",
           "reservables": "Reservables"
         },
         "networks": {
@@ -2867,6 +2864,13 @@
           "viewing": "Estás viendo este escritorio",
           "no-web-viewer": "Este escritorio no tiene visor web; ábrelo desde el menú de visores"
         }
+      },
+      "started-desktops-modal": {
+        "title": "{count} escritorio no está detenido | {count} escritorios no están detenidos",
+        "description": "Un despliegue no se puede editar hasta que todos sus escritorios estén detenidos.",
+        "manage-hint": "Puedes detenerlos desde la gestión del despliegue.",
+        "close": "Cerrar",
+        "manage": "Ir a la gestión del despliegue"
       }
     },
     "change-image-modal": {
@@ -3003,7 +3007,7 @@
       "options": {
         "go-to-login": "Ir al inicio de sesión",
         "logout": "Cerrar sesión",
-        "renew": "Renovar la sesión actual"
+        "renew": "Renovar la sesión"
       },
       "title": "Sesión caducada"
     },

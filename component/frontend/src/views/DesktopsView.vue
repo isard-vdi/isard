@@ -14,7 +14,7 @@ import {
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import {
-  useLocalStorage as vueuseLocalStorage,
+  useSessionStorage,
   refDebounced,
   useElementSize,
   useEventListener,
@@ -72,6 +72,7 @@ import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optim
 import { describeApiError } from '@/lib/api-errors'
 import { resolveDesktopKind, type DesktopKind } from '@/lib/desktops'
 import { domainKindStyle } from '@/lib/domainKind'
+import { useAuthStore } from '@/stores/auth'
 import { useNotificationModalStore } from '@/stores/notification-modal'
 import { useUserStore } from '@/stores/user'
 import { canCreateAnyDesktop } from '@/lib/quotas'
@@ -103,7 +104,9 @@ import {
   FilterTags,
   countFilterTags,
   emptyFilterTags,
-  type FilterCategory
+  pickFilterTags,
+  type FilterCategory,
+  type FilterTagsSelection
 } from '@/components/filter-tags'
 import { EmptyState } from '@/components/page'
 import {
@@ -150,6 +153,7 @@ const { t, d, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 const notificationModalStore = useNotificationModalStore()
 const userStore = useUserStore()
 
@@ -531,10 +535,23 @@ const copyText = (text: string) => {
 
 // --------------------------------------------------
 
-const DESKTOP_FILTER_CATEGORIES = ['kind', 'status']
+const DESKTOP_FILTER_VALUES = {
+  kind: ['persistent', 'volatile', 'deployment'],
+  status: ['started', 'stopped']
+}
+const DESKTOP_FILTER_CATEGORIES = Object.keys(DESKTOP_FILTER_VALUES)
 
 const desktopSearch = ref('')
-const desktopFilterTags = ref(emptyFilterTags(DESKTOP_FILTER_CATEGORIES))
+const desktopFilterTags = useSessionStorage<FilterTagsSelection>(
+  () => `desktops-filter-tags:${authStore.user?.user_id}`,
+  emptyFilterTags(DESKTOP_FILTER_CATEGORIES),
+  {
+    serializer: {
+      read: (raw) => pickFilterTags(JSON.parse(raw), DESKTOP_FILTER_VALUES),
+      write: (value) => JSON.stringify(value)
+    }
+  }
+)
 
 const activeDesktopFilterCount = computed(() => countFilterTags(desktopFilterTags.value))
 
@@ -905,7 +922,10 @@ const goToNewTemplate = async (desktopId: string) => {
   router.push({ name: 'new-template', params: { desktopId } })
 }
 
-const viewMode = ref<'cards' | 'table'>('cards')
+const viewMode = useSessionStorage<'cards' | 'table'>(
+  () => `desktops-view-mode:${authStore.user?.user_id}`,
+  'cards'
+)
 
 const DESKTOP_SEARCH_INPUT_ID = 'desktops-search'
 
@@ -1682,6 +1702,9 @@ const missingCardRows = computed(() => {
           v-show="filteredDesktops.length !== 0"
           :desktops="filteredDesktops"
           :prefered-viewers="preferedViewers"
+          sticky-header
+          sticky-footer
+          :style="{ '--data-table-sticky-top': `${curtainTop}px` }"
           @desktop-start="(dktp) => desktopStart({ path: { desktop_id: dktp.id } })"
           @desktop-stop="(dktp) => desktopStop({ path: { desktop_id: dktp.id } })"
           @desktop-update-status="

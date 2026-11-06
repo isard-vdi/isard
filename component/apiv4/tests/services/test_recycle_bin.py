@@ -413,10 +413,9 @@ class TestRecycleUnusedItems:
 
 
 class TestCreateUnusedItemTimeoutRule:
-    """Apiv3 ``Cerberus`` set ``id`` via ``default_setter: genuuid`` and
-    ``allowed`` via ``default: {}``. The webapp form sends neither.
-    Pin the service-side defaults so the webapp create succeeds and the
-    response carries a usable id."""
+    """Apiv3 ``Cerberus`` set ``id`` via ``default_setter: genuuid``. The
+    webapp form does not send one. Pin the service-side default so the
+    webapp create succeeds and the response carries a usable id."""
 
     @patch("api.services.recycle_bin.CommonRecycleBin.create_unused_item_timeout")
     def test_generates_id_when_not_provided(self, mock_create):
@@ -434,11 +433,10 @@ class TestCreateUnusedItemTimeoutRule:
         assert result
         assert isinstance(result, str)
         assert len(result) >= 32  # uuid4 string form is 36 chars
-        # Helper called with the same dict, now augmented with id+allowed.
+        # Helper called with the same dict, now augmented with id.
         mock_create.assert_called_once()
         forwarded = mock_create.call_args.args[0]
         assert forwarded["id"] == result
-        assert forwarded["allowed"] == {}
 
     @patch("api.services.recycle_bin.CommonRecycleBin.create_unused_item_timeout")
     def test_keeps_caller_supplied_id(self, mock_create):

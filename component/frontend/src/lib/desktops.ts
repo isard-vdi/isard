@@ -79,6 +79,16 @@ export const desktopStatusTone = (status?: string): DesktopStatusTone => {
   return 'warning'
 }
 
+const STATUS_BADGE_COLOR: Record<DesktopStatusTone, 'green' | 'red' | 'gray' | 'lightyellow'> = {
+  success: 'green',
+  error: 'red',
+  neutral: 'gray',
+  warning: 'lightyellow'
+}
+
+export const desktopStatusBadgeColor = (status?: string) =>
+  STATUS_BADGE_COLOR[desktopStatusTone(status)]
+
 // `te` does not walk the fallback chain, so ask English: the guard is about
 // unknown statuses, not about locales that are still incomplete.
 export const desktopStatusLabel = (

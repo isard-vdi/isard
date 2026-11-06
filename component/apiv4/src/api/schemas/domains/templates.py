@@ -92,6 +92,10 @@ class UserTemplate(BaseModel):
             "0-100). Absent for templates not currently being created."
         ),
     )
+    accessed: Optional[float] = Field(
+        default=None,
+        description="Creation timestamp of the template (set on create and duplicate).",
+    )
 
 
 class UserTemplatesPaginationResponse(PaginationResponseList[UserTemplate]):
@@ -155,7 +159,9 @@ class UserSharedTemplate(BaseModel):
             "flag failed shared templates as non-usable."
         ),
     )
-    accessed: float = Field(description="Timestamp of the last access to the desktop.")
+    accessed: float = Field(
+        description="Creation timestamp of the template (set on create and duplicate)."
+    )
 
 
 class UserTemplatesResponse(BaseModel):

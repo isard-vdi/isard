@@ -11,6 +11,21 @@ export const emptyFilterTags = (categoryKeys: string[]): FilterTagsSelection =>
 export const countFilterTags = (selection: FilterTagsSelection): number =>
   Object.values(selection).reduce((total, values) => total + values.length, 0)
 
+// A value no longer offered would filter everything out without a tag to remove it.
+export const pickFilterTags = (
+  stored: unknown,
+  allowed: Record<string, string[]>
+): FilterTagsSelection =>
+  Object.fromEntries(
+    Object.entries(allowed).map(([key, values]) => {
+      const selected = (stored as Record<string, unknown> | null)?.[key]
+      return [
+        key,
+        Array.isArray(selected) ? values.filter((value) => selected.includes(value)) : []
+      ]
+    })
+  )
+
 export type FilterTone = DomainKind | 'neutral' | 'brand'
 
 export interface FilterToneStyle {

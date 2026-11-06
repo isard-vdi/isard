@@ -27,6 +27,7 @@ const levelImages: Record<string, string> = {
 
 interface Props {
   level?: ModalVariants['level']
+  image?: string
   title: string
   description?: string
   open?: boolean
@@ -98,9 +99,16 @@ const widthClass = computed(() => {
           aria-hidden="true"
         />
         <img
-          :src="levelImages[props.level ?? 'info']"
+          :src="props.image ?? levelImages[props.level ?? 'info']"
           :alt="`${props.level} modal`"
-          class="relative z-10 top-4 self-start max-w-full"
+          :class="
+            cn(
+              'z-10',
+              props.image
+                ? 'absolute inset-0 size-full object-cover'
+                : 'relative top-4 self-start max-w-full'
+            )
+          "
         />
       </div>
 

@@ -5,10 +5,9 @@ import { useI18n } from 'vue-i18n'
 import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4'
 
 import {
+  desktopStatusBadgeColor,
   desktopStatusIsTransitional,
-  desktopStatusLabel,
-  desktopStatusTone,
-  type DesktopStatusTone
+  desktopStatusLabel
 } from '@/lib/desktops'
 import { cn, startCase } from '@/lib/utils'
 
@@ -24,14 +23,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {})
 
-const STATUS_BADGE_COLOR: Record<DesktopStatusTone, 'green' | 'red' | 'gray' | 'lightyellow'> = {
-  success: 'green',
-  error: 'red',
-  neutral: 'gray',
-  warning: 'lightyellow'
-}
-
-const statusColor = computed(() => STATUS_BADGE_COLOR[desktopStatusTone(props.desktop.status)])
+const statusColor = computed(() => desktopStatusBadgeColor(props.desktop.status))
 
 const statusLabel = computed(() => desktopStatusLabel(props.desktop.status, i18n))
 

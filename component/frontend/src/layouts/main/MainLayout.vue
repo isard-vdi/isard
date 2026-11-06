@@ -17,6 +17,7 @@ import { getPreferredFrontend } from '@/lib/frontendModeMap'
 import { DEFAULT_DOCS_URL, DEFAULT_VIEWERS_DOCS_URL, docsUrl } from '@/lib/docs'
 import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { cn } from '@/lib/utils'
+import { floatingCornerLift } from '@/composables/useFloatingCornerLift'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -173,7 +174,12 @@ onUnmounted(() => {
   <DesktopTimeoutModal />
 
   <!-- Both float in the same corner, so they stack instead of overlapping when both are up. -->
-  <div class="pointer-events-none fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+  <!-- TODO: Move it back down once the FrontendToggler is removed: it only rises to clear a
+       stuck table footer. -->
+  <div
+    class="pointer-events-none fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3 transition-transform duration-200 motion-reduce:transition-none"
+    :style="floatingCornerLift ? { transform: `translateY(-${floatingCornerLift}px)` } : undefined"
+  >
     <ScrollToTop />
     <FrontendToggler />
   </div>

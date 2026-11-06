@@ -8,13 +8,13 @@ import { Modal } from '@/components/modal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DesktopStatusBadge } from '@/components/desktops'
 import { Icon } from '@/components/icon'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { TruncatedText } from '@/components/truncated-text'
 import { useDeploymentVisibility } from '@/composables/useDeploymentVisibility'
 import { runningCount, userDesktops, type MatrixDesktop } from '@/lib/deployment-visibility'
-import { desktopActionsData, desktopStatusLabel } from '@/lib/desktops'
 
 interface Props {
   open?: boolean
@@ -30,11 +30,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const i18n = useI18n()
-const { t } = i18n
-
-const statusLabel = (status?: string) => desktopStatusLabel(status, i18n)
-const statusIcon = (status?: string) => desktopActionsData(status ?? '').text
+const { t } = useI18n()
 
 // Same query as the deployment page, so the rows follow its websocket patches.
 const { data: deployment, isPending } = useQuery(
@@ -120,7 +116,8 @@ const save = async (stopStartedDomains: boolean) => {
 }
 
 const headers = computed(() => [
-  { name: '', key: 'visible', width: 'max-content' },
+  // Selection column: kept tight against the desktop name.
+  { name: '', key: 'visible', width: 'max-content', headerClass: 'pr-0', cellClass: 'pr-0' },
   {
     name: t('components.deployments.user-visibility-modal.headers.desktop'),
     key: 'name',
@@ -218,17 +215,7 @@ const handleClose = () => {
         </template>
 
         <template #cell-status="{ row }">
-          <div class="flex items-center gap-2 text-sm font-medium text-gray-warm-700">
-            <Icon
-              v-if="statusIcon(row.status as string)"
-              :name="statusIcon(row.status as string)!.icon"
-              size="md"
-              class="shrink-0"
-              :class="statusIcon(row.status as string)!.iconClass"
-              :stroke-color="statusIcon(row.status as string)!.iconColor"
-            />
-            {{ statusLabel(row.status as string) }}
-          </div>
+          <DesktopStatusBadge :status="row.status as string" />
         </template>
 
         <template #empty>

@@ -771,6 +771,7 @@ class TemplatesProcessed(RethinkSharedConnection):
                             # (written by ``move()`` during the chain's
                             # rsync branch).
                             "progress",
+                            "accessed",
                         },
                         {"create_dict": {"hardware": {"disks": {"storage_id": True}}}},
                     )

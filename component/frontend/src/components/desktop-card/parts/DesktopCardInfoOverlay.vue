@@ -210,7 +210,13 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
       :class="cardOverlayTextVariants({ size })"
     >
       <div class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
-        <Icon name="cpu" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
+        <Icon
+          name="cpu"
+          size="xs"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
+          aria-hidden="true"
+        />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-12" />
         <span v-else class="font-semibold truncate">
           {{
@@ -227,8 +233,8 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         <Icon
           name="memory"
           size="xs"
-          stroke-color="base-white"
-          class="shrink-0"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
           aria-hidden="true"
         />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-16" />
@@ -244,7 +250,13 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         v-if="isPending || firstReservable"
         class="flex items-center gap-1.5 min-w-0 max-w-[47%]"
       >
-        <Icon name="gpu" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
+        <Icon
+          name="gpu"
+          size="xs"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
+          aria-hidden="true"
+        />
         <span
           class="uppercase tracking-wide text-base-white/70 shrink-0"
           :class="cardOverlayLabelVariants({ size })"
@@ -284,10 +296,10 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
       <!-- Attached media (ISO / floppy) -->
       <div v-if="isPending || firstMedia" class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
         <Icon
-          :name="firstMedia?.kind === 'floppy' ? 'save-01' : 'disc-02'"
+          :name="firstMedia?.kind === 'floppy' ? 'save-01' : 'disc-02-small'"
           size="xs"
-          stroke-color="base-white"
-          class="shrink-0"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
           aria-hidden="true"
         />
         <Skeleton v-if="isPending" class="bg-base-white/20 h-3 w-20" />
@@ -332,7 +344,13 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
 
       <!-- Boot order -->
       <div class="flex items-center gap-1.5 min-w-0 max-w-[47%]">
-        <Icon name="hdd" size="xs" stroke-color="base-white" class="shrink-0" aria-hidden="true" />
+        <Icon
+          name="hdd"
+          size="xs"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
+          aria-hidden="true"
+        />
         <span
           class="uppercase tracking-wide text-base-white/70 shrink-0"
           :class="cardOverlayLabelVariants({ size })"
@@ -355,8 +373,8 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         <Icon
           name="hdd-02"
           size="xs"
-          stroke-color="base-white"
-          class="shrink-0"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
           aria-hidden="true"
         />
         <span
@@ -379,8 +397,8 @@ const { isTruncated: isVideoLabelTruncated } = useIsTextTruncated(
         <Icon
           name="wires"
           size="xs"
-          stroke-color="base-white"
-          class="shrink-0"
+          stroke-color=""
+          class="shrink-0 text-base-white/70"
           aria-hidden="true"
         />
         <span

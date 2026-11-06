@@ -435,7 +435,7 @@ const gridSectionOrder = (key: GridSectionKey): number => {
           </div>
         </div>
 
-        <!-- Peripherals/ISOs -->
+        <!-- Media/ISOs -->
         <div
           v-if="hasPeripherals"
           class="flex flex-col gap-1.5"
@@ -445,7 +445,7 @@ const gridSectionOrder = (key: GridSectionKey): number => {
           <div class="flex items-center gap-1.5">
             <Icon name="disc-02" size="md" stroke-color="brand-700" class="shrink-0" />
             <h4 class="text-xs font-bold text-brand-700 uppercase tracking-wide">
-              {{ t('components.domain-info-modal.fields.peripherals.title') }}
+              {{ t('components.domain-info-modal.fields.media.title') }}
             </h4>
           </div>
           <div class="flex flex-wrap gap-1.5" role="list">

@@ -421,6 +421,7 @@
         "headers": {
           "name": "Nom",
           "description": "Descripció",
+          "created": "Data de creació",
           "owner": "Propietari",
           "category": "Categoria",
           "group": "Grup"
@@ -1162,10 +1163,10 @@
       "show-all": "Mostra-ho tot",
       "hide-all": "Amaga-ho tot",
       "search-placeholder": "Cerca un usuari",
-      "click-hint": "Fes clic a les icones per mostrar o amagar cada escriptori",
       "headers": {
         "user": "Usuari",
         "all": "Tots",
+        "all-tooltip": "Tots els escriptoris de l'usuari: marca la casella de la seva fila per mostrar-los o amagar-los tots alhora",
         "state": "Estat"
       },
       "filter": {
@@ -1173,10 +1174,6 @@
         "visible": "Totalment visibles",
         "hidden": "Totalment ocults",
         "mixed": "Parcialment visibles"
-      },
-      "legend": {
-        "started": "Iniciat",
-        "stopped": "Aturat"
       }
     }
   },
@@ -2030,8 +2027,8 @@
         "ip": {
           "title": "Adreça IP"
         },
-        "peripherals": {
-          "title": "Perifèrics"
+        "media": {
+          "title": "Mitjans"
         },
         "reservables": {
           "title": "Reservables"
@@ -2067,8 +2064,8 @@
       "networks": {
         "title": "Xarxes"
       },
-      "peripherals": {
-        "title": "Perifèrics"
+      "media": {
+        "title": "Mitjans"
       },
       "reservables": {
         "title": "Reservables"
@@ -2516,7 +2513,7 @@
         "hardwareGroups": {
           "hardware": "Maquinari",
           "system": "Sistema",
-          "peripherals": "Perifèrics",
+          "media": "Mitjans",
           "reservables": "Reservables"
         },
         "networks": {
@@ -2855,6 +2852,13 @@
           "viewing": "Estàs veient aquest escriptori",
           "no-web-viewer": "Aquest escriptori no té visor web; obre'l des del menú de visors"
         }
+      },
+      "started-desktops-modal": {
+        "title": "{count} escriptori no està aturat | {count} escriptoris no estan aturats",
+        "description": "Un desplegament no es pot editar fins que tots els seus escriptoris estiguin aturats.",
+        "manage-hint": "Podeu aturar-los des de la gestió del desplegament.",
+        "close": "Tanca",
+        "manage": "Ves a la gestió del desplegament"
       }
     },
     "change-image-modal": {
@@ -3003,7 +3007,7 @@
       "options": {
         "go-to-login": "Ves a l'inici de sessió",
         "logout": "Tanca la sessió",
-        "renew": "Renova la sessió actual"
+        "renew": "Renova la sessió"
       },
       "title": "Sessió caducada"
     },

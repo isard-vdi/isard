@@ -17,6 +17,8 @@ import {
   getTemplateInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
+import { getTemplateDetails } from '@/gen/oas/apiv4'
+
 import { isInvalid } from '@/lib/utils'
 import {
   toDomainHardware,
@@ -37,6 +39,7 @@ import { FormHeader, type FormHeaderTooltip } from '@/components/form-header'
 import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Modal } from '@/components/modal'
+import { DomainInfoModal } from '@/components/desktops'
 import AlertModal from '@/components/modal/AlertModal.vue'
 import { type StepperFormStep } from '@/components/stepper-form'
 import TemplatesList from '@/components/templates/TemplatesList.vue'
@@ -152,6 +155,31 @@ const {
     }
   }
 })
+
+// Template Info Modal
+const showTemplateInfoModal = ref(false)
+const {
+  mutate: fetchTemplateDetails,
+  isPending: fetchTemplateDetailsIsPending,
+  data: templateDetails,
+  variables: templateDetailsTemplateId,
+  reset: resetTemplateDetails
+} = useMutation({
+  mutationFn: async (templateId: string) => {
+    const { data } = await getTemplateDetails({
+      path: {
+        template_id: templateId
+      },
+      throwOnError: true
+    })
+    return data
+  }
+})
+
+const openTemplateInfoModal = (templateId: string) => {
+  fetchTemplateDetails(templateId)
+  showTemplateInfoModal.value = true
+}
 
 const formSchema = z.object({
   name: z
@@ -565,6 +593,31 @@ function hasFieldErrors(
       }}</AlertDescription>
     </Alert>
 
+    <DomainInfoModal
+      :open="showTemplateInfoModal"
+      :is-loading="fetchTemplateDetailsIsPending"
+      :domain-id="templateDetailsTemplateId"
+      :name="templateDetails?.name || ''"
+      :description="templateDetails?.description"
+      :vcpu="templateDetails?.vcpu"
+      :ram="templateDetails?.memory"
+      :boot-order="templateDetails?.boot_order.map((bo) => bo.name)"
+      :disk-bus="templateDetails?.disk_bus?.name"
+      :vga="templateDetails?.videos.map((vga) => vga.name)"
+      :interfaces="templateDetails?.interfaces"
+      :viewers="templateDetails?.viewers"
+      :isos="templateDetails?.isos?.map((iso) => iso.name)"
+      :reservables="templateDetails?.reservables?.vgpus"
+      :credentials="templateDetails?.credentials"
+      :kind="'template'"
+      @close="
+        () => {
+          showTemplateInfoModal = false
+          resetTemplateDetails()
+        }
+      "
+    />
+
     <TemplatesList
       active-template-tab="user"
       selectable
@@ -576,6 +629,7 @@ function hasFieldErrors(
           selectTemplateModalData = null
         }
       "
+      @show-info-modal="openTemplateInfoModal"
     />
 
     <template #footer>

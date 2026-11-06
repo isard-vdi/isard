@@ -27,7 +27,7 @@ interface Props {
   bodyClass?: HTMLAttributes['class']
   closeOnBackdropClick?: boolean
   closeOnEscape?: boolean // Defaults to the same behavior as closeOnBackdropClick
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | 'full'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '8xl' | 'full'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -59,6 +59,7 @@ const sizeClasses = {
   '5xl': 'max-w-5xl',
   '6xl': 'max-w-6xl',
   '7xl': 'max-w-7xl',
+  '8xl': 'max-w-[96rem]',
   full: 'max-w-[95vw]'
 }
 </script>

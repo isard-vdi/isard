@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { HTMLAttributes } from 'vue'
+import { createReusableTemplate, useResizeObserver } from '@vueuse/core'
 
 const { t } = useI18n()
 
@@ -69,7 +70,11 @@ interface Props {
   defaultSort?: { key: string; desc?: boolean }
   cellClass?: HTMLAttributes['class']
   density?: DataTableDensity
+  stickyHeader?: boolean
+  stickyFooter?: boolean
 }
+
+defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 10,
@@ -77,7 +82,9 @@ const props = withDefaults(defineProps<Props>(), {
   isClickable: false,
   defaultSort: undefined,
   cellClass: undefined,
-  density: 'comfortable'
+  density: 'comfortable',
+  stickyHeader: false,
+  stickyFooter: false
 })
 
 const density = computed(() => DENSITY[props.density] ?? DENSITY.comfortable)
@@ -132,6 +139,40 @@ watch(pageSize, (value) => {
   table.setPageSize(value)
 })
 
+watch(
+  () => table.getPageCount(),
+  (count) => {
+    const lastPage = Math.max(count - 1, 0)
+    if (table.getState().pagination.pageIndex > lastPage) table.setPageIndex(lastPage)
+  }
+)
+
+const templateCols = computed(() =>
+  props.headers.map((header) => header.width || 'minmax(var(--spacing-48), 1fr)')
+)
+
+const [DefineHeaderRow, ReuseHeaderRow] = createReusableTemplate<{ sizer?: boolean }>()
+
+const bodyGrid = useTemplateRef('bodyGrid')
+const measuredCols = ref<string>()
+
+const measureColumns = () => {
+  const el = bodyGrid.value?.el
+  if (!props.stickyHeader || !el) return
+  measuredCols.value = getComputedStyle(el).gridTemplateColumns
+}
+
+useResizeObserver(() => (props.stickyHeader ? bodyGrid.value?.el : undefined), measureColumns)
+watch(
+  [() => props.stickyHeader, () => props.headers, () => table.getPaginationRowModel().rows],
+  measureColumns,
+  { flush: 'post' }
+)
+
+const headerTemplateCols = computed(() =>
+  measuredCols.value ? [measuredCols.value] : templateCols.value
+)
+
 const handleRowClick = (rowData: Record<string, unknown>) => {
   emit('rowClick', rowData)
 }
@@ -140,22 +181,24 @@ const handleRowClick = (rowData: Record<string, unknown>) => {
 // div, and rows are real grid items (`grid-cols-subgrid`) rather than
 // `display: contents`, so a sticky cell resolves against that scroller.
 // It needs an opaque background, which would otherwise swallow the row
-// hover — pass `row-class="group"` to keep the hover working.
+// hover — pass `row-class="group"` to keep the hover working. The column's
+// own `headerClass`/`cellClass` go after these, so it can tint the pinned column.
 const STICKY_HEAD_CLASSES = 'sticky left-0 z-20 bg-base-white'
 const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gray-warm-50'
+
+// Keeps the header's widths in the body grid once the visible header leaves it.
+const HEADER_SIZER_CLASSES = 'invisible h-0 overflow-hidden border-0'
 </script>
 
 <template>
-  <DataTableBackground :class="density.container">
-    <DataTable
-      :template-cols="headers.map((header) => header.width || 'minmax(var(--spacing-48), 1fr)')"
-    >
-      <DataTableHeaderRow>
+  <div class="contents">
+    <DefineHeaderRow v-slot="{ sizer }">
+      <DataTableHeaderRow :class="sizer && HEADER_SIZER_CLASSES" :aria-hidden="sizer || undefined">
         <DataTableHead
           v-for="(header, index) in headers"
           :key="'header-' + index"
           :class="
-            cn(density.head, header.headerClass, header.sticky === 'left' && STICKY_HEAD_CLASSES)
+            cn(density.head, header.sticky === 'left' && STICKY_HEAD_CLASSES, header.headerClass)
           "
           :sortable="header.sortable"
           :sorted="table.getColumn(header.key)?.getIsSorted()"
@@ -166,58 +209,74 @@ const STICKY_CELL_CLASSES = 'sticky left-0 z-10 bg-base-white group-hover:bg-gra
           </slot>
         </DataTableHead>
       </DataTableHeaderRow>
+    </DefineHeaderRow>
 
-      <DataTableBody>
-        <template v-if="table.getRowModel().rows?.length">
-          <DataTableRow
-            v-for="(row, rowIndex) in table.getPaginationRowModel().rows"
-            :key="row.id"
-            :class="
-              cn(props.rowClass, {
-                'bg-brand-100 hover:bg-brand-200':
-                  row.original.id && row.original.id === props.higlightedRowId,
-                'cursor-pointer': props.isClickable === true
-              })
-            "
-            :tabindex="props.isClickable ? 0 : undefined"
-            @click="props.isClickable && handleRowClick(row.original)"
-            @keydown.enter="props.isClickable && handleRowClick(row.original)"
-            @keydown.space.prevent="props.isClickable && handleRowClick(row.original)"
-          >
-            <DataTableCell
-              v-for="(header, cellIndex) in headers"
-              :key="'cell-' + rowIndex + '-' + cellIndex"
+    <DataTableBackground
+      v-bind="$attrs"
+      :class="density.container"
+      :sticky-footer="props.stickyFooter"
+    >
+      <template v-if="props.stickyHeader" #header>
+        <DataTable :template-cols="headerTemplateCols">
+          <ReuseHeaderRow />
+        </DataTable>
+      </template>
+
+      <DataTable ref="bodyGrid" :template-cols="templateCols">
+        <ReuseHeaderRow :sizer="props.stickyHeader" />
+
+        <DataTableBody>
+          <template v-if="table.getRowModel().rows?.length">
+            <DataTableRow
+              v-for="(row, rowIndex) in table.getPaginationRowModel().rows"
+              :key="row.id"
               :class="
-                cn(
-                  density.cell,
-                  props.cellClass,
-                  header.cellClass,
-                  header.sticky === 'left' && STICKY_CELL_CLASSES
-                )
+                cn(props.rowClass, {
+                  'bg-brand-100 hover:bg-brand-200':
+                    row.original.id && row.original.id === props.higlightedRowId,
+                  'cursor-pointer': props.isClickable === true
+                })
               "
+              :tabindex="props.isClickable ? 0 : undefined"
+              @click="props.isClickable && handleRowClick(row.original)"
+              @keydown.enter="props.isClickable && handleRowClick(row.original)"
+              @keydown.space.prevent="props.isClickable && handleRowClick(row.original)"
             >
-              <slot
-                :name="`cell-${header.key}`"
-                :value="row.getValue(header.key)"
-                :row="row.original"
-                :header="header"
+              <DataTableCell
+                v-for="(header, cellIndex) in headers"
+                :key="'cell-' + rowIndex + '-' + cellIndex"
+                :class="
+                  cn(
+                    density.cell,
+                    props.cellClass,
+                    header.sticky === 'left' && STICKY_CELL_CLASSES,
+                    header.cellClass
+                  )
+                "
               >
-                {{ row.getValue(header.key) }}
-              </slot>
-            </DataTableCell>
-          </DataTableRow>
-        </template>
+                <slot
+                  :name="`cell-${header.key}`"
+                  :value="row.getValue(header.key)"
+                  :row="row.original"
+                  :header="header"
+                >
+                  {{ row.getValue(header.key) }}
+                </slot>
+              </DataTableCell>
+            </DataTableRow>
+          </template>
 
-        <DataTableEmpty v-else>
-          <slot name="empty">
-            {{ t('components.datatable.empty') }}
-          </slot>
-        </DataTableEmpty>
-      </DataTableBody>
-    </DataTable>
+          <DataTableEmpty v-else>
+            <slot name="empty">
+              {{ t('components.datatable.empty') }}
+            </slot>
+          </DataTableEmpty>
+        </DataTableBody>
+      </DataTable>
 
-    <template #pagination>
-      <DatatablePagination :table="table"> </DatatablePagination>
-    </template>
-  </DataTableBackground>
+      <template #pagination>
+        <DatatablePagination :table="table"> </DatatablePagination>
+      </template>
+    </DataTableBackground>
+  </div>
 </template>

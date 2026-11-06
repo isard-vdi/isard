@@ -689,7 +689,7 @@ defineExpose({
     <FieldGroup>
       <section class="grid gap-4 items-start">
         <div class="flex items-center gap-2">
-          <Icon name="hdd-02" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+          <Icon name="cpu" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
           <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
             {{ t('components.domain.hardware.hardwareGroups.system') }}
           </h4>
@@ -705,6 +705,13 @@ defineExpose({
             <Field :data-invalid="isInvalid(field)">
               <div class="flex items-center gap-2">
                 <FieldLabel :for="field.name">
+                  <Icon
+                    name="cpu"
+                    size="sm"
+                    stroke-color=""
+                    aria-hidden="true"
+                    class="text-gray-warm-500"
+                  />
                   {{ $t('components.domain.hardware.vcpus.label') }}
                 </FieldLabel>
                 <HardwareLimitChip :limited="limitedField('vcpus')" />
@@ -734,6 +741,13 @@ defineExpose({
             <Field :data-invalid="isInvalid(field)">
               <div class="flex items-center gap-2">
                 <FieldLabel :for="field.name">
+                  <Icon
+                    name="memory"
+                    size="sm"
+                    stroke-color=""
+                    aria-hidden="true"
+                    class="text-gray-warm-500"
+                  />
                   {{ $t('components.domain.hardware.memory.label') }}
                 </FieldLabel>
                 <HardwareLimitChip :limited="limitedField('memory')" />
@@ -762,6 +776,13 @@ defineExpose({
           <form.Field v-if="props.showDiskSize" v-slot="{ field }" name="diskSize">
             <Field :data-invalid="isInvalid(field)">
               <FieldLabel :for="field.name">
+                <Icon
+                  name="hdd"
+                  size="sm"
+                  stroke-color=""
+                  aria-hidden="true"
+                  class="text-gray-warm-500"
+                />
                 {{ $t('components.domain.hardware.disk-size.label') }}
               </FieldLabel>
               <InputField
@@ -782,6 +803,13 @@ defineExpose({
             <Field>
               <div class="flex items-center gap-2">
                 <FieldLabel :for="field.name">
+                  <Icon
+                    name="hdd-02"
+                    size="sm"
+                    stroke-color=""
+                    aria-hidden="true"
+                    class="text-gray-warm-500"
+                  />
                   {{ $t('components.domain.hardware.disk-bus.label') }}
                 </FieldLabel>
                 <HardwareLimitChip :limited="limitedField('disk_bus')" />
@@ -808,6 +836,13 @@ defineExpose({
             <Field>
               <div class="flex items-center gap-2">
                 <FieldLabel :for="field.name">
+                  <Icon
+                    name="wires"
+                    size="sm"
+                    stroke-color=""
+                    aria-hidden="true"
+                    class="text-gray-warm-500"
+                  />
                   {{ $t('components.domain.hardware.videos.label') }}
                 </FieldLabel>
                 <HardwareLimitChip :limited="limitedField('videos')" />
@@ -832,6 +867,13 @@ defineExpose({
             <Field>
               <div class="flex items-center gap-2">
                 <FieldLabel :for="field.name">
+                  <Icon
+                    name="hdd"
+                    size="sm"
+                    stroke-color=""
+                    aria-hidden="true"
+                    class="text-gray-warm-500"
+                  />
                   {{ $t('components.domain.hardware.boot-order.label') }}
                 </FieldLabel>
                 <HardwareLimitChip :limited="limitedField('boot_order')" />
@@ -862,9 +904,15 @@ defineExpose({
       >
         <div v-if="showIsosField" class="grid gap-4 items-start">
           <div class="flex items-center gap-2">
-            <Icon name="hdd" size="sm" stroke-color="" aria-hidden="true" class="text-brand-700" />
+            <Icon
+              name="disc-02"
+              size="sm"
+              stroke-color=""
+              aria-hidden="true"
+              class="text-brand-700"
+            />
             <h4 class="text-xs font-bold uppercase tracking-wide text-brand-700">
-              {{ t('components.domain.hardware.hardwareGroups.peripherals') }}
+              {{ t('components.domain.hardware.hardwareGroups.media') }}
             </h4>
             <Separator class="flex-1" />
           </div>
@@ -995,6 +1043,13 @@ defineExpose({
               <form.Field v-else-if="bookingWindow" v-slot="{ field }" name="bookingEnd">
                 <Field :data-invalid="bookingEndTooLate">
                   <FieldLabel :for="field.name" required>
+                    <Icon
+                      name="clock"
+                      size="sm"
+                      stroke-color=""
+                      aria-hidden="true"
+                      class="text-gray-warm-500"
+                    />
                     {{ t('components.domain.hardware.vgpus.booking.end-time.label') }}
                   </FieldLabel>
                   <Select
