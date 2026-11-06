@@ -10,6 +10,7 @@ from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.bookings import Bookings
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
@@ -2159,6 +2160,8 @@ class RecycleBin(RethinkSharedConnection):
             r.table("users").insert(self.users).run(self._rdb_connection)
             r.table("groups").insert(self.groups).run(self._rdb_connection)
             r.table("categories").insert(self.categories).run(self._rdb_connection)
+        if any(Bastion.category_publishes_domains(c) for c in self.categories or []):
+            Bastion.resync_category_domains_in_background()
 
         storage_ids = [storage["id"] for storage in self.storages]
         try:
@@ -3482,6 +3485,8 @@ class RecycleBinCategory(RecycleBin):
         super()._add_owner(self.agent_id)
         with self._rdb_context():
             r.table("categories").get(category_id).delete().run(self._rdb_connection)
+        if Bastion.category_publishes_domains(category):
+            Bastion.resync_category_domains_in_background()
         return self._set_data(self.id)
 
     def add_category(self, category):

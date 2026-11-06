@@ -95,6 +95,10 @@ _ACME_DETAIL_RE = re.compile(r'"detail"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
 # haproxy-sync kills acme.sh when the DomainSync deadline passes
 DOMAIN_SYNC_TIMEOUT = 600
 
+# A write that lands while a resync runs queues exactly one more round.
+_category_resync_lock = threading.Lock()
+_category_resync_state = {"running": False, "pending": False}
+
 
 class Bastion(RethinkSharedConnection):
     @staticmethod
@@ -339,6 +343,68 @@ class Bastion(RethinkSharedConnection):
             haproxy_sync_pb2.DomainSyncRequest(domains=domains),
             timeout=DOMAIN_SYNC_TIMEOUT,
         )
+
+    @staticmethod
+    def category_publishes_domains(category: Optional[dict]) -> bool:
+        """Whether the portal serves ``category`` under a branding or bastion domain."""
+        if not isinstance(category, dict):
+            return False
+        if isinstance(category.get("bastion_domain"), str) and category.get(
+            "bastion_domain"
+        ):
+            return True
+        domain = (category.get("branding") or {}).get("domain") or {}
+        return bool(domain.get("enabled")) and bool(domain.get("name"))
+
+    @classmethod
+    def resync_category_domains_in_background(cls) -> bool:
+        """Resync domains and bastion maps off-thread; False when this process has no haproxy-sync client."""
+        if _haproxy_bastion_client_provider is None:
+            log.debug("haproxy-sync client not configured, category resync skipped")
+            return False
+        with _category_resync_lock:
+            if _category_resync_state["running"]:
+                _category_resync_state["pending"] = True
+                return True
+            _category_resync_state["running"] = True
+        try:
+            threading.Thread(
+                target=cls._resync_category_domains_until_idle,
+                name="category-domains-resync",
+                daemon=True,
+            ).start()
+        except Exception:
+            with _category_resync_lock:
+                _category_resync_state["running"] = False
+            log.error("Category domain resync not started: " + traceback.format_exc())
+            return False
+        return True
+
+    @classmethod
+    def _resync_category_domains_until_idle(cls):
+        while True:
+            try:
+                result = cls.sync_category_branding_domains()
+                for failed in getattr(result, "failed_domains", None) or []:
+                    log.warning(
+                        f"Category domain {failed.domain} not synced to haproxy: "
+                        f"{cls.readable_sync_error(failed.error)}"
+                    )
+            except Exception:
+                log.error(
+                    "Category domain sync to haproxy failed: " + traceback.format_exc()
+                )
+            try:
+                cls.update_bastion_haproxy_map()
+            except Exception:
+                log.error(
+                    "Bastion map sync to haproxy failed: " + traceback.format_exc()
+                )
+            with _category_resync_lock:
+                if not _category_resync_state["pending"]:
+                    _category_resync_state["running"] = False
+                    return
+                _category_resync_state["pending"] = False
 
     @staticmethod
     def readable_sync_error(raw: str) -> str:
