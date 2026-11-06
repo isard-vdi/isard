@@ -44,26 +44,61 @@ class TestDigHolesOnlyDigsAStoppedDesktopsLeafDisk:
                 "storage_read_only",
             ),
             (
-                {"domains": [TEMPLATE], "perms": ["r"], "has_children": True},
-                "storage_has_children",
+                {
+                    "domains": [DESKTOP, TEMPLATE],
+                    "perms": ["r"],
+                    "has_children": True,
+                },
+                "storage_read_only",
             ),
             ({"domains": [("desktop", "Started")]}, "storage_open_by_running_desktop"),
             ({"domains": [("desktop", "Paused")]}, "storage_open_by_running_desktop"),
             ({"has_children": True}, "storage_has_children"),
+            (
+                {"domains": [DESKTOP, TEMPLATE], "has_children": True},
+                "storage_has_children",
+            ),
         ],
         ids=[
             "not-ready",
             "read-only",
             "no-domain",
             "template-and-desktop",
-            "template-with-children",
+            "template-and-desktop-with-children",
             "running",
             "paused",
-            "children",
+            "desktop-with-children",
+            "desktop-and-template-with-children",
         ],
     )
     def test_each_refusal_says_why(self, facts, code):
         assert _dig(**facts) == code
+
+    @pytest.mark.parametrize(
+        "facts",
+        [
+            {"domains": [TEMPLATE], "perms": ["r"], "has_children": True},
+            {"domains": [TEMPLATE, TEMPLATE], "has_children": True},
+            {"domains": [], "perms": ["r"], "has_children": True},
+        ],
+        ids=["template-base", "two-templates-base", "orphan-base"],
+    )
+    def test_a_base_only_templates_use_is_admitted_with_its_descendants(self, facts):
+        assert _dig(**facts) is None
+
+    def test_no_other_action_digs_through_a_base(self):
+        for action in actions.DISK_ACTIONS:
+            if action == "dig_holes":
+                continue
+            assert not actions.spec(action).admit_base_with_children, action
+            assert not actions.is_base(action, [TEMPLATE], lambda: True), action
+
+    def test_a_base_is_told_apart_only_when_a_dig_asks(self):
+        assert actions.is_base("dig_holes", [TEMPLATE], lambda: True)
+        assert actions.is_base("dig_holes", [], lambda: True)
+        assert not actions.is_base("dig_holes", [TEMPLATE], lambda: False)
+        assert not actions.is_base("dig_holes", [DESKTOP], lambda: True)
+        assert not actions.is_base("dig_holes", [TEMPLATE], None)
 
     def test_the_message_names_the_disk(self):
         refused = actions.refusal(
@@ -113,15 +148,35 @@ def test_allowed_actions_counts_deleted_children_only_for_dig_holes():
     assert "sparsify" in allowed
 
 
-def test_a_templates_disk_is_dug_only_without_descendants_deleted_included():
+def test_a_templates_disk_is_dug_with_or_without_descendants():
     def allowed(**children):
         return "dig_holes" in actions.allowed_actions(
             status="ready", domains=[TEMPLATE], perms=["r"], **children
         )
 
     assert allowed()
-    assert not allowed(has_children=True)
-    assert not allowed(has_deleted_children=True)
+    assert allowed(has_children=True)
+    assert allowed(has_deleted_children=True)
+
+
+def test_every_other_writer_still_refuses_a_templates_base():
+    allowed = set(
+        actions.allowed_actions(
+            status="ready", domains=[TEMPLATE], perms=["r", "w"], has_children=True
+        )
+    )
+    for action in (
+        "sparsify",
+        "convert",
+        "move",
+        "repair",
+        "resize",
+        "virt_win_reg",
+        "disconnect",
+        "recreate",
+        "delete",
+    ):
+        assert action not in allowed, action
 
 
 def _query(monkeypatch, module, result):
@@ -176,7 +231,8 @@ def test_search_info_carries_what_the_registry_admits(monkeypatch):
             {"id": "orphaned-base", "status": "ready"},
         ]
     )
-    assert "dig_holes" not in base["allowed_actions"]
+    assert "dig_holes" in base["allowed_actions"]
+    assert "sparsify" not in base["allowed_actions"]
     assert "derive" in base["allowed_actions"]
     assert {"sparsify", "dig_holes", "delete"} <= set(leaf["allowed_actions"])
     assert "dig_holes" in template_leaf["allowed_actions"]

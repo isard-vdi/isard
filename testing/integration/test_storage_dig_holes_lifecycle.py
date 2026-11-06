@@ -173,7 +173,8 @@ def _derived_template_disk(admin_client: IsardClient, conn, name: str) -> str:
 
 
 @pytest.mark.real
-def test_dig_holes_refuses_a_template_base_and_says_why(
+@pytest.mark.slow
+def test_dig_holes_digs_a_template_base_and_verifies_it(
     admin_client: IsardClient, test_namespace: str
 ):
     conn = _connect()
@@ -181,33 +182,47 @@ def test_dig_holes_refuses_a_template_base_and_says_why(
         storage_id = _derived_template_disk(
             admin_client, conn, f"{test_namespace}dig_base"
         )
-        resp = admin_client.raw(
-            "PUT", f"/api/v4/item/storage/{storage_id}/dig-holes/priority/low"
+        url = f"/api/v4/item/storage/{storage_id}/dig-holes/priority/low"
+        resp = poll_for(
+            lambda: admin_client.raw("PUT", url),
+            accept=lambda x: x.status_code != 428
+            or x.json().get("description_code") != "storage_pending_task",
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message=f"storage {storage_id} kept a pending task",
         )
-        assert resp.status_code == 428, resp.text
-        assert resp.json()["description_code"] == "storage_has_children", resp.text
-        assert r.table("storage").get(storage_id)["status"].run(conn) == "ready"
+        assert resp.status_code == 200, resp.text
+        task = poll_for(
+            lambda: admin_client.get(f"/api/v4/task/{resp.json()['task_id']}"),
+            accept=lambda t: (t or {}).get("status") in TASK_DONE,
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message="the dig of the template base did not end",
+        )
+        assert task["status"] == "finished", task
+        # a base its descendants read is always verified, asked or not
+        assert task["result"]["verified"] is True, task
+        poll_for(
+            lambda: r.table("storage").get(storage_id).run(conn),
+            accept=lambda s: s["status"] == "ready",
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message=f"storage {storage_id} did not come back ready",
+        )
     finally:
         conn.close()
 
 
 @pytest.mark.real
-def test_a_batch_dig_answers_each_id(admin_client: IsardClient, test_namespace: str):
-    conn = _connect()
-    try:
-        storage_id = _derived_template_disk(
-            admin_client, conn, f"{test_namespace}dig_batch"
-        )
-        body = admin_client.put(
-            "/api/v4/items/storage/dig-holes",
-            json_body={"ids": [storage_id, "does-not-exist"]},
-        )
-        assert body["queued"] == 0, body
-        assert [x["storage_id"] for x in body["results"]] == [
-            storage_id,
-            "does-not-exist",
-        ]
-        assert all(x["description_code"] for x in body["results"]), body
-        assert all(x["task_id"] is None for x in body["results"]), body
-    finally:
-        conn.close()
+def test_a_batch_dig_answers_each_id(admin_client: IsardClient):
+    body = admin_client.put(
+        "/api/v4/items/storage/dig-holes",
+        json_body={"ids": ["does-not-exist-1", "does-not-exist-2"]},
+    )
+    assert body["queued"] == 0, body
+    assert [x["storage_id"] for x in body["results"]] == [
+        "does-not-exist-1",
+        "does-not-exist-2",
+    ]
+    assert all(x["description_code"] for x in body["results"]), body
+    assert all(x["task_id"] is None for x in body["results"]), body

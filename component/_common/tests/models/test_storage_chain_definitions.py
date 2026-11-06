@@ -353,6 +353,18 @@ def test_dig_holes_hands_verify_to_the_worker():
     }
 
 
+@pytest.mark.parametrize("children, verified", [(["c1"], True), ([], False)])
+def test_a_dig_of_a_base_its_descendants_read_is_always_verified(children, verified):
+    template = MagicMock(id="t1", kind="template", status="Stopped")
+    with patch.object(
+        Storage,
+        "get_children",
+        classmethod(lambda cls, ids, include_deleted=False: children),
+    ):
+        s, _, create, _ = _dig([template], verify=False)
+    assert create.call_args.kwargs["job_kwargs"]["kwargs"]["verify"] is verified
+
+
 def test_a_dig_the_registry_refuses_queues_nothing():
     from isardvdi_common.helpers.error_factory import Error
 

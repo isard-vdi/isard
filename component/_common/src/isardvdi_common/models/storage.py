@@ -1973,7 +1973,18 @@ class Storage(RethinkCustomBase):
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
         verify=False,
     ):
-        """Give back the all-zero blocks of the leaf disk of a stopped desktop or a template."""
+        """Give back the all-zero blocks of a stopped desktop's leaf disk, a template's
+        disk, or a base only templates use.
+
+        A base its descendants read is always verified: the worker hashes it before
+        and after, and a mismatch leaves it damaged for an administrator.
+        """
+        if disk_actions.is_base(
+            "dig_holes",
+            [(getattr(d, "kind", None), d.status) for d in self.domains],
+            lambda: disk_actions.has_dependents(self, include_deleted=True),
+        ):
+            verify = True
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"

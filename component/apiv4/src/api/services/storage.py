@@ -790,6 +790,7 @@ class StorageService:
             "check_integrity",
             "zero_scan",
             "detect",
+            "dig_bases_with_children",
         ):
             if key in data:
                 clean[key] = bool(data[key])
@@ -799,7 +800,7 @@ class StorageService:
                 if not 0 <= value <= hi:
                     raise Error("bad_request", f"{key} must be within 0-{hi}")
                 clean[key] = value
-        for key in ("max_disks", "max_bytes", "check_max_age_days"):
+        for key in ("max_disks", "max_bytes", "check_max_age_days", "max_bases"):
             if key in data:
                 value = int(data[key])
                 if value < 0:
@@ -825,6 +826,13 @@ class StorageService:
             "bytes": config["max_bytes"] or None,
         }
         cap = examine_cap(budget["disks"])
+        bases = {
+            "left": (
+                int(config.get("max_bases") or 0)
+                if config.get("dig_bases_with_children")
+                else 0
+            )
+        }
         summary = {"actions": {}}
         enabled = [a for a in sweep_order() if config.get(a)]
         for action in enabled:
@@ -834,7 +842,12 @@ class StorageService:
                 SWEEP_PENDING_ACTION[action], status="ready", limit=cap
             )
             summary["actions"][action] = StorageService._sweep_act(
-                payload, action, ids, budget, superseding_marks(action, enabled)
+                payload,
+                action,
+                ids,
+                budget,
+                superseding_marks(action, enabled),
+                bases=bases,
             )
         if config.get("check_integrity") and not StorageService._sweep_exhausted(
             budget
@@ -871,16 +884,18 @@ class StorageService:
 
     @staticmethod
     def _sweep_act(
-        payload: dict, action: str, ids: list, budget: dict, skip_marks=()
+        payload: dict, action: str, ids: list, budget: dict, skip_marks=(), bases=None
     ) -> dict:
         """Walk ``ids`` in batches until the shared ``budget`` (which this
         mutates as it spends) runs out, enqueue the action's task for each pick,
         and return that action's counts. A disk carrying one of ``skip_marks``
-        is left to the action that supersedes this one."""
+        is left to the action that supersedes this one. ``bases`` holds how many
+        bases with descendants a dig may still take this pass."""
         user_id = payload.get("user_id")
         counts = dict.fromkeys(
             (
                 "selected",
+                "selected_bases",
                 "skipped_started",
                 "skipped_budget",
                 "skipped_has_descendants",
@@ -889,6 +904,7 @@ class StorageService:
             ),
             0,
         )
+        bases = bases if bases is not None else {"left": 0}
         batch = max(budget["disks"] or 0, 50)
         for start in range(0, len(ids), batch):
             if StorageService._sweep_exhausted(budget):
@@ -897,7 +913,7 @@ class StorageService:
             chunk = ids[start : start + batch]
             counts["examined"] += len(chunk)
             picked = StorageService._sweep_batch(
-                payload, action, chunk, budget, skip_marks, counts
+                payload, action, chunk, budget, skip_marks, counts, bases
             )
             for storage_id, storage in picked:
                 try:
@@ -912,7 +928,7 @@ class StorageService:
         return counts
 
     @staticmethod
-    def _sweep_batch(payload, action, ids, budget, skip_marks, counts):
+    def _sweep_batch(payload, action, ids, budget, skip_marks, counts, bases=None):
         """Pick, from one batch of ``ids``, what the remaining budget admits."""
         parents_with_children = (
             StorageService._ids_with_children(
@@ -921,6 +937,8 @@ class StorageService:
             if action in SWEEP_SKIPS_PARENTS
             else set()
         )
+        bases = bases if bases is not None else {"left": 0}
+        base_ids = set()
         storages, candidates = {}, []
         for storage_id in ids:
             try:
@@ -937,15 +955,33 @@ class StorageService:
             started = any(
                 getattr(d, "status", None) == "Started" for d in (storage.domains or [])
             )
+            has_children = storage_id in parents_with_children
+            if (
+                has_children
+                and len(base_ids) < bases["left"]
+                and disk_actions.is_base(
+                    action,
+                    [
+                        (getattr(d, "kind", None), getattr(d, "status", None))
+                        for d in (storage.domains or [])
+                    ],
+                    lambda: True,
+                )
+            ):
+                base_ids.add(storage_id)
+                has_children = False
             candidates.append(
                 {
                     "id": storage_id,
                     "size_bytes": bytes_read(action, size),
                     "started": started,
-                    "has_children": storage_id in parents_with_children,
+                    "has_children": has_children,
                 }
             )
         picked = select_within_budget(candidates, budget["disks"], budget["bytes"])
+        taken = base_ids & set(picked["selected"])
+        bases["left"] = max(0, bases["left"] - len(taken))
+        counts["selected_bases"] += len(taken)
         if budget["disks"] is not None:
             budget["disks"] = max(0, budget["disks"] - len(picked["selected"]))
         if budget["bytes"] is not None:

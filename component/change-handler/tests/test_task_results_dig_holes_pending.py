@@ -71,12 +71,11 @@ def test_flags_it_while_its_desktop_runs():
 @pytest.mark.parametrize(
     "row",
     [
-        _row(perms=("r",), domains=[_domain(kind="template")], children=[MagicMock()]),
         _row(domains=[]),
         _row(perms=("r",)),
         _row(children=[MagicMock(id="child")]),
     ],
-    ids=["template-with-children", "unused", "read-only", "has-children"],
+    ids=["unused", "read-only", "has-children"],
 )
 def test_a_disk_no_dig_may_write_is_not_flagged(row):
     assert "dig_holes" not in _flagged(_scan(10 * SLACK, row))
@@ -84,6 +83,14 @@ def test_a_disk_no_dig_may_write_is_not_flagged(row):
 
 def test_flags_a_templates_disk_without_descendants():
     row = _row(perms=("r",), domains=[_domain(kind="template")])
+    assert _flagged(_scan(SLACK, row)) == ["dig_holes"]
+
+
+@pytest.mark.parametrize(
+    "domains", [[_domain(kind="template")], []], ids=["template-base", "orphan-base"]
+)
+def test_flags_a_base_its_descendants_read(domains):
+    row = _row(perms=("r",), domains=domains, children=[MagicMock(id="child")])
     assert _flagged(_scan(SLACK, row)) == ["dig_holes"]
 
 

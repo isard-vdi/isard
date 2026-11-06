@@ -127,6 +127,8 @@ class StorageSweepConfigResponse(BaseModel):
     zero_scan: bool
     detect: bool
     check_max_age_days: int
+    dig_bases_with_children: bool = False
+    max_bases: int = 2
 
 
 class StorageSweepConfigRequest(BaseModel):
@@ -144,6 +146,13 @@ class StorageSweepConfigRequest(BaseModel):
     zero_scan: Optional[bool] = None
     detect: Optional[bool] = None
     check_max_age_days: Optional[int] = None
+    dig_bases_with_children: Optional[bool] = Field(
+        None,
+        description="Dig bases only templates use while their descendants read them",
+    )
+    max_bases: Optional[int] = Field(
+        None, description="Bases with descendants one pass may dig"
+    )
 
 
 class StorageSweepRunRequest(BaseModel):

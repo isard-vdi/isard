@@ -111,6 +111,7 @@ def test_the_dig_hands_its_since_to_the_verdict():
     created = {}
     with (
         patch.object(Storage, "domains", new=[]),
+        patch.object(Storage, "get_children", return_value=[]),
         patch.object(Storage, "set_maintenance"),
         patch.object(Storage, "path", new="/p/s1.qcow2"),
         patch.object(Storage, "directory_path", new="/p", create=True),

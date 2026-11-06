@@ -71,20 +71,27 @@ def test_a_templates_leaf_disk_is_parked_with_its_template():
 
 
 @pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"domains": [_domain("template")], "perms": ("r",), "children": ["c"]},
+        {
+            "domains": [_domain("template")],
+            "perms": ("r",),
+            "deleted_children": ["gone"],
+        },
+        {"domains": [], "perms": ("r",), "children": ["c"]},
+    ],
+    ids=["template-base", "template-base-deleted-child", "orphan-base"],
+)
+def test_a_base_only_templates_use_is_parked_and_its_descendants_left_alone(kwargs):
+    code, claims, _ = _park(**kwargs)
+    assert code is None
+    assert claims == [("s1", "status", ("ready",))]
+
+
+@pytest.mark.parametrize(
     "kwargs, code",
     [
-        (
-            {"domains": [_domain("template")], "perms": ("r",), "children": ["c"]},
-            "storage_has_children",
-        ),
-        (
-            {
-                "domains": [_domain("template")],
-                "perms": ("r",),
-                "deleted_children": ["gone"],
-            },
-            "storage_has_children",
-        ),
         (
             {
                 "domains": [_domain(), _domain("template", domain_id="t1")],
@@ -102,8 +109,6 @@ def test_a_templates_leaf_disk_is_parked_with_its_template():
         ),
     ],
     ids=[
-        "template-with-child",
-        "template-with-deleted-child",
         "desktop-and-template",
         "no-domain",
         "read-only",

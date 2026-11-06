@@ -19,6 +19,10 @@ SWEEP_DEFAULTS = {
     "zero_scan": False,
     "detect": False,  # read-only integrity detection (L0-L3), records pending_actions
     "check_max_age_days": 30,
+    # A base that only templates use is dug with its descendants reading it; off
+    # until an admin turns it on, and at most max_bases of them a pass.
+    "dig_bases_with_children": False,
+    "max_bases": 2,
 }
 
 #: Sweep action -> the pending-action index it reads. check_integrity has no
