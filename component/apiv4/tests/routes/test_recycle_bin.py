@@ -619,6 +619,45 @@ def test_create_unused_item_timeout_rule_accepts_null_cutoff(monkeypatch, test_c
     assert captured["cutoff_time"] is None
 
 
+def test_create_unused_item_timeout_rule_defaults_allowed_to_nobody(
+    monkeypatch, test_client
+):
+    """The webapp form sends no ``allowed``: the rule must be stored with
+    all four keys False, so it matches nobody until it is configured."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_create(data):
+        captured.update(data)
+        return "rule-new"
+
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.create_unused_item_timeout_rule",
+        staticmethod(fake_create),
+    )
+
+    response = test_client(
+        url="/items/recycle-bin/unused-item-timeout-rules",
+        method="POST",
+        body={
+            "name": "Old desktops",
+            "description": "",
+            "op": "send_unused_desktops_to_recycle_bin",
+            "cutoff_time": 1,
+            "priority": 10,
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 201
+    assert captured["allowed"] == {
+        "users": False,
+        "groups": False,
+        "categories": False,
+        "roles": False,
+    }
+
+
 def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_client):
     """Webapp PUT sends the same payload shape as POST. Pin that
     ``priority`` and ``cutoff_time`` reach the helper."""
