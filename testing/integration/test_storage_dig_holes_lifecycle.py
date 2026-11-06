@@ -37,7 +37,7 @@ def _connect():
         pytest.skip(f"RethinkDB not reachable at {host}:{port}: {exc}")
 
 
-def _in_storage(*argv: str) -> str | None:
+def _in_storage(*argv: str, timeout: int = 60) -> str | None:
     if shutil.which("docker") is None:
         return None
     try:
@@ -45,7 +45,7 @@ def _in_storage(*argv: str) -> str | None:
             ["docker", "exec", "isard-storage", *argv],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=timeout,
             check=True,
         )
     except (OSError, subprocess.SubprocessError):
@@ -58,14 +58,23 @@ def _sha256(path: str) -> str | None:
     return out.split()[0] if out else None
 
 
+INFLATE_MIB = int(os.environ.get("E2E_DIG_HOLES_INFLATE_MIB", "256"))
+
+
 def _inflate(path: str) -> None:
-    # same bytes, but every zero block becomes allocated
+    # Same bytes, but the zero blocks of the first INFLATE_MIB become allocated.
+    # dd reads each block before it writes it back at the same offset, so the
+    # rewrite needs no copy beside the disk: an interrupted run leaves nothing
+    # behind and never costs more than INFLATE_MIB, whatever the disk's size.
     _in_storage(
-        "sh",
-        "-c",
-        f"dd if={path} of={path}.inflate bs=1M status=none && "
-        f"dd if={path}.inflate of={path} bs=1M conv=notrunc status=none && "
-        f"rm -f {path}.inflate",
+        "dd",
+        f"if={path}",
+        f"of={path}",
+        "bs=1M",
+        f"count={INFLATE_MIB}",
+        "conv=notrunc",
+        "status=none",
+        timeout=DIG_TIMEOUT,
     )
 
 
