@@ -57,6 +57,7 @@ from isardvdi_common.helpers.task_streams import (
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
 from isardvdi_common.lib.storage import qemu_locks, zeros
 from isardvdi_common.models.task import Task
+from isardvdi_storage import disk_copy
 from rq import get_current_job
 from rq.job import JobStatus
 
@@ -1164,6 +1165,91 @@ def _state_source_untouched():
     _state_move_meta(SOURCE_UNTOUCHED_META_KEY)
 
 
+COPY_PROGRESS_SECONDS = 5
+
+
+def copy_disk_file(
+    origin_path,
+    destination_path,
+    bwlimit=0,
+    on_progress=None,
+    before_copy=None,
+    report_progress=True,
+):
+    """:func:`disk_copy.copy_disk` with the job's progress and cancel; rc 130 on cancel."""
+    job = get_current_job()
+    last_tick = [time()]
+
+    def _report(pct):
+        job.meta["progress"] = pct
+        job.save_meta()
+        _publish_task_event(
+            job.connection,
+            kind="progress",
+            task_id=job.id,
+            task_name=job.func_name.rsplit(".", 1)[-1],
+            queue=job.origin,
+            progress=pct,
+        )
+        if on_progress is not None:
+            try:
+                on_progress(pct)
+            except Exception:
+                log.exception("copy_disk_file: on_progress callback failed")
+
+    def _on_bytes(done, total):
+        if not report_progress:
+            return
+        now = time()
+        if now - last_tick[0] < COPY_PROGRESS_SECONDS:
+            return
+        last_tick[0] = now
+        _report(round(min(done / max(total, 1), 0.99), 2))
+
+    if job is None:
+        result = disk_copy.copy_disk(
+            origin_path, destination_path, bwlimit_kbs=bwlimit, before_copy=before_copy
+        )
+    else:
+        with TaskCancelWatcher(job.id) as watcher:
+            try:
+                result = disk_copy.copy_disk(
+                    origin_path,
+                    destination_path,
+                    bwlimit_kbs=bwlimit,
+                    on_bytes=_on_bytes,
+                    cancelled=lambda: watcher.cancelled,
+                    before_copy=before_copy,
+                )
+            except disk_copy.CopyCancelled:
+                raise CalledProcessError(
+                    returncode=130, cmd=["copy", origin_path, destination_path]
+                ) from None
+        if report_progress:
+            _report(1)
+    if job is None and on_progress is not None:
+        try:
+            on_progress(1.0)
+        except Exception:
+            log.exception("copy_disk_file: on_progress callback failed")
+    # WARNING: the only level this logger shows in the container log
+    log.warning(
+        "copy %s -> %s: %s, %s allocated for %s apparent (source held %s)%s",
+        origin_path,
+        destination_path,
+        result["method"],
+        _format_size(result["allocated"] // 1024),
+        _format_size(result["size"] // 1024),
+        _format_size(result["source_allocated"] // 1024),
+        (
+            ""
+            if result["punch_supported"] is not False
+            else "; the destination filesystem cannot punch holes"
+        ),
+    )
+    return result
+
+
 def _remove_copied_source(origin_path):
     """Flag the copy whole before the unlink, which may raise or hang on a share."""
     _state_move_meta(COPY_COMPLETE_META_KEY)
@@ -1298,6 +1384,24 @@ def _reject_download(path, cmd, reason):
     except OSError:
         pass
     raise DownloadInvalidFormatError(returncode=1, cmd=cmd, stderr=reason)
+
+
+def _give_back_downloaded_zeros(path):
+    """Best effort: curl writes the holes a server sends as zeros."""
+    try:
+        before = os_stat(path).st_blocks * 512
+        freed = disk_copy.punch_zeros_in_place(path)
+    except OSError:
+        log.exception("download: could not give back the zeros of %s", path)
+        return None
+    if freed:
+        log.warning(
+            "download: %s held %s of zeros, given back (%s allocated before)",
+            path,
+            _format_size(freed // 1024),
+            _format_size(before // 1024),
+        )
+    return freed
 
 
 def _run_curl_download(
@@ -1475,6 +1579,8 @@ def _run_curl_download(
         _reject_download(
             dest_path, curl_cmd, "the URL returned an HTML page, not a file"
         )
+
+    _give_back_downloaded_zeros(dest_path)
 
     # The loop only reads while curl is running and throttles its writes, so
     # the last line it printed is never persisted: a finished download was left
@@ -1775,38 +1881,31 @@ def move(
                         log.exception("move: on_progress callback failed")
                 return 0
 
-    # Everything past here copies, so the floor applies -- keyed on copying, not on
-    # the method name; rsync --sparse keeps holes, so the basis is the blocks held.
-    try:
-        _require_free_space(
-            dirname(destination_path),
-            origin_path,
-            min_free_bytes,
-            "move",
-            "copy",
-            sparse_copy=True,
-        )
-    except RuntimeError:
-        _state_source_untouched()
-        raise
+    # the copy never allocates more than the source holds; a clone skips the floor
+    def _floor():
+        try:
+            _require_free_space(
+                dirname(destination_path),
+                origin_path,
+                min_free_bytes,
+                "move",
+                "copy",
+                sparse_copy=True,
+            )
+        except RuntimeError:
+            _state_source_untouched()
+            raise
 
-    # not --remove-source-files: a failed unlink must be told apart from a failed copy
-    returncode = run_with_progress(
-        [
-            "rsync",
-            "-a",
-            # without it every hole of the qcow2 is written as zeros at the destination
-            "--sparse",
-            "--info=progress,flist0",
-            *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
-            origin_path,
-            destination_path,
-        ],
-        extract_progress_from_rsync_output,
+    copy_disk_file(
+        origin_path,
+        destination_path,
+        bwlimit=bwlimit,
         on_progress=on_progress,
+        before_copy=_floor,
     )
-    if returncode != 0 or not remove_source_file:
-        return returncode
+    if not remove_source_file:
+        return 0
+    # the copy is verified and under its name before the source goes
     return _remove_copied_source(origin_path)
 
 
@@ -2399,9 +2498,7 @@ def virt_win_reg(storage_path, registry_patch):
     _safe_unlink(tmp_path)  # clear a stale sibling from a prior crashed run
     try:
         with task_heartbeat("virt_win_reg", storage_path=storage_path):
-            # ``--reflink=auto`` is instant on CoW filesystems and a full copy
-            # elsewhere; either way the backing header is preserved.
-            _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+            copy_disk_file(storage_path, tmp_path, report_progress=False)
             with tempfile.NamedTemporaryFile() as fp:
                 fp.write(registry_patch.encode())
                 fp.flush()
@@ -2635,7 +2732,7 @@ def sparsify(storage_path):
     try:
         with task_heartbeat("sparsify", storage_path=storage_path):
             if safe_cancel:
-                _run_cancellable(["cp", "--reflink=auto", "-f", storage_path, tmp_path])
+                copy_disk_file(storage_path, tmp_path, report_progress=False)
                 _run_cancellable(["virt-sparsify", "--in-place", tmp_path])
                 new_size = _get_disk_usage(tmp_path)
                 rename(tmp_path, storage_path)  # atomic swap

@@ -50,7 +50,6 @@ def test_move_refuses_when_free_space_is_unknown(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: None)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     with pytest.raises(RuntimeError) as excinfo:
         task.move(src, dst, "rsync", min_free_bytes=8192, remove_source_file=False)
@@ -66,7 +65,6 @@ def test_move_refuses_when_the_source_cannot_be_sized(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 1 << 40)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     def _boom(path):
         raise OSError("stat failed")
@@ -117,7 +115,6 @@ def test_move_floor_can_be_switched_off_explicitly(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: None)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     task.move(src, dst, "rsync", min_free_bytes=0, remove_source_file=False)
 
@@ -129,7 +126,6 @@ def test_move_applies_the_default_floor_when_none_is_given(tmp_path, monkeypatch
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "DEFAULT_MIN_FREE_BYTES", 1 << 30)
     monkeypatch.setattr(task, "_free_space", lambda p: 4096)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     with pytest.raises(RuntimeError) as excinfo:
         task.move(src, dst, "rsync", remove_source_file=False)
