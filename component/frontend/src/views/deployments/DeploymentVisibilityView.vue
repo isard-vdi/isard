@@ -599,6 +599,8 @@ const goBack = () =>
         cell-class="h-16"
         row-class="group last:border-b! hover:bg-gray-warm-50"
         :is-clickable="false"
+        sticky-header
+        sticky-footer
       >
         <!-- A column header applies to every user of the deployment,
              including those on other pages of the table. -->
