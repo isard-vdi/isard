@@ -38,6 +38,7 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.rules import get_frontend_mode_rule
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import (
@@ -83,7 +84,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
         # TODO(old-frontend-removal): drop this block, _single_desktop_per_template
         # and the single_temporal_per_template error code.
-        if Helpers.frontend_mode() != "actual":
+        if get_frontend_mode_rule(Helpers.gen_payload_from_user(user_id)) != "actual":
             if allow_reuse:
                 return cls._single_desktop_per_template(
                     user_id,

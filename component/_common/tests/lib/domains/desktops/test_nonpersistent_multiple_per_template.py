@@ -15,6 +15,7 @@ from contextlib import nullcontext
 from unittest.mock import MagicMock
 
 import pytest
+from isardvdi_common.helpers import rules
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.domains.desktops import desktops_nonpersistent as mod
 
@@ -24,6 +25,8 @@ DNP = mod.DesktopsNonpersistentProcessed
 @pytest.fixture
 def stub(monkeypatch):
     monkeypatch.setenv("FRONTEND_MODE", "actual")
+    # No rule applies, so the mode comes from FRONTEND_MODE.
+    monkeypatch.setattr(rules, "_get_applied_frontend_mode_rule", lambda payload: None)
     monkeypatch.setattr(DNP, "_rdb_context", classmethod(lambda cls: nullcontext()))
     # Metaclass property: patching it on DNP itself can't be undone on teardown.
     monkeypatch.setattr(type(DNP), "_rdb_connection", property(lambda cls: None))

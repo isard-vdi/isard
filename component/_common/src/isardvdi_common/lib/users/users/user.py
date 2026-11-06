@@ -36,6 +36,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.category import Category
+from isardvdi_common.helpers.rules import get_frontend_mode_rule
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from isardvdi_common.schemas.user import USER_ROLE
@@ -628,7 +629,7 @@ class UsersProcessed(RethinkSharedConnection):
             bastion_allowed = False
             bastion_domain = None
 
-        frontend_mode = Helpers.frontend_mode()
+        frontend_mode = get_frontend_mode_rule(payload)
 
         faro_enabled = getenv("FARO_ENABLED", "false").lower() == "true"
         try:
