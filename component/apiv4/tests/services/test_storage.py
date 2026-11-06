@@ -798,3 +798,36 @@ class TestRsyncToStoragePoolGuardsFirst:
         base.guard.assert_called_once_with("move")
         base.path_in_pool.assert_not_called()
         base.rsync.assert_not_called()
+
+
+class TestRsyncToPathGuardsFirst:
+    """A base with children answers 428 storage_has_children, as every other move does."""
+
+    def test_a_base_with_children_is_refused_before_the_destination(self):
+        base = MagicMock(name="base")
+        base.status = "ready"
+        base.children = ["child-1"]
+        base.guard.side_effect = Error(
+            "precondition_required",
+            "has children",
+            description_code="storage_has_children",
+        )
+
+        with patch("api.services.storage.get_storage", return_value=base), patch(
+            "api.services.storage.get_storage_pool_by_path"
+        ) as by_path:
+            with pytest.raises(Error) as exc:
+                StorageService.rsync_to_path(
+                    JWT_PAYLOAD_ADMIN,
+                    storage_id="base-1",
+                    destination_path="/isard/storage_pools/other/templates",
+                    bwlimit=None,
+                    remove_source_file=True,
+                    priority="default",
+                )
+
+        assert exc.value.status_code == 428
+        assert exc.value.error["description_code"] == "storage_has_children"
+        base.guard.assert_called_once_with("move")
+        by_path.assert_not_called()
+        base.rsync.assert_not_called()
