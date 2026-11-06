@@ -47,7 +47,7 @@ def get_applied_rule_decorator(get_rules_func):
 
             for rule in rules:
                 for key, value in alloweds.items():
-                    if rule["allowed"].get(key) is not False:
+                    if rule["allowed"].get(key, False) is not False:
                         if (
                             not rule["allowed"][key]
                             or payload.get(f"{value}_id") in rule["allowed"][key]

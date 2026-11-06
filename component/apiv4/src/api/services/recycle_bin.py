@@ -506,15 +506,10 @@ class RecycleBinService:
     def create_unused_item_timeout_rule(data: dict) -> str:
         # Apiv3 contract: ``id`` is a server-generated UUID (Cerberus
         # ``default_setter: genuuid``). Webapp form does not send one.
-        # Default ``allowed`` to the empty allow-set (per apiv3
-        # ``allowed: {schema: allowed, default: {}}``) so consumers
-        # see a consistent shape on read.
         import uuid
 
         if not data.get("id"):
             data["id"] = str(uuid.uuid4())
-        if data.get("allowed") is None:
-            data["allowed"] = {}
         CommonRecycleBin.create_unused_item_timeout(data)
         return data["id"]
 

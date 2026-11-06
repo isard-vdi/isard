@@ -272,7 +272,7 @@ class UnusedItemTimeoutRuleCreateRequest(BaseModel):
     op: str
     cutoff_time: Optional[UnusedItemCutoffTime] = None
     priority: int
-    allowed: Optional[Allowed] = None
+    allowed: Allowed = Field(default_factory=Allowed)
 
 
 class UnusedItemTimeoutRuleUpdateRequest(BaseModel):
