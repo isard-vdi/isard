@@ -2411,6 +2411,16 @@ class Storage(RethinkCustomBase):
                         }
                     },
                 },
+                {
+                    "queue": "core",
+                    "task": "convert_discard_destination",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": new_storage.id,
+                            "path": new_storage.path,
+                        }
+                    },
+                },
             ],
         )
 
