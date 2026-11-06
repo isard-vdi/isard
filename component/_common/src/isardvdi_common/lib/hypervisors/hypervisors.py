@@ -2730,15 +2730,19 @@ class HypervisorsProcessed(RethinkSharedConnection):
         _get_hyper_started_domains_cache.clear()
 
     @staticmethod
-    def _available_online_hypervisors():
-        # only_forced and degraded hypervisors keep status "Online" but the
-        # balancer places nothing on them, so they are not available.
-        return [
+    def _available_online_hypervisors(forced_hyp=None):
+        # Same rule as the engine's filter_available_hypers. Degraded and
+        # only_forced hypervisors keep status "Online", but degraded ones take
+        # nothing. A forced desktop goes only to its forced hosts, even
+        # only_forced ones; any other desktop skips only_forced hosts.
+        healthy = [
             hyper
             for hyper in Caches.get_cached_hypervisors_online()
-            if not hyper.get("only_forced")
-            and not (hyper.get("degraded") or {}).get("is_degraded")
+            if not (hyper.get("degraded") or {}).get("is_degraded")
         ]
+        if forced_hyp:
+            return [hyper for hyper in healthy if hyper["id"] in forced_hyp]
+        return [hyper for hyper in healthy if not hyper.get("only_forced")]
 
     @staticmethod
     @cached(cache=_check_create_storage_pool_availability_cache)
@@ -2778,7 +2782,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
         # Is that pool available in any hypervisor?
         ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
         ##       storage_pools default is just for backward compatibility, can be removed in future
-        for hyper in HypervisorsProcessed._available_online_hypervisors():
+        forced_hyp = Domain(domain_id).forced_hyp
+        for hyper in HypervisorsProcessed._available_online_hypervisors(forced_hyp):
             if virt_pool_id in hyper.get(
                 "enabled_virt_pools", hyper.get("storage_pools", [])
             ):
