@@ -85,17 +85,152 @@ def test_a_missing_file_fails_the_task(worker, tmp_path):
         worker.dig_holes(str(tmp_path / "gone.qcow2"))
 
 
-def test_a_file_a_guest_holds_open_is_not_dug(worker, monkeypatch, tmp_path):
+@contextmanager
+def _qemu_holds(path, *bytes_):
+    """Another open file description holding QEMU's lock bytes, as a guest would."""
+    from isardvdi_common.lib.storage import qemu_locks
+
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        for byte in bytes_:
+            qemu_locks._flock(
+                fd, qemu_locks.F_OFD_SETLK, qemu_locks.fcntl.F_RDLCK, byte
+            )
+        yield fd
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.parametrize("byte", [101, 103], ids=["write", "resize"])
+def test_a_file_a_writer_holds_open_is_not_dug(worker, monkeypatch, tmp_path, byte):
     """Re-checked when the task runs: the file's own lock, not the row, decides."""
     calls = []
     monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: calls.append(cmd) or 0)
-    monkeypatch.setattr(
-        worker, "_storage_qcow", lambda: _qcow(True, 'Failed to get "write" lock')
-    )
     disk = _inflated(tmp_path / "d.qcow2")
-    with pytest.raises(RuntimeError, match="in use by a hypervisor"):
-        worker.dig_holes(str(disk))
+    with _qemu_holds(disk, 100, byte):
+        with pytest.raises(RuntimeError, match="dig_holes refused"):
+            worker.dig_holes(str(disk))
     assert calls == []
+
+
+def test_a_base_its_running_descendants_read_is_dug(worker, monkeypatch, tmp_path):
+    """A descendant's QEMU reads its base and refuses to share write: no writer."""
+    calls = []
+    monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: calls.append(cmd) or 0)
+    disk = _inflated(tmp_path / "d.qcow2")
+    with _qemu_holds(disk, 100, 201, 203):
+        worker.dig_holes(str(disk), verify=True)
+    assert calls == [["fallocate", "--dig-holes", str(disk)]]
+
+
+def test_no_writer_can_open_the_file_while_it_is_dug(worker, monkeypatch, tmp_path):
+    from isardvdi_common.lib.storage import qemu_locks
+
+    disk = _inflated(tmp_path / "d.qcow2")
+    seen = []
+
+    def punch(cmd):
+        probe = os.open(disk, os.O_RDONLY)
+        try:
+            seen.append([qemu_locks.held_by_others(probe, b) for b in (201, 203, 101)])
+        finally:
+            os.close(probe)
+        return 0
+
+    monkeypatch.setattr(worker, "_run_cancellable", punch)
+    worker.dig_holes(str(disk), verify=True)
+    assert seen == [[True, True, False]]
+    probe = os.open(disk, os.O_RDONLY)
+    try:
+        assert not qemu_locks.held_by_others(probe, 201), "the dig kept its lock"
+    finally:
+        os.close(probe)
+
+
+def _have(*tools):
+    from shutil import which
+
+    return all(which(t) for t in tools)
+
+
+@pytest.mark.skipif(not _have("qemu-img", "qemu-io"), reason="no qemu-img/qemu-io")
+def test_qemu_cannot_open_a_base_for_writing_while_it_is_dug(
+    worker, monkeypatch, tmp_path
+):
+    disk = str(tmp_path / "base.qcow2")
+    subprocess.run(["qemu-img", "create", "-f", "qcow2", disk, "64M"], check=True)
+    seen = {}
+
+    def punch(cmd):
+        write = subprocess.run(
+            ["qemu-io", "-c", "write 0 4k", disk], capture_output=True, text=True
+        )
+        read = subprocess.run(
+            ["qemu-io", "-r", "-c", "read 0 4k", disk], capture_output=True, text=True
+        )
+        seen.update(write=write, read=read)
+        return 0
+
+    monkeypatch.setattr(worker, "_run_cancellable", punch)
+    worker.dig_holes(disk, verify=True)
+    assert seen["write"].returncode != 0
+    assert "lock" in (seen["write"].stderr + seen["write"].stdout).lower()
+    assert seen["read"].returncode == 0, seen["read"].stderr
+    after = subprocess.run(
+        ["qemu-io", "-c", "write 0 4k", disk], capture_output=True, text=True
+    )
+    assert after.returncode == 0, after.stderr
+
+
+@contextmanager
+def _qemu_io_open(disk, *flags):
+    """A qemu-io that keeps ``disk`` open (and locked) until it is closed."""
+    import time
+
+    proc = subprocess.Popen(
+        ["qemu-io", *flags, disk],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        proc.stdin.write("read 0 512\n")
+        proc.stdin.flush()
+        time.sleep(1)
+        assert proc.poll() is None, proc.stdout.read()
+        yield proc
+    finally:
+        proc.stdin.close()
+        proc.wait(timeout=10)
+
+
+@pytest.mark.skipif(not _have("qemu-img", "qemu-io"), reason="no qemu-img/qemu-io")
+def test_a_disk_qemu_holds_for_writing_is_not_dug(worker, monkeypatch, tmp_path):
+    disk = str(tmp_path / "leaf.qcow2")
+    subprocess.run(["qemu-img", "create", "-f", "qcow2", disk, "64M"], check=True)
+    calls = []
+    monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: calls.append(cmd) or 0)
+    with _qemu_io_open(disk):
+        with pytest.raises(RuntimeError, match="write"):
+            worker.dig_holes(disk)
+    assert calls == []
+
+
+@pytest.mark.skipif(not _have("qemu-img", "qemu-io"), reason="no qemu-img/qemu-io")
+def test_a_base_a_descendant_reads_through_is_dug(worker, monkeypatch, tmp_path):
+    base = str(tmp_path / "base.qcow2")
+    child = str(tmp_path / "child.qcow2")
+    subprocess.run(["qemu-img", "create", "-f", "qcow2", base, "64M"], check=True)
+    subprocess.run(
+        ["qemu-img", "create", "-f", "qcow2", "-F", "qcow2", "-b", base, child],
+        check=True,
+    )
+    calls = []
+    monkeypatch.setattr(worker, "_run_cancellable", lambda cmd: calls.append(cmd) or 0)
+    with _qemu_io_open(child):
+        worker.dig_holes(base, verify=True)
+    assert calls == [["fallocate", "--dig-holes", base]]
 
 
 @pytest.mark.skipif(

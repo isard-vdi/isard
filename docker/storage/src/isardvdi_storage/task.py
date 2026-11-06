@@ -55,7 +55,7 @@ from isardvdi_common.helpers.task_streams import (
     stream_for_kind,
 )
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
-from isardvdi_common.lib.storage import zeros
+from isardvdi_common.lib.storage import qemu_locks, zeros
 from isardvdi_common.models.task import Task
 from rq import get_current_job
 from rq.job import JobStatus
@@ -2751,19 +2751,23 @@ def zero_scan(storage_path):
 
 
 def dig_holes(storage_path, verify=False):
-    """Punch holes where whole blocks are zeros; the file reads back unchanged."""
+    """Punch holes where whole blocks are zeros; no writer may hold or open the file meanwhile."""
     if not isfile(storage_path):
         raise RuntimeError(f"dig_holes: {storage_path} does not exist")
-    _refuse_if_in_use("dig_holes", storage_path)
     before = os_stat(storage_path).st_blocks * 512
-    with task_heartbeat("dig_holes", storage_path=storage_path):
-        digest = _sha256(storage_path) if verify else None
-        _mark_punch_started()
-        unwritten = _punch(storage_path)
-        if verify and _sha256(storage_path) != digest:
-            raise RuntimeError(
-                f"dig_holes: {storage_path} reads differently after the dig"
-            )
+    try:
+        with qemu_locks.no_writers(storage_path), task_heartbeat(
+            "dig_holes", storage_path=storage_path
+        ):
+            digest = _sha256(storage_path) if verify else None
+            _mark_punch_started()
+            unwritten = _punch(storage_path)
+            if verify and _sha256(storage_path) != digest:
+                raise RuntimeError(
+                    f"dig_holes: {storage_path} reads differently after the dig"
+                )
+    except qemu_locks.WriterPresent as e:
+        raise RuntimeError(f"dig_holes refused: {e}") from None
     after = os_stat(storage_path).st_blocks * 512
     log.info(
         "dig_holes complete: %s | before: %s | after: %s",
