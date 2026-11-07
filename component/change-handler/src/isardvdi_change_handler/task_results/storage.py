@@ -39,7 +39,9 @@ from datetime import timezone
 from time import time
 
 from isardvdi_common.lib.storage import actions as disk_actions
+from isardvdi_common.lib.storage.sweep import SWEEP_DEFAULTS
 from isardvdi_common.lib.storage.zeros import DIG_HOLES_UNSUPPORTED
+from isardvdi_common.models.config import Config
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import (
     DIG_HOLES_MISMATCH,
@@ -260,6 +262,12 @@ def _diggable_once_stopped(storage):
     )
 
 
+def _sweep_digs():
+    """Whether an admin let the nightly sweep give back the zeros it flags."""
+    stored = Config.get_storage_sweep_config() or {}
+    return bool({**SWEEP_DEFAULTS, **stored}.get("dig_holes"))
+
+
 def _note_reclaimable_zeros(storage, reclaimable):
     """Flag dig_holes when a dig could give back enough zeros; clear a mark that no longer holds."""
     marks = getattr(storage, "pending_actions", None) or {}
@@ -273,7 +281,11 @@ def _note_reclaimable_zeros(storage, reclaimable):
     elif "dig_holes" in marks:
         Storage.clear_pending(storage.id, "dig_holes")
     grew = ((marks.get("sparsify") or {}).get("detail") or {}).get("grew_bytes")
-    if grew is not None and grew - reclaimable < SPARSIFY_GROWTH_BYTES:
+    if (
+        grew is not None
+        and grew - reclaimable < SPARSIFY_GROWTH_BYTES
+        and _sweep_digs()
+    ):
         Storage.clear_pending(storage.id, "sparsify")
 
 

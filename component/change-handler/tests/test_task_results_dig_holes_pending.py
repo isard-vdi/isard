@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""An exact zero scan flags dig_holes with its figure, clears a mark it no longer
-supports, and drops a sparsify the zeros explain; a measurement leaves the marks alone."""
+"""An exact zero scan flags dig_holes with its figure and clears a mark it no longer
+supports; a measurement leaves the marks alone."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -31,7 +31,7 @@ def _row(
     return row
 
 
-def _scan(reclaimable, row=None, depending="finished"):
+def _scan(reclaimable, row=None, depending="finished", sweep_digs=False):
     from isardvdi_change_handler.task_results import storage
 
     task = SimpleNamespace(
@@ -40,7 +40,9 @@ def _scan(reclaimable, row=None, depending="finished"):
             SimpleNamespace(task="zero_scan", result={"reclaimable_bytes": reclaimable})
         ],
     )
-    with patch.object(storage, "Storage") as cls:
+    with patch.object(storage, "Storage") as cls, patch.object(
+        storage, "_sweep_digs", return_value=sweep_digs
+    ):
         cls.exists.return_value = True
         cls.return_value = row or _row()
         storage.handle_zero_scan_result(task, "s1")
@@ -123,13 +125,31 @@ def _sparsify(grew):
     return {"sparsify": {"since": 1, "detail": {"grew_bytes": grew}}}
 
 
-def test_growth_that_is_only_zeros_drops_the_sparsify_mark():
-    cls = _scan(4 * SLACK, _row(marks=_sparsify(4 * SLACK)))
+def test_growth_that_is_only_zeros_drops_the_sparsify_mark_once_the_sweep_digs():
+    cls = _scan(4 * SLACK, _row(marks=_sparsify(4 * SLACK)), sweep_digs=True)
     cls.clear_pending.assert_called_once_with("s1", "sparsify")
 
 
+def test_growth_that_is_only_zeros_keeps_the_sparsify_mark_while_the_sweep_does_not_dig():
+    cls = _scan(4 * SLACK, _row(marks=_sparsify(4 * SLACK)))
+    assert ("s1", "sparsify") not in [c.args for c in cls.clear_pending.call_args_list]
+
+
+def test_the_sweep_digs_only_once_an_admin_turns_it_on():
+    from isardvdi_change_handler.task_results import storage
+
+    with patch.object(storage.Config, "get_storage_sweep_config", return_value={}):
+        assert storage._sweep_digs() is False
+    with patch.object(
+        storage.Config, "get_storage_sweep_config", return_value={"dig_holes": True}
+    ):
+        assert storage._sweep_digs() is True
+
+
 def test_growth_beyond_the_zeros_keeps_the_sparsify_mark():
-    cls = _scan(SLACK, _row(marks=_sparsify(SLACK + SPARSIFY_GROWTH_BYTES)))
+    cls = _scan(
+        SLACK, _row(marks=_sparsify(SLACK + SPARSIFY_GROWTH_BYTES)), sweep_digs=True
+    )
     assert ("s1", "sparsify") not in [c.args for c in cls.clear_pending.call_args_list]
 
 
