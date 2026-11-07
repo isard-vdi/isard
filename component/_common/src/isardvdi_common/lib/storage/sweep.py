@@ -23,6 +23,8 @@ SWEEP_DEFAULTS = {
     # until an admin turns it on, and at most max_bases of them a pass.
     "dig_bases_with_children": False,
     "max_bases": 2,
+    # a desktop start refused by its disks runs their quick fixes and shows the user the rest
+    "desktop_disk_repairs": False,
 }
 
 #: Sweep action -> the pending-action index it reads. check_integrity has no

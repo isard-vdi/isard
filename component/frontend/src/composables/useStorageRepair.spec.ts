@@ -138,4 +138,15 @@ describe('useStorageRepair', () => {
       await repair.diagnose({ desktopId: nextDesktop(), desktopName: 'win', retryStart: vi.fn() })
     ).toBe(false)
   })
+
+  it('neither opens nor starts again while an admin keeps the repairs turned off', async () => {
+    mocks.handle.mockRejectedValue({ description_code: 'storage_desktop_repairs_disabled' })
+    const retryStart = vi.fn()
+    const repair = useStorageRepair()
+    expect(
+      await repair.diagnose({ desktopId: nextDesktop(), desktopName: 'win', retryStart })
+    ).toBe(false)
+    expect(repair.open.value).toBe(false)
+    expect(retryStart).not.toHaveBeenCalled()
+  })
 })

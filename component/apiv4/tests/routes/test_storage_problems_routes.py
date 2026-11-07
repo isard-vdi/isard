@@ -52,6 +52,7 @@ def desktop(monkeypatch):
     )
     monkeypatch.setattr(sp, "_running_task", lambda i: None)
     monkeypatch.setattr(sp, "_estimate", lambda fix, row: None)
+    monkeypatch.setattr(sp, "repairs_enabled", lambda: True)
     return queued
 
 
@@ -79,6 +80,23 @@ def test_a_costly_fix_through_http_checks_the_list(
         assert desktop == []
     else:
         assert [what for _, what in desktop] == ["all"]
+
+
+def test_while_turned_off_a_user_gets_428_through_http(
+    monkeypatch, test_client, desktop
+):
+    from api.services import storage_problems as sp
+
+    monkeypatch.setattr(sp, "repairs_enabled", lambda: False)
+    monkeypatch.setattr(Alloweds, "get_storage_repair_allowed_dict", lambda: ALLOWED)
+    response = test_client(
+        url="/item/desktop/d1/storage/s1/fix/repair_all",
+        method="PUT",
+        jwt=MockJWT(role_id="manager"),
+    )
+    assert response.status_code == 428, response.text
+    assert response.json()["description_code"] == "storage_desktop_repairs_disabled"
+    assert desktop == []
 
 
 def test_a_fix_name_outside_the_list_is_rejected(test_client):

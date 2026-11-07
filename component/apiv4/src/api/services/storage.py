@@ -791,6 +791,7 @@ class StorageService:
             "zero_scan",
             "detect",
             "dig_bases_with_children",
+            "desktop_disk_repairs",
         ):
             if key in data:
                 clean[key] = bool(data[key])

@@ -8,7 +8,9 @@ from api.services.error import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib import queue_estimate, queue_tiers
 from isardvdi_common.lib.storage import problems
+from isardvdi_common.lib.storage.sweep import SWEEP_DEFAULTS
 from isardvdi_common.lib.task_index import current_task_id
+from isardvdi_common.models.config import Config
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
@@ -58,6 +60,21 @@ def _running_task(storage_id):
         "eta_seconds": estimate.get("eta_seconds"),
         "stranded": estimate.get("stranded"),
     }
+
+
+def repairs_enabled():
+    """Whether an admin turned on the disk repairs of a desktop that cannot start."""
+    stored = Config.get_storage_sweep_config() or {}
+    return bool({**SWEEP_DEFAULTS, **stored}.get("desktop_disk_repairs"))
+
+
+def _refuse_unless_enabled():
+    if not repairs_enabled():
+        raise Error(
+            "precondition_required",
+            "The disk repairs of a desktop that cannot start are turned off",
+            description_code="storage_desktop_repairs_disabled",
+        )
 
 
 def _description_code(error):
@@ -152,6 +169,7 @@ class StorageProblemsService:
     @staticmethod
     def handle(payload: dict, desktop_id: str) -> dict:
         """Queue each disk's first quick fix now and record the rest as pending actions."""
+        _refuse_unless_enabled()
         runs = []
         for storage_id in StorageProblemsService._desktop_disks(payload, desktop_id):
             row = Storage.get(storage_id)
@@ -189,6 +207,8 @@ class StorageProblemsService:
     def handle_quietly(payload: dict, desktop_id: str) -> None:
         """``handle`` for a start that failed on its disks: it never masks the start error."""
         try:
+            if not repairs_enabled():
+                return
             StorageProblemsService.handle(payload, desktop_id)
         except Exception:
             logging.warning(
@@ -200,6 +220,8 @@ class StorageProblemsService:
     @staticmethod
     def fix(payload: dict, desktop_id: str, storage_id: str, fix: str) -> dict:
         """Queue ``fix`` on one of the desktop's disks; a costly one needs the permission."""
+        if payload.get("role_id") != "admin":
+            _refuse_unless_enabled()
         if storage_id not in StorageProblemsService._desktop_disks(payload, desktop_id):
             raise Error(
                 "not_found", f"Storage {storage_id} is not a disk of {desktop_id}"

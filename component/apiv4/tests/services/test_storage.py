@@ -688,6 +688,17 @@ class TestSweepGivesBackZeros:
             {"dig_bases_with_children": True, "max_bases": 3}
         )
 
+    @patch("api.services.storage.Config")
+    def test_the_desktop_disk_repairs_are_off_until_the_config_turns_them_on(
+        self, mock_config
+    ):
+        mock_config.get_storage_sweep_config.return_value = {}
+        assert StorageService.get_sweep_config()["desktop_disk_repairs"] is False
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, {"desktop_disk_repairs": 1})
+        mock_config.update_storage_sweep.assert_called_once_with(
+            {"desktop_disk_repairs": True}
+        )
+
     def test_the_enqueue_runs_a_verified_dig_holes_at_low_priority(self):
         storage = MagicMock()
         StorageService._sweep_enqueue("u1", "dig_holes", storage)

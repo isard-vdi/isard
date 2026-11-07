@@ -43,7 +43,9 @@ def env():
         getattr(storage, method).return_value = f"task-{method}"
     storage.sparsify.return_value = "task-sparsify"
     allowed = {"value": dict(EMPTY)}
+    enabled = {"value": True}
     with (
+        patch.object(sp, "repairs_enabled", side_effect=lambda: enabled["value"]),
         patch.object(sp.Helpers, "owns_domain_id", return_value=True),
         patch.object(sp, "Domain") as domain,
         patch.object(sp, "Storage") as storage_cls,
@@ -69,7 +71,12 @@ def env():
         storage_cls.return_value = storage
         pool.return_value.id = "p1"
         estimate.return_value = {"tier": "standard", "run_seconds": 5}
-        yield {"storage": storage, "cls": storage_cls, "allowed": allowed}
+        yield {
+            "storage": storage,
+            "cls": storage_cls,
+            "allowed": allowed,
+            "enabled": enabled,
+        }
 
 
 def _by_disk(report):
@@ -225,3 +232,51 @@ def test_a_shared_template_is_neither_reported_nor_handled_nor_fixed(env):
             with pytest.raises(Error) as raised:
                 call()
             assert raised.value.status_code == 403
+
+
+def _turned_off(env):
+    env["enabled"]["value"] = False
+    return env
+
+
+def test_while_turned_off_handling_is_refused_and_queues_nothing(env):
+    _turned_off(env)
+    with pytest.raises(Error) as raised:
+        StorageProblemsService.handle(USER, "d1")
+    assert raised.value.error["description_code"] == "storage_desktop_repairs_disabled"
+    env["storage"].repair.assert_not_called()
+    env["cls"].flag_pending.assert_not_called()
+
+
+def test_while_turned_off_a_failed_start_queues_nothing(env):
+    _turned_off(env)
+    with patch.object(StorageProblemsService, "handle") as handle:
+        StorageProblemsService.handle_quietly(USER, "d1")
+    handle.assert_not_called()
+
+
+def test_while_turned_off_a_user_cannot_run_a_fix(env):
+    _turned_off(env)
+    with pytest.raises(Error) as raised:
+        StorageProblemsService.fix(USER, "d1", "leaky", "repair_leaks")
+    assert raised.value.error["description_code"] == "storage_desktop_repairs_disabled"
+    env["storage"].repair.assert_not_called()
+
+
+def test_while_turned_off_an_admin_still_runs_a_fix(env):
+    _turned_off(env)
+    out = StorageProblemsService.fix(ADMIN, "d1", "damaged", "repair_all")
+    assert out["task_id"] == "task-repair"
+
+
+@pytest.mark.parametrize(
+    "stored, expected",
+    [
+        ({}, False),
+        ({"desktop_disk_repairs": False}, False),
+        ({"desktop_disk_repairs": True}, True),
+    ],
+)
+def test_the_repairs_are_off_until_an_admin_turns_them_on(stored, expected):
+    with patch.object(sp.Config, "get_storage_sweep_config", return_value=stored):
+        assert sp.repairs_enabled() is expected

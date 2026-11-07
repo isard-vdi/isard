@@ -186,6 +186,10 @@
                         <label for="sweep-zero-scan" title="Reads the disks that grew since their last scan and counts the zeros a dig would give back"> Count zeros</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
+                        <input id="sweep-desktop-disk-repairs" type="checkbox">
+                        <label for="sweep-desktop-disk-repairs" title="When a disk stops a desktop from starting, run its quick fixes at once and show the user what is left; off, the start fails as before"> Repair the disks that stop a desktop</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
                         <label for="sweep-check-age">Check disks unchecked for (days)</label>
                         <input class="form-control" id="sweep-check-age" type="number" min="1" value="30">
                     </div>
@@ -208,7 +212,7 @@
                 <div class="clearfix"></div>
             </div>
             <div class="x_content">
-                <p>Quick fixes always run when a disk stops a desktop. Administrators can always run the costly ones; nobody else can until they are allowed here.</p>
+                <p>Quick fixes run when a disk stops a desktop only while <b>Repair the disks that stop a desktop</b> is on in the sweep settings. Administrators can always run the costly ones; nobody else can until they are allowed here.</p>
                 <button class="btn btn-primary" id="btn-storage-repair-alloweds"><i class="fa fa-users"></i> Allowed users</button>
             </div>
         </div>

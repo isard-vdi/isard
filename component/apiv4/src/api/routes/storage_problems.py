@@ -61,9 +61,15 @@ async def get_desktop_storage_problems(request: Request, desktop_id: str):
     summary="Handle the storage problems of a desktop",
     description=(
         "Queues each disk's quick fix at once and records the rest as pending "
-        "actions for the storage sweep. Costly repairs are never run here."
+        "actions for the storage sweep. Costly repairs are never run here. Refused "
+        "with storage_desktop_repairs_disabled unless an administrator turned on "
+        "desktop_disk_repairs in the storage sweep config."
     ),
-    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+    },
 )
 async def handle_desktop_storage_problems(request: Request, desktop_id: str):
     return await _report(
@@ -85,7 +91,9 @@ async def handle_desktop_storage_problems(request: Request, desktop_id: str):
         "dig_holes, sparsify) is refused with storage_repair_not_allowed unless the "
         "caller is an administrator or matched by the storage repair allowed list. "
         "Refused with storage_fix_not_needed when no problem of the disk calls for "
-        "it and storage_fix_in_progress while the disk has a task in progress."
+        "it and storage_fix_in_progress while the disk has a task in progress. A "
+        "caller who is not an administrator is refused with "
+        "storage_desktop_repairs_disabled while desktop_disk_repairs is off."
     ),
     responses={
         403: {"model": ErrorResponse},

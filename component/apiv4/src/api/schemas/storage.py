@@ -129,6 +129,7 @@ class StorageSweepConfigResponse(BaseModel):
     check_max_age_days: int
     dig_bases_with_children: bool = False
     max_bases: int = 2
+    desktop_disk_repairs: bool = False
 
 
 class StorageSweepConfigRequest(BaseModel):
@@ -152,6 +153,13 @@ class StorageSweepConfigRequest(BaseModel):
     )
     max_bases: Optional[int] = Field(
         None, description="Bases with descendants one pass may dig"
+    )
+    desktop_disk_repairs: Optional[bool] = Field(
+        None,
+        description=(
+            "When a desktop cannot start because of its disks, run their quick fixes "
+            "and let the user see the rest"
+        ),
     )
 
 

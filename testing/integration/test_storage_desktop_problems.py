@@ -142,6 +142,28 @@ def test_a_leak_mark_is_reported_fixed_from_the_desktop_and_cleared(
 
 
 @pytest.mark.real
+def test_the_repairs_of_a_desktop_run_only_once_an_admin_turns_them_on(
+    admin_client: IsardClient, stopped_desktop
+):
+    desktop_id, _ = stopped_desktop
+    sweep = "/api/v4/admin/storage/sweep/config"
+    before = admin_client.get(sweep)["desktop_disk_repairs"]
+    url = f"/api/v4/item/desktop/{desktop_id}/storage-problems"
+    try:
+        admin_client.put(sweep, json_body={"desktop_disk_repairs": False})
+        resp = admin_client.raw("PUT", url)
+        assert resp.status_code == 428, resp.text
+        assert resp.json()["description_code"] == "storage_desktop_repairs_disabled"
+
+        admin_client.put(sweep, json_body={"desktop_disk_repairs": True})
+        resp = admin_client.raw("PUT", url)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["quick_fixes"] == [], resp.text
+    finally:
+        admin_client.put(sweep, json_body={"desktop_disk_repairs": before})
+
+
+@pytest.mark.real
 def test_a_disk_of_another_desktop_is_not_found(
     admin_client: IsardClient, stopped_desktop
 ):
