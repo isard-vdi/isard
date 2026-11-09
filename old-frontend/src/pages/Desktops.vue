@@ -10,6 +10,7 @@
     <DesktopModal />
     <BastionModal />
     <IncreaseModal />
+    <StorageProblemsModal />
 
     <!-- lazy: the volatile tab mounts one card per allowed template, freezing the main thread while hidden -->
     <b-tabs lazy>
@@ -115,6 +116,7 @@ import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 import DesktopModal from '@/components/desktops/DesktopModal.vue'
 import BastionModal from '@/components/BastionModal.vue'
 import IncreaseModal from '@/components/desktops/IncreaseModal.vue'
+import StorageProblemsModal from '@/components/desktops/StorageProblemsModal.vue'
 
 export default {
   components: {
@@ -125,7 +127,8 @@ export default {
     CantStartNowModal,
     DesktopModal,
     BastionModal,
-    IncreaseModal
+    IncreaseModal,
+    StorageProblemsModal
   },
   setup (_, context) {
     const $store = context.root.$store

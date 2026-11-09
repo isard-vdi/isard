@@ -283,6 +283,8 @@ class AdminAllowedsService:
             AdminAllowedsService._update_bastion_domains_allowed(
                 data, payload, background_tasks
             )
+        elif table == "storage_repair":
+            Alloweds.update_storage_repair_alloweds(data["allowed"])
         else:
             Alloweds.update_item_allowed_dict(table, data["id"], data["allowed"])
 
@@ -345,6 +347,8 @@ class AdminAllowedsService:
             return Alloweds.get_allowed(Alloweds.get_bastion_allowed_dict())
         elif table == "bastion_domains":
             return Alloweds.get_allowed(Alloweds.get_bastion_domains_allowed_dict())
+        elif table == "storage_repair":
+            return Alloweds.get_allowed(Alloweds.get_storage_repair_allowed_dict())
         else:
             return Alloweds.get_allowed(
                 Alloweds.get_item_allowed_dict(table, data["id"])

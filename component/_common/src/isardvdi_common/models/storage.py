@@ -147,7 +147,7 @@ def verdict_for_blocked_disks(statuses):
 #: ``test_pending_actions_contract`` fails when the enum and this table drift.
 PENDING_ACTIONS = {
     "repair_leaks": {
-        "flagged_by": ("migration verify gate",),
+        "flagged_by": ("migration verify gate", "a user action on the desktop"),
         "cleared_by": "qemu-img check -r leaks",
     },
     "review_damage": {
@@ -161,6 +161,20 @@ PENDING_ACTIONS = {
     "sparsify": {
         "flagged_by": ("a storage refresh that measured growth",),
         "cleared_by": "sparsify",
+    },
+    "dig_holes": {
+        "flagged_by": (
+            "a zero scan that counted enough zeros",
+            "a dig_holes that failed",
+        ),
+        "cleared_by": "dig_holes",
+    },
+    "check_integrity": {
+        "flagged_by": (
+            "a dig_holes that stopped after it began punching",
+            "a user action on the desktop",
+        ),
+        "cleared_by": "a qemu-img check that reaches a verdict",
     },
     "rebase_backing": {
         "flagged_by": ("check_backing_chain",),
@@ -192,6 +206,10 @@ PENDING_ACTIONS = {
 #: Flag ``sparsify`` when a disk's actual-size grows at least this much since its
 #: last measurement -- 256 MiB clears the journal a bare start/stop moves.
 SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
+#: The zeros a scan must count before the disk is flagged dig_holes.
+DIG_HOLES_SLACK_BYTES = 256 * 1024 * 1024
+#: The checks ``health.checked_at`` is the oldest of; a missing one counts as never.
+HEALTH_CHECKS = ("integrity", "zeros")
 
 
 #: Every :class:`Storage` method that creates a task, and what it does to the
@@ -201,6 +219,7 @@ DISK_EFFECTS = {
     "find": DiskEffect.NONE,
     "check_backing_chain": DiskEffect.NONE,
     "check_integrity": DiskEffect.NONE,
+    "zero_scan": DiskEffect.NONE,
     "rsync": DiskEffect.PATH,
     "mv": DiskEffect.PATH,
     "task_delete": DiskEffect.NONE,
@@ -382,10 +401,13 @@ class Storage(RethinkCustomBase):
         return f"{self.directory_path}/{self.id}.{self.type}"
 
     @classmethod
-    def flag_pending(cls, storage_id, action, found_by, detail=None, if_absent=False):
+    def flag_pending(
+        cls, storage_id, action, found_by, detail=None, if_absent=False, since=None
+    ):
         """Mark that ``storage_id`` needs ``action`` done to it. Idempotent: a
-        second flag of the same action keeps the first ``since``. With
-        ``if_absent`` a mark already there is left exactly as it is."""
+        second flag of the same action keeps the first ``since``; ``since``
+        stands in for it when the mark is gone. With ``if_absent`` a mark
+        already there is left exactly as it is."""
         if action not in PENDING_ACTIONS:
             raise ValueError(f"unknown pending action {action!r}")
 
@@ -394,7 +416,7 @@ class Storage(RethinkCustomBase):
                 "pending_actions": {
                     action: {
                         "since": row["pending_actions"][action]["since"].default(
-                            int(time())
+                            int(since or time())
                         ),
                         "found_by": found_by,
                         "detail": detail or {},
@@ -429,8 +451,8 @@ class Storage(RethinkCustomBase):
     @classmethod
     def pending_ids(cls, action, status=None, limit=None):
         """Ids of the disks with ``action`` pending, oldest first, through the
-        ``pending_action_since`` index; ``status`` narrows through
-        ``status_pending_action``. Never a table scan."""
+        ``pending_action_since`` index, or ``status_pending_action_since`` when
+        ``status`` narrows it. Never a table scan."""
         with cls._rdb_context():
             if status is None:
                 query = (
@@ -443,8 +465,14 @@ class Storage(RethinkCustomBase):
                     .order_by(index="pending_action_since")
                 )
             else:
-                query = r.table(cls._rdb_table).get_all(
-                    [status, action], index="status_pending_action"
+                query = (
+                    r.table(cls._rdb_table)
+                    .between(
+                        [status, action, r.minval],
+                        [status, action, r.maxval],
+                        index="status_pending_action_since",
+                    )
+                    .order_by(index="status_pending_action_since")
                 )
             if limit:
                 query = query.limit(limit)
@@ -453,14 +481,33 @@ class Storage(RethinkCustomBase):
     @classmethod
     def ready_ids_needing_check(cls, checked_before, limit=None):
         """Ids of ready disks whose last integrity check is older than
-        ``checked_before`` (epoch) or that were never checked, through the
-        ``status`` index and bounded by ``limit``. The sweep's check_integrity
-        pass reads these; it is an age scan, not a pending-action read."""
+        ``checked_before`` (epoch) or that were never checked, oldest first
+        through the ``status_integrity_checked`` index, bounded by ``limit``."""
         with cls._rdb_context():
             query = (
                 r.table(cls._rdb_table)
-                .get_all("ready", index="status")
-                .filter(lambda row: row["last_checked_at"].default(0) < checked_before)
+                .between(
+                    ["ready", r.minval],
+                    ["ready", int(checked_before)],
+                    index="status_integrity_checked",
+                )
+                .order_by(index="status_integrity_checked")
+            )
+            if limit:
+                query = query.limit(limit)
+            return list(query["id"].run(cls._rdb_connection))
+
+    @classmethod
+    def zeros_due_ids(cls, limit=None):
+        """Ids of ready disks due a zero scan, least recently scanned first,
+        through the partial ``status_zeros_due`` index."""
+        with cls._rdb_context():
+            query = (
+                r.table(cls._rdb_table)
+                .between(
+                    ["ready", r.minval], ["ready", r.maxval], index="status_zeros_due"
+                )
+                .order_by(index="status_zeros_due")
             )
             if limit:
                 query = query.limit(limit)
@@ -908,14 +955,51 @@ class Storage(RethinkCustomBase):
         return new.get("status")
 
     @classmethod
-    def write_check(cls, storage_id, damage_reason=None):
+    def _health(cls, row, check, value, replace=True):
+        """The ``health`` update writing ``check`` and recomputing ``checked_at``.
+
+        ``replace=False`` merges ``value`` instead, for an update inside ``r.branch``,
+        where ReQL refuses ``r.literal``."""
+        checks = row["health"]["checks"].default({}).merge({check: value})
+        return {
+            "health": {
+                "checks": {check: r.literal(value) if replace else value},
+                "checked_at": r.expr(
+                    [checks[name]["at"].default(0) for name in HEALTH_CHECKS]
+                ).min(),
+            }
+        }
+
+    @classmethod
+    def write_zeros(cls, storage_id, actual_size, reclaimable=None, result="ok"):
+        """Record a zero scan in ``health.checks.zeros``, never creating a row."""
+        value = {
+            "at": int(time()),
+            "result": result,
+            "reclaimable_bytes": reclaimable,
+            "actual_size_at_scan": int(actual_size or 0),
+        }
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(storage_id).update(
+                lambda row: cls._health(row, "zeros", value)
+            ).run(cls._rdb_connection)
+
+    @classmethod
+    def write_check(cls, storage_id, damage_reason=None, leaks=0):
         """Write a qemu-img check verdict in one operation, never creating a row.
-        ``last_checked_at`` always; ``damaged`` plus ``damage_reason`` when the
-        check found a corruption; on a sound verdict, ``ready`` for a disk that
-        was ``damaged``, and every other status left as it is. A check that
-        reached no verdict must not come here."""
+        ``last_checked_at`` and ``health.checks.integrity`` always; ``damaged``
+        plus ``damage_reason`` when the check found a corruption; on a sound
+        verdict, ``ready`` for a disk that was ``damaged``, and every other
+        status left as it is. A check that reached no verdict must not come here."""
         now = time()
-        checked = {"last_checked_at": int(now)}
+        verdict = "damaged" if damage_reason else ("leaks" if leaks else "ok")
+        integrity = {"at": int(now), "result": verdict}
+
+        def checked_on(row):
+            return {
+                "last_checked_at": int(now),
+                **cls._health(row, "integrity", integrity, replace=False),
+            }
 
         def logged(row, status):
             entry = {"time": int(now), "status": status, "found_by": "check_integrity"}
@@ -924,6 +1008,7 @@ class Storage(RethinkCustomBase):
         if damage_reason:
 
             def change(row):
+                checked = checked_on(row)
                 return r.branch(
                     row["status"].default(None).eq("damaged"),
                     {**checked, "damage_reason": damage_reason},
@@ -939,6 +1024,7 @@ class Storage(RethinkCustomBase):
         else:
 
             def change(row):
+                checked = checked_on(row)
                 return r.branch(
                     row["status"].default(None).eq("damaged"),
                     {
@@ -1887,7 +1973,18 @@ class Storage(RethinkCustomBase):
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
         verify=False,
     ):
-        """Give back the all-zero blocks of a stopped desktop's own leaf disk."""
+        """Give back the all-zero blocks of a stopped desktop's leaf disk, a template's
+        disk, or a base only templates use.
+
+        A base its descendants read is always verified: the worker hashes it before
+        and after, and a mismatch leaves it damaged for an administrator.
+        """
+        if disk_actions.is_base(
+            "dig_holes",
+            [(getattr(d, "kind", None), d.status) for d in self.domains],
+            lambda: disk_actions.has_dependents(self, include_deleted=True),
+        ):
+            verify = True
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
@@ -1904,6 +2001,18 @@ class Storage(RethinkCustomBase):
                 {
                     "queue": "core",
                     "task": "storage_update",
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "clear_pending_action",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                    "action": "dig_holes",
+                                }
+                            },
+                        }
+                    ],
                 }
             ],
         }
@@ -1921,10 +2030,13 @@ class Storage(RethinkCustomBase):
                 "timeout": timeout,
             },
         }
+        mark = (self.pending_actions or {}).get("dig_holes") or {}
         verdict = {
             "queue": "core",
             "task": "dig_holes_result",
-            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+            "job_kwargs": {
+                "kwargs": {"storage_id": self.id, "since": mark.get("since")}
+            },
         }
         domains = self.domains
         self.set_maintenance("dig_holes")
@@ -2088,6 +2200,26 @@ class Storage(RethinkCustomBase):
                 {
                     "queue": "core",
                     "task": "storage_check_result",
+                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                }
+            ],
+        )
+
+    def zero_scan(self, user_id, priority="low", retry: int = 0, timeout=43200):
+        """Enqueue a read-only exact count of the zeros the disk's file allocates."""
+        self.guard("zero_scan")
+        queue = f"storage.{StoragePool.get_best_for_action('zero_scan', path=self.directory_path).id}.{priority}"
+        return self.create_task(
+            user_id=user_id,
+            queue=queue,
+            task="zero_scan",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={"kwargs": {"storage_path": self.path}, "timeout": timeout},
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "zero_scan_result",
                     "job_kwargs": {"kwargs": {"storage_id": self.id}},
                 }
             ],

@@ -3107,6 +3107,72 @@
     },
     "scroll-to-top": {
       "label": "Ves a dalt"
+    },
+    "storage-problems": {
+      "duration": {
+        "unknown": "un temps desconegut",
+        "s": "uns {value} s",
+        "min": "uns {value} min",
+        "h": "unes {value} h"
+      },
+      "estimate": "Cua: {tier} · {ahead} tasques al davant · previst en {duration}",
+      "progress": "Arreglant el disc de {name}: {percent}%",
+      "queued": "Posició {position} a la cua · falten uns {duration}",
+      "running": "En execució",
+      "stranded": "Ara mateix cap treballador atén aquesta cua: l'arranjament espera fins que n'hi hagi un.",
+      "fixed": "El disc de {name} ja està arreglat. Es torna a arrencar.",
+      "failed": "No s'ha pogut arreglar el disc de {name}.",
+      "fix-queued": "{fix} a la cua del disc de {name}",
+      "code": {
+        "storage_busy": "El disc està ocupat amb una altra operació. L'escriptori podrà arrencar quan acabi.",
+        "storage_damaged": "El disc està marcat com a malmès.",
+        "storage_broken_chain": "El disc no troba un disc del qual depèn.",
+        "storage_unavailable": "El disc no està disponible. L'ha de revisar un administrador.",
+        "storage_leaks": "El disc té espai perdut que una reparació ràpida recupera.",
+        "storage_check_due": "Al disc li toca una comprovació d'integritat.",
+        "storage_check_inconclusive": "L'última comprovació del disc no va arribar a cap veredicte.",
+        "storage_zeros": "El disc té blocs de zeros que es poden retornar.",
+        "storage_grown": "El disc ha crescut i es pot compactar.",
+        "storage_review_damage": "El disc pot estar malmès. L'ha de revisar un administrador.",
+        "storage_rebase_backing": "El disc apunta a un disc que s'ha mogut. L'ha d'arreglar un administrador.",
+        "storage_review_coherence": "El disc no quadra amb el seu propietari. L'ha de revisar un administrador.",
+        "storage_review_dependents": "Altres discos encara poden llegir aquest. L'ha de revisar un administrador.",
+        "storage_missing": "Falta el fitxer del disc. L'ha de revisar un administrador."
+      },
+      "fix": {
+        "check": "Comprovació d'integritat",
+        "check_backing_chain": "Comprovació de la cadena",
+        "repair_leaks": "Reparació de l'espai perdut",
+        "repair_all": "Reparació completa",
+        "dig_holes": "Retornar els blocs de zeros",
+        "sparsify": "Compactar el disc"
+      },
+      "quick-fix": {
+        "queued": "{fix}: començada ara",
+        "recorded": "{fix}: queda per al manteniment nocturn dels discos"
+      },
+      "modal": {
+        "title": "El disc de {name} necessita atenció",
+        "description": "Els arranjaments ràpids s'executen de seguida. Aquests són els problemes trobats als discos de l'escriptori i què es fa amb cadascun.",
+        "quick_fixes": "El que s'ha fet ara",
+        "waits": "En curs",
+        "quick": "Arranjaments ràpids pendents",
+        "costly": "Reparacions pendents que triguen una estona",
+        "admins": "Cal un administrador",
+        "not-allowed": "Només un administrador pot executar aquesta reparació.",
+        "run": "Executa: {fix}",
+        "running": "A la cua",
+        "close": "Tanca"
+      },
+      "tier": {
+        "interactive": "interactiva",
+        "standard": "estàndard",
+        "template": "plantilles",
+        "bulk": "massiva",
+        "maintenance": "manteniment",
+        "reclaim": "recuperació d'espai",
+        "background": "segon pla"
+      }
     }
   },
   "authentication": {
@@ -3429,6 +3495,14 @@
           "title": "Els perfils vGPU han de ser del mateix model",
           "description": "Tots els escriptoris amb perfils vGPU en un desplegament han de tenir el mateix model. Si us plau, assegura't que tots els escriptoris amb perfils vGPU tinguin el mateix model i torna-ho a provar."
         }
+      }
+    },
+    "storage-fix": {
+      "errors": {
+        "storage_repair_not_allowed": "Només un administrador, o un usuari que un administrador hagi permès, pot executar aquesta reparació.",
+        "storage_fix_not_needed": "El disc ja no necessita aquest arranjament.",
+        "storage_fix_in_progress": "Ja s'està treballant en el disc. Espera que acabi.",
+        "generic": "No s'ha pogut arreglar el disc. Torna-ho a provar."
       }
     }
   },

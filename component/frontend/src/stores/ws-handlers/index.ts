@@ -12,6 +12,7 @@ import { planningEventHandlers } from './planning'
 import { usersEventHandlers } from './users'
 import { userMigrationEventHandlers } from './user-migration'
 import { messageEventHandlers } from './message'
+import { taskEventHandlers } from './task'
 import type { WsEventMap, WsEventName } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
 import type { Socket } from 'socket.io-client'
@@ -36,7 +37,8 @@ export const allEventHandlers: EventHandlerMap = {
   ...planningEventHandlers,
   ...usersEventHandlers,
   ...userMigrationEventHandlers,
-  ...messageEventHandlers
+  ...messageEventHandlers,
+  ...taskEventHandlers
 }
 
 export function registerSocketHandlers(socket: Socket, queryClient: QueryClient) {

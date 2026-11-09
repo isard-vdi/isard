@@ -44,6 +44,8 @@ class StoragePendingAction(str, Enum):
     review_damage = "review_damage"
     #: written into since it was last sparsified
     sparsify = "sparsify"
+    #: the file allocates zeros its qcow2 does not hold as data
+    dig_holes = "dig_holes"
     #: its parent moved and the backing pointer still names the old path
     rebase_backing = "rebase_backing"
     #: the stored qemu-img-info no longer describes the file
@@ -52,6 +54,8 @@ class StoragePendingAction(str, Enum):
     delete_backup = "delete_backup"
     #: qemu-img check timed out or could not open the image: no verdict yet
     check_inconclusive = "check_inconclusive"
+    #: a dig stopped after it began punching: the file must be checked again
+    check_integrity = "check_integrity"
     #: the integrity pass could not reconcile the row with the database or the filesystem
     review_coherence = "review_coherence"
     #: on-disk disks still back onto this one though the database treats it as gone

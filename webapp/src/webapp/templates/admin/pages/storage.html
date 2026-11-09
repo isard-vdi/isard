@@ -79,7 +79,7 @@
               <option value="none">Select action</option>
               <option value="find">Find & update disks</option>
               <option value="sparsify">Sparsify disks</option>
-              <option value="dig-holes" title="Frees only the blocks that are all zeros of stopped desktops' disks; the content does not change. Filter the table first: at most 50 disks at once, and each refused disk says why.">Give back zero blocks</option>
+              <option value="dig-holes" title="Frees only the blocks that are all zeros of the disks of stopped desktops and of templates without derived disks; the content does not change. Filter the table first: at most 50 disks at once, and each refused disk says why.">Give back zero blocks</option>
             </select>
           </div>
         </div>
@@ -87,6 +87,14 @@
           <button type="button" id="btn-repair-all-pending-leaks" class="btn btn-warning"
             title="Repair every ready disk still carrying a repair_leaks mark (qemu-img check -r leaks)">
             <i class="fa fa-medkit"></i> Repair all pending leaks
+          </button>
+          <select id="check-integrity-status" class="form-control" style="display:inline-block; width:auto;">
+            <option value="ready">ready</option>
+            <option value="damaged">damaged</option>
+          </select>
+          <button type="button" id="btn-check-integrity-status" class="btn btn-info"
+            title="Run qemu-img check on every disk in the selected status">
+            <i class="fa fa-stethoscope"></i> Check integrity of all
           </button>
         </div>
         <div style="display:block; margin-top:8px;">
@@ -148,6 +156,7 @@
           <option value="repair_leaks">repair_leaks</option>
           <option value="review_damage">review_damage</option>
           <option value="sparsify">sparsify</option>
+          <option value="dig_holes">dig_holes</option>
           <option value="rebase_backing">rebase_backing</option>
           <option value="remeasure">remeasure</option>
           <option value="delete_backup">delete_backup</option>

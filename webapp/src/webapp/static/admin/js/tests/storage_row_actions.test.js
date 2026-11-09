@@ -23,6 +23,8 @@ const names = [
   "storageModalButtonAllowed",
   "storageBatchReport",
   "storageRowActions",
+  "formatEta",
+  "renderQueueEstimate",
 ];
 const ctx = {};
 new Function(
@@ -71,13 +73,13 @@ const report = ctx.storageBatchReport({
   queued: 1,
   results: [
     { storage_id: "a", task_id: "t-a" },
-    { storage_id: "b", description_code: "storage_used_by_template", message: "Storage b is a template's disk" },
+    { storage_id: "b", description_code: "storage_has_children", message: "Storage b has children storages that depend on it as backing file" },
     { storage_id: "c", description_code: "storage_has_children" },
   ],
 });
 assert.strictEqual(report.refused, 2);
 assert.ok(report.text.startsWith("Queued on 1 of 3 disk(s)."));
-assert.ok(report.text.includes("b: Storage b is a template's disk"));
+assert.ok(report.text.includes("b: Storage b has children storages that depend on it as backing file"));
 assert.ok(report.text.includes("c: storage_has_children"));
 console.log("the bulk report gives a reason per refused disk: PASS");
 
@@ -90,3 +92,11 @@ console.log("no per-status dig and no status assignment in a test: PASS");
 assert.ok(src.includes("dig-holes/priority/low?verify=${verify}"));
 assert.ok(src.includes('class="dig-holes-verify"'));
 console.log("the row dig sends verify from its checkbox: PASS");
+
+// --- a queued task shows its position and ETA -------------------------------
+assert.ok(src.includes("rowData.queue_position = data.effective_position"));
+assert.strictEqual(ctx.renderQueueEstimate({ queue_position: 4, eta_seconds: 150 }), "<small>queued #4, ETA ~3 min</small>");
+assert.strictEqual(ctx.renderQueueEstimate({ queue_position: null }), "");
+assert.strictEqual(ctx.formatEta(null), "unknown");
+assert.strictEqual(ctx.formatEta(7200), "~2.0 h");
+console.log("a queued task shows its position and ETA: PASS");

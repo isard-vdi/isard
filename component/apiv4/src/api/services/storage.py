@@ -29,7 +29,12 @@ from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.lib.storage.sweep import (
     SWEEP_DEFAULTS,
     SWEEP_PENDING_ACTION,
+    SWEEP_SKIPS_PARENTS,
+    bytes_read,
+    examine_cap,
     select_within_budget,
+    superseding_marks,
+    sweep_order,
 )
 from isardvdi_common.lib.task_index import current_task_id
 from isardvdi_common.models.config import Config
@@ -736,6 +741,38 @@ class StorageService:
         return queued
 
     @staticmethod
+    def zero_scan(payload: dict, storage_id: str, priority: str = "low") -> str:
+        """Enqueue the exact read-only count of the zeros one disk's file allocates."""
+        if priority not in ["low", "default", "high"]:
+            raise Error("bad_request", "Priority must be low, default or high")
+        storage = get_storage(payload, storage_id)
+        try:
+            return storage.zero_scan(payload.get("user_id"), priority=priority)
+        except Error:
+            raise
+        except Exception as e:
+            raise Error(*e.args)
+
+    @staticmethod
+    def batch_zero_scan_by_status(payload: dict, status: str) -> int:
+        """Zero-scan every disk with ``status``; a refused disk is skipped. Returns how many were queued."""
+        queued = 0
+        for storage_id in StorageProcessed.get_disks_ids_by_status(status=status):
+            try:
+                get_storage(payload, storage_id).zero_scan(payload.get("user_id"))
+                queued += 1
+            except Error:
+                continue
+            except Exception:
+                notify_admin(
+                    payload["user_id"],
+                    "Error scanning storage",
+                    f"There was an error creating a zero scan task for {storage_id}",
+                    type="error",
+                )
+        return queued
+
+    @staticmethod
     def get_sweep_config() -> dict:
         """The nightly-sweep config: presentation defaults under the stored block."""
         return {**SWEEP_DEFAULTS, **(Config.get_storage_sweep_config() or {})}
@@ -745,7 +782,17 @@ class StorageService:
         """Validate and persist the sweep config; returns the merged value.
         delete_backup is deliberately not a sweep action — it is a manual purge."""
         clean = {}
-        for key in ("enabled", "sparsify", "repair_leaks", "check_integrity", "detect"):
+        for key in (
+            "enabled",
+            "sparsify",
+            "dig_holes",
+            "repair_leaks",
+            "check_integrity",
+            "zero_scan",
+            "detect",
+            "dig_bases_with_children",
+            "desktop_disk_repairs",
+        ):
             if key in data:
                 clean[key] = bool(data[key])
         for key, hi in (("hour", 23), ("minute", 59)):
@@ -754,7 +801,7 @@ class StorageService:
                 if not 0 <= value <= hi:
                     raise Error("bad_request", f"{key} must be within 0-{hi}")
                 clean[key] = value
-        for key in ("max_disks", "max_bytes", "check_max_age_days"):
+        for key in ("max_disks", "max_bytes", "check_max_age_days", "max_bases"):
             if key in data:
                 value = int(data[key])
                 if value < 0:
@@ -768,32 +815,57 @@ class StorageService:
         """Run ONE sweep pass and return its summary. Reads the stored config,
         letting ``overrides`` (the webapp run-now form) replace budget/action keys
         for this pass only. Each enabled action selects ready disks oldest first
-        (sparsify/repair_leaks by index, check_integrity by last-checked age),
-        skips those a Started desktop holds, honours the shared max_disks/max_bytes
-        budget (0 == no cap) and enqueues the matching task. Never repairs
-        corruption here (repair_leaks is -r leaks only) and never touches
-        delete_backup."""
+        (marked actions by index, a superseding action before the one it makes
+        moot, check_integrity by last-checked age, zero_scan by growth since the
+        last scan), skips those a Started desktop holds, honours the shared
+        max_disks/max_bytes budget (0 == no cap; bytes are what each action
+        reads) and enqueues the matching task. Never repairs corruption here
+        (repair_leaks is -r leaks only) and never touches delete_backup."""
         config = {**StorageService.get_sweep_config(), **(overrides or {})}
         budget = {
             "disks": config["max_disks"] or None,
             "bytes": config["max_bytes"] or None,
         }
+        cap = examine_cap(budget["disks"])
+        bases = {
+            "left": (
+                int(config.get("max_bases") or 0)
+                if config.get("dig_bases_with_children")
+                else 0
+            )
+        }
         summary = {"actions": {}}
-        for action, pending in SWEEP_PENDING_ACTION.items():
-            if config.get(action) and not StorageService._sweep_exhausted(budget):
-                ids = Storage.pending_ids(
-                    pending, status="ready", limit=budget["disks"]
-                )
-                summary["actions"][action] = StorageService._sweep_act(
-                    payload, action, ids, budget
-                )
+        enabled = [a for a in sweep_order() if config.get(a)]
+        for action in enabled:
+            if StorageService._sweep_exhausted(budget):
+                break
+            ids = Storage.pending_ids(
+                SWEEP_PENDING_ACTION[action], status="ready", limit=cap
+            )
+            summary["actions"][action] = StorageService._sweep_act(
+                payload,
+                action,
+                ids,
+                budget,
+                superseding_marks(action, enabled),
+                bases=bases,
+            )
         if config.get("check_integrity") and not StorageService._sweep_exhausted(
             budget
         ):
             cutoff = int(time.time()) - int(config["check_max_age_days"]) * 86400
-            ids = Storage.ready_ids_needing_check(cutoff, budget["disks"])
+            ids = list(
+                dict.fromkeys(
+                    Storage.pending_ids("check_integrity", status="ready", limit=cap)
+                    + Storage.ready_ids_needing_check(cutoff, cap)
+                )
+            )[:cap]
             summary["actions"]["check_integrity"] = StorageService._sweep_act(
                 payload, "check_integrity", ids, budget
+            )
+        if config.get("zero_scan") and not StorageService._sweep_exhausted(budget):
+            summary["actions"]["zero_scan"] = StorageService._sweep_act(
+                payload, "zero_scan", Storage.zeros_due_ids(cap), budget
             )
         if config.get("detect"):
             # read-only, whole-estate: records pending_actions, ignores the
@@ -809,26 +881,74 @@ class StorageService:
 
     @staticmethod
     def _sweep_exhausted(budget: dict) -> bool:
-        return budget["disks"] is not None and budget["disks"] <= 0
+        return any(budget[k] is not None and budget[k] <= 0 for k in budget)
 
     @staticmethod
-    def _sweep_act(payload: dict, action: str, ids: list, budget: dict) -> dict:
-        """Build candidates for ``ids``, pick within the shared ``budget`` (which
-        this mutates as it spends), enqueue the action's task for each pick, and
-        return that action's counts."""
+    def _sweep_act(
+        payload: dict, action: str, ids: list, budget: dict, skip_marks=(), bases=None
+    ) -> dict:
+        """Walk ``ids`` in batches until the shared ``budget`` (which this
+        mutates as it spends) runs out, enqueue the action's task for each pick,
+        and return that action's counts. A disk carrying one of ``skip_marks``
+        is left to the action that supersedes this one. ``bases`` holds how many
+        bases with descendants a dig may still take this pass."""
         user_id = payload.get("user_id")
-        # A write action never touches a disk with descendants; check_integrity is
-        # read-only, so it may, and never carries the flag.
+        counts = dict.fromkeys(
+            (
+                "selected",
+                "selected_bases",
+                "skipped_started",
+                "skipped_budget",
+                "skipped_has_descendants",
+                "skipped_superseded",
+                "examined",
+            ),
+            0,
+        )
+        bases = bases if bases is not None else {"left": 0}
+        batch = max(budget["disks"] or 0, 50)
+        for start in range(0, len(ids), batch):
+            if StorageService._sweep_exhausted(budget):
+                counts["skipped_budget"] += len(ids) - start
+                break
+            chunk = ids[start : start + batch]
+            counts["examined"] += len(chunk)
+            picked = StorageService._sweep_batch(
+                payload, action, chunk, budget, skip_marks, counts, bases
+            )
+            for storage_id, storage in picked:
+                try:
+                    StorageService._sweep_enqueue(user_id, action, storage)
+                except Exception:
+                    notify_admin(
+                        user_id,
+                        "Error in storage sweep",
+                        f"Could not queue {action} for {storage_id}",
+                        type="error",
+                    )
+        return counts
+
+    @staticmethod
+    def _sweep_batch(payload, action, ids, budget, skip_marks, counts, bases=None):
+        """Pick, from one batch of ``ids``, what the remaining budget admits."""
         parents_with_children = (
-            StorageService._ids_with_children(ids)
-            if action in ("sparsify", "repair_leaks")
+            StorageService._ids_with_children(
+                ids, include_deleted=SWEEP_SKIPS_PARENTS[action]
+            )
+            if action in SWEEP_SKIPS_PARENTS
             else set()
         )
+        bases = bases if bases is not None else {"left": 0}
+        base_ids = set()
         storages, candidates = {}, []
         for storage_id in ids:
             try:
                 storage = get_storage(payload, storage_id)
             except Exception:
+                continue
+            marks = getattr(storage, "pending_actions", None)
+            if isinstance(marks, dict) and set(marks) & set(skip_marks):
+                counts["skipped_superseded"] += 1
                 continue
             storages[storage_id] = storage
             info = getattr(storage, "qemu-img-info", None)
@@ -836,57 +956,73 @@ class StorageService:
             started = any(
                 getattr(d, "status", None) == "Started" for d in (storage.domains or [])
             )
+            has_children = storage_id in parents_with_children
+            if (
+                has_children
+                and len(base_ids) < bases["left"]
+                and disk_actions.is_base(
+                    action,
+                    [
+                        (getattr(d, "kind", None), getattr(d, "status", None))
+                        for d in (storage.domains or [])
+                    ],
+                    lambda: True,
+                )
+            ):
+                base_ids.add(storage_id)
+                has_children = False
             candidates.append(
                 {
                     "id": storage_id,
-                    "size_bytes": size or 0,
+                    "size_bytes": bytes_read(action, size),
                     "started": started,
-                    "has_children": storage_id in parents_with_children,
+                    "has_children": has_children,
                 }
             )
         picked = select_within_budget(candidates, budget["disks"], budget["bytes"])
-        for storage_id in picked["selected"]:
-            try:
-                StorageService._sweep_enqueue(user_id, action, storages[storage_id])
-            except Exception:
-                notify_admin(
-                    user_id,
-                    "Error in storage sweep",
-                    f"Could not queue {action} for {storage_id}",
-                    type="error",
-                )
+        taken = base_ids & set(picked["selected"])
+        bases["left"] = max(0, bases["left"] - len(taken))
+        counts["selected_bases"] += len(taken)
         if budget["disks"] is not None:
             budget["disks"] = max(0, budget["disks"] - len(picked["selected"]))
         if budget["bytes"] is not None:
             budget["bytes"] = max(0, budget["bytes"] - picked["used_bytes"])
-        return {
-            "selected": len(picked["selected"]),
-            "skipped_started": len(picked["skipped_started"]),
-            "skipped_budget": len(picked["skipped_budget"]),
-            "skipped_has_descendants": len(picked["skipped_has_descendants"]),
-        }
+        counts["selected"] += len(picked["selected"])
+        for key in ("skipped_started", "skipped_has_descendants", "skipped_budget"):
+            counts[key] += len(picked[key])
+        return [(i, storages[i]) for i in picked["selected"]]
 
     @staticmethod
-    def _ids_with_children(ids: list) -> set:
-        """The subset of ``ids`` that have at least one non-deleted child backing
-        onto them, in ONE indexed query (never one per id) -- the same dependency
-        check ``set_maintenance`` makes for its ``storage_has_children`` guard."""
+    def _ids_with_children(ids: list, include_deleted: bool = False) -> set:
+        """The subset of ``ids`` that have at least one child backing onto them
+        (deleted ones only with ``include_deleted``), in ONE indexed query (never
+        one per id) -- the dependency check the registry makes for the action."""
         if not ids:
             return set()
         return {
-            child.parent for child in Storage.get_children(list(ids)) if child.parent
+            child.parent
+            for child in Storage.get_children(
+                list(ids), include_deleted=include_deleted
+            )
+            if child.parent
         }
 
     @staticmethod
     def _sweep_enqueue(user_id, action, storage):
         if action == "sparsify":
             storage.sparsify(user_id, priority="default", secondary_priority="high")
+        elif action == "dig_holes":
+            storage.dig_holes(
+                user_id, priority="low", secondary_priority="high", verify=True
+            )
         elif action == "repair_leaks":
             storage.repair(
                 user_id, "leaks", priority="default", secondary_priority="high"
             )
         elif action == "check_integrity":
             storage.check_integrity(user_id, priority="default")
+        elif action == "zero_scan":
+            storage.zero_scan(user_id, priority="low")
 
     @staticmethod
     def disconnect(

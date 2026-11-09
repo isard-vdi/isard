@@ -55,6 +55,7 @@ from isardvdi_common.helpers.task_streams import (
     stream_for_kind,
 )
 from isardvdi_common.helpers.task_timeouts import job_timeout_for
+from isardvdi_common.lib.storage import qemu_locks, zeros
 from isardvdi_common.models.task import Task
 from rq import get_current_job
 from rq.job import JobStatus
@@ -910,33 +911,6 @@ def qemu_img_info(storage_id, storage_path, storage_type="qcow2"):
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
     return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
-
-
-def _reclaimable_zeros(storage_path, actual_size):
-    """Bytes the file allocates beyond the data its own qcow2 layer holds, or None."""
-    if actual_size is None:
-        return None
-    try:
-        completed = run(
-            ["qemu-img", "map", "-U", "-f", "qcow2", "--output=json", storage_path],
-            capture_output=True,
-            timeout=QEMU_IMG_TIMEOUT,
-        )
-    except TimeoutExpired:
-        return None
-    if completed.returncode != 0:
-        return None
-    try:
-        data = sum(
-            extent["length"]
-            for extent in loads(completed.stdout)
-            if extent.get("data")
-            and not extent.get("zero")
-            and extent.get("depth", 0) == 0
-        )
-    except (ValueError, KeyError, TypeError):
-        return None
-    return max(0, int(actual_size) - data)
 
 
 def reconcile_pool(
@@ -2728,25 +2702,72 @@ def _sha256(path):
     return digest.hexdigest()
 
 
-def dig_holes(storage_path, verify=False):
-    """Punch holes where whole blocks are zeros; the file reads back unchanged."""
-    if not isfile(storage_path):
-        raise RuntimeError(f"dig_holes: {storage_path} does not exist")
+#: Job meta key set just before a dig starts writing the file.
+DIG_HOLES_PUNCH_META = "dig_holes_punch"
+
+
+def _mark_punch_started():
+    job = get_current_job()
+    if job is not None:
+        job.meta[DIG_HOLES_PUNCH_META] = "started"
+        job.save_meta()
+
+
+def _refuse_if_in_use(action, storage_path):
     # the product parked the disk when it queued this; a guest may have opened
     # the file since by a path the product does not see, so ask the file itself
     in_use, lock_err = _storage_qcow().is_file_in_use(storage_path)
     if in_use:
         raise RuntimeError(
-            f"dig_holes refused: {storage_path} is in use by a hypervisor: {lock_err}"
+            f"{action} refused: {storage_path} is in use by a hypervisor: {lock_err}"
         )
-    before = os_stat(storage_path).st_blocks * 512
-    with task_heartbeat("dig_holes", storage_path=storage_path):
-        digest = _sha256(storage_path) if verify else None
+
+
+def _punch(storage_path):
+    try:
         _run_cancellable(["fallocate", "--dig-holes", storage_path])
-        if verify and _sha256(storage_path) != digest:
-            raise RuntimeError(
-                f"dig_holes: {storage_path} reads differently after the dig"
-            )
+        return zeros.punch_unwritten(storage_path)
+    except CalledProcessError as e:
+        said = b"".join(
+            x if isinstance(x, bytes) else str(x).encode()
+            for x in (e.output, e.stderr)
+            if x
+        )
+        if b"not supported" not in said:
+            raise
+    except OSError as e:
+        if e.errno != errno.EOPNOTSUPP:
+            raise
+    raise RuntimeError(f"dig_holes: {storage_path} {zeros.DIG_HOLES_UNSUPPORTED}")
+
+
+def zero_scan(storage_path):
+    """Count exactly the zeros a dig could give back; reads, never writes."""
+    if not isfile(storage_path):
+        raise RuntimeError(f"zero_scan: {storage_path} does not exist")
+    _refuse_if_in_use("zero_scan", storage_path)
+    with task_heartbeat("zero_scan", storage_path=storage_path):
+        return zeros.scan_zeros(storage_path)
+
+
+def dig_holes(storage_path, verify=False):
+    """Punch holes where whole blocks are zeros; no writer may hold or open the file meanwhile."""
+    if not isfile(storage_path):
+        raise RuntimeError(f"dig_holes: {storage_path} does not exist")
+    before = os_stat(storage_path).st_blocks * 512
+    try:
+        with qemu_locks.no_writers(storage_path), task_heartbeat(
+            "dig_holes", storage_path=storage_path
+        ):
+            digest = _sha256(storage_path) if verify else None
+            _mark_punch_started()
+            unwritten = _punch(storage_path)
+            if verify and _sha256(storage_path) != digest:
+                raise RuntimeError(
+                    f"dig_holes: {storage_path} reads differently after the dig"
+                )
+    except qemu_locks.WriterPresent as e:
+        raise RuntimeError(f"dig_holes refused: {e}") from None
     after = os_stat(storage_path).st_blocks * 512
     log.info(
         "dig_holes complete: %s | before: %s | after: %s",
@@ -2758,6 +2779,7 @@ def dig_holes(storage_path, verify=False):
         "before": before,
         "after": after,
         "reclaimed": before - after,
+        "unwritten_punched": unwritten,
         "verified": bool(verify),
     }
 

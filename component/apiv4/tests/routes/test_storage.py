@@ -227,8 +227,8 @@ def test_batch_dig_holes_answers_each_id(monkeypatch, test_client):
         {"storage_id": "a", "task_id": "t-a"},
         {
             "storage_id": "b",
-            "description_code": "storage_used_by_template",
-            "message": "Storage b is a template's disk",
+            "description_code": "storage_has_children",
+            "message": "Storage b has children storages that depend on it as backing file",
         },
     ]
     monkeypatch.setattr(
@@ -250,7 +250,7 @@ def test_batch_dig_holes_answers_each_id(monkeypatch, test_client):
         "description_code": None,
         "message": None,
     }
-    assert body["results"][1]["description_code"] == "storage_used_by_template"
+    assert body["results"][1]["description_code"] == "storage_has_children"
 
 
 @pytest.mark.parametrize("count", [0, 51])

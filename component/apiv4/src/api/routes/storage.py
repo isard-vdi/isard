@@ -662,11 +662,11 @@ async def batch_sparsify_storages_by_status(request: Request, status: str):
         "zeros (fallocate --dig-holes). The content does not change. With "
         "verify=true the task also compares a sha256 of the content before and "
         "after, reading the file twice, and a disk that reads back differently is "
-        "left damaged for review. Only a stopped desktop's own "
-        "leaf disk is dug; it is parked in maintenance for the task. Refused with "
-        "428 and the reason: not ready (storage_not_ready), read-only "
-        "(storage_read_only), used by no domain (storage_not_used_by_any_domain), "
-        "used by a template (storage_used_by_template), open by a running desktop "
+        "left damaged for review. Only the leaf disk of a stopped desktop or of a "
+        "template is dug; it is parked in maintenance for the task. Refused with "
+        "428 and the reason: not ready (storage_not_ready), read-only and not a "
+        "template's (storage_read_only), used by no domain "
+        "(storage_not_used_by_any_domain), open by a running desktop "
         "(storage_open_by_running_desktop), desktops not stopped "
         "(desktops_not_stopped), or any disk, deleted ones included, backed on it "
         "(storage_has_children). The task re-checks when it runs."
@@ -878,6 +878,75 @@ async def batch_check_storage_by_status(request: Request, status: str):
             request,
             "internal_server",
             "Failed to batch check storage",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/storage/{storage_id}/zero-scan",
+    tags=[tag],
+    response_model=TaskIdResponse,
+    summary="Count a storage's zeros",
+    description=(
+        "Enqueues a read-only exact count of the zeros the disk's file allocates: "
+        "unwritten extents plus written blocks that read all zeros. The result is "
+        "recorded in health.checks.zeros and flags dig_holes when a dig would give "
+        "back enough. Refused for a disk that is not ready or that a running "
+        "desktop holds open."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def zero_scan_storage(request: Request, storage_id: str):
+    try:
+        task_id = await asyncio.to_thread(
+            StorageService.zero_scan, request.token_payload, storage_id
+        )
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to scan the storage for zeros",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/items/storage/zero-scan/{status}",
+    tags=[tag],
+    response_model=StorageRepairBatchResponse,
+    summary="Batch count zeros by status",
+    description="Zero-scans every disk with the given status; returns how many were queued.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def batch_zero_scan_storage_by_status(request: Request, status: str):
+    try:
+        queued = await asyncio.to_thread(
+            StorageService.batch_zero_scan_by_status,
+            request.token_payload,
+            status,
+        )
+        return JSONResponse(
+            content=StorageRepairBatchResponse(queued=queued).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch scan storage for zeros",
             traceback.format_exc(),
         )
 

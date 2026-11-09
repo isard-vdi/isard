@@ -121,10 +121,15 @@ class StorageSweepConfigResponse(BaseModel):
     max_disks: int
     max_bytes: int
     sparsify: bool
+    dig_holes: bool
     repair_leaks: bool
     check_integrity: bool
+    zero_scan: bool
     detect: bool
     check_max_age_days: int
+    dig_bases_with_children: bool = False
+    max_bases: int = 2
+    desktop_disk_repairs: bool = False
 
 
 class StorageSweepConfigRequest(BaseModel):
@@ -136,10 +141,26 @@ class StorageSweepConfigRequest(BaseModel):
     max_disks: Optional[int] = None
     max_bytes: Optional[int] = None
     sparsify: Optional[bool] = None
+    dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    zero_scan: Optional[bool] = None
     detect: Optional[bool] = None
     check_max_age_days: Optional[int] = None
+    dig_bases_with_children: Optional[bool] = Field(
+        None,
+        description="Dig bases only templates use while their descendants read them",
+    )
+    max_bases: Optional[int] = Field(
+        None, description="Bases with descendants one pass may dig"
+    )
+    desktop_disk_repairs: Optional[bool] = Field(
+        None,
+        description=(
+            "When a desktop cannot start because of its disks, run their quick fixes "
+            "and let the user see the rest"
+        ),
+    )
 
 
 class StorageSweepRunRequest(BaseModel):
@@ -148,8 +169,10 @@ class StorageSweepRunRequest(BaseModel):
     max_disks: Optional[int] = None
     max_bytes: Optional[int] = None
     sparsify: Optional[bool] = None
+    dig_holes: Optional[bool] = None
     repair_leaks: Optional[bool] = None
     check_integrity: Optional[bool] = None
+    zero_scan: Optional[bool] = None
     detect: Optional[bool] = None
 
 

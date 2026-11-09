@@ -213,3 +213,67 @@ def estimate_task(task, conn=None):
         return result
     except Exception:
         return dict(_EMPTY)
+
+
+#: bytes a fix gets through per second before any of its tasks has been timed
+_FALLBACK_BYTES_PER_SECOND = {
+    "storage_check": 567_000 * 65536,
+    "qemu_img_check_repair": 200 << 20,
+}
+_FALLBACK_SECONDS = {"qemu_img_info_backing_chain": 2}
+
+
+def _lane_backlog(conn, pool, tier):
+    total = 0
+    for lane_tier, lane in _pool_lanes(conn, pool):
+        if lane_tier != tier:
+            continue
+        try:
+            total += conn.llen(_RQ_QUEUE_PREFIX + lane)
+        except Exception:
+            continue
+    return total
+
+
+def estimate_new(conn, pool, tier, action, size_bytes=None):
+    """Wait and run time of a job not queued yet; any error leaves the field None."""
+    result = {
+        "tier": tier,
+        "ahead": None,
+        "wait_seconds": None,
+        "run_seconds": None,
+        "basis": None,
+        "has_consumer": None,
+        "stranded": None,
+    }
+    try:
+        covered = None
+        try:
+            covered, opaque_pools = queue_coverage.served_coverage(conn)
+            if covered or opaque_pools:
+                has_consumer = (pool, tier) in covered
+                result["has_consumer"] = has_consumer
+                result["stranded"] = (not has_consumer) and (pool not in opaque_pools)
+        except Exception:
+            covered = None
+        ahead = _higher_tier_backlog(conn, pool, None, tier) + _lane_backlog(
+            conn, pool, tier
+        )
+        result["ahead"] = ahead
+        svc = _read_service_time(conn, tier, action)
+        if svc is not None:
+            result["basis"] = "history"
+        elif size_bytes and action in _FALLBACK_BYTES_PER_SECOND:
+            svc = max(1.0, size_bytes / _FALLBACK_BYTES_PER_SECOND[action])
+            result["basis"] = "size"
+        elif action in _FALLBACK_SECONDS:
+            svc = float(_FALLBACK_SECONDS[action])
+            result["basis"] = "default"
+        if svc is not None:
+            result["run_seconds"] = math.ceil(svc)
+            if covered is not None:
+                eff_conc = _effective_concurrency(conn, covered, pool, tier)
+                result["wait_seconds"] = math.ceil(ahead / eff_conc) * math.ceil(svc)
+        return result
+    except Exception:
+        return result

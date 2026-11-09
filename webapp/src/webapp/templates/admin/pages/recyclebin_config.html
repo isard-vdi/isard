@@ -170,12 +170,24 @@
                         <label for="sweep-sparsify"> Sparsify</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
+                        <input id="sweep-dig-holes" type="checkbox">
+                        <label for="sweep-dig-holes" title="Frees only blocks that are all zeros; the content does not change"> Give back zeros</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
                         <input id="sweep-repair-leaks" type="checkbox">
                         <label for="sweep-repair-leaks"> Repair leaks</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
                         <input id="sweep-check-integrity" type="checkbox">
                         <label for="sweep-check-integrity"> Check integrity</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
+                        <input id="sweep-zero-scan" type="checkbox">
+                        <label for="sweep-zero-scan" title="Reads the disks that grew since their last scan and counts the zeros a dig would give back"> Count zeros</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
+                        <input id="sweep-desktop-disk-repairs" type="checkbox">
+                        <label for="sweep-desktop-disk-repairs" title="When a disk stops a desktop from starting, run its quick fixes at once and show the user what is left; off, the start fails as before"> Repair the disks that stop a desktop</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
                         <label for="sweep-check-age">Check disks unchecked for (days)</label>
@@ -187,6 +199,21 @@
                         <button class="btn btn-primary" id="sweep-save"><i class="fa fa-save"></i> Save sweep settings</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-wrench"></i> Costly disk repairs <small> Who may run a full repair, a zero dig or a sparsify on their own desktop's disk</small></h3>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <p>Quick fixes run when a disk stops a desktop only while <b>Repair the disks that stop a desktop</b> is on in the sweep settings. Administrators can always run the costly ones; nobody else can until they are allowed here.</p>
+                <button class="btn btn-primary" id="btn-storage-repair-alloweds"><i class="fa fa-users"></i> Allowed users</button>
             </div>
         </div>
     </div>

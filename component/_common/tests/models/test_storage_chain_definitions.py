@@ -83,6 +83,7 @@ def _bare_storage(
     object.__setattr__(s, "user_id", user_id)
     object.__setattr__(s, "parent", parent)
     object.__setattr__(s, "status", "ready")
+    object.__setattr__(s, "pending_actions", {})
     # Chain methods end with ``return self.task``. With ``create_task``
     # mocked out, ``self.task`` is never set; __getattr__ would fall
     # through to RethinkDB. Pre-seed it.
@@ -287,7 +288,7 @@ def test_a_failed_sparsify_releases_the_disk_and_its_domains():
 # dig_holes: parked through set_maintenance, released whatever the outcome
 
 
-def _dig(domains, refused=None):
+def _dig(domains, refused=None, **kwargs):
     s = _bare_storage()
     with (
         patch.object(Storage, "create_task", return_value="t1") as mock_create,
@@ -297,7 +298,7 @@ def _dig(domains, refused=None):
     ):
         mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
         try:
-            result = s.dig_holes(user_id="u1", priority="low")
+            result = s.dig_holes(user_id="u1", priority="low", **kwargs)
         except Exception as exc:
             result = exc
     return s, result, mock_create, mock_park
@@ -326,19 +327,67 @@ def test_dig_holes_parks_a_desktop_disk_and_releases_it_on_failure():
         assert statuses[outcome]["Stopped"] == {"domain": ["d1"]}
     verdict = kwargs["dependents"][-1]
     assert verdict["task"] == "dig_holes_result" and verdict["queue"] == "core"
-    assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id}
+    assert verdict["job_kwargs"]["kwargs"] == {"storage_id": s.id, "since": None}
+
+
+def test_dig_holes_hands_the_mark_age_to_its_verdict():
+    s = _bare_storage()
+    object.__setattr__(s, "pending_actions", {"dig_holes": {"since": 1700000000}})
+    with (
+        patch.object(Storage, "create_task", return_value="t1") as create,
+        patch.object(Storage, "set_maintenance"),
+        patch.object(Storage, "domains", new=[_desktop()]),
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.dig_holes(user_id="u1", priority="low")
+    verdict = create.call_args.kwargs["dependents"][-1]
+    assert verdict["job_kwargs"]["kwargs"]["since"] == 1700000000
+
+
+def test_dig_holes_hands_verify_to_the_worker():
+    s, _, create, _ = _dig([_desktop()], verify=True)
+    assert create.call_args.kwargs["job_kwargs"]["kwargs"] == {
+        "storage_path": s.path,
+        "verify": True,
+    }
+
+
+@pytest.mark.parametrize("children, verified", [(["c1"], True), ([], False)])
+def test_a_dig_of_a_base_its_descendants_read_is_always_verified(children, verified):
+    template = MagicMock(id="t1", kind="template", status="Stopped")
+    with patch.object(
+        Storage,
+        "get_children",
+        classmethod(lambda cls, ids, include_deleted=False: children),
+    ):
+        s, _, create, _ = _dig([template], verify=False)
+    assert create.call_args.kwargs["job_kwargs"]["kwargs"]["verify"] is verified
 
 
 def test_a_dig_the_registry_refuses_queues_nothing():
     from isardvdi_common.helpers.error_factory import Error
 
     refused = Error(
-        "precondition_required", "template", description_code="storage_used_by_template"
+        "precondition_required", "children", description_code="storage_has_children"
     )
     _, result, create, park = _dig([_desktop()], refused=refused)
     assert result is refused
     park.assert_called_once_with("dig_holes")
     create.assert_not_called()
+
+
+def test_dig_holes_clears_its_mark_after_the_measure():
+    s, _, create, _ = _dig([_desktop()])
+    dependents = create.call_args.kwargs["dependents"]
+    parents = {dep["task"]: parent for parent, dep in _walk_with_parents(dependents)}
+    assert parents["clear_pending_action"] == "storage_update"
+    clear = next(
+        dep
+        for _, dep in _walk_with_parents(dependents)
+        if dep["task"] == "clear_pending_action"
+    )
+    assert clear["job_kwargs"]["kwargs"] == {"storage_id": s.id, "action": "dig_holes"}
 
 
 # ---------------------------------------------------------------------------

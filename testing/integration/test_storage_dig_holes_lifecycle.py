@@ -37,7 +37,7 @@ def _connect():
         pytest.skip(f"RethinkDB not reachable at {host}:{port}: {exc}")
 
 
-def _in_storage(*argv: str) -> str | None:
+def _in_storage(*argv: str, timeout: int = 60) -> str | None:
     if shutil.which("docker") is None:
         return None
     try:
@@ -45,7 +45,7 @@ def _in_storage(*argv: str) -> str | None:
             ["docker", "exec", "isard-storage", *argv],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=timeout,
             check=True,
         )
     except (OSError, subprocess.SubprocessError):
@@ -58,14 +58,23 @@ def _sha256(path: str) -> str | None:
     return out.split()[0] if out else None
 
 
+INFLATE_MIB = int(os.environ.get("E2E_DIG_HOLES_INFLATE_MIB", "256"))
+
+
 def _inflate(path: str) -> None:
-    # same bytes, but every zero block becomes allocated
+    # Same bytes, but the zero blocks of the first INFLATE_MIB become allocated.
+    # dd reads each block before it writes it back at the same offset, so the
+    # rewrite needs no copy beside the disk: an interrupted run leaves nothing
+    # behind and never costs more than INFLATE_MIB, whatever the disk's size.
     _in_storage(
-        "sh",
-        "-c",
-        f"dd if={path} of={path}.inflate bs=1M status=none && "
-        f"dd if={path}.inflate of={path} bs=1M conv=notrunc status=none && "
-        f"rm -f {path}.inflate",
+        "dd",
+        f"if={path}",
+        f"of={path}",
+        "bs=1M",
+        f"count={INFLATE_MIB}",
+        "conv=notrunc",
+        "status=none",
+        timeout=DIG_TIMEOUT,
     )
 
 
@@ -155,49 +164,74 @@ def test_dig_holes_refuses_an_unknown_priority(admin_client: IsardClient):
     assert resp.status_code == 400, resp.text
 
 
-def _template_disk(admin_client: IsardClient, conn) -> str:
+def _derived_template_disk(admin_client: IsardClient, conn, name: str) -> str:
     templates = derivable(
         expect(admin_get_templates.sync_detailed(client=admin_client.apiv4()))
     )
     assert templates, "no derivable template seeded"
+    created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=templates[0].id, name=name, description=""
+            ),
+        )
+    )
     domain = r.table("domains").get(templates[0].id).run(conn)
     return domain["create_dict"]["hardware"]["disks"][0]["storage_id"]
 
 
 @pytest.mark.real
-def test_dig_holes_refuses_a_templates_disk_and_says_why(admin_client: IsardClient):
+@pytest.mark.slow
+def test_dig_holes_digs_a_template_base_and_verifies_it(
+    admin_client: IsardClient, test_namespace: str
+):
     conn = _connect()
     try:
-        storage_id = _template_disk(admin_client, conn)
-        resp = admin_client.raw(
-            "PUT", f"/api/v4/item/storage/{storage_id}/dig-holes/priority/low"
+        storage_id = _derived_template_disk(
+            admin_client, conn, f"{test_namespace}dig_base"
         )
-        assert resp.status_code == 428, resp.text
-        # a template's disk is read-only, and a template uses it: either says why
-        assert resp.json()["description_code"] in {
-            "storage_read_only",
-            "storage_used_by_template",
-        }, resp.text
-        assert r.table("storage").get(storage_id)["status"].run(conn) == "ready"
+        url = f"/api/v4/item/storage/{storage_id}/dig-holes/priority/low"
+        resp = poll_for(
+            lambda: admin_client.raw("PUT", url),
+            accept=lambda x: x.status_code != 428
+            or x.json().get("description_code") != "storage_pending_task",
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message=f"storage {storage_id} kept a pending task",
+        )
+        assert resp.status_code == 200, resp.text
+        task = poll_for(
+            lambda: admin_client.get(f"/api/v4/task/{resp.json()['task_id']}"),
+            accept=lambda t: (t or {}).get("status") in TASK_DONE,
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message="the dig of the template base did not end",
+        )
+        assert task["status"] == "finished", task
+        # a base its descendants read is always verified, asked or not
+        assert task["result"]["verified"] is True, task
+        poll_for(
+            lambda: r.table("storage").get(storage_id).run(conn),
+            accept=lambda s: s["status"] == "ready",
+            timeout=DIG_TIMEOUT,
+            interval=2.0,
+            message=f"storage {storage_id} did not come back ready",
+        )
     finally:
         conn.close()
 
 
 @pytest.mark.real
 def test_a_batch_dig_answers_each_id(admin_client: IsardClient):
-    conn = _connect()
-    try:
-        storage_id = _template_disk(admin_client, conn)
-        body = admin_client.put(
-            "/api/v4/items/storage/dig-holes",
-            json_body={"ids": [storage_id, "does-not-exist"]},
-        )
-        assert body["queued"] == 0, body
-        assert [x["storage_id"] for x in body["results"]] == [
-            storage_id,
-            "does-not-exist",
-        ]
-        assert all(x["description_code"] for x in body["results"]), body
-        assert all(x["task_id"] is None for x in body["results"]), body
-    finally:
-        conn.close()
+    body = admin_client.put(
+        "/api/v4/items/storage/dig-holes",
+        json_body={"ids": ["does-not-exist-1", "does-not-exist-2"]},
+    )
+    assert body["queued"] == 0, body
+    assert [x["storage_id"] for x in body["results"]] == [
+        "does-not-exist-1",
+        "does-not-exist-2",
+    ]
+    assert all(x["description_code"] for x in body["results"]), body
+    assert all(x["task_id"] is None for x in body["results"]), body

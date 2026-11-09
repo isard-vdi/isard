@@ -46,24 +46,27 @@ def test_leaks_flag_repair_leaks_and_the_verdict_is_sound():
     cls.flag_pending.assert_called_once_with(
         "s1", "repair_leaks", "check_integrity", {"leaks": 593}
     )
-    cls.write_check.assert_called_once_with("s1")
+    cls.write_check.assert_called_once_with("s1", leaks=593)
     cls.insert_document.assert_not_called()
 
 
 def test_a_clean_check_writes_a_sound_verdict():
     cls = _run("finished", {"ok": True, "summary": "no errors", "leaks": 0})
     cls.flag_pending.assert_not_called()
-    cls.write_check.assert_called_once_with("s1")
+    cls.write_check.assert_called_once_with("s1", leaks=0)
     cls.insert_document.assert_not_called()
 
 
-def test_a_verdict_clears_the_inconclusive_mark():
+def test_a_verdict_clears_the_inconclusive_and_the_recheck_marks():
     for result in (
         {"ok": True, "summary": "no errors", "leaks": 0},
         {"ok": False, "summary": "corruptions=1", "corruptions": 1},
     ):
         cls = _run("finished", result)
-        assert cls.clear_pending.call_args_list == [call("s1", "check_inconclusive")]
+        assert cls.clear_pending.call_args_list == [
+            call("s1", "check_inconclusive"),
+            call("s1", "check_integrity"),
+        ]
 
 
 def test_a_check_that_timed_out_is_inconclusive_not_damage():

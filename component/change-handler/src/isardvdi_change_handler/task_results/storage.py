@@ -38,9 +38,14 @@ from contextlib import contextmanager
 from datetime import timezone
 from time import time
 
+from isardvdi_common.lib.storage import actions as disk_actions
+from isardvdi_common.lib.storage.sweep import SWEEP_DEFAULTS
+from isardvdi_common.lib.storage.zeros import DIG_HOLES_UNSUPPORTED
+from isardvdi_common.models.config import Config
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import (
     DIG_HOLES_MISMATCH,
+    DIG_HOLES_SLACK_BYTES,
     SPARSIFY_GROWTH_BYTES,
     Storage,
     StoragePool,
@@ -238,6 +243,50 @@ def _sparsify_growth(storage_dict):
         return None
     grew = new_size - old_size
     return grew if grew >= SPARSIFY_GROWTH_BYTES else None
+
+
+def _diggable_once_stopped(storage):
+    """Whether the registry admits dig_holes on this disk once its desktops stop."""
+    return (
+        disk_actions.refusal(
+            "dig_holes",
+            status="ready",
+            domains=[(getattr(d, "kind", None), "Stopped") for d in storage.domains],
+            has_children=lambda: disk_actions.has_dependents(
+                storage, include_deleted=True
+            ),
+            perms=storage.perms,
+            storage_id=storage.id,
+        )
+        is None
+    )
+
+
+def _sweep_digs():
+    """Whether an admin let the nightly sweep give back the zeros it flags."""
+    stored = Config.get_storage_sweep_config() or {}
+    return bool({**SWEEP_DEFAULTS, **stored}.get("dig_holes"))
+
+
+def _note_reclaimable_zeros(storage, reclaimable):
+    """Flag dig_holes when a dig could give back enough zeros; clear a mark that no longer holds."""
+    marks = getattr(storage, "pending_actions", None) or {}
+    if reclaimable >= DIG_HOLES_SLACK_BYTES and _diggable_once_stopped(storage):
+        Storage.flag_pending(
+            storage.id,
+            "dig_holes",
+            found_by="zero scan",
+            detail={"reclaimable_bytes": reclaimable},
+        )
+    elif "dig_holes" in marks:
+        Storage.clear_pending(storage.id, "dig_holes")
+    grew = ((marks.get("sparsify") or {}).get("detail") or {}).get("grew_bytes")
+    if (
+        grew is not None
+        and grew - reclaimable < SPARSIFY_GROWTH_BYTES
+        and _sweep_digs()
+    ):
+        Storage.clear_pending(storage.id, "sparsify")
 
 
 def _read_started_at(task):
@@ -488,14 +537,63 @@ def handle_clear_pending_action(task, storage_id, action):
     Storage.clear_pending(storage_id, action)
 
 
-def handle_dig_holes_result(task, storage_id):
-    """A dig whose file read back differently leaves the disk damaged and for review."""
-    if task.depending_status != "failed" or not Storage.exists(storage_id):
+def _punch_started(dependency):
+    try:
+        meta = dependency.job.meta or {}
+    except Exception:
+        return False
+    return meta.get("dig_holes_punch") == "started"
+
+
+def handle_zero_scan_result(task, storage_id):
+    """Record an exact zero scan and flag (or clear) dig_holes on its figure."""
+    if task.depending_status != "finished" or not Storage.exists(storage_id):
+        return
+    result = next((d.result for d in task.dependencies if d.task == "zero_scan"), None)
+    if not isinstance(result, dict) or result.get("reclaimable_bytes") is None:
+        return
+    storage = Storage(storage_id)
+    reclaimable = int(result["reclaimable_bytes"])
+    actual_size = (getattr(storage, "qemu-img-info", None) or {}).get("actual-size")
+    Storage.write_zeros(storage_id, actual_size, reclaimable)
+    if storage.status == "ready":
+        _note_reclaimable_zeros(storage, reclaimable)
+
+
+def handle_dig_holes_result(task, storage_id, since=None):
+    """Settle a dig that did not finish: damaged on a mismatch, never again on a
+    filesystem that cannot punch, re-checked when it stopped mid-punch, and
+    flagged again with its original ``since`` otherwise."""
+    if task.depending_status not in ("failed", "canceled", "stopped"):
+        return
+    if not Storage.exists(storage_id):
         return
     for dependency in task.dependencies:
         if dependency.task != "dig_holes":
             continue
-        if DIG_HOLES_MISMATCH not in str(dependency.exc_info or ""):
+        error = str(dependency.exc_info or "")
+        if DIG_HOLES_UNSUPPORTED in error:
+            Storage.clear_pending(storage_id, "dig_holes")
+            actual_size = (
+                getattr(Storage(storage_id), "qemu-img-info", None) or {}
+            ).get("actual-size")
+            Storage.write_zeros(storage_id, actual_size, result="unsupported")
+            return
+        if DIG_HOLES_MISMATCH not in error:
+            if _punch_started(dependency):
+                Storage.flag_pending(
+                    storage_id,
+                    "check_integrity",
+                    "dig_holes",
+                    {"task_id": dependency.id},
+                )
+            Storage.flag_pending(
+                storage_id,
+                "dig_holes",
+                "dig_holes",
+                {"task_id": dependency.id},
+                since=since,
+            )
             return
         if Storage.write_status(storage_id, "damaged") == "damaged":
             Storage.update_document(
@@ -767,13 +865,14 @@ def handle_storage_check_result(task, storage_id):
         )
         return
     Storage.clear_pending(storage_id, "check_inconclusive")
+    Storage.clear_pending(storage_id, "check_integrity")
     if result.get("ok"):
         leaks = int(result.get("leaks") or 0)
         if leaks:
             Storage.flag_pending(
                 storage_id, "repair_leaks", "check_integrity", {"leaks": leaks}
             )
-        Storage.write_check(storage_id)
+        Storage.write_check(storage_id, leaks=leaks)
     else:
         Storage.write_check(
             storage_id,

@@ -556,6 +556,176 @@ def _sweep_storage(payload, sid):
     return storage
 
 
+class TestSweepGivesBackZeros:
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_dig_holes_is_a_write_action_and_skips_a_parent(
+        self, mock_get, mock_children, mock_enq
+    ):
+        child = MagicMock()
+        child.parent = "parent"
+        mock_children.return_value = [child]
+        mock_get.side_effect = _sweep_storage
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN,
+            "dig_holes",
+            ["parent", "leaf"],
+            {"disks": None, "bytes": None},
+        )
+        assert (out["selected"], out["skipped_has_descendants"]) == (1, 1)
+        assert mock_enq.call_args.args[1] == "dig_holes"
+
+    @pytest.mark.parametrize(
+        "action,include_deleted",
+        [("dig_holes", True), ("sparsify", False), ("repair_leaks", False)],
+    )
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_a_deleted_child_keeps_dig_holes_off_its_parent(
+        self, mock_get, mock_children, mock_enq, action, include_deleted
+    ):
+        mock_children.return_value = []
+        mock_get.side_effect = _sweep_storage
+        StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN, action, ["parent"], {"disks": None, "bytes": None}
+        )
+        assert (
+            mock_children.call_args.kwargs.get("include_deleted", False)
+            is include_deleted
+        )
+
+    @pytest.mark.parametrize(
+        "kind, left, selected, bases",
+        [
+            ("template", 0, 1, 0),
+            ("template", 1, 2, 1),
+            ("desktop", 1, 1, 0),
+        ],
+        ids=["off", "on-template-base", "on-desktop-base"],
+    )
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_a_base_only_templates_use_is_dug_only_when_turned_on(
+        self, mock_get, mock_children, mock_enq, kind, left, selected, bases
+    ):
+        child = MagicMock()
+        child.parent = "parent"
+        mock_children.return_value = [child]
+
+        def storage(payload, storage_id):
+            s = _sweep_storage(payload, storage_id)
+            s.domains = [MagicMock(kind=kind, status="Stopped")]
+            return s
+
+        mock_get.side_effect = storage
+        budget = {"disks": None, "bytes": None}
+        pool = {"left": left}
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN, "dig_holes", ["parent", "leaf"], budget, bases=pool
+        )
+        assert (out["selected"], out["selected_bases"]) == (selected, bases)
+        assert out["skipped_has_descendants"] == 2 - selected
+        assert pool["left"] == left - bases
+
+    @patch("api.services.storage.StorageService._sweep_enqueue")
+    @patch("api.services.storage.Storage.get_children")
+    @patch("api.services.storage.get_storage")
+    def test_a_pass_digs_no_more_bases_than_its_cap(
+        self, mock_get, mock_children, mock_enq
+    ):
+        children = []
+        for parent in ("b1", "b2", "b3"):
+            child = MagicMock()
+            child.parent = parent
+            children.append(child)
+        mock_children.return_value = children
+
+        def storage(payload, storage_id):
+            s = _sweep_storage(payload, storage_id)
+            s.domains = [MagicMock(kind="template", status="Stopped")]
+            return s
+
+        mock_get.side_effect = storage
+        pool = {"left": 2}
+        out = StorageService._sweep_act(
+            JWT_PAYLOAD_ADMIN,
+            "dig_holes",
+            ["b1", "b2", "b3"],
+            {"disks": None, "bytes": None},
+            bases=pool,
+        )
+        assert out["selected_bases"] == 2
+        assert out["skipped_has_descendants"] == 1
+        assert pool["left"] == 0
+
+    @patch("api.services.storage.StorageService._sweep_act")
+    @patch("api.services.storage.Storage.pending_ids")
+    @patch("api.services.storage.Config")
+    def test_bases_are_off_unless_the_config_turns_them_on(
+        self, mock_config, mock_pending, mock_act
+    ):
+        mock_pending.return_value = ["leaf"]
+        mock_act.return_value = {"selected": 1}
+        for stored, left in (
+            ({"dig_holes": True}, 0),
+            ({"dig_holes": True, "dig_bases_with_children": True}, 2),
+            ({"dig_holes": True, "dig_bases_with_children": True, "max_bases": 5}, 5),
+        ):
+            mock_config.get_storage_sweep_config.return_value = stored
+            StorageService.run_sweep_pass(JWT_PAYLOAD_ADMIN)
+            assert mock_act.call_args.kwargs["bases"] == {"left": left}, stored
+
+    @patch("api.services.storage.Config")
+    def test_the_config_accepts_the_bases_toggle_and_cap(self, mock_config):
+        mock_config.get_storage_sweep_config.return_value = {}
+        StorageService.set_sweep_config(
+            JWT_PAYLOAD_ADMIN, {"dig_bases_with_children": 1, "max_bases": 3}
+        )
+        mock_config.update_storage_sweep.assert_called_once_with(
+            {"dig_bases_with_children": True, "max_bases": 3}
+        )
+
+    @patch("api.services.storage.Config")
+    def test_the_desktop_disk_repairs_are_off_until_the_config_turns_them_on(
+        self, mock_config
+    ):
+        mock_config.get_storage_sweep_config.return_value = {}
+        assert StorageService.get_sweep_config()["desktop_disk_repairs"] is False
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, {"desktop_disk_repairs": 1})
+        mock_config.update_storage_sweep.assert_called_once_with(
+            {"desktop_disk_repairs": True}
+        )
+
+    def test_the_enqueue_runs_a_verified_dig_holes_at_low_priority(self):
+        storage = MagicMock()
+        StorageService._sweep_enqueue("u1", "dig_holes", storage)
+        storage.dig_holes.assert_called_once_with(
+            "u1", priority="low", secondary_priority="high", verify=True
+        )
+
+    @patch("api.services.storage.Config")
+    def test_the_config_accepts_the_toggle(self, mock_config):
+        mock_config.get_storage_sweep_config.return_value = {}
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, {"dig_holes": 1})
+        mock_config.update_storage_sweep.assert_called_once_with({"dig_holes": True})
+
+    @patch("api.services.storage.StorageService._sweep_act")
+    @patch("api.services.storage.Storage.pending_ids")
+    @patch("api.services.storage.Config")
+    def test_a_pass_reads_the_dig_holes_marks_when_enabled(
+        self, mock_config, mock_pending, mock_act
+    ):
+        mock_config.get_storage_sweep_config.return_value = {"dig_holes": True}
+        mock_pending.return_value = ["leaf"]
+        mock_act.return_value = {"selected": 1}
+        out = StorageService.run_sweep_pass(JWT_PAYLOAD_ADMIN)
+        mock_pending.assert_called_once_with("dig_holes", status="ready", limit=500)
+        assert out["actions"] == {"dig_holes": {"selected": 1}}
+
+
 class TestSweepExcludesDescendants:
     @patch("api.services.storage.StorageService._sweep_enqueue")
     @patch("api.services.storage.Storage.get_children")
