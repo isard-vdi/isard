@@ -5,6 +5,7 @@ import * as cookies from 'tiny-cookie'
 import { apiV3Segment, sessionCookieName } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
+import { STORAGE_START_ERROR_CODES } from '../../utils/storageProblemsUtils'
 
 const getDefaultState = () => {
   return {
@@ -295,7 +296,11 @@ export default {
       // merges them into the cached row instead of clobbering with
       // computed defaults — same pattern that hits templates also hits
       // desktops on partial updates like booking-state changes.
-      const desktop = DesktopUtils.parseDesktop(JSON.parse(data), { partial: true })
+      const raw = JSON.parse(data)
+      const desktop = DesktopUtils.parseDesktop(raw, { partial: true })
+      if (raw.status) {
+        context.dispatch('storageProblemsDesktopStatus', { id: raw.id, status: raw.status })
+      }
 
       // Only update if there are actual changes
       const existingDesktop = context.getters.getDesktop(desktop.id)
@@ -374,6 +379,8 @@ export default {
       if (isFromDeployment) {
         delete data.deployment
       }
+      // a start from the desktops page is checked for disk problems when it fails
+      const checksDisks = !isFromDeployment && ['start', 'retry'].includes(data.action)
       // Check for pending operation (500ms debounce)
       const pending = context.state.pendingOperations[data.desktopId]
       if (pending && Date.now() - pending.timestamp < 500) {
@@ -400,10 +407,19 @@ export default {
         if (data.action === 'start' && !isFromDeployment) {
           context.dispatch('fetchNotifications', { trigger: 'start_desktop', display: 'modal' })
         }
+        if (checksDisks) {
+          context.dispatch('storageProblemsStarted', data.desktopId)
+        }
         return response
       }).catch(e => {
         // Clear immediately on error so user can retry
         context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
+        const code = e.response && e.response.data && e.response.data.description_code
+        if (checksDisks && STORAGE_START_ERROR_CODES.includes(code)) {
+          return context.dispatch('diagnoseStorageProblems', { desktopId: data.desktopId }).then(found => {
+            if (!found) ErrorUtils.handleErrors(e, this._vm.$snotify)
+          })
+        }
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },

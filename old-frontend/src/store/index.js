@@ -20,6 +20,7 @@ import recycleBin from './modules/recycleBin'
 import snotify from './modules/snotify'
 import sockets from './modules/sockets'
 import storage from './modules/storage'
+import storageProblems from './modules/storageProblems'
 import template from './modules/template'
 import templates from './modules/templates'
 import messageTemplate from './modules/messageTemplate'
@@ -175,6 +176,7 @@ export default new Vuex.Store({
     profile,
     media,
     storage,
+    storageProblems,
     recycleBin,
     messageTemplate,
     notifications
