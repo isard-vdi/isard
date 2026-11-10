@@ -6,6 +6,7 @@ import traceback
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
@@ -359,6 +360,8 @@ class ApiAdmin(RethinkSharedConnection):
                     traceback.format_exc(),
                 )
         cls.clear_admin_table_list_cache(table)
+        if table == "categories" and Bastion.category_publishes_domains(data):
+            Bastion.resync_category_domains_in_background()
 
     @classmethod
     def update_table_item(cls, table: str, data: dict) -> None:
@@ -373,9 +376,20 @@ class ApiAdmin(RethinkSharedConnection):
             from isardvdi_common.lib.users.users.user import UsersProcessed
 
             UsersProcessed.check_default_admin_update(data["id"], data)
+        before = None
+        if table == "categories":
+            with cls._rdb_context():
+                before = r.table(table).get(data["id"]).run(cls._rdb_connection)
         with cls._rdb_context():
             r.table(table).get(data["id"]).update(data).run(cls._rdb_connection)
         cls.clear_admin_table_list_cache(table)
+        if table == "categories":
+            with cls._rdb_context():
+                after = r.table(table).get(data["id"]).run(cls._rdb_connection)
+            if Bastion.category_publishes_domains(
+                before
+            ) or Bastion.category_publishes_domains(after):
+                Bastion.resync_category_domains_in_background()
 
     @classmethod
     def delete_table_item(cls, table: str, item_id: str) -> None:
@@ -418,6 +432,8 @@ class ApiAdmin(RethinkSharedConnection):
                     description_code="generic_error",
                 )
         cls.clear_admin_table_list_cache(table)
+        if table == "categories" and Bastion.category_publishes_domains(item):
+            Bastion.resync_category_domains_in_background()
 
     @classmethod
     def admin_table_list(
