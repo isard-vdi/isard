@@ -19,6 +19,8 @@ import {
 import { cn } from '@/lib/utils'
 import { useSessionStore } from '@/stores/session'
 import { extendDesktopTimeoutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import shutdownWarning from '@/assets/img/modal/desktop-shutdown-warning.svg'
+import shutdownDanger from '@/assets/img/modal/desktop-shutdown-danger.svg'
 
 const { t, te, d } = useI18n()
 const sessionStore = useSessionStore()
@@ -85,6 +87,7 @@ onUnmounted(clearDesktopTimeouts)
     :open="open"
     :size="single ? 'md' : 'lg'"
     :level="highestDesktopTimeoutLevel(warnings)"
+    :image="highestDesktopTimeoutLevel(warnings) === 'danger' ? shutdownDanger : shutdownWarning"
     :title="t('components.desktop-timeout-modal.title')"
     :description="description"
     :close-on-backdrop-click="!isExtending"
