@@ -264,6 +264,28 @@ class DeploymentUsers(RethinkSharedConnection):
             )
 
     @classmethod
+    def assert_recipe_templates_usable(cls, deployment, exclude_tag_desktop_ids=()):
+        """Raise 428 ``template_not_ready`` if a recipe's template is not ready.
+
+        Creating the missing desktops derives them from every recipe's
+        template, so this must run before an edit writes anything. Recipes
+        in ``exclude_tag_desktop_ids`` are being deleted by the same edit and
+        are skipped.
+        """
+        # Local import avoids a cycle.
+        from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+
+        for recipe in deployment.get("create_dict") or []:
+            if recipe.get("tag_desktop_id") in exclude_tag_desktop_ids:
+                continue
+            template_id = recipe.get("template")
+            template = (
+                Caches.get_document("domains", template_id) if template_id else None
+            )
+            if template:
+                DesktopsProcessed.assert_template_usable(template)
+
+    @classmethod
     def edit_deployment_users(cls, payload, deployment_id, allowed, *, recreate=True):
         deployment = Caches.get_document("deployments", deployment_id)
         if not deployment:
@@ -277,16 +299,8 @@ class DeploymentUsers(RethinkSharedConnection):
                 r.table("deployments").get(deployment_id).run(cls._rdb_connection)
             )
 
-        # Reject before mutating ``allowed`` below. Local import avoids a cycle.
-        from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
-
-        for recipe in deployment.get("create_dict") or []:
-            template_id = recipe.get("template")
-            template = (
-                Caches.get_document("domains", template_id) if template_id else None
-            )
-            if template:
-                DesktopsProcessed.assert_template_usable(template)
+        # Reject before mutating ``allowed`` below.
+        cls.assert_recipe_templates_usable(deployment)
 
         # Local import to avoid the deployments <-> deployment_users
         # circular module dependency.

@@ -2103,6 +2103,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
             )
 
+        desktops_to_create = data.get("desktops_to_create") or []
+        # recreate builds the new users' desktops from every remaining recipe
+        if "allowed" in data or desktops_to_create:
+            DeploymentUsers.assert_recipe_templates_usable(
+                deployment,
+                exclude_tag_desktop_ids=set(data.get("desktops_to_delete") or []),
+            )
+
         if "allowed" in data:
             DeploymentUsers.check_no_scheduled_booking(deployment_id)
 
@@ -2111,7 +2119,6 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 payload, deployment_id, copy.deepcopy(data["desktops_to_edit"])
             )
 
-        desktops_to_create = data.get("desktops_to_create") or []
         if desktops_to_create:
             cls._parse_new_deployment_desktops(payload, desktops_to_create)
 

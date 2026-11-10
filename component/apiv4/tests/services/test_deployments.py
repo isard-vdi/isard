@@ -454,6 +454,24 @@ class TestUpdateDeployment:
             "recreate",
         ]
 
+    def test_a_rejected_validation_writes_nothing(self, common):
+        common.validate_deployment_edit.side_effect = Error(
+            "precondition_required", description_code="template_not_ready"
+        )
+        with pytest.raises(Error):
+            DeploymentService.update_deployment(
+                JWT_PAYLOAD,
+                "d1",
+                {
+                    "allowed": {"users": ["u1", "u2"], "groups": False},
+                    "desktops_to_edit": [{"tag_desktop_id": "t1", "name": "A2"}],
+                    "desktops_to_delete": ["t2"],
+                },
+            )
+        assert [name for name, _, _ in common.mock_calls] == [
+            "validate_deployment_edit"
+        ]
+
     def test_plain_edit_creates_no_desktops(self, common):
         DeploymentService.update_deployment(
             JWT_PAYLOAD, "d1", {"name": "Lab", "description": "Updated"}

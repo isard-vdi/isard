@@ -289,3 +289,104 @@ def test_edit_users_ready_template_proceeds(edit_env):
     edit_env["status"] = "Stopped"
     assert DU.edit_deployment_users({"user_id": "u-1"}, "dep-1", _allowed()) is None
     assert edit_env["recreated"] is True
+
+
+# --------------------------------------------------------------------------- #
+# validate_deployment_edit (PUT /item/deployment/{id})
+#
+# ``update_deployment`` edits, adds and deletes desktops before the users and
+# the final ``recreate``, which derives the missing desktops from every
+# remaining recipe. A not-ready recipe template must therefore be rejected
+# here, before the first write, not later in ``edit_deployment_users``.
+# --------------------------------------------------------------------------- #
+def _two_recipe_dep():
+    return {
+        "id": "dep-1",
+        "allowed": {"users": ["u-1"], "groups": False},
+        "create_dict": [
+            {"name": "ok", "template": "t-ok", "tag_desktop_id": "td-ok"},
+            {"name": "bad", "template": "t-bad", "tag_desktop_id": "td-bad"},
+        ],
+    }
+
+
+@pytest.fixture
+def validate_env(monkeypatch):
+    state = {"bad_status": "Stopped", "booking_checked": False}
+    dep = _two_recipe_dep()
+
+    def get_document(cls, table, item_id, keys=None, invalidate=False):
+        if table == "deployments":
+            return dep
+        if table == "domains":
+            status = state["bad_status"] if item_id == "t-bad" else "Stopped"
+            return {"id": item_id, "status": status}
+        return {"id": item_id}
+
+    monkeypatch.setattr(mod.Caches, "get_document", classmethod(get_document))
+
+    def _booking(cls, did):
+        state["booking_checked"] = True
+
+    monkeypatch.setattr(
+        mod.DeploymentUsers, "check_no_scheduled_booking", classmethod(_booking)
+    )
+    monkeypatch.setattr(
+        DP, "_parse_new_deployment_desktops", classmethod(lambda cls, *a, **k: [])
+    )
+    monkeypatch.setattr(
+        DP, "_check_deployment_quota", classmethod(lambda cls, *a, **k: None)
+    )
+    return state
+
+
+def _new_users():
+    return {"users": ["u-1", "u-2"], "groups": False}
+
+
+def test_validate_edit_new_users_not_ready_template_raises(validate_env):
+    validate_env["bad_status"] = "CreatingTemplate"
+    with pytest.raises(Error) as exc:
+        DP.validate_deployment_edit(
+            {"user_id": "u-1"},
+            "dep-1",
+            {"allowed": _new_users(), "desktops_to_delete": ["td-ok"]},
+        )
+    assert exc.value.error["description_code"] == "template_not_ready"
+    assert validate_env["booking_checked"] is False
+
+
+def test_validate_edit_new_desktop_with_not_ready_recipe_raises(validate_env):
+    # The new desktop's template is ready, but recreate would also derive the
+    # existing "bad" recipe's desktops.
+    validate_env["bad_status"] = "Downloading"
+    with pytest.raises(Error) as exc:
+        DP.validate_deployment_edit(
+            {"user_id": "u-1"},
+            "dep-1",
+            {"desktops_to_create": [{"template_id": "t-ok", "name": "new"}]},
+        )
+    assert exc.value.error["description_code"] == "template_not_ready"
+
+
+def test_validate_edit_skips_the_recipe_being_deleted(validate_env):
+    # Deleting the not-ready recipe is how the user gets out of it.
+    validate_env["bad_status"] = "CreatingTemplate"
+    DP.validate_deployment_edit(
+        {"user_id": "u-1"},
+        "dep-1",
+        {"allowed": _new_users(), "desktops_to_delete": ["td-bad"]},
+    )
+    assert validate_env["booking_checked"] is True
+
+
+def test_validate_edit_without_new_desktops_ignores_template_status(validate_env):
+    # A name change creates no desktop, so it must not be blocked.
+    validate_env["bad_status"] = "CreatingTemplate"
+    DP.validate_deployment_edit({"user_id": "u-1"}, "dep-1", {"name": "Lab"})
+
+
+def test_validate_edit_new_users_ready_templates_proceeds(validate_env):
+    # Control: every template ready -> the rest of the checks run.
+    DP.validate_deployment_edit({"user_id": "u-1"}, "dep-1", {"allowed": _new_users()})
+    assert validate_env["booking_checked"] is True
