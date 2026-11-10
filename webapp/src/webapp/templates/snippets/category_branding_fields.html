@@ -25,7 +25,7 @@
 %}
   <div id="branding-domain-panel" class="x_panel">
     <div class="x_title">
-      <h4><i class="fa fa-globe"></i> Domain</h4>
+      <h4><i class="fa fa-globe"></i> Web portal domain</h4>
       <div class="clearfix"></div>
     </div>
     <div class="x_content">
@@ -38,9 +38,12 @@
       {% endwith %}
 
       <div class="branding-domain-settings">
+        <div class="alert alert-info">
+          <i class="fa fa-info-circle"></i> This domain serves the web portal and its TLS certificate. Add a DNS record for it pointing to the IsardVDI server. "ACME" issues the certificate automatically with Let's Encrypt; "Custom" requires uploading your own certificate file below.
+        </div>
         {% with
           name="name",
-          label="Domain",
+          label="Web portal domain",
           type="text",
           placeholder="branding.example.com"
         %}

@@ -45,9 +45,8 @@ function ajaxPutWithNotice(url, data, entityName, onSuccess) {
                 title: 'ERROR updating ' + entityName,
                 text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                 type: 'error',
-                hide: true,
+                hide: false,
                 icon: 'fa fa-warning',
-                delay: 5000,
                 opacity: 1
             });
         }
@@ -443,7 +442,7 @@ $(document).ready(function () {
                 success: function (response) {
                     notice.update({
                         title: 'Updated',
-                        text: 'Bastion domain updated successfully',
+                        text: 'Bastion domain saved. It only works once its DNS records point to the server.',
                         hide: true,
                         delay: 2000,
                         icon: '',
@@ -503,11 +502,11 @@ $(document).ready(function () {
 function renderCategoriesDetailPannel(d) {
     if (d.editable == false) {
         $('.template-detail-categories .btn-delete').hide()
-        $('.template-detail-categories .btn-edit-quotas').hide()
+        $('.template-detail-categories .btn-edit-category-quotas').hide()
         $('.template-detail-categories .btn-edit-limits').hide()
     } else {
         $('.template-detail-categories .btn-delete').show()
-        $('.template-detail-categories .btn-edit-quotas').show()
+        $('.template-detail-categories .btn-edit-category-quotas').show()
         $('.template-detail-categories .btn-edit-limits').show()
     }
     if (d.id == "default") { $('.template-detail-categories .btn-delete').hide() }
@@ -551,7 +550,6 @@ function actionsCategoryDetail() {
             $('#modalEditCategoryForm #uid').val(category.uid);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
-            $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
 
             if (category.recycle_bin_cutoff_time != null) {
                 $("#modalEditCategoryForm #recycle-bin-cutoff-time-enabled").iCheck('check').iCheck('update');
@@ -838,7 +836,7 @@ function actionsCategoryDetail() {
             url: "/api/v4/admin/item/config/bastion",
             contentType: "application/json",
             success: function (category) {
-                verificationRequired = category.domain_verification_required || true;
+                verificationRequired = category.domain_verification_required ?? true;
             },
         });
         $.ajax({
@@ -861,7 +859,7 @@ function actionsCategoryDetail() {
                         break;
                 }
 
-                $(`${modal} #domain-name`).text(category.bastion_domain || "@");
+                $(`${modal} .bastion-domain-name`).text(category.bastion_domain || "@");
                 $(`${modal} #domain-ownership-alert #record-content`).text(pk);
             },
         });
@@ -882,7 +880,7 @@ function actionsCategoryDetail() {
         }).trigger("change");
 
         $(modal + " #bastion-domain-panel input").off("change").on("change", function () {
-            $(`${modal} #domain-name`).text($(this).val() || "@");
+            $(`${modal} .bastion-domain-name`).text($(this).val() || "@");
         });
 
         $(modal + " #id").val(pk);

@@ -245,6 +245,91 @@ class TestUpdateCategoryBranding:
         )
         assert response.status_code == 204, response.text
 
+    def test_rolls_back_enabled_when_domain_sync_fails(
+        self, test_client_with_conn, monkeypatch
+    ):
+        """A domain that cannot be served must never stay marked enabled: when
+        the sync reports a failure for the just-saved domain, the row is left
+        with ``domain.enabled`` false, not active-but-unserved."""
+        from isardvdi_common.helpers import bastion as bastion_mod
+        from rethinkdb import r
+        from rethinkdb_mock import MockThink
+
+        sync_response = MagicMock(name="DomainSyncResponse")
+        failure = MagicMock(name="DomainSyncError")
+        failure.domain = "rollback.example.com"
+        failure.error = '{"detail":"DNS-01 challenge failed"}'
+        sync_response.failed_domains = [failure]
+        monkeypatch.setattr(
+            bastion_mod.Bastion,
+            "sync_category_branding_domains",
+            classmethod(lambda cls: sync_response),
+        )
+
+        db_tables = self._db_with_branding_on_default()
+        mock_db = MockThink(
+            {"dbs": {"isard": {"tables": db_tables}}, "default": "isard"}
+        )
+        with mock_db.connect() as conn:
+            response = test_client_with_conn(
+                db_tables_data=db_tables,
+                conn=conn,
+                url="/api/v4/admin/item/category/test-cat/branding",
+                method="PUT",
+                jwt=MockJWT(role_id="admin"),
+                body={
+                    "domain": {
+                        "enabled": True,
+                        "name": "rollback.example.com",
+                        "certificate_source": "acme",
+                    }
+                },
+            )
+            assert response.status_code == 500, response.text
+            stored = r.table("categories").get("test-cat").run(conn)
+            assert stored["branding"]["domain"]["enabled"] is False, stored["branding"]
+
+    def test_custom_certificate_source_requires_a_file(self, test_client):
+        """Enabling a custom-certificate domain without a certificate used to
+        fall through to ACME silently; it must be rejected instead."""
+        response = test_client(
+            url="/admin/item/category/test-cat/branding",
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={
+                "domain": {
+                    "enabled": True,
+                    "name": "p7.example.com",
+                    "certificate_source": "custom",
+                }
+            },
+            db_tables_data=self._db_with_branding_on_default(),
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["description_code"]
+            == "branding_custom_certificate_required"
+        )
+
+    def test_custom_certificate_source_accepted_with_file(self, test_client):
+        """A custom-certificate domain that carries the certificate passes the
+        new validation and saves."""
+        response = test_client(
+            url="/admin/item/category/test-cat/branding",
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={
+                "domain": {
+                    "enabled": True,
+                    "name": "p7ok.example.com",
+                    "certificate_source": "custom",
+                    "certificate_data": "-----BEGIN CERTIFICATE-----x-----END CERTIFICATE-----",
+                }
+            },
+            db_tables_data=self._db_with_branding_on_default(),
+        )
+        assert response.status_code == 204, response.text
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  GET /admin/category/{id}/authentication — secret stripping

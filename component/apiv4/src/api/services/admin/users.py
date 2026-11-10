@@ -868,13 +868,27 @@ class AdminUsersService:
     # ── Quotas & Limits ──────────────────────────────────────────────────
 
     @staticmethod
+    def _get_group_or_404(group_id: str) -> dict:
+        try:
+            group = Caches.get_document("groups", group_id)
+        except ValueError:
+            group = None
+        if not group:
+            raise Error(
+                "not_found",
+                f"Group {group_id} not found",
+                description_code="not_found",
+            )
+        return group
+
+    @staticmethod
     def update_group_quota(payload: dict, group_id: str, data: dict) -> None:
         """Update group quota."""
         propagate = data.get("propagate", False)
         role = data.get("role", "all_roles")
         if role == "all_roles":
             role = False
-        group = Caches.get_document("groups", group_id)
+        group = AdminUsersService._get_group_or_404(group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
         CommonGroups.update_group_quota(
             group, data["quota"], propagate, role, payload["role_id"]
@@ -895,7 +909,7 @@ class AdminUsersService:
     @staticmethod
     def update_group_limits(payload: dict, group_id: str, data: dict) -> None:
         """Update group limits."""
-        group = Caches.get_document("groups", group_id)
+        group = AdminUsersService._get_group_or_404(group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
         CommonGroups.update_group_limits(group, data["limits"])
 

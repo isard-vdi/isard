@@ -432,3 +432,32 @@ class TestSearchUsers:
         assert {"uid", "category_name"} <= set(kwargs["pluck"])
         assert kwargs["index_key"] == "category"
         assert kwargs["index_value"] == "cat-a"
+
+
+class TestGroupQuotaLimitsMissingGroup:
+    @patch("api.services.admin.users.Caches.get_document", return_value=None)
+    def test_update_group_quota_404_when_group_missing(self, _mock):
+        with pytest.raises(Error) as exc:
+            AdminUsersService.update_group_quota(
+                JWT_PAYLOAD, "no-such-group", {"quota": False}
+            )
+        assert exc.value.args[0] == "not_found"
+
+    @patch(
+        "api.services.admin.users.Caches.get_document",
+        side_effect=ValueError("missing"),
+    )
+    def test_update_group_quota_404_when_cache_raises(self, _mock):
+        with pytest.raises(Error) as exc:
+            AdminUsersService.update_group_quota(
+                JWT_PAYLOAD, "no-such-group", {"quota": False}
+            )
+        assert exc.value.args[0] == "not_found"
+
+    @patch("api.services.admin.users.Caches.get_document", return_value=None)
+    def test_update_group_limits_404_when_group_missing(self, _mock):
+        with pytest.raises(Error) as exc:
+            AdminUsersService.update_group_limits(
+                JWT_PAYLOAD, "no-such-group", {"limits": False}
+            )
+        assert exc.value.args[0] == "not_found"
