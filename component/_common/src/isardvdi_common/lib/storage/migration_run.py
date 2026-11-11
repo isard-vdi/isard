@@ -2453,9 +2453,11 @@ class MigrationRunner:
         any_failed = any(
             str(it["state"]) == MigrationItemState.FAILED.value for it in fresh
         )
+        # a tree the plan could not place (e.g. a destination with no path for
+        # its usage) has no item at all, yet its disks stayed on the source
         any_skipped = any(
             str(it["state"]) == MigrationItemState.SKIPPED.value for it in fresh
-        )
+        ) or bool(totals.get("excluded_disks_total"))
         # in-flight == a disk mid-saga (not pending, not terminal): keeps a
         # recurring job "running" even once the window closed, so it finishes
         # cleanly rather than dropping to idle mid-chain.
