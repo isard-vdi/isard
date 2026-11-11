@@ -2,7 +2,7 @@
 
 Used by the ELASTIC and TEMPLATE storage pools (docker/storage/init.sh via
 ``rq worker --worker-class``). Before running a job taken from a HEAVY-tier
-queue (``template`` / ``maintenance`` / ``reclaim`` — see
+queue (``template`` / ``maintenance`` — see
 :data:`isardvdi_common.lib.queue_tiers.HEAVY_TIERS`) it consults
 :mod:`isardvdi_common.lib.resource_governor`: if the node is under CPU/IO
 pressure (PSI) or heavy concurrency is already at its cap, the heavy queues are
@@ -923,13 +923,13 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
                 parsed and parsed[1] is None and parsed[2] in _FAIR_TIERS
             )
             if not is_fair_base:
-                if defer_bg and is_deferrable_queue(q.name):
+                if self._queue_deferred(q.name, defer_bg):
                     continue
                 ordered.append(q)
                 continue
             pool, _, tier = parsed
-            if tier in DEFERRABLE_TIERS and defer_bg:
-                continue  # whole deferrable tier (per-category lanes + base) hidden
+            if self._tier_deferred(tier, defer_bg):
+                continue  # whole tier (per-category lanes + base) hidden
             cats = active.get((pool, tier), [])
             if self._is_governing():
                 cats = [c for c in cats if not self._category_at_cap(pool, c)]
@@ -965,11 +965,11 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         base = [
             q
             for q in self._ordered_base_for_poll()
-            if not (defer_bg and is_deferrable_queue(q.name))
+            if not self._queue_deferred(q.name, defer_bg)
         ]
         strays = []
         for (pool, tier), cats in self._discover_fair_queues().items():
-            if defer_bg and tier in DEFERRABLE_TIERS:
+            if self._tier_deferred(tier, defer_bg):
                 continue
             for c in sorted(cats):
                 strays.append(self._make_fair_queue(f"storage.{pool}.{c}.{tier}"))
@@ -1008,8 +1008,10 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
             capped = tier in HEAVY_TIERS
             deferrable = tier in DEFERRABLE_TIERS
             if (
-                deferrable and (defer_bg or self._pressure_high())
-            ) or not self._reserve_fair(job.id, pool, category, capped):
+                self._tier_deferred(tier, defer_bg)
+                or (deferrable and self._pressure_high())
+                or not self._reserve_fair(job.id, pool, category, capped)
+            ):
                 self._push_back(queue, job.id)
                 return False
             job._gov_reserved = ("fair", pool, category, capped)
@@ -1017,7 +1019,7 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         if not fair and governing and is_deferrable_queue(queue.name):
             # Flat (non-multitenancy) path: reclaim defers under pressure but is
             # not heavy-capped; template/maintenance defer AND reserve the slot.
-            if defer_bg or self._pressure_high():
+            if self._queue_deferred(queue.name, defer_bg) or self._pressure_high():
                 self._push_back(queue, job.id)
                 return False
             if is_heavy_queue(queue.name):
@@ -1030,10 +1032,23 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         # (no reservation, no release) — the ungoverned floor still makes progress.
         return True
 
+    @staticmethod
+    def _tier_deferred(tier, defer):
+        """Whether ``tier`` is hidden this poll: every deferrable tier under PSI,
+        only the capped ones at the heavy cap."""
+        if defer == "at_cap":
+            return tier in HEAVY_TIERS
+        return bool(defer) and tier in DEFERRABLE_TIERS
+
+    def _queue_deferred(self, name, defer):
+        parsed = parse_storage_queue(name)
+        return parsed is not None and self._tier_deferred(
+            effective_tier(parsed[2]), defer
+        )
+
     def _defer_background(self):
-        """Whether heavy (background) queues must be hidden for this poll:
-        under PSI pressure, or at the heavy cap after a leak-reconcile. Nothing is
-        ever deferred by the kill-switch or the ungoverned bg-floor worker."""
+        """Why queues are hidden this poll: ``"psi"``, ``"at_cap"`` or None.
+        Nothing is ever deferred by the kill-switch or the ungoverned bg-floor."""
         if not self._is_governing():
             return self._note_defer(None)
         if self._pressure_high():
@@ -1054,7 +1069,7 @@ class GovernedWorker(SelfRegisteringWorkerMixin, Worker):
         self._deferring = reason is not None
         if self._deferring and not was_deferring:
             governor_counters.record_defer(self.connection, reason, worker=self.name)
-        return self._deferring
+        return reason
 
     # --- observability: publish live state for the apiv4 read layer ---------
     def _served_pools(self):
