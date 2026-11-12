@@ -25,6 +25,7 @@ from api import admin_router
 from api.schemas.admin.frontend_mode_rules import (
     FrontendModeRulesCreateRequest,
     FrontendModeRulesResponse,
+    FrontendModeRulesUpdateRequest,
 )
 from api.schemas.common import ErrorResponse
 from api.services.admin.frontend_mode_rules import AdminFrontendModeRulesService
@@ -93,5 +94,40 @@ async def create_frontend_mode_rule(
             request,
             "internal_server",
             "Failed to create a new frontend mode rule",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/item/frontend-mode-rule/{rule_id}",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update a frontend mode rule",
+    description="Updates the fields sent of an existing frontend mode rule.",
+    responses={
+        204: {"description": "Frontend mode rule updated successfully."},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def update_frontend_mode_rule(
+    request: Request, rule_id: str, data: FrontendModeRulesUpdateRequest
+):
+    try:
+        await asyncio.to_thread(
+            AdminFrontendModeRulesService.update_frontend_mode_rule,
+            rule_id,
+            data.model_dump(exclude_none=True),
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update the frontend mode rule",
             traceback.format_exc(),
         )

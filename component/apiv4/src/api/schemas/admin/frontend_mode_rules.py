@@ -17,6 +17,8 @@
 #   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from typing import Optional
+
 from api.schemas.allowed import Allowed
 from isardvdi_common.models.frontend_mode_rules import FrontendModeEnum
 from pydantic import BaseModel, Field
@@ -77,4 +79,31 @@ class FrontendModeRulesCreateRequest(FrontendModeRulesBase):
         default="",
         description="The description of the rule.",
         max_length=255,
+    )
+
+
+class FrontendModeRulesUpdateRequest(BaseModel):
+    """Request model for updating a frontend mode rule. Only the fields sent change."""
+
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the rule.",
+        max_length=50,
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="The description of the rule.",
+        max_length=255,
+    )
+    priority: Optional[int] = Field(
+        default=None,
+        description="When several rules match a user, only the one with the highest priority applies.",
+    )
+    allowed: Optional[Allowed] = Field(
+        default=None,
+        description="The allowed values where the rule will be applied. Replaces the whole object.",
+    )
+    frontend_mode: Optional[FrontendModeEnum] = Field(
+        default=None,
+        description="The frontend mode applied to the matched users.",
     )

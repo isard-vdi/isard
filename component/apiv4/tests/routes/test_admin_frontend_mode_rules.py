@@ -255,3 +255,146 @@ def test_cached_rules_include_a_rule_created_after_they_were_cached(post_rule):
     cached = Caches.get_cached_frontend_mode_rules()
     assert len(cached) == 2
     assert cached[0]["name"] == "Second"
+
+
+@pytest.fixture
+def put_rule(test_client_with_conn, rules_conn):
+    def put(rule_id, body, jwt=None):
+        return test_client_with_conn(
+            db_tables_data={},
+            conn=rules_conn,
+            url=f"/item/frontend-mode-rule/{rule_id}",
+            method="PUT",
+            body=body,
+            jwt=jwt or MockJWT(role_id="admin"),
+        )
+
+    return put
+
+
+def _seed(conn, *rules):
+    r.table("frontend_mode_rules").insert(list(rules)).run(conn)
+
+
+def _stored_rule(conn, rule_id):
+    return r.table("frontend_mode_rules").get(rule_id).run(conn)
+
+
+def test_edited_rule_changes_only_the_sent_fields(put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1, "deprecated"))
+
+    response = put_rule("rule-1", {"priority": 7})
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert _stored_rule(rules_conn, "rule-1") == {
+        **_rule("rule-1", 1, "deprecated"),
+        "priority": 7,
+    }
+
+
+def test_edited_rule_replaces_allowed_as_a_whole(put_rule, rules_conn):
+    _seed(
+        rules_conn,
+        {
+            **_rule("rule-1", 1),
+            "allowed": {
+                "categories": ["default"],
+                "groups": False,
+                "roles": ["admin"],
+                "users": False,
+            },
+        },
+    )
+
+    put_rule("rule-1", {"allowed": {"groups": ["g1"]}})
+
+    assert _stored_rule(rules_conn, "rule-1")["allowed"] == {
+        "categories": False,
+        "groups": ["g1"],
+        "roles": False,
+        "users": False,
+    }
+
+
+def test_editing_a_rule_leaves_the_other_rules_untouched(put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1), _rule("rule-2", 2))
+
+    put_rule("rule-1", {"name": "Renamed"})
+
+    assert _stored_rule(rules_conn, "rule-2") == _rule("rule-2", 2)
+
+
+def test_editing_an_unknown_rule_is_not_found(monkeypatch, put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1))
+    # rethinkdb_mock can't evaluate `.default()` on a missing row, so `exists` raises there
+    monkeypatch.setattr(
+        "isardvdi_common.models.frontend_mode_rules.FrontendModeRules.exists",
+        staticmethod(lambda rule_id: False),
+    )
+
+    response = put_rule("missing", {"priority": 7})
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert _stored_rules(rules_conn) == [_rule("rule-1", 1)]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param({"name": "x" * 51}, id="name-over-50-chars"),
+        pytest.param({"description": "x" * 256}, id="description-over-255-chars"),
+        pytest.param({"frontend_mode": "beta"}, id="unknown-frontend-mode"),
+        pytest.param({"priority": "high"}, id="priority-not-a-number"),
+    ],
+)
+def test_invalid_edit_is_rejected_without_changing_the_rule(put_rule, rules_conn, body):
+    _seed(rules_conn, _rule("rule-1", 1))
+
+    response = put_rule("rule-1", body)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "validation_error"
+    assert _stored_rule(rules_conn, "rule-1") == _rule("rule-1", 1)
+
+
+@pytest.mark.parametrize("role_id", ["manager", "advanced", "user"])
+def test_non_admin_roles_cannot_edit_rules(put_rule, rules_conn, role_id):
+    _seed(rules_conn, _rule("rule-1", 1))
+
+    response = put_rule("rule-1", {"priority": 7}, jwt=MockJWT(role_id=role_id))
+
+    assert response.status_code == 403
+    assert _stored_rule(rules_conn, "rule-1") == _rule("rule-1", 1)
+
+
+@pytest.mark.clear_cache
+def test_cached_rules_reflect_an_edit(put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1))
+    put_rule("rule-1", {"name": "Before"})
+    Caches.get_cached_frontend_mode_rules()
+
+    put_rule("rule-1", {"name": "After"})
+
+    assert Caches.get_cached_frontend_mode_rules()[0]["name"] == "After"
+
+
+def test_editing_a_rule_to_a_taken_priority_is_refused(put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1), _rule("rule-2", 2))
+
+    response = put_rule("rule-1", {"priority": 2})
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "conflict"
+    assert _stored_rule(rules_conn, "rule-1") == _rule("rule-1", 1)
+    assert _stored_rule(rules_conn, "rule-2") == _rule("rule-2", 2)
+
+
+def test_edited_rule_can_keep_its_own_priority(put_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1))
+
+    response = put_rule("rule-1", {"priority": 1, "name": "Renamed"})
+
+    assert response.status_code == 204
+    assert _stored_rule(rules_conn, "rule-1")["name"] == "Renamed"
