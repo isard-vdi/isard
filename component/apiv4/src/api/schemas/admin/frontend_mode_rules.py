@@ -17,18 +17,14 @@
 #   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from api.schemas.allowed import Allowed
 from isardvdi_common.models.frontend_mode_rules import FrontendModeEnum
-from isardvdi_common.schemas.shared.allowed import Allowed
 from pydantic import BaseModel, Field
 
 
-class FrontendModeRules(BaseModel):
-    """A rule that decides which frontend mode applies to the users it matches."""
+class FrontendModeRulesBase(BaseModel):
+    """The fields of a frontend mode rule that administrators choose."""
 
-    id: str = Field(
-        ...,
-        description="The id of the rule",
-    )
     name: str = Field(
         ...,
         description="The name of the rule.",
@@ -59,7 +55,26 @@ class FrontendModeRules(BaseModel):
     )
 
 
+class FrontendModeRules(FrontendModeRulesBase):
+    """A rule that decides which frontend mode applies to the users it matches."""
+
+    id: str = Field(
+        ...,
+        description="The id of the rule",
+    )
+
+
 class FrontendModeRulesResponse(BaseModel):
     """List of frontend mode rules, ordered by priority (highest first)."""
 
     rules: list[FrontendModeRules]
+
+
+class FrontendModeRulesCreateRequest(FrontendModeRulesBase):
+    """Request model for creating a new frontend mode rule."""
+
+    description: str = Field(
+        default="",
+        description="The description of the rule.",
+        max_length=255,
+    )

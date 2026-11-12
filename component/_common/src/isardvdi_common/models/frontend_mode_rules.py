@@ -23,6 +23,7 @@ from enum import Enum
 
 from isardvdi_common.connections.rethink_base import PydanticBase, pydantic_optional
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.schemas.shared.allowed import Allowed
 from pydantic import Field
 from rethinkdb import r
@@ -46,7 +47,7 @@ class FrontendModeRulesModel(PydanticBase):
         max_length=50,
     )
     description: str = Field(
-        ...,
+        default="",
         description="The description of the rule.",
         max_length=255,
     )
@@ -79,3 +80,33 @@ class FrontendModeRules(RethinkCustomBase):
                 .order_by(r.desc("priority"), "id")
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def _ensure_priority_is_free(
+        cls, priority: int, rule_id: str | None = None
+    ) -> None:
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            taken = not (
+                r.table(cls._rdb_table)
+                .filter(
+                    lambda rule: (rule["priority"] == priority)
+                    & (rule["id"] != rule_id)
+                )
+                .is_empty()
+                .run(cls._rdb_connection)
+            )
+        if taken:
+            raise Error(
+                "conflict",
+                f"Another frontend mode rule already has priority {priority}",
+                description_code="duplicated_priority",
+            )
+
+    @classmethod
+    def create(cls, data: dict) -> None:
+        cls._ensure_priority_is_free(data.get("priority"))
+        cls.insert_document(data, validate=True)
+
+        Caches.clear_get_cached_frontend_mode_rules_cache()

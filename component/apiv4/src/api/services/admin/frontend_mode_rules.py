@@ -25,3 +25,8 @@ class AdminFrontendModeRulesService:
     @staticmethod
     def get_all_frontend_mode_rules() -> list[dict]:
         return FrontendModeRules.get_all_ordered_by_priority()
+
+    @staticmethod
+    def create_frontend_mode_rule(data: dict) -> None:
+        """Create a new frontend mode rule with a server-generated id."""
+        FrontendModeRules.create(data)
