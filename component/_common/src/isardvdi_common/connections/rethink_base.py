@@ -248,6 +248,7 @@ class RethinkBase(ABC):
     _rdb_context = Context
 
     _rdb_table_schema: PydanticBase = _PydanticBlankModel
+    _rdb_table_update_schema: BaseModel | None = None
 
     @property
     @abstractmethod
@@ -348,12 +349,7 @@ class RethinkBase(ABC):
     def __setattr__(self, name, value):
         if name == "id":
             raise AttributeError
-        updated_data = {name: value}
-
-        pydantic_model = self._rdb_table_schema(
-            **updated_data,
-        )
-        updated_data = pydantic_model.model_dump(mode="json", exclude_unset=True)
+        updated_data = self._validated_update_data({name: value})
 
         if name == "status":
             updated_data["status_time"] = time()
@@ -474,6 +470,12 @@ class RethinkBase(ABC):
             ]
 
     @classmethod
+    def _validated_update_data(cls, update_data: dict) -> dict:
+        """The fields of ``update_data`` that were sent, validated against the update schema when the model has one."""
+        schema = cls._rdb_table_update_schema or cls._rdb_table_schema
+        return schema(**update_data).model_dump(mode="json", exclude_unset=True)
+
+    @classmethod
     def update_document(
         cls,
         doc_id: str,
@@ -489,8 +491,7 @@ class RethinkBase(ABC):
         :param validate: Whether to validate the data against the pydantic schema
         """
         if validate:
-            pydantic_model = cls._rdb_table_schema(**update_data)
-            update_data = pydantic_model.model_dump(mode="json", exclude_unset=True)
+            update_data = cls._validated_update_data(update_data)
 
         with cls._rdb_context():
             result = (
@@ -517,8 +518,7 @@ class RethinkBase(ABC):
         if (values is None) == (excluding is None):
             raise ValueError("pass exactly one of values or excluding")
         if validate:
-            pydantic_model = cls._rdb_table_schema(**update_data)
-            update_data = pydantic_model.model_dump(mode="json", exclude_unset=True)
+            update_data = cls._validated_update_data(update_data)
         # ``__setattr__`` stamps this on every status write; a guarded write of
         # the same field has to agree with it or the row loses its clock.
         if "status" in update_data:
