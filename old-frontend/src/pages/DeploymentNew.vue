@@ -228,8 +228,8 @@
           <!-- Scoped slot for image -->
           <template #cell(image)="data">
             <b-icon
-              v-if="data.item.status.toLowerCase() === desktopStates.failed"
-              v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+              v-if="isTemplateNotReady(data.item)"
+              v-b-tooltip="{ title: $t(`errors.${data.item.status.toLowerCase() === desktopStates.failed ? 'template_failed' : 'template_not_ready'}`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
               icon="exclamation-triangle-fill"
               variant="danger"
               class="danger-icon position-absolute cursor-pointer"
@@ -401,9 +401,21 @@ export default {
       currentPage.value = 1
     }
 
+    // Mirrors DesktopsProcessed.UNUSABLE_TEMPLATE_STATUSES in the backend.
+    const notReadyTemplateStates = [
+      desktopStates.creatingTemplate,
+      desktopStates.failed,
+      desktopStates.maintenance,
+      desktopStates.downloading,
+      'downloadstarting'
+    ]
+    const isTemplateNotReady = (template) =>
+      notReadyTemplateStates.includes((template.status || '').toLowerCase())
+
     const onRowSelected = (item) => {
-      if (item[0] && item[0].status.toLowerCase() === desktopStates.failed) {
-        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('errors.template_failed'), 'centerTop', 5000)
+      if (item[0] && isTemplateNotReady(item[0])) {
+        const code = item[0].status.toLowerCase() === desktopStates.failed ? 'template_failed' : 'template_not_ready'
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t(`errors.${code}`), 'centerTop', 5000)
         templateTable.value.clearSelected()
       } else {
         selected.value = item
@@ -618,6 +630,7 @@ export default {
       navigate,
       onFiltered,
       onRowSelected,
+      isTemplateNotReady,
       collapseVisible,
       templateTable,
       desktopStates

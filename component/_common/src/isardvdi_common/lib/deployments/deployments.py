@@ -923,12 +923,17 @@ class DeploymentsProcessed(RethinkSharedConnection):
             recipe_name = create_dict.get("name") or "<unnamed>"
 
             template_id = create_dict.get("template")
-            if not template_id or not Caches.get_document("domains", template_id):
+            template = (
+                Caches.get_document("domains", template_id) if template_id else None
+            )
+            if not template_id or not template:
                 raise Error(
                     "not_found",
                     f"Template {template_id} for recipe {recipe_name} not found",
                     description_code="not_found",
                 )
+            # Fail fast before any live desktop is deleted or recreated.
+            DesktopsProcessed.assert_template_usable(template)
 
             hardware = create_dict.get("hardware") or {}
             if "memory" not in hardware:
@@ -1068,6 +1073,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 )
 
             TemplatesProcessed.check_template_status(None, template)
+            # Reject synchronously, before the deployment row is inserted.
+            DesktopsProcessed.assert_template_usable(template)
             if not Alloweds.is_allowed(payload, template, "domains"):
                 raise Error(
                     "forbidden",
@@ -1851,6 +1858,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 )
 
             TemplatesProcessed.check_template_status(None, template)
+            # Reject synchronously before the deployment's create_dict is rewritten.
+            DesktopsProcessed.assert_template_usable(template)
             if not Alloweds.is_allowed(payload, template, "domains"):
                 raise Error(
                     "forbidden",
@@ -2094,6 +2103,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
             )
 
+        desktops_to_create = data.get("desktops_to_create") or []
+        # recreate builds the new users' desktops from every remaining recipe
+        if "allowed" in data or desktops_to_create:
+            DeploymentUsers.assert_recipe_templates_usable(
+                deployment,
+                exclude_tag_desktop_ids=set(data.get("desktops_to_delete") or []),
+            )
+
         if "allowed" in data:
             DeploymentUsers.check_no_scheduled_booking(deployment_id)
 
@@ -2102,7 +2119,6 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 payload, deployment_id, copy.deepcopy(data["desktops_to_edit"])
             )
 
-        desktops_to_create = data.get("desktops_to_create") or []
         if desktops_to_create:
             cls._parse_new_deployment_desktops(payload, desktops_to_create)
 

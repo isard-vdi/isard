@@ -8,6 +8,18 @@ export const isTemplateVisible = (template: { enabled?: boolean }) => template.e
 export const isTemplateFailed = (template: Record<string, unknown>) =>
   template.status === TemplateStatusEnum.FAILED
 
+// Mirrors DesktopsProcessed.UNUSABLE_TEMPLATE_STATUSES in the backend.
+export const UNUSABLE_TEMPLATE_STATUSES: ReadonlySet<string> = new Set<string>([
+  TemplateStatusEnum.CREATING_TEMPLATE,
+  TemplateStatusEnum.FAILED,
+  TemplateStatusEnum.MAINTENANCE,
+  TemplateStatusEnum.DOWNLOAD_STARTING,
+  TemplateStatusEnum.DOWNLOADING
+])
+
+export const isTemplateNotReady = (template: Record<string, unknown>) =>
+  UNUSABLE_TEMPLATE_STATUSES.has(template.status as string)
+
 // Only owned templates carry a visibility flag, so `owned` gates the hidden status.
 export const templateStatus = (
   template: Record<string, unknown>,

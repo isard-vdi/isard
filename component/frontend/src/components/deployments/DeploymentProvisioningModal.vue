@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<(e: 'close') => void>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const bulkSpawnStore = useBulkSpawnStore()
 
@@ -109,6 +109,17 @@ const stageColor = (stage: Stage) => {
   if (stage.done) return 'success-600'
   return stage.active ? 'brand-600' : 'gray-warm-400'
 }
+
+// Desktops the bulk-spawn loop could not create (from end_creating_desktops).
+const failedDesktops = computed(() => {
+  const id = props.deployment?.info.id
+  return (id ? bulkSpawnStore.results.get(id)?.failures : undefined) ?? []
+})
+
+const reasonText = (code?: string) => {
+  const specific = key(`failures-reason-${code ?? 'unknown'}`)
+  return te(specific) ? t(specific) : t(key('failures-reason-unknown'))
+}
 </script>
 
 <template>
@@ -134,5 +145,19 @@ const stageColor = (stage: Stage) => {
         <Progress v-if="desktopsTotal > 0" :model-value="percent(stage.value)" class="h-2" />
       </li>
     </ul>
+    <div
+      v-if="failedDesktops.length"
+      class="flex flex-col gap-1.5 rounded-md border border-warning-300 bg-warning-25 p-3"
+    >
+      <div class="flex flex-row items-center gap-2 text-sm font-medium text-warning-700">
+        <Icon name="alert-triangle" class="h-4 w-4" stroke-color="warning-600" />
+        <span>{{ t(key('failures-title')) }}</span>
+      </div>
+      <ul class="list-disc pl-5 text-sm text-gray-warm-700">
+        <li v-for="(failure, index) in failedDesktops" :key="index">
+          {{ failure.name }} — {{ reasonText(failure.description_code) }}
+        </li>
+      </ul>
+    </div>
   </Modal>
 </template>

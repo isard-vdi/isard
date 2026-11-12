@@ -203,6 +203,9 @@ export default {
     socket_endCreatingDesktops (context, data) {
       const payload = JSON.parse(data)
       context.commit('removeBulkCreatingDeployment', payload.deployment_id)
+      if (payload.failed > 0) {
+        ErrorUtils.showErrorNotification(this._vm.$snotify, i18n.t('errors.deployment_desktops_failed', { count: payload.failed }), 'centerTop', 6000)
+      }
       if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', false)
         // Re-fetch the deployment so the desktop list, total counts, and

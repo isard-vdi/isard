@@ -1788,6 +1788,8 @@
     "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
     "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
     "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
+    "template_not_ready": "Esta plantilla todavía no está lista. Espera a que termine o elige otra",
+    "deployment_desktops_failed": "No se han podido crear {count} escritorios del despliegue",
     "template_storage_not_ready": "El disco de esta plantilla no está listo y todavía no se puede utilizar, por favor contacta con el administrador",
     "media_invalid": "El archivo descargado no es un medio válido. El enlace debe descargar el archivo directamente (por ejemplo, un enlace que termine en .iso) y no abrir una página web. Debería ser eliminado, ya que no se puede utilizar",
     "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",

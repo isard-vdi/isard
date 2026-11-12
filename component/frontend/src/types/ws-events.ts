@@ -212,8 +212,19 @@ export interface WsRecycleBinUpdatePayload {
 // disable the deployment's "Recreate" action until the loop ends.
 // ---------------------------------------------------------------------------
 
+export interface WsBulkSpawnFailure {
+  name?: string
+  user_id?: string
+  description_code?: string
+}
+
 export interface WsBulkSpawnPayload {
   deployment_id: string
+  // Present on end_creating_desktops: the outcome of the bulk create so the UI
+  // can warn about desktops that failed instead of showing an empty deployment.
+  created?: number
+  failed?: number
+  failures?: WsBulkSpawnFailure[]
 }
 
 // ---------------------------------------------------------------------------

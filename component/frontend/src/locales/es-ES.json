@@ -438,6 +438,7 @@
         },
         "failed-badge": "Plantilla con errores",
         "failed-message": "Esta plantilla ha fallado y no se puede usar para crear escritorios ni despliegues",
+        "not-ready-message": "Esta plantilla todavía no está lista y no se puede usar para crear escritorios ni despliegues",
         "hidden-badge": "Plantilla oculta",
         "hidden-message": "Esta plantilla está oculta: otros usuarios no pueden crear escritorios a partir de ella"
       }
@@ -757,7 +758,10 @@
         "stage2-title": "Etapa 2 — Aprovisionando almacenamiento",
         "stage2-pending": "Esperando a que termine la Etapa 1 antes de aprovisionar el almacenamiento",
         "stage2-progress": "{current} de {total} escritorios aprovisionados",
-        "stage2-done": "{total} de {total} escritorios aprovisionados"
+        "stage2-done": "{total} de {total} escritorios aprovisionados",
+        "failures-title": "No se han podido crear algunos escritorios",
+        "failures-reason-template_not_ready": "la plantilla todavía no estaba lista",
+        "failures-reason-unknown": "se ha producido un error inesperado"
       },
       "actions": {
         "access": "Acceder",

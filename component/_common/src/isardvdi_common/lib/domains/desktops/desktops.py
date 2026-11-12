@@ -239,6 +239,29 @@ class DesktopsProcessed(RethinkSharedConnection):
     MIN_AUTOBOOKING_TIME = 30
     MAX_BOOKING_TIME = 12 * 60  # 12h
 
+    # Statuses a template cannot be derived from; single source for every guard.
+    UNUSABLE_TEMPLATE_STATUSES = frozenset(
+        {
+            "CreatingTemplate",
+            "Failed",
+            "Maintenance",
+            "DownloadStarting",
+            "Downloading",
+        }
+    )
+
+    @classmethod
+    def assert_template_usable(cls, template):
+        """Raise 428 ``template_not_ready`` if ``template`` is not derivable yet."""
+        if template.get("status") in cls.UNUSABLE_TEMPLATE_STATUSES:
+            raise Error(
+                "precondition_required",
+                f"Template {template.get('id')} is not ready "
+                f"(status={template.get('status')!r}); wait for it to finish "
+                "or pick another template",
+                description_code="template_not_ready",
+            )
+
     @classmethod
     def record_rdp_outcome(cls, guest_ip, outcome):
         with cls._rdb_context():
@@ -477,6 +500,8 @@ class DesktopsProcessed(RethinkSharedConnection):
                 {"deployment_id": deployment["id"]},
                 [deployment["user"]] + deployment["co_owners"],
             )
+            created = 0
+            failures = []
             try:
                 for desktop in desktops:
                     # Sequential on purpose: the rethinkdb sync driver serialises
@@ -496,9 +521,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                             # A deployment must not crowd the interactive workers.
                             priority="bulk",
                         )
-                    except Error:
+                    except Error as exc:
                         # One desktop that cannot be built must not take the
-                        # rest of the deployment with it: log it and go on.
+                        # rest of the deployment with it: log it, record it, go on.
                         log.exception(
                             "new_from_templateTh: desktop %r for user %r in "
                             "deployment %r could not be created; continuing",
@@ -506,7 +531,15 @@ class DesktopsProcessed(RethinkSharedConnection):
                             desktop.get("user_id"),
                             deployment["id"],
                         )
+                        failures.append(
+                            {
+                                "name": desktop.get("name"),
+                                "user_id": desktop.get("user_id"),
+                                "description_code": exc.error.get("description_code"),
+                            }
+                        )
                         continue
+                    created += 1
                     if result is not None:
                         await asyncio.to_thread(
                             Helpers.set_current_booking,
@@ -518,9 +551,15 @@ class DesktopsProcessed(RethinkSharedConnection):
                         )
                     await asyncio.sleep(0.25)
             finally:
+                # Carry the outcome so the UI can warn instead of showing an empty deployment.
                 send_socket_user(
                     "end_creating_desktops",
-                    {"deployment_id": deployment["id"]},
+                    {
+                        "deployment_id": deployment["id"],
+                        "created": created,
+                        "failed": len(failures),
+                        "failures": failures,
+                    },
                     [deployment["user"]] + deployment["co_owners"],
                 )
 
@@ -655,26 +694,8 @@ class DesktopsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
                 description_code="not_found",
             )
-        # Reject derivation from a template that's still being built
-        # (or that previously failed). Otherwise the chain dispatch
-        # downstream raises "Parent storage is not ready", which used
-        # to surface as a 500 and is now a generic 428 — give the user
-        # an actionable message instead.
-        _UNUSABLE_TEMPLATE_STATUSES = {
-            "CreatingTemplate",
-            "Failed",
-            "Maintenance",
-            "DownloadStarting",
-            "Downloading",
-        }
-        if template.get("status") in _UNUSABLE_TEMPLATE_STATUSES:
-            raise Error(
-                "precondition_required",
-                f"Template {template_id} is not ready "
-                f"(status={template['status']!r}); wait for it to finish "
-                "or pick another template",
-                description_code="template_not_ready",
-            )
+        # Same guard the synchronous deployment paths run up-front.
+        cls.assert_template_usable(template)
         user = Caches.get_document(
             "users", user_id, ["id", "username", "category", "group"]
         )

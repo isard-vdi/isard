@@ -11,7 +11,7 @@ import {
   getUserSharedTemplatesOptions,
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { TemplateStatusEnum, type UserSharedTemplate, type UserTemplate } from '@/gen/oas/apiv4'
+import { type UserSharedTemplate, type UserTemplate } from '@/gen/oas/apiv4'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { computed, watch } from 'vue'
@@ -22,6 +22,7 @@ import {
   TemplateStatusBadge,
   TemplateStatusImage,
   isTemplateFailed,
+  isTemplateNotReady,
   templateRowCellClass,
   templateStatus
 } from '@/components/template-status'
@@ -54,10 +55,8 @@ const {
   error: userError
 } = useQuery({ ...getUserOptions(), staleTime: Infinity })
 
-// A failed template is listed but cannot be picked, so a tab holding nothing else
-// is an empty tab as far as this list is concerned.
-const isSelectable = (template: UserTemplate | UserSharedTemplate) =>
-  template.status !== TemplateStatusEnum.FAILED
+// A not-ready template is listed but not pickable, so a tab with only those is empty.
+const isSelectable = (template: UserTemplate | UserSharedTemplate) => !isTemplateNotReady(template)
 
 const { activeTab: localActiveTab, isResolving: tabIsResolving } = useOwnershipTab({
   hasOwned: async () => {
@@ -192,6 +191,7 @@ const tableIsError = computed(() => {
 })
 
 const isFailed = isTemplateFailed
+const isNotReady = isTemplateNotReady
 const rowStatus = (row: Record<string, unknown>) =>
   templateStatus(row, localActiveTab.value === 'user')
 const rowCellClass = (row: Record<string, unknown>) => templateRowCellClass(rowStatus(row))
@@ -223,13 +223,13 @@ const TEMPLATE_DEFAULT_SORT = { key: 'accessed', desc: true }
       :pagination-page-sizes="props.paginationPageSizes"
       :inline-tabs="props.inlineTabs"
       :is-clickable="true"
-      :is-row-disabled="isFailed"
+      :is-row-disabled="isNotReady"
       :row-cell-class="rowCellClass"
       autofocus-search
-      :disabled-tooltip="t('views.templates.table.failed-message')"
+      :disabled-tooltip="t('views.templates.table.not-ready-message')"
       :selected-id="props.selectedId"
       :default-sort="TEMPLATE_DEFAULT_SORT"
-      @row-click="selectable && !isFailed($event) ? emit('rowClick', $event) : null"
+      @row-click="selectable && !isNotReady($event) ? emit('rowClick', $event) : null"
     >
       <template #tabs>
         <Tabs v-model="localActiveTab">

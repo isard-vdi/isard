@@ -446,6 +446,7 @@
         },
         "failed-badge": "Failed template",
         "failed-message": "This template failed and can't be used to create desktops or deployments",
+        "not-ready-message": "This template isn't ready yet and can't be used to create desktops or deployments",
         "hidden-badge": "Hidden template",
         "hidden-message": "This template is hidden: other users can't create desktops from it"
       }
@@ -765,7 +766,10 @@
         "stage2-title": "Stage 2 — Provisioning storage",
         "stage2-pending": "Waiting for Stage 1 to finish before storage can be provisioned",
         "stage2-progress": "{current} of {total} desktops provisioned",
-        "stage2-done": "{total} of {total} desktops provisioned"
+        "stage2-done": "{total} of {total} desktops provisioned",
+        "failures-title": "Some desktops couldn't be created",
+        "failures-reason-template_not_ready": "the template wasn't ready yet",
+        "failures-reason-unknown": "an unexpected error occurred"
       },
       "actions": {
         "access": "Access",
