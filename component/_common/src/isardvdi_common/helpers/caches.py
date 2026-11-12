@@ -19,6 +19,9 @@ _get_cached_desktops_priority_cache: SynchronizedTTLCache = SynchronizedTTLCache
 _get_cached_unused_item_timeout_by_op_cache: SynchronizedTTLCache = (
     SynchronizedTTLCache(maxsize=5, ttl=60)
 )
+_get_cached_frontend_mode_rules_cache: SynchronizedTTLCache = SynchronizedTTLCache(
+    maxsize=5, ttl=60
+)
 _get_cached_deployment_desktops_cache: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=10, ttl=1
 )
@@ -43,7 +46,6 @@ _get_cached_available_category_storage_pool_id_cache: SynchronizedTTLCache = (
 
 
 class Caches(RethinkSharedConnection):
-
     cache = SynchronizedTTLCache(maxsize=5000, ttl=10)
 
     @classmethod
@@ -73,21 +75,21 @@ class Caches(RethinkSharedConnection):
             raise ValueError(f"Document {table} {item_id} not found")
         if data is None:
             log.debug(
-                f"get_document: {table} {item_id} in {time()-time_start:.2f} seconds. Document not found. {cls.show_cache_occupancy()}"
+                f"get_document: {table} {item_id} in {time() - time_start:.2f} seconds. Document not found. {cls.show_cache_occupancy()}"
             )
             return None
         if len(keys) == 0:
             log.debug(
-                f"get_document: {table} {item_id} in {time()-time_start:.2f} seconds. Document full. {cls.show_cache_occupancy()}"
+                f"get_document: {table} {item_id} in {time() - time_start:.2f} seconds. Document full. {cls.show_cache_occupancy()}"
             )
             return copy.deepcopy(data)
         if len(keys) == 1:
             log.debug(
-                f"get_document: {table} {item_id} in {time()-time_start:.2f} seconds. Key {keys}. {cls.show_cache_occupancy()}"
+                f"get_document: {table} {item_id} in {time() - time_start:.2f} seconds. Key {keys}. {cls.show_cache_occupancy()}"
             )
             return copy.deepcopy(data.get(keys[0], None))
         log.debug(
-            f"get_document: {table} {item_id} in {time()-time_start:.2f} seconds. Keys {keys}. {cls.show_cache_occupancy()}"
+            f"get_document: {table} {item_id} in {time() - time_start:.2f} seconds. Keys {keys}. {cls.show_cache_occupancy()}"
         )
         data_keys = {key: data[key] for key in keys if key in data}
         return copy.deepcopy(data_keys)
@@ -210,6 +212,22 @@ class Caches(RethinkSharedConnection):
     @classmethod
     def clear_get_cached_unused_item_timeout_by_op_cache(cls):
         _get_cached_unused_item_timeout_by_op_cache.clear()
+
+    ## Frontend mode rules
+
+    @classmethod
+    @cached(cache=_get_cached_frontend_mode_rules_cache)
+    def get_cached_frontend_mode_rules(cls):
+        with cls._rdb_context():
+            return list(
+                r.table("frontend_mode_rules")
+                .order_by(r.desc("priority"))
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def clear_get_cached_frontend_mode_rules_cache(cls):
+        _get_cached_frontend_mode_rules_cache.clear()
 
     ## Domains wg mac
 

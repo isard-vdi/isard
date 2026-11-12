@@ -516,26 +516,21 @@ const router = createRouter({
   ]
 })
 
-// Cache the authenticated frontend-mode lookup so the guard runs once per
-// session instead of on every navigation. The /item/user/get-config response
-// also drives Faro initialization, so we kick that off here too.
-let cachedFrontendMode: FrontendMode | null = null
-
+// The /item/user/get-config response also drives Faro initialization, so we
+// kick that off here too.
 async function getFrontendMode(): Promise<FrontendMode> {
-  if (cachedFrontendMode) return cachedFrontendMode
   try {
     const data = await useUserStore().getUserConfig()
     if (data.faro) {
       // Fire-and-forget: Faro init must not block navigation.
       void ensureFaroInitialized(data.faro)
     }
-    cachedFrontendMode = data.frontend_mode ?? 'deprecated'
+    const mode = data.frontend_mode ?? 'deprecated'
     // A deployment can leave `all`/`hidden` after browsers already stored a preference.
-    if (!honoursPreferredFrontend(cachedFrontendMode)) clearPreferredFrontend()
-    return cachedFrontendMode
+    if (!honoursPreferredFrontend(mode)) clearPreferredFrontend()
+    return mode
   } catch {
-    cachedFrontendMode = 'deprecated'
-    return cachedFrontendMode
+    return 'deprecated'
   }
 }
 

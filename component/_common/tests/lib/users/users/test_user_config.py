@@ -31,6 +31,7 @@ class _Timestamp:
 @pytest.fixture
 def user_config_env(monkeypatch):
     """Stub every collaborator ``user_config`` reaches out to."""
+    from isardvdi_common.helpers import rules
     from isardvdi_common.lib.users.users import user as mod
 
     mod.UsersProcessed._user_config_cached.cache_clear()
@@ -44,6 +45,9 @@ def user_config_env(monkeypatch):
         "FARO_HTTP_SAMPLING",
     ):
         monkeypatch.delenv(var, raising=False)
+
+    # No rule applies, so the mode comes from FRONTEND_MODE.
+    monkeypatch.setattr(rules, "_get_applied_frontend_mode_rule", lambda payload: None)
 
     quota_calls = []
     monkeypatch.setattr(

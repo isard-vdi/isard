@@ -46,6 +46,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_viewer import with_default_credentials
 from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.rules import get_frontend_mode_rule
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
 from isardvdi_common.helpers.synchronized_cache import SynchronizedTTLCache
 from isardvdi_common.helpers.viewers import available_viewers
@@ -290,7 +291,7 @@ class DesktopService:
         While it exists ``new-nonpersistent`` reuses it (or, among leftovers,
         replaces them) and a configured temporal is refused.
         TODO(old-frontend-removal): only that rule needs it."""
-        if Helpers.frontend_mode() == "actual":
+        if get_frontend_mode_rule(Helpers.gen_payload_from_user(user_id)) == "actual":
             return None
         desktops = CommonDesktopsNonpersistent.user_template_desktops(
             user_id, template_id
