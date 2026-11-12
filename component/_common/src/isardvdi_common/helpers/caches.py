@@ -218,12 +218,10 @@ class Caches(RethinkSharedConnection):
     @classmethod
     @cached(cache=_get_cached_frontend_mode_rules_cache)
     def get_cached_frontend_mode_rules(cls):
-        with cls._rdb_context():
-            return list(
-                r.table("frontend_mode_rules")
-                .order_by(r.desc("priority"))
-                .run(cls._rdb_connection)
-            )
+        # Imported here to avoid a circular import: models import Caches.
+        from isardvdi_common.models.frontend_mode_rules import FrontendModeRules
+
+        return FrontendModeRules.get_all_ordered_by_priority()
 
     @classmethod
     def clear_get_cached_frontend_mode_rules_cache(cls):

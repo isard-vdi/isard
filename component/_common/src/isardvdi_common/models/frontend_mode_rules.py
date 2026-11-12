@@ -70,3 +70,12 @@ class FrontendModeRules(RethinkCustomBase):
     _rdb_table = "frontend_mode_rules"
     _rdb_table_schema = FrontendModeRulesModel
     _rdb_table_update_schema = FrontendModeRulesUpdateModel
+
+    @classmethod
+    def get_all_ordered_by_priority(cls):
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .order_by(r.desc("priority"), "id")
+                .run(cls._rdb_connection)
+            )

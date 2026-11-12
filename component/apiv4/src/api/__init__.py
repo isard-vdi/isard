@@ -620,6 +620,7 @@ from .routes.admin import backups as admin_backups
 from .routes.admin import categories as admin_categories
 from .routes.admin import domains as admin_domains
 from .routes.admin import downloads as admin_downloads
+from .routes.admin import frontend_mode_rules as admin_frontend_mode_rules
 from .routes.admin import hypervisors as admin_hypervisors
 from .routes.admin import login_config as admin_login_config
 from .routes.admin import media as admin_media
