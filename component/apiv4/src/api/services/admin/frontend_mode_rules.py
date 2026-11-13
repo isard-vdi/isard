@@ -16,6 +16,7 @@
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from api.services.error import Error
 from isardvdi_common.models.frontend_mode_rules import FrontendModeRules
 
 
@@ -25,6 +26,15 @@ class AdminFrontendModeRulesService:
     @staticmethod
     def get_all_frontend_mode_rules() -> list[dict]:
         return FrontendModeRules.get_all_ordered_by_priority()
+
+    @staticmethod
+    def get_frontend_mode_rule(rule_id: str) -> dict:
+        rule = FrontendModeRules.get(rule_id)
+
+        if not rule:
+            raise Error("not_found", f"Frontend mode rule with ID {rule_id} not found")
+
+        return rule
 
     @staticmethod
     def create_frontend_mode_rule(data: dict) -> None:

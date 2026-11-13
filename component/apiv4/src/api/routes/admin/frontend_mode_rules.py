@@ -23,6 +23,7 @@ import traceback
 
 from api import admin_router
 from api.schemas.admin.frontend_mode_rules import (
+    FrontendModeRule,
     FrontendModeRulesCreateRequest,
     FrontendModeRulesResponse,
     FrontendModeRulesUpdateRequest,
@@ -62,6 +63,37 @@ async def get_all_frontend_mode_rules(request: Request):
             request,
             "internal_server",
             "Failed to retrieve admin frontend mode rules",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/frontend-mode-rule/{rule_id}",
+    tags=[tag],
+    response_model=FrontendModeRule,
+    summary="Get a frontend mode rule",
+    description="Returns a specific frontend mode rule based on the rule ID.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_frontend_mode_rule(request: Request, rule_id: str):
+    try:
+        rule = await asyncio.to_thread(
+            AdminFrontendModeRulesService.get_frontend_mode_rule, rule_id
+        )
+        return JSONResponse(
+            content=FrontendModeRule(**rule).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve frontend mode rule",
             traceback.format_exc(),
         )
 

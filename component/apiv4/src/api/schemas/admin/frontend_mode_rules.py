@@ -57,7 +57,7 @@ class FrontendModeRulesBase(BaseModel):
     )
 
 
-class FrontendModeRules(FrontendModeRulesBase):
+class FrontendModeRule(FrontendModeRulesBase):
     """A rule that decides which frontend mode applies to the users it matches."""
 
     id: str = Field(
@@ -69,7 +69,7 @@ class FrontendModeRules(FrontendModeRulesBase):
 class FrontendModeRulesResponse(BaseModel):
     """List of frontend mode rules, ordered by priority (highest first)."""
 
-    rules: list[FrontendModeRules]
+    rules: list[FrontendModeRule]
 
 
 class FrontendModeRulesCreateRequest(FrontendModeRulesBase):
