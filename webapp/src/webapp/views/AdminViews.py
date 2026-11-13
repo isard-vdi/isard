@@ -582,6 +582,17 @@ def admin_login():
     )
 
 
+@app.route("/isard-admin/admin/frontend_mode", methods=["GET"])
+@login_required
+@isAdmin
+def admin_frontend_mode():
+    return render_webapp(
+        "admin/pages/frontend_mode.html",
+        nav="Frontend mode config",
+        title="Frontend mode",
+    )
+
+
 """
 ANALYTICS
 """
