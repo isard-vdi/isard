@@ -36,8 +36,9 @@ $(document).ready(function () {
     window.Parsley.addValidator('uniquePriority', {
         validateString: function (value) {
             const priority = parseInt(value, 10);
+            const editingId = $(`${FRONTEND_MODE_RULE_MODAL}Form #id`).val();
             return !$('#frontend-mode-rules-table').DataTable().rows().data().toArray()
-                .some(rule => rule.priority === priority);
+                .some(rule => rule.id !== editingId && rule.priority === priority);
         },
         messages: {
             en: 'Another rule already has this priority.'
@@ -48,7 +49,25 @@ $(document).ready(function () {
         const rule = $('#frontend-mode-rules-table').DataTable().row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case 'btn-edit':
-                notImplemented('Editing frontend mode rules');
+                $.ajax({
+                    type: 'GET',
+                    url: `/api/v4/item/frontend-mode-rule/${rule.id}`,
+                    success: function (rule) {
+                        showFrontendModeRuleModal('edit', rule);
+                    },
+                    error: function (xhr) {
+                        new PNotify({
+                            title: 'ERROR loading rule',
+                            text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        });
+                        $('#frontend-mode-rules-table').DataTable().ajax.reload();
+                    }
+                });
                 break;
             case 'btn-alloweds':
                 modalAllowedsFormShow('frontend_mode_rules', rule);
@@ -61,7 +80,7 @@ $(document).ready(function () {
     });
 
     $('.btn-add-frontend-mode-rule').on('click', function () {
-        showAddFrontendModeRuleModal();
+        showFrontendModeRuleModal('add');
     });
 
     $(`${FRONTEND_MODE_RULE_MODAL} #priority`).on('input', function () {
@@ -76,20 +95,29 @@ $(document).ready(function () {
             return;
         }
 
-        let data = form.serializeObject();
-        data = replaceAlloweds_arrays(FRONTEND_MODE_RULE_ALLOWEDS, data);
-        data.priority = parseInt(data.priority, 10);
+        const isEdit = $(FRONTEND_MODE_RULE_MODAL).data('action') === 'edit';
+        const data = {
+            name: form.find('#name').val(),
+            description: form.find('#description').val(),
+            frontend_mode: form.find('#frontend_mode').val(),
+            priority: parseInt(form.find('#priority').val(), 10)
+        };
+        if (!isEdit) {
+            data.allowed = replaceAlloweds_arrays(FRONTEND_MODE_RULE_ALLOWEDS, {}).allowed;
+        }
 
         $.ajax({
-            type: 'POST',
-            url: '/api/v4/item/frontend-mode-rule',
+            type: isEdit ? 'PUT' : 'POST',
+            url: isEdit
+                ? `/api/v4/item/frontend-mode-rule/${form.find('#id').val()}`
+                : '/api/v4/item/frontend-mode-rule',
             data: JSON.stringify(data),
             contentType: 'application/json',
             success: function () {
                 $(FRONTEND_MODE_RULE_MODAL).modal('hide');
                 new PNotify({
-                    title: 'Added',
-                    text: 'Rule added successfully',
+                    title: isEdit ? 'Updated' : 'Added',
+                    text: isEdit ? 'Rule updated successfully' : 'Rule added successfully',
                     hide: true,
                     delay: 2000,
                     opacity: 1,
@@ -106,7 +134,7 @@ $(document).ready(function () {
                     return;
                 }
                 new PNotify({
-                    title: 'ERROR adding rule',
+                    title: isEdit ? 'ERROR updating rule' : 'ERROR adding rule',
                     text: error ? error.description : 'Something went wrong',
                     type: 'error',
                     hide: true,
@@ -119,7 +147,8 @@ $(document).ready(function () {
     });
 });
 
-function showAddFrontendModeRuleModal() {
+function showFrontendModeRuleModal(action, rule) {
+    const modal = $(FRONTEND_MODE_RULE_MODAL);
     const form = $(`${FRONTEND_MODE_RULE_MODAL}Form`);
     form[0].reset();
     form.parsley().reset();
@@ -130,12 +159,28 @@ function showAddFrontendModeRuleModal() {
             new Option(`${mode}: ${description}`, mode))
     );
 
-    setAlloweds_add(FRONTEND_MODE_RULE_ALLOWEDS);
-    $(`${FRONTEND_MODE_RULE_ALLOWEDS} #allowed-title h4`)
-        .html(FRONTEND_MODE_RULE_ALLOWEDS_TITLE);
-    $(`${FRONTEND_MODE_RULE_ALLOWEDS} #alloweds_panel`).show();
+    modal.data('action', action);
+    if (action === 'edit') {
+        modal.find('.modal-title').html('<i class="fa fa-pencil fa-1x"></i> <i class="fa fa-window-maximize"></i> Edit frontend mode rule');
+        modal.find('#send').text('Save changes');
+        $(FRONTEND_MODE_RULE_ALLOWEDS).hide();
+        form.find('#id').val(rule.id);
+        form.find('#name').val(rule.name);
+        form.find('#description').val(rule.description);
+        form.find('#frontend_mode').val(rule.frontend_mode);
+        form.find('#priority').val(rule.priority);
+    } else {
+        modal.find('.modal-title').html('<i class="fa fa-plus fa-1x"></i> <i class="fa fa-window-maximize"></i> Add frontend mode rule');
+        modal.find('#send').text('Add rule');
+        form.find('#id').val('');
+        $(FRONTEND_MODE_RULE_ALLOWEDS).show();
+        setAlloweds_add(FRONTEND_MODE_RULE_ALLOWEDS);
+        $(`${FRONTEND_MODE_RULE_ALLOWEDS} #allowed-title h4`)
+            .html(FRONTEND_MODE_RULE_ALLOWEDS_TITLE);
+        $(`${FRONTEND_MODE_RULE_ALLOWEDS} #alloweds_panel`).show();
+    }
 
-    $(FRONTEND_MODE_RULE_MODAL).modal({ backdrop: 'static', keyboard: false }).modal('show');
+    modal.modal({ backdrop: 'static', keyboard: false }).modal('show');
 }
 
 function notImplemented(action) {
