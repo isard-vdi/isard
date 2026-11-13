@@ -110,3 +110,21 @@ class FrontendModeRules(RethinkCustomBase):
         cls.insert_document(data, validate=True)
 
         Caches.clear_get_cached_frontend_mode_rules_cache()
+
+    @classmethod
+    def update(cls, rule_id: str, data: dict) -> None:
+        from isardvdi_common.helpers.error_factory import Error
+
+        if not cls.exists(rule_id):
+            raise Error(
+                "not_found",
+                f"Frontend mode rule {rule_id} does not exist",
+                description_code="not_found",
+            )
+
+        if "priority" in data:
+            cls._ensure_priority_is_free(data["priority"], rule_id)
+
+        cls.update_document(rule_id, data)
+
+        Caches.clear_get_cached_frontend_mode_rules_cache()
