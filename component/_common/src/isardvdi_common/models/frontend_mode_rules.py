@@ -128,3 +128,16 @@ class FrontendModeRules(RethinkCustomBase):
         cls.update_document(rule_id, data)
 
         Caches.clear_get_cached_frontend_mode_rules_cache()
+
+    @classmethod
+    def delete(cls, rule_id: str) -> None:
+        from isardvdi_common.helpers.error_factory import Error
+
+        if not super().delete(rule_id):
+            raise Error(
+                "not_found",
+                f"Frontend mode rule {rule_id} does not exist",
+                description_code="not_found",
+            )
+
+        Caches.clear_get_cached_frontend_mode_rules_cache()

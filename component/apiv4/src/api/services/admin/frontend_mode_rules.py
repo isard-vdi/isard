@@ -45,3 +45,8 @@ class AdminFrontendModeRulesService:
     def update_frontend_mode_rule(rule_id: str, data: dict) -> None:
         """Update the given fields of a frontend mode rule."""
         FrontendModeRules.update(rule_id, data)
+
+    @staticmethod
+    def delete_frontend_mode_rule(rule_id: str) -> None:
+        """Delete a frontend mode rule."""
+        FrontendModeRules.delete(rule_id)
