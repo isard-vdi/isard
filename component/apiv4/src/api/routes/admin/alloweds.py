@@ -116,6 +116,7 @@ async def admin_allowed_update(
         "boots",
         "desktops_priority",
         "domains",
+        "frontend_mode_rules",
         "interfaces",
         "media",
         "notifications",

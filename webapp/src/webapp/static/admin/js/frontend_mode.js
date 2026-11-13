@@ -28,6 +28,7 @@ const FRONTEND_MODE_DESCRIPTIONS = {
 
 const FRONTEND_MODE_RULE_MODAL = '#modalFrontendModeRule';
 const FRONTEND_MODE_RULE_ALLOWEDS = `${FRONTEND_MODE_RULE_MODAL} #alloweds-frontend-mode-rule`;
+const FRONTEND_MODE_RULE_ALLOWEDS_TITLE = 'Applies to <small>Users matching any of the checked fields</small>';
 
 $(document).ready(function () {
     renderFrontendModeRulesDatatable();
@@ -50,7 +51,8 @@ $(document).ready(function () {
                 notImplemented('Editing frontend mode rules');
                 break;
             case 'btn-alloweds':
-                notImplemented('Editing the allowed users of frontend mode rules');
+                modalAllowedsFormShow('frontend_mode_rules', rule);
+                $('#modalAlloweds #allowed-title h4').html(FRONTEND_MODE_RULE_ALLOWEDS_TITLE);
                 break;
             case 'btn-delete':
                 confirmDeleteFrontendModeRule(rule);
@@ -130,7 +132,7 @@ function showAddFrontendModeRuleModal() {
 
     setAlloweds_add(FRONTEND_MODE_RULE_ALLOWEDS);
     $(`${FRONTEND_MODE_RULE_ALLOWEDS} #allowed-title h4`)
-        .html('Applies to <small>Users matching any of the checked fields</small>');
+        .html(FRONTEND_MODE_RULE_ALLOWEDS_TITLE);
     $(`${FRONTEND_MODE_RULE_ALLOWEDS} #alloweds_panel`).show();
 
     $(FRONTEND_MODE_RULE_MODAL).modal({ backdrop: 'static', keyboard: false }).modal('show');
