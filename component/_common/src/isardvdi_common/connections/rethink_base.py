@@ -204,7 +204,7 @@ class PydanticBase(BaseModel):
     """
 
     id: UUID4 = Field(
-        default=uuid4(),
+        default_factory=uuid4,
         description="Primary key of the document",
     )
 
