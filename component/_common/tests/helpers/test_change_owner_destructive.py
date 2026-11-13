@@ -54,7 +54,7 @@ def _domain_updates(stub):
     return [c.args[0] for c in dom.get_all.return_value.update.call_args_list]
 
 
-CAT = "cat-1"  # shared object so ``is`` comparison holds (same category)
+CAT = "cat-1"  # the domain's category
 
 
 def _user_data(category=CAT):
@@ -113,7 +113,7 @@ class TestChangeOwnerDomains:
         assert all("booking_id" not in u for u in updates)
 
     def test_cross_category_drops_allowed_grants(self, stub):
-        ud = _user_data(category="other-cat")  # different object -> cross category
+        ud = _user_data(category="other-cat")  # cross category
         self._wire_fetch(
             stub,
             [{"id": "d1", "category": CAT, "persistent": True}],

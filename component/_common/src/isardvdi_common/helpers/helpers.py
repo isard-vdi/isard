@@ -1130,7 +1130,7 @@ class Helpers(RethinkSharedConnection):
 
         ## if new owner is from another category, delete
         # permissions of groups and users of old category
-        if user_data["new_user"]["category"] is not domain_data_list[0]["category"]:
+        if user_data["new_user"]["category"] != domain_data_list[0]["category"]:
             user_data["new_user"]["allowed"] = {
                 "categories": False,
                 "groups": False,
@@ -1264,7 +1264,7 @@ class Helpers(RethinkSharedConnection):
 
         ## if new owner is from another category, delete
         # permissions of groups and users of old category
-        if user_data["new_user"]["category"] is not media_data[0]["category"]:
+        if user_data["new_user"]["category"] != media_data[0]["category"]:
             user_data["new_user"]["allowed"] = {
                 "categories": False,
                 "groups": False,
