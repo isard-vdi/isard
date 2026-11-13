@@ -862,11 +862,13 @@ function socketio_on(){
             {
                 "data": "secondary_groups", "width": "100px", "render": function (data, type, full, meta) {
                     var secondary_groups = full.secondary_groups_names.join(",");
+                    if (type !== "display") {
+                        return secondary_groups;
+                    }
                     if (secondary_groups.length > 50) {
                         return `<p title="${secondary_groups}">${secondary_groups.substring(0, 50)}...</p>`
-                    } else {
-                        return full.secondary_groups_names
                     }
+                    return secondary_groups
                 }
             },
             {
