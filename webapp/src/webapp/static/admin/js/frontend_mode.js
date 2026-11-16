@@ -19,8 +19,29 @@
 * SPDX-License-Identifier: AGPL-3.0-or-later
 */
 
+const FRONTEND_MODE_DESCRIPTIONS = {
+    deprecated: 'Only the old frontend is allowed',
+    actual: 'Only the new frontend is allowed',
+    all: 'Both frontends are allowed, with a switch in the UI',
+    hidden: 'Both frontends are allowed, without the UI switch'
+};
+
+const FRONTEND_MODE_RULE_MODAL = '#modalFrontendModeRule';
+const FRONTEND_MODE_RULE_ALLOWEDS = `${FRONTEND_MODE_RULE_MODAL} #alloweds-frontend-mode-rule`;
+
 $(document).ready(function () {
     renderFrontendModeRulesDatatable();
+
+    window.Parsley.addValidator('uniquePriority', {
+        validateString: function (value) {
+            const priority = parseInt(value, 10);
+            return !$('#frontend-mode-rules-table').DataTable().rows().data().toArray()
+                .some(rule => rule.priority === priority);
+        },
+        messages: {
+            en: 'Another rule already has this priority.'
+        }
+    });
 
     $('#frontend-mode-rules-table').find('tbody').on('click', 'button', function () {
         switch ($(this).attr('id')) {
@@ -37,9 +58,82 @@ $(document).ready(function () {
     });
 
     $('.btn-add-frontend-mode-rule').on('click', function () {
-        notImplemented('Adding frontend mode rules');
+        showAddFrontendModeRuleModal();
+    });
+
+    $(`${FRONTEND_MODE_RULE_MODAL} #priority`).on('input', function () {
+        $(this).parsley().removeError('duplicatedPriority');
+    });
+
+    $(`${FRONTEND_MODE_RULE_MODAL} #send`).on('click', function () {
+        const form = $(`${FRONTEND_MODE_RULE_MODAL}Form`);
+        form.find('#priority').parsley().removeError('duplicatedPriority');
+        form.parsley().validate();
+        if (!form.parsley().isValid()) {
+            return;
+        }
+
+        let data = form.serializeObject();
+        data = replaceAlloweds_arrays(FRONTEND_MODE_RULE_ALLOWEDS, data);
+        data.priority = parseInt(data.priority, 10);
+
+        $.ajax({
+            type: 'POST',
+            url: '/api/v4/item/frontend-mode-rule',
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            success: function () {
+                $(FRONTEND_MODE_RULE_MODAL).modal('hide');
+                new PNotify({
+                    title: 'Added',
+                    text: 'Rule added successfully',
+                    hide: true,
+                    delay: 2000,
+                    opacity: 1,
+                    type: 'success'
+                });
+                $('#frontend-mode-rules-table').DataTable().ajax.reload();
+            },
+            error: function (xhr) {
+                const error = xhr.responseJSON;
+                if (xhr.status === 409 && error && error.description_code === 'duplicated_priority') {
+                    form.find('#priority').parsley().addError('duplicatedPriority', {
+                        message: 'Another rule already has this priority.'
+                    });
+                    return;
+                }
+                new PNotify({
+                    title: 'ERROR adding rule',
+                    text: error ? error.description : 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+            }
+        });
     });
 });
+
+function showAddFrontendModeRuleModal() {
+    const form = $(`${FRONTEND_MODE_RULE_MODAL}Form`);
+    form[0].reset();
+    form.parsley().reset();
+
+    form.find('#frontend_mode').empty().append(
+        new Option('Choose...', ''),
+        Object.entries(FRONTEND_MODE_DESCRIPTIONS).map(([mode, description]) =>
+            new Option(`${mode}: ${description}`, mode))
+    );
+
+    setAlloweds_add(FRONTEND_MODE_RULE_ALLOWEDS);
+    $(`${FRONTEND_MODE_RULE_ALLOWEDS} #allowed-title h4`)
+        .html('Applies to <small>Users matching any of the checked fields</small>');
+    $(`${FRONTEND_MODE_RULE_ALLOWEDS} #alloweds_panel`).show();
+
+    $(FRONTEND_MODE_RULE_MODAL).modal({ backdrop: 'static', keyboard: false }).modal('show');
+}
 
 function notImplemented(action) {
     new PNotify({
@@ -74,13 +168,7 @@ function renderFrontendModeRulesDatatable() {
                 data: 'frontend_mode', 
                 title: 'Frontend Mode',
                 render: function (data) {
-                    const descriptions = {
-                        deprecated: 'Only the old frontend is allowed',
-                        actual: 'Only the new frontend is allowed',
-                        all: 'Both frontends are allowed, with a switch in the UI',
-                        hidden: 'Both frontends are allowed, without the UI switch'
-                    };
-                    return `<span class="label label-default" title="${descriptions[data] || ''}">${data}</span>`;
+                    return `<span class="label label-default" title="${FRONTEND_MODE_DESCRIPTIONS[data] || ''}">${data}</span>`;
                 }
             },
             { data: 'priority', title: 'Priority' },
