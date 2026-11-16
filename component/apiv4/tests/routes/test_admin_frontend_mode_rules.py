@@ -398,3 +398,63 @@ def test_edited_rule_can_keep_its_own_priority(put_rule, rules_conn):
 
     assert response.status_code == 204
     assert _stored_rule(rules_conn, "rule-1")["name"] == "Renamed"
+
+
+@pytest.fixture
+def delete_rule(test_client_with_conn, rules_conn):
+    def delete(rule_id, jwt=None):
+        return test_client_with_conn(
+            db_tables_data={},
+            conn=rules_conn,
+            url=f"/item/frontend-mode-rule/{rule_id}",
+            method="DELETE",
+            jwt=jwt or MockJWT(role_id="admin"),
+        )
+
+    return delete
+
+
+def test_deleted_rule_is_removed_and_others_kept(delete_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1), _rule("rule-2", 2))
+
+    response = delete_rule("rule-1")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert _stored_rules(rules_conn) == [_rule("rule-2", 2)]
+
+
+def test_deleting_an_unknown_rule_is_not_found(monkeypatch, delete_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-1", 1))
+    # rethinkdb_mock can't `.delete()` a missing row; real RethinkDB reports 0 deleted
+    monkeypatch.setattr(
+        "isardvdi_common.connections.rethink_base.RethinkBase.delete",
+        classmethod(lambda cls, rule_id: False),
+    )
+
+    response = delete_rule("missing")
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
+    assert _stored_rules(rules_conn) == [_rule("rule-1", 1)]
+
+
+@pytest.mark.parametrize("role_id", ["manager", "advanced", "user"])
+def test_non_admin_roles_cannot_delete_rules(delete_rule, rules_conn, role_id):
+    _seed(rules_conn, _rule("rule-1", 1))
+
+    response = delete_rule("rule-1", jwt=MockJWT(role_id=role_id))
+
+    assert response.status_code == 403
+    assert _stored_rules(rules_conn) == [_rule("rule-1", 1)]
+
+
+@pytest.mark.clear_cache
+def test_cached_rules_drop_a_deleted_rule(delete_rule, rules_conn):
+    _seed(rules_conn, _rule("rule-0", 0), _rule("rule-1", 1), _rule("rule-2", 2))
+    delete_rule("rule-0")
+    Caches.get_cached_frontend_mode_rules()
+
+    delete_rule("rule-1")
+
+    assert [r["id"] for r in Caches.get_cached_frontend_mode_rules()] == ["rule-2"]

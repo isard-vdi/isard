@@ -163,3 +163,33 @@ async def update_frontend_mode_rule(
             "Failed to update the frontend mode rule",
             traceback.format_exc(),
         )
+
+
+@admin_router.delete(
+    "/item/frontend-mode-rule/{rule_id}",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Delete a frontend mode rule",
+    description="Deletes an existing frontend mode rule.",
+    responses={
+        204: {"description": "Frontend mode rule deleted successfully."},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def delete_frontend_mode_rule(request: Request, rule_id: str):
+    try:
+        await asyncio.to_thread(
+            AdminFrontendModeRulesService.delete_frontend_mode_rule, rule_id
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to delete the frontend mode rule",
+            traceback.format_exc(),
+        )
