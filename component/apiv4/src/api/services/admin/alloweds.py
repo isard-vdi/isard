@@ -22,6 +22,7 @@ import traceback
 
 from fastapi import BackgroundTasks
 from isardvdi_common.helpers.alloweds import Alloweds
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
@@ -287,6 +288,9 @@ class AdminAllowedsService:
             Alloweds.update_storage_repair_alloweds(data["allowed"])
         else:
             Alloweds.update_item_allowed_dict(table, data["id"], data["allowed"])
+
+            if table == "frontend_mode_rules":
+                Caches.clear_get_cached_frontend_mode_rules_cache()
 
             if table in UNASSIGN_ON_ALLOWED_UPDATE_TABLES:
                 AdminAllowedsService._handle_resource_unassignment(table, data, payload)
