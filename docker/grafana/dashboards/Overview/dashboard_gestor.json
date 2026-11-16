@@ -461,7 +461,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+          "expr": "100 * (1 - (node_memory_MemAvailable_bytes{domain=\"$domain\"} + node_memory_HugePages_Free{domain=\"$domain\"} * node_memory_Hugepagesize_bytes{domain=\"$domain\"}) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
           "groupBy": [
             {
               "params": [
@@ -549,7 +549,8 @@
       ],
       "yaxis": {
         "align": false
-      }
+      },
+      "description": "MEM: Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them."
     },
     {
       "datasource": {

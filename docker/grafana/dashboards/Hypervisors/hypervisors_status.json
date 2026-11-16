@@ -346,7 +346,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "description": "Non available RAM memory",
+          "description": "Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -404,7 +404,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+              "expr": "100 * (1 - (node_memory_MemAvailable_bytes{domain=\"$domain\"} + node_memory_HugePages_Free{domain=\"$domain\"} * node_memory_Hugepagesize_bytes{domain=\"$domain\"}) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -811,7 +811,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "description": "",
+          "description": "Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -903,19 +903,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "((node_memory_MemTotal_bytes{domain=\"$domain\"} - node_memory_MemFree_bytes{domain=\"$domain\"}) / (node_memory_MemTotal_bytes{domain=\"$domain\"} )) * 100",
-              "format": "time_series",
-              "hide": true,
-              "intervalFactor": 1,
-              "refId": "A",
-              "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+              "expr": "100 * (1 - (node_memory_MemAvailable_bytes{domain=\"$domain\"} + node_memory_HugePages_Free{domain=\"$domain\"} * node_memory_Hugepagesize_bytes{domain=\"$domain\"}) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1252,7 +1240,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "kbytes"
             },
             "overrides": []
           },
@@ -1298,7 +1286,8 @@
             }
           ],
           "title": "vRAM",
-          "type": "stat"
+          "type": "stat",
+          "description": "Memory assigned to running desktops (KiB from libvirt)."
         },
         {
           "datasource": {
@@ -1449,7 +1438,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(isardvdi_domain_mem_total{domain=\"$domain\"}) / sum(node_memory_MemTotal_bytes{domain=\"$domain\"})",
+              "expr": "sum(isardvdi_domain_mem_total{domain=\"$domain\"}) * 1024 / sum(node_memory_MemTotal_bytes{domain=\"$domain\"})",
               "hide": false,
               "instant": true,
               "query": "host = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n     r[\"hypervisor\"] == \"${hypers}\" \n  )\n  |> findRecord(\n    fn: (key) => key[\"_measurement\"] == \"hypervisor\" and key[\"_field\"] == \"mem_total\",\n    idx: 0,\n  )\n\nfrom(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n  |> map(fn: (r) => ({_time: r[\"_time\"], _value: r[\"_value\"] / float(v: host[\"_value\"])})\n  )",
@@ -1459,9 +1448,10 @@
               "target": "alias(scale(isard.sysstats.$hypers.system.mem.total, 0.001), 'RAM')"
             }
           ],
-          "title": "RAM/vRAM ratio",
+          "title": "vRAM/RAM ratio",
           "transformations": [],
-          "type": "stat"
+          "type": "stat",
+          "description": "Memory assigned to running desktops over the host physical memory."
         },
         {
           "datasource": {

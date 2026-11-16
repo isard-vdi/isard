@@ -191,7 +191,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Non available RAM memory",
+      "description": "Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -250,19 +250,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "((node_memory_MemTotal_bytes{domain=\"$domain\"} - node_memory_MemFree_bytes{domain=\"$domain\"}) / (node_memory_MemTotal_bytes{domain=\"$domain\"} )) * 100",
-          "format": "time_series",
-          "hide": true,
-          "intervalFactor": 1,
-          "refId": "A",
-          "step": 240
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+          "expr": "100 * (1 - (node_memory_MemAvailable_bytes{domain=\"$domain\"} + node_memory_HugePages_Free{domain=\"$domain\"} * node_memory_Hugepagesize_bytes{domain=\"$domain\"}) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
