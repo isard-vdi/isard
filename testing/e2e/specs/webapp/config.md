@@ -11,6 +11,7 @@ This file defines what must be covered and links to subsection specs.
 2. **Viewers** — edit, delete/reset
 3. **System** — maintenance mode and maintenance text
 4. **Login** — enable/disable and edit
+5. **Frontend** — frontend mode rules: creation, edition, alloweds, deletion
 
 ## Subsection routes
 
@@ -18,6 +19,7 @@ This file defines what must be covered and links to subsection specs.
 - `Config → Viewers`: `/isard-admin/admin/viewers`
 - `Config → System`: `/isard-admin/admin/system`
 - `Config → Login`: `/isard-admin/admin/login`
+- `Config → Frontend`: `/isard-admin/admin/frontend_mode`
 
 All are admin-only routes in `webapp/src/webapp/views/AdminViews.py` (`@isAdmin`).
 
@@ -27,6 +29,7 @@ All are admin-only routes in `webapp/src/webapp/views/AdminViews.py` (`@isAdmin`
 - `testing/e2e/specs/webapp/viewers.md`
 - `testing/e2e/specs/webapp/system.md`
 - `testing/e2e/specs/webapp/login.md`
+- `testing/e2e/specs/webapp/frontend_mode_rules.md`
 
 ## Required minimum automation set
 
@@ -36,6 +39,7 @@ All are admin-only routes in `webapp/src/webapp/views/AdminViews.py` (`@isAdmin`
 | Viewers | edit custom, reset/delete custom | Spec defined |
 | System | maintenance mode + maintenance text | Spec already defined |
 | Login | enable/disable notifications + edit notification content | Spec defined |
+| Frontend | create, edit, alloweds update, delete, effect on the user | Spec defined (edit UI pending) |
 
 ## Execution notes
 
