@@ -87,6 +87,24 @@ const connectQuery = () => {
   }).toString()
 }
 
+const fitDisplay = () => {
+  const elm = viewport.value
+  if (!display || !elm || !elm.offsetWidth) return
+
+  // guacd can report CONNECTED before the guest has sized the display: scaling against 0×0 blows it up.
+  const width = display.getWidth()
+  const height = display.getHeight()
+  if (!width || !height) return
+
+  const newScale = Math.min(elm.clientWidth / width, elm.clientHeight / height)
+  // The scale only returns to 1 once the guest session has taken over the display.
+  if (scale && scale !== 1 && scale !== newScale) {
+    loggedIn = true
+  }
+  display.scale(newScale)
+  scale = newScale
+}
+
 const resize = (mode?: 'mousemove') => {
   if (!client || !display) return
   if (mode === 'mousemove' && (loggedIn || resizing)) return
@@ -105,17 +123,7 @@ const resize = (mode?: 'mousemove') => {
 
   // The display needs time to take the new size before it can be scaled to it.
   later(() => {
-    if (!display) return
-    const newScale = Math.min(
-      elm.clientWidth / Math.max(display.getWidth(), 1),
-      elm.clientHeight / Math.max(display.getHeight(), 1)
-    )
-    // The scale only returns to 1 once the guest session has taken over the display.
-    if (scale && scale !== 1 && scale !== newScale) {
-      loggedIn = true
-    }
-    display.scale(newScale)
-    scale = newScale
+    fitDisplay()
     resizing = false
   }, 1000)
 }
@@ -223,7 +231,10 @@ const connect = (screenElm: HTMLElement) => {
   display = client.getDisplay()
   // guacd reports CONNECTED before the guest has negotiated; only a sized display proves it did.
   display.onresize = (width, height) => {
-    if (width > 0 && height > 0) emit('ready')
+    if (width > 0 && height > 0) {
+      emit('ready')
+      fitDisplay()
+    }
   }
   display.oncursor = (_canvas, hotspotX, hotspotY) => {
     screenElm.style.cursor = cursorFor(hotspotX, hotspotY)
