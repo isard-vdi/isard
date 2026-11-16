@@ -88,12 +88,12 @@ def test_browser_vnc_without_host_opens_on_the_static_domain():
 def test_browser_rdp_opens_and_tunnels_on_the_request_host():
     viewer = _viewer("browser-rdp", host="tenant.example:8443")
 
-    assert viewer["viewer"] == "https://tenant.example:8443/Rdp"
+    assert viewer["viewer"] == "https://tenant.example:8443/frontend/rdp"
     assert viewer["values"]["host"] == "tenant.example:8443"
 
 
 def test_browser_rdp_without_host_uses_the_static_domain():
     viewer = _viewer("browser-rdp")
 
-    assert viewer["viewer"] == "https://default.example/Rdp"
+    assert viewer["viewer"] == "https://default.example/frontend/rdp"
     assert viewer["values"]["host"] == "default.example"

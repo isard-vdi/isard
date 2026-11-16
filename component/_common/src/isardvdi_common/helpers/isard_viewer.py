@@ -362,7 +362,7 @@ class IsardViewer(RethinkSharedConnection):
             if os.environ.get("DIRECTVIEWER_MODE") == "url":
                 viewer = (
                     viewer_url
-                    + "/Rdp?cookie="
+                    + "/frontend/rdp?cookie="
                     + cookie
                     + "&jwt="
                     + self.viewer_jwt(
@@ -380,7 +380,7 @@ class IsardViewer(RethinkSharedConnection):
                     )
                 )
             else:
-                viewer = viewer_url + "/Rdp"
+                viewer = viewer_url + "/frontend/rdp"
             urlp = "Not implemented"
             return {
                 "kind": "browser",

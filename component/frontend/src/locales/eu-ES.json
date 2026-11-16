@@ -460,6 +460,33 @@
         "fallback": "Ustekabeko errorea.",
         "title": "Ekintzak huts egin du"
       }
+    },
+    "rdp": {
+      "states": {
+        "connecting": {
+          "title": "Konektatzen",
+          "message": "Zerbitzarira konektatzen…"
+        },
+        "disconnected": {
+          "title": "Lineaz kanpo",
+          "message": "Deskonektatu egin zaituzte"
+        },
+        "error": {
+          "title": "Bezeroaren errorea",
+          "message": "Konexio-errorea"
+        },
+        "cookie-error": {
+          "title": "Bezeroaren errorea",
+          "message": "Lotura bat ezartzeko behar den cookie ez dago finkatuta"
+        },
+        "cookie-expired": {
+          "title": "Bezeroaren errorea",
+          "message": "Konexioa egiteko behar den cookie iraungi egin da"
+        }
+      },
+      "buttons": {
+        "refresh": "Freskatu"
+      }
     }
   },
   "layouts": {

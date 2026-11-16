@@ -145,7 +145,9 @@ const router = new VueRouter({
     {
       path: '/rdp',
       name: 'Rdp',
-      component: () => import('@/views/Rdp.vue')
+      beforeEnter: () => {
+        window.location.replace(`/frontend/rdp${window.location.search}`)
+      }
     },
     {
       path: '/deployments',

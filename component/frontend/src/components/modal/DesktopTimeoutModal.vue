@@ -21,6 +21,14 @@ import { useSessionStore } from '@/stores/session'
 import { extendDesktopTimeoutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import shutdownWarning from '@/assets/img/modal/desktop-shutdown-warning.svg'
 import shutdownDanger from '@/assets/img/modal/desktop-shutdown-danger.svg'
+import type { Client } from '@/gen/oas/apiv4/client'
+
+interface Props {
+  client?: Client
+  extendable?: boolean
+}
+
+const { client, extendable = true } = defineProps<Props>()
 
 const { t, te, d } = useI18n()
 const sessionStore = useSessionStore()
@@ -56,14 +64,14 @@ const description = computed(() =>
 )
 
 const canExtend = (warning: DesktopTimeoutWarning) =>
-  warning.desktopId !== null && warning.extendMinutes !== null
+  extendable && warning.desktopId !== null && warning.extendMinutes !== null
 
 const {
   mutate: extendTimeout,
   isPending: isExtending,
   variables: extending
 } = useMutation({
-  ...extendDesktopTimeoutMutation(),
+  ...extendDesktopTimeoutMutation({ client }),
   onSuccess: (_data, variables) => removeDesktopTimeoutsOf(variables.path.desktop_id),
   onError: (error) => toast.error(describeApiError(error, { t, te }, 'extend-desktop'))
 })

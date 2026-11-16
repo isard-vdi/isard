@@ -116,6 +116,9 @@
     "direct-viewer": {
       "title": "Visor directo"
     },
+    "rdp": {
+      "title": "Visor RDP"
+    },
     "error": {
       "title": "Error"
     },
@@ -1049,6 +1052,56 @@
       },
       "hardware-summary": "Resumen de hardware",
       "access-summary": "Resumen de acceso"
+    },
+    "rdp": {
+      "header": "Visor RDP",
+      "accessing-desktop": "Accediendo al escritorio",
+      "states": {
+        "connecting": {
+          "title": "Conectando",
+          "message": "Conectando con el servidor…"
+        },
+        "retrying": {
+          "title": "Esperando a que el RDP del escritorio esté disponible",
+          "message": "Reintento {retry} de {maxRetries}"
+        },
+        "disconnected": {
+          "title": "Desconectado",
+          "message": "Se ha perdido la conexión"
+        },
+        "error": {
+          "title": "Error",
+          "message": "Error de conexión"
+        },
+        "cookie-error": {
+          "title": "Error",
+          "message": "No se ha encontrado la cookie necesaria para realizar la conexión"
+        },
+        "viewer-token-error": {
+          "title": "Error",
+          "message": "Es necesario volver a abrir el visor para conectarse correctamente"
+        },
+        "cookie-expired": {
+          "title": "Error",
+          "message": "La cookie necesaria para realizar la conexión ha caducado"
+        },
+        "rdp-not-running": {
+          "title": "El escritorio no acepta RDP",
+          "message": "El escritorio no acepta conexiones RDP. Puede que todavía se esté iniciando, o que su servicio RDP esté detenido o rechace la conexión. Vuelve a intentarlo en un momento o usa otro visor."
+        },
+        "rdp-auth-failed": {
+          "title": "Credenciales RDP rechazadas",
+          "message": "El escritorio ha rechazado las credenciales RDP que tiene guardadas. Actualízalas en la configuración del escritorio para que coincidan con el usuario de dentro del escritorio."
+        },
+        "desktop-stopped": {
+          "title": "Escritorio detenido",
+          "message": "El escritorio se ha detenido. Vuelve a iniciarlo para volver a conectar."
+        }
+      },
+      "buttons": {
+        "retry": "Reintentar",
+        "refresh": "Recargar"
+      }
     },
     "edit-desktop": {
       "title": "Editar escritorio",
