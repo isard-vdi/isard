@@ -23,6 +23,7 @@ $(document).ready(function () {
     renderFrontendModeRulesDatatable();
 
     $('#frontend-mode-rules-table').find('tbody').on('click', 'button', function () {
+        const rule = $('#frontend-mode-rules-table').DataTable().row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case 'btn-edit':
                 notImplemented('Editing frontend mode rules');
@@ -31,7 +32,7 @@ $(document).ready(function () {
                 notImplemented('Editing the allowed users of frontend mode rules');
                 break;
             case 'btn-delete':
-                notImplemented('Deleting frontend mode rules');
+                confirmDeleteFrontendModeRule(rule);
                 break;
         }
     });
@@ -50,6 +51,46 @@ function notImplemented(action) {
         delay: 4000,
         opacity: 1
     });
+}
+
+function confirmDeleteFrontendModeRule(rule) {
+    const name = $('<div>').text(rule.name).html();
+    new PNotify({
+        title: 'Confirmation Needed',
+        text: `Are you sure you want to delete rule "${name}"?<br><br>` +
+            'Its users will get the next rule that matches them or, if none does, the global frontend mode.',
+        type: 'error',
+        hide: false, opacity: 1, confirm: { confirm: true },
+        buttons: { closer: false, sticker: false },
+        addclass: 'pnotify-center'
+    }).get().on('pnotify.confirm', function () {
+        $.ajax({
+            type: 'DELETE',
+            url: `/api/v4/item/frontend-mode-rule/${rule.id}`,
+            success: function () {
+                new PNotify({
+                    title: 'Deleted',
+                    text: `Rule "${name}" deleted successfully`,
+                    hide: true,
+                    delay: 2000,
+                    opacity: 1,
+                    type: 'success'
+                });
+                $('#frontend-mode-rules-table').DataTable().ajax.reload();
+            },
+            error: function (xhr) {
+                new PNotify({
+                    title: `ERROR deleting "${name}"`,
+                    text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+            }
+        });
+    }).on('pnotify.cancel', function () { });
 }
 
 function renderFrontendModeRulesDatatable() {
