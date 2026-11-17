@@ -5,10 +5,11 @@
 
 """Remaining destructive paths of ``ReservablesPlannerProccess``.
 
-* ``update_plan`` -- shrinking a plan window deletes the bookings that no longer
-  fit (and ONLY those), then re-adds the plan.
 * ``delete_subitem`` -- last card → deassign desktops and delete every plan;
   non-last card → surgically detach this card's plans only (no deassign).
+
+``update_plan``'s refit/reschedule behaviour lives in
+``test_planner_boundary_jobs.py``.
 
 Only rethink and the sibling collaborators are stubbed; the decisions are the
 code's. What must NOT be removed is asserted alongside what is.
@@ -80,51 +81,6 @@ def stub(monkeypatch):
         "router": router,
         "mp": monkeypatch,
     }
-
-
-class TestUpdatePlan:
-    def _wire(self, stub, in_actual, failing):
-        bk = stub["router"]("bookings")
-        # in_actual: filter().filter().filter().run()
-        bk.filter.return_value.filter.return_value.filter.return_value.run.return_value = (
-            in_actual
-        )
-        # failing: filter().filter().run()
-        bk.filter.return_value.filter.return_value.run.return_value = failing
-        stub["router"]("resource_planner").get.return_value.run.return_value = {
-            "id": "plan-1"
-        }
-        added = MagicMock(name="add_plan")
-        stub["mp"].setattr(
-            stub["Cls"], "add_plan", classmethod(lambda cls, payload, plan: added(plan))
-        )
-        return added
-
-    def test_shrink_removes_only_fallen_out_bookings(self, stub):
-        b1 = {"id": "b1", "start": 0, "end": 9}
-        b2 = {"id": "b2", "start": 0, "end": 9}
-        added = self._wire(stub, in_actual=[b1, b2], failing=[b2])
-        stub["Cls"].update_plan({"role_id": "admin"}, "plan-1", 3, 6)
-        bk = stub["router"]("bookings")
-        # Only b1 (in range now-invalid, not already-failing) is deleted.
-        bk.get_all.assert_called_once_with(("ARGS", ("b1",)), index="id")
-        bk.get_all.return_value.delete.assert_called_once()
-        added.assert_called_once_with({"id": "plan-1"})
-
-    # NOTE: a "no bookings in plan" case is intentionally NOT tested: the
-    # no-delete outcome is protected by TWO guards (the outer
-    # ``if len(bookings_in_actual_plan)`` and the inner count-difference check),
-    # so no single plausible mutation flips it -> such a test can't be seen to
-    # fail and would pin nothing. The ``all_bookings_failing`` case below
-    # exercises the inner guard directly instead.
-
-    def test_all_bookings_failing_deletes_nothing(self, stub):
-        b1 = {"id": "b1", "start": 0, "end": 9}
-        added = self._wire(stub, in_actual=[b1], failing=[b1])
-        stub["Cls"].update_plan({"role_id": "admin"}, "plan-1", 3, 6)
-        # counts equal -> nothing removed, but the plan is still re-added.
-        stub["router"]("bookings").get_all.assert_not_called()
-        added.assert_called_once()
 
 
 class TestDeleteSubitem:

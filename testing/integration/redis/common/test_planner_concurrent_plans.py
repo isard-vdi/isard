@@ -99,6 +99,26 @@ class _Field:
     def __gt__(self, value):
         return _Pred(lambda row: row[self.key] > value)
 
+    def __eq__(self, value):
+        return _Pred(lambda row: row[self.key] == value)
+
+    def __ne__(self, value):
+        return _Pred(lambda row: row[self.key] != value)
+
+    __hash__ = None
+
+    def contains(self, predicate):
+        # ReQL's contains() over an array field takes either a value or a
+        # predicate built from the element.
+        if callable(predicate):
+            return _Pred(
+                lambda row: any(
+                    predicate(_RowExpr()).fn(element)
+                    for element in (row.get(self.key) or [])
+                )
+            )
+        return _Pred(lambda row: predicate in (row.get(self.key) or []))
+
 
 class _RowExpr:
     def __getitem__(self, key):
@@ -146,6 +166,11 @@ class _Query:
         return _Query(self._table, self._preds + [_Pred(lambda row: keyfn(row) == key)])
 
     def filter(self, pred):
+        # ReQL accepts both a prebuilt predicate (r.row[...] == x) and a lambda
+        # over the row. The lambda builds the same predicate when handed the row
+        # expression, so normalise it here instead of at every call site.
+        if callable(pred) and not isinstance(pred, _Pred):
+            pred = pred(_RowExpr())
         return _Query(self._table, self._preds + [pred])
 
     def run(self, _conn):
@@ -170,6 +195,10 @@ class _R:
     def table(self, name):
         assert name == "resource_planner", f"unexpected table {name}"
         return _Query(self._table)
+
+    @staticmethod
+    def not_(pred):
+        return _Pred(lambda row: not pred.fn(row))
 
 
 class _Reservables:

@@ -330,48 +330,109 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
     @classmethod
     def update_plan(cls, payload, plan_id, start, end):
         """
-        Update an existing plan
+        Move an existing plan to a new ``[start, end]`` window, in place.
 
         Args:
             payload (dict): User payload from authentication
             plan_id (str): The planning ID to update
-            start (datetime): New start datetime for the planning
-            end (datetime): New end datetime for the planning
+            start (datetime|str): New start datetime for the planning
+            end (datetime|str): New end datetime for the planning
+
+        The booking refit runs last, after every validation, so a rejected
+        update deletes no reservation.
         """
         with cls._rdb_context():
-            bookings_in_actual_plan = list(
+            plan = r.table("resource_planner").get(plan_id).run(cls._rdb_connection)
+        if not plan:
+            raise Error("not_found", "Plan not found", description_code="not_found")
+
+        # Same normalisation as add_plan.
+        def _as_dt(value):
+            if isinstance(value, datetime):
+                return value
+            return datetime.fromisoformat(value)
+
+        try:
+            new_start = cls.ceil_dt(_as_dt(start)).astimezone(pytz.UTC)
+        except (ValueError, TypeError):
+            raise Error(
+                "bad_request",
+                "Start date invalid.",
+                description_code="invalid_start_date",
+            )
+        try:
+            new_end = cls.ceil_dt(_as_dt(end)).astimezone(pytz.UTC) - timedelta(0, 1)
+        except (ValueError, TypeError):
+            raise Error(
+                "bad_request", "End date invalid.", description_code="invalid_end_date"
+            )
+        if new_end < new_start:
+            raise Error(
+                "bad_request",
+                "End date must be after start date.",
+                description_code="invalid_end_date",
+            )
+
+        candidate = dict(plan)
+        candidate["start"] = new_start
+        candidate["end"] = new_end
+
+        # Per-card contention still applies (a card holds one profile per
+        # window), but the plan must not conflict with ITSELF.
+        if not cls.reservables.planning_item_can_overlap(
+            plan["item_type"], plan["item_id"]
+        ):
+            cls.check_plan_item_id_overlapped(candidate, exclude_plan_id=plan_id)
+        if not cls.reservables.planning_subitem_can_overlap(
+            plan["item_type"], plan["item_id"], plan["subitem_id"]
+        ):
+            cls.check_plan_subitem_id_overlapped(candidate)
+
+        with cls._rdb_context():
+            r.table("resource_planner").get(plan_id).update(
+                {"start": new_start, "end": new_end}
+            ).run(cls._rdb_connection)
+
+        # Only this plan's boundary jobs.
+        if cls.reservables.planning_schedule_subitem(
+            plan["item_type"], plan["item_id"], plan["subitem_id"]
+        ):
+            SchedulerHelper.remove_scheduler_startswith_id(plan_id)
+            SchedulerHelper.bookings_schedule_subitem(
+                plan_id,
+                plan["item_type"],
+                plan["item_id"],
+                plan["subitem_id"],
+                new_start,
+            )
+
+        # Drop the bookings that no longer fit, only after the update
+        # succeeded: a rejected call must not delete a reservation.
+        with cls._rdb_context():
+            fallen_out = list(
                 r.table("bookings")
-                .filter(
-                    r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
-                )
-                .filter(r.row["start"] <= start)
-                .filter(r.row["end"] >= end)
+                .filter(r.row["plans"].contains(lambda pl: pl["plan_id"] == plan_id))
+                .filter(lambda b: (b["start"] < new_start) | (b["end"] > new_end))
                 .run(cls._rdb_connection)
             )
-        if len(bookings_in_actual_plan):
-            with cls._rdb_context():
-                bookings_failing_in_new_range = list(
-                    r.table("bookings")
-                    .filter(
-                        r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
-                    )
-                    .filter(lambda b: (b["start"] < start) | (b["end"] > end))
-                    .run(cls._rdb_connection)
-                )
-            if len(bookings_in_actual_plan) != len(bookings_failing_in_new_range):
-                # The difference will imply to remove those bookings
-                bookings2remove = [
-                    b["id"]
-                    for b in bookings_in_actual_plan
-                    if b not in bookings_failing_in_new_range
-                ]
+        for booking in fallen_out:
+            SchedulerHelper.remove_scheduler_startswith_id(booking["id"])
+            if booking.get("item_type") == "desktop" and booking.get("item_id"):
                 with cls._rdb_context():
-                    r.table("bookings").get_all(
-                        r.args(bookings2remove), index="id"
-                    ).delete().run(cls._rdb_connection)
-        with cls._rdb_context():
-            plan = r.table("resource_planner").get(plan_id).run(cls._rdb_connection)
-        cls.add_plan(payload, plan)
+                    r.table("domains").get(booking["item_id"]).update(
+                        {"booking_id": False}
+                    ).run(cls._rdb_connection)
+            elif booking.get("item_type") == "deployment" and booking.get("item_id"):
+                with cls._rdb_context():
+                    r.table("domains").get_all(booking["item_id"], index="tag").update(
+                        {"booking_id": False}
+                    ).run(cls._rdb_connection)
+        if fallen_out:
+            with cls._rdb_context():
+                r.table("bookings").get_all(
+                    r.args([b["id"] for b in fallen_out]), index="id"
+                ).delete().run(cls._rdb_connection)
+        return plan_id
 
     @classmethod
     def delete_plan(cls, plan_id):
@@ -785,41 +846,24 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
     ##### Scheduling
     @classmethod
     def reschedule_existing_plan_start(cls, new_plan, existing_plan):
-        # Card will be set to default profile between plans
-        # If event is added, at start time an scheduler is added (15/5/2/1 minutes before start as kwargs/plan_id index key)
-        # existing_plan start is now new_plan start (moved before)
-        # we need to reeschedule plan_id to new start time
-        SchedulerHelper.bookings_reschedule_item_id(
-            existing_plan["item_id"], existing_plan["start"]
+        # Boundary jobs anchor to a plan's start, so a join that moves the
+        # start earlier has to move them too.
+        #
+        # Keyed by plan id: the card's other plans keep their jobs.
+        SchedulerHelper.remove_scheduler_startswith_id(existing_plan["id"])
+        SchedulerHelper.bookings_schedule_subitem(
+            existing_plan["id"],
+            existing_plan["item_type"],
+            existing_plan["item_id"],
+            existing_plan["subitem_id"],
+            new_plan["start"],
         )
 
     @classmethod
     def reschedule_existing_plan_end(cls, new_plan, existing_plan):
-        # Card will be set to default profile between plans
-        # If event is added, at start time an scheduler is added (15/5/2/1 minutes before start as kwargs/plan_id index key)
-        # existing_plan end is now new_plan end (moved after)
-        # Remove existing default profile scheduler if exists at end for existing plan
-        SchedulerHelper.bookings_remove_scheduler_item_id(existing_plan["item_id"])
-        # If there is no plan just after new end, schedule default
-        with cls._rdb_context():
-            joined_plan_end = list(
-                (
-                    r.table("resource_planner")
-                    .get_all(new_plan["item_id"], index="item_id")
-                    .filter({"subitem_id": new_plan["subitem_id"]})
-                    .filter(r.row["end"] == existing_plan["end"])
-                ).run(cls._rdb_connection)
-            )
-        if not len(joined_plan_end):
-            SchedulerHelper.bookings_schedule_subitem(
-                new_plan["id"],
-                new_plan["item_type"],
-                new_plan["item_id"],
-                cls.reservables.get_default_subitem(
-                    new_plan["item_type"], new_plan["item_id"]
-                ),
-                new_plan["end"],
-            )
+        # Boundary jobs anchor to a plan's START, which a join onto a later end
+        # does not move, so this plan's jobs stay valid and nothing is due here.
+        return
 
     @classmethod
     def new_subitem_schedule(cls, plan):
@@ -833,17 +877,22 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
 
     ###### Plan & booking checks
     @classmethod
-    def check_plan_item_id_overlapped(cls, plan):
+    def check_plan_item_id_overlapped(cls, plan, exclude_plan_id=None):
         # We can't overlap in gpu, but we can merge existing plan with new plan if they have the same subitem_id (profile)
         # We will only join if:
         #   - new plan ends just when another plan with same profile starts
         #   . new plan starts just after another plan with same profile ends
         # So, the case where they both overlaps but they have the same subitem_id will be taken as an overlap conflict here now.
+        #
+        # ``exclude_plan_id`` keeps an in-place update from conflicting with its
+        # own still-stored row; the default ``None`` matches no id, so the check
+        # is unchanged for every other caller.
         with cls._rdb_context():
             overlaps_start = list(
                 (
                     r.table("resource_planner")
                     .get_all(plan["item_id"], index="item_id")
+                    .filter(lambda iplan: iplan["id"] != exclude_plan_id)
                     .filter(
                         r.row["start"].during(
                             plan["start"],
@@ -858,6 +907,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 (
                     r.table("resource_planner")
                     .get_all(plan["item_id"], index="item_id")
+                    .filter(lambda iplan: iplan["id"] != exclude_plan_id)
                     .filter(
                         r.row["end"].during(
                             plan["start"],
@@ -872,6 +922,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 (
                     r.table("resource_planner")
                     .get_all(plan["item_id"], index="item_id")
+                    .filter(lambda iplan: iplan["id"] != exclude_plan_id)
                     .filter(
                         (r.row["start"] <= plan["start"])
                         & (r.row["end"] >= plan["end"])
@@ -1085,10 +1136,8 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
     def is_any_plan_item_id_overlapped(cls):
         conflicts = {}
         with cls._rdb_context():
-            plans = r.table("resource_planner").run(cls._rdb_connection)
+            plans = list(r.table("resource_planner").run(cls._rdb_connection))
         for plan in plans:
-            if not conflicts.get(plan["item_id"]):
-                conflicts[plan["item_id"]] = {"start": [], "end": []}
             with cls._rdb_context():
                 start = list(
                     (
@@ -1109,6 +1158,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                     (
                         r.table("resource_planner")
                         .get_all(plan["item_id"], index="item_id")
+                        .filter(lambda iplan: r.not_(iplan["id"] == plan["id"]))
                         .filter(
                             r.row["end"].during(
                                 plan["start"],
@@ -1118,14 +1168,19 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                         .run(cls._rdb_connection)
                     )
                 )
-            if len(start):
+            if not (start or end):
+                continue
+            entry = conflicts.setdefault(plan["item_id"], {"start": [], "end": []})
+            for other in start:
+                entry["start"].append({"plan": plan["id"], "overlaps": other["id"]})
                 log.debug("------------------- START CONFLICTS")
                 log.debug(pformat(plan))
-                log.debug(pformat(start))
-            if len(end):
+                log.debug(pformat(other))
+            for other in end:
+                entry["end"].append({"plan": plan["id"], "overlaps": other["id"]})
                 log.debug("------------------- END CONFLICTS")
                 log.debug(pformat(plan))
-                log.debug(pformat(end))
+                log.debug(pformat(other))
 
         return conflicts
 
