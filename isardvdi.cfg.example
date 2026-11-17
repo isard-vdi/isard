@@ -1,4 +1,4 @@
-# Isard main config v3.0.19
+# Isard main config v3.0.20
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -82,6 +82,9 @@ FRONTEND_DIRECT_VIEWER_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/direct_vie
 ##                Vue 3 SPA which then calls window.location.assign(<vue2-path>).
 ##                This is the safe production-migration default.
 ##  - actual:     only the vue3 frontend, no toggler
+##                Bookings and plannings are the exception: the vue3
+##                frontend does not serve them yet, so /booking/* and
+##                /planning stay on the vue2 frontend in this mode too.
 ##  - all:        both frontends reachable, toggler shown on view pages.
 ##                Required for Vue 3 e2e tests + recommended for devel work
 ##                on the apiv4-integration branch (.gitlab-ci.yml's test-e2e
