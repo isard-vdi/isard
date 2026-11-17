@@ -10,6 +10,17 @@ export const VUE2_TO_VUE3 = {
   profile: '/frontend/profile'
 }
 
+// The new frontend sends the user back here for these, so `actual` mode must not redirect them.
+export const VUE2_ONLY_ROUTES = new Set([
+  'booking',
+  'bookingsummary',
+  'Planning'
+])
+
+export function isVue2OnlyRoute (name) {
+  return Boolean(name && VUE2_ONLY_ROUTES.has(name))
+}
+
 export const EDIT_FORM_ROUTES = new Set([
   'desktopsnew',
   'templatenew',

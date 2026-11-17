@@ -5,7 +5,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
-import { resolveVue3Path, clearPreferredFrontend, setPreferredFrontend, hasVue3Equivalent, honoursPreferredFrontend } from '@/shared/frontendModeMap'
+import { resolveVue3Path, clearPreferredFrontend, setPreferredFrontend, hasVue3Equivalent, honoursPreferredFrontend, isVue2OnlyRoute } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
 import { setFaroView } from '@/lib/faro'
@@ -436,7 +436,7 @@ router.beforeEach(async (to, from, next) => {
         if (!honoursPreferredFrontend(store.getters.getConfig.frontendMode)) {
           clearPreferredFrontend()
         }
-        if (store.getters.getConfig.frontendMode === 'actual') {
+        if (store.getters.getConfig.frontendMode === 'actual' && !isVue2OnlyRoute(to.name)) {
           const target = resolveVue3Path(to) || '/frontend/desktops'
           window.location.assign(target)
           return
