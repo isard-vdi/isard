@@ -211,6 +211,12 @@ class _Reservables:
     def get_subitem_units(self, _item_type, _item_id, _subitem):
         return TOTAL_UNITS
 
+    def list_subitems_enabled(self, _item_type, _item_id):
+        # Concurrency tests: the card enables every profile they use.
+        return [{"id": PROFILE_ID}] + [
+            {"id": f"NVIDIA-L40S-{index}Q"} for index in range(0, 16)
+        ]
+
     def planning_item_can_overlap(self, _item_type, _item_id):
         return self._item_can_overlap
 

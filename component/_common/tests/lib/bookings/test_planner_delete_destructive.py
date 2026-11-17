@@ -216,3 +216,67 @@ class TestDeleteItem:
         gpus = stub["router"]("gpus")
         gpus.get.assert_any_call("card-1")
         gpus.get.return_value.delete.assert_called_once()
+
+    def _leftover(self, stub, subitem_ids):
+        """What ``resource_planner`` still holds for the card."""
+        rp = stub["router"]("resource_planner")
+        rp.get_all.return_value.__getitem__.return_value.distinct.return_value.run.return_value = (
+            subitem_ids
+        )
+
+    def _card_sweeper(self, stub):
+        sweeper = MagicMock(name="delete_card_subitem_plans", return_value=(1, 1))
+        stub["mp"].setattr(
+            stub["Cls"],
+            "delete_card_subitem_plans",
+            classmethod(lambda cls, iid, sid: sweeper(iid, sid)),
+        )
+        return sweeper
+
+    def _quiet_subitems(self, stub):
+        deleted_sub = MagicMock(name="delete_subitem")
+        stub["mp"].setattr(
+            stub["Cls"],
+            "delete_subitem",
+            classmethod(lambda cls, it, iid, sid, data=None: deleted_sub(sid)),
+        )
+        stub["mp"].setattr(
+            stub["Cls"].reservables, "enable_subitems", lambda *a, **k: None
+        )
+        return deleted_sub
+
+    def test_plans_for_a_profile_the_card_no_longer_enables_are_swept(self, stub):
+        """A plan for a profile absent from ``profiles_enabled`` must not outlive
+        the card it was planned on."""
+        self._quiet_subitems(stub)
+        sweeper = self._card_sweeper(stub)
+        self._leftover(stub, ["4Q"])
+
+        stub["Cls"].delete_item("gpus", "card-1", subitems=["1Q"])
+
+        assert sweeper.call_args_list == [(("card-1", "4Q"),)]
+        stub["router"]("resource_planner").get_all.assert_any_call(
+            ["gpus", "card-1"], index="type-item"
+        )
+
+    def test_leftover_is_swept_per_card_not_through_delete_subitem(self, stub):
+        """Swept per card, not through ``delete_subitem``: that one runs the
+        last-card cascade and would deassign desktops on other cards."""
+        deleted_sub = self._quiet_subitems(stub)
+        self._card_sweeper(stub)
+        self._leftover(stub, ["4Q"])
+
+        stub["Cls"].delete_item("gpus", "card-1", subitems=["1Q"])
+
+        assert [c.args[0] for c in deleted_sub.call_args_list] == ["1Q"]
+
+    def test_nothing_pointing_at_the_card_sweeps_nothing(self, stub):
+        """Control: nothing pointing at the card, nothing swept."""
+        self._quiet_subitems(stub)
+        sweeper = self._card_sweeper(stub)
+        self._leftover(stub, [])
+
+        stub["Cls"].delete_item("gpus", "card-1", subitems=["1Q"])
+
+        sweeper.assert_not_called()
+        stub["router"]("gpus").get.return_value.delete.assert_called_once()

@@ -777,6 +777,15 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
                 )
         return priority_columns
 
+    @staticmethod
+    def _rule_restricts_another_dimension(rule, dimension):
+        """Whether ``rule`` names concrete values on a dimension other than this one."""
+        return any(
+            isinstance(values, list) and len(values) > 0
+            for name, values in rule["allowed"].items()
+            if name != dimension
+        )
+
     @classmethod
     def user_matches_priority_rule(cls, payload, rules):
         alloweds = [
@@ -816,6 +825,15 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
                             not in rule["allowed"][allowed_item[0]]
                         )
                     )
+                    if len(
+                        rule["allowed"][allowed_item[0]]
+                    ) == 0 and cls._rule_restricts_another_dimension(
+                        rule, allowed_item[0]
+                    ):
+                        log.debug(
+                            "##### -> empty dimension ignored: rule restricts another"
+                        )
+                        continue
                     if (
                         len(rule["allowed"][allowed_item[0]]) == 0
                         or payload[allowed_item[1] + "_id"]

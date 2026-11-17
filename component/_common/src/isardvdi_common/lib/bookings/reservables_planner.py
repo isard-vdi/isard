@@ -170,6 +170,22 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         return data
 
     @classmethod
+    def _assert_subitem_enabled(cls, item_type, item_id, subitem_id):
+        """Refuse a plan for a profile the item does not have enabled."""
+        enabled = {
+            subitem["id"]
+            for subitem in (
+                cls.reservables.list_subitems_enabled(item_type, item_id) or []
+            )
+        }
+        if subitem_id not in enabled:
+            raise Error(
+                "bad_request",
+                f"Profile {subitem_id} is not enabled on {item_type} {item_id}",
+                description_code="subitem_not_enabled_on_item",
+            )
+
+    @classmethod
     def add_plan(
         cls,
         payload,
@@ -200,6 +216,10 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 "End date must be after start date.",
                 description_code="invalid_end_date",
             )
+
+        cls._assert_subitem_enabled(
+            data["item_type"], data["item_id"], data["subitem_id"]
+        )
 
         # Plan data structure
         try:
@@ -699,8 +719,36 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
             cls.delete_subitem(item_type, item_id, subitem, data)
             cls.reservables.enable_subitems(item_type, item_id, subitem, False)
 
+        cls._sweep_orphan_card_plans(item_type, item_id)
+
         with cls._rdb_context():
             r.table("gpus").get(item_id).delete().run(cls._rdb_connection)
+
+    @classmethod
+    def _sweep_orphan_card_plans(cls, item_type, item_id):
+        """Delete what still points at this card, whatever profile it names."""
+        # Availability sums resource_planner by subitem_id with no join against
+        # gpus, so a plan left behind on a deleted card is sold as capacity.
+        with cls._rdb_context():
+            leftover = list(
+                r.table("resource_planner")
+                .get_all([item_type, item_id], index="type-item")["subitem_id"]
+                .distinct()
+                .run(cls._rdb_connection)
+            )
+        for subitem in leftover:
+            plans_deleted, bookings_deleted = cls.delete_card_subitem_plans(
+                item_id, subitem
+            )
+            if plans_deleted or bookings_deleted:
+                log.info(
+                    "Deleting card %s: swept %s orphan plan(s) and %s booking(s) "
+                    "left by profile %s, which the card no longer enabled",
+                    item_id,
+                    plans_deleted,
+                    bookings_deleted,
+                    subitem,
+                )
 
     @classmethod
     def get_item_users(cls, item_type, item_id, items_users_list, subitem, data=None):

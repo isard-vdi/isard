@@ -237,8 +237,10 @@ class BookingsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
-    def get_minumum_forbid_time(cls):
-        return list(r.table("bookings_priority")["forbid_time"].min())
+    def _invalidate_bookings_caches(cls):
+        """Drop both bookings TTL caches: the desktop-start gate reads through them."""
+        cls.clear_get_cached_desktop_bookings_cache()
+        cls.clear_get_cached_deployment_bookings_cache()
 
     @classmethod
     def add(
@@ -376,6 +378,7 @@ class BookingsProcessed(RethinkSharedConnection):
                 raise Error(
                     "bad_request", "Can't set a booking starting now in a deployment"
                 )
+        cls._invalidate_bookings_caches()
         SchedulerHelper.bookings_schedule(
             booking["id"], item_type, item_id, booking["start"], booking["end"]
         )
@@ -435,6 +438,7 @@ class BookingsProcessed(RethinkSharedConnection):
                         "end": new_end,
                     }
                 ).run(cls._rdb_connection)
+        cls._invalidate_bookings_caches()
 
     @classmethod
     def delete(
@@ -511,6 +515,7 @@ class BookingsProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             r.table("bookings").get(booking_id).delete().run(cls._rdb_connection)
 
+        cls._invalidate_bookings_caches()
         SchedulerHelper.remove_scheduler_startswith_id(booking_id)
 
     @classmethod
