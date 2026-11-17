@@ -56,6 +56,11 @@ let loggedIn = false
 let resizing = false
 const argumentValues: Record<string, string> = {}
 
+const PASTE_KEYSYMS = new Set([0x76, 0x56])
+const PASTE_WAIT_MS = 100
+let deferredPaste: number | null = null
+let deferredPasteTimer: ReturnType<typeof setTimeout> | undefined
+
 const timers = new Set<ReturnType<typeof setTimeout>>()
 const later = (fn: () => void, ms: number) => {
   const id = setTimeout(() => {
@@ -186,6 +191,46 @@ const onArgv = (stream: InputStream, mimetype: string, name: string) => {
   }
 }
 
+// Only when the host clipboard can't be read: otherwise focus already keeps the guest's in sync.
+const needsPasteBypass = (keysym: number) =>
+  !!keyboard &&
+  !clipboard?.canReadLocal() &&
+  PASTE_KEYSYMS.has(keysym) &&
+  (keyboard.modifiers.ctrl || keyboard.modifiers.meta) &&
+  !keyboard.modifiers.alt
+
+const flushPaste = () => {
+  clearTimeout(deferredPasteTimer)
+  if (deferredPaste === null) return
+  client?.sendKeyEvent(1, deferredPaste)
+  deferredPaste = null
+}
+
+const onKeyDown = (keysym: number) => {
+  if (needsPasteBypass(keysym)) {
+    flushPaste()
+    deferredPaste = keysym
+    deferredPasteTimer = setTimeout(flushPaste, PASTE_WAIT_MS)
+    // Without a clipboard permission, the browser only hands the host clipboard to the page in
+    // its paste event: let it paste, and send the key once the guest has the text.
+    return true
+  }
+  client?.sendKeyEvent(1, keysym)
+}
+
+const onKeyUp = (keysym: number) => {
+  if (keysym === deferredPaste) flushPaste()
+  client?.sendKeyEvent(0, keysym)
+}
+
+const onPaste = (e: ClipboardEvent) => {
+  // Left alone, the pasted text lands in the input sink and the keyboard types it into the guest.
+  e.preventDefault()
+  const text = e.clipboardData?.getData('text/plain')
+  if (text) clipboard?.pushText(text)
+  flushPaste()
+}
+
 const onClientState = (state: Client.State) => {
   connected.value = state === Guacamole.Client.State.CONNECTED
   if (connected.value && client) {
@@ -255,10 +300,11 @@ const connect = (screenElm: HTMLElement) => {
 
   inputSink = new Guacamole.InputSink()
   screenElm.appendChild(inputSink.getElement())
+  inputSink.getElement().addEventListener('paste', onPaste)
 
   keyboard = new Guacamole.Keyboard(inputSink.getElement())
-  keyboard.onkeydown = (keysym) => client?.sendKeyEvent(1, keysym)
-  keyboard.onkeyup = (keysym) => client?.sendKeyEvent(0, keysym)
+  keyboard.onkeydown = onKeyDown
+  keyboard.onkeyup = onKeyUp
   inputSink.focus()
 
   mouse.onmouseup = mouse.onmousemove = sendMouseState
@@ -288,6 +334,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', resumeAudio)
   document.removeEventListener('keydown', resumeAudio)
   clipboard?.uninstall()
+  inputSink?.getElement().removeEventListener('paste', onPaste)
+  clearTimeout(deferredPasteTimer)
+  deferredPaste = null
 
   if (keyboard) {
     keyboard.onkeydown = keyboard.onkeyup = null

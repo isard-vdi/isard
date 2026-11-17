@@ -23,6 +23,13 @@ async function setLocalClipboard(data: ClipboardData) {
 
 export function createClipboard(client: Client) {
   let cache: ClipboardData | undefined
+  let localReadable = false
+
+  const readLocalClipboard = async () => {
+    const data = await getLocalClipboard()
+    localReadable = data !== undefined
+    return data
+  }
 
   const setRemoteClipboard = () => {
     if (!cache) return
@@ -40,8 +47,13 @@ export function createClipboard(client: Client) {
     }
   }
 
+  const pushText = (text: string) => {
+    cache = { type: 'text/plain', data: text }
+    setRemoteClipboard()
+  }
+
   const update = () => {
-    void getLocalClipboard().then((data) => {
+    void readLocalClipboard().then((data) => {
       if (data) {
         cache = data
         setRemoteClipboard()
@@ -54,7 +66,7 @@ export function createClipboard(client: Client) {
   }
 
   const install = () => {
-    void getLocalClipboard().then((data) => {
+    void readLocalClipboard().then((data) => {
       if (data) cache = data
     })
     window.addEventListener('load', update, true)
@@ -88,7 +100,10 @@ export function createClipboard(client: Client) {
     }
   }
 
-  return { install, uninstall, setRemoteClipboard, onClipboard }
+  /** Whether the last attempt to read the host clipboard succeeded. */
+  const canReadLocal = () => localReadable
+
+  return { install, uninstall, setRemoteClipboard, pushText, canReadLocal, onClipboard }
 }
 
 export type GuacamoleClipboard = ReturnType<typeof createClipboard>
