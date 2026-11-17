@@ -1,0 +1,159 @@
+From e474ca431ea3d3f163b0f09ec0e48a0c59c42314 Mon Sep 17 00:00:00 2001
+From: Mohamad Khawam <mk1800@rutgers.edu>
+Date: Mon, 20 Jul 2026 14:48:10 -0400
+Subject: [PATCH] GUACAMOLE-2306: Add support for the RDPSND Wave2 (SNDC_WAVE2)
+ PDU.
+
+Modern Windows RDP servers may transmit audio using the single-PDU Wave2 (SNDC_WAVE2) form rather than the legacy WaveInfo/Wave pair. Per MS-RDPEA, a server uses Wave2 only when both the client and server advertise RDPSND protocol version 8 or higher. Guacamole previously advertised version 6 and had no SNDC_WAVE2 handler, so Wave2 could not be negotiated, and any Wave2 PDU that did arrive was silently dropped (no audio decoded and no Wave Confirmation returned, which stalls the server's audio stream).
+
+This advertises client version 8 and adds a handler that decodes the self-contained Wave2 audio block, plays it, and acknowledges it via a Wave Confirmation PDU. The legacy WaveInfo/Wave path is retained for servers negotiating a lower version.
+
+Co-authored-by: Charles Hedrick <hedrick@rutgers.edu>
+---
+ .../rdp/channels/rdpsnd/rdpsnd-messages.c     | 75 ++++++++++++++++++-
+ .../rdp/channels/rdpsnd/rdpsnd-messages.h     | 22 ++++++
+ src/protocols/rdp/channels/rdpsnd/rdpsnd.c    |  5 ++
+ 3 files changed, 101 insertions(+), 1 deletion(-)
+
+diff --git a/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.c b/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.c
+index 7c57bc5c58..ef217823b3 100644
+--- a/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.c
++++ b/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.c
+@@ -89,7 +89,7 @@ void guac_rdpsnd_formats_handler(guac_rdp_common_svc* svc,
+ 
+     /* Version and padding */
+     Stream_Write_UINT8(output_stream,  0);
+-    Stream_Write_UINT16(output_stream, 6);
++    Stream_Write_UINT16(output_stream, 8); /* Version 8 is required for the server to use Wave2 (SNDC_WAVE2) */
+     Stream_Write_UINT8(output_stream,  0);
+ 
+     /* Check each server format, respond if supported and audio is enabled */
+@@ -360,6 +360,79 @@ void guac_rdpsnd_wave_handler(guac_rdp_common_svc* svc,
+ 
+ }
+ 
++void guac_rdpsnd_wave2_handler(guac_rdp_common_svc* svc,
++        wStream* input_stream, guac_rdpsnd_pdu_header* header) {
++
++    int format;
++    int wave_size;
++    int timestamp;
++    int block_number;
++    unsigned char* buffer;
++    wStream* output_stream;
++
++    guac_client* client = svc->client;
++    guac_rdpsnd* rdpsnd = (guac_rdpsnd*) svc->data;
++
++    guac_rdp_client* rdp_client = (guac_rdp_client*) client->data;
++    guac_audio_stream* audio = rdp_client->audio;
++
++    /* The Wave2 fixed fields occupy 12 bytes (per MS-RDPEA 2.2.3.10). */
++    if (Stream_GetRemainingLength(input_stream) < 12) {
++        guac_client_log(svc->client, GUAC_LOG_WARNING, "Audio Wave2 PDU does "
++                "not contain the expected number of bytes. Sound may not work "
++                "as expected.");
++        return;
++    }
++
++    /* Read Wave2 fixed fields */
++    Stream_Read_UINT16(input_stream, timestamp);      /* wTimeStamp */
++    Stream_Read_UINT16(input_stream, format);         /* wFormatNo */
++    Stream_Read_UINT8(input_stream, block_number);    /* cBlockNo */
++    Stream_Seek(input_stream, 3);                     /* bPad */
++    Stream_Seek_UINT32(input_stream);                 /* dwAudioTimeStamp */
++
++    /*
++     * Unlike the legacy WaveInfo/Wave pair, the Wave2 PDU is self-contained:
++     * the remaining bytes are the complete audio block (with no four-byte
++     * split).
++     */
++    wave_size = Stream_GetRemainingLength(input_stream);
++    Stream_GetPointer(input_stream, buffer);
++
++    if (audio != NULL) {
++
++        /* Reset audio stream to the format indicated by this PDU */
++        if (format < GUAC_RDP_MAX_FORMATS)
++            guac_audio_stream_reset(audio, NULL,
++                    rdpsnd->formats[format].rate,
++                    rdpsnd->formats[format].channels,
++                    rdpsnd->formats[format].bps);
++
++        else
++            guac_client_log(svc->client, GUAC_LOG_WARNING, "RDP server "
++                    "attempted to specify an invalid audio format. Sound may "
++                    "not work as expected.");
++
++        /* Write audio packet */
++        guac_audio_stream_write_pcm(audio, buffer, wave_size);
++        guac_audio_stream_flush(audio);
++
++    }
++
++    /* Acknowledge via Wave Confirmation PDU (same as legacy Wave) */
++    output_stream = Stream_New(NULL, 8);
++    Stream_Write_UINT8(output_stream, SNDC_WAVECONFIRM);
++    Stream_Write_UINT8(output_stream, 0);
++    Stream_Write_UINT16(output_stream, 4);
++    Stream_Write_UINT16(output_stream, timestamp);
++    Stream_Write_UINT8(output_stream, block_number);
++    Stream_Write_UINT8(output_stream, 0);
++
++    /* Send Wave Confirmation PDU */
++    guac_rdp_common_svc_write(svc, output_stream);
++
++}
++
+ void guac_rdpsnd_close_handler(guac_rdp_common_svc* svc,
+         wStream* input_stream, guac_rdpsnd_pdu_header* header) {
+ 
+diff --git a/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.h b/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.h
+index 9271151f99..7768ac646f 100644
+--- a/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.h
++++ b/src/protocols/rdp/channels/rdpsnd/rdpsnd-messages.h
+@@ -123,6 +123,28 @@ void guac_rdpsnd_wave_info_handler(guac_rdp_common_svc* svc,
+ void guac_rdpsnd_wave_handler(guac_rdp_common_svc* svc,
+         wStream* input_stream, guac_rdpsnd_pdu_header* header);
+ 
++/**
++ * Handler for the SNDC_WAVE2 (Wave 2) PDU. Unlike the legacy SNDC_WAVE /
++ * SNDWAV pair, the Wave 2 PDU is self-contained: a single PDU carries both the
++ * wave metadata and the complete audio data (with no four-byte split). It is
++ * commonly used by modern Windows RDP servers. See:
++ *
++ * https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpea/25cebccb-d679-4302-8dd0-df7fb9a4f9b5
++ *
++ * @param svc
++ *     The RDPSND channel receiving the SNDC_WAVE2 PDU.
++ *
++ * @param input_stream
++ *     The FreeRDP input stream containing the remaining raw bytes (after the
++ *     common header) of the SNDC_WAVE2 PDU.
++ *
++ * @param header
++ *     The header content of the SNDC_WAVE2 PDU. All RDPSND messages contain
++ *     the same header information.
++ */
++void guac_rdpsnd_wave2_handler(guac_rdp_common_svc* svc,
++        wStream* input_stream, guac_rdpsnd_pdu_header* header);
++
+ /**
+  * Handler for the SNDC_CLOSE (Close) PDU. This PDU is sent when audio
+  * streaming has stopped. This PDU is currently ignored by Guacamole. See:
+diff --git a/src/protocols/rdp/channels/rdpsnd/rdpsnd.c b/src/protocols/rdp/channels/rdpsnd/rdpsnd.c
+index bbbe6b5ef1..368b4ac402 100644
+--- a/src/protocols/rdp/channels/rdpsnd/rdpsnd.c
++++ b/src/protocols/rdp/channels/rdpsnd/rdpsnd.c
+@@ -76,6 +76,11 @@ void guac_rdpsnd_process_receive(guac_rdp_common_svc* svc,
+             guac_rdpsnd_wave_info_handler(svc, input_stream, &header);
+             break;
+ 
++        /* Wave2 PDU */
++        case SNDC_WAVE2:
++            guac_rdpsnd_wave2_handler(svc, input_stream, &header);
++            break;
++
+         /* Close PDU */
+         case SNDC_CLOSE:
+             guac_rdpsnd_close_handler(svc, input_stream, &header);

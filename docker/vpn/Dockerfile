@@ -30,8 +30,8 @@ COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable
 
 # RDP plugin rebuilt with guacd-patches/. 0001 (GUACAMOLE-2221) and 0002 (GUACAMOLE-2255) are
-# upstream in 1.6.1; 0003-0005 are ours and are not, so moving to 1.6.1 drops 0001-0002 and
-# keeps rebuilding the plugin with the rest.
+# upstream in 1.6.1 and 0006 (GUACAMOLE-2306) in the unreleased 1.7.0; 0003-0005 are ours and
+# are not, so moving to 1.6.1 drops 0001-0002 and keeps rebuilding the plugin with the rest.
 FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS guacd-rdp-build
 ARG GUACAMOLE_SERVER_VERSION=1.6.0
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
