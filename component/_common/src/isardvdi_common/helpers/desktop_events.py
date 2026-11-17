@@ -412,7 +412,7 @@ class DesktopEvents(RethinkCustomBase):
                 desktop_id, DesktopStatusEnum.stopping.value, wait_seconds=wait_seconds
             )
 
-        # Transition 3: Paused → Stopped
+        # Transition 3: Paused → Stopping, so the engine destroys the paused domain
         if status == DesktopStatusEnum.paused.value:
             with cls._rdb_context():
                 result = (
@@ -422,7 +422,7 @@ class DesktopEvents(RethinkCustomBase):
                         lambda row: r.branch(
                             row["status"].match(DesktopStatusEnum.paused.value),
                             {
-                                "status": DesktopStatusEnum.stopped.value,
+                                "status": DesktopStatusEnum.stopping.value,
                                 "accessed": int(time.time()),
                             },
                             {},
@@ -444,7 +444,7 @@ class DesktopEvents(RethinkCustomBase):
                 return current["status"]
 
             return cls.wait_status(
-                desktop_id, DesktopStatusEnum.stopped.value, wait_seconds=wait_seconds
+                desktop_id, DesktopStatusEnum.stopping.value, wait_seconds=wait_seconds
             )
 
         raise Error(

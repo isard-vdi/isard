@@ -703,6 +703,7 @@ class Engine(object):
                         (old_status == "Started" and new_status == "Stopping")
                         or (old_status == "Shutting-down" and new_status == "Stopping")
                         or (old_status == "Suspended" and new_status == "Stopping")
+                        or (old_status == "Paused" and new_status == "Stopping")
                     ):
 
                         def _stop_action(domain_id):

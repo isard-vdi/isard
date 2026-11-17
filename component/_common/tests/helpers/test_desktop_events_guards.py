@@ -144,6 +144,23 @@ class TestDesktopStop:
         assert exc.value.error["description_code"] == "unable_to_stop_desktop_from"
         _no_update(stub)
 
+    def test_paused_goes_to_stopping_so_the_engine_destroys_it(self, stub):
+        """A paused domain still holds its disk, so it must be destroyed, not relabelled."""
+        _stop_status(stub, "Paused")
+        update = stub["table"].return_value.get.return_value.update
+        update.return_value.run.return_value = {"changes": [{"new_val": {}}]}
+        waited = {}
+        stub["mp"].setattr(
+            stub["Cls"],
+            "wait_status",
+            classmethod(
+                lambda cls, d, status, wait_seconds=0: waited.setdefault("s", status)
+            ),
+        )
+        assert stub["Cls"].desktop_stop("d1") == "Stopping"
+        assert waited["s"] == "Stopping"
+        update.assert_called_once()
+
 
 class TestGetDesktopQosDiskId:
     """A `qos_disk` row with no `allowed` key must not break every start.
