@@ -292,8 +292,8 @@ const showCategoriesDropdown = computed(() => {
     return false
   }
 
-  // If there is only one category, don't show the dropdown
-  if (!categories.value || categories.value.categories?.length === 1) {
+  // If there are no categories or only one, don't show the dropdown
+  if ((categories.value?.categories?.length ?? 0) <= 1) {
     return false
   }
 
