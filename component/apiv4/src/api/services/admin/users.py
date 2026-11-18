@@ -203,6 +203,7 @@ class AdminUsersService:
                 f"Group {data['group']} does not belong to category {data['category']}",
             )
 
+        CommonUsers.check_max_role(data["category"], data["provider"], data["role"])
         Quotas.UserCreate(category_id=data["category"], group_id=data["group"])
 
         password = data["password"]
@@ -287,6 +288,12 @@ class AdminUsersService:
         AdminUsersService._check_role_elevation(
             payload, user_id, data, user.get("role")
         )
+        if data.get("role") or data.get("category"):
+            CommonUsers.check_max_role(
+                data.get("category") or user.get("category"),
+                user.get("provider"),
+                data.get("role") or user.get("role"),
+            )
 
         if data.get("secondary_groups") is not None:
             if len(data["secondary_groups"]) > 0:
@@ -351,6 +358,12 @@ class AdminUsersService:
             AdminUsersService._check_role_elevation(
                 payload, u_id, data, user.get("role")
             )
+            if data.get("role") or data.get("category"):
+                CommonUsers.check_max_role(
+                    data.get("category") or user.get("category"),
+                    user.get("provider"),
+                    data.get("role") or user.get("role"),
+                )
 
             if data.get("secondary_groups") is not None:
                 if len(data["secondary_groups"]) > 0:
@@ -547,6 +560,10 @@ class AdminUsersService:
             AdminUsersService._check_role_elevation(
                 payload, user_data["id"], update_payload, user.get("role")
             )
+            if update_payload.get("role"):
+                CommonUsers.check_max_role(
+                    user.get("category"), user.get("provider"), update_payload["role"]
+                )
             update_payloads.append((user_data["id"], update_payload))
         for user_id, update_payload in update_payloads:
             CommonUsers.update_user(user_id, update_payload)

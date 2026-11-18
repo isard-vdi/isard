@@ -955,6 +955,10 @@ def test_re_register_service_updates_role_group_and_clears_secondary(monkeypatch
         captured["update"] = (user_id, data)
 
     monkeypatch.setattr(
+        users_service.CommonUser, "check_max_role", classmethod(lambda cls, *a: None)
+    )
+
+    monkeypatch.setattr(
         users_service.CommonUser, "update_user", classmethod(fake_update_user)
     )
 

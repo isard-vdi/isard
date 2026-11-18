@@ -346,7 +346,7 @@ def _stub_update_deps(monkeypatch, target_role="user", target_category="cat-a"):
     monkeypatch.setattr(
         "api.services.admin.users.Caches.get_document",
         staticmethod(
-            lambda table, _id: {
+            lambda table, _id, keys=None, invalidate=False: {
                 "category": target_category,
                 "role": target_role,
                 "name": _id,

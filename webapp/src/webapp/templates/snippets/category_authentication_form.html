@@ -72,6 +72,16 @@
           {% include '/snippets/form_field.html' %}
         {% endwith %}
 
+        {% with
+          name="max_role",
+          label="Max role",
+          type="select",
+          required=false,
+          options={"": "No limit", "user": "User", "advanced": "Advanced", "manager": "Manager", "admin": "Administrator"}
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
+
         {% if provider != "local" %}
           <div class="provider-config-form">
             <h5>Provider Configuration</h5>

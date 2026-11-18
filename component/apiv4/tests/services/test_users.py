@@ -196,13 +196,14 @@ class TestDeleteUserBastionSshKey:
 
 
 class TestCreate:
+    @patch("api.services.users.CommonUser.check_max_role")
     @patch("api.services.users.UserStorage.isard_user_storage_add_user")
     @patch("api.services.users.RethinkUser.init_document")
     @patch("api.services.users.RethinkGroup")
     @patch("api.services.users.RethinkCategory.exists", return_value=True)
     @patch("api.services.users.RethinkRole.exists", return_value=True)
     def test_user_storage_receives_the_new_user_id(
-        self, _role, _category, _group, init_document, add_user
+        self, _role, _category, _group, init_document, add_user, _max_role
     ):
         init_document.return_value = MagicMock(id="new-user-id")
         user = UsersService.create(

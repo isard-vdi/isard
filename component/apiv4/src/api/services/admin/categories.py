@@ -25,6 +25,7 @@ from api.services.error import Error
 from api.services.login_config_cache import clear_logo_cache
 from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.category import Category
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
@@ -169,11 +170,13 @@ class AdminCategoryService:
                 "Missing or invalid 'authentication' object",
                 description_code="authentication_invalid",
             )
-        _preserve_authentication_secrets(
-            auth, Category(category_id).authentication or {}
-        )
+        existing = Category(category_id).authentication or {}
+        _preserve_authentication_secrets(auth, existing)
+        _enforce_max_role_admin_only(auth, existing, payload.get("role_id") == "admin")
         _validate_category_authentication(auth)
         Category(category_id).authentication = auth
+        # check_max_role reads the cached category: drop it so the cap applies now.
+        Caches.invalidate_cache("categories", category_id)
 
     # ── Login Notification ───────────────────────────────────────────────
 
@@ -411,6 +414,33 @@ def _preserve_authentication_secrets(new_auth: dict, existing_auth: dict) -> dic
                     )
 
 
+def _enforce_max_role_admin_only(
+    new_auth: dict, existing_auth: dict, is_admin: bool
+) -> None:
+    """Only an admin may set or change max_role; an omitted one keeps the stored value."""
+    if is_admin:
+        return
+    for provider, provider_data in new_auth.items():
+        if not isinstance(provider_data, dict):
+            continue
+        stored = (
+            (existing_auth.get(provider) or {}).get("max_role")
+            if isinstance(existing_auth, dict)
+            else None
+        )
+        if "max_role" not in provider_data:
+            if stored is not None:
+                provider_data["max_role"] = stored
+            continue
+        # Absent, None and "" (the old webapp's "No limit") all mean no cap.
+        if (provider_data.get("max_role") or None) != (stored or None):
+            raise Error(
+                "forbidden",
+                "Only an admin can set or change max_role",
+                description_code="max_role_admin_only",
+            )
+
+
 def _validate_category_authentication(auth: dict) -> None:
     """Reject the same incomplete payloads as the apiv3 Cerberus schema.
 
@@ -436,6 +466,13 @@ def _validate_category_authentication(auth: dict) -> None:
         _require(
             isinstance(disabled, bool), f"'{provider}' requires a boolean 'disabled'"
         )
+
+        max_role = provider_data.get("max_role")
+        if max_role not in (None, ""):
+            _require(
+                max_role in ("user", "advanced", "manager", "admin"),
+                f"'{provider}' max_role must be one of user, advanced, manager, admin",
+            )
 
         config_source = provider_data.get("config_source")
         edr = provider_data.get("email_domain_restriction")

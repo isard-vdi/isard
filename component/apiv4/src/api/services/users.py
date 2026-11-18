@@ -141,6 +141,7 @@ class UsersService:
                 "not_found",
                 f"Group with ID '{group_id}' does not exist.",
             )
+        CommonUser.check_max_role(category_id, provider, role_id)
         group = RethinkGroup(group_id)
         if password == False:
             password = Helpers.gen_random_password()
@@ -208,6 +209,7 @@ class UsersService:
             )
 
         user_id = users[0]["id"]
+        CommonUser.check_max_role(category_id, provider, role_id)
         CommonUser.update_user(
             user_id,
             {
