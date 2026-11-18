@@ -154,6 +154,14 @@ class DesktopService:
                 description_code="not_found",
             )
 
+        bastion_data = (
+            data.bastion_target.model_dump(exclude_unset=True)
+            if data.bastion_target
+            else None
+        )
+        if bastion_data:
+            BastionService.normalize_request_keys(None, bastion_data)
+
         submitted_hardware = (
             data.hardware.model_dump(exclude_unset=True) if data.hardware else {}
         )
@@ -233,9 +241,7 @@ class DesktopService:
             )
 
         if data.bastion_target:
-            RethinkTargets.update_domain_target(
-                desktop_id, data.bastion_target.model_dump(exclude_unset=True)
-            )
+            RethinkTargets.update_domain_target(desktop_id, bastion_data)
 
         return desktop_id
 
@@ -1347,6 +1353,8 @@ class DesktopService:
             )
 
         bastion_data = data.pop("bastion_target", None)
+        if bastion_data:
+            BastionService.normalize_request_keys(desktop_id, bastion_data)
 
         CommonDesktops.validate_desktop_update(data, desktop_id)
 

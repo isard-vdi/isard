@@ -18,6 +18,7 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Skeleton } from '@/components/ui/skeleton'
 import { vAutofocus } from '@/directives/autofocus'
+import { SSH_KEY_RE, countKeyTypes } from '@/lib/sshKeys'
 
 interface Props {
   open?: boolean
@@ -32,20 +33,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-// Mirrors the server-side validation in apiv4 `validate_ssh_public_key`:
-// a single known key type followed by a base64 blob and an optional comment.
-const SSH_KEY_RE =
-  /^(ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s+[A-Za-z0-9+/]+={0,3}(\s+\S.*)?$/
-
-// The optional trailing comment in SSH_KEY_RE is greedy enough to swallow a
-// second key pasted on the same line ("ssh-ed25519 AAA... ssh-ed25519 BBB..."),
-// so it would validate as one key with a comment. This modal only accepts a
-// SINGLE key, so also require exactly one key-type token in the input.
-const SSH_KEY_TYPE_RE =
-  /(?:^|\s)(?:ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s/g
-
-const countKeyTypes = (value: string) => (` ${value} `.match(SSH_KEY_TYPE_RE) || []).length
 
 const formSchema = z.object({
   sshKey: z

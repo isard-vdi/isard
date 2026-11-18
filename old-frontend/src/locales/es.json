@@ -175,7 +175,8 @@
         "ssh": {
           "checkbox": "SSH",
           "port": "Puerto SSH",
-          "authorized-keys": "Claves autorizadas (una por línea)"
+          "authorized-keys": "Claves autorizadas (una por línea)",
+          "invalid-keys": "Clave pública SSH no válida en la línea {lines}."
         },
         "port-tooltip": "El puerto utilizado por tu escritorio. Externamente, se asignará al puerto {port}.",
         "copy": "Copiar al portapapeles",
@@ -1849,7 +1850,8 @@
     "storage_not_found": "No se ha encontrado el disco del escritorio. Contacta con el administrador.",
     "storage_repair_not_allowed": "Solo un administrador, o un usuario que un administrador haya permitido, puede ejecutar esta reparación.",
     "storage_fix_not_needed": "El disco ya no necesita este arreglo.",
-    "storage_fix_in_progress": "Ya se está trabajando en el disco. Espera a que acabe."
+    "storage_fix_in_progress": "Ya se está trabajando en el disco. Espera a que acabe.",
+    "bastion_ssh_key_invalid": "La clave pública SSH proporcionada no es válida."
   },
   "router": {
     "titles": {

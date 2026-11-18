@@ -80,7 +80,8 @@ const getDefaultState = () => {
         port: 22,
         authorized_keys: []
       }
-    }
+    },
+    storedAuthorizedKeys: []
   }
 }
 
@@ -124,6 +125,9 @@ export default {
     },
     getBastion: state => {
       return state.bastion
+    },
+    getStoredAuthorizedKeys: state => {
+      return state.storedAuthorizedKeys
     }
   },
   mutations: {
@@ -194,6 +198,9 @@ export default {
     },
     setBastion: (state, bastion) => {
       state.bastion = bastion
+    },
+    setStoredAuthorizedKeys: (state, keys) => {
+      state.storedAuthorizedKeys = keys
     }
   },
   actions: {
@@ -326,6 +333,7 @@ export default {
             bastion.enabled = false
           }
           context.commit('setBastion', bastion)
+          context.commit('setStoredAuthorizedKeys', [...(bastion.ssh.authorized_keys || [])])
         }).catch(e => {
           // We can ignore 404, since the first time the bastion
           // won't be created
@@ -343,8 +351,12 @@ export default {
         bastion.http.http_port = bastion.http.http_port ? parseInt(bastion.http.http_port) : 80
         bastion.http.https_port = bastion.http.https_port ? parseInt(bastion.http.https_port) : 443
         bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
+        // The keys field is hidden while SSH is off, so its content isn't being submitted.
+        const ssh = bastion.ssh.enabled
+          ? bastion.ssh
+          : { ...bastion.ssh, authorized_keys: context.getters.getStoredAuthorizedKeys }
 
-        axios.put(`${apiV3Segment}/item/desktop/${domainId}/bastion`, bastion).then(response => {
+        axios.put(`${apiV3Segment}/item/desktop/${domainId}/bastion`, { ...bastion, ssh }).then(response => {
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })

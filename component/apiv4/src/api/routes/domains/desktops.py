@@ -351,6 +351,7 @@ async def get_desktop_bastion(
     summary="Update desktop bastion authorized keys",
     description="Updates the authorized keys for the desktop bastion",
     responses={
+        400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -1245,6 +1246,7 @@ async def get_desktop_info(
     response_model=SimpleResponse,
     summary="Edit a desktop",
     description="Updates a desktop with the given parameters.",
+    responses={400: {"model": ErrorResponse}},
     dependencies=[
         Depends(owns_domain_id("desktop_id")),
         Depends(check_domain_kind("desktop_id", "desktop")),

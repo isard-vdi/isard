@@ -19,6 +19,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { toast } from '@/components/ui/toast'
 import { ref, watch } from 'vue'
 import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
+import { invalidAuthorizedKeyLines } from '@/lib/sshKeys'
 
 interface BastionHttpHttps {
   enabled?: boolean
@@ -89,6 +90,22 @@ const formSchema = z.object({
       sshPort: z.number().min(1).max(65535),
       authorizedKeys: z.string()
     })
+    .superRefine((ssh, ctx) => {
+      if (!ssh.enabled) return
+      const lines = invalidAuthorizedKeyLines(
+        ssh.authorizedKeys,
+        props.bastion?.ssh?.authorizedKeys
+      )
+      if (lines.length) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['authorizedKeys'],
+          message: t('components.domain.access.bastion.ssh.authorized-keys.invalid', {
+            lines: lines.join(', ')
+          })
+        })
+      }
+    })
     .optional(),
   customDomains: z.array(z.string().url('Invalid domain URL')).optional()
 })
@@ -122,6 +139,10 @@ const getFormData = () => {
 const isFormValid = form.useStore((state) => state.isValid)
 
 const isDirty = form.useStore((state) => !state.isDefaultValue)
+
+// The SSH switch never blurs, so a keys error on the hidden field would keep the form invalid.
+const sshEnabled = form.useStore((state) => state.values.ssh?.enabled)
+watch(sshEnabled, () => form.validate('blur'))
 
 const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled))
 

@@ -2442,7 +2442,8 @@
                   "description": "Aún no tienes ninguna clave SSH del bastión en tu perfil; puedes añadirla para tener acceso SSH automáticamente en todos tus escritorios.",
                   "button": "Añádela a tu perfil"
                 }
-              }
+              },
+              "invalid": "Clave pública SSH no válida en la línea {lines}."
             }
           }
         },
@@ -3378,7 +3379,8 @@
         "one_viewer_minimum": "Debes seleccionar al menos un visor.",
         "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo.",
         "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
-        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host."
+        "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host.",
+        "bastion_ssh_key_invalid": "Una de las claves SSH autorizadas no es una clave pública SSH válida."
       }
     },
     "increase-storage": {

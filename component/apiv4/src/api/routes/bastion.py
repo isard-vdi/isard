@@ -165,6 +165,7 @@ async def get_desktop_bastion_active(
     summary="Update bastion target for desktop",
     description="Updates the bastion target configuration for a desktop. If the user cannot use individual domains, the domain field is cleared.",
     responses={
+        400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
