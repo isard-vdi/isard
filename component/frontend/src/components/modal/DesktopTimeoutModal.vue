@@ -8,56 +8,117 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { describeApiError } from '@/lib/api-errors'
-import { formatAsTime } from '@/lib/booking/date-utils'
-import { clearDesktopTimeout, desktopTimeout } from '@/lib/desktop-timeout'
+import {
+  clearDesktopTimeouts,
+  desktopTimeouts,
+  highestDesktopTimeoutLevel,
+  removeDesktopTimeoutsOf,
+  type DesktopTimeoutLevel,
+  type DesktopTimeoutWarning
+} from '@/lib/desktop-timeout'
+import { cn } from '@/lib/utils'
+import { useSessionStore } from '@/stores/session'
 import { extendDesktopTimeoutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const { t, te, d } = useI18n()
+const sessionStore = useSessionStore()
 
-const description = computed(() => {
-  const warning = desktopTimeout.value
-  if (!warning) return ''
-  return t('components.desktop-timeout-modal.description', {
+const levelDotClasses: Record<DesktopTimeoutLevel, string> = {
+  info: 'bg-info-modal',
+  warning: 'bg-warning-modal',
+  danger: 'bg-error-600'
+}
+
+const warnings = computed(() =>
+  [...desktopTimeouts.value].sort(
+    (a, b) => new Date(a.stopsAt).getTime() - new Date(b.stopsAt).getTime()
+  )
+)
+
+const single = computed(() => (warnings.value.length === 1 ? warnings.value[0] : null))
+
+// The session modal always sits on top, so a warning opened under it could not be seen or
+// answered; warnings wait in the list until it closes.
+const open = computed(() => warnings.value.length > 0 && !sessionStore.modalOpen)
+
+const describe = (warning: DesktopTimeoutWarning) =>
+  t('components.desktop-timeout-modal.description', {
     name: warning.name,
     date: d(warning.stopsAt, { timeStyle: 'short' })
   })
-})
 
-const extendMinutes = computed(() => desktopTimeout.value?.extendMinutes ?? null)
+const description = computed(() =>
+  single.value
+    ? describe(single.value)
+    : t('components.desktop-timeout-modal.description-multiple', { count: warnings.value.length })
+)
 
-const { mutate: extendTimeout, isPending: isExtending } = useMutation({
+const canExtend = (warning: DesktopTimeoutWarning) =>
+  warning.desktopId !== null && warning.extendMinutes !== null
+
+const {
+  mutate: extendTimeout,
+  isPending: isExtending,
+  variables: extending
+} = useMutation({
   ...extendDesktopTimeoutMutation(),
-  onSuccess: () => clearDesktopTimeout(),
+  onSuccess: (_data, variables) => removeDesktopTimeoutsOf(variables.path.desktop_id),
   onError: (error) => toast.error(describeApiError(error, { t, te }, 'extend-desktop'))
 })
 
-const onExtend = () => {
-  const desktopId = desktopTimeout.value?.desktopId
-  if (desktopId) extendTimeout({ path: { desktop_id: desktopId } })
+const isExtendingDesktop = (warning: DesktopTimeoutWarning) =>
+  isExtending.value && extending.value?.path.desktop_id === warning.desktopId
+
+const onExtend = (warning: DesktopTimeoutWarning) => {
+  if (warning.desktopId) extendTimeout({ path: { desktop_id: warning.desktopId } })
 }
 
 const onUpdateOpen = (value: boolean) => {
-  if (!value) clearDesktopTimeout()
+  if (!value) clearDesktopTimeouts()
 }
 
-onUnmounted(clearDesktopTimeout)
+onUnmounted(clearDesktopTimeouts)
 </script>
 
 <template>
   <AlertModal
-    :open="desktopTimeout !== null"
-    size="md"
-    :level="desktopTimeout?.level ?? 'warning'"
+    :open="open"
+    :size="single ? 'md' : 'lg'"
+    :level="highestDesktopTimeoutLevel(warnings)"
     :title="t('components.desktop-timeout-modal.title')"
     :description="description"
     :close-on-backdrop-click="!isExtending"
     :show-close-button="!isExtending"
     @update:open="onUpdateOpen"
   >
-    <template v-if="extendMinutes !== null" #footer>
-      <Button size="lg" hierarchy="primary" :disabled="isExtending" @click="onExtend">
+    <template v-if="!single" #description>
+      <ul class="mt-2 flex flex-col divide-y divide-gray-warm-200">
+        <li v-for="warning in warnings" :key="warning.key" class="flex items-center gap-3 py-3">
+          <span
+            aria-hidden="true"
+            :class="cn('size-2.5 shrink-0 rounded-full', levelDotClasses[warning.level])"
+          />
+          <span class="grow wrap-break-word">{{ describe(warning) }}</span>
+          <Button
+            v-if="canExtend(warning)"
+            size="sm"
+            hierarchy="secondary-color"
+            class="shrink-0"
+            :disabled="isExtending"
+            @click="onExtend(warning)"
+          >
+            <Spinner v-if="isExtendingDesktop(warning)" size="sm" class="mr-1" />
+            {{
+              t('components.desktop-timeout-modal.extend-time', { minutes: warning.extendMinutes })
+            }}
+          </Button>
+        </li>
+      </ul>
+    </template>
+    <template v-if="single && canExtend(single)" #footer>
+      <Button size="lg" hierarchy="primary" :disabled="isExtending" @click="onExtend(single)">
         <Spinner v-if="isExtending" size="sm" class="mr-1" />
-        {{ t('components.desktop-timeout-modal.extend-time', { minutes: extendMinutes }) }}
+        {{ t('components.desktop-timeout-modal.extend-time', { minutes: single.extendMinutes }) }}
       </Button>
     </template>
   </AlertModal>
