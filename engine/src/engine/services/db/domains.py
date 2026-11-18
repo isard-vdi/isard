@@ -39,6 +39,7 @@ def delete_domain(id):
     with rethink_conn() as r_conn:
         rtable = r.table("domains")
         results = rtable.get(id).delete().run(r_conn)
+        r.table("targets").get_all(id, index="desktop_id").delete().run(r_conn)
     return results
 
 
@@ -138,6 +139,9 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
             r.table("bookings").get_all(
                 r.args([["desktop", domain_id] for domain_id in domains_to_delete]),
                 index="item_type-id",
+            ).delete().run(r_conn)
+            r.table("targets").get_all(
+                r.args(domains_to_delete), index="desktop_id"
             ).delete().run(r_conn)
             results = (
                 rtable.get_all(r.args(domains_to_delete), index="id")
@@ -1539,7 +1543,6 @@ class PersonalUnit(TypedDict):
 def get_personal_unit_from_domain(domain_id: str) -> PersonalUnit:
     """Get the personal unit configuration that applies to a domain"""
     with rethink_conn() as r_conn:
-
         user_id = (r.table("domains").get(domain_id).pluck("user").run(r_conn)).get(
             "user"
         )

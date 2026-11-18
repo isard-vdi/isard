@@ -56,7 +56,8 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 216
+release_version = 217
+# release 217: cleanup the orphaned bastion targets
 # release 216: storage health: the integrity, zero-scan and pending-since indexes,
 #              and health.checks.integrity.at backfilled from last_checked_at;
 #              config storage_repair.allowed seeded empty (only admins run costly repairs)
@@ -8656,6 +8657,75 @@ password:s:%s"""
                         r.table(table).get(target["id"]).update(
                             {"ssh": {"authorized_keys": kept}}
                         ).run(self.conn)
+
+        if version == 217:
+            # Desktops recycled in bulk (a deployment, a user, a group, a
+            # category, a multi-select delete) kept their target row, and so
+            # did the desktops the engine tore down. A row whose desktop sits in
+            # a restorable recycle bin entry moves into that entry, as a
+            # single-desktop delete has always done, so a restore brings the
+            # bastion access back; the rest belong to nothing and go.
+            try:
+                targets = list(r.table(table).run(self.conn))
+                desktop_ids = list(
+                    {t["desktop_id"] for t in targets if t.get("desktop_id")}
+                )
+                existing = set()
+                for i in range(0, len(desktop_ids), 1000):
+                    existing.update(
+                        r.table("domains")
+                        .get_all(r.args(desktop_ids[i : i + 1000]))
+                        .get_field("id")
+                        .run(self.conn)
+                    )
+                orphans = [t for t in targets if t.get("desktop_id") not in existing]
+
+                orphan_desktop_ids = list(
+                    {t["desktop_id"] for t in orphans if t.get("desktop_id")}
+                )
+                entry_by_desktop = {}
+                saved_by_entry = {}
+                for i in range(0, len(orphan_desktop_ids), 1000):
+                    for entry in (
+                        r.table("recycle_bin")
+                        .get_all(
+                            r.args(orphan_desktop_ids[i : i + 1000]), index="desktop"
+                        )
+                        .filter({"status": "recycled"})
+                        .pluck("id", {"desktops": ["id"]}, {"targets": ["id"]})
+                        .run(self.conn)
+                    ):
+                        saved_by_entry[entry["id"]] = {
+                            saved["id"] for saved in entry.get("targets") or []
+                        }
+                        for desktop in entry.get("desktops") or []:
+                            entry_by_desktop[desktop["id"]] = entry["id"]
+
+                to_move = {}
+                for target in orphans:
+                    entry_id = entry_by_desktop.get(target.get("desktop_id"))
+                    if entry_id and target["id"] not in saved_by_entry[entry_id]:
+                        to_move.setdefault(entry_id, []).append(target)
+                # Saved before anything is deleted: a failed write must leave
+                # the row, which is still the only copy.
+                for entry_id, entry_targets in to_move.items():
+                    r.table("recycle_bin").get(entry_id).update(
+                        {"targets": r.row["targets"].default([]).add(entry_targets)}
+                    ).run(self.conn)
+
+                orphan_ids = [t["id"] for t in orphans]
+                for i in range(0, len(orphan_ids), 1000):
+                    r.table(table).get_all(
+                        r.args(orphan_ids[i : i + 1000])
+                    ).delete().run(self.conn)
+
+                log.info(
+                    f"targets v217: moved {sum(map(len, to_move.values()))} orphan "
+                    f"target(s) into {len(to_move)} recycle bin entry(ies), removed "
+                    f"{len(orphan_ids)} orphan target row(s)"
+                )
+            except Exception as e:
+                log.error(f"targets v217 failed (non-fatal): {e}")
 
         return True
 

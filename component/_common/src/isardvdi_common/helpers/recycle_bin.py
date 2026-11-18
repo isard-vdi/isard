@@ -2900,6 +2900,14 @@ class RecycleBinDomain(RecycleBin):
                 {"desktops": r.row["desktops"].add(desktops)}
             ).run(self._rdb_connection)
 
+        desktops_ids = [desktop["id"] for desktop in desktops]
+        for i in range(0, len(desktops_ids), 200):
+            batch_ids = desktops_ids[i : i + 200]
+            targets = Targets.find_domains_targets(batch_ids)
+            if targets:
+                self.add_targets(targets)
+                Targets.bulk_delete_domain_targets(batch_ids)
+
         rcb_storage = RecycleBinStorage(id=self.id, user_id=self.agent_id)
         storages_ids = []
         for desktop in desktops:
@@ -2934,10 +2942,23 @@ class RecycleBinDomain(RecycleBin):
         rcb_storage.add_storages(storages)
 
     def add_target(self, target):
+        self.add_targets([target])
+
+    def add_targets(self, targets):
         with self._rdb_context():
-            r.table("recycle_bin").get(self.id).update(
-                {"targets": r.row["targets"].append(target)}
-            ).run(self._rdb_connection)
+            result = (
+                r.table("recycle_bin")
+                .get(self.id)
+                .update({"targets": r.row["targets"].add(targets)})
+                .run(self._rdb_connection)
+            )
+
+        if result["errors"] or not result["replaced"]:
+            raise Error(
+                "internal_server",
+                f"Could not save the bastion targets in recycle bin entry {self.id}: "
+                + result.get("first_error", "the entry does not exist"),
+            )
 
 
 class RecycleBinDesktop(RecycleBinDomain):
