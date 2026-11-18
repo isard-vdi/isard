@@ -1077,6 +1077,9 @@ def apply_targets(nvidia_gpus, targets, run=run_local, progress=None, deliberate
         if gpu.get("pci_bus_id")
         and (
             gpu.get("vgpu_profiles") is not None
+            # kept on vfio-pci at startup (#7678): live state is known, so the
+            # target decides (noop for passthrough, passthrough->vGPU otherwise)
+            or gpu.get("vfio_kept_at_start")
             or (
                 gpu["pci_bus_id"] in targets
                 and target_suffix(targets[gpu["pci_bus_id"]]) == "passthrough"
