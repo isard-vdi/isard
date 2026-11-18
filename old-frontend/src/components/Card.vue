@@ -27,7 +27,7 @@
                          placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
-          :idx="desktop.editable ? getUser.role_id != 'user' ? (desktop.needsBooking && !desktop.tag) ? 5 : 4 : 2 : (desktop.permissions.length)"
+          :idx="desktop.editable ? getUser.role_id != 'user' ? ((desktop.needsBooking && !desktop.tag) || desktop.permissions.includes('recreate')) ? 5 : 4 : 2 : (desktop.permissions.length)"
           icon="fort"
           color="#303446"
           @clickItem="onClickShowBastionModal(bastion)"
