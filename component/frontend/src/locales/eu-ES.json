@@ -1747,6 +1747,10 @@
         "booking_exceeds_max_time": {
           "title": "GPU erreserba luzeegia da",
           "description": "Amaiera-orduak GPUa erreserbatu dezakezun gehienezko denbora gainditzen du. Hautatu lehenagoko bat."
+        },
+        "single_temporal_per_template": {
+          "title": "@:components.domain.configuration.single-temporal.title",
+          "description": "@:components.domain.configuration.single-temporal.existing"
         }
       }
     },

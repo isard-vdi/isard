@@ -3297,6 +3297,10 @@
         "booking_exceeds_max_time": {
           "title": "La reserva de GPU es demasiado larga",
           "description": "La hora de fin supera el tiempo máximo que puedes reservar la GPU. Elige una anterior."
+        },
+        "single_temporal_per_template": {
+          "title": "@:components.domain.configuration.single-temporal.title",
+          "description": "@:components.domain.configuration.single-temporal.existing"
         }
       }
     },

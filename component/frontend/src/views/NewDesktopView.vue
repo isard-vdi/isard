@@ -8,6 +8,7 @@ import {
   checkQuotaNewVolatileDesktopOptions,
   checkStoragePoolCreationAvailabilityOptions,
   getBookingReservablesAvailableQueryKey,
+  getTemplateNonpersistentDesktopQueryKey,
   getUserDesktopsQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
@@ -177,6 +178,15 @@ const {
     currentStep.value = 2
     // A refused vGPU booking means the availability moved under the form.
     queryClient.invalidateQueries({ queryKey: getBookingReservablesAvailableQueryKey() })
+    // TODO(old-frontend-removal): a refused temporal means its template's slot
+    // was taken under the form; refetching locks the option.
+    if (selectedTemplate.value) {
+      queryClient.invalidateQueries({
+        queryKey: getTemplateNonpersistentDesktopQueryKey({
+          path: { template_id: selectedTemplate.value.id }
+        })
+      })
+    }
   }
 })
 

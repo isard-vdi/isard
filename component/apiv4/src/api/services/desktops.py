@@ -234,8 +234,9 @@ class DesktopService:
                 description=data.description,
                 new_data=new_data,
                 image=data.image.model_dump(exclude_unset=True) if data.image else None,
-                # This body carries a configuration; the old frontend's
-                # one-desktop-per-template reuse would discard it.
+                # This body carries a configuration the old frontend's
+                # one-desktop-per-template reuse would discard: a taken slot
+                # refuses it instead.
                 allow_reuse=False,
                 booking_end=DesktopService._booking_end_str(data.booking_end),
             )
@@ -284,14 +285,17 @@ class DesktopService:
     def get_reused_nonpersistent_desktop(
         user_id: str, template_id: str
     ) -> Optional[str]:
-        """The desktop ``new-nonpersistent`` would reuse instead of creating one.
-        TODO(old-frontend-removal): only its one-per-template rule reuses."""
+        """A temporal desktop holding this template's one-per-template slot.
+
+        While it exists ``new-nonpersistent`` reuses it (or, among leftovers,
+        replaces them) and a configured temporal is refused.
+        TODO(old-frontend-removal): only that rule needs it."""
         if Helpers.frontend_mode() == "actual":
             return None
         desktops = CommonDesktopsNonpersistent.user_template_desktops(
             user_id, template_id
         )
-        return desktops[0]["id"] if len(desktops) == 1 else None
+        return desktops[0]["id"] if desktops else None
 
     @staticmethod
     def create_from_media(user_id: str, data: CreateDesktopFromMedia) -> str:

@@ -124,11 +124,13 @@ const singleTemporalPerTemplate = computed(
 )
 
 // Only asked where that limit applies: elsewhere the endpoint always answers null.
+// Never served from cache: a temporal created or deleted moments ago moves the slot.
 const { data: reusedTemporalDesktop } = useQuery({
   ...getTemplateNonpersistentDesktopOptions({
     path: { template_id: props.templateId || '' }
   }),
-  enabled: computed(() => singleTemporalPerTemplate.value && !!props.templateId)
+  enabled: computed(() => singleTemporalPerTemplate.value && !!props.templateId),
+  staleTime: 0
 })
 
 const temporalDisabled = computed(() => !!reusedTemporalDesktop.value?.desktop_id)

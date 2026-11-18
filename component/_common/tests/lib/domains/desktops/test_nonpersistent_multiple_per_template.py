@@ -7,7 +7,8 @@
 
 Several are allowed only on ``FRONTEND_MODE=actual``; anywhere the old frontend
 is still reachable the v3 get-or-create stays, since it maps each template card
-to a single desktop.
+to a single desktop, and a submitted configuration is refused rather than
+reused away.
 """
 
 from contextlib import nullcontext
@@ -104,9 +105,31 @@ def test_old_frontend_reachable_reuses_the_existing_desktop(monkeypatch, stub, m
     mod.DesktopEvents.desktop_start.assert_called_once_with("d-old")
 
 
-def test_a_submitted_configuration_is_never_reused_away(monkeypatch, stub):
-    monkeypatch.setenv("FRONTEND_MODE", "deprecated")
-    _existing(stub, {"id": "d-old", "status": "Started"})
+@pytest.mark.parametrize("mode", ["deprecated", "all", "hidden"])
+def test_a_submitted_configuration_is_refused_when_the_slot_is_taken(
+    monkeypatch, stub, mode
+):
+    monkeypatch.setenv("FRONTEND_MODE", mode)
+    _existing(stub, {"id": "d-old", "status": "Stopped"})
+
+    with pytest.raises(Error) as refused:
+        DNP.new_desktop(
+            "u-1",
+            "t-1",
+            name="mine",
+            new_data={"hardware": {"vcpus": 4}},
+            allow_reuse=False,
+        )
+
+    assert refused.value.error["error"] == "conflict"
+    assert refused.value.error["description_code"] == "single_temporal_per_template"
+    assert stub["created"] == []
+    mod.DesktopEvents.desktop_start.assert_not_called()
+
+
+def test_a_submitted_configuration_creates_when_the_slot_is_free(monkeypatch, stub):
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _existing(stub)
 
     desktop_id = DNP.new_desktop(
         "u-1",

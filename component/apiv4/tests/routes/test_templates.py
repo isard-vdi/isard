@@ -665,10 +665,10 @@ def test_change_template_owner(monkeypatch, test_client):
     }
 
 
-# ─── Non-persistent desktop the template would reuse ─────────────────────
+# ─── Non-persistent desktop holding the template's slot ──────────────────
 # TODO(old-frontend-removal): the whole section goes with the endpoint. Only
 # while the old frontend is reachable: the Vue 3 wizard disables the temporal
-# option instead of silently handing back the existing desktop.
+# option, which the backend would refuse anyway.
 
 
 def _templates_db_with_temporal(templates_db_factory, jwt, *desktops):
@@ -710,6 +710,29 @@ def test_get_template_nonpersistent_desktop_returns_the_reused_one(
 
     assert response.status_code == 200, response.json()
     assert response.json() == {"desktop_id": "desktop-np-1"}
+
+
+def test_get_template_nonpersistent_desktop_locks_on_leftovers(
+    monkeypatch, test_client, templates_db_factory
+):
+    """Leftovers from a period on ``actual`` still take the slot: creating a
+    configured temporal would be refused."""
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    jwt = MockJWT(role_id="advanced")
+
+    response = test_client(
+        db_tables_data=_templates_db_with_temporal(
+            templates_db_factory,
+            jwt,
+            _temporal("desktop-np-1", jwt),
+            _temporal("desktop-np-2", jwt),
+        ),
+        url="/item/template/template-1/get-nonpersistent-desktop",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["desktop_id"] in {"desktop-np-1", "desktop-np-2"}
 
 
 def test_get_template_nonpersistent_desktop_none_without_one(

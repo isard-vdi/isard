@@ -74,24 +74,34 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         Several per template only where the old frontend is unreachable: it maps
         each template card to a single desktop and couldn't show the rest.
         ``allow_reuse=False`` opts out of that get-or-create: a caller that
-        submitted its own configuration would get it silently dropped.
+        submitted its own configuration would get it silently dropped, so a
+        taken slot refuses it instead.
         """
         with cls._rdb_context():
             if r.table("users").get(user_id).run(cls._rdb_connection) is None:
                 raise Error("not_found", "User not found", traceback.format_exc())
 
-        # TODO(old-frontend-removal): drop this branch and _single_desktop_per_template.
-        if allow_reuse and Helpers.frontend_mode() != "actual":
-            return cls._single_desktop_per_template(
-                user_id,
-                template_id,
-                name,
-                description,
-                new_data,
-                image,
-                booking_end,
-                reservables,
-            )
+        # TODO(old-frontend-removal): drop this block, _single_desktop_per_template
+        # and the single_temporal_per_template error code.
+        if Helpers.frontend_mode() != "actual":
+            if allow_reuse:
+                return cls._single_desktop_per_template(
+                    user_id,
+                    template_id,
+                    name,
+                    description,
+                    new_data,
+                    image,
+                    booking_end,
+                    reservables,
+                )
+            if cls.user_template_desktops(user_id, template_id):
+                raise Error(
+                    "conflict",
+                    "The user already has a temporal desktop from this template",
+                    traceback.format_exc(),
+                    description_code="single_temporal_per_template",
+                )
 
         return cls._nonpersistent_desktop_create_and_start(
             user_id,

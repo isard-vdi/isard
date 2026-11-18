@@ -143,10 +143,12 @@ async def get_template_details(
     summary="Get the non-persistent desktop this template would reuse",
     tags=[tag],
     description=(
-        "Returns the user's non-persistent desktop derived from this template "
-        "when creating another temporal desktop would reuse it instead of "
-        "creating a new one, and ``null`` otherwise. Only installations still "
-        "exposing the old frontend reuse, so this endpoint goes away with it."
+        "Returns a non-persistent desktop of the user's derived from this "
+        "template while it keeps another one from being created, and ``null`` "
+        "otherwise: ``new-nonpersistent`` reuses it and ``POST /item/desktop`` "
+        "refuses a temporal one with 409. Only installations still exposing "
+        "the old frontend hold one per template, so this endpoint goes away "
+        "with it."
     ),
     responses={
         403: {"model": ErrorResponse},
