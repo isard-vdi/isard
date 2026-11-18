@@ -1074,7 +1074,14 @@ def apply_targets(nvidia_gpus, targets, run=run_local, progress=None, deliberate
     cards = [
         gpu
         for gpu in (nvidia_gpus or [])
-        if gpu.get("pci_bus_id") and gpu.get("vgpu_profiles") is not None
+        if gpu.get("pci_bus_id")
+        and (
+            gpu.get("vgpu_profiles") is not None
+            or (
+                gpu["pci_bus_id"] in targets
+                and target_suffix(targets[gpu["pci_bus_id"]]) == "passthrough"
+            )
+        )
     ]
     # stable sort: False (non-MIG) before True (MIG)
     cards.sort(key=lambda gpu: _is_mig_target(gpu, targets))

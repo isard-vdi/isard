@@ -1089,3 +1089,30 @@ def test_running_mdev_uuids_extracts_vfio_vf_bdfs():
 
     # the vfio VF BDF reconstructed from the alias AND the legacy mdev uuid
     assert ga._running_mdev_uuids(run) == {"0000:c1:00.2", "aaa-111"}
+
+
+def test_apply_targets_applies_passthrough_to_a_card_whose_discovery_failed(
+    monkeypatch,
+):
+    applied = []
+    monkeypatch.setattr(
+        ga,
+        "apply_target",
+        lambda gpu, target, run=None, deliberate=False: applied.append(
+            gpu["pci_bus_id"]
+        )
+        or {"result": "applied"},
+    )
+    gpus = [
+        {"pci_bus_id": "0000:e6:00.0", "vgpu_profiles": None, "sriov_totalvfs": 32},
+        {"pci_bus_id": "0000:e7:00.0", "vgpu_profiles": None, "sriov_totalvfs": 32},
+        {"pci_bus_id": "0000:03:00.0", "vgpu_profiles": None, "sriov_totalvfs": 32},
+    ]
+    targets = {
+        "0000:e6:00.0": {"target_profile": "passthrough", "action": "apply"},
+        "0000:e7:00.0": {"target_profile": "4Q", "action": "apply"},
+    }
+    report = ga.apply_targets(gpus, targets)
+    # only the passthrough target goes through; a vGPU carve is never guessed
+    assert applied == ["0000:e6:00.0"]
+    assert set(report) == {"0000:e6:00.0"}
