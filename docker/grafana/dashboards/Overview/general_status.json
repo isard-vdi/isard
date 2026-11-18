@@ -640,7 +640,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Non available RAM memory",
+      "description": "Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -700,7 +700,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
+          "expr": "100 * (1 - (sum(node_memory_MemAvailable_bytes) + sum(node_memory_HugePages_Free * node_memory_Hugepagesize_bytes)) / sum(node_memory_MemTotal_bytes))",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -1454,7 +1454,7 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "kbytes"
         },
         "overrides": []
       },
@@ -1500,7 +1500,8 @@
         }
       ],
       "title": "vRAM",
-      "type": "stat"
+      "type": "stat",
+      "description": "Memory assigned to running desktops (KiB from libvirt)."
     },
     {
       "gridPos": {
@@ -2570,7 +2571,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "",
+      "description": "Memory not available to desktops, over MemTotal. Free reserved hugepages count as available, as the platform counts them.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2663,7 +2664,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
+          "expr": "100 * (1 - (sum(node_memory_MemAvailable_bytes) + sum(node_memory_HugePages_Free * node_memory_Hugepagesize_bytes)) / sum(node_memory_MemTotal_bytes))",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -2935,7 +2936,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(isardvdi_domain_mem_total{})",
+          "expr": "sum(isardvdi_domain_mem_total{}) * 1024",
           "instant": false,
           "legendFormat": "vRAM",
           "query": "",

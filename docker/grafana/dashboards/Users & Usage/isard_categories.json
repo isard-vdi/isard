@@ -281,7 +281,7 @@
               }
             ]
           },
-          "unit": "deckbytes"
+          "unit": "kbytes"
         },
         "overrides": []
       },
@@ -1614,7 +1614,7 @@
               }
             ]
           },
-          "unit": "deckbytes"
+          "unit": "kbytes"
         },
         "overrides": []
       },
