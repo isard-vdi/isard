@@ -1,3 +1,4 @@
+import { removeDesktopTimeoutsOf, removeDesktopTimeoutsSupersededBy } from '@/lib/desktop-timeout'
 import { patchEntityList } from '@/lib/utils'
 import type {
   WsDeletePayload,
@@ -6,7 +7,7 @@ import type {
   WsDesktopsQueuePayload,
   WsProgressPayload
 } from '@/types/ws-events'
-import type { UserDesktop } from '@/gen/oas/apiv4'
+import { DesktopStatusEnum, type UserDesktop } from '@/gen/oas/apiv4'
 import { QueryClient } from '@tanstack/vue-query'
 import {
   getDesktopNetworksQueryKey,
@@ -22,6 +23,14 @@ const interfaceSignature = (interfaces?: { id: string; mac?: string | null }[]) 
     .map((iface) => `${iface.id}:${iface.mac ?? ''}`)
     .sort()
     .join('|')
+
+const dropObsoleteTimeouts = (desktop: WsDesktopPayload) => {
+  if (desktop.status === DesktopStatusEnum.STOPPED || desktop.status === DesktopStatusEnum.FAILED) {
+    removeDesktopTimeoutsOf(desktop.id)
+  } else {
+    removeDesktopTimeoutsSupersededBy(desktop.id, desktop.scheduled?.shutdown)
+  }
+}
 
 export const desktopEventHandlers = {
   desktop_add: (queryClient: QueryClient, payload: string) => {
@@ -39,6 +48,7 @@ export const desktopEventHandlers = {
 
   desktop_update: (queryClient: QueryClient, payload: string) => {
     const data: WsDesktopPayload = JSON.parse(payload)
+    dropObsoleteTimeouts(data)
     const previous = queryClient.getQueryData(key)?.desktops?.find((d) => d.id === data.id)
     queryClient.setQueryData(key, (old) => {
       if (!old) {
@@ -61,6 +71,7 @@ export const desktopEventHandlers = {
 
   desktop_delete: (queryClient: QueryClient, payload: string) => {
     const data: WsDeletePayload = JSON.parse(payload)
+    removeDesktopTimeoutsOf(data.id)
     queryClient.setQueryData(key, (old) => {
       if (!old) {
         queryClient.setQueryDefaults(key, { staleTime: 0 })

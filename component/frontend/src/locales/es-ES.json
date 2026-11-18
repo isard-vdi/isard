@@ -2162,6 +2162,7 @@
     "desktop-timeout-modal": {
       "title": "Información importante",
       "description": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+      "description-multiple": "{count} escritorios se apagarán pronto:",
       "extend-time": "Ampliar {minutes} min"
     },
     "delete-confirmation-modal": {

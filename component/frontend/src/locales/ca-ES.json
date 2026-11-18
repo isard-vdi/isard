@@ -2150,6 +2150,7 @@
     "desktop-timeout-modal": {
       "title": "Informació important",
       "description": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
+      "description-multiple": "{count} escriptoris s'aturaran aviat:",
       "extend-time": "Ampliar {minutes} min"
     },
     "delete-confirmation-modal": {

@@ -1930,6 +1930,7 @@
     "desktop-timeout-modal": {
       "title": "Important information",
       "description": "The '{name}' desktop will be stopped at {date}.",
+      "description-multiple": "{count} desktops are about to be stopped:",
       "extend-time": "Extend {minutes} min"
     },
     "datatable": {
