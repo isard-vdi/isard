@@ -319,6 +319,9 @@ class RethinkBase(ABC):
         """
         if args:
             kwargs["id"] = doc_id = args[0]
+        # Stamp status_time like __setattr__ and update_document_if do.
+        if "status" in kwargs:
+            kwargs.setdefault("status_time", time())
         with cls._rdb_context():
             doc_id = (
                 r.table(cls._rdb_table)
