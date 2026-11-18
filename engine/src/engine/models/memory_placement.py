@@ -31,6 +31,53 @@ def pick_hugepage_size(memory_kb, hugepages, free_kb):
     return None
 
 
+def _pool_kb(sizes):
+    return sum(
+        int((sizes or {}).get(label) or 0) * page_kb
+        for _, label, page_kb in _HUGEPAGE_SIZES
+    )
+
+
+def nvidia_gpu_numa_nodes(pci_devices):
+    """NUMA node of each NVIDIA display controller in ``pci_devices`` (None if unknown)."""
+    nodes = []
+    for dev in (pci_devices or {}).values():
+        if not isinstance(dev, dict) or dev.get("vendor") != "10de":
+            continue
+        if not str(dev.get("class_code", "")).startswith("03"):
+            continue
+        node = dev.get("numa_node")
+        nodes.append(node if isinstance(node, int) and node >= 0 else None)
+    return nodes
+
+
+def gpu_hugepages_warnings(gpu_numa_nodes, hugepages_info):
+    """Why GPU desktops on this host would start with 4K pages, one line per cause."""
+    if not gpu_numa_nodes:
+        return []
+    hugepages_info = hugepages_info or {}
+    pool_kb = _pool_kb(
+        {
+            label: (hugepages_info.get(label) or {}).get("total", 0)
+            for _, label, _ in _HUGEPAGE_SIZES
+        }
+    )
+    if not hugepages_info.get("mounted") or not pool_kb:
+        return [
+            "no hugepage pool: GPU desktops start with 4K pages "
+            "(slow VFIO mapping, up to the extended createXML timeout)"
+        ]
+    numa = hugepages_info.get("numa")
+    if not numa:
+        return []
+    return [
+        f"NUMA node {node} has GPUs but no hugepages: its GPU desktops get "
+        f"memory from another node or 4K pages"
+        for node in sorted({str(n) for n in gpu_numa_nodes if n is not None})
+        if not _pool_kb(numa.get(node))
+    ]
+
+
 def committed_regular_kb(mem_stats):
     """Regular memory the running guests can claim, or None when unknown."""
     guests_kb = mem_stats.get("guests_kb")

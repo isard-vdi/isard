@@ -2106,7 +2106,33 @@ def discover_hugepages():
     # Check if hugetlbfs is mounted (QEMU needs this inside the container)
     result["mounted"] = os.path.ismount("/dev/hugepages")
     result["mount_sizes"] = _hugetlbfs_mount_sizes()
+    result["numa"] = _numa_hugepages_totals()
 
+    return result
+
+
+def _numa_hugepages_totals(nodes_dir="/sys/devices/system/node"):
+    """Pages of each size on each NUMA node: ``{"0": {"1G": n, "2M": m}}``."""
+    try:
+        entries = os.listdir(nodes_dir)
+    except OSError:
+        return {}
+    result = {}
+    for entry in entries:
+        match = re.fullmatch(r"node(\d+)", entry)
+        if not match:
+            continue
+        totals = {}
+        for size_kb, label in _HUGEPAGE_SIZE_LABELS.items():
+            path = os.path.join(
+                nodes_dir, entry, "hugepages", f"hugepages-{size_kb}kB", "nr_hugepages"
+            )
+            try:
+                with open(path) as f:
+                    totals[label] = int(f.read().strip())
+            except (OSError, ValueError):
+                totals[label] = 0
+        result[match.group(1)] = totals
     return result
 
 
