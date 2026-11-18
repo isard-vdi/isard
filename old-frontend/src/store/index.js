@@ -50,12 +50,7 @@ export default new Vuex.Store({
     currentInternalTime: '',
     messageModal: {
       show: false,
-      title: '',
-      message: '',
-      msgCode: null,
-      desktopId: null,
-      extendEnabled: false,
-      extendTime: 0
+      messages: []
     },
     loginConfig: {
       notification_cover: {
@@ -99,11 +94,25 @@ export default new Vuex.Store({
     cleanStoreOnNavigation (state) {
       state.pageErrorMessage = ''
     },
-    setMessageModal: (state, message) => {
-      state.messageModal = message
+    addMessage: (state, message) => {
+      const messages = state.messageModal.messages
+      const index = messages.findIndex(m => m.key === message.key)
+      if (index === -1) {
+        messages.push(message)
+      } else {
+        messages.splice(index, 1, message)
+      }
+      state.messageModal.show = true
+    },
+    removeMessage: (state, key) => {
+      state.messageModal.messages = state.messageModal.messages.filter(m => m.key !== key)
+      state.messageModal.show = state.messageModal.messages.length > 0
     },
     setShowMessageModal: (state, show) => {
       state.messageModal.show = show
+      if (!show) {
+        state.messageModal.messages = []
+      }
     },
     setLoginConfig: (state, loginConfig) => {
       state.loginConfig = loginConfig
@@ -111,7 +120,7 @@ export default new Vuex.Store({
   },
   actions: {
     socket_msg (context, data) {
-      context.commit('setMessageModal', MessageUtils.parseMessage(JSON.parse(data)))
+      context.commit('addMessage', MessageUtils.parseMessage(JSON.parse(data)))
     },
     fetchCategories ({ commit }) {
       return axios.get(`${apiV3Segment}/items/categories`).then(response => {
