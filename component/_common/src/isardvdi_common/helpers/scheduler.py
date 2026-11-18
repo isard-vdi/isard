@@ -408,6 +408,7 @@ class Scheduler(RethinkSharedConnection):
                 "date": booking["end"].strftime("%Y-%m-%dT%H:%M%z"),
                 "minutes": 15,
                 "name": desktop.get("name"),
+                "desktop_id": desktop_id,
             }
             data["kwargs"]["msg"]["type"] = "warning"
             data["kwargs"]["msg"][
