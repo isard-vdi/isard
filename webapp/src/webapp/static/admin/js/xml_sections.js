@@ -345,6 +345,7 @@ $(document).on('change', '#xmlUploadFile', function(e) {
             new PNotify({
                 title: 'RAW XML loaded',
                 text: 'Click <b>Update</b> to save the raw XML.',
+                text_escape: false,
                 type: 'success', hide: true, delay: 4000, icon: 'fa fa-upload'
             });
             return;
@@ -414,6 +415,7 @@ $(document).on('change', '#xmlUploadFile', function(e) {
                 new PNotify({
                     title: 'XML Loaded',
                     text: msg,
+                    text_escape: false,
                     type: skipped.length ? 'info' : (loaded.length ? 'success' : 'info'),
                     hide: skipped.length === 0,
                     delay: 6000,
@@ -423,7 +425,7 @@ $(document).on('change', '#xmlUploadFile', function(e) {
             error: function(data) {
                 new PNotify({
                     title: 'Upload Error',
-                    text: data.responseJSON ? escapeHtml(data.responseJSON.description) : 'Failed to parse uploaded XML',
+                    text: data.responseJSON ? data.responseJSON.description : 'Failed to parse uploaded XML',
                     type: 'error',
                     hide: true,
                     delay: 5000,
@@ -792,7 +794,7 @@ $(document).on('click', '#virtInstallNameConfirm', function() {
             $('#modalVirtInstallName').modal('hide');
             notice.update({
                 title: 'Saved',
-                text: 'virt_install "' + escapeHtml(resp.name) + '" created (ID: ' + escapeHtml(resp.id) + ')',
+                text: 'virt_install "' + resp.name + '" created (ID: ' + resp.id + ')',
                 type: 'success',
                 hide: true,
                 delay: 4000,

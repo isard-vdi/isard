@@ -13,9 +13,9 @@ function setDomainHotplug(id){
         "rowId": "id",
         "deferRender": true,
         "columns": [
-            { "data": "name"},
-            { "data": "kind"},
-            { "data": "size"}
+            { "data": "name", "render": $.fn.dataTable.render.text()},
+            { "data": "kind", "render": $.fn.dataTable.render.text()},
+            { "data": "size", "render": $.fn.dataTable.render.text()}
         ],
         "order": [[0, 'desc']],
     });

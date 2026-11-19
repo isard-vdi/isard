@@ -65,7 +65,7 @@ function initDomainSearchModal(expectedKind) {
             }
 
             function copyBtn(text) {
-                return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${escapeHtml(text)}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
+                return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${escapeHtmlText(text)}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
             }
 
             const domainFields = [

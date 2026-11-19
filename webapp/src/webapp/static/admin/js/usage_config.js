@@ -178,13 +178,14 @@ $(document).ready(function () {
       success: function (xhr) {
         if (xhr) {
           var text = '';
-          text += `The credit with ID ${xhr["credit_id"]} will be <b>${xhr["action"]}</b> to avoid overlapping periods.`;
+          text += `The credit with ID ${escapeHtmlText(xhr["credit_id"])} will be <b>${escapeHtmlText(xhr["action"])}</b> to avoid overlapping periods.`;
           xhr["end_date"] ? text += ` The end date will be ${moment(xhr["end_date"]).format("DD-MM-YYYY")}` : '';
           xhr["start_date"] ? text += `The start date will be ${moment(xhr["start_date"]).format("DD-MM-YYYY")}` : '';
 
           new PNotify({
             title: `The selected period overlaps with another credit`,
             text: text,
+            text_escape: false,
             hide: false,
             addclass: 'pnotify-center-large',
             confirm: {

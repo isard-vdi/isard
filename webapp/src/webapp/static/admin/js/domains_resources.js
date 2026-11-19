@@ -567,12 +567,13 @@ $(document).ready(function () {
                         if (data.responseJSON.error) {
                             errors = '<ul>'
                             $.each(data.responseJSON.error, function (key, value) {
-                                errors += "<li>" + value + '</li>';
+                                errors += "<li>" + escapeHtmlText(value) + '</li>';
                             });
                             errors += '</ul>'
                             notice.update({
                                 title: 'ERROR creating disk QoS',
                                 text: errors,
+                                text_escape: false,
                                 type: 'error',
                                 hide: true,
                                 icon: 'fa fa-warning',
@@ -623,12 +624,13 @@ $(document).ready(function () {
                         if (data.responseJSON.errors) {
                             errors = '<ul>'
                             $.each(data.responseJSON.errors, function (key, value) {
-                                errors += "<li>" + value + '</li>';
+                                errors += "<li>" + escapeHtmlText(value) + '</li>';
                             });
                             errors += '</ul>'
                             notice.update({
                                 title: 'ERROR creating disk QoS',
                                 text: errors,
+                                text_escape: false,
                                 type: 'error',
                                 hide: true,
                                 icon: 'fa fa-warning',

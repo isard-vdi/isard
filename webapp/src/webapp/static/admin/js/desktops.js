@@ -32,16 +32,16 @@ columns = [
     },
     {
         "data": "icon", "render": function (data, type, full, meta) {
-            img_url = full.image && full.image.url ? location.protocol + '//' + document.domain + ':' + location.port + full.image.url : ''
+            img_url = full.image && full.image.url && full.image.url.startsWith('/') ? location.protocol + '//' + document.domain + ':' + location.port + full.image.url : ''
             if (! "booking_id" in full) {
                 booking_id = false
             } else {
                 booking_id = full.booking_id
             }
-            return renderBooking(full.create_dict.reservables, booking_id) + "<img src='" + img_url + "' width='50px'>"
+            return renderBooking(full.create_dict.reservables, booking_id) + "<img src='" + escapeHtmlText(img_url) + "' width='50px'>"
         }
     },
-    { "data": "name" },
+    { "data": "name", "render": $.fn.dataTable.render.text() },
     {
         "data": "status", "render": function (data, type, full, meta) {
             return renderStatus(full)
@@ -85,10 +85,10 @@ columns = [
         }
     },
     { "data": "create_dict.hardware.vcpus", "width": "10px" },
-    { "data": "user_name" },
-    { "data": "role" },
-    { "data": "category_name" },
-    { "data": "group_name" },
+    { "data": "user_name", "render": $.fn.dataTable.render.text() },
+    { "data": "role", "render": $.fn.dataTable.render.text() },
+    { "data": "category_name", "render": $.fn.dataTable.render.text() },
+    { "data": "group_name", "render": $.fn.dataTable.render.text() },
     {
         "data": "server", "width": "10px", "defaultContent": "-", "render": function (data, type, full, meta) {
             if ('server' in full) {
@@ -165,7 +165,7 @@ columns = [
     {
         "data": "bastion.domains",
         "render": function (data, type) {
-            return (data && data.length) ? data.join(', ') : '-'
+            return (data && data.length) ? escapeHtmlText(data.join(', ')) : '-'
         }
     },
     {
@@ -342,7 +342,7 @@ $(document).ready(function() {
         $.each(domains_table.rows(filter).data(), function (key, value) {
             ids.push(value['id']);
             $('#modalBulkEdit #desktops-list').append(
-                '<p style="font-size:smaller; margin: 0px">' + value['name'] + '</p>'
+                '<p style="font-size:smaller; margin: 0px">' + escapeHtmlText(value['name']) + '</p>'
             )
         });
 
@@ -761,13 +761,14 @@ $(document).ready(function() {
         if(domains_table.rows('.active').data().length){
             names = '<ul>'
             $.each(domains_table.rows('.active').data(),function(key, value){
-                names+= "<li>" + value['name']+'</li>';
+                names+= "<li>" + escapeHtmlText(value['name'])+'</li>';
                 ids.push(value['id']);
             });
             names += '</ul>'
             new PNotify({
                 title: 'Warning!',
-                text: "You are about to " + action + " these desktops:\n\n" + names,
+                text: "You are about to " + escapeHtmlText(action) + " these desktops:\n\n" + names,
+                text_escape: false,
                 hide: false,
                 opacity: 0.9,
                 type: "error",
@@ -826,7 +827,8 @@ $(document).ready(function() {
             });
             new PNotify({
                 title: 'Warning!',
-                text: "You are about to " + action + " all the desktops in the list (" + domains_table.rows({filter: 'applied'}).data().length + " desktops)!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+                text: "You are about to " + escapeHtmlText(action) + " all the desktops in the list (" + domains_table.rows({filter: 'applied'}).data().length + " desktops)!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+                text_escape: false,
                 hide: false,
                 opacity: 0.9,
                 type: 'error',
@@ -2014,7 +2016,7 @@ function addDomainDetailPannel ( d ) {
         $newPanel = $template_domain.clone();
         $newPanel.find('#derivates-d\\.id').remove();
         $newPanel.html(function(i, oldHtml){
-            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+            return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name));
         });
         return $newPanel
 }
@@ -2454,7 +2456,7 @@ function renderStorageActionsButton(data) {
                         : domains_table.data();
                     $.each(source, function (pos, it) {
                         if (it[item] && elem.find('option[value="' + it[item] + '"]').length === 0) {
-                            elem.append('<option value="' + it[item] + '">' + it[item + '_name'] + '</option>');
+                            elem.append('<option value="' + escapeHtmlText(it[item]) + '">' + escapeHtmlText(it[item + '_name']) + '</option>');
                         }
                     });
                     break;
@@ -2590,21 +2592,21 @@ function storageProblemLine (desktopId, disk, problem) {
   let detail = { wait: 'busy', quick: 'quick fix', costly: 'costly repair', admin: 'needs an administrator' }[problem.mode];
   if (problem.mode === 'wait' && disk.task) {
     detail = disk.task.position != null
-      ? `queued #${disk.task.position}, ETA ${formatFixEta(disk.task.eta_seconds)}`
+      ? `queued #${escapeHtmlText(disk.task.position)}, ETA ${formatFixEta(disk.task.eta_seconds)}`
       : `running ${Math.round((disk.task.progress || 0) * 100)}%`;
   } else if (problem.mode === 'costly' && !problem.allowed) {
     detail = 'costly repair, not allowed';
   }
   const fix = problem.fix && problem.allowed && problem.mode !== 'wait'
-    ? ` <button type="button" class="btn btn-xs ${problem.mode === 'costly' ? 'btn-danger' : 'btn-primary'} btn-storage-fix" data-desktop="${desktopId}" data-storage="${disk.storage_id}" data-fix="${problem.fix}">Run ${problem.fix}</button>`
+    ? ` <button type="button" class="btn btn-xs ${problem.mode === 'costly' ? 'btn-danger' : 'btn-primary'} btn-storage-fix" data-desktop="${escapeHtmlText(desktopId)}" data-storage="${escapeHtmlText(disk.storage_id)}" data-fix="${escapeHtmlText(problem.fix)}">Run ${escapeHtmlText(problem.fix)}</button>`
     : '';
-  return `<li><b>${problem.code}</b> on ${disk.storage_id} (${detail})${fix}</li>`;
+  return `<li><b>${escapeHtmlText(problem.code)}</b> on ${escapeHtmlText(disk.storage_id)} (${detail})${fix}</li>`;
 }
 
 function storageQuickFixLine (run) {
-  if (run.task_id) return `<li>Queued ${run.fix} on ${run.storage_id}</li>`;
-  const why = run.refused ? ` (${run.refused})` : '';
-  return `<li>${run.fix} on ${run.storage_id} left for the storage sweep${why}</li>`;
+  if (run.task_id) return `<li>Queued ${escapeHtmlText(run.fix)} on ${escapeHtmlText(run.storage_id)}</li>`;
+  const why = run.refused ? ` (${escapeHtmlText(run.refused)})` : '';
+  return `<li>${escapeHtmlText(run.fix)} on ${escapeHtmlText(run.storage_id)} left for the storage sweep${why}</li>`;
 }
 
 function storageProblemLines (desktopId, report) {
@@ -2638,6 +2640,7 @@ function notifyStorageProblems (desktopId) {
       new PNotify({
         title: 'The desktop disks need attention',
         text: `<ul>${lines.join('')}</ul>`,
+        text_escape: false,
         type: 'info', hide: false, opacity: 1, icon: 'fa fa-hdd-o'
       });
     }

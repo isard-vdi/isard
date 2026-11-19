@@ -433,17 +433,19 @@ function createDatatable(tableId, status, initCompleteFn = null) {
                 data: 'user_name',
                 width: '10px',
                 render: function ( data, type, full, meta ) {
-                    if(!('username' in full)){return full.user;}
-                    return full.user_name;
+                    if(!('username' in full)){return escapeHtmlText(full.user);}
+                    return escapeHtmlText(full.user_name);
                 }
             },
             {
                 title: 'Category',
                 data: 'category_name',
+                render: $.fn.dataTable.render.text(),
             },
             {
                 title: 'Group',
                 data: 'group_name',
+                render: $.fn.dataTable.render.text(),
             },
             {
                 title: 'Progress/Size',
@@ -537,17 +539,17 @@ function showRowDetails(table, tr, row) {
                 '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
             },
             columns: [
-                { data: "kind", title: "Kind" },
-                { data: "name", title: "Name" },
-                { data: "user_data.username", title: "User" },
-                { data: "category_name", title: "Group" },
-                { data: "group_name", title: "Category" },
-                { data: "id", title: "Id" },
+                { data: "kind", title: "Kind", render: $.fn.dataTable.render.text() },
+                { data: "name", title: "Name", render: $.fn.dataTable.render.text() },
+                { data: "user_data.username", title: "User", render: $.fn.dataTable.render.text() },
+                { data: "category_name", title: "Group", render: $.fn.dataTable.render.text() },
+                { data: "group_name", title: "Category", render: $.fn.dataTable.render.text() },
+                { data: "id", title: "Id", render: $.fn.dataTable.render.text() },
                 {
                     data: null, title: "Link",
                     render: function (data) {
                         let kind = data.kind.charAt(0).toUpperCase() + data.kind.slice(1).replace(/_/g, ' ');
-                        let link = '<a href="/isard-admin/admin/domains/render/' + kind + 's?searchDomainId=' + data.id + '"><b>' + kind[0] + ': </b>' + data.name + '</a>';
+                        let link = '<a href="/isard-admin/admin/domains/render/' + kind + 's?searchDomainId=' + encodeURIComponent(data.id) + '"><b>' + kind[0] + ': </b>' + escapeHtmlText(data.name) + '</a>';
                         return link;
                     }
                 },
@@ -616,7 +618,8 @@ function showActions(table ,tr, row, button) {
                     element.html('<i class="fa fa-tasks"></i>')
                     new PNotify({
                         title: 'Last task info',
-                        text: '<pre><li><b>TASK ID</b>: ' + result.id + '</li><li><b>TASK</b>: ' + result.task + '</li><li><b>USER ID</b>: ' + result.user_id + '</li><li><b>TASK STATUS</b>: ' + result.status + '</li><li><b>RESULT</b>: ' + JSON.stringify(result.result, undefined, 2) + '</li></pre>',
+                        text: '<pre><li><b>TASK ID</b>: ' + escapeHtmlText(result.id) + '</li><li><b>TASK</b>: ' + escapeHtmlText(result.task) + '</li><li><b>USER ID</b>: ' + escapeHtmlText(result.user_id) + '</li><li><b>TASK STATUS</b>: ' + escapeHtmlText(result.status) + '</li><li><b>RESULT</b>: ' + escapeHtmlText(JSON.stringify(result.result, undefined, 2)) + '</li></pre>',
+                        text_escape: false,
                         hide: false,
                         icon: '',
                         opacity: 1,
@@ -739,8 +742,8 @@ function showActions(table ,tr, row, button) {
                 }else{
                     $('#modalAddFromMedia #modalAdd #disk_size').show()
                 }
-                $('#modalAddFromMedia #modalAdd #media_name').html(data.name);
-                $('#modalAddFromMedia #modalAdd #media_size').html(data.progress.total);
+                $('#modalAddFromMedia #modalAdd #media_name').text(data.name);
+                $('#modalAddFromMedia #modalAdd #media_size').text(data.progress.total);
                 $('#modalAddFromMedia').modal({
                     backdrop: 'static',
                     keyboard: false
@@ -807,14 +810,14 @@ function renderProgress(data){
 function renderName(data){
         return '<div class="block_content" > \
                   <h4 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
+                <a>'+escapeHtmlText(data.name)+'</a> \
                 </h4> \
-                  <p class="excerpt" >'+data.description+'</p> \
+                  <p class="excerpt" >'+escapeHtmlText(data.description)+'</p> \
                    </div>'
 }
 
 function renderIcon(data){
-    return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+    return '<span class="xe-icon" data-pk="'+escapeHtmlText(data.id)+'">'+icon(escapeHtmlText(data.icon))+'</span>'
 }
 
 function icon(name){
@@ -877,8 +880,8 @@ function modal_add_install_datatables(){
         "rowId": "id",
         "deferRender": true,
         "columns": [
-            { "data": "name"},
-            { "data": "vers"},
+            { "data": "name", "render": $.fn.dataTable.render.text()},
+            { "data": "vers", "render": $.fn.dataTable.render.text()},
         ],
         "order": [[0, 'asc']],
         "pageLength": 10,

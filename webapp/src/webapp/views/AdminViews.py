@@ -211,8 +211,6 @@ def admin_domains(nav="Domains"):
             nav=nav,
             icon=icon,
         )
-    if nav == "Bases":
-        icon = "cubes"
     if nav == "Resources":
         icon = "arrows-alt"
         return render_webapp(
@@ -254,12 +252,7 @@ def admin_domains(nav="Domains"):
         # mirroring the sidebar links.
         return redirect("/isard-admin/admin/domains/render/Recyclebin/Domains")
 
-    return render_webapp(
-        "admin/pages/desktops.html",
-        title=nav,
-        nav=nav,
-        icon=icon,
-    )
+    abort(404)
 
 
 @app.route("/isard-admin/admin/domains/render/Recyclebin/<nav>")

@@ -284,7 +284,8 @@ $(document).ready(function () {
     } else {
       new PNotify({
         title: 'Warning!',
-        text: "You are about to perform the action '" + actionText + "' in all the storages in the table!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+        text: "You are about to perform the action '" + escapeHtmlText(actionText) + "' in all the storages in the table!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+        text_escape: false,
         hide: false,
         opacity: 0.9,
         type: 'error',
@@ -544,7 +545,8 @@ $(document).on('click', '.btn-task-info', function () {
       element.html('<i class="fa fa-tasks"></i>')
       new PNotify({
         title: 'Last task info',
-        text: '<pre><li><b>TASK ID</b>: ' + result.id + '</li><li><b>TASK</b>: ' + result.task + '</li><li><b>USER ID</b>: ' + result.user_id + '</li><li><b>TASK STATUS</b>: ' + result.status + '</li><li><b>RESULT</b>: ' + JSON.stringify(result.result, undefined, 2) + '</li></pre>',
+        text: '<pre><li><b>TASK ID</b>: ' + escapeHtmlText(result.id) + '</li><li><b>TASK</b>: ' + escapeHtmlText(result.task) + '</li><li><b>USER ID</b>: ' + escapeHtmlText(result.user_id) + '</li><li><b>TASK STATUS</b>: ' + escapeHtmlText(result.status) + '</li><li><b>RESULT</b>: ' + escapeHtmlText(JSON.stringify(result.result, undefined, 2)) + '</li></pre>',
+        text_escape: false,
         hide: false,
         icon: '',
         opacity: 1,
@@ -922,7 +924,7 @@ function initStorageSearchModal() {
         .done(function (data) {
           function copyBtn(text) {
             if (!text || text === '-') return '';
-            var escaped = $('<div>').text(text).html();
+            var escaped = escapeHtmlText(text);
             return ' <span class="copy-btn" data-copy="' + escaped + '" title="Copy to clipboard"><i class="fa fa-copy"></i></span>';
           }
           const storageFields = [
@@ -938,7 +940,7 @@ function initStorageSearchModal() {
             { label: 'Size', value: (data.virtual_size === undefined || data.virtual_size === null) ? '-' : humanizeBytes(data.virtual_size), selector: '#storage-info-size' }
           ];
           storageFields.forEach(field => {
-            const html = `${field.value}${copyBtn(field.value)}`;
+            const html = `${escapeHtmlText(field.value)}${copyBtn(field.value)}`;
             $(modal + ' ' + field.selector).html(html);
           });
 
@@ -949,7 +951,7 @@ function initStorageSearchModal() {
               { selector: '#storage-info-category', name: data.owner_data.category_name || '-', id: data.owner_data.category || '-' }
             ];
             ownerFields.forEach(field => {
-              let html = `<b>Name: </b>${field.name}${copyBtn(field.name)}<br><b>ID: </b>${field.id}${copyBtn(field.id)}`;
+              let html = `<b>Name: </b>${escapeHtmlText(field.name)}${copyBtn(field.name)}<br><b>ID: </b>${escapeHtmlText(field.id)}${copyBtn(field.id)}`;
               $(modal + ' ' + field.selector).html(html);
             });
           } else {
@@ -960,9 +962,9 @@ function initStorageSearchModal() {
           if (data.domains.length > 0) {
             let domainsHtml = '';
             data.domains.forEach(function (domain, id) {
-              var escapedId = $('<div>').text(domain.id).html();
-              var escapedName = $('<div>').text(domain.name).html();
-              var escapedKind = $('<div>').text(domain.kind).html();
+              var escapedId = escapeHtmlText(domain.id);
+              var escapedName = escapeHtmlText(domain.name);
+              var escapedKind = escapeHtmlText(domain.kind);
               domainsHtml += `<div style="margin-bottom:6px;">
                 <b>ID:</b> <span class="domain-id">${escapedId}</span>
                 <span class="copy-btn" data-copy="${escapedId}" title="Copy ID to clipboard"><i class="fa fa-copy"></i></span><br>
@@ -1691,7 +1693,8 @@ $(document).on('click', '.btn-dig-holes-now', function () {
   const id = $(this).data('id');
   new PNotify({
     title: 'Confirmation Needed',
-    text: `Give back the zero blocks of disk ${id}? Its content does not change; the disk and its desktop are in maintenance while it is dug.<br><label><input type="checkbox" class="dig-holes-verify"> Verify the content (reads the disk twice, about 10 minutes per 100 GiB)</label>`,
+    text: `Give back the zero blocks of disk ${escapeHtmlText(id)}? Its content does not change; the disk and its desktop are in maintenance while it is dug.<br><label><input type="checkbox" class="dig-holes-verify"> Verify the content (reads the disk twice, about 10 minutes per 100 GiB)</label>`,
+    text_escape: false,
     hide: false, opacity: 0.9, confirm: { confirm: true },
     buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
   }).get().on('pnotify.confirm', function () {
@@ -2111,11 +2114,13 @@ function createDatatable(tableId, status, initCompleteFn = null, ajaxUrl = null)
       },
       {
         title: 'User',
-        data: 'user_name'
+        data: 'user_name',
+        render: $.fn.dataTable.render.text()
       },
       {
         title: 'Category',
-        data: 'category'
+        data: 'category',
+        render: $.fn.dataTable.render.text()
       },
       {
         title: 'Progress',
@@ -2228,7 +2233,7 @@ function showRowDetails(table, tr, row) {
             links = []
             $(data).each(function (index, value) {
               let kind = value.kind.charAt(0).toUpperCase() + value.kind.slice(1).replace(/_/g, ' ')
-              links[index] = '<a href="/isard-admin/admin/domains/render/' + kind + 's?searchDomainId=' + value.id + '"><b>' + kind[0] + ': </b>' + value.name + '</a>'
+              links[index] = '<a href="/isard-admin/admin/domains/render/' + kind + 's?searchDomainId=' + encodeURIComponent(value.id) + '"><b>' + kind[0] + ': </b>' + escapeHtmlText(value.name) + '</a>'
             });
             return links.join(', ')
           }
@@ -2716,7 +2721,7 @@ function populateSelect(item) {
           $.each(d[item], function (pos, it) {
             if (item == 'category') { var value = it.id } else { var value = it.name }
             if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
-              elem.append('<option value=' + value + '>' + it.name + '</option>');
+              elem.append($('<option>').val(value).text(it.name));
             }
           });
         }
@@ -2727,7 +2732,7 @@ function populateSelect(item) {
       $.each(storage_ready.data(), function (pos, it) {
         var itemName = "user_name";
         if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
-          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+          elem.append($('<option>').val(it[itemName]).text(it[itemName]));
         }
       });
       break;
@@ -2735,7 +2740,7 @@ function populateSelect(item) {
       $.each(storage_ready.data(), function (pos, it) {
         var itemName = "parent";
         if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
-          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+          elem.append($('<option>').val(it[itemName]).text(it[itemName]));
         }
       });
       break;
@@ -2743,7 +2748,7 @@ function populateSelect(item) {
       $.each(storage_ready.data(), function (pos, it) {
         var itemName = "directory_path";
         if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
-          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+          elem.append($('<option>').val(it[itemName]).text(it[itemName]));
         }
       });
       break;

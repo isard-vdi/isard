@@ -61,6 +61,7 @@ assert.ok(sweep.includes('modalAllowedsFormShow("storage_repair"'));
 console.log("the costly repair list opens the allowed editor: PASS");
 
 // --- the desktops admin lists the problems and what the quick fixes did --------
+globalThis.escapeHtmlText = load("../../isard.js", ["escapeHtmlText"]).escapeHtmlText;
 const desktops = load(
   "desktops.js",
   ["formatFixEta", "storageProblemLine", "storageQuickFixLine", "storageProblemLines"],

@@ -12,7 +12,7 @@ function processError(response,form){
     }else if (response.status === 409){
         form.find("#name").addClass('js_error');
         form.find("#name").parsley().removeError('myError');
-        form.find("#name").parsley().addError('myError', {message: jQuery.parseJSON(response.responseText).description});
+        form.find("#name").parsley().addError('myError', {message: escapeHtmlText(jQuery.parseJSON(response.responseText).description)});
     }else{
         alert(jQuery.parseJSON(response.responseText).description)
     }
@@ -69,6 +69,8 @@ function removeError(form){
                     stack_center.firstpos2 = ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2);
                 });
     PNotify.prototype.options.styling = "bootstrap3";
+    PNotify.prototype.options.title_escape = true;
+    PNotify.prototype.options.text_escape = true;
 // /PNotify
 
 // Sidebar
@@ -421,14 +423,14 @@ function toggleRow(table_row, e) {
 }
 
 function infoDomains(value, tbody) {
-    var html = `<tr><td>${value['kind']}</td>`
+    var html = `<tr><td>${escapeHtmlText(value['kind'])}</td>`
     if (value['user_name']) {
-        html += `<td>${value['user_name']}</td>`
+        html += `<td>${escapeHtmlText(value['user_name'])}</td>`
     } else {
         html += `<td>-</td>`
     }
-    html += `<td>${value['name']}</td> 
-                ${value["kind"] == "desktop" ? "<td>" + value["category"] + "</td>" : ""}
+    html += `<td>${escapeHtmlText(value['name'])}</td> 
+                ${value["kind"] == "desktop" ? "<td>" + escapeHtmlText(value["category"]) + "</td>" : ""}
             </tr>`
     return tbody.append(html);
 }
@@ -723,7 +725,12 @@ function authProviderLabel (provider, categoryAuthentication, globalProviders) {
 }
 
 function escapeHtmlText (text) {
-  return $("<div>").text(text == null ? "" : String(text)).html();
+  return String(text == null ? "" : text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
@@ -890,14 +897,14 @@ function populateDeleteModalTable(values, table, columns = null) {
         }
         if (!columns) {
             initOptions["columns"] = [
-                { 'data': 'name' },
+                { 'data': 'name', 'render': $.fn.dataTable.render.text() },
                 {
                     'data': 'user_name',
                     'render': function (data, type, row) {
                         if (row.user_name) {
-                            return `${row.user_name} [${row.username}]`;
+                            return `${escapeHtmlText(row.user_name)} [${escapeHtmlText(row.username)}]`;
                         } else if (row.username) {
-                            return row.username;
+                            return escapeHtmlText(row.username);
                         }
                         return '';
                     }
@@ -914,7 +921,7 @@ function populateDeleteModalTable(values, table, columns = null) {
                         } else if (column === "duplicate_parent_template") {
                             return data ? "Yes" : "No";
                         }
-                        return data !== undefined ? data : '';
+                        return data !== undefined ? escapeHtmlText(data) : '';
                     }
                 };
             });

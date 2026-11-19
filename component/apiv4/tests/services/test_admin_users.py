@@ -253,6 +253,50 @@ class TestRoleElevationEntryPoints:
         update.assert_not_called()
 
 
+class TestEditCsvUsersGuards:
+    """CSV edit runs the checks ``update_user`` runs on the columns it keeps."""
+
+    MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+    DOCS = {
+        "users": {"id": "u-victim", "role": "user", "category": "cat-a"},
+        "groups": {"id": "g-foreign", "name": "Foreign", "parent_category": "cat-b"},
+        "categories": {"id": "cat-a", "name": "Cat A"},
+    }
+
+    def _doc(self, table, item_id, *args, **kwargs):
+        return dict(self.DOCS[table], id=item_id)
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_refuses_a_secondary_group_of_another_category(self, _owns, cached, update):
+        cached.side_effect = self._doc
+        with pytest.raises(Error) as exc:
+            AdminUsersService.edit_csv_users(
+                self.MANAGER,
+                {
+                    "users": [
+                        {"id": "u-ok", "name": "fine"},
+                        {"id": "u-victim", "secondary_groups": ["g-foreign"]},
+                    ]
+                },
+            )
+        assert exc.value.status_code == 403
+        update.assert_not_called()
+
+    @patch("api.services.admin.users.CommonUsers.update_user")
+    @patch("api.services.admin.users.Caches.get_document")
+    @patch("api.services.admin.users.AdminUsersService.owns_user_id")
+    def test_refuses_deactivating_the_callers_own_account(self, _owns, cached, update):
+        cached.side_effect = self._doc
+        with pytest.raises(Error) as exc:
+            AdminUsersService.edit_csv_users(
+                self.MANAGER, {"users": [{"id": "u-mgr", "active": False}]}
+            )
+        assert "Can not deactivate your own account" in str(exc.value)
+        update.assert_not_called()
+
+
 class TestGetImpersonateJwt:
     ADMIN = {"user_id": "u-admin", "category_id": "default", "role_id": "admin"}
     MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}

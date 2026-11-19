@@ -249,11 +249,11 @@ function raw_table(){
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "starting_time"},
-            { "data": "desktop_name"},
-            { "data": "owner_user_name"},
-            { "data": "request_ip"},
-            { "data": "owner_group_name"},
-            { "data": "owner_category_name"},
+            { "data": "desktop_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text()},
+            { "data": "request_ip", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_group_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_category_name", "render": $.fn.dataTable.render.text()},
         ],
         order: [[1, "asc"]], // Should be a column with a db index!
         initComplete: function (settings, json) {
@@ -351,15 +351,15 @@ function raw_table(){
               },
               columns: [
                 { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
-                { data: "id", title: "storage id", render: function (data, type, full, meta) { if (meta.row == 0) { return '<b>'+data+'</b>' } else { return data } } },
-                { data: "status", title: "storage status" },
-                { data: "parent_id", title: "parent storage id" },
+                { data: "id", title: "storage id", render: function (data, type, full, meta) { if (meta.row == 0) { return '<b>'+escapeHtmlText(data)+'</b>' } else { return escapeHtmlText(data) } } },
+                { data: "status", title: "storage status", render: $.fn.dataTable.render.text() },
+                { data: "parent_id", title: "parent storage id", render: $.fn.dataTable.render.text() },
                 { data: "domains", title: "domains",
                   render: function (data, type, full, meta) {
                     links = []
                     $(data).each(function (index, value) {
                       let kind = value.kind.charAt(0).toUpperCase() + value.kind.slice(1).replace(/_/g, ' ')
-                      links[index] = '<a href="/isard-admin/admin/domains/render/'+kind+'s?searchDomainId='+value.id+'"><b>'+kind[0]+': </b>'+value.name+'</a>'
+                      links[index] = '<a href="/isard-admin/admin/domains/render/'+kind+'s?searchDomainId='+encodeURIComponent(value.id)+'"><b>'+kind[0]+': </b>'+escapeHtmlText(value.name)+'</a>'
                     });
                     return links.join(', ')
                   }
@@ -397,11 +397,11 @@ function desktop_table(){
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "count"},
-            { "data": "desktop_name"},
+            { "data": "desktop_name", "render": $.fn.dataTable.render.text()},
             { "data": "starting_time"},
-            { "data": "owner_user_name"},
-            { "data": "owner_group_name"},
-            { "data": "owner_category_name"},
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_group_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_category_name", "render": $.fn.dataTable.render.text()},
         ],
         order: [[1, "desc"]], // Should be a column with a db index!
         initComplete: function (settings, json) {

@@ -476,7 +476,7 @@ function renderExemptionsDataTable() {
         "deferRender": true,
         "columns": [
             { "data": "item_type", "render": function (data, type, full, meta) { return itemTypeMap[data] } },
-            { "data": "item_name" },
+            { "data": "item_name", "render": $.fn.dataTable.render.text() },
             {
                 "data": "created_at", "render": function (data, type, full, meta) {
                     if (!data) { return "-"; }

@@ -28,6 +28,7 @@ $(document).ready(function() {
         if ($(this).hasClass('btn-revoke')) {
             new PNotify({
                 title: 'Revoke Migration',
+                text_escape: false,
                 text: 'Are you sure you want to change this migration status to <b>"revoked"</b>?\n\nThis action cannot be undone and the user may need to generate a <b>new migration token</b>.',
                 icon: 'fa fa-question-circle',
                 type: 'info',
@@ -51,6 +52,7 @@ $(document).ready(function() {
                         new PNotify({
                             title: `Migration revoked`,
                             text: `Migration status changed to <b>"revoked"</b>`,
+                            text_escape: false,
                             type: 'success',
                             icon: 'fa fa-check',
                             hide: true,
@@ -192,12 +194,12 @@ function renderMigrationDataTable() {
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
-            { "data": "origin_username" },
+            { "data": "origin_username", "render": $.fn.dataTable.render.text() },
             { "data": "target_username", "render": function (data, type, full, meta) {
-                return data ? data : "-"; }
+                return data ? escapeHtmlText(data) : "-"; }
             },
             { "data": "category", "render": function (data, type, full, meta) {
-                return data ? data : "-"; }
+                return data ? escapeHtmlText(data) : "-"; }
             },
             { "data": "status" },
             { "data": "created", "render": function (data, type, full, meta) {

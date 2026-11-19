@@ -105,6 +105,7 @@ $(document).ready(function () {
       case "btn-delete":
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
           text: "Are you sure you want to delete timeout " + data["name"] + "?",
           hide: false,

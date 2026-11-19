@@ -34,15 +34,15 @@ columns= [
         }
     },
     { "data": "icon" },
-    { "data": "name"},
-    { "data": "description"},
+    { "data": "name", "render": $.fn.dataTable.render.text()},
+    { "data": "description", "render": $.fn.dataTable.render.text()},
     { "data": "status"},
     { "data": null, "className": 'viewer',},
     { "data": "ram"},
     { "data": "create_dict.hardware.vcpus", "width": "10px"},
-    { "data": "user_name"},
-    { "data": "category_name"},
-    { "data": "group_name"},
+    { "data": "user_name", "render": $.fn.dataTable.render.text()},
+    { "data": "category_name", "render": $.fn.dataTable.render.text()},
+    { "data": "group_name", "render": $.fn.dataTable.render.text()},
     { "data": "server", "width": "10px", "defaultContent":"-"},
     { "data": "favourite_hyp", "width": "100px"},
     { "data": "forced_hyp", "width": "100px"},
@@ -60,13 +60,13 @@ columnDefs = [
     {
         "targets": 2,
         "render": function ( data, type, full, meta ) {
-            img_url = full.image && full.image.url ? location.protocol+'//' + document.domain + ':' + location.port + full.image.url : ''
+            img_url = full.image && full.image.url && full.image.url.startsWith('/') ? location.protocol+'//' + document.domain + ':' + location.port + full.image.url : ''
             if( ! "booking_id" in full ){
                 booking_id=false
             }else{
                 booking_id=full.booking_id
             }
-            return  renderFailed(full.status, full.create_dict.reservables) + renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
+            return  renderFailed(full.status, full.create_dict.reservables) + renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+escapeHtmlText(img_url)+"' width='50px'>"
         }
     },{
         "targets": 5,
@@ -427,7 +427,7 @@ $(document).ready(function() {
         else {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
-                $('#status-detail-'+domain_id).html(row.data().detail);
+                $('#status-detail-'+domain_id).text(row.data().detail);
                 actionsDomainDetail();
                 setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
                 setDomainHotplug(domain_id);
@@ -1178,7 +1178,7 @@ function addDomainDetailPannel ( d ) {
             $newPanel = $admin_template_domain.clone();
         }
         $newPanel.html(function(i, oldHtml){
-            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+            return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name));
         });
         return $newPanel
 }

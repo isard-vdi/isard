@@ -377,7 +377,7 @@ function initialize_table(status) {
                                '<i class="fa fa-info-circle"></i></button>';
                     }
                 },
-                { "data": "name" },
+                { "data": "name", "render": $.fn.dataTable.render.text() },
                 {
                     "orderable": false,
                     "data": null,
@@ -502,8 +502,9 @@ function changeCategoryStatusButtonAction(action, currentStatus, rowData) {
     if (action == "StartingPaused" && currentStatus == "Stopped") {
         notice = new PNotify({
             title: 'Warning!',
-            text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${currentStatus} desktops to ${action}! This operation could consume a significant amount of time.
+            text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${escapeHtmlText(currentStatus)} desktops to ${escapeHtmlText(action)}! This operation could consume a significant amount of time.
                    \nPlease write <b>\"I'm aware\"</b> in order to confirm the action`,
+            text_escape: false,
             hide: false,
             opacity: 0.9,
             type: 'error',
@@ -522,9 +523,10 @@ function changeCategoryStatusButtonAction(action, currentStatus, rowData) {
                                 notice.remove();
                             } else {
                                 notice.update({
-                                    text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${currentStatus} desktops to ${action}! This operation could consume a significant amount of time.
+                                    text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${escapeHtmlText(currentStatus)} desktops to ${escapeHtmlText(action)}! This operation could consume a significant amount of time.
                                     \nPlease write <b>\"I'm aware\"</b> in order to confirm the action
                                     \nMake sure you typed it correctly `,
+                                    text_escape: false,
                                 });
                             }
                         }

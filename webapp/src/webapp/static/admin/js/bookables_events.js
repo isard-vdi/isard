@@ -257,10 +257,10 @@ $(document).ready(function () {
                     return date;
                 }
             },
-            { "data": "title" },
-            { "data": "username" },
-            { "data": "category" },
-            { "data": "item_type" },
+            { "data": "title", "render": $.fn.dataTable.render.text() },
+            { "data": "username", "render": $.fn.dataTable.render.text() },
+            { "data": "category", "render": $.fn.dataTable.render.text() },
+            { "data": "item_type", "render": $.fn.dataTable.render.text() },
             { "data": "units" },
             {
                 "data": "plans", "render": function (data, type, full, meta) {
@@ -446,10 +446,10 @@ function renderPlanningDetailDatatable(planId) {
                     return date;
                 }
             },
-            { "data": "title" },
-            { "data": "username" },
-            { "data": "category" },
-            { "data": "item_type" },
+            { "data": "title", "render": $.fn.dataTable.render.text() },
+            { "data": "username", "render": $.fn.dataTable.render.text() },
+            { "data": "category", "render": $.fn.dataTable.render.text() },
+            { "data": "item_type", "render": $.fn.dataTable.render.text() },
             { "data": "units" },
             {
                 "data": null, "orderable": false, "render": function (data, type, full, meta) {

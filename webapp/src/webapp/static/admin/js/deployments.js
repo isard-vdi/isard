@@ -30,13 +30,13 @@ $(document).ready(function() {
         "width": "10px",
         "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
       },
-      { "data": "name" },
-      { "data": "desktop_name" },
-      { "data": "category_name" },
-      { "data": "group_name" },
-      { "data": "user_name" },
-      { "data": "co_owners_user_names" },
-      { "data": "user_permissions" },
+      { "data": "name", "render": $.fn.dataTable.render.text() },
+      { "data": "desktop_name", "render": $.fn.dataTable.render.text() },
+      { "data": "category_name", "render": $.fn.dataTable.render.text() },
+      { "data": "group_name", "render": $.fn.dataTable.render.text() },
+      { "data": "user_name", "render": $.fn.dataTable.render.text() },
+      { "data": "co_owners_user_names", "render": $.fn.dataTable.render.text() },
+      { "data": "user_permissions", "render": $.fn.dataTable.render.text() },
       { "data": "how_many_desktops" },
       { "data": "how_many_desktops_started" },
       {
@@ -168,10 +168,11 @@ $(document).ready(function() {
       },
       error: function (xhr) {
         if (xhr.responseJSON && xhr.responseJSON.exceptions) {
-          const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+          const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${escapeHtmlText(exception)}</li>`).join('');
           notify.update({
             title: "ERROR deleting deployment(s)",
             text: `<ul>${exceptionsList}</ul>`,
+            text_escape: false,
             hide: true,
             delay: 3000,
             icon: 'fa fa-alert-sign',
@@ -206,8 +207,10 @@ $(document).ready(function() {
     if (!(deploymentsToDelete.length == 0)) {
       new PNotify({
         title: "<b>WARNING</b>",
+        title_escape: false,
         type: "error",
         text: "<b>You are about to delete " + deploymentsToDelete.length + " selected deployments!<br>Are you sure?</b>",
+        text_escape: false,
         hide: false,
         opacity: 0.9,
         confirm: {
@@ -228,6 +231,7 @@ $(document).ready(function() {
       new PNotify({
         type: "warning",
         text: "<b>Select the deployments you want to delete</b>",
+        text_escape: false,
         hide: false,
         opacity: 0.9,
         history: {
@@ -262,7 +266,7 @@ $(document).ready(function() {
 function renderDeploymentDetailPannel ( d ) {
   $newPanel = $deployments_detail.clone();
   $newPanel.html(function(i, oldHtml){
-    return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+    return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name)).replace(/d.description/g, escapeHtmlText(d.description));
   });
       return $newPanel
 }

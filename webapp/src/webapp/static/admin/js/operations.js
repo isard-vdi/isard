@@ -96,6 +96,7 @@ $(document).ready(function () {
       case 'btn-start':
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
           text: "Are you sure you want to start hypervisor " + data["id"] + "? ",
           hide: false,
@@ -147,6 +148,7 @@ $(document).ready(function () {
       case 'btn-stop':
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
           text: "Are you sure you want to stop hypervisor " + data["id"] + "? ",
           hide: false,

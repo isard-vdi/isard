@@ -535,7 +535,7 @@ class AdminUsersService:
         # treats the presence of those keys as a *change* request and
         # rejects with ``Error("bad_request", "Category can not be
         # changed", ...)``. Strip them here so a vanilla edit (rename,
-        # password change, role bump) round-trips cleanly.
+        # password change) round-trips cleanly.
         immutable_keys = {
             "category",
             "category_id",
@@ -557,12 +557,20 @@ class AdminUsersService:
             # leave the CSV half applied.
             CommonUsers.check_default_admin_update(user_data["id"], update_payload)
             user = Caches.get_document("users", user_data["id"])
+            if "active" in update_payload:
+                CommonMigrations.enable_users_check(
+                    update_payload["active"], payload, user=user
+                )
             AdminUsersService._check_role_elevation(
                 payload, user_data["id"], update_payload, user.get("role")
             )
             if update_payload.get("role"):
                 CommonUsers.check_max_role(
                     user.get("category"), user.get("provider"), update_payload["role"]
+                )
+            if update_payload.get("secondary_groups"):
+                CommonGroups.check_secondary_groups_category(
+                    user["category"], update_payload["secondary_groups"]
                 )
             update_payloads.append((user_data["id"], update_payload))
         for user_id, update_payload in update_payloads:

@@ -249,10 +249,10 @@ function raw_table(){
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "started_time"},
-            { "data": "owner_user_name"},
-            { "data": "request_ip"},
-            { "data": "owner_group_name"},
-            { "data": "owner_category_name"},
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text()},
+            { "data": "request_ip", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_group_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_category_name", "render": $.fn.dataTable.render.text()},
         ],
         order: [[1, "asc"]], // Should be a column with a db index!
         initComplete: function (settings, json) {
@@ -396,9 +396,9 @@ function user_table(){
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "count"},
-            { "data": "owner_user_name"},
-            { "data": "owner_group_name"},
-            { "data": "owner_category_name"},
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_group_name", "render": $.fn.dataTable.render.text()},
+            { "data": "owner_category_name", "render": $.fn.dataTable.render.text()},
         ],
         order: [[1, "desc"]], // Should be a column with a db index!
         initComplete: function (settings, json) {

@@ -387,10 +387,8 @@ def test_admin_domains_recyclebin_redirects_to_domains_subnav(
     )
 
 
-def test_admin_domains_unknown_nav_falls_through_to_desktops(
-    client, monkeypatch, admin_user_dict
-):
-    """Unknown nav values render the default desktops template (current behaviour)."""
+def test_admin_domains_unknown_nav_returns_404(client, monkeypatch, admin_user_dict):
+    """Unknown nav values get a 404 and render no page."""
     rendered = MagicMock(return_value="<unknown>")
     monkeypatch.setattr("webapp.views.AdminViews.render_template", rendered)
     _patch_login_callback(monkeypatch, admin_user_dict)
@@ -400,10 +398,8 @@ def test_admin_domains_unknown_nav_falls_through_to_desktops(
         sess["_fresh"] = True
 
     response = client.get("/isard-admin/admin/domains/render/SomethingNew")
-    assert response.status_code == 200
-    args, kwargs = rendered.call_args
-    assert args[0] == "admin/pages/desktops.html"
-    assert kwargs["nav"] == "SomethingNew"
+    assert response.status_code == 404
+    rendered.assert_not_called()
 
 
 def test_admin_domains_blocks_regular_user(client, monkeypatch, regular_user_dict):

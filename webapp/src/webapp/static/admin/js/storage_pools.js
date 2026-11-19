@@ -555,8 +555,10 @@ $(document).ready(function () {
 
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
-          text: "Are you sure you want to <b>" + change + "</b> pool " + data["name"] + "? " + prompt_msg,
+          text: "Are you sure you want to <b>" + change + "</b> pool " + escapeHtmlText(data["name"]) + "? " + prompt_msg,
+          text_escape: false,
           hide: false,
           opacity: 0.9,
           confirm: {
@@ -581,6 +583,7 @@ $(document).ready(function () {
               new PNotify({
                 title: 'Pool ' + change + 'd successfully',
                 text: msg,
+                text_escape: false,
                 hide: true,
                 delay: 7000,
                 icon: 'fa fa-' + data?.icon,
@@ -608,8 +611,10 @@ $(document).ready(function () {
         var change = data["enabled_virt"] ? "disable" : "enable";
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
-          text: "Are you sure you want to <b>" + change + "</b> pool " + data["name"] + "'s virtualization?",
+          text: "Are you sure you want to <b>" + change + "</b> pool " + escapeHtmlText(data["name"]) + "'s virtualization?",
+          text_escape: false,
           hide: false,
           opacity: 0.9,
           confirm: {
@@ -671,8 +676,10 @@ $(document).ready(function () {
         }
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "error",
-          text: `Are you sure you want to <b>delete</b> pool ${data["name"]}?
+          text_escape: false,
+          text: `Are you sure you want to <b>delete</b> pool ${escapeHtmlText(data["name"])}?
                 \nNote: Deleting a pool only fully takes effect after the hypervisor/storage nodes that served it are <strong>restarted</strong> (they stop serving its queue at startup).`,
           hide: false,
           opacity: 0.9,
@@ -816,7 +823,8 @@ function notifyMountpointInUse(mountpoint) {
   new PNotify({
     title: "Mountpoint already in use",
     type: "error",
-    text: `Another storage pool already uses the mountpoint <b>${mountpoint}</b>. Each storage pool must have a unique mountpoint.`,
+    text: `Another storage pool already uses the mountpoint <b>${escapeHtmlText(mountpoint)}</b>. Each storage pool must have a unique mountpoint.`,
+    text_escape: false,
     hide: false,
     opacity: 0.9,
     buttons: { closer: true, sticker: false },
@@ -1199,9 +1207,11 @@ function checkStorageLaneHealth() {
       if (data && data.healthy === false && (data.orphan_pools || []).length) {
         new PNotify({
           title: "<b>Storage lanes stalled</b>",
+          title_escape: false,
+          text_escape: false,
           text:
             "Queued storage tasks have no consumer for pool(s): <b>" +
-            data.orphan_pools.join(", ") +
+            data.orphan_pools.map(escapeHtmlText).join(", ") +
             "</b>. They will stall until a storage/hypervisor node with these " +
             "pools in its CAPABILITIES_STORAGE_POOLS is running.",
           hide: false,
@@ -1214,6 +1224,7 @@ function checkStorageLaneHealth() {
       } else if (data && data.coverage_known === false) {
         new PNotify({
           title: "<b>Storage lane check did not run</b>",
+          title_escape: false,
           text:
             "The orphan-lane detector could not reach the queue backend, so " +
             "this is not a clean bill of health: stalled pools would not be " +

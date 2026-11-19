@@ -312,18 +312,21 @@ function createUsageTable(data) {
       {
         'data': 'item_name',
         'className': 'always-shown',
-        'defaultContent': ''
+        'defaultContent': '',
+        'render': $.fn.dataTable.render.text()
       },
       {
         'data': 'item_description',
         'className': 'always-shown',
         'defaultContent': '',
+        'render': $.fn.dataTable.render.text(),
         visible: data.consumer === 'category' ? true : false
       },
       {
         'data': 'item_consumer',
         'className': 'always-shown',
         'defaultContent': '',
+        'render': $.fn.dataTable.render.text(),
         'visible': false
       }
     ]

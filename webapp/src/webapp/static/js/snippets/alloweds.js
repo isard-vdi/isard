@@ -22,9 +22,9 @@
                 var values=[];
                 value.forEach(function(data)
                 {
-                values.push(data.name);
+                values.push(escapeHtmlText(data.name));
                 });
-                $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values.join(', ')+'</td></tr>');
+                $(div_id+" #table-alloweds-"+id).append('<tr><td>'+escapeHtmlText(key)+'</td><td>'+values.join(', ')+'</td></tr>');
                         }
 
                     });
@@ -181,7 +181,7 @@
 
 
     function modalAllowedsFormShow(table,data){
-        $('#modalAlloweds #alloweds_name').html(data.name)
+        $('#modalAlloweds #alloweds_name').text(data.name)
         $('#modalAllowedsForm #id').val(data.id);
         $('#modalAlloweds #alloweds_panel').show()
         $("#modalAllowedsForm")[0].reset();

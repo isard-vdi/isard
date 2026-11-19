@@ -13,7 +13,7 @@ dependencies = [
   "isardvdi-notifier-client",
   "isardvdi-protobuf",
   "isardvdi-scheduler-client",
-  "pillow==12.3.0",
+  "pillow==13.0.0",
   "portion==2.6.2",
   "pydantic==2.13.4",
   "pyjwt==2.13.0",

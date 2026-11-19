@@ -34,6 +34,10 @@ body {
   width: 700px !important;
 }
 
+.ui-pnotify-text {
+  white-space: pre-line;
+}
+
 .ui-select-match-text{
   width: 100%;
   overflow: hidden;

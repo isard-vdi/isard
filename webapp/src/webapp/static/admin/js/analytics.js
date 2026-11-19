@@ -3,19 +3,23 @@ $(document).ready(function () {
     var emptyDeploymentsCols = [
         {
             data: 'name',
-            title: 'Name'
+            title: 'Name',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'category_name',
-            title: 'Category'
+            title: 'Category',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'group_name',
-            title: 'Group'
+            title: 'Group',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'username',
-            title: 'User'
+            title: 'User',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'id',
@@ -27,19 +31,23 @@ $(document).ready(function () {
     var unusedDesktopsCols = [
         {
             data: 'name',
-            title: 'Name'
+            title: 'Name',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'category_name',
-            title: 'Category'
+            title: 'Category',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'group_name',
-            title: 'Group'
+            title: 'Group',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'username',
-            title: 'User'
+            title: 'User',
+            render: $.fn.dataTable.render.text()
         },
         {
             data: 'size',

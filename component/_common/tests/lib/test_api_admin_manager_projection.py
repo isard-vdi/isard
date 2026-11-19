@@ -36,6 +36,11 @@ def stub_rdb(monkeypatch):
 
     mock_table = MagicMock(name="r.table")
     monkeypatch.setattr(mod.r, "table", mock_table)
+    monkeypatch.setattr(
+        mod.ApiAdmin,
+        "system_tables",
+        classmethod(lambda cls: ["users", "hypervisors"]),
+    )
     yield {"mock_table": mock_table, "ApiAdmin": mod.ApiAdmin}
 
 
@@ -72,3 +77,25 @@ def test_hypervisors_are_not_merged_with_admin_only_counters(stub_rdb):
     ApiAdmin.manager_table_list("hypervisors", "cat-1")
 
     query.merge.assert_not_called()
+
+
+def test_users_default_projection_strips_reset_and_verification_tokens(stub_rdb):
+    """The generic table read must not leak a user's password-reset or
+    email-verification token in the default projection. The pluck blocklist
+    already rejected them, but the default ``without`` had drifted and omitted
+    them, so an unplucked read returned them (manager -> account takeover)."""
+    from isardvdi_common.lib import api_admin as mod
+
+    mod._admin_table_list_cache.clear()
+    ApiAdmin = stub_rdb["ApiAdmin"]
+    query = stub_rdb["mock_table"].return_value
+    query.without.return_value.run.return_value = []
+
+    ApiAdmin.admin_table_list("users")
+
+    stripped = [a for call in query.without.call_args_list for a in call.args]
+    assert "password_reset_token" in stripped
+    assert "email_verification_token" in stripped
+    # the pre-existing credential fields must stay stripped too
+    assert "password" in stripped
+    assert "api_key" in stripped

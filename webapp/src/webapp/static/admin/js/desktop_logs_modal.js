@@ -184,9 +184,9 @@
             { "data": null, "defaultContent": "" },
             { "data": "starting_by" },
             { "data": "stopping_by" },
-            { "data": "owner_user_name" },
-            { "data": "request_ip" },
-            { "data": "request_agent_browser" },
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text() },
+            { "data": "request_ip", "render": $.fn.dataTable.render.text() },
+            { "data": "request_agent_browser", "render": $.fn.dataTable.render.text() },
             { "data": "events" }
         ];
 
@@ -332,9 +332,9 @@
                     columns: [
                         { data: 'time' },
                         { data: 'viewer_type' },
-                        { data: 'request_ip' },
-                        { data: 'request_agent_browser' },
-                        { data: 'request_agent_platform' }
+                        { data: 'request_ip', render: $.fn.dataTable.render.text() },
+                        { data: 'request_agent_browser', render: $.fn.dataTable.render.text() },
+                        { data: 'request_agent_platform', render: $.fn.dataTable.render.text() }
                     ],
                     columnDefs: [
                         {
