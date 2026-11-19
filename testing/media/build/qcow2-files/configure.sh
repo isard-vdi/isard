@@ -46,6 +46,8 @@ EOF
 
 # --- DHCP on every ethernet NIC (default NAT NIC + the isard-vpn wireguard
 #     overlay), applying the DHCP MTU (1386 on the overlay). No DNS needed.
+#     -O staticroutes (DHCP option 121) installs the overlay's 10.0.0.0/14-via-
+#     10.2.0.1 return route, so replies to user-VPN clients skip the NAT default.
 cat > /etc/init.d/isard-net <<'EOF'
 #!/sbin/openrc-run
 description="DHCP on every ethernet NIC (incl. the isard-vpn wireguard overlay)"
@@ -55,7 +57,7 @@ start() {
     for d in /sys/class/net/eth*; do
         [ -e "$d" ] || continue
         n=${d##*/}; ip link set "$n" up
-        udhcpc -i "$n" -b -t 6 -A 3 -p "/run/udhcpc.$n.pid" -x hostname:isard-test >/dev/null 2>&1 || true
+        udhcpc -i "$n" -b -t 6 -A 3 -p "/run/udhcpc.$n.pid" -O staticroutes -x hostname:isard-test >/dev/null 2>&1 || true
     done
     eend 0
 }

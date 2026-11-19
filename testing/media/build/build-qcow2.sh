@@ -29,6 +29,7 @@ PV_LINUX_VIRT="linux-virt=6.18.64-r0"          # KERNEL_MODE=virt only
 PV_MKINITFS="mkinitfs=3.14.1-r0"               # KERNEL_MODE=virt only
 EROFS_COMP="${EROFS_COMP:-auto}"               # auto | lzma | lz4hc
 QCOW2_COMP="${QCOW2_COMP:-zstd}"               # zstd | zlib
+IMAGE_VERSION="${IMAGE_VERSION:-v2}"           # printed in the banner; the output filename stays unversioned
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1793491200}"
 export TZ=UTC LC_ALL=C MTOOLS_SKIP_CHECK=1
 
@@ -232,7 +233,7 @@ qemu-img convert -f raw -O qcow2 -c -o "compat=1.1,compression_type=$QCOW2_COMP"
 rm -rf "$WORK"
 
 echo "=================================================================="
-echo "image : $OUT"
+echo "image : $OUT ($IMAGE_VERSION)"
 echo "size  : $(stat -c %s "$OUT") bytes ($(du -h "$OUT" | cut -f1))"
 qemu-img info "$OUT" | sed 's/^/        /'
 echo "--- size breakdown ---"; cat "$SIZES"

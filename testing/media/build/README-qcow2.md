@@ -6,6 +6,12 @@ and **every viewer** end-to-end. It is the operating-system companion of the
 iPXE `testing/media/isard-test.iso`: that ISO proves network boot but cannot do
 RDP because it is not an operating system.
 
+**Version:** this is **v2**. v2 makes the guest request DHCP option 121, so it
+installs the overlay's return route to user-VPN clients (`10.0.0.0/14` via
+`10.2.0.1`); v1 (`isard-test-v1.qcow2`) lacked it, and replies to a 10.0.0.x
+client left by the NAT default and were lost. The builder prints the version;
+the repository filename stays `isard-test.qcow2` (unversioned).
+
 Built by [`build-qcow2.sh`](./build-qcow2.sh) (+ [`qcow2-files/configure.sh`](./qcow2-files/configure.sh)
 and [`qcow2-files/kernel.config`](./qcow2-files/kernel.config)):
 
@@ -29,9 +35,12 @@ instead of the own kernel (larger, but no kernel compile); the default
    a **SATA** disk — one image, GRUB installed for both `i386-pc` and
    `x86_64-efi` (removable-media path, no NVRAM entry needed).
 2. **DHCPs every ethernet NIC** — the default NAT NIC and the isard-vpn
-   `wireguard` overlay NIC — and applies the DHCP-provided MTU (1386 on the
-   overlay). The leases are printed to the **serial console** (`ttyS0`, which
-   IsardVDI logs) and the **video console**.
+   `wireguard` overlay NIC — requesting the classless-static-routes option
+   (121), so the overlay's `10.0.0.0/14`-via-`10.2.0.1` **return route to
+   user-VPN clients** is installed (without it, replies to a 10.0.0.x client
+   leave by the NAT default and are lost). It also applies the DHCP-provided
+   MTU (1386 on the overlay). The leases are printed to the **serial console**
+   (`ttyS0`, which IsardVDI logs) and the **video console**.
 3. Runs **`qemu-guest-agent`** — IsardVDI reads the guest IP through it.
 4. Runs a **minimal console X session** (Xorg `modesetting` on the QXL
    framebuffer + an `xterm`) so the **SPICE viewer** shows an image.
@@ -119,7 +128,7 @@ the ~12 MiB `linux-virt` + ~6 MiB initramfs with a single ~2.8 MiB `vmlinuz`.
 ## Reproducibility — bit-for-bit
 
 **Two consecutive builds produce an identical sha256**
-(`679664120cf1bb382030969d05dd17e9091a91c15872388434646b326af244f7`). How:
+(`12af9c1abbbb8de55b3eed28522b93e047e83314788a9a1bda0f39459a2aa5bb`). How:
 
 - The Alpine release branch (`v3.24`) **and every top-level package version**
   are pinned; the kernel is pinned by tarball **sha256**.
@@ -162,7 +171,8 @@ Alpine mirror (or the kernel tarball is removed from kernel.org) the build
 3. Edit only that block and re-run the build.
 4. **Re-run the full test matrix** on the rebuilt image (this is what the build
    verifies functionally): BIOS and UEFI boot × virtio and SATA disk; DHCP on
-   both NICs incl. the overlay MTU; SPICE channel + first image; RDP over the
+   both NICs incl. the overlay MTU and the option-121 return route; SPICE
+   channel + first image; RDP over the
    VPN and through the gateway (with a bad-password negative control); browser
    RDP; browser noVNC with a real user session; and two consecutive builds give
    the same sha256.
