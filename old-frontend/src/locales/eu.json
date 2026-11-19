@@ -59,6 +59,33 @@
       "logo-alt": "Logotipoa"
     },
     "desktop-cards": {
+      "rdp": {
+        "pending": "RDP: mahaigaineko RDP zerbitzuaren zain",
+        "waiting": "RDP: mahaigaineko RDP zerbitzuaren zain",
+        "verifying": "RDP: kredentzialak egiaztatzen",
+        "refused": "RDP: mahaigainak konexioa ukatzen du: {reason}",
+        "auth_failed": "RDP: gordetako kredentzialak ez dira baliozkoak mahaigainean. Eguneratu mahaigaineko ezarpenetan",
+        "unverified": "RDP: erabilgarri, kredentzialak egiaztatu gabe — konekta zaitezke",
+        "ready": "RDP: prest",
+        "last_failed": "RDP: azken konexioak huts egin du",
+        "waiting_ip": "RDP: Mahaigainak IP bat lortu zain",
+        "unverified_standard": "RDP: erabilgarri RDP segurtasun estandarrarekin, TLS edo NLA gabe — konekta zaitezke",
+        "security_not_allowed": "RDP: administratzaileak ez du mahaigainaren segurtasuna onartzen: {reason}",
+        "reason": {
+          "port_closed": "mahaigaineko RDP zerbitzua ez dago oraindik entzuten",
+          "unreachable": "mahaigainak ez du sarean erantzuten",
+          "not_rdp": "mahaigaineko RDP atakak ez du RDP protokoloarekin erantzuten",
+          "tls_required": "mahaigainak TLS bidez zifratutako konexioak soilik onartzen ditu; egiaztatu gonbidatuaren RDP ezarpenak",
+          "tls_not_allowed": "mahaigainak ez ditu TLS bidez zifratutako konexioak onartzen; egiaztatu gonbidatuaren RDP ezarpenak",
+          "nla_required": "mahaigainak sare-mailako autentifikazioa (NLA) eskatzen du; egiaztatu gonbidatuaren RDP ezarpenak",
+          "certificate": "mahaigainak ez du RDP ziurtagiri baliozkorik; egiaztatu gonbidatuaren RDP ezarpenak",
+          "security_refused": "mahaigainak konexioaren segurtasuna ukatu du; egiaztatu gonbidatuaren RDP ezarpenak",
+          "account_blocked": "mahaigaineko kontua blokeatuta edo iraungita dago",
+          "no_credentials": "mahaigainak ez du RDP kredentzialik gordeta",
+          "security_not_allowed": "mahaigainak RDP segurtasun estandarra eskaintzen du soilik (TLS edo NLA gabe) eta administratzaileak ez du baimentzen; aktibatu TLS edo NLA gonbidatuan",
+          "other": "mahaigainarekiko RDP negoziazioak huts egin du; egiaztatu gonbidatuaren RDP ezarpenak"
+        }
+      },
       "table-header": {
         "viewers": "Bisoreak",
         "action": "Ekintza",
@@ -70,12 +97,25 @@
       "actions": {
         "delete": "Ezabatu",
         "direct-link": "Lotura zuzena",
+        "recreate": "Birsortu",
+        "bastion": "Bastion informazioa",
+        "increase-storage": "Handitu biltegiratzea",
         "template": "Txantiloi bihurtu",
         "edit": "zuzendu",
         "booking": "Planifikatu"
       },
       "no-info-default": "Ez dago deskribapen erabilgarririk",
       "filter-label": "Iragazi",
+      "storage-operation": {
+        "resize": "Mahaigain honen diskoaren tamaina handitzen ari da",
+        "virt_win_reg": "Editatzen ari da erregistroa",
+        "move": "Mahaigain honen diskoa mugitzen ari da"
+      },
+      "queue": "Ilarako posizioa: {position}",
+      "bastion": {
+        "title": "Bastioia: {id}",
+        "disabled": "Desgaituta"
+      },
       "notification-bar": {
         "shutdown": "Automatikoki itzaliko da {date} -n",
         "next-booking": "Hurrengo erreserba",
@@ -91,13 +131,26 @@
         "error": "Konexio-errorea",
         "unstable": "Sareko konexio-zerbitzariak ezegonkorra dirudi",
         "cookie-error": "Lotura bat ezartzeko behar den cookie ez dago finkatuta",
-        "cookie-expired": "Konexioa egiteko behar den cookie iraungi egin da"
+        "viewer-token-error": "Ikuslea berriro ireki behar da konektatzeko modu egokian",
+        "cookie-expired": "Konexioa egiteko behar den cookie iraungi egin da",
+        "retrying": "Saiakera {retry} {maxRetries}etatik",
+        "rdp-not-running": "Mahaigainak ez du RDP konexioak onartzen. Agian oraindik abiarazten ari da, edo bere RDP zerbitzua geldituta dago edo konexioa baztertzen du. Saiatu berriro une batean edo erabili beste ikustaile bat.",
+        "rdp-auth-failed": "Mahaigainak harentzat gordetako RDP kredentzialak baztertu ditu. Eguneratu mahaigainaren ezarpenetan mahaigainaren barruko erabiltzailearekin bat etor daitezen.",
+        "desktop-stopped": "Mahaigaina gelditu egin da. Abiarazi berriro konektatzeko."
       },
       "title": {
         "disconnected": "lineaz kanpo",
         "connecting": "Konektatzen",
         "error": "Bezeroaren errorea",
+        "retrying": "Mahaigainaren RDP erabilgarri egon zain",
+        "rdp-not-running": "Mahaigainak ez du RDP onartzen",
+        "rdp-auth-failed": "RDP kredentzialak baztertuta",
+        "desktop-stopped": "Mahaigaina geldituta",
         "unstable": "ezegonkor"
+      },
+      "buttons": {
+        "retry": "Saiatu berriro",
+        "refresh": "Berritu"
       },
       "button-refresh": "Freskatu"
     },
@@ -130,6 +183,12 @@
           "download-direct-viewer": {
             "title": "Zuzeneko ikuslearen fitxategia deskargatu"
           },
+          "bastion": {
+            "title": "Bastioaren konfigurazioa"
+          },
+          "download-bastion-csv": {
+            "title": "Deskargatu bastioi bidezko sarbide-fitxategia"
+          },
           "delete": {
             "title": "Ezabatu hedapena"
           },
@@ -139,8 +198,13 @@
           "allowed": {
             "title": "Editatu erabiltzaileak"
           },
+          "co-owners": {
+            "title": "Editatu kopropietarioak"
+          },
           "edit": {
-            "title": "Editatu hedapena"
+            "title": "Editatu hedapena",
+            "disabled": "Hedapen hau ezin da orain editatu",
+            "multi-desktop": "Mahaigain mota anitz dituzten hedapenak interfaze berrietik soilik edita daitezke"
           }
         },
         "back": "Hedapeenetara itzuli"
@@ -164,6 +228,12 @@
         },
         "title": "zakarrontzia"
       },
+      "notification": {
+        "migrate-button": {
+          "import": "Inportatu erabiltzailea orain",
+          "export": "Esportatu erabiltzailea orain"
+        }
+      },
       "recycle-bins": {
         "immediately": "Zakarrontzia hutsik egongo da, elementuak berehala ezabatzen baitira etengabe.",
         "max-time": "Zakarrontziko elementuak behin betiko ezabatuko dira: {time}.",
@@ -181,7 +251,10 @@
       },
       "filter-label": "Iragazi",
       "actions": {
-        "delete": "Ezabatu"
+        "delete": "Ezabatu",
+        "hide": "Egin ikusezin",
+        "show": "Ikusarazi",
+        "bastion": "Bastion informazioa"
       }
     },
     "bookings": {
@@ -255,6 +328,7 @@
         "authentication": "Egiaztatze",
         "group": "Taldea",
         "user-storage": "Erabiltzaileen biltegia",
+        "secondary-groups": "Bigarren mailako taldeak",
         "role": "Rola"
       },
       "quota": {
@@ -273,9 +347,21 @@
         "vcpus": "Vcpus erabilia/Vcpus guztira",
         "total-size": "Erabilitako tamaina/Guztizko tamaina (GB)",
         "unit": "Unitate pertsonalaren tamaina/unitate osoaren tamaina (MB)",
+        "deployments_total": "Sortutako hedapenak/Hedapenak guztira",
+        "deployment_desktops": "Hedapen bakoitzeko gehienezko mahaigainak",
+        "deployment_users": "Hedapen bakoitzeko gehienezko erabiltzaileak",
+        "started_deployment_desktops": {
+          "title": "Martxan dauden hedapen-mahaigainak / Guztira martxan dauden hedapen-mahaigainak",
+          "description": "Erabiltzaileak abiarazi ditzakeen hedapen-mahaigainen kopurua"
+        },
         "running": "Abian dauden mahaigainak / Guztira abian dauden mahaigainak",
         "volatile": "Sortutako aldi baterako idazmahaiak / Aldi baterako idazmahaiak, guztira"
       },
+      "reset-vpn": "Berrezarri VPN",
+      "export": "Esportatu erabiltzailea",
+      "import": "Inportatu erabiltzailea",
+      "api-key": "API gakoa",
+      "ssh-key": "Bastioiko SSH gakoa",
       "language": "Hizkuntza",
       "change-password": "Aldatu pasahitza",
       "change-email": "Posta elektronikoa aldatu / egiaztatu"
@@ -285,8 +371,11 @@
       "profile": "Profila",
       "select-profile": "Aukeratu erabiliko den profila",
       "end-date": "Amaiera-data",
+      "end-time": "Amaitzeko ordua",
       "select-end-date": "Aukeratu noiz arte erabiliko den",
-      "button": "Hasi mahaigaina"
+      "button": "Hasi mahaigaina",
+      "profiles": "Profilak",
+      "select-profiles": "GPU profil erabilgarriak"
     },
     "cant-start-now-modal": {
       "change-desktop-gpu": {
@@ -295,13 +384,109 @@
       },
       "title": {
         "no-available-profile": "Gaur egun ez dago beste txartel-eredurik",
-        "available-profile": "Gaur egun ez dago mahai honen karta-eredu grafikorik ({profile})",
+        "available-profile": "Mahaigain honen txartel grafikoen ereduak ez daude erabilgarri une honetan",
         "template-available-profile": "Txantiloi honen txartel grafikoaren modeloa(k) ez daude erabilgarri une honetan"
       },
       "go-to-bookings": {
         "button": "Mahaigain erreserbatu",
         "text": "Gorde mahaigaina karta-eredu grafikoarekin, planifikatuta egiaztatzeko"
       }
+    },
+    "notification-modal": {
+      "title": "Jakinarazpenak"
+    },
+    "expired-modal": {
+      "renew": {
+        "title": "Saioa berehala iraungiko da",
+        "description": "Zure saioa iraungitzear dago. Zerbitzua erabiltzen jarraitu nahi baduzu, mesedez, sakatu berritze botoia.",
+        "button": "Berritu"
+      },
+      "max-renew-time": {
+        "title": "Amaitutako saioa",
+        "description": "Zure saioa iraungita dago eta ezin da gehiago berritu. Mesedez, hasi saioa berriro jarraitzeko.",
+        "button": "Hasi saioa berriro"
+      },
+      "max-time": {
+        "title": "Amaitutako saioa",
+        "description": "Zure saioak denbora-muga maximoa lortu du. Mesedez, hasi saioa berriro jarraitzeko.",
+        "button": "Hasi saioa berriro"
+      },
+      "error-renew": {
+        "title": "Saioa berritzean errorea",
+        "description": "Errore bat gertatu da zure saioa berritzean. Mesedez, saiatu berriro edo hasi saioa.",
+        "button": "Hasi saioa berriro"
+      },
+      "expired": {
+        "title": "Saioa iraungita",
+        "description": "Zure saioa iraungi da. Zerbitzua erabiltzen jarraitu nahi baduzu, mesedez, sakatu hasi saioa berriro botoia.",
+        "button": "Hasi saioa berriro"
+      }
+    },
+    "storage-problems": {
+      "duration": {
+        "unknown": "denbora ezezagun bat",
+        "s": "{value} s inguru",
+        "min": "{value} minutu inguru",
+        "h": "{value} ordu inguru"
+      },
+      "estimate": "Ilara: {tier} · {ahead} zeregin aurretik · aurreikusia: {duration}",
+      "queued": "Ilarako {position} posizioa · gutxi gorabehera {duration} falta",
+      "running": "Orain martxan",
+      "stranded": "Une honetan ez dago langilerik ilara hau zerbitzatzen: konponbidea itxaroten du bat egon arte.",
+      "fixed": "{name} mahaigainaren diskoa konpondu da. Abiarazten ari da berriro.",
+      "failed": "Ezin izan da {name} mahaigainaren diskoa konpondu.",
+      "fix-queued": "{fix} {name} mahaigainaren diskoaren ilaran",
+      "code": {
+        "storage_busy": "Diskoa beste eragiketa batekin lanpetuta dago. Mahaigaina abiaraziko da amaitzen denean.",
+        "storage_damaged": "Diskoa kaltegabetuta markatuta dago.",
+        "storage_broken_chain": "Diskoak ezin du menpeko disko bat aurkitu.",
+        "storage_unavailable": "Diskoa ez dago erabilgarri. Administratzaile batek berrikusi behar du.",
+        "storage_leaks": "Diskoak espazio galdua du, eta konponketa azkar batek berreskuratzen du.",
+        "storage_check_due": "Discoak integritate egiaztapena egin behar du.",
+        "storage_check_inconclusive": "Azken egiaztapenak ez zuen emaitzarik eman.",
+        "storage_zeros": "Diskoak itzul daitezkeen zero-blokeak ditu.",
+        "storage_grown": "Diskoa hazi egin da eta konpaktatu daiteke.",
+        "storage_review_damage": "Diskoa hondatuta egon daiteke. Administratzaile batek berrikusi behar du.",
+        "storage_rebase_backing": "Diskoak lekuz aldatu den disko bat seinalatzen du. Administratzaile batek konpondu behar du.",
+        "storage_review_coherence": "Diskoa ez dago bere jabearekin bat. Administratzaile batek berrikusi behar du.",
+        "storage_review_dependents": "Disko besteek jada irakurri dezakete hau. Administratzaile batek berrikusi behar du.",
+        "storage_missing": "Discoaren fitxategia falta da. Administratzaile batek berrikusi behar du."
+      },
+      "fix": {
+        "check": "Integritate-egiaztapena",
+        "check_backing_chain": "Katearen egiaztapena",
+        "repair_leaks": "Zakarrontziaren garbiketa",
+        "repair_all": "Konponketa osoa",
+        "dig_holes": "Zero-blokeak itzuli",
+        "sparsify": "Diskoa konpaktatu"
+      },
+      "quick-fix": {
+        "queued": "{fix}: orain abiarazita",
+        "recorded": "{fix}: gaueko biltegiratze-mantentze-lanetarako utzita"
+      },
+      "modal": {
+        "title": "{name} mahaigainaren diskoak arreta behar du",
+        "description": "Zuzenketa azkarrak berehala exekutatzen dira. Hauek dira mahaigainaren diskoetan aurkitutako arazoak eta bakoitzarekin egiten dena.",
+        "quick_fixes": "Orain egin dena",
+        "waits": "Abian",
+        "quick": "Zabalkunde azkarrak zain",
+        "costly": "Zain dauden konponketa batzuk, une batzuk iraun ditzakete",
+        "admins": "Administratzaile bat behar da",
+        "not-allowed": "Administratzaileak bakarrik exekuta dezake konponketa hau.",
+        "run": "Exekutatu: {fix}",
+        "running": "Kolan",
+        "close": "Itxi"
+      },
+      "tier": {
+        "interactive": "interaktiboa",
+        "standard": "estandarra",
+        "template": "txantiloiak",
+        "bulk": "masiboa",
+        "maintenance": "mantentze-lanak",
+        "reclaim": "espazioa berreskuratzea",
+        "background": "ondo"
+      },
+      "fix-error": "Ezin izan da diskoa konpondu. Saiatu berriro."
     }
   },
   "views": {
@@ -312,12 +497,14 @@
         "403": {
           "subtitle": "Ez duzu nahiko baimenik edukira sartzeko.",
           "home": "Aukera gehiago lortzeko joan ",
+          "logout": "Saioa itxi eta berriro hasi saioa saia daitekezu",
           "title": "Debekatuta."
         },
         "500": {
           "subtitle": "Ezin zen edukira sartu.",
           "title": "Ustekabeko akatsa.",
-          "home": "Aukera gehiago lortzeko joan "
+          "home": "Aukera gehiago lortzeko joan ",
+          "logout": "Saioa itxi eta berriro hasi saioa saia daitekezu"
         }
       },
       "go-home": "Hasiera",
@@ -337,10 +524,16 @@
       "powered-by": "Egilea {isardvdi}",
       "errors": {
         "401": "Erabiltzailea edo pasahitza ez dira zuzenak",
-        "429": "Saialdi gehiegi, itxaron pixka bat eta saiatu berriro",
+        "429": "Saio-hasierako saiakera gehiegi. Saiatu berriro ordu honetan: {time}",
         "500": "Zerbitzariaren errorea",
         "generic": "Akats bat gertatu da"
       }
+    },
+    "select-category": {
+      "title": "Hautatu kategoria bat saioa hasteko",
+      "maintenance": "Kategoria hau mantentze-lanetan dago une honetan",
+      "subtitle": "Saioa {user} gisa hasita",
+      "logout": "Saioa itxi"
     },
     "maintenance": {
       "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
@@ -362,6 +555,7 @@
       "errors": {
         "500": "Zerbitzariaren errorea",
         "401": "Amaitutako saioa",
+        "403": "Erabiltzen saiatzen ari zaren posta elektronikoaren domeinua ez dago baimenduta zure kategoriarako.",
         "404": "Kodea ez da aurkitu",
         "409": "Erabiltzailea badago lehendik"
       }
@@ -448,6 +642,13 @@
         "verifying": {
           "text": "Egiaztatzen",
           "action": "Egiaztatzen"
+        },
+        "maintenance": {
+          "text": "Mantentze-lanetan",
+          "action": "Utzi eragiketa bertan behera"
+        },
+        "unknown": {
+          "text": "Aldi baterako ez dago erabilgarri"
         }
       },
       "error": {
@@ -524,7 +725,11 @@
         "title": "Ez dago inplementazio honetan hasitako mahaigainik"
       },
       "desktop": {
-        "not-available": "Mahaigaina ez dago eskuragarri"
+        "not-available": "Mahaigaina ez dago eskuragarri",
+        "desktops": "Mahaigainak",
+        "desktops-total-creating": "Mahaigainak: {total} guztira, {creating} sortzen",
+        "started": "Abiarazita",
+        "visible": "Ikusgai"
       },
       "visibility-warning": "Hedapen honetako mahaigainak {visibility} dira.",
       "visibility": {
@@ -536,7 +741,9 @@
           "make-invisible": "'{name}' hedapena ikusezina",
           "download-csv": "Deskargatu {name} CSV ikusle zuzena",
           "make-visible": "'{name}' hedapena ikusgai",
-          "delete": "Ezabatu hedapena"
+          "delete": "Ezabatu hedapena",
+          "co-owners": "'{name}'-ren jabekideak editatu",
+          "bastion": "'{name}' mahaigainaren bastioaren konfigurazioa"
         },
         "option": {
           "dont-stop-desktops": "Hedapen hori ikusezina izan dadila erabiltzaileentzat, eta mahaigaineko gailuen erabilera ahalbidetu dadila, geldiarazten diren arte",
@@ -551,11 +758,41 @@
           "make-visible": "Ikusarazi",
           "keep-csv": "Gorde url-ak eta deskargatu csv",
           "reset-csv": "berrezarri eta deskargatu csv",
-          "delete": "Ezabatu"
+          "delete": "Ezabatu",
+          "co-owners": "Eguneratu jabekideak",
+          "bastion": "Gorde"
         },
         "body": {
           "text": "Ekintza hori ezin da desegin, eta hari lotutako datu guztiak galdu egingo dira.",
-          "send-to-recycle-bin": "Ezarpena zakarrontzira bidali (behin betiko ezabatu arte, erabiltzailearen kuotan kontuan hartuko da biltegiratzea)."
+          "send-to-recycle-bin": "Ezarpena zakarrontzira bidali (behin betiko ezabatu arte, erabiltzailearen kuotan kontuan hartuko da biltegiratzea).",
+          "invisible-warning": "Hedapen honetan {visible} mahaigain ikusgai eta {invisible} ikusezin daude. Jarraitzen baduzu, erabiltzaileentzat ikusezinak izango dira guztiak.",
+          "visible-warning": "Hedapen honetan {visible} mahaigain ikusgai eta {invisible} ikusezin daude. Jarraitzen baduzu, erabiltzaileentzat ikusgai izango dira guztiak.",
+          "co-owner-warning-delete": "Jabekideek ezin dute hedapenak ezabatu. Mesedez, jarri harremanetan jabearekin hedapen hau ezabatzeko.",
+          "warning-co-owner": "Kopropietario gisa ez duzu baimenik ekintza hau egiteko. Mesedez, jarri harremanetan hedapen honen jabearekin.",
+          "co-owners-warning": "ABISUA! Jabekide gisa ezarritako erabiltzaileek jabearen baimen berak izango dituzte, jabetza aldatzea eta hedapena ezabatzea izan ezik.",
+          "co-owners-label": "Jabekideak:",
+          "owner-label": "Jabea: {owner}",
+          "bastion-info": "Hedapen honetako mahaigain guztiei aplikatzen zaie. Martxan dauden mahaigainak berehala eguneratzen dira; mahaigain berriek eta birsortutakoek konfigurazio hau jasotzen dute lehen aldiz abiaraztean."
+        }
+      },
+      "alloweds-warning": "ADI! Erabiltzaileak hedapen honetatik kentzean, haien mahaigainak ere ezabatuko dira.",
+      "videowall": {
+        "gpu-warning": "Videowall-ek ez du RDP ikustaileekin funtzionatzen"
+      },
+      "loading-modal": {
+        "title": "Mahaigainak sortzen '{name}'-rako",
+        "body": {
+          "title": "Zure mahaigainak bi etapatan hornitzen ari dira. Bi etapak amaitu arte ezin izango dira erabili.",
+          "desktops-created-of-total": "{created} mahaigain sortuak {total} mahaigainetatik",
+          "desktops-created": "Zure {total} mahaigain prest daude",
+          "stage1-title": "1. etapa — Mahaigainak hedapenera gehitzea",
+          "stage1-progress": "{total}etik {current} mahaigain gehituta",
+          "stage1-pending": "Motorrak mahaigainak sortzen hasi zain…",
+          "stage1-done": "{total}etik {total} mahaigain gehituta",
+          "stage2-title": "2. etapa — Biltegiratzea aprovisionatzen",
+          "stage2-progress": "{total}etik {current} mahaigain hornituta",
+          "stage2-pending": "1. etapa amaitu zain, biltegiratzea hornitu ahal izateko",
+          "stage2-done": "{total}etik {total} mahaigain hornituta"
         }
       }
     },
@@ -571,7 +808,9 @@
         "desktop-name": "Mahaigai izena",
         "description": "Deskripzio",
         "template": "Txantiloi",
-        "started-desktops": "Abiarazitako mahaigainak / Guztira"
+        "started-desktops": "Abiarazitako mahaigainak / Guztira",
+        "visible-desktops": "Ikusgai",
+        "total-desktops": "Guztira"
       }
     },
     "direct-viewer": {
@@ -668,6 +907,9 @@
         },
         "delete": {
           "title": "Ezabatu txantiloia"
+        },
+        "convert": {
+          "title": "Bihurtu txantiloia mahaigain"
         }
       },
       "modal": {
@@ -691,6 +933,41 @@
           },
           "button": {
             "delete": "Ezabatu txantiloia"
+          }
+        },
+        "convert": {
+          "title": {
+            "warning": "Mendekotasun-abisua",
+            "ok": "Bihurtu '{name}' txantiloia mahaigain",
+            "duplicate": "Bikoizketa-abisua"
+          },
+          "warning": {
+            "title": "Txantiloi hau mahaigain bihurtzeko, ez du elementu menpekorik izan behar.",
+            "pending": "Hautatutako txantiloiaren mende beste erabiltzaile batzuen {ammount} txantiloi, mahaigain edo hedapen daude. Jarri harremanetan administratzailearekin.",
+            "delete": "Zure jabetzako hurrengo baliabideak ezabatuko dira mahaigain bihurtzen baduzu. Ekintza hau ez da desegiteko.",
+            "footer": "Ezin duzu txantiloi hau mahaigain bihurtu. Mesedez, jarri administratzailearekin harremanetan.",
+            "confirm": "Badakit elementu hauek guztiak ezabatuko direla eta jarraitu nahi dut.",
+            "confirm-unchecked": "Lauki hau markatu behar duzu jarraitzeko.",
+            "duplicate": "Txantiloi hau beste txantiloi baten bikoizketa da eta ezin da mahaigain bihurtu. Mesedez, jarri administratzailearekin harremanetan.",
+            "recyclebin": "Zakarrontziko sarrera batzuk txantiloi honen araberakoak badira, behin betiko ezabatuko dira."
+          },
+          "info": {
+            "title": "Txantiloi honetan egin beharreko aldaketa hauek egingo dira:",
+            "delete": "'{name}'-en menpe dauden elementu guztiak ezabatuko dira",
+            "rename": "'{oldName}' izena '{newName}' izendatuko da.",
+            "kind": "'{name}' txantiloitik mahaigain bihurtuko da"
+          },
+          "button": {
+            "apply": "Bihurtu txantiloia"
+          },
+          "table-header": {
+            "kind": "Mota",
+            "name": "Izena",
+            "user": "Erabiltzailea"
+          },
+          "rename": {
+            "title": "Zure '{name}' txantiloia mahaigain bihurtuko da",
+            "label": "Berrizenda dezakezu orain nahi baduzu:"
           }
         }
       }
@@ -763,10 +1040,17 @@
     "storage": {
       "table-header": {
         "last": "Azken sarbidea",
+        "actions": "Ekintzak",
         "percentage": "% Kuota",
         "domains": "Mahaigainak/txantiloiak",
         "quantity-domains": "Mahaigain kopurua/txantiloiak",
-        "actual-size": "Tamaina"
+        "actual-size": "Tamaina",
+        "virtual-size": "Guztizko tamaina"
+      },
+      "buttons": {
+        "increase": {
+          "title": "Biltegiratze-diskoaren espazioa handitu"
+        }
       },
       "no-storage": {
         "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
@@ -803,8 +1087,10 @@
         "table-header": {
           "size": "Tamaina",
           "id": "Id",
+          "path": "Bidea",
           "format": "Formatua",
           "used": "Erabilita",
+          "parent": "Gurasoa",
           "user": "Erabiltzailea",
           "category": "Kategoria",
           "status": "Egoera",
@@ -889,6 +1175,52 @@
           "text": "Ekintza hau ezin da desegin, eta hari lotutako datu guztiak galdu egingo dira.",
           "send-to-recycle-bin": "Mahaigaina zakarrontzira bidali (behin betiko ezabatu arte, erabiltzailearen kuotatik hartuko da)."
         }
+      },
+      "bastion_modal": {
+        "title": "'{name}' mahaigainaren bastion informazioa",
+        "labels": {
+          "id": "Bastion IDa:",
+          "ssh": "SSH:",
+          "http": "HTTP URLa:",
+          "https": "HTTPS URLa:",
+          "authorized-keys-ssh": "Baimendutako SSH gakoak",
+          "authorized-keys-others": "Beste erabiltzaileentzako baimendutako gakoak",
+          "domain-name": "Domeinu-izen pertsonalizatua:",
+          "domain-names": "Domeinu-izen pertsonalizatuak:"
+        },
+        "titles": {
+          "id_copy": "Kopiatu bastioiaren IDa",
+          "ssh_port": "SSH: {ssh_port}",
+          "ssh_copy": "Kopiatu SSH komandoa",
+          "http_open": "Ireki beste erlaitz batean",
+          "http_port": "HTTP: {http_port}",
+          "http_copy": "Kopiatu HTTP URLa",
+          "https_port": "HTTPS: {https_port}",
+          "https_copy": "Kopiatu HTTPS URLa",
+          "authorized-keys-ssh": "Baimendutako SSH gakoak",
+          "authorized-keys-others": "Beste pertsona batzuen gako publikoak, mahaigain honetara SSH sarbidea eman nahi dizkiozunean",
+          "domain-info": "DNS informazioa"
+        },
+        "domain-info": {
+          "title": "Zure domeinu-izena erabil dezakezu mahaigain honetara bastion bidez sartzeko.",
+          "cname": "Gehitu CNAME erregistro bat zure DNS hornitzailean hona seinalatuz:"
+        },
+        "domain-status": {
+          "verified": "Domeinua egiaztatuta eta aktibo",
+          "verified-pending-save": "Domeinua egiaztatuta (gorde aplikatzeko)",
+          "not-verified": "Domeinua egiaztatu gabe - egin klik eskutxoan egiaztatzeko"
+        },
+        "own-key": {
+          "missing": "Oraindik ez duzu bastioiko SSH gakorik zure profilean, beraz ez duzu automatikoki SSH sarbiderik izango.",
+          "add-link": "Gehitu zure profilera"
+        },
+        "buttons": {
+          "update-authorized-keys": "Eguneratu baimendutako SSH gakoak",
+          "update-domain": "Eguneratu domeinu pertsonalizatua",
+          "update-domains": "Eguneratu domeinu pertsonalizatuak",
+          "add-domain": "Gehitu domeinua",
+          "verify-domain": "Egiaztatu domeinuaren DNS"
+        }
       }
     },
     "forgot-password": {
@@ -915,6 +1247,22 @@
       "accept": "Onartu",
       "disclaimer-accepted": "Erantzukizunaren deskargua onartu egin da. Birbideratu saio-hasierara {seconds} segundotan"
     },
+    "export-user": {
+      "title": "Esportatu zure erabiltzailearen elementuak",
+      "back": "Itzuli",
+      "description": "Migratu elementuak migrazio-kode baten bidez",
+      "migration-instructions1": "Sortu eta kopiatu migrazio-kode hau arbelera. Gorde kode hau, elementuak inportatzeko beharko duzu. Kodea 1 orduz baliozkoa da.",
+      "migration-instructions2": "Erabiltzaile hau beste batera migratzeko, itxi saioa eta hasi saioa erabiltzaile berriarekin. Erabiltzaile berriaren profilean inportatzeko botoia aurkituko duzu, non kode hau itsatsi dezakezun.",
+      "warning": "KONTUZ",
+      "migration-warning": "Erabiltzaile honentzat lehenago migrazio-kode bat sortu bada, berri bat sortzeak aurrekoa baliogabetuko du.",
+      "generate-token": "Sortu migrazio-kode bat",
+      "generate-token-warning": "Migrazio-kode hau ezin izango da berriro ikusi. Ziurtatu kopiatu duzula jarraitu aurretik.",
+      "copy-token": "Kopiatu tokena",
+      "copy": "Kopiatu arbelera",
+      "logout-and-continue": "Itxi saioa eta jarraitu erabiltzaile berriarekin",
+      "logout": "Saioa itxi",
+      "logout-tooltip": "Sortu eta kopiatu migrazio-kodea saioa itxi aurretik, migrazioarekin jarraitzeko"
+    },
     "reset-password": {
       "password-reset": "Pasahitza behar bezala berrezarri da. Birbideratu saioa abiarazteko {seconds} segundo"
     }
@@ -932,6 +1280,7 @@
       },
       "title": "Mahaigain berria sortu:",
       "section-title-template": "Txantilloi bat aukeratu:",
+      "section-title-os-template": "Hardware-profila:",
       "desktop-name": "Mahaigainaren Izena",
       "desktop-description": "Mahaigainaren deskribapena",
       "desktop-template": "Txantiloia",
@@ -951,6 +1300,7 @@
       "viewers": {
         "fullscreen-disabled": "Pantaila osoa desaktibatuta",
         "fullscreen-enabled": "Pantaila osoa aktibatuta",
+        "wireguard-removed": "RDP ikustaile hauek kendu dira, ez baitago wireguard sare-interfazerik: {viewers}",
         "guest": {
           "title": "RDP saio-hasiera",
           "password": "Pasahitza",
@@ -958,6 +1308,37 @@
           "username": "Erabiltzaile izena"
         },
         "title": "Ikusleak"
+      },
+      "bastion": {
+        "disabled": "Bastioia desgaituta",
+        "enabled": "Bastioia gaituta",
+        "title": "Bastioa",
+        "http": {
+          "checkbox": "HTTP",
+          "http-port": "HTTP ataka",
+          "https-port": "HTTPS ataka",
+          "domain-name": "Domeinu-izen pertsonalizatua (aukerakoa)",
+          "domain-names": "Domeinu-izen pertsonalizatuak (aukerakoa)",
+          "add-domain": "Gehitu domeinua",
+          "proxy-protocol": "Proxy Protocol v2",
+          "proxy-protocol-tooltip": "Gaitu bezeroaren benetako IPa gonbidatura birbidaltzeko. Gaitu soilik zure gonbidatuaren web-zerbitzariak Proxy Protocol v2 onartzen badu."
+        },
+        "ssh": {
+          "checkbox": "SSH",
+          "port": "SSH ataka",
+          "authorized-keys": "Baimendutako gakoak (bat lerroko)",
+          "invalid-keys": "SSH gako publiko baliogabea {lines} lerroan."
+        },
+        "port-tooltip": "Zure mahaigainak erabiltzen duen portua. Kanpotik, {port} portuari eslingatuko zaio.",
+        "copy": "Kopiatu arbelera",
+        "copied": "Kopiatuta!"
+      },
+      "guest": {
+        "title": "Mahaigainaren kredentzialak",
+        "rdp-bastion": "Kredentzial hauek RDP edo bastioiaren bidezko konektatzeko erabiltzen dira",
+        "warning": "ABISUA: gonbidatuaren pasahitza testu garbi gisa gordeko da!!",
+        "username": "Erabiltzaile-izena",
+        "password": "Pasahitza"
       },
       "hardware": {
         "title": "Hardware",
@@ -972,6 +1353,12 @@
       },
       "bookables": {
         "vgpus": "GPU",
+        "sets": "multzoak",
+        "server-set": "Zerbitzari multzoa {n}",
+        "numa-socket": "NUMA socketa {n}",
+        "numa-socket-unknown": "NUMA socket ezezaguna",
+        "numa-same-socket": "NUMA socket bera posible ({node} nodoa) — txartelek socket bera parteka dezakete, memoria-banda zabalera onena.",
+        "numa-diff-socket": "NUMA socket desberdinak — mahaigainak abiarazten jarraitzen du, baina socketen arteko memoria-sarbidea motelagoa da.",
         "title": "Erreserba daitezkeenak"
       },
       "media": {
@@ -1018,8 +1405,16 @@
         "user": "Erabiltzailea",
         "image": "Irudia"
       },
+      "user-permissions": {
+        "title": "Erabiltzailearen baimenak",
+        "recreate": {
+          "title": "Birsortu mahaigaina",
+          "description": "Erabiltzaileek beren mahaigaina jatorrizko egoerara berrezartzeko baimena eman."
+        }
+      },
       "title": "Hedapen berria sortzea:",
       "name": "Hedapen izena",
+      "description": "Hedapenaren deskribapena",
       "not-visible": "Erabiltzaileek ez dute ikusgai",
       "visible": "Erabiltzaileek ikusteko moduan",
       "filter-placeholder": "Idatzi bilatzeko",
@@ -1080,7 +1475,82 @@
         "title": "Zuzeneko ikuslearen esteka"
       }
     },
+    "increase": {
+      "modal": {
+        "title": "Biltegiratze-diskoaren espazioa handitu",
+        "buttons": {
+          "update": "Eguneratu"
+        }
+      },
+      "errors": {
+        "too-small": "Tamaina berria uneko tamaina baino handiagoa izan behar da"
+      },
+      "current-size": "Uneko tamaina:",
+      "new-size": "Tamain berria:",
+      "priority": "Lehentasuna:",
+      "priority-options": {
+        "low": "Baxua",
+        "medium": "Ertaina",
+        "high": "Altua"
+      }
+    },
+    "import": {
+      "modal": {
+        "title": "Inportatu erabiltzailea",
+        "description": "Inportatu beste erabiltzaile baten elementuak kontu honetara",
+        "migration-instructions1": "Hasteko, inportatu nahi duzun kontuaren migrazio-token bat behar duzu.",
+        "migration-instructions2": "Ez baduzu bat, lehenik migratu nahi duzun kontuan saioa hasi behar duzu, profileko orrian \"Esportatu erabiltzailea\" sakatu eta jarraibideei jarraitu.",
+        "migration-instructions3": "Tokena duzunean, itsatsi hemen:",
+        "placeholder": "Sartu migrazio-tokena",
+        "migrate-tooltip": "Joan migrazio-orrialdera prozesuarekin jarraitzeko",
+        "buttons": {
+          "migrate": "Hasi migrazioa"
+        }
+      }
+    },
     "show-pages": "Erakutsi",
+    "api-key": {
+      "modal": {
+        "title": "API gakoa",
+        "alert": {
+          "expired": "Zure API gako zaharra iraungita dago. Berri bat sortu beharko duzu IsardVDI API kanpoko aplikazioekin erabiltzen jarraitzeko. Behean sortu dezakezu berri bat.",
+          "regenerated": "Zure API gako zaharra ezabatu da. Behean kopiatu dezakezu berria."
+        },
+        "new-key": {
+          "title": "Sortu API gako berri bat",
+          "description": "API gako berri bat sortu dezakezu IsardVDI APIarekin integratzen diren kanpoko aplikazioekin erabiltzeko.",
+          "warning": "API gakoa behin bakarrik ikusi ahal izango duzu, beraz, ziurtatu toki seguru batean gordetzen duzula.",
+          "buttons": {
+            "generate": "Sortu",
+            "generate-tooltip": "Sortu API gako berri bat",
+            "expiration-label": "Iraungitze-data:",
+            "show": "Erakutsi gakoa",
+            "copy": "Kopiatu gakoa",
+            "key-copied": "Gakoa arbelera kopiatu da"
+          }
+        },
+        "existing-key": {
+          "description-1": "Zure API gakoa {date} arte baliozkoa da. Horren ondoren, iraungiko da eta ezin izango duzu gehiago erabili.",
+          "description-2": "Orain iraungiarazi dezakezu berri bat sortzeko.",
+          "buttons": {
+            "expire": "Iraungiarazi",
+            "expire-tooltip": "Iraungiarazi gako existentea"
+          }
+        }
+      }
+    },
+    "ssh-key": {
+      "modal": {
+        "title": "Bastioiko SSH gakoa",
+        "description": "Gehitu zure SSH gako publikoa profilari. Bastioiak onartzen du zure edozein mahaigainen SSH sarbiderako, eta jabe edo jabekide zaren edozein hedapenetako mahaigainetarako; beraz, ez duzu mahaigain bakoitzera gehitu behar. Ezabatzen baduzu, sarbide hori indargabetzen da.",
+        "label": "Zure gailuaren SSH gako publikoa:",
+        "invalid": "Honek ez dirudi baliozko SSH gako publikoa.",
+        "buttons": {
+          "save": "Gorde gakoa",
+          "remove": "Kendu gakoa"
+        }
+      }
+    },
     "edit-deployment": {
       "desktop": {
         "title": "Editatu hedapen-idazmahaiak"
@@ -1128,6 +1598,9 @@
       "go-to-profile": "Kuota ikusi",
       "new-deployment": "{quantity} mahaigain sortuko dira, hautatutako erabiltzaile bakoitzeko bat. Jarraitu nahi duzu?",
       "change-desktop-gpu": "Maihaigainaren profila aldatu",
+      "reset-vpn": "VPN gakoak berrezarri? VPN fitxategi berri bat deskargatu beharko duzu",
+      "cancel-operation": "Eragiketa diskoaren bertan behera utzi? Diskoa egoera inkoherentean utz dezake",
+      "recreate-desktop": "'{name}' birsortuko da, eta egin dituzun aldaketa guztiak ezabatuko dira. Jarraitu?",
       "go-to-bookings": "Mahaigaina erreserbatu",
       "edit-deployment": "'{name}' mahaigaiak editatuko dira, aurrera?",
       "delete-media": "'{name}' mediak ezabatuko dira, aurrera?"
@@ -1143,6 +1616,8 @@
       "deleting-desktop": "Mahaigaina ezabatzen",
       "opening-desktop": "Mahaigaina zabaltzen",
       "making-invisible-deployment": "Hedapena ikusezin bihurtzen",
+      "making-visible-desktop": "Mahaigaina ikusgai jartzen",
+      "making-invisible-desktop": "Mahaigaina ikusezin bihurtzen",
       "creating-template": "Txantiloia sortzen",
       "disable-template": "Txantiloia ikusezin bihurtzen",
       "creating-event": "Gertaera sortzen",
@@ -1150,6 +1625,7 @@
       "deleting-event": "Gertaera ezabatzen",
       "stopping-desktops": "Hedapeneko mahaigainak gelditzen",
       "deleting-deployment": "Hedapena ezabatzen",
+      "deployment-deleted": "Hedapena ezabatuta",
       "editing": "Editatzen",
       "no-availability-event": "Ez dago ezer erabilgarri hautatutako eremuan",
       "edit-desktop-stop": "Mahaigain bat editatzeko, gelditu egin behar da",
@@ -1165,9 +1641,15 @@
       "counting-desktops": "Sortuko diren mahaigain kopurua zenbatzen",
       "delete-desktop-stop": "Mahaigain bat ezabatzeko, gelditu egin behar da",
       "wireguard-network-added": "Wireguard sarea gehitu da RDP ikusleak erabiltzeko beharrezkoa duelako",
+      "bastion-wireguard-network-added": "Wireguard sarea gehitu da bastioia erabiltzeko beharrezkoa duelako",
+      "wireguard-bastion-removed": "Bastioia kendu da wireguard sarea beharrezkoa delako",
       "wireguard-network-required": "Ezin dira RDP ikustaileak hautatu wireguard sarea beharrezkoa dutelako. Jarri harremanetan administratzailearekin wireguard sarea erabiltzeko",
       "creating-deployment": "Hedapena sortzen",
       "recreating-deployment": "Hedapena Birsortzen",
+      "no-desktops-to-recreate": "'{name}': ez dago mahaigainik sortzeko. Baimendutako eta gaitutako erabiltzaile guztiek badute jada beren mahaigainak.",
+      "deployment-desktops-created": "Sortutako hedapen-mahaigainak",
+      "deployment-bastion-updated": "Hedapenaren bastioaren konfigurazioa eguneratu da",
+      "bastion-not-configured": "Bastioia ez dago aktibatuta mahaigain honetarako",
       "making-visible-deployment": "Hedapena ikusgai jartzen",
       "deleting-media": "Media ezabatzen",
       "creating-media": "Media sortzen",
@@ -1176,13 +1658,28 @@
       "restoring-recycle-bin": "Sarrera berrezartzea",
       "deleting-recycle-bin": "Sarrera kentzen",
       "downloading-media": "Deskargatu media",
-      "warning-desktop-waiting-ip": "Une honetan ezin da bisorea erabili. Itxaron, mesedez..."
+      "warning-desktop-waiting-ip": "Une honetan ezin da bisorea erabili. Itxaron, mesedez...",
+      "reset-vpn": "VPN gakoak berrezarrita",
+      "video-default": "Mahaigaineko 'Videos' parametroa 'Default' baliora aldatu da, ez dagoelako GPU profilik esleita",
+      "cancelling-operation": "Eragiketa diskoaren bertan behera uzten",
+      "recreate-desktop-stop": "Mahaigain bat berriro sortzeko, gelditu egin behar da",
+      "increasing-storage": "Biltegiratze-tamaina handitzen ari da. Une batzuk iraun dezake",
+      "converting-template": "Txantiloia mahaigain bihurtzen",
+      "token-copied": "Tokena arbelera kopiatu da",
+      "authorized-ssh-keys-updated": "Baimendutako SSH gakoak eguneratu dira",
+      "bastion-domain-updated": "Bastioiko domeinua eguneratu da",
+      "bastion-domains-updated": "Bastioiko domeinuak eguneratu dira",
+      "bastion-domain-verified": "Domeinuaren DNS egiaztapena ongi burutu da",
+      "bastion-ssh-key-updated": "Bastioiko SSH gakoa gordeta",
+      "bastion-ssh-key-removed": "Bastioiko SSH gakoa ezabatuta"
     },
     "loading": "Kargatzen",
     "ok": "Ados",
     "cancel": "Utzi"
   },
   "errors": {
+    "storage_no_consumer_retry_later": "Biltegiratzeak aldi baterako ezin du eskakizun berriak onartu. Mesedez, saiatu berriro une batzuen buruan.",
+    "service_temporarily_unavailable": "Zerbitzua aldi baterako ez dago erabilgarri. Mesedez, saiatu berriro minutu batzuk barru.",
     "generic_error": "Errore bat gertatu da",
     "desktop_start_category_vcpu_quota_exceeded": "Kategoria honentzako vCPU muga gainditua",
     "desktop_start_category_memory_quota_exceeded": "Kategoria honentzako memoria muga gainditua",
@@ -1228,10 +1725,22 @@
     "desktop_start_category_limit_exceeded": "Kategoria mailain, abiarazitako mahaigainen muga gainditu da",
     "desktop_start_category_vcpu_limit_exceeded": "Kategoriako vCPU muga gainditu da",
     "desktop_start_category_memory_limit_exceeded": "Kategoriaren memoria-muga gainditu da",
+    "desktop_start_incorrect_body_data": "Mahaigaina abiarazteko datu okerrak",
+    "desktop_incorrect_body_data": "Mahaigaina gehitzeko datu okerrak",
     "template_new_group_limit_exceeded": "Txantiloiak sortzeko talde-muga gainditu da",
     "template_new_category_limit_exceeded": "Txantiloiak sortzeko kategoria-muga gainditu da",
+    "media_new_user_quota_exceeded": "Euskarriak sortzeko kuota gainditu duzu. Euskarri bat ezabatu behar duzu beste bat sortzeko.",
+    "media_new_group_limit_exceeded": "Taldeko baliabideak sortzeko muga gainditu da",
+    "media_new_category_limit_exceeded": "Kategoriako baliabideak sortzeko muga gainditu da",
+    "media_should_not_be_downloading": "Euskarria ez dago deskargatzen",
     "media_url_not_found": "Ezin izan da emandako URLa aurkitu",
     "media_url_not_valid": "Emandako URLak ez du balio",
+    "media_url_bad_format": "Emandako URLaren formatua ez da baliozkoa",
+    "deployment_new_user_quota_exceeded": "Zure hedapenak sortzeko kuota gainditu duzu. Hedapen bat ezabatu behar duzu berri bat sortzeko.",
+    "deployments_new_group_limit_exceeded": "Taldeko hedapenak sortzeko muga gainditu da",
+    "deployments_new_category_limit_exceeded": "Kategoriako hedapenak sortzeko muga gainditu da",
+    "deployment_desktop_new_user_quota_exceeded": "Mahaigain kuota gainditu duzu hedapen honetarako. Hedapen honetako mahaigain kopurua murriztu behar duzu hau sortzeko.",
+    "deployment_start_user_quota_exceeded": "Hedapenetatik abiarazitako mahaigainen kuota gainditu duzu. Hedapen bateko mahaigain bat gelditu behar duzu beste bat abiarazteko.",
     "desktop_start_group_vcpu_limit_exceeded": "Taldeko vCPU muga gainditu da",
     "booking_new_event_overlap_error": "Gertaera bat dator",
     "desktop_is_not_visible": "Mahaigaina ez da ikusten erabiltzaile honentzat orain.",
@@ -1239,6 +1748,12 @@
     "category_total_size_limit_exceeded": "Kategoriako baliabideak biltegiratzeko tamainaren muga gainditu da",
     "new_desktop_name_exists": "Badago izen bereko mahaigain bat erabiltzaile honentzat",
     "desktop_not_booked_until": "Mahaigaina ezin da hasi hurrengo erreserbara arte:{start}",
+    "desktop_not_started": "Mahaigaina ez dago exekutatzen",
+    "desktop_no_scheduled_shutdown": "Mahaigainak ez du programatutako itzalketarik",
+    "desktop_no_timeout_rule": "Ez dago itzalketa-araurik mahaigain honentzat",
+    "desktop_extend_not_allowed": "Ez da mahaigain honen denbora luzatzea onartzen",
+    "desktop_max_extensions_reached": "Mahaigain honetarako luzapenen gehienezko kopurura iritsi zara.",
+    "desktop_extend_time_too_short": "Konfiguratutako luzapena motzegia da berriro jakinarazteko. Jarri harremanetan administratzailearekin",
     "not_found": "Ez da aurkitu",
     "booking_new_event_end_error": "Amaiera-ordua ez da baliozkoa",
     "booking_does_not_fit_date": "Erreserba ez dator bat eskatutako datarekin",
@@ -1250,9 +1765,35 @@
     "invalid_end_date": "Amaiera-data ez da baliozkoa",
     "deployment_desktop_new_category_limit_exceeded": "Gainditu egin da '“kategoriak”ko '{category}' mahaigaiak sortzeko muga",
     "deployment_stop": "Ekintza hori egiteko, hedapen-mahaigainek itzalita egon behar dute",
+    "deployment_recreate_booking_not_enough_units": "Hedapena ezin da birsortu, etorkizuneko erreserbentzako behar adina unitate ez daudelako erabilgarri.",
+    "deployment_multi_desktop_edit_unsupported": "Hedapen honek mahaigain mota anitz ditu. Editatu interfaze berrietik.",
     "booking_desktop_delete_stop": "Erreserba hori kentzeko, mahaigaina gelditu behar da",
     "booking_deployment_delete_stop": "Erreserba hori ezabatzeko, hedapen-mahaigainak gelditu behar dira",
     "conflict": "Arazoa",
+    "conflict_title": "Arazoa",
+    "missing_required_data": "Derrigorrezko eremuak falta dira",
+    "not_enough_rights_media": "Baliabide honetara sartzeko baimen nahikorik ez duzu",
+    "not_enough_rights_desktop": "Ez duzu nahikoa baimenik mahaigain honetara sartzeko",
+    "incorrect_viewer_body_data": "Mahaigainaren ikuslearen datu okerrak",
+    "unable_to_get_viewer_started": "Ezin da ikustailea lortu hasi gabeko mahaigainarentzat",
+    "unable_to_get_viewer_inexistent": "Ezin da ikustaile bat lortu mahaigain ez-egonekorentzat",
+    "desktop_same_id": "Badago id hori duen mahaigain bat",
+    "unable_to_parse_media": "Ezin da euskarriaren informazioa aztertu",
+    "unable_to_parse_string": "Ezin da katea aztertu",
+    "unable_to_start_desktop_from": "Mahaigaina ezin da hasi bere egoeratik",
+    "unable_to_stop_desktop_from": "Mahaigaina ezin da gelditu bere egoeratik",
+    "unable_to_change_desktop_status": "Ezin da mahaigainaren egoera aldatu",
+    "unable_to_change_hypervisor_status": "Ezin da hiperbisorearen egoera aldatu",
+    "unable_to_get_domain_jumperurl": "Ezin izan da ikustaile zuzenaren esteka lortu, dumenioa ez baitago",
+    "unable_to_reset_domain_jumperurl": "Ezin izan da jumperurl domeinua berrezarri, domeinua ez delako existitzen",
+    "unable_to_get_deployment_desktops": "Ezin dira hedapenaren mahaigainak lortu",
+    "unable_to_gen_enrollment_code": "Ezin da izen-emate kodea sortu",
+    "template_already_exists": "Txantiloiaren identifikatzailea lehendik existitzen da:",
+    "new_template_bad_body_data": "Txantiloi berriaren datu okerrak",
+    "table_not_allowed": "Taularen jabea aldatzea ez da baimentzen",
+    "viewer_protocol_not_implemented": "Ikustapen-protokoloa ez dago inplementatuta",
+    "get_vnc_viewer_data_error": "Zerbitzariaren barne errorea VNC ikuslearen datuak lortzean",
+    "desktop_transition_initial_status_incorrect": "Mahaigainaren hasierako trantsizio-egoera ez da zuzena",
     "deployment_desktop_new_group_limit_exceeded": "Gainditu egin da \"“grupo’”'{group}' taldeko mahaigaiak sortzeko muga",
     "desktop_not_booked": "Mahaigaiak erreserba behar du hasteko",
     "incorrect_new_plan_body_data": "Plan berriaren datu okerrak",
@@ -1272,8 +1813,42 @@
     "invalid_token": "Token baliogabea",
     "old_passwords": "Uneko pasahitza ezin da izan azken {num} pasahitzetako bat",
     "no_storage_pool_available": "Une honetan ezin da baliabidea sortu. Saiatu berriro geroago.",
+    "bookings_max_time_reached": "Erabiltzaileak erreserbar ditzakeen mahaigainen gehienezko denbora-muga lortu du",
+    "desktops_not_stopped": "Biltegiratze honekin lotutako mahaigainak gelditu behar dira ekintza hori egiteko",
+    "storage_has_recycled_children": "Txantiloi honek zakarrontzian lehenera daitezkeen elementu menpekoak ditu. Ezabatu haiek bihurtzeko.",
+    "increase_desktops_not_stopped": "Biltegiratze honi lotutako mahaigaina geldituta egon behar da diskoaren tamaina handitzeko",
+    "increase_storage_has_derivatives": "Biltegia txantiloi baten biltegia da eta ezin da handitu",
+    "hypervisors_not_available": "Ezin izan da mahaigaina abiarazi. Sistema gainkargatuta egon daiteke. Saiatu berriro geroago.",
+    "duplicate": "Txantiloi hau beste txantiloi baten bikoizketa da eta ezin da mahaigain bihurtu. Mesedez, jarri administratzailearekin harremanetan.",
+    "convert_template_with_derivatives": "Txantiloi honek deribatuak ditu eta ezin da mahaigain bihurtu. Mesedez, jarri administratzailearekin harremanetan.",
+    "migration_not_found": "Ez da migrazio-tokena aurkitu",
+    "multiple_migrations_found_origin_user": "Migrazio bat baino gehiago aurkitu dira jatorrizko erabiltzailearentzat. Jarri harremanetan administratzailearekin",
+    "multiple_migrations_found_target_user": "Migrazio bat baino gehiago aurkitu dira helmuga-erabiltzailearentzat. Jarri harremanetan administratzailearekin",
+    "multiple_migrations_found_token": "Migrazio bat baino gehiago aurkitu dira migrazio-kode berbererako. Jarri harremanetan administratzailearekin",
+    "same_user_migration": "Ezin duzu kontu berera migratu. Tokena lortzean, saioa itxi eta kontu berriarekin hasi behar duzu",
+    "different_category_migration": "Ezin duzu beste kategoria bateko kontu batera migratu",
+    "role_migration_admin": "Ezin duzu administratzaile-kontu batetik migratu",
+    "role_migration_user": "Ezin duzu rol altuagoko kontu batetik erabiltzaile-kontu batera migratu",
+    "migration_desktop_quota_error": "Erabiltzaileak mahaigain gehiago ditu erabiltzaile berriaren kuotak baino",
+    "migration_template_quota_error": "Erabiltzaileak txantiloi gehiago ditu erabiltzaile berriaren kuotak baino",
+    "migration_media_quota_error": "Erabiltzaileak euskarri gehiago ditu erabiltzaile berriaren kuotak baino",
+    "migration_deployments_quota_error": "Erabiltzaileak hedapen gehiago ditu erabiltzaile berriaren kuotak baino",
+    "migration_no_items_available": "Erabiltzaile honek ez du migratzeko elementurik",
+    "token_expired": "Eman duzun tokena iraungita dago",
+    "unable_to_restore_user": "Ezin da berreskuratu. {user} erabiltzaile ezabatua sarrera honetako elementuen jabea da",
+    "unable_to_restore_group": "Ezin da berreskuratu. {group} talde ezabatua sarrera honetako elementuekin lotuta dago",
+    "unable_to_restore_category": "Ezin da berreskuratu. Ezabatutako {category} kategoria sarrera honetako elementuekin lotuta dago",
+    "operation_not_owned": "Ez duzu operazio hau bertan behera uzteko baimenik, ez baita zuk abiarazi",
+    "bastion_domain_dns_not_found": "Ez da aurkitu dumenaren DNS erregistroa. Egiaztatu eta saiatu berriro.",
+    "bastion_domain_dns_error": "Errore bat gertatu da domeinuaren DNS-a egiaztatzean. Mesedez, saiatu berriro geroago.",
+    "bastion_domain_dns_mismatch": "Domeinuaren DNS erregistroa ez da espero den balioarekin bat etortzen. Begiratu eta saiatu berriro.",
+    "bastion_domain_exists": "Badago jada domeinu hori. Mesedez, aukeratu beste domeinu-izen bat.",
+    "parent_template_not_found": "Ezin da elementua berreskuratu, jatorrizko txantiloia ez dagoelako.",
+    "desktop_reservable_not_found": "Mahaigainaren GPU profila ez da existitzen eta kendu egin da. Editatu mahaigaina eta hautatu erabilgarri dagoen GPU profil bat abiarazi aurretik.",
     "needs_deployment_booking": "Mahaigain ezin da orain hasi; jar zaitez harremanetan hedapenaren jabearekin, erreserbatzeko",
     "template_failed": "Akats bat dela eta, txantiloi hau ezin da erabili mahaigain berri bat sortzeko. Mesedez, jarri harremanetan administratzailearekin",
+    "template_not_ready": "Txantiloi hau ez dago prest oraindik. Itxaron amaitu arte edo aukeratu beste txantiloi bat",
+    "deployment_desktops_failed": "Hedapeneko {count} mahaigain ezin izan dira sortu",
     "template_storage_not_ready": "Txantiloi honen biltegia ez dago prest eta oraindik ezin da erabili. Mesedez, jarri harremanetan administratzailearekin",
     "desktop_storage_not_ready": "Mahaigaineko biltegia ez dago prest",
     "cant_edit_booked_deployment": "Ezin dira editatu erreserba programatua duen hedapen baten erreserbak",
@@ -1289,7 +1864,12 @@
     "password_special_characters": "Pasahitzak karaktere berezi hau {num} izan behar du gutxienez: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
     "password_lowercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra txikiz",
     "no_available_profile": "Ez dago GPUrik erabilgarri orain.",
-    "temporal_reservable_needs_booking": "GPUdun aldi baterako mahaigain batek amaiera ordu bat behar du. Saiatu berriro eta hautatu noiz arte erabiliko den."
+    "temporal_reservable_needs_booking": "GPUdun aldi baterako mahaigain batek amaiera ordu bat behar du. Saiatu berriro eta hautatu noiz arte erabiliko den.",
+    "storage_not_found": "Ez da aurkitu mahaigainaren diskoa. Jarri harremanetan administratzailearekin.",
+    "storage_repair_not_allowed": "Administratzaileak edo administratzaileak baimendu duen erabiltzaile batek bakarrik exekuta dezake konponketa hau.",
+    "storage_fix_not_needed": "Biltegiak ez du zuzenketa hau behar orain.",
+    "storage_fix_in_progress": "Diskoa jada lanean dago. Itxaron amaitu arte.",
+    "bastion_ssh_key_invalid": "Honek ez dirudi baliozko SSH gako publikoa."
   },
   "message-modal": {
     "extend-time": "Luzatu {minutes} min",
@@ -1298,6 +1878,9 @@
       "desktop-time-limit": "'{name}' mahaigaina {date}n geldituko da."
     },
     "title": "Informazio garrantzitsua"
+  },
+  "bookings": {
+    "max_time_reached": "Erreserbaren gehienezko denbora lortu da"
   },
   "router": {
     "titles": {
@@ -1311,10 +1894,14 @@
       "not_found": "Ez da aurkitu",
       "maintenance": "Mantentze-lanak",
       "login": "Hasi saioa",
+      "register": "Erregistroa",
       "error": "Akatsa",
       "email": "Posta elektronikoa egiaztatzea",
       "forgot-password": "Pasahitza ahaztu dut",
       "disclaimer": "Erantzukizunari uko egitea",
+      "select_category": "Kategoria bat hautatu",
+      "export-user": "Esportatu erabiltzailea",
+      "verify-email": "Posta elektronikoa egiaztatu",
       "edit-domain": "Editatu domeinua",
       "storage": "Biltegiratzea",
       "recycleBin": "Zakarrontzia",
@@ -1325,6 +1912,8 @@
       "templates": "Txantiloiak",
       "deployment": "Hedapena",
       "profile": "Profila",
+      "media": "Euskarriak",
+      "new_media": "Euskarri berria",
       "new_template": "Txantiloi berria",
       "planning": "Plangintza"
     }

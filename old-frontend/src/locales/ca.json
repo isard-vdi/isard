@@ -80,6 +80,7 @@
           },
           "edit": {
             "title": "Editar desplegament",
+            "disabled": "Ara mateix no es pot editar aquest desplegament",
             "multi-desktop": "Els desplegaments amb diversos tipus d'escriptori només es poden editar des de la nova interfície"
           },
           "allowed": {
@@ -738,6 +739,7 @@
       "desktop": {
         "not-available": "Escriptori no disponible",
         "desktops": "Escriptoris",
+        "desktops-total-creating": "Escriptoris: {total} en total, {creating} creant-se",
         "started": "Iniciats",
         "visible": "Visibles"
       },
@@ -847,7 +849,7 @@
       "reset-modal": {
         "title": "Reiniciar escriptori",
         "option": {
-          "reset-desktop": "Forçar el reinici de l'escriptori es una accióp perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor."
+          "reset-desktop": "Forçar el reinici de l'escriptori és una acció perillosa. És l'equivalent a treure-li el corrent mentre està en marxa. Si pots, atura'l des de dins d'un visor."
         },
         "confirmation": {
           "reset-desktop": "Forçar reinici de l'escriptori"
@@ -1653,6 +1655,7 @@
     "desktop_extend_not_allowed": "No es permet ampliar el temps d'aquest escriptori",
     "desktop_max_extensions_reached": "Has arribat al nombre màxim d'ampliacions d'aquest escriptori",
     "desktop_extend_time_too_short": "L'ampliació configurada és massa curta per tornar-te a avisar. Contacta amb l'administrador",
+    "incorrect_new_plan_body_data": "Les dades del pla nou són incorrectes",
     "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
     "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
     "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
@@ -1678,6 +1681,8 @@
     "duplicated_name": "Nom duplicat",
     "viewer_protocol_not_implemented": "Protocol de visor no implementat",
     "get_vnc_viewer_data_error": "Error intern a l'obtenir les dades del visor VNC",
+    "desktop_transition_initial_status_incorrect": "L'estat inicial de la transició de l'escriptori és incorrecte",
+    "hypervisor_transition_initial_status_incorrect": "L'estat inicial de la transició de l'hipervisor és incorrecte",
     "unable_to_process_vpnfile": "No s'ha pogut processar l'arxiu VPN",
     "desktop_is_not_visible": "L'escriptori no és visible per a aquest usuari ara mateix.",
     "invalid_start_date": "Data d'inici no vàlida",
@@ -1728,7 +1733,7 @@
     "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari",
     "unable_to_restore_user": "No es pot restaurar. L'usuari esborrat {user} és propietari d'elements d'aquesta entrada",
     "unable_to_restore_group": "No es pot restaurar. El grup esborrat {group} està associat a elements d'aquesta entrada",
-    "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {categoria} està associada a elements d'aquesta entrada",
+    "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {category} està associada a elements d'aquesta entrada",
     "operation_not_owned": "No estàs autoritzat a cancel·lar aquesta operació ja que no ha estat iniciada per tu",
     "bastion_domain_dns_not_found": "El registre DNS del domini no s'ha trobat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",

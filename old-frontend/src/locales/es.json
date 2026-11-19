@@ -386,6 +386,7 @@
           },
           "edit": {
             "title": "Editar despliegue",
+            "disabled": "Este despliegue no se puede editar en este momento",
             "multi-desktop": "Los despliegues con varios tipos de escritorio solo se pueden editar desde la nueva interfaz"
           },
           "allowed": {
@@ -1045,6 +1046,7 @@
       "desktop": {
         "not-available": "Escritorio no disponible",
         "desktops": "Escritorios",
+        "desktops-total-creating": "Escritorios: {total} en total, {creating} creándose",
         "started": "Iniciados",
         "visible": "Visibles"
       },
