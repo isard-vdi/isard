@@ -3299,6 +3299,10 @@
         "booking_exceeds_max_time": {
           "title": "The GPU booking is too long",
           "description": "The end time exceeds the maximum time you may book the GPU for. Pick an earlier one."
+        },
+        "single_temporal_per_template": {
+          "title": "@:components.domain.configuration.single-temporal.title",
+          "description": "@:components.domain.configuration.single-temporal.existing"
         }
       }
     },
