@@ -890,8 +890,8 @@ class MigrationRunner:
             and getattr(self.migration, "pause_reason", None) == "space"
         )
 
-    def _space_floor_state(self, admitting=False):
-        """True below the floor, False above it, None when there is no reading."""
+    def _space_floor_state(self, admitting=False, reserve_bytes=0):
+        """True below the floor, False above it, None with no reading; ``reserve_bytes`` comes off ``free`` first to match the worker's free-needed guard."""
         min_free_pct = int(self.config.get("min_free_pct") or 0)
         min_free_bytes = int(self.config.get("min_free_bytes") or 0)
         if not (min_free_pct or min_free_bytes):
@@ -912,7 +912,9 @@ class MigrationRunner:
         if reading is None:
             return None
         free, total = reading
-        return mig.space_floor_breached(free, total, min_free_pct, min_free_bytes)
+        return mig.space_floor_breached(
+            free - int(reserve_bytes or 0), total, min_free_pct, min_free_bytes
+        )
 
     def _space_floor_breached(self):
         """Whether the destination has dropped below the free-space floor
@@ -2656,6 +2658,9 @@ class MigrationRunner:
             return True
         if drive.get("active") or drive.get("drained"):
             return False
+        # a cancel admits nothing, so only a full pass can skip the waiting trees
+        if status == MigrationStatus.FINISHING_TREE.value:
+            return True
         try:
             return not self._redis().llen(self._order_key())
         except RedisError:
@@ -2753,7 +2758,8 @@ class MigrationRunner:
                 or not self._admit_tree(tree_items, win_open, remaining_s)
             ):
                 continue
-            if self._space_floor_state(admitting=True) is True:
+            reserve = sum(int(it.get("size_bytes") or 0) for it in tree_items)
+            if self._space_floor_state(admitting=True, reserve_bytes=reserve) is True:
                 conn.lpush(self._order_key(), tree_id)
                 self._pause_for_space()
                 results.append(("__space__", None, "paused_min_free"))
@@ -2763,6 +2769,44 @@ class MigrationRunner:
             _failed, deferred = self._drive_tree(tree_id, tree_items, False, results)
             if deferred:
                 return
+
+    def _park_space_deferred_trees(self, periodic, tree_ids):
+        """Move not-started trees (a disk refused for space is back to pending) out of drive.active to the head of the frozen order; in-flight trees stay."""
+        active = (self.migration.drive or {}).get("active") or []
+        scope = active if periodic else [t for t in (tree_ids or []) if t in active]
+        parked = [
+            tid
+            for tid in scope
+            if mig.tree_phase(
+                [
+                    it["state"]
+                    for it in StorageMigrationItem.tree_rows(self.migration_id, tid)
+                ]
+            )
+            == "not_started"
+        ]
+        if not parked:
+            return
+        self.migration.drive_active(remove=parked)
+        conn = self._redis()
+        for tid in reversed(parked):
+            conn.lpush(self._order_key(), tid)
+
+    def _next_tree_reserve(self):
+        """Bytes the order-list head tree will copy (0 when nothing waits), to reserve on a space resume or admission."""
+        try:
+            head = self._redis().lrange(self._order_key(), 0, 0)
+        except RedisError:
+            return 0
+        if not head:
+            return 0
+        tid = head[0]
+        if isinstance(tid, bytes):
+            tid = tid.decode()
+        return sum(
+            int(it.get("size_bytes") or 0)
+            for it in StorageMigrationItem.tree_rows(self.migration_id, tid)
+        )
 
     def drive_trees(self, tree_ids=None):
         """Drive the trees whose task just finished (every tree in flight when
@@ -2781,9 +2825,16 @@ class MigrationRunner:
         held = self._held()
         has_window, win_open, remaining_s = self._window_state()
         space_paused = self._paused_for_space()
+        # a space-deferred tree (now pending) must leave drive.active, not be re-driven
+        if space_paused:
+            self._park_space_deferred_trees(periodic, tree_ids)
         if periodic and not finishing and win_open and not held:
             if space_paused:
-                if self._space_floor_state() is False:
+                # reserve the next tree's bytes so a resume matches the worker guard
+                if (
+                    self._space_floor_state(reserve_bytes=self._next_tree_reserve())
+                    is False
+                ):
                     if self._resume_after_space():
                         space_paused = False
                     else:
@@ -2805,6 +2856,9 @@ class MigrationRunner:
                 break
         if not (finishing or held or space_paused) and win_open:
             self._admit(win_open, remaining_s, results)
+            # keep an _admit space re-pause so _settle_drive does not resume it
+            if any(t == "__space__" for (t, _i, _a) in results):
+                space_paused = True
         return self._settle_drive(
             results,
             failed_any,
