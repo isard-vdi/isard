@@ -39,6 +39,7 @@ from api.schemas.admin.domains import (
     AdminDomainViewerDataResponse,
     AdminDomainXmlCapabilitiesResponse,
     AdminDomainXmlData,
+    AdminDomainXmlParseData,
     AdminDomainXmlResponse,
     AdminDomainXmlSectionsGetResponse,
     AdminDomainXmlSectionsParseResponse,
@@ -48,7 +49,9 @@ from api.schemas.admin.domains import (
     AdminListDomainsData,
     AdminMultipleActionsData,
     AdminTemplateTreeNode,
+    AdminVirtInstallSaveAsData,
     AdminVirtInstallSaveResponse,
+    AdminVirtInstallXmlSectionsSaveData,
     AdminVirtInstallXmlSectionsSaveResponse,
     DesktopLogRow,
     DesktopLogsViewRow,
@@ -1504,29 +1507,16 @@ async def admin_domain_xml_capabilities(request: Request):
     description="Split raw XML into editable sections without a saved domain.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_parse(request: Request):
+async def admin_domain_xml_sections_parse(
+    request: Request, data: AdminDomainXmlParseData
+):
     try:
         from api.services.xml_sections import split_xml_sections
 
-        try:
-            try:
-                data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        except Error:
-            raise
-        except Exception:
-            raise await Error.create(
-                request, "bad_request", "Request body must be JSON"
-            )
-        xml_str = data.get("xml", "")
-        if not isinstance(xml_str, str) or not xml_str.strip():
+        xml_str = data.xml
+        if not xml_str.strip():
             raise await Error.create(
                 request, "bad_request", "Missing or invalid 'xml' field"
-            )
-        if len(xml_str) > 2 * 1024 * 1024:
-            raise await Error.create(
-                request, "bad_request", "XML exceeds maximum allowed size (2 MB)"
             )
         sections = split_xml_sections(xml_str, [])
         return JSONResponse(
@@ -1636,29 +1626,12 @@ async def admin_domain_xml_sections_save(
     },
 )
 async def admin_domain_xml_sections_save_as_virt_install(
-    request: Request, domain_id: str
+    request: Request, domain_id: str, data: AdminVirtInstallSaveAsData
 ):
     try:
         from api.services.xml_sections import save_as_virt_install
 
-        try:
-            try:
-                data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        except Error:
-            raise
-        except Exception:
-            raise await Error.create(
-                request, "bad_request", "Request body must be JSON"
-            )
-        if "sections" not in data or "name" not in data:
-            raise Error(
-                "bad_request",
-                "Missing 'sections' or 'name' in request body",
-                traceback.format_exc(),
-            )
-        record = save_as_virt_install(domain_id, data["sections"], data["name"])
+        record = save_as_virt_install(domain_id, data.sections, data.name)
         return JSONResponse(
             content=AdminVirtInstallSaveResponse(
                 id=record["id"], name=record["name"]
@@ -1726,22 +1699,13 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_virt_install_xml_sections_save(request: Request, virt_id: str):
+async def admin_virt_install_xml_sections_save(
+    request: Request, virt_id: str, data: AdminVirtInstallXmlSectionsSaveData
+):
     try:
         from api.services.xml_sections import save_virt_install_xml_sections
 
-        try:
-            data = await request.json()
-
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        if "sections" not in data:
-            raise Error(
-                "bad_request",
-                "Missing 'sections' in request body",
-                traceback.format_exc(),
-            )
-        result = save_virt_install_xml_sections(virt_id, data["sections"])
+        result = save_virt_install_xml_sections(virt_id, data.sections)
         return JSONResponse(
             content=AdminVirtInstallXmlSectionsSaveResponse(
                 **(result if isinstance(result, dict) else {})

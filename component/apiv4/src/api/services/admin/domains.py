@@ -213,7 +213,21 @@ class AdminDomainsService:
 
     @staticmethod
     def update_domain_xml(domain_id: str, data: dict) -> Optional[str]:
-        """Update XML for a domain."""
+        """Update XML for a domain, refusing XML the engine could not define."""
+        if data.get("xml") is not None:
+            from xml.etree.ElementTree import ParseError
+
+            from api.services.xml_sections import _safe_fromstring
+
+            try:
+                root = _safe_fromstring(data["xml"])
+            except ParseError as e:
+                raise Error("bad_request", f"The domain XML is not well formed: {e}")
+            if root.tag != "domain":
+                raise Error(
+                    "bad_request",
+                    f"The domain XML root element must be <domain>, not <{root.tag}>",
+                )
         result = DomainsProcessed.update_xml(domain_id, data)
         clear_domains_field_cache()
         return result
