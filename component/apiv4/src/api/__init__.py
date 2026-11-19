@@ -57,6 +57,9 @@ from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.maintenance import Maintenance
 from isardvdi_common.helpers.recycle_bin import RecycleBinDeleteQueue
+from isardvdi_common.lib.domains.desktops.desktops_nonpersistent import (
+    DesktopsNonpersistentProcessed,
+)
 from pydantic import ValidationError
 
 from .schemas.common import ErrorResponse
@@ -72,6 +75,16 @@ def _initialize_state_at_boot():
     Maintenance.initialization()
     Cards.seed_stock_cards()
     Cards.cleanup_missing()
+    # FRONTEND_MODE only changes when this container is recreated: a switch off
+    # ``actual`` must not leave users holding several temporals per template.
+    # TODO(old-frontend-removal): goes with the one-per-template rule.
+    try:
+        DesktopsNonpersistentProcessed.enforce_single_temporal_per_template()
+    except Exception:
+        log.warning(
+            "Could not enforce one temporal desktop per template at boot",
+            exc_info=True,
+        )
 
 
 def _wire_grpc_providers():

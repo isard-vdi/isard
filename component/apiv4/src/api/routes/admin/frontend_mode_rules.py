@@ -31,7 +31,7 @@ from api.schemas.admin.frontend_mode_rules import (
 from api.schemas.common import ErrorResponse
 from api.services.admin.frontend_mode_rules import AdminFrontendModeRulesService
 from api.services.error import Error
-from fastapi import Request
+from fastapi import BackgroundTasks, Request
 from fastapi.responses import JSONResponse, Response
 
 tag = "admin_frontend_mode_rules"
@@ -112,11 +112,15 @@ async def get_frontend_mode_rule(request: Request, rule_id: str):
     },
 )
 async def create_frontend_mode_rule(
-    request: Request, data: FrontendModeRulesCreateRequest
+    request: Request,
+    data: FrontendModeRulesCreateRequest,
+    background_tasks: BackgroundTasks,
 ):
     try:
         await asyncio.to_thread(
-            AdminFrontendModeRulesService.create_frontend_mode_rule, data.model_dump()
+            AdminFrontendModeRulesService.create_frontend_mode_rule,
+            data.model_dump(),
+            background_tasks,
         )
         return Response(status_code=204)
     except Error:
@@ -145,13 +149,17 @@ async def create_frontend_mode_rule(
     },
 )
 async def update_frontend_mode_rule(
-    request: Request, rule_id: str, data: FrontendModeRulesUpdateRequest
+    request: Request,
+    rule_id: str,
+    data: FrontendModeRulesUpdateRequest,
+    background_tasks: BackgroundTasks,
 ):
     try:
         await asyncio.to_thread(
             AdminFrontendModeRulesService.update_frontend_mode_rule,
             rule_id,
             data.model_dump(exclude_none=True),
+            background_tasks,
         )
         return Response(status_code=204)
     except Error:
@@ -178,10 +186,14 @@ async def update_frontend_mode_rule(
         500: {"model": ErrorResponse},
     },
 )
-async def delete_frontend_mode_rule(request: Request, rule_id: str):
+async def delete_frontend_mode_rule(
+    request: Request, rule_id: str, background_tasks: BackgroundTasks
+):
     try:
         await asyncio.to_thread(
-            AdminFrontendModeRulesService.delete_frontend_mode_rule, rule_id
+            AdminFrontendModeRulesService.delete_frontend_mode_rule,
+            rule_id,
+            background_tasks,
         )
         return Response(status_code=204)
     except Error:

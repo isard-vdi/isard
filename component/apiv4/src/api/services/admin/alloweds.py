@@ -20,6 +20,7 @@
 
 import traceback
 
+from api.services.admin.frontend_mode_rules import AdminFrontendModeRulesService
 from fastapi import BackgroundTasks
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.caches import Caches
@@ -291,6 +292,9 @@ class AdminAllowedsService:
 
             if table == "frontend_mode_rules":
                 Caches.clear_get_cached_frontend_mode_rules_cache()
+                AdminFrontendModeRulesService.schedule_temporal_cleanup(
+                    background_tasks
+                )
 
             if table in UNASSIGN_ON_ALLOWED_UPDATE_TABLES:
                 AdminAllowedsService._handle_resource_unassignment(table, data, payload)

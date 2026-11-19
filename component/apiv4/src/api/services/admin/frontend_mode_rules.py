@@ -17,6 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from api.services.error import Error
+from fastapi import BackgroundTasks
+from isardvdi_common.lib.domains.desktops.desktops_nonpersistent import (
+    DesktopsNonpersistentProcessed as CommonDesktopsNonpersistent,
+)
 from isardvdi_common.models.frontend_mode_rules import FrontendModeRules
 
 
@@ -37,16 +41,36 @@ class AdminFrontendModeRulesService:
         return rule
 
     @staticmethod
-    def create_frontend_mode_rule(data: dict) -> None:
+    def create_frontend_mode_rule(
+        data: dict, background_tasks: BackgroundTasks
+    ) -> None:
         """Create a new frontend mode rule with a server-generated id."""
         FrontendModeRules.create(data)
+        AdminFrontendModeRulesService.schedule_temporal_cleanup(background_tasks)
 
     @staticmethod
-    def update_frontend_mode_rule(rule_id: str, data: dict) -> None:
+    def update_frontend_mode_rule(
+        rule_id: str, data: dict, background_tasks: BackgroundTasks
+    ) -> None:
         """Update the given fields of a frontend mode rule."""
         FrontendModeRules.update(rule_id, data)
+        AdminFrontendModeRulesService.schedule_temporal_cleanup(background_tasks)
 
     @staticmethod
-    def delete_frontend_mode_rule(rule_id: str) -> None:
+    def delete_frontend_mode_rule(
+        rule_id: str, background_tasks: BackgroundTasks
+    ) -> None:
         """Delete a frontend mode rule."""
         FrontendModeRules.delete(rule_id)
+        AdminFrontendModeRulesService.schedule_temporal_cleanup(background_tasks)
+
+    @staticmethod
+    def schedule_temporal_cleanup(background_tasks: BackgroundTasks) -> None:
+        """Any rule change can take users off the ``actual`` frontend mode, the
+        only one allowing several temporals per template: once the response is
+        out, delete the temporals of every template they hold several of."""
+        # TODO(old-frontend-removal): goes with the one-per-template rule.
+
+        background_tasks.add_task(
+            CommonDesktopsNonpersistent.enforce_single_temporal_per_template
+        )
