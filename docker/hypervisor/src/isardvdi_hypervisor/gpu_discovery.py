@@ -49,6 +49,13 @@ _PCI_IDS_URL = "https://pci-ids.ucw.cz/v2.2/pci.ids.gz"
 _BUNDLED_PCI_IDS = os.path.join(os.path.dirname(__file__), "nvidia_pci_ids.txt")
 # Base path for PCI device sysfs entries. Tests redirect this to a tmp dir.
 _SYSFS_PCI_BASE = "/sys/bus/pci/devices"
+
+# GPU PFs that ensure_sriov_vfs() found bound to vfio-pci with no live consumer
+# and LEFT there (sysfs BDFs, lower case). Startup no longer rebinds them to
+# nvidia: they come up as passthrough and apply_targets decides from the API
+# target (noop for passthrough, the passthrough->vGPU path otherwise). Reset at
+# every ensure_sriov_vfs() run.
+_VFIO_KEPT_AT_START = set()
 # Base path for the proc filesystem. Tests redirect this to a tmp dir.
 _PROC_BASE = "/proc"
 
@@ -787,6 +794,8 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
             "model": canonical_gpu_model(name, None, pci_device_id, pci_subsystem_id),
             "gpu_uuid": None,
         }
+        if pci_id in _VFIO_KEPT_AT_START:
+            gpu_dict.update(_vfio_kept_entry(pci_id))
         companions = _find_audio_companions(pci_id)
         if companions:
             gpu_dict["companion_pci_bdfs"] = companions
@@ -797,6 +806,32 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
         gpus.append(gpu_dict)
 
     return gpus
+
+
+def _vfio_kept_entry(pci_id):
+    """Extra fields for a PF that startup kept on vfio-pci (passthrough).
+
+    ``vgpu_profiles=None`` is the "not read, keep the DB" sentinel: the card was
+    not cycled, so an empty list would wrongly tell the API it has no vGPU
+    profiles. ``vfio_kept_at_start`` makes apply_targets include the card
+    whatever its target, and the read-only descriptor gives apply_target what
+    the passthrough->vGPU path needs (framework, SR-IOV counts), as for a
+    runtime profile change of a passthrough card."""
+    extra = {}
+    try:
+        desc = build_card_descriptor(pci_id)
+    except Exception as e:  # read-only probe; never block registration
+        log.warning(
+            "GPU %s: descriptor of the kept vfio-pci card failed: %s", pci_id, e
+        )
+        desc = {}
+    for key in ("framework", "sub_paths", "sriov_totalvfs", "sriov_numvfs"):
+        if key in desc:
+            extra[key] = desc[key]
+    extra["vgpu_profiles"] = None
+    extra["current_profile"] = "passthrough"
+    extra["vfio_kept_at_start"] = True
+    return extra
 
 
 def _nvidia_smi_gpu_reset(pci_bus_id):
@@ -2631,7 +2666,7 @@ def _rebind_vfio_to_nvidia_if_idle(dev_path):
     return True
 
 
-def ensure_sriov_vfs():
+def ensure_sriov_vfs(pci_dir=_SYSFS_PCI_BASE):
     """Enable SR-IOV virtual functions on GPUs that need them for vGPU.
 
     Blackwell and newer NVIDIA GPUs expose vGPU mdev types on SR-IOV VFs,
@@ -2645,13 +2680,18 @@ def ensure_sriov_vfs():
         unbind nvidia → bind pci-pf-stub → write sriov_numvfs → unbind
         pci-pf-stub → rebind nvidia
 
-    GPUs leaked on vfio-pci (e.g. after a failed managed-mode passthrough
-    start) are rebound to nvidia first when no live VFIO consumer holds the
-    IOMMU group, so the same flow can run.
+    A GPU bound to vfio-pci is left there, with or without a live consumer:
+    it is in passthrough (applied by gpu_apply, or a binding leaked by a failed
+    managed-mode start). Rebinding it to nvidia here sent every passthrough
+    card through SR-IOV enablement and the vGPU discovery retries, only for
+    apply_targets to put it back on vfio-pci minutes later (#7678). Idle ones
+    are recorded in ``_VFIO_KEPT_AT_START`` and apply_targets resolves them
+    from the API target, so a leaked card that should carry a vGPU profile
+    still gets it.
 
     Must be called before discover_gpus().
     """
-    pci_dir = "/sys/bus/pci/devices"
+    _VFIO_KEPT_AT_START.clear()
     try:
         entries = os.listdir(pci_dir)
     except OSError:
@@ -2684,16 +2724,28 @@ def ensure_sriov_vfs():
                     continue
         except (OSError, ValueError):
             continue
-        # Heal a leaked vfio-pci binding before sriov-manage would silently
-        # fail on it. If unsafe (live consumer) or failed, skip this device.
-        if not _rebind_vfio_to_nvidia_if_idle(dev_path):
-            driver_link = os.path.join(dev_path, "driver")
-            try:
-                cur = os.path.basename(os.path.realpath(driver_link))
-            except OSError:
-                cur = None
-            if cur != "nvidia":
-                continue
+        driver_link = os.path.join(dev_path, "driver")
+        try:
+            cur = (
+                os.path.basename(os.path.realpath(driver_link))
+                if os.path.islink(driver_link)
+                else None
+            )
+        except OSError:
+            cur = None
+        if cur == "vfio-pci":
+            if _vfio_group_in_use(dev_path):
+                log.info("GPU %s: vfio-pci with a live consumer; left as is", dev)
+            else:
+                log.info(
+                    "GPU %s: vfio-pci with no live consumer; kept in passthrough, "
+                    "the target apply decides",
+                    dev,
+                )
+                _VFIO_KEPT_AT_START.add(dev.lower())
+            continue
+        if cur != "nvidia":
+            continue
         # Already has mdev types on PF (legacy vGPU, not Blackwell)
         if os.path.isdir(os.path.join(dev_path, "mdev_supported_types")):
             continue
