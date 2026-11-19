@@ -26,11 +26,8 @@ log = logging.getLogger("apiv4")
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import hashlib
-import os
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from math import ceil
 from time import time
 
 import pytz
@@ -54,6 +51,9 @@ from isardvdi_common.lib.usage.consolidate import ConsolidateProcessed
 
 class ConsolidateConsumption:
     consolidating = []
+    # Process-wide tallies reported by run_consolidation.
+    inserted_total = 0
+    failed_batches = 0
 
     def __del__(self):
         if "name" in self.__dict__:
@@ -77,19 +77,6 @@ class ConsolidateConsumption:
             # Has to be called after midnight to consolidate the previous day
             self.consolidation_day = get_relative_date(-days_before)
 
-            # Batch size and max threads are set to avoid overloading the DB
-            # Batch size is the number of items to consolidate in a single thread
-            # Max threads is the number of threads to run in parallel
-            # The total number of items to consolidate in parallel is batch_size * max_threads
-            # So if batch_size is 1000 and max_threads is 6, 6000 items will be computed in
-            # parallel. At the end of each thread computation the data will be updated in bulk
-            # in the DB.
-            self.batch_size = 1000  # Computations in batch for each thread
-
-            # Take into account your hardware cpu cores. 1.20 is a factor to avoid overloading.
-            # 1.20 will launch 5 threads in a 6 core cpu (80% of cpu will be used)
-            self.max_threads = ceil(os.cpu_count() / 1.20)
-
             # Instantiate the Usage class to get the data to consolidate
             self.Usage = Usage(days_before=days_before)
             self.times["get_" + self.name + "_log_data"] = time()
@@ -98,56 +85,82 @@ class ConsolidateConsumption:
                     "--> No data to consolidate. Skipping date %s"
                     % self.consolidation_day
                 )
-                if self.name in self.consolidating:
-                    self.consolidating.remove(self.name)
+                return
+            self.domains = self.get_domains()
+            items, failed, rows = self.fold_day_data()
+            if not rows:
+                log.info(
+                    "--> No data to consolidate. Skipping date %s"
+                    % self.consolidation_day
+                )
                 return
             log.info(
-                "--> Got %s %s consumptions for date %s. Starting %s worker threads with %s items per thread"
+                "--> Got %s %s consumptions for date %s and %s previous consumptions"
                 % (
-                    len(self.Usage.day_data),
+                    rows,
                     self.name,
                     self.consolidation_day,
-                    ceil(len(self.Usage.day_data) / self.batch_size),
-                    self.batch_size,
+                    len(self.Usage.previous_abs_data),
                 )
             )
-            log.info(
-                "--> Got %s %s previous consumptions"
-                % (len(self.Usage.previous_abs_data), self.name)
-            )
-            self.domains = self.get_domains()
             self.times["get_" + self.name + "_system_items_data"] = time()
             for consumer in self.Usage.consumer_items:
-                self.process_batches(self.group_day_data_by_item(consumer), consumer)
+                if consumer in failed:
+                    raise failed[consumer]
+                self.process_items(items.pop(consumer), consumer)
         finally:
             if self.name in self.consolidating:
                 self.consolidating.remove(self.name)
 
-    def update_items_consumption(self, items: list, consumer: str) -> list[dict]:
-        consumptions = []
-        for item in items:
-            # Here we have a dict with the item_id and the list of consumptions
-            item_consumption = self.get_item_consumption_for_consumer(item, consumer)
-            if item_consumption:
-                consumptions.append(item_consumption)
-        return consumptions
+    def fold_day_data(self) -> tuple[dict, dict, int]:
+        """Stream the day into per-consumer items, keeping each failure to re-raise later."""
+        consumers = self.Usage.consumer_items
+        items = {consumer: {} for consumer in consumers}
+        failed = {}
+        rows = 0
+        for row in self.Usage.day_data:
+            rows += 1
+            try:
+                consumption = self.Usage._process_consumption(row)
+            except Exception as exc:
+                consumption = exc
+            for consumer in consumers:
+                if consumer in failed:
+                    continue
+                try:
+                    key = item_key(consumer, row)
+                except Exception as exc:
+                    failed[consumer] = exc
+                    continue
+                if key is SKIP:
+                    continue
+                item = items[consumer].get(key)
+                if item is None:
+                    try:
+                        base = self._item_base_data(
+                            consumer, row, self.consolidation_day, self.name
+                        )
+                    except Exception as exc:
+                        base = exc
+                    item = items[consumer][key] = [base, {}]
+                if isinstance(item[1], Exception):
+                    continue
+                if isinstance(consumption, Exception):
+                    item[1] = consumption
+                else:
+                    item[1] = add_dicts(item[1], consumption)
+        return items, failed, rows
 
     def get_item_consumption_for_consumer(
         self, item: list, consumer: str
     ) -> dict | None:
-        if not self.Usage.has_data:
-            return None
-        item_base_data = self._item_base_data(
-            consumer, item[0], self.consolidation_day, self.name
-        )
-
+        item_base_data, item_day_data_added = item
+        if isinstance(item_base_data, Exception):
+            raise item_base_data
         if not item_base_data:
             return None
-        item_day_data_added = {}
-        for item_data in item:
-            item_day_data_added = add_dicts(
-                item_day_data_added, self.Usage._process_consumption(item_data)
-            )
+        if isinstance(item_day_data_added, Exception):
+            raise item_day_data_added
 
         item_absolute_consumptions_previous_day = self.Usage.previous_abs_data.get(
             item_base_data["item_id"] + "##" + consumer, {}
@@ -175,94 +188,37 @@ class ConsolidateConsumption:
             },
         }
 
-    def group_day_data_by_item(self, consumer: str) -> list[list[dict]] | None:
-        items = {}
-        item_key = None
-        if consumer == "user":
-            item_key = "owner_user_id"
-        if consumer == "group":
-            item_key = "owner_group_id"
-        if consumer == "category":
-            item_key = "owner_category_id"
-        if consumer == "desktop":
-            item_key = "desktop_id"
-        if consumer == "deployment":
-            item_key = "deployment_id"
-        if consumer == "hypervisor":
-            item_key = "hyp_started"
-
-        if item_key:
-            for item in self.Usage.day_data:
-                if item[item_key] not in items:
-                    items[item[item_key]] = []
-                items[item[item_key]].append(item)
-            return [items[key] for key in items.keys()]
-
-        if consumer == "template":
-            item_key = "template_id"
-
-        if item_key:
-            for item in self.Usage.day_data:
-                if not item["desktop_template_hierarchy"]:
-                    # Can't be computed to any template
-                    # value is None or empty list
-                    continue
-                item_value = item["desktop_template_hierarchy"][-1]
-                if item_value not in items:
-                    items[item_value] = []
-                items[item_value].append(item)
-            return [items[key] for key in items.keys()]
-
-    # PARALLEL PROCESSING
-    def process_batches(self, data_batch: list, consumer: str) -> None:
-        # data_batch = data_batch[:100]
-        self.batch_size = 100
-        batches = [
-            data_batch[i : i + self.batch_size]
-            for i in range(0, len(data_batch), self.batch_size)
-        ]
-
-        # Process each batch in a worker thread. Originally this used
-        # ``gevent.spawn`` + ``gevent.joinall``; under apiv4's asyncio
-        # worker the join blocked the loop on libev's ``ev_run`` and
-        # was a UAF risk per APIV4_THREADING_INCIDENT_ANALYSIS.md
-        # §3 Tier-D / §5.7 Pattern C. ThreadPoolExecutor keeps the
-        # parallelism without the gevent dependency.
-        log.info(
-            "--> Adding %s %s jobs to thread pool, processing data.."
-            % (consumer, len(batches))
-        )
-        data = []
-        if not batches:
-            self.times["get_" + self.name + "_batches"] = time()
-            return
-        with ThreadPoolExecutor(max_workers=min(10, len(batches))) as pool:
-            futures = [
-                pool.submit(self.update_items_consumption, batch, consumer)
-                for batch in batches
-            ]
-            batches_processed = []
-            for future in futures:
-                try:
-                    batches_processed.append(future.result())
-                except Exception:
-                    log.error(
-                        "USAGE consolidate batch raised: %s",
-                        traceback.format_exc(),
-                    )
-                    batches_processed.append(None)
-        for result in batches_processed:
-            if result == None:
+    def process_items(self, items: dict, consumer: str) -> None:
+        """Consolidate ``items`` in batches; a batch where one item raises is skipped."""
+        log.info("--> Processing %s %s %s items" % (len(items), consumer, self.name))
+        values = list(items.values())
+        items.clear()
+        data, inserted = [], 0
+        for start in range(0, len(values), BATCH_SIZE):
+            try:
+                consumptions = [
+                    self.get_item_consumption_for_consumer(item, consumer)
+                    for item in values[start : start + BATCH_SIZE]
+                ]
+            except Exception:
+                log.error("USAGE consolidate batch raised: %s", traceback.format_exc())
+                ConsolidateConsumption.failed_batches += 1
                 continue
-            data = data + result
+            data.extend(c for c in consumptions if c)
+            if len(data) >= INSERT_SIZE:
+                ConsolidateProcessed.insert_consumption_batch(data)
+                inserted += len(data)
+                data = []
+        if data:
+            ConsolidateProcessed.insert_consumption_batch(data)
+            inserted += len(data)
+        ConsolidateConsumption.inserted_total += inserted
         self.times["get_" + self.name + "_batches"] = time()
-        # data.append(self.compute_consumer_totals(consumer, data))
-        ConsolidateProcessed.insert_consumption_batch(data)
         log.info(
             "--> Consolidated %s %s %s items in | GET_DATA %.2fs | GET_ITEMS_DATA %.2fs | PROCESS_DATA %.2fs | TOTAL %.2fs",
             consumer,
             self.name,
-            len(data),
+            inserted,
             self.times["get_" + self.name + "_log_data"] - self.times["start"],
             self.times["get_" + self.name + "_system_items_data"]
             - self.times["get_" + self.name + "_log_data"],
@@ -417,6 +373,27 @@ class ConsolidateConsumption:
 
 
 ## UTILS
+BATCH_SIZE = 100
+INSERT_SIZE = 1000
+SKIP = object()
+ITEM_KEYS = {
+    "user": "owner_user_id",
+    "group": "owner_group_id",
+    "category": "owner_category_id",
+    "desktop": "desktop_id",
+    "deployment": "deployment_id",
+    "hypervisor": "hyp_started",
+}
+
+
+def item_key(consumer: str, row: dict):
+    """The item ``row`` counts for under ``consumer``, or ``SKIP``."""
+    if consumer == "template":
+        hierarchy = row["desktop_template_hierarchy"]
+        return hierarchy[-1] if hierarchy else SKIP
+    return row[ITEM_KEYS[consumer]]
+
+
 def add_dicts(dict1: dict, dict2: dict) -> dict:
     result = {}
     for key in dict1.keys():

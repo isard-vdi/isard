@@ -21,23 +21,46 @@
 """Desktop usage log-data access for the daily consolidator."""
 
 from datetime import datetime
+from typing import Iterator
 
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
 from rethinkdb import r
 
+# What the desktop consolidator reads from a log row ("tag" feeds the
+# deployment_id merge in iter_logs).
+LOG_FIELDS = (
+    "desktop_id",
+    "desktop_name",
+    "desktop_template_hierarchy",
+    "owner_user_id",
+    "owner_user_name",
+    "owner_group_id",
+    "owner_group_name",
+    "owner_category_id",
+    "owner_category_name",
+    "deployment_name",
+    "tag",
+    "hyp_started",
+    "started_time",
+    "stopped_time",
+    "hardware_vcpus",
+    "hardware_memory",
+    "hardware_bookables_vgpus",
+)
+
 
 class DesktopUsageProcessed(RethinkSharedConnection):
     """Layer-2 helpers for the desktop consolidator."""
 
     @classmethod
-    def fetch_logs(
+    def iter_logs(
         cls,
         consolidation_day: datetime,
         consolidation_day_after: datetime,
-    ) -> list[dict]:
-        """Fetch ``logs_desktops`` rows in ``[day, day_after)`` window.
+    ) -> Iterator[dict]:
+        """Stream ``logs_desktops`` rows in ``[day, day_after)`` window.
 
         Rows that started before ``consolidation_day`` are clamped to
         the window edge so consolidation accounting only counts the
@@ -45,12 +68,14 @@ class DesktopUsageProcessed(RethinkSharedConnection):
         ``consolidation_day_after``. Each row is enriched with
         ``template_id`` (last item of ``desktop_template_hierarchy``,
         or None) and ``deployment_id`` (the row's ``tag``, or None).
+        Only ``LOG_FIELDS`` are fetched. The pool connection is held until
+        the stream is exhausted or closed.
         """
         with cls._rdb_context():
-            return list(
+            yield from (
                 r.table("logs_desktops")
                 .between(r.minval, consolidation_day_after, index="started_time")
-                .without("events")
+                .pluck(*LOG_FIELDS)
                 .filter(
                     lambda log: (log["stopped_time"] > consolidation_day)
                     | log.has_fields("stopped_time").not_()

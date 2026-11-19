@@ -54,6 +54,7 @@ from api.schemas.admin.usage import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.usage import AdminUsageService
 from api.services.error import Error
+from api.services.usage.isolated import consolidate_isolated
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse, Response
 
@@ -271,11 +272,15 @@ async def admin_usage_distinct_items(
     response_class=Response,
     summary="Consolidate all consumption data",
     description="Triggers consolidation of all usage consumption data.",
-    responses={500: {"model": ErrorResponse}},
+    responses={
+        409: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        504: {"model": ErrorResponse},
+    },
 )
 async def admin_usage_consolidate(request: Request):
     try:
-        await asyncio.to_thread(AdminUsageService.consolidate_consumptions)
+        await consolidate_isolated()
         return Response(status_code=204)
     except Error:
         raise
@@ -300,7 +305,11 @@ async def admin_usage_consolidate(request: Request):
     response_class=Response,
     summary="Consolidate consumption for item type with days",
     description="Triggers consolidation of usage consumption data for a specific item type and number of days.",
-    responses={500: {"model": ErrorResponse}},
+    responses={
+        409: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        504: {"model": ErrorResponse},
+    },
 )
 async def admin_usage_consolidate_item_days(
     request: Request,
@@ -308,9 +317,7 @@ async def admin_usage_consolidate_item_days(
     days: int = 29,
 ):
     try:
-        await asyncio.to_thread(
-            AdminUsageService.consolidate_consumptions, item_type, days
-        )
+        await consolidate_isolated(item_type, days)
         return Response(status_code=204)
     except Error:
         raise
@@ -331,16 +338,18 @@ async def admin_usage_consolidate_item_days(
     response_class=Response,
     summary="Consolidate consumption for item type",
     description="Triggers consolidation of usage consumption data for a specific item type.",
-    responses={500: {"model": ErrorResponse}},
+    responses={
+        409: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        504: {"model": ErrorResponse},
+    },
 )
 async def admin_usage_consolidate_item(
     request: Request,
     item_type: str,
 ):
     try:
-        await asyncio.to_thread(
-            AdminUsageService.consolidate_consumptions, item_type, 29
-        )
+        await consolidate_isolated(item_type, 29)
         return Response(status_code=204)
     except Error:
         raise

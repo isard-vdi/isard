@@ -315,11 +315,23 @@ class TestDistinctItems:
 
 
 class TestConsolidate:
+    """The routes await ``consolidate_isolated``, which runs the work in a
+    child process; here it is replaced by a coroutine that records its args."""
+
+    @staticmethod
+    def _fake(captured, result=None, raises=None):
+        async def fake(*args):
+            captured["args"] = args
+            if raises is not None:
+                raise raises
+            return result or {"ok": True}
+
+        return fake
+
     def test_consolidate_all(self, monkeypatch, test_client):
         called = {}
         monkeypatch.setattr(
-            "api.routes.admin.usage.AdminUsageService.consolidate_consumptions",
-            staticmethod(lambda *a, **k: called.update(args=a) or None),
+            "api.routes.admin.usage.consolidate_isolated", self._fake(called)
         )
         response = test_client(
             url="/admin/items/usage/consolidate",
@@ -332,8 +344,7 @@ class TestConsolidate:
     def test_consolidate_item_type(self, monkeypatch, test_client):
         captured = {}
         monkeypatch.setattr(
-            "api.routes.admin.usage.AdminUsageService.consolidate_consumptions",
-            staticmethod(lambda item_type, days: captured.update(it=item_type, d=days)),
+            "api.routes.admin.usage.consolidate_isolated", self._fake(captured)
         )
         response = test_client(
             url="/admin/items/usage/consolidate/desktop",
@@ -342,13 +353,12 @@ class TestConsolidate:
         )
         assert response.status_code == 204
         # Defaults to 29 days when only item_type is given.
-        assert captured == {"it": "desktop", "d": 29}
+        assert captured["args"] == ("desktop", 29)
 
     def test_consolidate_item_with_days(self, monkeypatch, test_client):
         captured = {}
         monkeypatch.setattr(
-            "api.routes.admin.usage.AdminUsageService.consolidate_consumptions",
-            staticmethod(lambda item_type, days: captured.update(it=item_type, d=days)),
+            "api.routes.admin.usage.consolidate_isolated", self._fake(captured)
         )
         response = test_client(
             url="/admin/items/usage/consolidate/desktop/7",
@@ -356,12 +366,46 @@ class TestConsolidate:
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 204
-        assert captured == {"it": "desktop", "d": 7}
+        assert captured["args"] == ("desktop", 7)
+
+    def test_consolidation_already_running_is_409(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.usage.consolidate_isolated",
+            self._fake(
+                {},
+                raises=Error(
+                    "conflict",
+                    "A usage consolidation is already running; try again when it finishes",
+                    description_code="usage_consolidation_running",
+                ),
+            ),
+        )
+        response = test_client(
+            url="/admin/items/usage/consolidate",
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 409
+        assert response.json()["description_code"] == "usage_consolidation_running"
+
+    def test_failed_child_is_500_naming_the_cause(self, monkeypatch, test_client):
+        from api.services.usage.isolated import ConsolidationFailed
+
+        monkeypatch.setattr(
+            "api.routes.admin.usage.consolidate_isolated",
+            self._fake({}, raises=ConsolidationFailed("child killed by signal 9")),
+        )
+        response = test_client(
+            url="/admin/items/usage/consolidate/desktop/3",
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 500
+        assert "child killed by signal 9" in response.json()["description"]
 
     def test_manager_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
-            "api.routes.admin.usage.AdminUsageService.consolidate_consumptions",
-            staticmethod(lambda *a, **k: None),
+            "api.routes.admin.usage.consolidate_isolated", self._fake({})
         )
         response = test_client(
             url="/admin/items/usage/consolidate",

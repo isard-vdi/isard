@@ -60,16 +60,29 @@ def stub_rdb(monkeypatch):
     yield {"mock_table": mock_table, "Processed": mod.DesktopUsageProcessed}
 
 
-class TestFetchLogs:
+class TestIterLogs:
     def test_returns_logs_query_results(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
-        chain.between.return_value.without.return_value.filter.return_value.merge.return_value.merge.return_value.merge.return_value.run.return_value = [
+        chain.between.return_value.pluck.return_value.filter.return_value.merge.return_value.merge.return_value.merge.return_value.run.return_value = [
             {"id": "log-1", "started_time": "x"}
         ]
         day = datetime(2026, 1, 1, tzinfo=timezone.utc)
         day_after = datetime(2026, 1, 2, tzinfo=timezone.utc)
-        result = stub_rdb["Processed"].fetch_logs(day, day_after)
+        result = list(stub_rdb["Processed"].iter_logs(day, day_after))
         assert result == [{"id": "log-1", "started_time": "x"}]
         stub_rdb["mock_table"].assert_any_call("logs_desktops")
         _, kw = chain.between.call_args
         assert kw.get("index") == "started_time"
+
+    def test_fetches_only_the_fields_the_consolidator_reads(self, stub_rdb):
+        """``events`` and the request metadata are never read, yet a full row
+        costs memory for every log of the day."""
+        from isardvdi_common.lib.usage.desktop import LOG_FIELDS
+
+        chain = stub_rdb["mock_table"].return_value
+        day = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        list(stub_rdb["Processed"].iter_logs(day, day))
+        plucked = chain.between.return_value.pluck.call_args.args
+        assert set(plucked) == set(LOG_FIELDS)
+        assert "events" not in plucked
+        assert {"started_time", "stopped_time", "tag"} <= set(plucked)

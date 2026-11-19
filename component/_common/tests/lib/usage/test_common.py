@@ -204,6 +204,22 @@ class TestGetAbsConsumptions:
         assert result == {"i1##desktop": {"hours": 1}}
         stub_rdb["mock_table"].assert_any_call("usage_consumption")
 
+    def test_returns_only_the_absolute_counters(self, stub_rdb):
+        """The consolidator reads ``abs`` alone; whole rows cost memory."""
+        from datetime import datetime, timezone
+
+        from isardvdi_common.lib.usage import common as mod
+
+        chain = stub_rdb["mock_table"].return_value
+        stub_rdb["Processed"].get_abs_consumptions(
+            "desktop", datetime.now(tz=timezone.utc)
+        )
+        mapper = chain.get_all.return_value.filter.return_value.group.return_value.max.return_value.ungroup.return_value.map.call_args.args[
+            0
+        ]
+        query = str(mod.r.expr(mapper(mod.r.expr({"group": ["i1", "desktop"]}))))
+        assert "pluck('abs')" in query
+
 
 class TestGetParams:
     def test_returns_param_groupings(self, stub_rdb):
@@ -320,6 +336,30 @@ class TestSecurizeFormulaEvaluation:
 
         with pytest.raises(ValueError):
             securize_eval("a[0]", {"a": [1]})
+
+    def test_formula_is_parsed_once(self, monkeypatch):
+        """The consolidator evaluates the same formula for every log row."""
+        from isardvdi_common.lib.usage import common as mod
+
+        parsed = []
+        real_parse = mod.ast.parse
+        monkeypatch.setattr(
+            mod.ast,
+            "parse",
+            lambda *a, **kw: parsed.append(a[0]) or real_parse(*a, **kw),
+        )
+        formula = "0.2 * x / 4 + 0.8 * y / 6 + 1 * 0"
+        results = {mod.securize_eval(formula, {"x": n, "y": 2 * n}) for n in range(50)}
+
+        assert len(results) == 50
+        assert parsed.count(formula) == 1
+
+    def test_rejected_formula_keeps_raising(self):
+        from isardvdi_common.lib.usage.common import securize_eval
+
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                securize_eval("a.__class__", {"a": 1})
 
 
 class TestListConsumers:
