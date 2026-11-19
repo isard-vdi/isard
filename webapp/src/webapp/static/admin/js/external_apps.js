@@ -146,7 +146,7 @@ function setRoleCategory(){
                 $("." + key).find('option').remove().end();
                 for(var i in d[key]){
                     if(value[i].id!='disposables' && value[i].id!='eval'){
-                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                        $("."+key).append($('<option>').val(value[i].id).text(value[i].name));
                     }
                 }
                 $("."+key+' option[value="local"]').prop("selected",true);

@@ -69,43 +69,67 @@ class AdminUserDeleteData(BaseModel):
     delete_user: bool = True
 
 
-class AdminBulkUserCreateData(BaseModel):
-    """Request body for bulk user creation."""
-
-    users: List[dict]
-    email_verified: bool = False
-
-
 # ── CSV Operations ───────────────────────────────────────────────────────
 
 
-class AdminCSVUserEditRow(BaseModel):
-    """One row of PUT ``/admin/items/users/csv`` — an enriched user record
-    returned by ``/admin/items/users/csv/validate`` (PUT). Webapp/k6
-    round-trip the validate output back into the edit endpoint; ``id``
-    is the only load-bearing field. Anything else is optional so a
-    minimal rename ``{"id": "...", "name": "new"}`` is also accepted.
-    Pre-typed so a missing ``id`` yields 422 at the boundary instead
-    of falling into the service and surfacing as 500."""
+class AdminCSVUserCreateColumns(BaseModel):
+    """The columns of the bulk-create CSVs the webapp offers: the sample,
+    "CSV for create" and the generated-passwords download."""
 
-    id: str
     username: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
-    role: Optional[str] = None
-    category: Optional[str] = None
     group: Optional[str] = None
+    category: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
+
+
+class AdminCSVUserCreateRow(AdminCSVUserCreateColumns):
+    """One bulk-create row; any key outside the CSV columns is refused."""
+
+    model_config = {"extra": "forbid"}
+
+
+class AdminCSVUserEditColumns(BaseModel):
+    """The columns of the CSV-update sample and "CSV for update" export;
+    any other key is refused."""
+
+    active: Optional[bool] = None
+    name: Optional[str] = None
     provider: Optional[str] = None
+    category: Optional[str] = None
     uid: Optional[str] = None
+    username: Optional[str] = None
+    group: Optional[str] = None
+    secondary_groups: Optional[List[str]] = None
+    password: Optional[str] = None
+
+    model_config = {"extra": "forbid"}
+
+
+class AdminCSVUserEditRow(AdminCSVUserEditColumns):
+    """One row of PUT ``/admin/items/users/csv``: the CSV columns plus the
+    ``id`` that ``/admin/items/users/csv/validate`` (PUT) resolved."""
+
+    id: str
+
+
+class AdminCSVUserEditPreviewRow(AdminCSVUserEditRow):
+    """One row returned by PUT ``/admin/items/users/csv/validate``."""
+
     category_id: Optional[str] = None
     group_id: Optional[str] = None
-    secondary_groups: Optional[List[str]] = None
     secondary_groups_names: Optional[List[str]] = None
-    password: Optional[str] = None
-    photo: Optional[str] = None
-    active: Optional[bool] = None
 
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "ignore"}
+
+
+class AdminBulkUserCreateData(BaseModel):
+    """Request body for bulk user creation."""
+
+    users: List[AdminCSVUserCreateRow]
+    email_verified: bool = False
 
 
 class AdminCSVUserEditData(BaseModel):
@@ -117,11 +141,9 @@ class AdminCSVUserEditData(BaseModel):
 class AdminCSVUserImportData(BaseModel):
     """Request body for importing new users from CSV (POST
     ``/admin/items/users/csv``). Rows here have no ``id`` yet — that's
-    assigned by ``CommonUsers.generate_users``. Kept as ``List[dict]``
-    so the upstream validate-create flow's permissive shape still
-    applies."""
+    assigned by ``CommonUsers.generate_users``."""
 
-    users: List[dict]
+    users: List[AdminCSVUserCreateRow]
 
 
 # ── Secondary Groups ────────────────────────────────────────────────────
@@ -522,11 +544,10 @@ class AdminCSVValidateCreateResponse(BaseModel):
     """Response for ``POST /admin/items/users/csv/validate`` — the bulk-create
     pre-flight. Service returns the enriched row list under ``users`` and
     a parallel ``errors`` list of human-readable strings for the rows that
-    were skipped. Rows are kept as ``list[dict]`` because each row mirrors
-    the permissive create-input shape (``UserFromCSV``); narrowing here
-    would 500 on edge fields the webapp tolerates."""
+    were skipped. Rows keep only the CSV columns, so they can be posted
+    back to the bulk-create endpoints as they are."""
 
-    users: list[dict]
+    users: list[AdminCSVUserCreateColumns]
     errors: list[str]
 
 

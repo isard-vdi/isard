@@ -318,7 +318,7 @@ $(document).ready(function () {
                 return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details"><i class="fa fa-info-circle"></i></button>';
               },
             },
-            { data: "name" },
+            { data: "name", render: $.fn.dataTable.render.text() },
             {
               data: "status",
               render: function (data) {
@@ -326,12 +326,12 @@ $(document).ready(function () {
                 if (data === "Started") statusClass = "success";
                 else if (data === "Stopped" || data === "Failed") statusClass = "danger";
                 else if (data === "Starting" || data === "Shutting-down") statusClass = "warning";
-                return '<span class="label label-' + statusClass + '">' + data + '</span>';
+                return '<span class="label label-' + statusClass + '">' + escapeHtmlText(data) + '</span>';
               },
             },
-            { data: "user_name" },
-            { data: "group_name" },
-            { data: "category_name" },
+            { data: "user_name", render: $.fn.dataTable.render.text() },
+            { data: "group_name", render: $.fn.dataTable.render.text() },
+            { data: "category_name", render: $.fn.dataTable.render.text() },
             {
               data: "accessed",
               render: function (data) {

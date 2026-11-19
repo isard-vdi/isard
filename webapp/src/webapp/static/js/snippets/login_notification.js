@@ -59,14 +59,18 @@ function handleIconChange(modal, position) {
     $(`${modal} #${position}_icon`).trigger('change');
 }
 
+function safeNotificationUrl(url) {
+    return /^(https?:\/\/|\/)/i.test(url || '') ? url : '#';
+}
+
 function createNotificationPreview (notification, position) {
     if (notification?.description || notification?.title || notification?.button?.text) {
     return `
-        <div id="${position}_panel" class="x_panel col-md-6 col-sm-6 col-xs-12 ${notification?.enabled == false ? "disabled-preview" : ''}" style="${notification?.extra_styles}">
+        <div id="${position}_panel" class="x_panel col-md-6 col-sm-6 col-xs-12 ${notification?.enabled == false ? "disabled-preview" : ''}" style="${escapeHtml(notification?.extra_styles)}">
         <small>${notification?.icon ? `<i class="roundbox fa fa-${mapIconChange[notification.icon]}"></i>` : ""}</small>
         <b id="preview_${position}_title">${escapeHtml(notification?.title)}</b>
         <p class="notification-body" id="preview_${position}_description">${escapeHtml(notification?.description)}</p>
-        <a class="notification-body" href="${escapeHtml(notification?.button?.url)}" style="${notification?.button?.extra_styles}">${escapeHtml(notification?.button?.text)}</a>
+        <a class="notification-body" href="${escapeHtml(safeNotificationUrl(notification?.button?.url))}" style="${escapeHtml(notification?.button?.extra_styles)}">${escapeHtml(notification?.button?.text)}</a>
         </div>
     `;
     } else {

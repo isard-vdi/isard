@@ -60,7 +60,8 @@ constraint-dependencies = [
   "pytest-xdist==3.8.0",
   "httpx==0.28.1",
   "lxml-html-clean>=0.4.5",
-  "cryptography>=49.0.0",
+  "cryptography>=50.0.2",
+  "starlette>=1.10.0",
 ]
 override-dependencies = [
   "attrs>=23",

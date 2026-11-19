@@ -42,11 +42,11 @@ $(document).ready(function() {
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
-            { "data": "name"},
+            { "data": "name", "render": $.fn.dataTable.render.text()},
             { "data": "username", className: "xe-username" },
-            { "data": "role_name"},
+            { "data": "role_name", "render": $.fn.dataTable.render.text()},
             { "data": "category_name"},
-            { "data": "group_name", "width": "10px"},
+            { "data": "group_name", "width": "10px", "render": $.fn.dataTable.render.text()},
             { "data": "templates", "width": "10px", defaultContent: "0"},
             { "data": "desktops", "width": "10px", defaultContent: "0"},
             { "data": "volatile", "width": "10px", defaultContent: "0"},
@@ -60,7 +60,7 @@ $(document).ready(function() {
             {
                 "targets": 2,
                 "render": function ( data, type, full, meta ) {
-                    return '<a href="/isard-admin/admin/users/Management?searchUser='+ full.username +'">'+ full.username +'</a>'
+                    return '<a href="/isard-admin/admin/users/Management?searchUser='+ escapeHtmlText(full.username) +'">'+ escapeHtmlText(full.username) +'</a>'
                 }
             },
             {
@@ -326,7 +326,7 @@ function renderUsersDetailPannel ( d ) {
         $.each(d.secondary_groups_data, function(i, group) {
             secondary_groups_names.push(group.name)
         })
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
+        return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name)).replace(/d.username/g, escapeHtmlText(d.username)).replace(/d.secondary_groups/g, escapeHtmlText(secondary_groups_names));
     });
     return $newPanel
 }
@@ -341,9 +341,9 @@ function setModalUser(){
                 $("." + key).find('option').remove().end();
                 for(var i in d[key]){
                     if (key == 'group') {
-                        $("."+key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                        $("."+key).append($('<option>').val(value[i].id).attr('parent-category', value[i].parent_category).text(value[i].name));
                     } else {
-                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                        $("."+key).append($('<option>').val(value[i].id).text(value[i].name));
                     }
                 }
             });

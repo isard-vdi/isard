@@ -556,7 +556,8 @@ function load_data(){
                             {
                             "targets": 2,
                             "render": function ( data, type, full, meta ) {
-                                    return '<a href="'+full['url-web']+'"><button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button></a>'
+                                    var url = /^https?:\/\//i.test(full['url-web']) ? full['url-web'] : '#'
+                                    return '<a href="'+escapeHtmlText(url)+'"><button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button></a>'
                             }}]
     } );
 }
@@ -564,9 +565,9 @@ function load_data(){
 function renderName(data){
         return '<div class="block_content" > \
                 <h4 class="title" style="margin-bottom: 0.1rem; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
+                <a>'+escapeHtmlText(data.name)+'</a> \
                 </h4> \
-                  <p class="excerpt" >'+data.description+'</p> \
+                  <p class="excerpt" >'+escapeHtmlText(data.description)+'</p> \
                    </div>'
 }
 
@@ -587,7 +588,7 @@ function renderIcon(data){
     if(data.icon == null){
         return '';
     }
-    return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+    return '<span class="xe-icon" data-pk="'+escapeHtmlText(data.id)+'">'+icon(escapeHtmlText(data.icon))+'</span>'
 }
 
 function icon(name){

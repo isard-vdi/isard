@@ -205,8 +205,10 @@ $(document).ready(function () {
             case 'btn-delete':
                 new PNotify({
                     title: '<b>WARNING</b>',
+                    title_escape: false,
                     type: "error",
-                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete provider '"+escapeHtmlText(data['name'])+"'?</b>",
+                    text_escape: false,
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -260,8 +262,10 @@ $(document).ready(function () {
             case 'btn-reset-data':
                 new PNotify({
                     title: '<b>WARNING: RESET PROVIDER DATA</b>',
+                    title_escape: false,
                     type: "error",
-                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete users and groups in '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete users and groups in '"+escapeHtmlText(data['name'])+"'?</b>",
+                    text_escape: false,
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -302,8 +306,10 @@ $(document).ready(function () {
                 case 'btn-login_auth':
                     new PNotify({
                         title: '<b>AUTHORIZE PROVIDER</b>',
+                        title_escape: false,
                         type: "warning",
                         text: "<b>This will open your provider login page where you should input your admin credentials.</b>",
+                        text_escape: false,
                         hide: false,
                         opacity: 0.9,
                         confirm: {
@@ -324,7 +330,19 @@ $(document).ready(function () {
                             url: "/api/v4/admin/user_storage/" + data["id"]+"/login_auth",
                             success: function (data) {
                                 data = JSON.parse(data);
-                                window.open(data.login_url, '_blank');
+                                if (/^https?:\/\//i.test(data.login_url)) {
+                                    window.open(data.login_url, '_blank');
+                                } else {
+                                    new PNotify({
+                                        title: "ERROR contacting provider",
+                                        text: "The provider returned an invalid login URL.",
+                                        hide: true,
+                                        delay: 3000,
+                                        icon: 'fa fa-warning',
+                                        opacity: 1,
+                                        type: 'error'
+                                    });
+                                }
                             },
                             error: function (xhr, ajaxOptions, thrownError) {
                                 new PNotify({
@@ -500,15 +518,15 @@ $(document).ready(function () {
             //     "data": null,
             //     "defaultContent": '<button id="btn-details" class="btn btn-xs btn-info" type="button" data-placement="top"><i class="fa fa-plus"></i></button>'
             // },
-            { "data": "name" },
-            { "data": "group_name" },
-            { "data": "category_name" },
-            { "data": "user_storage.provider_id" },
-            { "data": "user_storage.provider_quota.quota" },
-            { "data": "user_storage.provider_quota.total" },
-            { "data": "user_storage.provider_quota.used" },
-            { "data": "user_storage.provider_quota.relative" },
-            { "data": "user_storage.provider_quota.free" },
+            { "data": "name", "render": $.fn.dataTable.render.text() },
+            { "data": "group_name", "render": $.fn.dataTable.render.text() },
+            { "data": "category_name", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_id", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_quota.quota", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_quota.total", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_quota.used", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_quota.relative", "render": $.fn.dataTable.render.text() },
+            { "data": "user_storage.provider_quota.free", "render": $.fn.dataTable.render.text() },
             // {
             //     "className": 'actions-control',
             //     "orderable": false,

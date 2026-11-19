@@ -87,10 +87,10 @@
         var columns = [
             { "data": "started_time" },
             { "data": "stopped_time" },
-            { "data": "owner_user_name" },
-            { "data": "request_ip" },
-            { "data": "owner_group_name" },
-            { "data": "owner_category_name" },
+            { "data": "owner_user_name", "render": $.fn.dataTable.render.text() },
+            { "data": "request_ip", "render": $.fn.dataTable.render.text() },
+            { "data": "owner_group_name", "render": $.fn.dataTable.render.text() },
+            { "data": "owner_category_name", "render": $.fn.dataTable.render.text() },
             { "data": "expiry_time" }
         ];
 

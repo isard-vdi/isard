@@ -15,7 +15,7 @@ dependencies = [
   "lxml==6.1.1",
   "paramiko==5.0.0",
   "pem==23.1.0",
-  "pyopenssl==26.3.0",
+  "pyopenssl==26.4.0",
   "pyjwt==2.13.0",
   "pytz==2026.2",
   "redis==8.0.1",

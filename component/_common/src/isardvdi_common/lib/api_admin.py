@@ -494,6 +494,8 @@ class ApiAdmin(RethinkSharedConnection):
             query = query.without(
                 "password",
                 "password_history",
+                "password_reset_token",
+                "email_verification_token",
                 "api_key",
                 "photo",
                 {"vpn": {"wireguard": "keys"}},
@@ -675,6 +677,8 @@ class ApiAdmin(RethinkSharedConnection):
             query = query.without(
                 "password",
                 "password_history",
+                "password_reset_token",
+                "email_verification_token",
                 "api_key",
                 "photo",
                 {"vpn": {"wireguard": "keys"}},

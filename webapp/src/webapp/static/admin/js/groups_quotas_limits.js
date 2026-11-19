@@ -36,7 +36,7 @@ $(document).ready(function() {
             },
             { "data": "name", className: "xe-name" },
             { "data": "parent_category_name", className: "xe-category" },
-            { "data": "description", className: "xe-description" },
+            { "data": "description", className: "xe-description", "render": $.fn.dataTable.render.text() },
             { "data": "limits.users", className: "xe-description", defaultContent: "-" },
             { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
@@ -67,7 +67,7 @@ $(document).ready(function() {
             {
                 "targets": 1,
                 "render": function ( data, type, full, meta ) {
-                    return '<a href="/isard-admin/admin/users/Management?searchGroup='+ full.name +'">'+ full.name +'</a>'
+                    return '<a href="/isard-admin/admin/users/Management?searchGroup='+ escapeHtmlText(full.name) +'">'+ escapeHtmlText(full.name) +'</a>'
                 }
             },
             {
@@ -327,7 +327,7 @@ function renderGroupsDetailPannel ( d ) {
             $.each(d.linked_groups_data, function(i, group) {
                 linked_groups_names.push(group.name)
             })
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description).replace(/d.linked_groups/g, linked_groups_names);
+        return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name)).replace(/d.description/g, escapeHtmlText(d.description)).replace(/d.linked_groups/g, escapeHtmlText(linked_groups_names));
     });
     return $newPanel
 }

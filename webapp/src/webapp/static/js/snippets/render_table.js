@@ -47,19 +47,19 @@ const kindMap = {
 // Custom rendering callback function for table rows
 function renderTemplateTree(row, item, level) {
     // Title column (indented based on level) 
-    row.append('<td class="nested-td nested-level-' + level + '">' + '&nbsp;&nbsp;'.repeat(level - 1) + '<i class="fa ' + iconMap[item.kind] + '"></i>&nbsp;' + item.title + '</td>');
+    row.append('<td class="nested-td nested-level-' + level + '">' + '&nbsp;&nbsp;'.repeat(level - 1) + '<i class="fa ' + iconMap[item.kind] + '"></i>&nbsp;' + escapeHtmlText(item.title) + '</td>');
     // Template/Desktop column
     row.append('<td class="nested-td">' + kindMap[item.kind] + '</td>');
     // Duplicate column
     row.append('<td class="nested-td">' + (item.duplicate_parent_template ? '<i class="fa fa-check"></i>' : '') + '</td>');
     // User column
-    row.append('<td class="nested-td">' + item.user + '</td>');
+    row.append('<td class="nested-td">' + escapeHtmlText(item.user) + '</td>');
     // Role column
-    row.append('<td class="nested-td">' + (item.role || '--') + '</td>');
+    row.append('<td class="nested-td">' + escapeHtmlText(item.role || '--') + '</td>');
     // Category column
-    row.append('<td class="nested-td">' + item.category + '</td>');
+    row.append('<td class="nested-td">' + escapeHtmlText(item.category) + '</td>');
     // Group column
-    row.append('<td class="nested-td">' + item.group + '</td>');
+    row.append('<td class="nested-td">' + escapeHtmlText(item.group) + '</td>');
 }
 
 // Custom rendering callback function for table rows
@@ -67,11 +67,11 @@ function renderDesktopTree(row, item, level) {
   count= item.parents_count+1
   row.append('<td class="nested-td">' + count + '</td>');
   // Title column (indented based on level)
-  row.append('<td class="nested-td><i class="fa fa-cube"></i>&nbsp;' + item.name + '</td>');
+  row.append('<td class="nested-td"><i class="fa fa-cube"></i>&nbsp;' + escapeHtmlText(item.name) + '</td>');
   // User column
-  row.append('<td class="nested-td">' + item.username + '</td>');
+  row.append('<td class="nested-td">' + escapeHtmlText(item.username) + '</td>');
   // Category column
-  row.append('<td class="nested-td">' + item.category_name + '</td>');
+  row.append('<td class="nested-td">' + escapeHtmlText(item.category_name) + '</td>');
   // Group column
-  row.append('<td class="nested-td">' + item.group_name + '</td>');
+  row.append('<td class="nested-td">' + escapeHtmlText(item.group_name) + '</td>');
 }

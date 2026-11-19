@@ -68,6 +68,10 @@ function socketio_on(){
         $(modal + "Form")[0].reset();
         $(modal + " #csv_correct").hide();
         $(modal + " #csv_error").hide();
+        $(modal + " #send").attr("disabled", true);
+        if ($.fn.dataTable.isDataTable(modal + " #csv_preview")) {
+            $(modal + " #csv_preview").DataTable().clear().draw();
+        }
         $(modal).modal({
             backdrop: 'static',
             keyboard: false
@@ -90,6 +94,8 @@ function socketio_on(){
             
             user.group = user.group_id
             delete user.group_id
+
+            delete user.secondary_groups_names
         });
         var users_to_enable = data['users'].map(user => user["active"] === true ? user["id"] : null).filter(id => id !== null);
         checkMigratedAndProceed(users_to_enable, function () {
@@ -633,7 +639,7 @@ function socketio_on(){
                 error: function(data) {
                     $('#passwd-error').show();
                     const msg = data.responseJSON ? data.responseJSON.description : 'Something went wrong';
-                    $('#passwd-error').html(msg);
+                    $('#passwd-error').text(msg);
                 }
             });
         }
@@ -653,10 +659,11 @@ function socketio_on(){
                 contentType: 'application/json',
                 error: function (data) {
                     if (data.responseJSON && data.responseJSON.exceptions) {
-                        const exceptionsList = data.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+                        const exceptionsList = data.responseJSON.exceptions.map(exception => `<li>${escapeHtmlText(exception)}</li>`).join('');
                         notice.update({
                             title: "ERROR deleting user(s)",
                             text: `<ul>${exceptionsList}</ul>`,
+                            text_escape: false,
                             hide: true,
                             delay: 3000,
                             icon: 'fa fa-alert-sign',
@@ -832,7 +839,7 @@ function socketio_on(){
                     return data;
                 }
             },
-            { "data": "name" },
+            { "data": "name", "render": $.fn.dataTable.render.text() },
             {
                 "data": "provider", "width": "10px",
                 "render": function (data, type, full, meta) {
@@ -844,19 +851,19 @@ function socketio_on(){
             },
             {
                 "data": "category_name", "render": function (data, type, full, meta) {
-                    return full.category_name ? full.category_name : ''
+                    return full.category_name ? escapeHtmlText(full.category_name) : ''
                 }
             },
-            { "data": "uid" },
+            { "data": "uid", "render": $.fn.dataTable.render.text() },
             {
                 "data": "username", className: "xe-username", "render": function (data, type, full, meta) {
-                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchUser=' + full.username + '">' + full.username + '</a>'
+                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchUser=' + escapeHtmlText(full.username) + '">' + escapeHtmlText(full.username) + '</a>'
                 }
             },
-            { "data": "role_name", "width": "10px" },
+            { "data": "role_name", "width": "10px", "render": $.fn.dataTable.render.text() },
             {
                 "data": "group_name", "width": "10px", "render": function (data, type, full, meta) {
-                    return full.group_name ? full.group_name : ''
+                    return full.group_name ? escapeHtmlText(full.group_name) : ''
                 }
             },
             {
@@ -866,9 +873,9 @@ function socketio_on(){
                         return secondary_groups;
                     }
                     if (secondary_groups.length > 50) {
-                        return `<p title="${secondary_groups}">${secondary_groups.substring(0, 50)}...</p>`
+                        return `<p title="${escapeHtmlText(secondary_groups)}">${escapeHtmlText(secondary_groups.substring(0, 50))}...</p>`
                     }
-                    return secondary_groups
+                    return escapeHtmlText(secondary_groups)
                 }
             },
             {
@@ -883,9 +890,9 @@ function socketio_on(){
             {
                 "data": "email", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
                     if ('email_verified' in full && full['email_verified']) {
-                        return `<p style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}">${full['email'] ? full['email'] : ''}</p>`
+                        return `<p style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}">${full['email'] ? escapeHtmlText(full['email']) : ''}</p>`
                     } else {
-                        return `<p>${full['email'] ? full['email'] : ''}</p>`
+                        return `<p>${full['email'] ? escapeHtmlText(full['email']) : ''}</p>`
                     }
                 }
             },
@@ -1397,7 +1404,7 @@ function actionsUserDetail(){
                     alert.empty();
                     alert.append("<b>Errors:</b><br><ul>");
                     data.errors.forEach(function (error) {
-                        alert.append(`<li>${error.description}</li>`);
+                        alert.append($('<li>').text(error.description));
                         const errorMapping = {
                             'role_migration_user': ["deployments", "templates", "media"],
                             'migration_desktop_quota_error': ["desktops"],
@@ -1574,7 +1581,7 @@ function renderUsersDetailPannel ( d ) {
         $.each(d.secondary_groups_data, function(i, group) {
             secondary_groups_names.push(group.name)
         })
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
+        return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name)).replace(/d.username/g, escapeHtmlText(d.username)).replace(/d.secondary_groups/g, escapeHtmlText(secondary_groups_names));
     });
     if (d.provider !== "local") {
         $newPanel.find('.btn-passwd').remove();
@@ -1592,9 +1599,9 @@ function setModalUser(){
                 $("." + key).find('option').remove().end();
                 for(var i in d[key]){
                     if (key == 'group') {
-                        $("."+key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                        $("."+key).append($('<option>').val(value[i].id).attr('parent-category', value[i].parent_category).text(value[i].name));
                     } else {
-                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                        $("."+key).append($('<option>').val(value[i].id).text(value[i].name));
                     }
                 }
             });
@@ -1607,7 +1614,6 @@ function setModalUser(){
 
 
 function csv2datatables(csv, modal) {
-    csv = csv.replace(/</g, '&lt;').replace(/>/g, '&gt;')
     var csv_data = parseCSV(csv)
     if (csv_data.error !== "") {
         $(modal + " #csv_correct").hide()
@@ -1649,15 +1655,17 @@ function csv2datatables(csv, modal) {
         async: false,
     }).done(function (data) {
         $(modal + " #csv_correct").show()
-        // $(modal + " #send").attr("disabled", false);
+        $(modal + " #csv_error").hide()
+        if (modal == "#modalUpdateFromCSV") {
+            $(modal + " #send").attr("disabled", false);
+        }
         if (data.errors && data.errors.length > 0) {
             $(modal + " #csv_error").show()
-            let errorsHtml = '<ul>'
+            const errorsList = $('<ul>')
             data.errors.forEach(function (error) {
-                errorsHtml += '<li>' + error + '</li>'
+                errorsList.append($('<li>').text(error))
             })
-            errorsHtml += '</ul>'
-            $(modal + " #csv_error #csv_error_html").html(errorsHtml)
+            $(modal + " #csv_error #csv_error_html").empty().append(errorsList)
         }
         $(modal + " #csv_preview").DataTable().destroy();
         csv_preview = $(modal + " #csv_preview").DataTable({
@@ -1676,12 +1684,12 @@ function csv2datatables(csv, modal) {
                         }
                     }
                 },
-                { "data": "name", "width": "88px", },
-                { "data": "provider", "width": "50px", "className": "no-update" },
-                { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
-                { "data": "uid", "width": "88px", "className": "no-update" },
-                { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
-                { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
+                { "data": "name", "width": "88px", "render": $.fn.dataTable.render.text() },
+                { "data": "provider", "width": "50px", "className": "no-update", "render": $.fn.dataTable.render.text() },
+                { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update", "render": $.fn.dataTable.render.text() },
+                { "data": "uid", "width": "88px", "className": "no-update", "render": $.fn.dataTable.render.text() },
+                { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update", "render": $.fn.dataTable.render.text() },
+                { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", "render": $.fn.dataTable.render.text() },
                 {
                     "data": "password",
                     "width": "88px",
@@ -1690,9 +1698,9 @@ function csv2datatables(csv, modal) {
                     }
                 },
             ] : [
-                { "data": "username", "width": "88px" },
-                { "data": "name", "width": "88px" },
-                { "data": "email", "width": "88px" },
+                { "data": "username", "width": "88px", "render": $.fn.dataTable.render.text() },
+                { "data": "name", "width": "88px", "render": $.fn.dataTable.render.text() },
+                { "data": "email", "width": "88px", "render": $.fn.dataTable.render.text() },
                 {
                     "data": "password",
                     "width": "88px",
@@ -1700,16 +1708,16 @@ function csv2datatables(csv, modal) {
                         return "*****"
                     }
                 },
-                { "data": "group", "width": "88px", "defaultContent": "" },
-                { "data": "category", "width": "88px", "defaultContent": "" },
-                { "data": "role", "width": "88px", "defaultContent": "" },
+                { "data": "group", "width": "88px", "defaultContent": "", "render": $.fn.dataTable.render.text() },
+                { "data": "category", "width": "88px", "defaultContent": "", "render": $.fn.dataTable.render.text() },
+                { "data": "role", "width": "88px", "defaultContent": "", "render": $.fn.dataTable.render.text() },
             ],
             "order": [[0, 'asc']],
         });
     }).fail(function (data) {
         $(modal + " #csv_correct").hide()
         $(modal + " #send").attr("disabled", true);
-        $(modal + " #csv_error #csv_error_html").html(data.responseJSON.description)
+        $(modal + " #csv_error #csv_error_html").text(data.responseJSON.description)
         $(modal + " #csv_error").show()
         if ($.fn.dataTable.isDataTable(modal + ' #csv_preview')) {
             csv_preview.clear()
@@ -1746,10 +1754,12 @@ function parseCSV(csv) {
     users = []
     $.each(lines, function (n, l) {
         if (n != 0 && l.length > 10) {
+            // every field, the first one included, follows a separator
+            var row = separator + l;
             // ignore separator inside quotes
-            var regex = new RegExp(`(?:${separator}|\\r?\\n|^)(?:"([^"]*(?:""[^"]*)*)"|([^"${separator}\\r\\n]*))`, 'g');
+            var regex = new RegExp(`${separator}(?:"([^"]*(?:""[^"]*)*)"|([^"${separator}\\r\\n]*))`, 'g');
             var matches = []; var match;
-            while (match = regex.exec(l)) {
+            while (match = regex.exec(row)) {
                 matches.push(match[1] || match[2]);
             }
             usr = toObject(header, matches);
@@ -1758,7 +1768,6 @@ function parseCSV(csv) {
                 for (var key in usr) {
                     usr[key] = usr[key]?.replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
                 }
-                usr['id'] = usr['username']
                 users.push(usr)
             }
         }
@@ -1769,7 +1778,7 @@ function parseCSV(csv) {
 function toObject(names, values) {
     var result = {};
     for (var i = 0; i < names.length; i++)
-         result[names[i]] = values[i];
+        if (names[i].trim() !== '') result[names[i]] = values[i];
     return result;
 }
 
@@ -1920,7 +1929,7 @@ function getSelectedUserList() {
 
 function showAlert(alertSelector, msg, type) {
     alertSelector.empty();
-    alertSelector.html(msg);
+    alertSelector.text(msg);
     alertSelector.addClass('alert-' + type);
     alertSelector.removeClass('alert-' + type == 'error' ? 'success' : 'error')
     alertSelector.show();
@@ -1936,10 +1945,10 @@ function render_users_to_edit_table(usersToEdit) {
                 '<i class="fa fa-check" style="color:lightgreen"></i>'
                 :
                 '<i class="fa fa-close" style="color:darkgray"></i>'}
-            <td>${user.username}</td>
-            <td>${user.name}</td>
-            <td>${user.group_name}</td>
-            <td>${user["secondary_groups_names"].join(",")}</td>
+            <td>${escapeHtmlText(user.username)}</td>
+            <td>${escapeHtmlText(user.name)}</td>
+            <td>${escapeHtmlText(user.group_name)}</td>
+            <td>${escapeHtmlText(user["secondary_groups_names"].join(","))}</td>
         </tr>
         `)
     });

@@ -12,19 +12,23 @@ var desktopsTableCols = [
   },
   {
     data: 'name',
-    title: 'Name'
+    title: 'Name',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'username',
-    title: 'User'
+    title: 'User',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'category.name',
-    title: 'Category'
+    title: 'Category',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'group.name',
-    title: 'Group'
+    title: 'Group',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'accessed',
@@ -42,19 +46,23 @@ var templatesTableCols = [
   },
   {
     data: 'name',
-    title: 'Name'
+    title: 'Name',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'user',
-    title: 'User'
+    title: 'User',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'category.name',
-    title: 'Category'
+    title: 'Category',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'group.name',
-    title: 'Group'
+    title: 'Group',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'accessed',
@@ -72,29 +80,33 @@ var deploymentsTableCols = [
   },
   {
     data: 'name',
-    title: 'Name'
+    title: 'Name',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'create_dict',
     title: 'Desktop name',
     render: function (create_dict) {
       if (Array.isArray(create_dict)) {
-        return create_dict[0]?.name || '-'
+        return escapeHtmlText(create_dict[0]?.name || '-')
       }
-      return create_dict?.name || '-'
+      return escapeHtmlText(create_dict?.name || '-')
     }
   },
   {
     data: 'user',
-    title: 'User'
+    title: 'User',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'category.name',
-    title: 'Category'
+    title: 'Category',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'group.name',
-    title: 'Group'
+    title: 'Group',
+    render: $.fn.dataTable.render.text()
   }
 ]
 
@@ -105,7 +117,8 @@ var storageTableCols = [
   },
   {
     data: 'directory_path',
-    title: 'Path'
+    title: 'Path',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'status',
@@ -139,19 +152,23 @@ var storageTableCols = [
   },
   {
     data: 'parent',
-    title: 'Parent'
+    title: 'Parent',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'user',
     title: 'User',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'category.name',
     title: 'Category',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'domains',
-    title: 'Domains'
+    title: 'Domains',
+    render: $.fn.dataTable.render.text()
   }
 ]
 
@@ -162,31 +179,38 @@ var usersTableCols = [
   },
   {
     data: 'name',
-    title: 'Name'
+    title: 'Name',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'provider',
-    title: 'Provider'
+    title: 'Provider',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'category',
-    title: 'Category'
+    title: 'Category',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'uid',
-    title: 'Uid'
+    title: 'Uid',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'username',
-    title: 'Username'
+    title: 'Username',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'role',
-    title: 'Role'
+    title: 'Role',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'group',
-    title: 'Group'
+    title: 'Group',
+    render: $.fn.dataTable.render.text()
   }
 ]
 
@@ -197,15 +221,18 @@ var groupsTableCols = [
   },
   {
     data: 'name',
-    title: 'Name'
+    title: 'Name',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'description',
-    title: 'Description'
+    title: 'Description',
+    render: $.fn.dataTable.render.text()
   },
   {
     data: 'linked_groups',
-    title: 'Linked Groups'
+    title: 'Linked Groups',
+    render: $.fn.dataTable.render.text()
   }
 ]
 
@@ -286,7 +313,8 @@ $(document).ready(function () {
       },
       {
         "data": "agent_name",
-        "title": "Agent name"
+        "title": "Agent name",
+        "render": $.fn.dataTable.render.text()
       },
       {
         "data": "agent_type",
@@ -296,7 +324,7 @@ $(document).ready(function () {
         "data": "owner_name",
         "title": "Owner name",
         render: function (owner_name) {
-          return owner_name ?? '<i class="text-muted">(deleted)</i>'
+          return owner_name == null ? '<i class="text-muted">(deleted)</i>' : escapeHtmlText(owner_name)
         }
       },
       {
@@ -458,7 +486,8 @@ $(document).ready(function () {
         break;
       case 'btn-restore':
         new PNotify({
-          title: `Restore <strong>${data['item_type']}</strong> and all associated storage?`,
+          title: `Restore <strong>${escapeHtmlText(data['item_type'])}</strong> and all associated storage?`,
+          title_escape: false,
           text: `${data.desktops} desktops \n ${data.templates} templates \n ${data.deployments} deployments \n ${data.storages} disks`,
           hide: false,
           opacity: 0.9,
@@ -658,6 +687,7 @@ $(document).ready(function () {
       return new PNotify({
         type: "warning",
         title: "<b>Please select items to delete<b>",
+        title_escape: false,
         hide: true,
         opacity: 0.9,
         history: {
@@ -722,7 +752,8 @@ $(document).ready(function () {
         },
         {
           "data": "agent_name",
-          "title": "Agent name"
+          "title": "Agent name",
+          "render": $.fn.dataTable.render.text()
         },
         {
           "data": "agent_type",
@@ -732,7 +763,7 @@ $(document).ready(function () {
           "data": "owner_name",
           "title": "Owner name",
           render: function (owner_name) {
-            return owner_name ?? '<i class="text-muted">(deleted)</i>'
+            return owner_name == null ? '<i class="text-muted">(deleted)</i>' : escapeHtmlText(owner_name)
           }
         },
         {

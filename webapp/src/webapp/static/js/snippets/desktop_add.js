@@ -31,8 +31,8 @@ function modal_add_desktop_datatables(){
             "deferRender": true,
             "columns": [
                 { "data": "name"},
-                { "data": "group_name", "width": "10px"},
-                { "data": "user_name"}
+                { "data": "group_name", "width": "10px", "render": $.fn.dataTable.render.text()},
+                { "data": "user_name", "render": $.fn.dataTable.render.text()}
                 ],
              "order": [[0, 'asc']],
              "pageLength": 5,
@@ -40,7 +40,7 @@ function modal_add_desktop_datatables(){
                             {
                             "targets": 0,
                             "render": function ( data, type, full, meta ) {
-                              return renderIcon1x(full) + renderFailed(full.status) +" "+full.name;
+                              return renderIcon1x(full) + renderFailed(full.status) +" "+escapeHtmlText(full.name);
                             }},
                             ]
     } );
@@ -86,12 +86,12 @@ function initalize_modal_all_desktops_events(){
         else {
             if (rdata['status'] === 'Failed') {
                 $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-            $('#modalAddDesktop #datatables-error-status').html('Due to an error the template \'' + rdata['name'] + '\' can\'t be used to create a new desktop, check its status detailed info to see the reason').addClass('my-error');
+            $('#modalAddDesktop #datatables-error-status').html('Due to an error the template \'' + escapeHtmlText(rdata['name']) + '\' can\'t be used to create a new desktop, check its status detailed info to see the reason').addClass('my-error');
             } else {
                 modal_add_desktops.$('tr.selected').removeClass('selected');
                 $(this).addClass('selected');
                 $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
-                $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+                $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+escapeHtmlText(rdata['name'])+'</b>').removeClass('my-error');
                 $('#modalAddDesktop #template').val(rdata['id']);
                 //if(user['role']!='user'){
                     $('#modalAddDesktop #btn-hardware').show();

@@ -41,8 +41,10 @@ from api.schemas.admin.users import (
     AdminCheckMigratedData,
     AdminCheckMigratedResponse,
     AdminCSVImportResponse,
+    AdminCSVUserCreateRow,
+    AdminCSVUserEditColumns,
     AdminCSVUserEditData,
-    AdminCSVUserEditRow,
+    AdminCSVUserEditPreviewRow,
     AdminCSVUserImportData,
     AdminCSVValidateCreateResponse,
     AdminDeleteChecksData,
@@ -533,15 +535,14 @@ async def admin_search_users(request: Request, data: AdminUserSearchData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users(request: Request, user_list: list[dict]):
-    # Body is a raw JSON array — webapp sends ``JSON.stringify(csv_data.users)``
-    # at ``static/admin/js/users_management.js`` line 1635. Declaring it as
-    # a typed parameter (instead of ``await request.json()``) makes the OAS
-    # spec carry a request body, which the generated client needs to expose
-    # the body argument to its caller.
+async def admin_validate_csv_users(
+    request: Request, user_list: list[AdminCSVUserCreateRow]
+):
     try:
         result = await asyncio.to_thread(
-            AdminUsersService.validate_csv_users, request.token_payload, user_list
+            AdminUsersService.validate_csv_users,
+            request.token_payload,
+            [u.model_dump(exclude_unset=True) for u in user_list],
         )
         return JSONResponse(
             content=AdminCSVValidateCreateResponse(**result).model_dump(mode="json"),
@@ -561,7 +562,7 @@ async def admin_validate_csv_users(request: Request, user_list: list[dict]):
 @manager_router.put(
     "/admin/items/users/csv/validate",
     tags=[tag],
-    response_model=list[AdminCSVUserEditRow],
+    response_model=list[AdminCSVUserEditPreviewRow],
     summary="Validate CSV for user editing",
     description="Validates a list of users from CSV for editing.",
     responses={
@@ -570,15 +571,19 @@ async def admin_validate_csv_users(request: Request, user_list: list[dict]):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users_edit(request: Request, user_list: list[dict]):
-    # Same raw-array body as the POST sibling above.
+async def admin_validate_csv_users_edit(
+    request: Request, user_list: list[AdminCSVUserEditColumns]
+):
     try:
         result = await asyncio.to_thread(
-            AdminUsersService.validate_csv_users_edit, request.token_payload, user_list
+            AdminUsersService.validate_csv_users_edit,
+            request.token_payload,
+            [u.model_dump(exclude_unset=True) for u in user_list],
         )
         return JSONResponse(
             content=[
-                AdminCSVUserEditRow(**u).model_dump(mode="json") for u in (result or [])
+                AdminCSVUserEditPreviewRow(**u).model_dump(mode="json")
+                for u in (result or [])
             ],
             status_code=200,
         )
@@ -607,7 +612,9 @@ async def admin_validate_csv_users_edit(request: Request, user_list: list[dict])
 async def admin_import_csv_users(request: Request, data: AdminCSVUserImportData):
     try:
         result = await asyncio.to_thread(
-            AdminUsersService.import_csv_users, request.token_payload, data.model_dump()
+            AdminUsersService.import_csv_users,
+            request.token_payload,
+            data.model_dump(exclude_unset=True),
         )
         return JSONResponse(
             content=AdminCSVImportResponse(
@@ -675,14 +682,11 @@ async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
     },
 )
 async def admin_bulk_create_users(request: Request, data: AdminBulkUserCreateData):
-    # Body declared as ``AdminBulkUserCreateData`` (``{users:[...],
-    # email_verified: bool}``) so the OAS spec advertises a
-    # ``requestBody`` and the generated isardvdi_apiv4_client / k6
-    # client can carry it. The webapp sends this exact shape from
-    # ``static/admin/js/users_management.js:745``.
     try:
         result = await asyncio.to_thread(
-            AdminUsersService.import_csv_users, request.token_payload, data.model_dump()
+            AdminUsersService.import_csv_users,
+            request.token_payload,
+            data.model_dump(exclude_unset=True),
         )
         return JSONResponse(
             content=AdminCSVImportResponse(

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""A manager cannot reach the admin role through any user write path."""
+"""A manager cannot raise a user's privileges through any user write path."""
 
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ MANAGER01 = (
     os.environ.get("E2E_MANAGER01_CATEGORY", "default"),
 )
 PASSWORD = "Elevation-Test-9!"
+# Seeded group of the "hidden" category: user02 and manager02.
+FOREIGN_GROUP = "cca27c62-9db4-45a2-8faa-3897f095d507"
 
 
 @pytest.fixture(scope="module")
@@ -85,5 +87,47 @@ def test_a_manager_cannot_raise_a_user_to_admin_through_csv_edit(
         json={"users": [{"id": user_id, "role": "admin"}]},
     )
 
-    assert resp.status_code == 403, resp.text
+    # role is not a column of the CSV-update files
+    assert resp.status_code == 400, resp.text
     assert _role(admin_client, user_id) == "user"
+
+
+def test_a_manager_cannot_add_another_categorys_group_through_csv_edit(
+    manager_client, admin_client, make_user
+):
+    user_id = make_user("elev_sg", "user")
+
+    resp = manager_client.raw(
+        "PUT",
+        "/api/v4/admin/items/users/csv",
+        json={"users": [{"id": user_id, "secondary_groups": [FOREIGN_GROUP]}]},
+    )
+
+    assert resp.status_code == 403, resp.text
+    raw = admin_client.get(f"/api/v4/admin/item/user/{user_id}/raw")
+    assert FOREIGN_GROUP not in (raw.get("secondary_groups") or [])
+
+
+def test_csv_bulk_create_refuses_a_field_outside_the_csv_columns(
+    manager_client, test_namespace
+):
+    resp = manager_client.raw(
+        "POST",
+        "/api/v4/admin/items/bulk/user",
+        json={
+            "users": [
+                {
+                    "username": f"{test_namespace}elev_bulk",
+                    "name": f"{test_namespace}elev_bulk",
+                    "email": "",
+                    "group": "Default",
+                    "category": "Default",
+                    "role": "user",
+                    "password": PASSWORD,
+                    "quota": {"desktops": 999},
+                }
+            ]
+        },
+    )
+
+    assert resp.status_code == 400, resp.text

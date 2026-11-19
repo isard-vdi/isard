@@ -237,10 +237,10 @@ function fetchConsumerItems (divId, callback) {
   }).then(function (items) {
     $(divId + " #" + consumer).find('option').remove();
     $.each(items, function (pos, it) {
-      $(divId + " #" + consumer).append(`<option value=${it.item_id}>
-        ${it.item_name}${it.category_name && ["desktop", "template", "user", "group"].includes(consumer) ? " ["+it.category_name+"]" : ''}
-        ${it.username ? " ["+it.username+"]" : ''}
-      </option>`);
+      $(divId + " #" + consumer).append($('<option>').val(it.item_id).text(
+        it.item_name + (it.category_name && ["desktop", "template", "user", "group"].includes(consumer) ? " [" + it.category_name + "]" : '') +
+        (it.username ? " [" + it.username + "]" : '')
+      ));
     });
     $(divId + " #" + consumer).children('option').sort(function (a, b) {
       if (a.value === 'null') {

@@ -144,13 +144,15 @@
   {% for category, message in messages %}
   <script type="text/javascript">
     new PNotify({
-      title: "{{ nav }}",
-      text: "{{ message }}",
+      title: {{ nav|tojson }},
+      title_escape: true,
+      text: {{ message|tojson }},
+      text_escape: true,
       hide: true,
       delay: 2000,
       //~ icon: 'fa fa-alert-sign',
       opacity: 1,
-      type: "{{ category }}",
+      type: {{ category|tojson }},
       addclass: "pnotify-center"
     });
   </script>

@@ -147,7 +147,7 @@ function renderNotificationsLogsDatatable(table, status, user_id) {
                 }
             }, {
                 data: "vars", title: "Vars", render: function (data) {
-                    return Object.keys(data).map(key => `<strong>${key}</strong>: ${data[key]}`).join(', ');
+                    return Object.keys(data).map(key => `<strong>${escapeHtmlText(key)}</strong>: ${escapeHtmlText(data[key])}`).join(', ');
                 }
             },
             {
@@ -189,7 +189,7 @@ function renderNotificationUsersDatatable(status) {
                 "data": null,
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
-            { data: 'user_name', title: 'User' },
+            { data: 'user_name', title: 'User', render: $.fn.dataTable.render.text() },
             { data: null, title: 'Notification status', render: function () { return status } },
             { data: 'notifications', title: 'Notifications' },
             {

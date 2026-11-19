@@ -54,7 +54,7 @@ $(document).ready(function () {
         targets: 4,
         render: function (data, type, full, meta) {
           var string = full.role_names.join(",");
-          var res = string.substring(0,20)+"...";
+          var res = escapeHtmlText(string.substring(0,20))+"...";
           return res
         },
       },
@@ -62,7 +62,7 @@ $(document).ready(function () {
         targets: 5,
         render: function (data, type, full, meta) {
           var string = full.category_names.join(",");
-          var res = string.substring(0,20)+"...";
+          var res = escapeHtmlText(string.substring(0,20))+"...";
           return res
         },
       },
@@ -70,7 +70,7 @@ $(document).ready(function () {
         targets: 6,
         render: function (data, type, full, meta) {
           var string = full.group_names.join(",");
-          var res = string.substring(0,20)+"...";
+          var res = escapeHtmlText(string.substring(0,20))+"...";
           return res
         },
       },
@@ -78,7 +78,7 @@ $(document).ready(function () {
         targets: 7,
         render: function (data, type, full, meta) {
           var string = full.user_names.join(",");
-          var res = string.substring(0,20)+"...";
+          var res = escapeHtmlText(string.substring(0,20))+"...";
           return res
         },
       },
@@ -293,11 +293,11 @@ bookings_priority_computed = $("#bookings_priority_computed").DataTable({
   rowId: "id",
   deferRender: true,
   columns: [
-    { data: "username" },
-    { data: "rule_id" },
-    { data: "role" },
-    { data: "category" },
-    { data: "group" },
+    { data: "username", render: $.fn.dataTable.render.text() },
+    { data: "rule_id", render: $.fn.dataTable.render.text() },
+    { data: "role", render: $.fn.dataTable.render.text() },
+    { data: "category", render: $.fn.dataTable.render.text() },
+    { data: "group", render: $.fn.dataTable.render.text() },
     { data: "priority" },
     { data: "forbid_time" },
     { data: "max_time" },

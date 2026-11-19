@@ -36,7 +36,7 @@ function tableHypervisorDomains(hyp) {
     "rowId": "id",
     "deferRender": true,
     "columns": [
-      { "data": "name" },
+      { "data": "name", "render": $.fn.dataTable.render.text() },
       { "data": "create_dict.hardware.vcpus" },
       {
         "data": "ram", "width": "100px",
@@ -44,9 +44,9 @@ function tableHypervisorDomains(hyp) {
           return formatRamLabel(full.create_dict.hardware.memory / 1024 / 1024)
         }
       },
-      { "data": "username" },
-      { "data": "category_name" },
-      { "data": "group_name" },
+      { "data": "username", "render": $.fn.dataTable.render.text() },
+      { "data": "category_name", "render": $.fn.dataTable.render.text() },
+      { "data": "group_name", "render": $.fn.dataTable.render.text() },
       {
         "data": "server", "width": "10px", "defaultContent": "-", "render": function (data, type, full, meta) {
           if ('server' in full) {
@@ -203,8 +203,10 @@ function setVirtPoolsTable(id) {
         let change = data.available ? "disable" : "enable";
         new PNotify({
           title: "<b>WARNING</b>",
+          title_escape: false,
           type: "warning",
-          text: "Are you sure you want to <b>" + change + "</b> pool <b>" + row.data().name + "</b>? ",
+          text: "Are you sure you want to <b>" + change + "</b> pool <b>" + escapeHtmlText(row.data().name) + "</b>? ",
+          text_escape: false,
           hide: false,
           opacity: 0.9,
           confirm: {

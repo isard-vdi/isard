@@ -559,12 +559,14 @@ $(document).ready(function () {
     var data = table.row('#' + pk).data();
     var change = data.enabled ? 'disable' : 'enable';
     var text = data.enabled && data.orchestrator_managed
-      ? '<b>You are about to disable ' + pk + '!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>'
-      : '<b>You are about to ' + change + ' ' + pk + '!\nAre you sure?</b>';
+      ? '<b>You are about to disable ' + escapeHtmlText(pk) + '!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>'
+      : '<b>You are about to ' + change + ' ' + escapeHtmlText(pk) + '!\nAre you sure?</b>';
     new PNotify({
       title: '<b>WARNING</b>',
+      title_escape: false,
       type: 'error',
       text: text,
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: { confirm: true },
@@ -865,14 +867,16 @@ function actionsHyperDetail() {
     let change = data["enabled"] ? "disable" : "enable";
     text = ""
     if (data["enabled"] && data["orchestrator_managed"]) {
-      text = "<b>You are about to disable " + pk + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
+      text = "<b>You are about to disable " + escapeHtmlText(pk) + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
     } else {
-      text = "<b>You are about to " + change + " " + pk + "!\nAre you sure?</b>"
+      text = "<b>You are about to " + change + " " + escapeHtmlText(pk) + "!\nAre you sure?</b>"
     }
     new PNotify({
       title: "<b>WARNING</b>",
+      title_escape: false,
       type: "error",
       text: text,
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -940,8 +944,10 @@ function actionsHyperDetail() {
     var pk = $(this).closest("div").attr("data-pk");
     new PNotify({
       title: '<b>WARNING</b>',
+      title_escape: false,
       type: "error",
-      text: "<b>You are about to delete " + pk + "!<br>Are you sure?</b>",
+      text: "<b>You are about to delete " + escapeHtmlText(pk) + "!<br>Are you sure?</b>",
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -992,8 +998,10 @@ function actionsHyperDetail() {
     var pk = $(this).closest("div").attr("data-pk");
     new PNotify({
       title: '<b>WARNING</b>',
+      title_escape: false,
       type: "error",
-      text: "<b>You are about to FORCE STOP all desktops in " + pk + "!<br>Are you sure?</b>",
+      text: "<b>You are about to FORCE STOP all desktops in " + escapeHtmlText(pk) + "!<br>Are you sure?</b>",
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -1173,14 +1181,16 @@ function actionsHyperDetail() {
     var data = table.row("#" + pk).data();
     text = ""
     if (!data["only_forced"] && data["orchestrator_managed"]) {
-      text = "<b>You are about to set Only Forced to true for hyper " + pk + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
+      text = "<b>You are about to set Only Forced to true for hyper " + escapeHtmlText(pk) + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
     } else {
-      text = "<b>You are about to set Only Forced to " + !data.only_forced + " for hyper " + pk + "!\nAre you sure?</b>"
+      text = "<b>You are about to set Only Forced to " + !data.only_forced + " for hyper " + escapeHtmlText(pk) + "!\nAre you sure?</b>"
     }
     new PNotify({
       title: "<b>WARNING</b>",
+      title_escape: false,
       type: "error",
       text: text,
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -1262,8 +1272,10 @@ function actionsHyperDetail() {
 
     new PNotify({
       title: "<b>WARNING</b>",
+      title_escape: false,
       type: "error",
       text: "<b>You are about to set Only GPU to " + !gpu_only + "!<br>Are you sure?</b>",
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -1318,8 +1330,10 @@ function actionsHyperDetail() {
     let change = data["orchestrator_managed"] ? "unmanaged" : "managed";
     new PNotify({
       title: "<b>WARNING</b>",
+      title_escape: false,
       type: "error",
       text: "<b>Do you want this hyper to be " + change + " by Orchestrator?</b>",
+      text_escape: false,
       hide: false,
       opacity: 0.9,
       confirm: {

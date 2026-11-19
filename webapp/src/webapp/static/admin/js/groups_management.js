@@ -36,7 +36,7 @@ $(document).ready(function() {
             },
             { "data": "name", className: "xe-name" },
             { "data": "parent_category_name", className: "xe-category" },
-            { "data": "description", className: "xe-description" },
+            { "data": "description", className: "xe-description", "render": $.fn.dataTable.render.text() },
             { "data": "linked_groups", className: "xe-linked_groups" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
             { "data": "id", "visible": false}
@@ -45,7 +45,7 @@ $(document).ready(function() {
             {
                 "targets": 1,
                 "render": function ( data, type, full, meta ) {
-                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchGroup='+ full.name +'">'+ full.name +'</a>'
+                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchGroup='+ escapeHtmlText(full.name) +'">'+ escapeHtmlText(full.name) +'</a>'
                 }
             },
             {
@@ -60,7 +60,7 @@ $(document).ready(function() {
                     var count = full.linked_groups_data ? full.linked_groups_data.length : 0;
                     if (count === 0) return '0';
                     var names = $.map(full.linked_groups_data, function(g) {
-                        return g.category_name + ' - ' + g.name;
+                        return escapeHtmlText(g.category_name + ' - ' + g.name);
                     });
                     names.sort();
                     return '<span data-toggle="tooltip" data-placement="top" title="' +
@@ -306,7 +306,7 @@ function renderGroupsDetailPannel ( d ) {
             $.each(d.linked_groups_data, function(i, group) {
                 linked_groups_names.push(group.category_name + ' - ' + group.name)
             })
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description).replace(/d.linked_groups/g, linked_groups_names);
+        return oldHtml.replace(/d.id/g, escapeHtmlText(d.id)).replace(/d.name/g, escapeHtmlText(d.name)).replace(/d.description/g, escapeHtmlText(d.description)).replace(/d.linked_groups/g, escapeHtmlText(linked_groups_names));
     });
     return $newPanel
 }
@@ -545,9 +545,9 @@ function actionsGroupDetail(){
                     $("#modalMigrateUsersGroup .group").append('<option value="null" disabled selected>--Please select a group--</option>');
                     for (var i in d[key]) {
                         if (key == 'group') {
-                            $("#modalMigrateUsersGroup ." + key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                            $("#modalMigrateUsersGroup ." + key).append($('<option>').val(value[i].id).attr('parent-category', value[i].parent_category).text(value[i].name));
                         } else {
-                            $("#modalMigrateUsersGroup ." + key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                            $("#modalMigrateUsersGroup ." + key).append($('<option>').val(value[i].id).text(value[i].name));
                         }
                     }
                 });
