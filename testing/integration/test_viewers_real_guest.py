@@ -105,6 +105,12 @@ def _registry_entry(admin_client: IsardClient, name: str):
 @pytest.fixture(scope="module")
 def test_image(admin_client: IsardClient, test_namespace: str):
     """Download the test image from the registry; yield its desktop id."""
+    # A pre-provisioned desktop (e.g. a pool-imported build not yet on the
+    # registry) is driven as-is, skipping the download and the teardown.
+    existing = os.environ.get("E2E_TEST_DESKTOP_ID")
+    if existing:
+        yield existing
+        return
     entry = _registry_entry(admin_client, IMAGE_NAME)
     if entry is None:
         pytest.skip(f"{IMAGE_NAME!r} not listed at the downloads registry")
@@ -137,7 +143,7 @@ def test_image(admin_client: IsardClient, test_namespace: str):
         desktop_id=desktop_id,
         client=admin_client.apiv4(),
         body=DesktopEditRequest(
-            name=f"{test_namespace}isard_test_v1", description="viewers real-guest"
+            name=f"{test_namespace}isard_test_v2", description="viewers real-guest"
         ),
     )
     admin_client.poll_desktop_status(
