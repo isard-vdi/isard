@@ -38,7 +38,16 @@ instead of the own kernel (larger, but no kernel compile); the default
 5. Runs **`xrdp` + `xorgxrdp`**, authenticating the default IsardVDI guest
    account, so the **RDP viewers** (file-rdpgw, file-rdpvpn, browser-rdp) work.
 
-## Credentials — PUBLIC TEST VALUES, not a secret
+## Validation
+
+Besides booting on every BIOS/UEFI × virtio/SATA combination, the image is
+exercised end to end by the project's own viewer tooling — the I+D RDP probe
+(direct X.224 to the guest's xrdp **and** the full RD-Gateway/MS-TSGU chain
+through rdpgw) and the per-viewer byte counters — and every viewer connects to
+the running desktop with a passing negative control: SPICE (first image), RDP
+over the VPN and through the gateway, browser RDP (Guacamole) and browser noVNC.
+It is therefore a real end-to-end fixture for the viewer tests that today rely
+on a fake in-process RDP guest.
 
 | user | password |
 |------|----------|
