@@ -354,6 +354,8 @@ class BackupLogParser:
         """
         end_idx = _last_index(log_lines, "BACKUP_SESSION_END:")
         start_idx = _last_index(log_lines, "BACKUP_SESSION_START:", up_to=end_idx)
+        if start_idx is not None:
+            start_idx = _first_coinciding_start(log_lines, start_idx)
 
         if end_idx is not None and start_idx is not None and start_idx < end_idx:
             return log_lines[start_idx : end_idx + 1]
@@ -645,7 +647,11 @@ class BackupLogParser:
                     info["backup_type"] = (
                         backup_type if backup_type in ("automated", "manual") else None
                     )
-                    info["backup_scope"] = scope if scope in VALID_SCOPES else None
+                    scope = scope if scope in VALID_SCOPES else None
+                    # Sessions started in the same pass report together as full.
+                    if "backup_scope" in info and info["backup_scope"] != scope:
+                        scope = "full"
+                    info["backup_scope"] = scope
             if "BACKUP_DISK_TYPES:" in line:
                 m = re.search(r"BACKUP_DISK_TYPES:\s*(.+)$", line)
                 if m and m.group(1).strip():
@@ -675,6 +681,19 @@ def _last_index(
         if needle in lines[i]:
             return i
     return None
+
+
+def _first_coinciding_start(lines: List[str], start_idx: int) -> int:
+    """Earliest SESSION_START opened in the same backupninja pass as start_idx."""
+    for i in range(start_idx - 1, -1, -1):
+        line = lines[i]
+        if "BACKUP_SESSION_START:" in line:
+            start_idx = i
+        elif "BACKUP_SESSION_END:" in line or "FINISHED:" in line:
+            break
+        elif ">>>> starting action" in line and "-session-start-" not in line:
+            break
+    return start_idx
 
 
 def _fallback_timestamp(actions: List[BackupAction]) -> Optional[datetime]:
