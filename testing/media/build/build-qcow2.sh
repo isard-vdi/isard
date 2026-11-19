@@ -1,26 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Rebuilds testing/media/isard-test.qcow2: the smallest practical bootable disk
-# image that, used as an IsardVDI desktop, exercises every viewer. It boots
-# unattended on BIOS and UEFI from a virtio or SATA disk, DHCPs every NIC (incl.
-# the isard-vpn wireguard overlay) and prints the leases to the serial and video
-# consoles, runs qemu-guest-agent, a tiny console X session (for the SPICE
-# viewer) and xrdp+xorgxrdp (for the RDP viewers). OS-backed companion of the
-# 564 KB iPXE isard-test.iso, which cannot do RDP (it is not an OS).
-#
+# Rebuilds testing/media/isard-test.qcow2 bit-reproducibly; see README-qcow2.md.
 #   docker run --rm --privileged -v "$PWD/testing/media:/w" alpine:3.24 sh /w/build/build-qcow2.sh
-#
-# The root is a read-only, compressed erofs; an in-image service overlays /etc
-# /var /home /root with tmpfs. The kernel is built from a pinned kernel.org
-# tarball with everything built in (no modules, no initramfs); set KERNEL_MODE=
-# virt to use Alpine's linux-virt + an initramfs instead. --privileged is only
-# for the loop fallback of the BIOS GRUB install. The Alpine mirror and
-# kernel.org are the only external sources.
-#
-# Reproducible: erofs is built deterministically (sorted, fixed -T/-U/--all-root),
-# the kernel build is pinned and timestamp-fixed, GRUB/qemu-img honour
-# SOURCE_DATE_EPOCH, and all ids are fixed -> two consecutive builds give the
-# same sha256. Package provenance (GPL) in the .packages.txt.
 set -eu
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -30,9 +11,7 @@ MIRROR="${MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 KERNEL_MODE="${KERNEL_MODE:-own}"              # own | virt
 KVER="${KVER:-6.18.64}"
 KSHA=020d45510c539972e6f14c5c71566878d3b7ef56fb082b3e09134f2ebaade562
-# All pinned apk package versions live in THIS block (with ALPINE_VER and KVER/
-# KSHA above). If a pin is gone from the mirror the build stops naming it; bump
-# it here and re-run the test matrix -- see README "Updating to a new version".
+# Every image package is pinned here; a pin gone from the mirror stops the build (README: updating).
 PV_ALPINE_BASE="alpine-base=3.24.4-r0"
 PV_FIRMWARE="linux-firmware-none=20260519-r0"
 PV_XORG_SERVER="xorg-server=21.1.26-r0"
@@ -44,6 +23,7 @@ PV_XTERM="xterm=410-r0"
 PV_FONT_MISC="font-misc-misc=1.1.3-r1"
 PV_XRDP="xrdp=0.10.6-r0"
 PV_XORGXRDP="xorgxrdp=0.10.5-r0"
+PV_OPENSSL="openssl=3.5.9-r1"                   # drifts (-r0->-r1 rebuilds); pin so the rootfs is reproducible
 PV_QEMU_GA="qemu-guest-agent=11.0.3-r0"
 PV_LINUX_VIRT="linux-virt=6.18.64-r0"          # KERNEL_MODE=virt only
 PV_MKINITFS="mkinitfs=3.14.1-r0"               # KERNEL_MODE=virt only
@@ -67,7 +47,7 @@ rm -rf "$ROOTDIR" "$WORK"; mkdir -p "$WORK"; : > "$SIZES"
 # ----------------------------------------------- builder from the branch ------
 printf '%s/%s/main\n%s/%s/community\n' "$MIRROR" "$ALPINE_BRANCH" "$MIRROR" "$ALPINE_BRANCH" > /etc/apk/repositories
 apk update -q
-apk add -q qemu-img grub grub-bios grub-efi dosfstools mtools sfdisk openssl kmod erofs-utils >/dev/null
+apk add -q qemu-img grub grub-bios grub-efi dosfstools mtools sfdisk openssl kmod erofs-utils losetup e2fsprogs >/dev/null
 GRUB_BIOS_SETUP="$(command -v grub-bios-setup || echo /usr/lib/grub/i386-pc/grub-bios-setup)"
 echo "ALPINE $ALPINE_VER  KERNEL_MODE=$KERNEL_MODE  KVER=$KVER  SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 
@@ -124,7 +104,7 @@ now=$(du -sk "$ROOTDIR"|cut -f1); printf '%-10s +%4d MiB  (total %4d MiB)\n' bas
 [ "$KERNEL_MODE" = virt ] && layer kernel $PV_LINUX_VIRT $PV_MKINITFS kmod
 layer xorg $PV_XORG_SERVER $PV_XF86_LIBINPUT $PV_XINIT $PV_SETXKBMAP $PV_XSETROOT
 layer term $PV_XTERM $PV_FONT_MISC
-layer rdp  $PV_XRDP $PV_XORGXRDP openssl
+layer rdp  $PV_XRDP $PV_XORGXRDP $PV_OPENSSL
 layer agent $PV_QEMU_GA
 
 # ------------------------------------------------ configure (in the chroot) ---
@@ -133,7 +113,7 @@ cp "$FILES/configure.sh" "$ROOTDIR/configure.sh"
 chroot "$ROOTDIR" /bin/sh /configure.sh "$HASH"
 rm -f "$ROOTDIR/configure.sh"
 
-# --------------------------------------------------- trim size (JM: minimum) --
+# ------------------------------------------------------------ trim size -------
 rm -rf "$ROOTDIR"/usr/share/man "$ROOTDIR"/usr/share/doc "$ROOTDIR"/usr/share/info \
        "$ROOTDIR"/usr/share/licenses "$ROOTDIR"/usr/share/locale "$ROOTDIR"/usr/share/vulkan 2>/dev/null || true
 # Drop the heavy llvm-backed gallium stack (unused by a 2D xterm; GLX disabled).
@@ -143,8 +123,7 @@ rm -f  "$ROOTDIR"/usr/lib/libLLVM.so* "$ROOTDIR"/usr/lib/libLLVM-* \
        "$ROOTDIR"/usr/lib/libxatracker*.so* "$ROOTDIR"/usr/lib/libSPIRV-Tools*.so* \
        "$ROOTDIR"/usr/lib/xorg/modules/libglamoregl.so 2>/dev/null || true
 rm -rf "$ROOTDIR"/usr/lib/dri "$ROOTDIR"/usr/lib/xorg/modules/dri 2>/dev/null || true
-# Keep both DDXs the sessions use: modesetting (console X on QXL) and xrdpdev
-# (xorgxrdp's RDP X); drop every other DDX. Deleting xrdpdev_drv.so breaks RDP.
+# modesetting (console X on QXL) and xrdpdev (RDP) must stay: without xrdpdev_drv.so RDP breaks.
 find "$ROOTDIR"/usr/lib/xorg/modules/drivers -name '*_drv.so' \
     ! -name 'modesetting_drv.so' ! -name 'xrdpdev_drv.so' -delete 2>/dev/null || true
 rm -f  "$ROOTDIR"/usr/lib/xorg/modules/extensions/libglx.so 2>/dev/null || true
@@ -154,11 +133,8 @@ glafter=$(du -sk "$ROOTDIR"|cut -f1)
 printf '%-10s -%4d MiB  (total %4d MiB)\n' trim "$(((glbefore-glafter+512)/1024))" "$(((glafter+512)/1024))" | tee -a "$SIZES"
 
 if [ "$KERNEL_MODE" = own ]; then
-    # Own kernel is fully built in: the image carries no kernel and no modules.
     rm -rf "$ROOTDIR"/lib/modules "$ROOTDIR"/boot 2>/dev/null || true
 else
-    # linux-virt: keep a whitelist of modules + an initramfs that mounts the
-    # erofs root (erofs + virtio + ata), load af_packet/qxl/etc. at boot.
     KV="$(basename "$(ls -d "$ROOTDIR"/lib/modules/* | head -1)")"
     printf 'features="base ata scsi virtio erofs"\n' > "$ROOTDIR/etc/mkinitfs/mkinitfs.conf"
     printf 'kernel/fs/erofs/erofs.ko*\n' > "$ROOTDIR/etc/mkinitfs/features.d/erofs.modules"
@@ -171,8 +147,6 @@ else
 fi
 
 # ------------------------------------------------------ root erofs (ro) -------
-# erofs is deterministic (sorted entries, fixed timestamp/uuid/owner) -> the
-# root fs is bit-reproducible. Pick the smaller of lzma/lz4hc.
 mkerofs() { mkfs.erofs -z"$1" -T "$SOURCE_DATE_EPOCH" -U "$ROOT_UUID" --all-root -C1048576 "$2" "$ROOTDIR" >/dev/null 2>&1; }
 if [ "$EROFS_COMP" = auto ]; then
     mkerofs lzma "$WORK/root.lzma.erofs" 2>/dev/null && L=$(stat -c %s "$WORK/root.lzma.erofs" 2>/dev/null || echo 0) || L=0
@@ -207,7 +181,6 @@ $INITRD_LINE
 EOF
 
 # ------------------------------------------------------ EFI system partition --
-# Holds GRUB (both platforms), its config and the kernel (+initramfs for virt).
 truncate -s "$(( P2_SIZE * SEC ))" "$WORK/esp.img"
 mkfs.fat -F 32 -n ISARDEFI --invariant "$WORK/esp.img" >/dev/null
 mmd -i "$WORK/esp.img" ::/EFI ::/EFI/BOOT ::/grub
@@ -228,9 +201,18 @@ start=$P3_START, size=$P3_SIZE, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=
 EOF
 dd if="$WORK/esp.img"   of="$RAW" bs=$SEC seek=$P2_START conv=notrunc status=none
 dd if="$WORK/root.erofs" of="$RAW" bs=$SEC seek=$P3_START conv=notrunc status=none
+# grub-bios-setup refuses a tmpfs/overlay target (and a loop of one); an ext4 loop stage gives the same bytes.
 if ! "$GRUB_BIOS_SETUP" -d "$WORK" -b boot.img -c core.img "$RAW" 2>"$WORK/biossetup.log"; then
-    echo "grub-bios-setup file mode failed, retrying via loop:"; cat "$WORK/biossetup.log"
-    LOOP="$(losetup -fP --show "$RAW")"; "$GRUB_BIOS_SETUP" -d "$WORK" -b boot.img -c core.img "$LOOP"; losetup -d "$LOOP"
+    EXTIMG="$WORK/grubstage.img"; EXTMNT="$WORK/grubstage"
+    truncate -s "$(( TOTAL_SEC * SEC + 48*1024*1024 ))" "$EXTIMG"
+    mkfs.ext4 -qF "$EXTIMG"; mkdir -p "$EXTMNT"
+    mount -o loop "$EXTIMG" "$EXTMNT" \
+        || { echo "FATAL: BIOS GRUB install needs a loop-ext4 stage (run with --privileged)"; cat "$WORK/biossetup.log"; exit 1; }
+    cp "$WORK/boot.img" "$WORK/core.img" "$RAW" "$EXTMNT/"
+    rc=0; "$GRUB_BIOS_SETUP" -d "$EXTMNT" -b boot.img -c core.img "$EXTMNT/disk.raw" || rc=$?
+    cp "$EXTMNT/disk.raw" "$RAW"
+    umount "$EXTMNT"; rm -rf "$EXTIMG" "$EXTMNT"
+    [ "$rc" = 0 ] || { echo "FATAL: BIOS GRUB install via loop-ext4 stage failed"; exit 1; }
 fi
 
 # ------------------------------------------------------------- to qcow2 -------

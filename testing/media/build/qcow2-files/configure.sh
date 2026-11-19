@@ -1,15 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# In-chroot configuration for the IsardVDI minimal test desktop image (Alpine,
-# read-only erofs root). Run by build-qcow2.sh inside the bootstrapped rootfs.
-# $1 is a pre-computed fixed-salt SHA-512 crypt hash for the isard account (the
-# password is the public test credential "pirineus"). Deterministic only: no
-# timestamps, no randomness, no network. Target shell is busybox ash.
-#
-# The root fs is read-only (erofs). An early service (isard-rw) overlays /etc,
-# /var, /home and /root with tmpfs so the running system can write there; / and
-# /usr stay read-only. /tmp and /dev/shm are tmpfs via fstab; /run is tmpfs via
-# OpenRC. Everything below therefore configures as if the root were writable.
+# In-chroot setup run by build-qcow2.sh; $1 is the fixed-salt crypt hash for isard.
+# Must stay deterministic: no timestamps, no randomness, no network.
 set -eu
 HASH="$1"
 
