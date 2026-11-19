@@ -25,6 +25,27 @@ for the E2E test `tests/webapp/frontend_mode_rules.spec.js`.
   the unit suite
   `component/apiv4/tests/routes/test_admin_frontend_mode_rules.py`.
 
+## Delivery
+
+The contract is delivered in two merge requests:
+
+| Part | Sections | Merge request |
+| --- | --- | --- |
+| Administration page | A | This one |
+| API contract and effect of the rule on the user | B, C | A later one |
+
+Requirements of the administration page and the scenarios that cover
+them:
+
+| Requirement | Scenarios |
+| --- | --- |
+| The table loads with the existing rules | A1 |
+| A rule can be created from the form | A2, A2b; validations in A3–A7 |
+| A rule can be edited | A11, A11b, A11c, A11d, A12, A12b |
+| Its alloweds can be modified | A13, A13b, A13c |
+| It can be deleted with confirmation | A9, A10 |
+| Every action shows in the table without reloading the page | A2, A2b, A9, A11, A11b, A11d, A13 |
+
 ## Context
 
 - **Template**: `webapp/src/webapp/templates/admin/pages/frontend_mode.html`
@@ -88,20 +109,21 @@ them, so they must not bounce back.
 | Element | Expected value |
 | --- | --- |
 | Admin | `authenticatedPage` / `apiv4Admin` (`admin_e2e_NN`) |
-| Non-admin | `managerE2EPage` (`manager_e2e_NN`), only for A14 |
+| Non-admin | `managerE2EPage` (`manager_e2e_NN`), only for A14. `@isAdmin` logs the Flask session out when it rejects the manager, so A14 re-bridges it (`bridgeAdminSession`) before finishing: the session is shared by the whole worker |
 | Target users | Dedicated accounts of the `fmre2e` category (see below), logged in on a fresh context per test |
 | Control user | `user_e2e_NN` (category `default`), never matched by a test rule |
 | Installation mode | Whatever `FRONTEND_MODE` the stack runs with (`all` in CI). Read at runtime from the control user's `get-config` and referred to below as **installation mode** |
 | Desktop scenarios | Hypervisor online, a template allowed to the target user and a `volatile` quota of at least 3 |
 
-### Seed data to add
+### Seed data
 
 A rule scoped to a category, group or role reaches every user in it, so
 those scenarios must never target the shared `default` category: a
 `deprecated` rule on it would redirect every other spec running in
-parallel. The scenarios need a dedicated category in
-`testing/src/isardvdi_testing/data/` (same approach as `qle2e`), **not
-present yet**:
+parallel. The scenarios use a dedicated category seeded in
+`testing/src/isardvdi_testing/data/` (same approach as `qle2e`). Nobody
+else logs in with these accounts, so section A can point its rules at
+them without changing the frontend of any running spec:
 
 | Item | Value | Used for |
 | --- | --- | --- |
@@ -110,11 +132,14 @@ present yet**:
 | `fmre2e-user-a` | role `user`, group A | Main target user |
 | `fmre2e-user-b` | role `user`, group B | Same category, other group |
 | `fmre2e-advanced` | role `advanced`, group A | Role-scoped rules |
-| `fmre2e-manager` | role `manager`, group A | Planning page under `actual` (C7b) |
+| `fmre2e-manager` | role `manager`, group A | Planning page under `actual` (C7b); not used by section A |
 | Template | `template-test-001` shared with the category | Temporary desktops |
 
-The accounts and the category also need their entries in
-`fixtures/login.js` (`users`, `categories`).
+The ids equal the usernames and the password is the one of the other
+e2e accounts. The alloweds selectors search by display name, hence the
+names above. Still pending, with section C: the template share and the
+entries of the accounts and the category in `fixtures/login.js`
+(`users`, `categories`).
 
 ## Common data
 
@@ -134,7 +159,7 @@ that `all` can only come from the rule under test.
 
 ## Fixtures (SDK)
 
-New module `fixtures/apiv4/frontendModeRules.js`, exported from
+Module `fixtures/apiv4/frontendModeRules.js`, exported from
 `fixtures/apiv4/index.js`. It uses the generated SDK
 (`src/gen/apiv4/sdk.gen`), which exposes the rule operations as
 `getAllFrontendModeRules`, `getFrontendModeRule`,
@@ -147,12 +172,13 @@ to get them.
 | --- | --- |
 | `registerResource('frontend-mode-rule-id', …)` | Registers the deleter (`deleteFrontendModeRule`) so `cleanupTrackedResources(apiv4Admin, testInfo)` removes tracked rules in `afterEach`, even when assertions fail. Order before desktops |
 | `nextFrontendModeRulePriority(client)` | Returns a free priority above every existing rule (`max(priority) + 1`, starting at `1_000_000`), so test rules outrank any rule already in the stack |
-| `createFrontendModeRuleAndTrack(client, testInfo, overrides)` | Creates a rule with default name/priority and tracks it. `POST` answers `204` with no body, so the id is resolved by listing the rules and matching the unique name. Returns the stored rule |
+| `listFrontendModeRules(client)` | Returns the `rules` array of the list endpoint |
+| `createFrontendModeRuleAndTrack(client, testInfo, overrides)` | Creates a rule with default name/priority and tracks it. `POST` answers `204` with no body, so the id is resolved by listing the rules and matching the name and the (unique) priority. Returns the stored rule |
 | `findFrontendModeRuleByName(client, name)` | Looks a rule up in the list; used to track rules created through the UI |
 | `updateFrontendModeRule(client, id, body)` | Thin wrapper over the SDK `PUT` |
 | `setFrontendModeRuleAllowed(client, id, allowed)` | Replaces the alloweds through `adminAllowedUpdate` (`table: 'frontend_mode_rules'`), the same endpoint the dialog uses. Already in the generated SDK |
 | `getFrontendModeRuleAllowed(client, id)` | Reads the alloweds enriched with names through `allowedTable`, as the dialog does. Already in the generated SDK |
-| `purgeE2eFrontendModeRules(client)` | Deletes every rule whose name starts with `e2e-fmr-`. Run in `beforeAll` to recover from an aborted run |
+| `purgeE2eFrontendModeRules(client)` | Deletes every rule whose name starts with `e2e-fmr-` (`E2E_FRONTEND_MODE_RULE_PREFIX`). Run in `beforeAll` to recover from an aborted run |
 | `waitForFrontendMode(client, expected, { timeoutMs = 65000 })` | Polls `getUserConfig` with the **target user's** client until `frontend_mode` equals `expected` |
 
 Safety guard: `createFrontendModeRuleAndTrack`, `updateFrontendModeRule`
@@ -171,6 +197,19 @@ Rules created through the UI are tracked with
   timeout to 120 s.
 - A target user logs in on a **new browser context** per test, so
   `localStorage.preferredFrontend` starts empty.
+- *Without reloading the page*: after the first load the test sets a
+  marker on `window` and asserts it is still there once the table shows
+  the change. Checked in A2, A2b, A9, A11, A11b, A11d and A13. The table
+  has no alloweds column, so for A13 the change shows when the dialog is
+  reopened on the same page load.
+
+## Implementation status
+
+| Section | Spec file | Status |
+| --- | --- | --- |
+| A | `tests/webapp/frontend_mode_rules.spec.js` | ✅ every scenario automated; A8b is `test.fail` (see *Known issues*, point 1) |
+| B | — | ⏳ later merge request |
+| C | — | ⏳ later merge request |
 
 ---
 
@@ -219,10 +258,27 @@ Rules created through the UI are tracked with
 
 1. `POST /api/v4/item/frontend-mode-rule` responds with `204`.
 2. The dialog closes, the notification *Rule added successfully* appears
-   and the table reloads with the new row.
+   and the table reloads with the new row, without reloading the page.
 3. Queried through the SDK, the rule has the typed name, description,
    mode and priority, a server-generated `id`, and
    `allowed = { users: [<id>], groups: false, categories: false, roles: false }`.
+4. The new row shows the typed values and, having the highest priority,
+   is the first row of the table.
+
+### Scenario A2b — *a rule with only the required fields matches nobody*
+
+#### When
+
+1. The administrator opens the dialog, fills only **Name**, **Frontend
+   mode** and **Priority**, leaves every **Applies to** dimension
+   unchecked and presses **Add rule**.
+
+#### Then
+
+1. `POST /api/v4/item/frontend-mode-rule` responds with `204`.
+2. The rule is stored with `description = ""` and every `allowed`
+   dimension `false` (never `[]`, which would match every user).
+3. The row appears with an empty description, without reloading the page.
 
 ### Scenario A3 — *the frontend mode selector offers the four modes*
 
@@ -304,7 +360,8 @@ Rules created through the UI are tracked with
 
 #### Given
 
-1. A rule named `<img src=x onerror=alert(1)>` exists (SDK).
+1. A rule named `e2e-fmr-<img src=x onerror=alert(1)>` exists (SDK); the
+   prefix keeps it purgeable.
 
 #### When
 
@@ -319,7 +376,9 @@ Rules created through the UI are tracked with
    literally.
 3. No `<img>` element is injected and no browser dialog is raised.
 
-> See *Known issues*, point 1: assertion 2 is expected to fail today.
+> Automated as two tests: **A8** (assertions 1 and 3 on the table and
+> the confirmation) and **A8b** (assertion 2), which is `test.fail` —
+> see *Known issues*, point 1.
 
 ### Scenario A9 — *admin deletes a rule with confirmation*
 
@@ -338,7 +397,7 @@ Rules created through the UI are tracked with
 
 1. `DELETE /api/v4/item/frontend-mode-rule/{id}` responds with `204`.
 2. The notification *Rule "…" deleted successfully* appears and the row
-   disappears.
+   disappears, without reloading the page.
 3. `GET /api/v4/item/frontend-mode-rule/{id}` responds with `404`.
 4. The other rules are still listed.
 
@@ -504,7 +563,10 @@ Rules created through the UI are tracked with
 4. In the API the rule has `users: [fmre2e-user-a]`,
    `groups: [fmre2e-group-b]`, `categories: false`, `roles: false`; name,
    description, mode and priority are unchanged.
-5. Reopening the dialog shows both selections.
+5. Reopening the dialog, without reloading the page, shows both
+   selections.
+6. The row of the rule is still listed with the same name, mode and
+   priority.
 
 ### Scenario A13b — *unchecking a dimension stores it as `false`*
 
@@ -521,7 +583,8 @@ Rules created through the UI are tracked with
 #### Then
 
 1. The rule has `groups: false` and still `users: [fmre2e-user-a]`.
-2. Reopening the dialog shows **Set groups** unchecked.
+2. Reopening the dialog, without reloading the page, shows **Set
+   groups** unchecked.
 
 ### Scenario A13c — *closing the alloweds dialog without saving changes nothing*
 
@@ -546,8 +609,12 @@ Rules created through the UI are tracked with
 
 #### Then
 
-1. The page is not rendered: `#frontend-mode-rules-table` is absent.
+1. The page is not rendered: `#frontend-mode-rules-table` and the
+   **Add rule** button are absent and the rules are not requested.
 2. The sidebar of the manager has no **Frontend** entry.
+
+> The sidebar is checked first: the rejected navigation logs the
+> manager's Flask session out (see *Common roles and prerequisites*).
 
 ---
 
@@ -844,12 +911,16 @@ target user is `fmre2e-user-a`.
 ## Cleanup (afterEach)
 
 - `cleanupTrackedResources(apiv4Admin, testInfo)` deletes every tracked
-  rule and temporary desktop, even when assertions fail.
-- Target users' browser contexts are closed.
+  rule, even when assertions fail; in section C also the temporary
+  desktops.
+- Section C: target users' browser contexts are closed.
 - `beforeAll` runs `purgeE2eFrontendModeRules`; `afterAll` asserts that no
   `e2e-fmr-` rule is left.
 
 ## Traceability with the project acceptance cases
+
+Only CE-07 is covered by the administration page; the other cases belong
+to section C and arrive with the later merge request.
 
 | Case | Scenario(s) | Automation |
 | --- | --- | --- |
@@ -903,8 +974,9 @@ of the remaining modes.
 1. **The alloweds dialog renders the rule name as HTML** (from reading
    the code, to confirm on a stack): the shared `modalAllowedsFormShow`
    sets `#alloweds_name` with `.html(data.name)`, so a rule name with
-   markup is injected into the dialog title. Assertion 2 of A8 is marked
-   `test.fail` until the shared snippet escapes the name.
+   markup is injected into the dialog title. A8b is marked `test.fail`
+   until the shared snippet escapes the name; it will then report an
+   unexpected pass and the mark must be removed.
 2. **Empty alloweds list**: checking a dimension in the add or the
    alloweds dialog without
    selecting any value sends `[]`, which applies the rule to every user.

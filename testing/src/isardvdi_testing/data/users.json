@@ -4050,8 +4050,7 @@
                 "remote_port": null
             }
         }
-    }
-    ,
+    },
     {
         "accessed": 1754483418,
         "active": true,
@@ -4080,5 +4079,177 @@
         "uid": "advanced_parity",
         "username": "advanced_parity",
         "vpn": false
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "fmre2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "fmre2e-group-a",
+        "id": "fmre2e-user-a",
+        "lang": "es",
+        "name": "FMR E2E User A",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "fmre2e-user-a_1754484618",
+        "uid": "fmre2e-user-a",
+        "username": "fmre2e-user-a",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.99",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "fmre2eUserAPrivKeyplaceholder00000000000000=",
+                    "public": "fmre2eUserAPubKeyplaceholder000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "fmre2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "fmre2e-group-b",
+        "id": "fmre2e-user-b",
+        "lang": "es",
+        "name": "FMR E2E User B",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "fmre2e-user-b_1754484618",
+        "uid": "fmre2e-user-b",
+        "username": "fmre2e-user-b",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.100",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "fmre2eUserBPrivKeyplaceholder00000000000000=",
+                    "public": "fmre2eUserBPubKeyplaceholder000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "fmre2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "fmre2e-group-a",
+        "id": "fmre2e-advanced",
+        "lang": "es",
+        "name": "FMR E2E Advanced",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "advanced",
+        "secondary_groups": [],
+        "start_logs_id": "fmre2e-advanced_1754484618",
+        "uid": "fmre2e-advanced",
+        "username": "fmre2e-advanced",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.101",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "fmre2eAdv00PrivKeyplaceholder00000000000000=",
+                    "public": "fmre2eAdv00PubKeyplaceholder000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "fmre2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "fmre2e-group-a",
+        "id": "fmre2e-manager",
+        "lang": "es",
+        "name": "FMR E2E Manager",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "start_logs_id": "fmre2e-manager_1754484618",
+        "uid": "fmre2e-manager",
+        "username": "fmre2e-manager",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.102",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "fmre2eMgr00PrivKeyplaceholder00000000000000=",
+                    "public": "fmre2eMgr00PubKeyplaceholder000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
     }
 ]

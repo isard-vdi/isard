@@ -195,5 +195,41 @@
         "parent_category": "qle2e",
         "quota": false,
         "uid": "QL E2E Mgr Home"
+    },
+    {
+        "auto": false,
+        "description": "[FrontendModeRules E2E] group A, target of group-scoped rules",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "fmre2e-group-a",
+        "limits": false,
+        "linked_groups": [],
+        "name": "FMR E2E Group A",
+        "parent_category": "fmre2e",
+        "quota": false,
+        "uid": "FMR E2E Group A"
+    },
+    {
+        "auto": false,
+        "description": "[FrontendModeRules E2E] group B, target of group-scoped rules",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "fmre2e-group-b",
+        "limits": false,
+        "linked_groups": [],
+        "name": "FMR E2E Group B",
+        "parent_category": "fmre2e",
+        "quota": false,
+        "uid": "FMR E2E Group B"
     }
 ]
