@@ -74,6 +74,13 @@ DEFAULT_ADMIN_ID = "local-default-admin-admin"
 _DEFAULT_ADMIN_IDENTITY_FIELDS = ("uid", "provider", "username", "category", "group")
 
 
+def _frontend_mode_inputs_changed(user: dict, data: dict) -> bool:
+    return any(
+        data.get(field) and data[field] != user.get(field)
+        for field in ("role", "group")
+    )
+
+
 class UsersProcessed(RethinkSharedConnection):
 
     _rdb_table = "users"
@@ -1489,6 +1496,15 @@ class UsersProcessed(RethinkSharedConnection):
             # second revoke to ensure changes are applied if the user logs in again during the update
             revoke_user_session(user_id)
 
+        cls._enforce_single_temporal_per_template(
+            [
+                user_id
+                for user_id in user_ids
+                if user_id in users_by_id
+                and _frontend_mode_inputs_changed(users_by_id[user_id], data)
+            ]
+        )
+
         if payload:
             notify_admin(
                 payload["user_id"],
@@ -1651,9 +1667,35 @@ class UsersProcessed(RethinkSharedConnection):
                 user["id"],
                 data["group"],
             )
+        if _frontend_mode_inputs_changed(user, data):
+            cls._enforce_single_temporal_per_template([user_id])
         # second revoke to ensure changes are applied if the user logs in again during the update
         if revoke:
             revoke_user_session(user_id)
+
+    @classmethod
+    def _enforce_single_temporal_per_template(cls, user_ids: list[str]) -> None:
+        """A new role or group can take these users off the ``actual`` frontend
+        mode, which alone allows several temporals per template.
+        TODO(old-frontend-removal): goes with the one-per-template rule."""
+        if not user_ids:
+            return
+        # Imported here: most importers of this module never touch desktops.
+        from ....lib.domains.desktops.desktops_nonpersistent import (
+            DesktopsNonpersistentProcessed,
+        )
+
+        try:
+            DesktopsNonpersistentProcessed.enforce_single_temporal_per_template(
+                user_ids
+            )
+        except Exception:
+            # The update itself went through; the next temporal start collapses them.
+            logger.warning(
+                "Could not enforce one temporal desktop per template for users %s",
+                user_ids,
+                exc_info=True,
+            )
 
     @classmethod
     def delete_user(cls, user_id, agent_id, delete_user):

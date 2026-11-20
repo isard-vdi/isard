@@ -9,7 +9,7 @@ import pytest
 from isardvdi_common.helpers.caches import Caches
 from rethinkdb import r
 from rethinkdb_mock import MockThink
-from tests.routes.helpers import MockJWT
+from tests.routes.helpers import MockJWT, create_indexes
 
 URL = "/items/frontend-mode-rules"
 CREATE_URL = "/item/frontend-mode-rule"
@@ -84,11 +84,17 @@ def test_non_admin_roles_cannot_list_rules(monkeypatch, test_client, role_id):
 def rules_conn():
     tables = {
         "config": [{"id": 1, "maintenance": False}],
-        "categories": [{"id": "default"}],
+        "categories": [{"id": "default", "name": "Default"}],
         "frontend_mode_rules": [],
+        # What the temporal cleanup each rule change schedules reads.
+        "domains": [],
+        "groups": [{"id": "default-default", "name": "Default"}],
+        "roles": [{"id": "user", "name": "User"}],
+        "users": [],
     }
     mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
     with mock_db.connect() as conn:
+        create_indexes({"domains": []}, conn)
         yield conn
 
 
@@ -458,3 +464,138 @@ def test_cached_rules_drop_a_deleted_rule(delete_rule, rules_conn):
     delete_rule("rule-1")
 
     assert [r["id"] for r in Caches.get_cached_frontend_mode_rules()] == ["rule-2"]
+
+
+# ─── Leaving ``actual`` deletes the temporals of a template held twice ──
+# TODO(old-frontend-removal): the whole section goes with that rule.
+
+
+def _seed_user_with_temporals(conn):
+    """``u-1`` holds two temporals of ``t-1``, one of ``t-2`` and a persistent
+    desktop of ``t-1``."""
+    r.table("users").insert(
+        {
+            "id": "u-1",
+            "provider": "local",
+            "name": "User One",
+            "uid": "u1",
+            "username": "u1",
+            "role": "user",
+            "category": "default",
+            "group": "default-default",
+        }
+    ).run(conn)
+    r.table("domains").insert(
+        [
+            _desktop("d-1", "t-1", persistent=False),
+            _desktop("d-2", "t-1", persistent=False),
+            _desktop("d-3", "t-2", persistent=False),
+            _desktop("d-4", "t-1", persistent=True),
+        ]
+    ).run(conn)
+
+
+def _desktop(desktop_id, template_id, persistent):
+    return {
+        "id": desktop_id,
+        "kind": "desktop",
+        "user": "u-1",
+        "from_template": template_id,
+        "persistent": persistent,
+        "status": "Started",
+    }
+
+
+@pytest.fixture
+def deleted(monkeypatch):
+    """The (user, template) pairs whose temporals the cleanup deletes.
+
+    rethinkdb_mock can't run the delete itself (``get_field`` over a
+    selection), and it is covered on its own."""
+    pairs = []
+    monkeypatch.setattr(
+        "isardvdi_common.lib.domains.desktops.desktops_nonpersistent"
+        ".DesktopNonpersistentEvents.desktops_non_persistent_delete",
+        classmethod(lambda cls, user_id, template: pairs.append((user_id, template))),
+    )
+    return pairs
+
+
+_USER_ONE_ONLY = {**NO_ALLOWED, "users": ["u-1"]}
+
+
+@pytest.mark.clear_cache
+def test_deleting_the_rule_keeping_a_user_on_actual_deletes_their_extra_temporals(
+    monkeypatch, delete_rule, rules_conn, deleted
+):
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _seed(rules_conn, {**_rule("rule-1", 1, "actual"), "allowed": _USER_ONE_ONLY})
+    _seed_user_with_temporals(rules_conn)
+
+    response = delete_rule("rule-1")
+
+    assert response.status_code == 204
+    assert deleted == [("u-1", "t-1")]
+
+
+@pytest.mark.clear_cache
+def test_editing_a_rule_off_actual_deletes_the_extra_temporals(
+    monkeypatch, put_rule, rules_conn, deleted
+):
+    monkeypatch.setenv("FRONTEND_MODE", "actual")
+    _seed(rules_conn, {**_rule("rule-1", 1, "actual"), "allowed": _USER_ONE_ONLY})
+    _seed_user_with_temporals(rules_conn)
+
+    response = put_rule("rule-1", {"frontend_mode": "deprecated"})
+
+    assert response.status_code == 204
+    assert deleted == [("u-1", "t-1")]
+
+
+@pytest.mark.clear_cache
+def test_a_higher_rule_off_actual_deletes_the_extra_temporals(
+    monkeypatch, post_rule, rules_conn, deleted
+):
+    monkeypatch.setenv("FRONTEND_MODE", "actual")
+    _seed_user_with_temporals(rules_conn)
+
+    response = post_rule(
+        _create_body(priority=10, frontend_mode="hidden", allowed=_USER_ONE_ONLY)
+    )
+
+    assert response.status_code == 204
+    assert deleted == [("u-1", "t-1")]
+
+
+@pytest.mark.clear_cache
+def test_a_rule_change_that_leaves_the_user_on_actual_deletes_nothing(
+    monkeypatch, post_rule, rules_conn, deleted
+):
+    monkeypatch.setenv("FRONTEND_MODE", "actual")
+    _seed_user_with_temporals(rules_conn)
+
+    response = post_rule(
+        _create_body(
+            frontend_mode="deprecated",
+            allowed={**NO_ALLOWED, "users": ["someone-else"]},
+        )
+    )
+
+    assert response.status_code == 204
+    assert deleted == []
+
+
+@pytest.mark.clear_cache
+def test_a_refused_rule_change_deletes_nothing(
+    monkeypatch, post_rule, rules_conn, deleted
+):
+    """Even a user already off ``actual`` keeps their temporals until a rule
+    actually changes."""
+    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _seed(rules_conn, _rule("rule-1", 1, "deprecated"))
+    _seed_user_with_temporals(rules_conn)
+
+    response = post_rule(_create_body(priority=1))
+
+    assert response.status_code == 409
+    assert deleted == []

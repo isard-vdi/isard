@@ -445,6 +445,47 @@ class TestAlloweds_BastionBackgroundTask:
         assert cleanup_calls == ["ran"]
 
 
+class TestAlloweds_FrontendModeRulesTemporalCleanup:
+    """A rule's new alloweds can take users off the ``actual`` frontend mode,
+    so the temporals they hold beyond one per template must go."""
+
+    @staticmethod
+    def _update(monkeypatch, table):
+        import asyncio
+
+        from api.services.admin.alloweds import AdminAllowedsService
+        from fastapi import BackgroundTasks
+
+        sweeps = []
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Alloweds.update_item_allowed_dict",
+            classmethod(lambda cls, table, item_id, allowed: None),
+        )
+        monkeypatch.setattr(
+            "api.services.admin.frontend_mode_rules.CommonDesktopsNonpersistent"
+            ".enforce_single_temporal_per_template",
+            classmethod(lambda cls, user_ids=None: sweeps.append(user_ids)),
+        )
+        bt = BackgroundTasks()
+
+        AdminAllowedsService.update_allowed(
+            table,
+            {"id": "item-1", "allowed": {"users": ["u-1"]}},
+            {"role_id": "admin"},
+            bt,
+        )
+        asyncio.run(bt())
+        return sweeps
+
+    def test_frontend_mode_rules_alloweds_sweep_every_user_after_the_response(
+        self, monkeypatch
+    ):
+        assert self._update(monkeypatch, "frontend_mode_rules") == [None]
+
+    def test_other_alloweds_do_not_sweep_the_temporals(self, monkeypatch):
+        assert self._update(monkeypatch, "qos_disk") == []
+
+
 # ══════════════════════════════════════════════════════════════════════════
 #  Ownership guard — _authorize_table_item (IDOR fix)
 # ══════════════════════════════════════════════════════════════════════════
