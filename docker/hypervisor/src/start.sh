@@ -386,8 +386,11 @@ do
     if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
         ping -c 1 $WG_HYPERS_GW >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
-            /isard/bin/wg-quick down wg0  >/dev/null 2>&1
-            /isard/bin/wg-quick up wg0  >/dev/null 2>&1
+            # a stale wg0 never recovers from down/up with the same file
+            isardvdi-hypervisor-vpnc --once >/dev/null 2>&1 || {
+                /isard/bin/wg-quick down wg0  >/dev/null 2>&1
+                /isard/bin/wg-quick up wg0  >/dev/null 2>&1
+            }
         fi
     elif [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "geneve" ]; then
         /src/ovs/geneve-tunnel.sh ensure >/dev/null
