@@ -270,7 +270,8 @@
       "modal": {
         "title": "Llave API",
         "alert": {
-          "expired": "Tu antigua llave API ha caducado. Necesitarás generar una nueva para seguir utilizando la API de IsardVDI con aplicaciones externas. Puedes generar una nueva a continuación."
+          "expired": "Tu antigua llave API ha caducado. Necesitarás generar una nueva para seguir utilizando la API de IsardVDI con aplicaciones externas. Puedes generar una nueva a continuación.",
+          "regenerated": "La llave API se ha eliminado. Debajo puedes copiar la nueva."
         },
         "new-key": {
           "title": "Generar una nueva llave API",
