@@ -207,7 +207,7 @@ Rules created through the UI are tracked with
 
 | Section | Spec file | Status |
 | --- | --- | --- |
-| A | `tests/webapp/frontend_mode_rules.spec.js` | ✅ every scenario automated; A8b is `test.fail` (see *Known issues*, point 1) |
+| A | `tests/webapp/frontend_mode_rules.spec.js` | ✅ every scenario automated |
 | B | — | ⏳ later merge request |
 | C | — | ⏳ later merge request |
 
@@ -377,8 +377,7 @@ Rules created through the UI are tracked with
 3. No `<img>` element is injected and no browser dialog is raised.
 
 > Automated as two tests: **A8** (assertions 1 and 3 on the table and
-> the confirmation) and **A8b** (assertion 2), which is `test.fail` —
-> see *Known issues*, point 1.
+> the confirmation) and **A8b** (assertion 2).
 
 ### Scenario A9 — *admin deletes a rule with confirmation*
 
@@ -971,18 +970,12 @@ of the remaining modes.
 
 ## Known issues / cases not covered
 
-1. **The alloweds dialog renders the rule name as HTML** (from reading
-   the code, to confirm on a stack): the shared `modalAllowedsFormShow`
-   sets `#alloweds_name` with `.html(data.name)`, so a rule name with
-   markup is injected into the dialog title. A8b is marked `test.fail`
-   until the shared snippet escapes the name; it will then report an
-   unexpected pass and the mark must be removed.
-2. **Empty alloweds list**: checking a dimension in the add or the
+1. **Empty alloweds list**: checking a dimension in the add or the
    alloweds dialog without
    selecting any value sends `[]`, which applies the rule to every user.
    It is not automated because it would change the frontend of every
    parallel spec; it stays a manual check on an isolated stack.
-3. **Cache across processes**: the cache is cleared in the process that
+2. **Cache across processes**: the cache is cleared in the process that
    handles the write (rule endpoints and alloweds update alike);
    assertions always poll up to 60 s instead of
    assuming an immediate change.

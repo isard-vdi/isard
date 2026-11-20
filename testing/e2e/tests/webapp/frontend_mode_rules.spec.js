@@ -598,10 +598,6 @@ test.describe('Config — Frontend mode rules (admin webapp)', () => {
       authenticatedPage: page,
       apiv4Admin,
     }, testInfo) => {
-      // Known issue 1: modalAllowedsFormShow sets #alloweds_name with
-      // .html(data.name), so the markup is injected into the dialog title.
-      test.fail(true, 'the shared alloweds dialog renders the rule name as HTML')
-
       const { rule, dialogs } = await createHtmlRule(page, apiv4Admin, testInfo)
       const { modal } = await openAllowedsDialog(page, rule.id)
 
