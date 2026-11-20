@@ -31,6 +31,14 @@ def wgtools_module():
     return wgtools
 
 
+@pytest.fixture(autouse=True)
+def _clear_generated_peers():
+    """The generated-peer registry is module-level; keep it out of other tests."""
+    getattr(wgtools, "_GENERATED_PEERS", {}).clear()
+    yield
+    getattr(wgtools, "_GENERATED_PEERS", {}).clear()
+
+
 class FakeIptables:
     """A FORWARD chain that answers like netfilter does, as ``check_output``.
 

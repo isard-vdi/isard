@@ -27,6 +27,9 @@ GUESTS_GW = str(
     ]
 )
 
+# Generated peers per interface, module-level so they survive wgadmin rebuilding Wg.
+_GENERATED_PEERS: dict = {}
+
 
 class WgQuickError(RuntimeError):
     def __init__(self, interface, returncode, stderr):
@@ -157,6 +160,33 @@ class Wg(object):
         if isinstance(peer, BaseModel):
             return peer.model_dump()
         return peer
+
+    @property
+    def _generated_peers(self):
+        """``{row id: public}`` this process generated in init_peers for this interface."""
+        return _GENERATED_PEERS.setdefault(self.interface, {})
+
+    @staticmethod
+    def _peer_public(peer):
+        """A peer dict's wireguard public key, or None if it has no usable one."""
+        if not isinstance(peer, dict):
+            return None
+        keys = ((peer.get("vpn") or {}).get("wireguard") or {}).get("keys")
+        if isinstance(keys, dict) and keys.get("public"):
+            return keys["public"]
+        return None
+
+    def _release_reserved_ip(self, peer):
+        """Return a generated-but-unused client address to the free pool."""
+        address = ((peer.get("vpn") or {}).get("wireguard") or {}).get("Address")
+        if address:
+            self.clients_reserved_ips.discard(address)
+
+    def _register_generated(self, peer):
+        """Record a peer this process just generated, so add_peer can adopt it."""
+        public = self._peer_public(peer)
+        if public:
+            self._generated_peers[peer["id"]] = public
 
     def __init__(
         self,
@@ -540,9 +570,11 @@ class Wg(object):
                 # No wireguard subtree to keep: there is no Address to preserve.
                 new_peer = self.gen_new_peer(peer)
                 create_peers.append(new_peer)
+                self._register_generated(new_peer)
             elif new_peer == False and not wg.get("keys"):
                 # reset_vpn() sets keys=False to request a rotation: rebuild
                 # them here, keeping the assigned Address.
+                # Not registered: the reset path's down_peer clears it first.
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
@@ -613,6 +645,7 @@ class Wg(object):
                         peer, extra_client_nets=extra_client_nets
                     )
                     create_peers.append(new_peer)
+                    self._register_generated(new_peer)
                 remotevpn_to_up.append(peer if new_peer == False else new_peer)
                 if len(create_peers) >= self._INIT_PEERS_BATCH:
                     inserted += len(create_peers)
@@ -910,60 +943,57 @@ class Wg(object):
 
     def add_peer(self, peer, table=False):
         peer = self._to_dict(peer)
+        if table == False:
+            table = self.table
+        peer_id = peer["id"]
+        registered = self._generated_peers.pop(peer_id, None)
+        if registered is not None:
+            # init_peers generated this; the changefeed may already hold it, so adopt it.
+            with vpn_rethink_conn() as conn:
+                row = r.table(table).get(peer_id).run(conn)
+            if row and self._peer_public(row) == registered:
+                self.up_peer(row)
+                if table == "remotevpn":
+                    with vpn_rethink_conn() as conn:
+                        r.table(table).get(peer_id).replace(r.row.without("nets")).run(
+                            conn
+                        )
+                return
         nets = peer.get("nets", "")
         if nets:
             extra_client_nets = nets
         else:
             extra_client_nets = None
         new_peer = self.gen_new_peer(peer, extra_client_nets=extra_client_nets)
+        with vpn_rethink_conn() as conn:
+            # update, not insert: never recreate a row deleted meanwhile.
+            written = r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
+        if written.get("skipped"):
+            # Row vanished before we claimed it; nothing reached the interface.
+            self._release_reserved_ip(new_peer)
+            log.warning(
+                "add_peer: %s no longer exists in %s; nothing added", peer_id, table
+            )
+            return
         if self.up_peer(new_peer) == True:
-            # if self.table=='users':
-            #    self.uipt.add_user(peer["id"],new_peer['vpn']['wireguard']['Address'])
-            if table == False:
-                table = self.table
-            with vpn_rethink_conn() as conn:
-                # update, not insert: up_peer() shells out, so the row can be
-                # deleted before we get here and an upsert would recreate it.
-                written = r.table(table).get(new_peer["id"]).update(new_peer).run(conn)
-                if written.get("skipped"):
-                    # The row is gone and up_peer() already put the peer on the
-                    # interface: leaving it there orphans it until a restart.
-                    log.warning(
-                        "add_peer: %s no longer exists in %s; removing the peer "
-                        "just added to %s instead of resurrecting the row",
-                        new_peer["id"],
-                        table,
-                        self.interface,
-                    )
-                    try:
-                        self.down_peer(new_peer, table)
-                    except Exception:
-                        log.exception(
-                            "add_peer: could not remove the peer for the vanished "
-                            "row %s; it is now orphaned on %s",
-                            new_peer["id"],
-                            self.interface,
-                        )
-                    return
-                if table == "remotevpn":
+            if table == "remotevpn":
+                with vpn_rethink_conn() as conn:
                     r.table(table).get(new_peer["id"]).replace(
                         r.row.without("nets")
                     ).run(conn)
         else:
             log.error("Error adding peer: " + peer["id"])
             try:
-                self.down_peer(peer, table)
+                self.down_peer(new_peer, table)
             except:
                 log.error("Error removing failed peer: " + peer["id"])
-        # else:
-        #     if table == False:
-        #         table = self.table
-        #     r.table(table).get(new_peer["id"]).delete().run()
 
     def down_peer(self, peer, table=False):
         peer = self._to_dict(peer)
         if table == False:
             table = self.table
+        # Drop any pending adoption registration: this row is being torn down.
+        self._generated_peers.pop(peer.get("id"), None)
         torn_down = getattr(self, "_torn_down_while_draining", None)
         if torn_down is not None and peer.get("id"):
             torn_down.add(peer["id"])

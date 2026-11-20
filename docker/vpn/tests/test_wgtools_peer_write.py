@@ -19,12 +19,13 @@ def test_add_peer_updates_and_never_inserts(wgtools_module):
     """``add_peer`` writes through ``get(id).update(...)``, not an upsert."""
     wg = wgtools_module.Wg.__new__(wgtools_module.Wg)
     wg.table = "users"
+    wg.interface = "users"
     wg.allowed_client_nets = "10.2.0.0/16"
 
     calls = {"update": 0, "insert": 0, "got": []}
 
     class _Row:
-        def update(self, doc):
+        def update(self, doc, return_changes=None):
             calls["update"] += 1
             return self
 
@@ -65,14 +66,8 @@ def test_add_peer_updates_and_never_inserts(wgtools_module):
     assert calls["got"] == ["gone-user"]
 
 
-def test_add_peer_takes_the_peer_back_off_when_the_row_is_gone(wgtools_module):
-    """update alone is not enough: the peer is already on the interface.
-
-    up_peer() runs before the write, so a write that skips a missing row leaves
-    a peer with nothing in the database pointing at it -- the orphan that
-    answers 404 on every reconnect until the container restarts. Trading the
-    stub row for an orphan peer is not a fix, so the peer must come back off.
-    """
+def test_add_peer_adds_nothing_when_the_row_is_gone(wgtools_module):
+    """Write-first: a vanished row makes the write skip, so nothing reaches wg."""
     from unittest.mock import MagicMock, patch
 
     Wg = wgtools_module.Wg
@@ -80,20 +75,21 @@ def test_add_peer_takes_the_peer_back_off_when_the_row_is_gone(wgtools_module):
     wg.table = "users"
     wg.interface = "users"
     wg.uipt = MagicMock()
+    upped = []
     removed = []
 
     class _Table:
         def get(self, key):
             return self
 
-        def update(self, doc):
+        def update(self, doc, return_changes=None):
             return self
 
         def replace(self, *a, **kw):  # pragma: no cover - must not be reached
             raise AssertionError("a vanished row must not be touched further")
 
         def run(self, conn):
-            return {"skipped": 1, "replaced": 0}
+            return {"skipped": 1, "replaced": 0, "changes": []}
 
     class _Conn:
         def __enter__(self):
@@ -109,7 +105,7 @@ def test_add_peer_takes_the_peer_back_off_when_the_row_is_gone(wgtools_module):
         "gen_new_peer",
         lambda self, peer, **kw: {"id": peer["id"], "vpn": {}},
     ), patch.object(
-        wgtools_module.Wg, "up_peer", lambda self, peer: True
+        wgtools_module.Wg, "up_peer", lambda self, peer: upped.append(peer) or True
     ), patch.object(
         wgtools_module.Wg,
         "down_peer",
@@ -117,4 +113,5 @@ def test_add_peer_takes_the_peer_back_off_when_the_row_is_gone(wgtools_module):
     ):
         wg.add_peer({"id": "gone-user"}, table="users")
 
-    assert removed == ["gone-user"]
+    assert upped == []  # nothing was ever put on the interface
+    assert removed == []  # so nothing has to be removed
