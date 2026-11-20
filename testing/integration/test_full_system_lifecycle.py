@@ -108,6 +108,7 @@ from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 from .helpers.client import IsardClient
 from .helpers.responses import created_id, expect
 from .helpers.sockets import SocketIOListener
+from .helpers.waits import poll_for
 
 # ---------------------------------------------------------------------------
 # constants
@@ -481,16 +482,24 @@ def test_registry_full_lifecycle(
 
     # --- Step 2: template from downloaded desktop (Bug B) -------------
     template_name = f"{test_namespace}registry_tmpl"
+    # the disk of a desktop just stopped may still be busy with the task that stopped it
     template_id = created_id(
-        create_template.sync_detailed(
-            client=admin_client.apiv4(),
-            body=NewTemplateRequest(
-                desktop_id=desktop_id,
-                name=template_name,
-                description="",
-                allowed=AllowedBaseInput(users=False, groups=False),
-                enabled=True,
+        poll_for(
+            lambda: create_template.sync_detailed(
+                client=admin_client.apiv4(),
+                body=NewTemplateRequest(
+                    desktop_id=desktop_id,
+                    name=template_name,
+                    description="",
+                    allowed=AllowedBaseInput(users=False, groups=False),
+                    enabled=True,
+                ),
             ),
+            accept=lambda x: x.status_code != 428
+            or b"storage_pending_task" not in x.content,
+            timeout=TEMPLATE_TIMEOUT,
+            interval=3.0,
+            message="POST /item/template kept answering storage_pending_task",
         )
     )
     admin_client.wait_for_template_created(

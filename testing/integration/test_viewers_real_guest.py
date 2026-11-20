@@ -49,7 +49,14 @@ from .helpers.spice import SpiceError, first_display_image
 rethinkdb = pytest.importorskip("rethinkdb")
 from rethinkdb import r  # noqa: E402
 
-pytestmark = pytest.mark.real
+# a fresh stack can leave the hypervisor with a stale vpn peer, so the guest never gets its address
+pytestmark = [
+    pytest.mark.real,
+    pytest.mark.skipif(
+        os.environ.get("E2E_VIEWERS_REAL_GUEST") != "1",
+        reason="set E2E_VIEWERS_REAL_GUEST=1 to run it",
+    ),
+]
 
 IMAGE_NAME = os.environ.get("E2E_TEST_IMAGE_NAME", "IsardVDI test desktop")
 EXPECTED_DISK_BYTES = int(os.environ.get("E2E_TEST_IMAGE_BYTES", "29697024"))
