@@ -26,6 +26,7 @@ by test_migration_damaged_source.py.)
 import ast
 import re
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from isardvdi_common.helpers.error_factory import Error
@@ -157,6 +158,33 @@ def test_the_lock_refuses_a_disk_with_descendants(action, monkeypatch):
 
     with pytest.raises(Error) as excinfo:
         storage.set_maintenance(action)
+
+    assert _code(excinfo) == "storage_has_children"
+
+
+@pytest.mark.on_disk_guard
+@pytest.mark.parametrize("action", ["sparsify", "repair", "convert"])
+def test_the_lock_refuses_a_header_only_descendant(action, monkeypatch):
+    """The lock also refuses a child that backs this disk only through its qcow2 header (no DB ``parent`` row)."""
+    from isardvdi_common.lib.storage.storage import StorageProcessed
+
+    storage = _bare(monkeypatch, "ready")  # no DB children
+    storage.__dict__["directory_path"] = "/isard/templates/cat/grp"
+    storage.__dict__["type"] = "qcow2"
+
+    with patch.object(
+        StorageProcessed,
+        "scan_on_disk_dependents",
+        return_value={
+            "dependents": ["/isard/templates/cat/grp/c.qcow2"],
+            "unreadable": [],
+            "ok": True,
+            "reason": None,
+        },
+        create=True,
+    ):
+        with pytest.raises(Error) as excinfo:
+            storage.set_maintenance(action)
 
     assert _code(excinfo) == "storage_has_children"
 

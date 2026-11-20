@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import os
 from enum import Enum
 from time import time
@@ -42,6 +43,8 @@ from rq.job import JobStatus
 from ..schemas.storage import *
 from . import domain
 from .task import Task
+
+log = logging.getLogger(__name__)
 
 
 # Installation policy, not a per-host fact: resolved by the enqueuer so an identical operation is
@@ -1268,11 +1271,43 @@ class Storage(RethinkCustomBase):
             domains=[(getattr(d, "kind", None), d.status) for d in domains],
             has_children=lambda: disk_actions.has_dependents(
                 self, include_deleted=entry.children_include_deleted
-            ),
+            )
+            or self._blocks_on_header_dependents(action),
             perms=self.perms if entry.refuse_read_only else None,
             has_parent=bool(self.parent) if entry.refuse_without_parent else None,
             storage_id=self.id,
         )
+
+    def _blocks_on_header_dependents(self, action):
+        """Whether the worker finds an on-disk qcow2-header child of this disk, or cannot answer (fail closed); memoised per instance."""
+        if "_header_dependents_block" in self.__dict__:
+            return self.__dict__["_header_dependents_block"]
+        from isardvdi_common.lib.storage.storage import StorageProcessed
+
+        result = StorageProcessed.scan_on_disk_dependents(
+            self.path, directory_path=self.directory_path
+        )
+        if not result["ok"]:
+            log.warning(
+                "storage %s: refusing %s, on-disk dependents could not be verified (%s)",
+                self.id,
+                action,
+                result.get("reason"),
+            )
+            block = True
+        elif result["unreadable"]:
+            log.warning(
+                "storage %s: refusing %s, %d unreadable qcow2 candidate(s) %s",
+                self.id,
+                action,
+                len(result["unreadable"]),
+                result["unreadable"][:3],
+            )
+            block = True
+        else:
+            block = bool(result["dependents"])
+        self.__dict__["_header_dependents_block"] = block
+        return block
 
     def guard(self, action, exclude_domains=None):
         """Raise the refusal the disk action registry gives ``action`` on this disk."""
@@ -1996,7 +2031,8 @@ class Storage(RethinkCustomBase):
         if disk_actions.is_base(
             "dig_holes",
             [(getattr(d, "kind", None), d.status) for d in self.domains],
-            lambda: disk_actions.has_dependents(self, include_deleted=True),
+            lambda: disk_actions.has_dependents(self, include_deleted=True)
+            or self._blocks_on_header_dependents("dig_holes"),
         ):
             verify = True
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"

@@ -63,6 +63,7 @@ LONG_ACTIONS = frozenset(
         "virt_win_reg",
         "find",
         "scan_backing_index",
+        "backing_dependents",
     }
 )
 
