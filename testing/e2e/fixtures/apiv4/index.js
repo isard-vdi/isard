@@ -13,3 +13,15 @@ export {
   createDesktopAndTrack,
 } from './desktops.js'
 export { createBookingAndTrack, createPlanAndTrack } from './bookings.js'
+export {
+  E2E_FRONTEND_MODE_RULE_PREFIX,
+  listFrontendModeRules,
+  findFrontendModeRuleByName,
+  nextFrontendModeRulePriority,
+  createFrontendModeRuleAndTrack,
+  updateFrontendModeRule,
+  setFrontendModeRuleAllowed,
+  getFrontendModeRuleAllowed,
+  purgeE2eFrontendModeRules,
+  waitForFrontendMode,
+} from './frontendModeRules.js'
