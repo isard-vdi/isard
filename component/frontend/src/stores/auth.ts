@@ -16,7 +16,7 @@ import {
 import { renew } from '@/gen/oas/authentication'
 import { setFaroUser } from '@/lib/faro-hook'
 
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { logoutMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 
 const WEBAPP_LOGOUT_TIMEOUT_MS = 3000
@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
   const claims = ref<TypeClaims | null>(null)
   const token = ref<string | null>(null)
   const cookies = useCookies()
+  const queryClient = useQueryClient()
 
   const lastLoginIdentity = ref<{ provider: string; categoryId: string } | null>(null)
 
@@ -104,6 +105,10 @@ export const useAuthStore = defineStore('auth', () => {
         console.debug('🔓 No valid token, clearing auth state')
         $reset()
         return
+      }
+
+      if (isLoginClaims(parsedToken) && parsedToken.session_id !== sessionId.value) {
+        queryClient.clear()
       }
 
       token.value = bearer

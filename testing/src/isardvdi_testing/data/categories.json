@@ -283,5 +283,37 @@
         "quota": false,
         "recycle_bin_cutoff_time": null,
         "uid": "qle2e"
+    },
+    {
+        "authentication": {
+            "google": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "ldap": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "local": {
+                "allowed_domains": [],
+                "enabled": null
+            },
+            "saml": {
+                "allowed_domains": [],
+                "enabled": null
+            }
+        },
+        "auto": false,
+        "custom_url_name": "fmre2e",
+        "description": "Dedicated category for frontend mode rules e2e tests",
+        "ephimeral": false,
+        "frontend": false,
+        "id": "fmre2e",
+        "limits": false,
+        "maintenance": false,
+        "name": "FrontendModeRules E2E",
+        "quota": false,
+        "recycle_bin_cutoff_time": null,
+        "uid": "fmre2e"
     }
 ]

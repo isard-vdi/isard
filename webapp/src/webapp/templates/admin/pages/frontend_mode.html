@@ -1,0 +1,40 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-window-maximize"></i> Frontend mode rules <small> Which frontend each user gets, by priority</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a class="btn btn-add-frontend-mode-rule"><span style="color: #5499c7"><i
+                            class="fa fa-plus"></i> Add rule</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <div class="alert alert-warning" id="frontend-mode-warning" style="color: white;">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    When several rules match a user, only the one with the highest priority applies.
+                    Changing a user from the <b>actual</b> frontend mode to any other mode deletes their
+                    temporary desktops, because in the actual mode a user can have more than one per
+                    template while in the other modes they can only have one per template.
+                </div>
+                <table class="table" id="frontend-mode-rules-table">
+                    <tfoot></tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include '/admin/pages/frontend_mode_modals.html' %}
+{% include '/snippets/alloweds_form.html' %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/frontend_mode.js"></script>
+{% endblock %}

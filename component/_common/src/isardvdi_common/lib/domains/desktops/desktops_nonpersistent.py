@@ -23,6 +23,7 @@ import logging as log
 import time
 import traceback
 import uuid
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from isardvdi_common.connections.redis_client import socketio_writer
@@ -38,6 +39,7 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.helpers.rules import get_frontend_mode_rule
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import (
@@ -47,9 +49,20 @@ from isardvdi_common.lib.domains.desktops.desktops import (
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import Domain, DomainModel
 from isardvdi_common.models.storage import Storage
+from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
 socketio = socketio_writer(socketio_url())
+
+_DELETING_STATUSES = frozenset(
+    status.value
+    for status in (
+        DesktopStatusEnum.deleting,
+        DesktopStatusEnum.deleting_domain_disk,
+        DesktopStatusEnum.disk_deleted,
+        DesktopStatusEnum.force_deleting,
+    )
+)
 
 
 class DesktopsNonpersistentProcessed(RethinkSharedConnection):
@@ -83,7 +96,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
         # TODO(old-frontend-removal): drop this block, _single_desktop_per_template
         # and the single_temporal_per_template error code.
-        if Helpers.frontend_mode() != "actual":
+        if get_frontend_mode_rule(Helpers.gen_payload_from_user(user_id)) != "actual":
             if allow_reuse:
                 return cls._single_desktop_per_template(
                     user_id,
@@ -188,6 +201,65 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
     def delete_desktop(cls, desktop_id):
         """_From api/libv2/api_desktops_nonpersistent.py ApiDesktopsNonPersistent.Delete()_"""
         DesktopNonpersistentEvents.desktop_non_persistent_delete(desktop_id)
+
+    @classmethod
+    def enforce_single_temporal_per_template(
+        cls, user_ids: list[str] | None = None
+    ) -> None:
+        """Delete the temporals of every template a user off ``actual`` holds several of."""
+        # TODO(old-frontend-removal): goes with the one-per-template rule.
+        if user_ids is not None and not user_ids:
+            return
+
+        with cls._rdb_context():
+            query = r.table("domains")
+            if user_ids is None:
+                query = query.get_all("desktop", index="kind")
+            else:
+                query = query.get_all(
+                    *[["desktop", user_id] for user_id in user_ids], index="kind_user"
+                )
+            # Only temporals reach Python: they are deleted on stop, so few exist.
+            temporals = list(
+                query.filter({"persistent": False})
+                .pluck("user", "from_template", "status")
+                .run(cls._rdb_connection)
+            )
+
+        held = Counter(
+            (temporal["user"], temporal.get("from_template"))
+            for temporal in temporals
+            # One already on its way out no longer takes the slot.
+            if temporal.get("status") not in _DELETING_STATUSES
+        )
+        templates_by_user = defaultdict(list)
+        for (user_id, template_id), count in held.items():
+            if template_id and count > 1:
+                templates_by_user[user_id].append(template_id)
+
+        for user_id, template_ids in templates_by_user.items():
+            try:
+                # Fresh: a bulk user update invalidates the cache before its write.
+                payload = Helpers.gen_payload_from_user(user_id, invalidate_cache=True)
+                if get_frontend_mode_rule(payload) == "actual":
+                    continue
+                for template_id in template_ids:
+                    log.info(
+                        "Deleting the temporal desktops of user %s from template %s:"
+                        " only one per template is allowed outside the actual"
+                        " frontend mode",
+                        user_id,
+                        template_id,
+                    )
+                    DesktopNonpersistentEvents.desktops_non_persistent_delete(
+                        user_id, template_id
+                    )
+            except Exception:
+                log.warning(
+                    "Could not delete the extra temporal desktops of user %s",
+                    user_id,
+                    exc_info=True,
+                )
 
     @classmethod
     def _require_booking_end(cls, booking_end):

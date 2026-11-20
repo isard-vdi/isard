@@ -142,6 +142,7 @@ class Populate(object):
             "notifications_data",
             "notifications_action",
             "unused_item_timeout",
+            "frontend_mode_rules",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
@@ -2140,6 +2141,14 @@ class Populate(object):
             r.table("targets").index_create("user_id").run(self.conn)
         except Exception as e:
             log.error(e)
+
+    """
+    FRONTEND MODE RULES
+    """
+
+    def frontend_mode_rules(self):
+        self.create_table("frontend_mode_rules")
+        return True
 
     """
     RECYCLE BIN ARCHIVE

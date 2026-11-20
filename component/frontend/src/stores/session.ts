@@ -62,10 +62,7 @@ export const useSessionStore = defineStore('session', () => {
     wasAuthenticated.value = true
     internalLogoutInProgress.value = false // Reset flag on new authentication
 
-    // Ensure user config is loaded
-    if (!userStore.config) {
-      await userStore.getUserConfig()
-    }
+    await userStore.getUserConfig()
 
     // Set up session timeouts
     if (sessionConfig.value.id !== 'isardvdi-service') {

@@ -21,7 +21,8 @@
 import logging as log
 from functools import wraps
 
-from ..helpers.caches import Caches
+from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.helpers import Helpers
 
 
 def get_applied_rule_decorator(get_rules_func):
@@ -63,3 +64,14 @@ def get_applied_rule_decorator(get_rules_func):
 @get_applied_rule_decorator(Caches.get_cached_unused_item_timeout_by_op)
 def get_unused_item_timeout(applied_rule, payload, *args, **kwargs):
     return applied_rule
+
+
+@get_applied_rule_decorator(Caches.get_cached_frontend_mode_rules)
+def _get_applied_frontend_mode_rule(applied_rule, payload, *args, **kwargs):
+    return applied_rule
+
+
+def get_frontend_mode_rule(payload: dict) -> str:
+    rule = _get_applied_frontend_mode_rule(payload)  # type: ignore
+    mode = rule.get("frontend_mode") if rule else None
+    return mode if mode in Helpers.FRONTEND_MODES else Helpers.frontend_mode()

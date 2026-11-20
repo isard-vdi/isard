@@ -671,6 +671,19 @@ def test_change_template_owner(monkeypatch, test_client):
 # option, which the backend would refuse anyway.
 
 
+def _frontend_mode_from_env(monkeypatch, mode):
+    """No rule applies to the user, so the mode comes from FRONTEND_MODE."""
+    monkeypatch.setenv("FRONTEND_MODE", mode)
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.helpers.Helpers.gen_payload_from_user",
+        staticmethod(lambda user_id: {}),
+    )
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.rules._get_applied_frontend_mode_rule",
+        lambda payload: None,
+    )
+
+
 def _templates_db_with_temporal(templates_db_factory, jwt, *desktops):
     db_tables_data = templates_db_factory(jwt)
     db_tables_data["domains"].extend(desktops)
@@ -697,7 +710,7 @@ def _temporal(desktop_id, jwt, template_id="template-1"):
 def test_get_template_nonpersistent_desktop_returns_the_reused_one(
     monkeypatch, test_client, templates_db_factory
 ):
-    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _frontend_mode_from_env(monkeypatch, "all")
     jwt = MockJWT(role_id="advanced")
 
     response = test_client(
@@ -717,7 +730,7 @@ def test_get_template_nonpersistent_desktop_locks_on_leftovers(
 ):
     """Leftovers from a period on ``actual`` still take the slot: creating a
     configured temporal would be refused."""
-    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _frontend_mode_from_env(monkeypatch, "all")
     jwt = MockJWT(role_id="advanced")
 
     response = test_client(
@@ -738,7 +751,7 @@ def test_get_template_nonpersistent_desktop_locks_on_leftovers(
 def test_get_template_nonpersistent_desktop_none_without_one(
     monkeypatch, test_client, templates_db_factory
 ):
-    monkeypatch.setenv("FRONTEND_MODE", "all")
+    _frontend_mode_from_env(monkeypatch, "all")
     jwt = MockJWT(role_id="advanced")
 
     response = test_client(
@@ -756,7 +769,7 @@ def test_get_template_nonpersistent_desktop_none_without_one(
 def test_get_template_nonpersistent_desktop_none_without_old_frontend(
     monkeypatch, test_client, templates_db_factory
 ):
-    monkeypatch.setenv("FRONTEND_MODE", "actual")
+    _frontend_mode_from_env(monkeypatch, "actual")
     jwt = MockJWT(role_id="advanced")
 
     response = test_client(

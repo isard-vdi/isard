@@ -17,6 +17,9 @@ The move itself needs a real RethinkDB and is verified on the staging testbed.
 from unittest.mock import MagicMock
 
 import pytest
+from isardvdi_common.lib.domains.desktops.desktops_nonpersistent import (
+    DesktopsNonpersistentProcessed,
+)
 
 
 class _Ctx:
@@ -64,7 +67,13 @@ def users_mod(monkeypatch):
         "change_user_group",
         classmethod(lambda cls, user_id, group_id: calls.append((user_id, group_id))),
     )
-    return {"mod": mod, "calls": calls, "monkeypatch": monkeypatch}
+    sweeps = []
+    monkeypatch.setattr(
+        DesktopsNonpersistentProcessed,
+        "enforce_single_temporal_per_template",
+        classmethod(lambda cls, user_ids=None: sweeps.append(user_ids)),
+    )
+    return {"mod": mod, "calls": calls, "sweeps": sweeps, "monkeypatch": monkeypatch}
 
 
 def _stub_users_table(monkeypatch, mod, single=None, many=None):
@@ -249,3 +258,122 @@ def test_owns_deployment_desktop_id_grants_the_owner():
         )
     finally:
         mod.Caches.get_document = original
+
+
+# ─── A new role or group can leave the ``actual`` frontend mode ──────────
+
+
+def _single_user(**changes):
+    return {
+        "id": "usr-1",
+        "email": "a@example.org",
+        "category": "cat-1",
+        "role": "advanced",
+        "email_verified": 1,
+        "group": "grp-A",
+        "provider": "local",
+        **changes,
+    }
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param({"role": "user"}, id="role"),
+        pytest.param({"group": "grp-B"}, id="group"),
+    ],
+)
+def test_update_user_sweeps_the_temporals_when_the_rule_inputs_change(users_mod, data):
+    mod, monkeypatch = users_mod["mod"], users_mod["monkeypatch"]
+    _stub_users_table(monkeypatch, mod, single=_single_user())
+
+    mod.UsersProcessed.update_user("usr-1", data)
+
+    assert users_mod["sweeps"] == [["usr-1"]]
+
+
+def test_update_user_does_not_sweep_when_role_and_group_stay(users_mod):
+    mod, monkeypatch = users_mod["mod"], users_mod["monkeypatch"]
+    _stub_users_table(monkeypatch, mod, single=_single_user())
+
+    mod.UsersProcessed.update_user(
+        "usr-1", {"role": "advanced", "group": "grp-A", "name": "New Name"}
+    )
+
+    assert users_mod["sweeps"] == []
+
+
+def test_update_user_survives_a_failed_sweep(users_mod):
+    """The user is already updated: the next temporal start collapses them."""
+    mod, monkeypatch = users_mod["mod"], users_mod["monkeypatch"]
+    writes = _stub_users_table(monkeypatch, mod, single=_single_user())
+
+    def failing_sweep(cls, user_ids=None):
+        raise RuntimeError("rethinkdb is gone")
+
+    monkeypatch.setattr(
+        DesktopsNonpersistentProcessed,
+        "enforce_single_temporal_per_template",
+        classmethod(failing_sweep),
+    )
+
+    mod.UsersProcessed.update_user("usr-1", {"role": "user"})
+
+    assert ("users", "usr-1", {"role": "user"}) in writes
+
+
+def test_update_multiple_users_sweeps_only_the_users_whose_role_changes(users_mod):
+    mod, monkeypatch = users_mod["mod"], users_mod["monkeypatch"]
+    _stub_users_table(
+        monkeypatch,
+        mod,
+        many=[
+            {
+                "id": "usr-same",
+                "category": "cat-1",
+                "group": "grp-A",
+                "uid": "same",
+                "provider": "local",
+                "email": "same@example.org",
+                "role": "user",
+            },
+            {
+                "id": "usr-moves",
+                "category": "cat-1",
+                "group": "grp-A",
+                "uid": "moves",
+                "provider": "local",
+                "email": "moves@example.org",
+                "role": "advanced",
+            },
+        ],
+    )
+
+    mod.UsersProcessed.update_multiple_users(
+        ["usr-same", "usr-moves"], {"role": "user"}
+    )
+
+    assert users_mod["sweeps"] == [["usr-moves"]]
+
+
+def test_update_multiple_users_does_not_sweep_without_a_role_or_group(users_mod):
+    mod, monkeypatch = users_mod["mod"], users_mod["monkeypatch"]
+    _stub_users_table(
+        monkeypatch,
+        mod,
+        many=[
+            {
+                "id": "usr-1",
+                "category": "cat-1",
+                "group": "grp-A",
+                "uid": "one",
+                "provider": "local",
+                "email": "one@example.org",
+                "role": "user",
+            }
+        ],
+    )
+
+    mod.UsersProcessed.update_multiple_users(["usr-1"], {"name": "x"})
+
+    assert users_mod["sweeps"] == []

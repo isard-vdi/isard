@@ -1,0 +1,80 @@
+<!-- ADD FRONTEND MODE RULE -->
+<div class="modal fade" id="modalFrontendModeRule" tabindex="-1" role="dialog"
+    aria-labelledby="modalFrontendModeRuleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="modalFrontendModeRuleLabel">
+                    <i class="fa fa-plus fa-1x"></i> <i class="fa fa-window-maximize"></i> Add frontend mode rule
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalFrontendModeRuleForm" class="form-inline form-label-left">
+                    <input type="hidden" id="id">
+                    <div class="x_panel">
+                        <div class="row">
+                            <div class="col-md-5 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="name">Name <span class="required">*</span></label>
+                                <input id="name" class="form-control roundbox" name="name" placeholder="Name"
+                                    type="text" maxlength="50" data-parsley-length="[1, 50]"
+                                    data-parsley-trigger="change" required style="width:100%">
+                            </div>
+                            <div class="col-md-7 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="description">Description</label>
+                                <input id="description" class="form-control roundbox" name="description"
+                                    placeholder="Description" type="text" maxlength="255"
+                                    data-parsley-length="[0, 255]" data-parsley-trigger="change" style="width:100%">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="frontend_mode">Frontend mode <span
+                                        class="required">*</span></label>
+                                <select id="frontend_mode" name="frontend_mode" class="form-control roundbox" required
+                                    style="width:100%">
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="priority">Priority <span
+                                        class="required">*</span></label>
+                                <input id="priority" class="form-control roundbox" name="priority" placeholder="Priority"
+                                    type="number" step="1" data-parsley-type="integer"
+                                    data-parsley-type-message="The priority must be a whole number."
+                                    data-parsley-unique-priority="true" data-parsley-trigger="change" required
+                                    style="width:100%">
+                                <p class="help-block" style="font-size:11px; margin-top:2px; margin-bottom:0;">
+                                    When several rules match a user, the highest priority wins. It must be unique.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div id="alloweds-frontend-mode-rule">
+                            {% include '/snippets/alloweds_add.html' %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Add rule</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+<!-- END -->
