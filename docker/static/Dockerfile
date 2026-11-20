@@ -49,6 +49,7 @@ WORKDIR /build
 
 COPY component/frontend/package.json /build
 COPY component/frontend/bun.lock* /build
+COPY component/frontend/.npmrc /build
 
 RUN bun install --frozen-lockfile
 

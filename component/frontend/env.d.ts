@@ -7,6 +7,14 @@ declare module 'vue-cal' {
   export default VueCal
 }
 
+declare module '@isard/guacamole-common-js' {
+  import * as Guacamole from 'guacamole-common-js'
+  const GuacamoleCommon: typeof Guacamole & {
+    AudioContextFactory: { singleton: AudioContext | null }
+  }
+  export default GuacamoleCommon
+}
+
 declare module 'vue-cal/dist/vuecal.css'
 declare module 'vue-cal/dist/i18n/*'
 

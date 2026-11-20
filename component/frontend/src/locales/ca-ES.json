@@ -116,6 +116,9 @@
     "direct-viewer": {
       "title": "Visor directe"
     },
+    "rdp": {
+      "title": "Visor RDP"
+    },
     "error": {
       "title": "Error"
     },
@@ -1042,6 +1045,56 @@
       },
       "hardware-summary": "Resum del maquinari",
       "access-summary": "Resum d'accés"
+    },
+    "rdp": {
+      "header": "Visor RDP",
+      "accessing-desktop": "Accedint a l'escriptori",
+      "states": {
+        "connecting": {
+          "title": "Connectant",
+          "message": "Connectant amb el servidor…"
+        },
+        "retrying": {
+          "title": "Esperant que l'RDP de l'escriptori estigui disponible",
+          "message": "Reintent {retry} de {maxRetries}"
+        },
+        "disconnected": {
+          "title": "Desconnectat",
+          "message": "S'ha perdut la connexió"
+        },
+        "error": {
+          "title": "Error",
+          "message": "Error de connexió"
+        },
+        "cookie-error": {
+          "title": "Error",
+          "message": "No s'ha trobat la galeta necessària per fer la connexió"
+        },
+        "viewer-token-error": {
+          "title": "Error",
+          "message": "Cal tornar a obrir el visor per connectar-se correctament"
+        },
+        "cookie-expired": {
+          "title": "Error",
+          "message": "La galeta necessària per fer la connexió ha caducat"
+        },
+        "rdp-not-running": {
+          "title": "L'escriptori no accepta l'RDP",
+          "message": "L'escriptori no accepta connexions RDP. Pot ser que encara s'estigui iniciant, o que el seu servei RDP estigui aturat o refusi la connexió. Torna-ho a provar d'aquí a un moment o fes servir un altre visor."
+        },
+        "rdp-auth-failed": {
+          "title": "Credencials RDP refusades",
+          "message": "L'escriptori ha refusat les credencials RDP que té desades. Actualitza-les a la configuració de l'escriptori perquè coincideixin amb l'usuari de dins de l'escriptori."
+        },
+        "desktop-stopped": {
+          "title": "Escriptori aturat",
+          "message": "L'escriptori s'ha aturat. Torna'l a iniciar per tornar a connectar."
+        }
+      },
+      "buttons": {
+        "retry": "Reintenta",
+        "refresh": "Recarrega"
+      }
     },
     "edit-desktop": {
       "title": "Edita l’escriptori",

@@ -43,6 +43,25 @@
     "login": {
       "separator": "Autres accès",
       "select-category": "Sélectionnez une catégorie"
+    },
+    "rdp": {
+      "states": {
+        "connecting": {
+          "title": "Connexion en cours",
+          "message": "Connexion au serveur…"
+        },
+        "disconnected": {
+          "title": "Déconnecté",
+          "message": "Vous avez été déconnecté·e"
+        },
+        "error": {
+          "title": "Erreur du client",
+          "message": "Erreur de connexion"
+        }
+      },
+      "buttons": {
+        "refresh": "Actualiser"
+      }
     }
   },
   "layouts": {

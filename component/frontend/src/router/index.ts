@@ -432,6 +432,12 @@ const router = createRouter({
       meta: { title: 'router.direct-viewer.title', public: true }
     },
     {
+      path: '/frontend/rdp',
+      name: 'rdp',
+      component: () => import('../views/RdpView.vue'),
+      meta: { title: 'router.rdp.title', public: true }
+    },
+    {
       path: '/notifications',
       component: MainLayout,
       children: [

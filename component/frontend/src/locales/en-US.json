@@ -124,6 +124,9 @@
     "direct-viewer": {
       "title": "Direct viewer"
     },
+    "rdp": {
+      "title": "RDP viewer"
+    },
     "error": {
       "title": "Error"
     },
@@ -1050,6 +1053,56 @@
       },
       "hardware-summary": "Hardware summary",
       "access-summary": "Access summary"
+    },
+    "rdp": {
+      "header": "RDP viewer",
+      "accessing-desktop": "Accessing the desktop",
+      "states": {
+        "connecting": {
+          "title": "Connecting",
+          "message": "Connecting to server…"
+        },
+        "retrying": {
+          "title": "Waiting for desktop RDP to be available",
+          "message": "Retry {retry} of {maxRetries}"
+        },
+        "disconnected": {
+          "title": "Disconnected",
+          "message": "You have been disconnected"
+        },
+        "error": {
+          "title": "Client Error",
+          "message": "Connection error"
+        },
+        "cookie-error": {
+          "title": "Client Error",
+          "message": "The required cookie to establish a connection is not set"
+        },
+        "viewer-token-error": {
+          "title": "Client Error",
+          "message": "It is necessary to reopen the viewer to connect properly"
+        },
+        "cookie-expired": {
+          "title": "Client Error",
+          "message": "The required cookie to establish a connection has expired"
+        },
+        "rdp-not-running": {
+          "title": "The desktop is not accepting RDP",
+          "message": "The desktop is not accepting RDP connections. It may still be starting, or its RDP service may be stopped or refusing the connection. Try again in a moment or use another viewer."
+        },
+        "rdp-auth-failed": {
+          "title": "RDP credentials rejected",
+          "message": "The desktop rejected the RDP credentials stored for it. Update them in the desktop settings so they match the user inside the desktop."
+        },
+        "desktop-stopped": {
+          "title": "Desktop stopped",
+          "message": "The desktop has been stopped. Start it again to reconnect."
+        }
+      },
+      "buttons": {
+        "retry": "Retry",
+        "refresh": "Refresh"
+      }
     },
     "forgot-password": {
       "title": "Reset your password",

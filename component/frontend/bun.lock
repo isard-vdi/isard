@@ -12,6 +12,7 @@
         "@fontsource/fira-mono": "^5.2.7",
         "@grafana/faro-web-sdk": "2.4.0",
         "@hey-api/client-fetch": "^0.3.1",
+        "@isard/guacamole-common-js": "1.6.60",
         "@novnc/novnc": "1.6.0",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/vue-form": "^1.26.0",
@@ -49,6 +50,7 @@
         "@storybook/addon-links": "10.5.10",
         "@storybook/vue3-vite": "10.5.10",
         "@tsconfig/node20": "^20.1.4",
+        "@types/guacamole-common-js": "1.5.5",
         "@types/node": "^20.14.5",
         "@vitejs/plugin-vue": "^6.0.9",
         "@vue/eslint-config-prettier": "^9.0.0",
@@ -293,6 +295,8 @@
     "@intlify/shared": ["@intlify/shared@9.14.5", "", {}, "sha512-9gB+E53BYuAEMhbCAxVgG38EZrk59sxBtv3jSizNL2hEWlgjBjAw1AwpLHtNaeda12pe6W20OGEa0TwuMSRbyQ=="],
 
     "@isaacs/cliui": ["@isaacs/cliui@8.0.2", "", { "dependencies": { "string-width": "^5.1.2", "string-width-cjs": "npm:string-width@^4.2.0", "strip-ansi": "^7.0.1", "strip-ansi-cjs": "npm:strip-ansi@^6.0.1", "wrap-ansi": "^8.1.0", "wrap-ansi-cjs": "npm:wrap-ansi@^7.0.0" } }, "sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA=="],
+
+    "@isard/guacamole-common-js": ["@isard/guacamole-common-js@1.6.60", "https://gitlab.com/api/v4/projects/70892521/packages/npm/@isard/guacamole-common-js/-/@isard/guacamole-common-js-1.6.60.tgz", {}, "sha1-sAR8PNN3CFxPSN77oyWWGKqBSjc="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
@@ -571,6 +575,8 @@
     "@types/deep-eql": ["@types/deep-eql@4.0.2", "", {}, "sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw=="],
 
     "@types/estree": ["@types/estree@1.0.8", "", {}, "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="],
+
+    "@types/guacamole-common-js": ["@types/guacamole-common-js@1.5.5", "", {}, "sha512-dqDYo/PhbOXFGSph23rFDRZRzXdKPXy/nsTkovFMb6P3iGrd0qGB5r5BXHmX5Cr/LK7L1TK9nYrTMbtPkhdXyg=="],
 
     "@types/json-schema": ["@types/json-schema@7.0.15", "", {}, "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA=="],
 

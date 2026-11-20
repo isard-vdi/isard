@@ -53,6 +53,10 @@ export function setViewerToken(cookies: Cookies, token: string) {
   cookies.set('viewerToken', token, VIEWER_COOKIE_OPTS)
 }
 
+export function clearViewerToken(cookies: Cookies) {
+  cookies.remove('viewerToken', VIEWER_COOKIE_OPTS)
+}
+
 /** Connection parameters the browser viewers read from `document.cookie`. */
 export function setBrowserViewerCookie(cookies: Cookies, cookie: string) {
   cookies.set('browser_viewer', cookie, VIEWER_COOKIE_OPTS)
