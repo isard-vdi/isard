@@ -195,11 +195,13 @@ function notImplemented(action) {
 }
 
 function confirmDeleteFrontendModeRule(rule) {
+    // Already escaped: notices that embed it must set text_escape/title_escape to false.
     const name = $('<div>').text(rule.name).html();
     new PNotify({
         title: 'Confirmation Needed',
         text: `Are you sure you want to delete rule "${name}"?<br><br>` +
             'Its users will get the next rule that matches them or, if none does, the global frontend mode.',
+        text_escape: false,
         type: 'error',
         hide: false, opacity: 1, confirm: { confirm: true },
         buttons: { closer: false, sticker: false },
@@ -212,6 +214,7 @@ function confirmDeleteFrontendModeRule(rule) {
                 new PNotify({
                     title: 'Deleted',
                     text: `Rule "${name}" deleted successfully`,
+                    text_escape: false,
                     hide: true,
                     delay: 2000,
                     opacity: 1,
@@ -222,6 +225,7 @@ function confirmDeleteFrontendModeRule(rule) {
             error: function (xhr) {
                 new PNotify({
                     title: `ERROR deleting "${name}"`,
+                    title_escape: false,
                     text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
                     type: 'error',
                     hide: true,
