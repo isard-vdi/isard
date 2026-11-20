@@ -171,7 +171,9 @@ def _wait_guest_ip(desktop_id: str, timeout: float) -> str:
     deadline = time.monotonic() + timeout
     with _db() as conn:
         while time.monotonic() < deadline:
-            viewer = r.table("domains").get(desktop_id)["viewer"].run(conn)
+            viewer = (
+                r.table("domains").get(desktop_id)["viewer"].default(None).run(conn)
+            )
             if viewer and viewer.get("guest_ip"):
                 return viewer["guest_ip"]
             time.sleep(2)
@@ -220,9 +222,54 @@ def _start_until_guest_ip(admin_client: IsardClient, desktop_id: str) -> str:
     raise TimeoutError(f"desktop {desktop_id} never reported a guest ip")
 
 
+HYPERVISOR_TUNNEL_TIMEOUT = 60
+
+
+def _wg0_address(hyper_id: str):
+    """The IPv4 on the hypervisor's wg0, or None if the interface/container is gone."""
+    out = subprocess.run(
+        ["docker", "exec", hyper_id, "ip", "-4", "-o", "addr", "show", "wg0"],
+        capture_output=True,
+        text=True,
+    )
+    if out.returncode != 0:
+        return None
+    match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", out.stdout)
+    return match.group(1) if match else None
+
+
+def _assert_hypervisor_tunnels(timeout: float = HYPERVISOR_TUNNEL_TIMEOUT) -> None:
+    """Fail with both addresses if a hypervisor's wg0 differs from its db address or is down."""
+    with _db() as conn:
+        hypers = list(r.table("hypervisors").pluck("id", "vpn").run(conn))
+    for hyper in hypers:
+        if not ((hyper.get("vpn") or {}).get("wireguard") or {}).get("Address"):
+            continue
+        hyper_id = hyper["id"]
+        deadline = time.monotonic() + timeout
+        wg0 = db_addr = status = None
+        while time.monotonic() < deadline:
+            with _db() as conn:
+                vpn = (r.table("hypervisors").get(hyper_id).run(conn) or {}).get(
+                    "vpn"
+                ) or {}
+            db_addr = ((vpn.get("wireguard") or {}).get("Address") or "").split("/")[0]
+            status = vpn.get("tunnel_status")
+            wg0 = _wg0_address(hyper_id)
+            if wg0 and wg0 == db_addr and status == "connected":
+                break
+            time.sleep(3)
+        else:
+            raise AssertionError(
+                f"hypervisor {hyper_id} tunnel down: wg0={wg0}, db={db_addr}, "
+                f"tunnel_status={status!r}"
+            )
+
+
 @pytest.fixture(scope="module")
 def started(admin_client: IsardClient, test_image: str):
     """Start the downloaded desktop and wait until it serves its viewers."""
+    _assert_hypervisor_tunnels()
     guest_ip = _start_until_guest_ip(admin_client, test_image)
     _wait_rdp_open(test_image, RDP_READY_TIMEOUT)
     with _db() as conn:
