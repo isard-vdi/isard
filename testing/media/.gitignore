@@ -1,0 +1,7 @@
+# Outputs of build/build-qcow2.sh. The qcow2 is > 5 MB, so it is published to a
+# package/download registry rather than committed (see build/README-qcow2.md).
+# isard-test.iso IS committed; only the qcow2 and its build sidecars are ignored.
+/isard-test.qcow2
+/isard-test.qcow2.packages.txt
+/isard-test.qcow2.sizes.txt
+/.buildtmp/
