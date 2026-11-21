@@ -41,12 +41,16 @@ const desktop = { id: "leaf", status: "ready", perms: ["r", "w"] };
 assert.ok(classes(desktop).includes("btn-sparsify-now"));
 assert.ok(classes(desktop).includes("btn-dig-holes-now"));
 assert.ok(classes(desktop).includes("btn-check-integrity"));
-console.log("a ready writable disk offers its writers: PASS");
+assert.ok(!classes(desktop).includes("data-force-verify"));
+console.log("a ready writable disk offers its writers without forcing verify: PASS");
 
+// A read-only disk may be a base its descendants read; offer the dig (the API
+// refuses a non-base) and force verify, since a base is always verified.
 const readOnly = { id: "tpl", status: "ready", perms: ["r"] };
-assert.ok(!classes(readOnly).includes("btn-dig-holes-now"));
+assert.ok(classes(readOnly).includes("btn-dig-holes-now"));
+assert.ok(classes(readOnly).includes("data-force-verify"));
 assert.ok(classes(readOnly).includes("btn-sparsify-now"));
-console.log("a read-only disk is never offered a dig: PASS");
+console.log("a read-only base disk is offered a dig that forces verify: PASS");
 
 const busy = { id: "busy", status: "maintenance", perms: ["r", "w"] };
 assert.ok(!classes(busy).includes("btn-dig-holes-now"));
@@ -68,6 +72,15 @@ assert.strictEqual(ctx.storageModalButtonAllowed({ status: "maintenance" }, "btn
 assert.strictEqual(ctx.storageModalButtonAllowed({ status: "maintenance" }, "btn-modal-find"), true);
 console.log("the modal follows search-info: PASS");
 
+// --- the search modal offers a read-only base its dig, API decides ----------
+// a read-only disk is offered the dig; the API refuses a non-base.
+const roBase = { status: "ready", perms: ["r"], allowed_actions: ["check_integrity", "find"] };
+assert.strictEqual(ctx.storageModalButtonAllowed(roBase, "btn btn-modal-dig-holes"), true);
+// a writable disk still follows allowed_actions (a writable leaf with children is refused)
+const rwLeaf = { status: "ready", perms: ["r", "w"], allowed_actions: ["check_integrity", "find"] };
+assert.strictEqual(ctx.storageModalButtonAllowed(rwLeaf, "btn-modal-dig-holes"), false);
+console.log("the modal offers a read-only base its dig and the API decides: PASS");
+
 // --- a bulk dig says per disk why one was left out -------------------------
 const report = ctx.storageBatchReport({
   queued: 1,
@@ -88,10 +101,11 @@ assert.ok(!src.includes("dig-holes/${status}"));
 assert.ok(!/if \(status = "/.test(src));
 console.log("no per-status dig and no status assignment in a test: PASS");
 
-// --- the row dig verifies only when asked -----------------------------------
+// --- the row dig verifies when asked, and always for a base -----------------
 assert.ok(src.includes("dig-holes/priority/low?verify=${verify}"));
 assert.ok(src.includes('class="dig-holes-verify"'));
-console.log("the row dig sends verify from its checkbox: PASS");
+assert.ok(src.includes("force-verify"));
+console.log("the row dig sends verify from its checkbox or forces it for a base: PASS");
 
 // --- a queued task shows its position and ETA -------------------------------
 assert.ok(src.includes("rowData.queue_position = data.effective_position"));

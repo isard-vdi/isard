@@ -1695,14 +1695,20 @@ $(document).on('click', '.btn-sparsify-now', function () {
 // row action: give back the zero blocks of a disk (fallocate --dig-holes)
 $(document).on('click', '.btn-dig-holes-now', function () {
   const id = $(this).data('id');
+  // A base its descendants read is always verified: the dig button for a
+  // read-only disk forces verify on and locks the checkbox.
+  const forceVerify = String($(this).data('force-verify')) === '1';
+  const verifyField = forceVerify
+    ? '<label><input type="checkbox" class="dig-holes-verify" checked disabled> Verify the content (always on for a base its descendants read)</label>'
+    : '<label><input type="checkbox" class="dig-holes-verify"> Verify the content (reads the disk twice, about 10 minutes per 100 GiB)</label>';
   new PNotify({
     title: 'Confirmation Needed',
-    text: `Give back the zero blocks of disk ${escapeHtmlText(id)}? Its content does not change; the disk and its desktop are in maintenance while it is dug.<br><label><input type="checkbox" class="dig-holes-verify"> Verify the content (reads the disk twice, about 10 minutes per 100 GiB)</label>`,
+    text: `Give back the zero blocks of disk ${escapeHtmlText(id)}? Its content does not change; the disk and its desktop are in maintenance while it is dug.<br>${verifyField}`,
     text_escape: false,
     hide: false, opacity: 0.9, confirm: { confirm: true },
     buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
   }).get().on('pnotify.confirm', function () {
-    const verify = $(this).find('.dig-holes-verify').is(':checked');
+    const verify = forceVerify || $(this).find('.dig-holes-verify').is(':checked');
     $.ajax({
       type: 'PUT',
       url: `/api/v4/item/storage/${id}/dig-holes/priority/low?verify=${verify}`,
@@ -2836,6 +2842,11 @@ function storageModalButtonAllowed (row, className) {
   if (!match) {
     return true;
   }
+  // search-info cannot tell a header-only base, so a read-only disk is offered the dig and the API decides.
+  if (match[1] === 'dig-holes' && row.status === 'ready' &&
+      Array.isArray(row.perms) && !row.perms.includes('w')) {
+    return true;
+  }
   if (!Array.isArray(row.allowed_actions)) {
     return row.status === 'ready' || match[1] === 'find' || match[1] === 'delete';
   }
@@ -2861,9 +2872,10 @@ function storageRowActions (row) {
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-check-integrity" title="Check integrity (qemu-img check)"><i class="fa fa-stethoscope"></i></button>`);
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-info btn-xs btn-zero-scan-now" title="Count the zero blocks a dig would give back (reads the whole file)"><i class="fa fa-calculator"></i></button>`);
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-sparsify-now" title="Sparsify disk (costly)"><i class="fa fa-compress"></i></button>`);
-    if (!Array.isArray(row.perms) || row.perms.includes('w')) {
-      buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-primary btn-xs btn-dig-holes-now" title="Give back zero blocks of a stopped desktop's disk (costly; the content does not change)"><i class="fa fa-eraser"></i></button>`);
-    }
+    // A read-only disk may be a base its descendants read: offer the dig anyway
+    // (the API refuses a non-base) and force verify, since a base is always verified.
+    const digForceVerify = Array.isArray(row.perms) && !row.perms.includes('w') ? ' data-force-verify="1"' : '';
+    buttons.push(`<button type="button" data-id="${id}"${digForceVerify} class="btn btn-pill-right btn-primary btn-xs btn-dig-holes-now" title="Give back zero blocks of a stopped desktop's disk, or a base its descendants read (costly; the content does not change)"><i class="fa fa-eraser"></i></button>`);
   }
   if (row.status === 'ready' && row.pending_actions && row.pending_actions.repair_leaks) {
     buttons.push(`<button type="button" data-id="${id}" class="btn btn-pill-right btn-warning btn-xs btn-repair-leaks" title="Repair leaks (qemu-img check -r leaks)"><i class="fa fa-medkit"></i></button>`);
