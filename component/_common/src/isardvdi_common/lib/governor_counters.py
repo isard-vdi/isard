@@ -48,7 +48,9 @@ _BUCKET_TTL_SECONDS = (WINDOW_MINUTES + 1) * 60
 # cannot turn the totals hash into an unbounded key space.
 # Do not import ``queue_coverage`` here: that module imports this one.
 _REASONS = {
-    SHED: frozenset({"no_consumer", "overloaded", "coverage_unreadable"}),
+    SHED: frozenset(
+        {"no_consumer", "overloaded", "category_overloaded", "coverage_unreadable"}
+    ),
     DEFER: frozenset({"psi", "at_cap"}),
 }
 _OTHER_REASON = "other"

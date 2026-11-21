@@ -80,12 +80,16 @@ _RQ_WORKER_PREFIX = "rq:worker:"
 _RQ_QUEUE_PREFIX = "rq:queue:"
 _GOVERNOR_WORKER_PREFIX = "governor:worker:"
 _COV_PREFIX = "governor:cov:"
+# Per-job owner-category index a producer writes at enqueue for a flat foreground
+# lane, so the shed gate can count a category's share without unpickling rq meta.
+_JOBCAT_PREFIX = "storage:jobcat:"
 
 REASON_NON_STORAGE_QUEUE = "non_storage_queue"
 REASON_FLEET_GAP = "fleet_gap"
 REASON_COVERAGE_UNREADABLE = "coverage_unreadable"
 REASON_NO_CONSUMER = "no_consumer"
 REASON_OVERLOADED = "overloaded"
+REASON_CATEGORY_OVERLOADED = "category_overloaded"
 REASON_BACKLOG = "backlog"
 
 # Every reason the decision can carry. A consumer comparing against anything
@@ -97,6 +101,7 @@ DECISION_REASONS = frozenset(
         REASON_COVERAGE_UNREADABLE,
         REASON_NO_CONSUMER,
         REASON_OVERLOADED,
+        REASON_CATEGORY_OVERLOADED,
         REASON_BACKLOG,
     }
 )
@@ -142,11 +147,70 @@ def hard_cap(tier):
     return _env_int(f"STORAGE_SHED_HARD_{tier.upper()}", _HARD_CAP_DEFAULTS[tier])
 
 
+def category_hard_cap(tier):
+    """Per-category share of a FOREGROUND lane's backlog, above which that one
+    category rejects while the lane still has room for others; ``None`` for
+    governed tiers. Env ``STORAGE_SHED_CAT_HARD_<TIER>``, else two-thirds of the
+    tier's global cap so a single category can never fill the whole lane."""
+    cap = hard_cap(tier)
+    if cap is None:
+        return None
+    return _env_int(f"STORAGE_SHED_CAT_HARD_{tier.upper()}", max(1, cap * 2 // 3))
+
+
 def warn_backlog(tier):
     """Backlog above which the lane is considered backed up (inform the user)."""
     return _env_int(
         f"STORAGE_SHED_WARN_{tier.upper()}", _WARN_DEFAULTS.get(tier, 10**9)
     )
+
+
+# TTL of the per-job owner-category index; a job pending past it is undercounted,
+# which only admits slightly more, never wrongly refuses.
+JOBCAT_TTL_S = _env_int("STORAGE_JOBCAT_TTL_S", 3600)
+
+
+def _flat_foreground(queue):
+    """``(pool, tier)`` when ``queue`` is a flat foreground lane the per-category
+    cap governs, else ``None``. Foreground tiers ride flat lanes, so a parsed
+    category segment means this is not one."""
+    parsed = queue_tiers.parse_storage_queue(queue)
+    if not parsed:
+        return None
+    pool, lane_category, tier = parsed
+    if lane_category is not None or tier not in FOREGROUND_TIERS:
+        return None
+    return pool, tier
+
+
+def note_pending_category(conn, queue, job_id, category):
+    """Record a flat-foreground job's owner category so the shed gate can count
+    that category's share of the shared lane. No-op off a flat foreground lane;
+    never raises (a lost write only undercounts a later decision)."""
+    if not job_id or not category or _flat_foreground(queue) is None:
+        return
+    try:
+        conn.set(_JOBCAT_PREFIX + str(job_id), str(category), ex=JOBCAT_TTL_S)
+    except Exception:
+        pass
+
+
+def lane_category_backlog(conn, queue, category, limit=None):
+    """Pending jobs on the flat lane ``queue`` whose owner category is
+    ``category``. Reads the live lane (exact for pending) and the per-job index;
+    stops at ``limit`` matches. Raises on redis error, which the shed decision
+    turns into a refusal."""
+    ids = conn.lrange(_RQ_QUEUE_PREFIX + queue, 0, -1)
+    if not ids:
+        return 0
+    cats = conn.mget([_JOBCAT_PREFIX + _dec(i) for i in ids])
+    count = 0
+    for raw in cats:
+        if _dec(raw) == category:
+            count += 1
+            if limit is not None and count >= limit:
+                break
+    return count
 
 
 def _dec(value):
@@ -260,7 +324,7 @@ def served_coverage(conn):
     return coverage_from_lane_sets(entries)
 
 
-def lane_shed_decision(conn, queue, now=None):
+def lane_shed_decision(conn, queue, now=None, category=None):
     """Decide what to do with a task about to enqueue on ``queue``.
 
     Returns ``(decision, ctx)`` where ``decision`` is ``"reject"`` (no live
@@ -284,11 +348,16 @@ def lane_shed_decision(conn, queue, now=None):
     nothing found means redis answered and the fleet is genuinely gone. That is
     knowledge, and it sheds like any other empty lane: accepting work no worker
     can drain gives the user neither an error nor progress. A read that could not
-    answer at all sheds too, but under its own reason."""
+    answer at all sheds too, but under its own reason.
+
+    ``category`` is the enqueuing task's owner, used only to cap one category's
+    share of a flat foreground lane (governed lanes are already per-category)."""
     parsed = queue_tiers.parse_storage_queue(queue)
     if not parsed:
         return "ok", {"reason": REASON_NON_STORAGE_QUEUE}
-    pool, category, tier = parsed
+    pool, lane_category, tier = parsed
+    owner_category = category
+    scoped_category = lane_category or owner_category
     if now is None:
         now = time.time()
     try:
@@ -313,12 +382,19 @@ def lane_shed_decision(conn, queue, now=None):
                     return "ok", {
                         "reason": REASON_FLEET_GAP,
                         "pool": pool,
-                        "category": category,
+                        "category": scoped_category,
                         "tier": tier,
                     }
             has_consumer = (pool, tier) in covered
             opaque = pool in opaque_pools
         backlog = conn.llen(_RQ_QUEUE_PREFIX + queue)
+        cat_cap = cat_backlog = None
+        if tier in FOREGROUND_TIERS and lane_category is None and owner_category:
+            cat_cap = category_hard_cap(tier)
+            if cat_cap is not None and backlog >= cat_cap:
+                cat_backlog = lane_category_backlog(
+                    conn, queue, owner_category, limit=cat_cap
+                )
     except Exception:
         # We could not READ the fleet (redis down, index unreachable). That is
         # ignorance, and admitting on it is the guard permitting exactly what it
@@ -332,14 +408,14 @@ def lane_shed_decision(conn, queue, now=None):
         return "reject", {
             "reason": REASON_COVERAGE_UNREADABLE,
             "pool": pool,
-            "category": category,
+            "category": scoped_category,
             "tier": tier,
         }
 
     stranded = (not has_consumer) and (not opaque)
     ctx = {
         "pool": pool,
-        "category": category,
+        "category": scoped_category,
         "tier": tier,
         "backlog": backlog,
         "has_consumer": has_consumer,
@@ -358,6 +434,13 @@ def lane_shed_decision(conn, queue, now=None):
         cap = hard_cap(tier)
         if cap is not None and backlog >= cap:
             return "reject", {**ctx, "reason": REASON_OVERLOADED, "hard_cap": cap}
+        if cat_backlog is not None and cat_backlog >= cat_cap:
+            return "reject", {
+                **ctx,
+                "reason": REASON_CATEGORY_OVERLOADED,
+                "category_cap": cat_cap,
+                "category_backlog": cat_backlog,
+            }
 
     if backlog >= warn_backlog(tier):
         return "warn", {**ctx, "reason": REASON_BACKLOG, "warn": warn_backlog(tier)}
@@ -391,10 +474,19 @@ def _raise_lane_429(conn, ctx):
         if ctx.get("reason") in (REASON_NO_CONSUMER, REASON_COVERAGE_UNREADABLE)
         else "storage_overloaded_retry_later"
     )
+    if ctx.get("reason") == REASON_CATEGORY_OVERLOADED:
+        message = (
+            f"Your category is using its full share of the {ctx.get('tier')} "
+            "storage lane; please retry shortly"
+        )
+    else:
+        message = (
+            f"Storage lane {ctx.get('pool')}/{ctx.get('tier')} is temporarily "
+            "unable to accept work; please retry shortly"
+        )
     raise Error(
         "too_many_requests",
-        f"Storage lane {ctx.get('pool')}/{ctx.get('tier')} is temporarily "
-        "unable to accept work; please retry shortly",
+        message,
         description_code=code,
         params={
             "pool": ctx.get("pool"),
@@ -451,12 +543,12 @@ def lane_has_consumer(conn, queue):
     return allowed, ctx
 
 
-def check_shed(conn, queue):
+def check_shed(conn, queue, category=None):
     """Raise a typed 429 ``Error`` if a task must not enqueue on ``queue``
     (stranded for any tier, or a foreground lane above its hard backlog cap).
     Call this BEFORE any state mutation so a reject leaves nothing half-done.
     An unreadable coverage index rejects as well."""
-    decision, ctx = lane_shed_decision(conn, queue)
+    decision, ctx = lane_shed_decision(conn, queue, category=category)
     if decision == "reject":
         _raise_lane_429(conn, ctx)
 
@@ -474,7 +566,7 @@ def enforce_shed(conn, kwargs):
     queue = kwargs.get("queue")
     if not queue:
         return
-    check_shed(conn, queue)
+    check_shed(conn, queue, category=kwargs.get("category_id"))
 
 
 # Live per-(pool, tier) coverage index a governed worker heartbeats into;
@@ -554,12 +646,14 @@ def pool_live_workers(conn, pool, tier, now=None, ttl=None):
     return conn.zcount(key, edge, "+inf")
 
 
-def _lane_health(conn, pool, tier):
+def _lane_health(conn, pool, tier, category=None):
     """Health entry for one (pool, tier), replaying :func:`lane_shed_decision`
     on its canonical foreground lane. Never raises: any failure degrades this
     entry alone."""
     try:
-        decision, ctx = lane_shed_decision(conn, f"storage.{pool}.{tier}")
+        decision, ctx = lane_shed_decision(
+            conn, f"storage.{pool}.{tier}", category=category
+        )
         return {
             "pool": pool,
             "tier": tier,
@@ -568,7 +662,7 @@ def _lane_health(conn, pool, tier):
             "no_consumer": decision == "reject"
             and ctx.get("reason") == REASON_NO_CONSUMER,
             "overloaded": decision == "reject"
-            and ctx.get("reason") == REASON_OVERLOADED,
+            and ctx.get("reason") in (REASON_OVERLOADED, REASON_CATEGORY_OVERLOADED),
             # Only an unreadable index is degraded; a readable one reporting an
             # empty fleet is a real no-consumer, not a blind spot.
             "degraded": ctx.get("reason") in BLIND_REASONS,
@@ -601,7 +695,7 @@ def category_storage_health(conn, category_id):
         pool_ids = []
 
     pools = [
-        _lane_health(conn, pool, tier)
+        _lane_health(conn, pool, tier, category=category_id)
         for pool in pool_ids
         for tier in sorted(FOREGROUND_TIERS)
     ]

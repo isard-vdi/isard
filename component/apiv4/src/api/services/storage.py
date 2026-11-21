@@ -518,6 +518,7 @@ class StorageService:
                 "resize",
                 queue_tiers.resolve_category(storage.category),
             ),
+            category=queue_tiers.resolve_category(storage.category),
         )
         retry = check_task_retry(payload, retry)
         try:
