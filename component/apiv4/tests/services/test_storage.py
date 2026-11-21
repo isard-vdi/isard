@@ -524,6 +524,16 @@ class TestDigHoles:
         assert by_id["parent"]["message"] == "Storage parent has children"
         assert by_id["broken"]["description_code"] == "internal_server"
 
+    @patch("api.services.storage.get_storage")
+    def test_a_batch_forwards_verify(self, mock_get):
+        storage = MagicMock()
+        storage.dig_holes.return_value = "task-1"
+        mock_get.return_value = storage
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"], verify=True)
+        assert storage.dig_holes.call_args.kwargs["verify"] is True
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.dig_holes.call_args.kwargs["verify"] is False
+
 
 class TestRepair:
     @patch("api.services.storage.get_storage")

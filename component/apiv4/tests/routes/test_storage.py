@@ -233,7 +233,9 @@ def test_batch_dig_holes_answers_each_id(monkeypatch, test_client):
     ]
     monkeypatch.setattr(
         "api.services.storage.StorageService.batch_dig_holes",
-        staticmethod(lambda payload, ids: {"queued": 1, "results": results}),
+        staticmethod(
+            lambda payload, ids, verify=False: {"queued": 1, "results": results}
+        ),
     )
     response = test_client(
         url="/items/storage/dig-holes",
@@ -251,6 +253,31 @@ def test_batch_dig_holes_answers_each_id(monkeypatch, test_client):
         "message": None,
     }
     assert body["results"][1]["description_code"] == "storage_has_children"
+
+
+def test_batch_dig_holes_forwards_verify(monkeypatch, test_client):
+    seen = {}
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_dig_holes",
+        staticmethod(
+            lambda payload, ids, verify=False: seen.update(verify=verify)
+            or {"queued": 0, "results": []}
+        ),
+    )
+    test_client(
+        url="/items/storage/dig-holes",
+        method="PUT",
+        jwt=MockJWT(),
+        body={"ids": ["a"], "verify": True},
+    )
+    assert seen["verify"] is True
+    test_client(
+        url="/items/storage/dig-holes",
+        method="PUT",
+        jwt=MockJWT(),
+        body={"ids": ["a"]},
+    )
+    assert seen["verify"] is False  # defaults off when the body omits it
 
 
 @pytest.mark.parametrize("count", [0, 51])

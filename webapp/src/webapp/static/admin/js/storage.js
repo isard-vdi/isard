@@ -208,9 +208,14 @@ $(document).ready(function () {
         });
         return;
       }
+      let confirmText = "The action '" + escapeHtmlText(actionText) + "' will be performed in " + ids.length + " storages. Are you sure?";
+      if (action === 'dig-holes') {
+        confirmText += '<br><br><label><input type="checkbox" class="bulk-dig-verify"> Verify the content (reads each disk twice; forced on for a base its children read)</label>';
+      }
       new PNotify({
         title: "Confirmation Needed",
-        text: "The action '" + actionText + "' will be performed in " + ids.length + " storages. Are you sure?",
+        text: confirmText,
+        text_escape: false,
         hide: false,
         opacity: 0.9,
         type: "error",
@@ -228,13 +233,12 @@ $(document).ready(function () {
         width: '550'
       }).get().on('pnotify.confirm', function () {
         document.body.classList.add('loading-cursor')
+        var verify = action === 'dig-holes' && $(this).find('.bulk-dig-verify').is(':checked');
         var notify = new PNotify();
         $.ajax({
           type: "PUT",
           url: `/api/v4/items/storage/${action}`,
-          data: JSON.stringify({
-            ids: ids
-          }),
+          data: JSON.stringify(action === 'dig-holes' ? { ids: ids, verify: verify } : { ids: ids }),
           contentType: "application/json",
           success: function (data) {
             document.body.classList.remove('loading-cursor')
