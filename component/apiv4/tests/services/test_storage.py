@@ -724,6 +724,37 @@ class TestSweepGivesBackZeros:
         )
 
     @patch("api.services.storage.Config")
+    def test_the_sweep_form_body_persists_detect_bases_and_cap(self, mock_config):
+        """The full body the sweep form sends now carries detect,
+        dig_bases_with_children and max_bases; the PUT persists each one and
+        writes only the keys it was given, so the Config merge leaves the rest
+        untouched (saving the form no longer resets them to their default)."""
+        mock_config.get_storage_sweep_config.return_value = {}
+        body = {
+            "enabled": True,
+            "hour": 4,
+            "minute": 0,
+            "max_disks": 50,
+            "max_bytes": 0,
+            "sparsify": False,
+            "dig_holes": True,
+            "repair_leaks": False,
+            "check_integrity": False,
+            "zero_scan": False,
+            "detect": True,
+            "desktop_disk_repairs": False,
+            "check_max_age_days": 30,
+            "dig_bases_with_children": True,
+            "max_bases": 4,
+        }
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, body)
+        written = mock_config.update_storage_sweep.call_args.args[0]
+        assert written["detect"] is True
+        assert written["dig_bases_with_children"] is True
+        assert written["max_bases"] == 4
+        assert set(written) == set(body)
+
+    @patch("api.services.storage.Config")
     def test_the_desktop_disk_repairs_are_off_until_the_config_turns_them_on(
         self, mock_config
     ):
