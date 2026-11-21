@@ -683,7 +683,7 @@ class StorageService:
                 storage.repair(
                     payload.get("user_id"),
                     "leaks",
-                    priority="default",
+                    priority="bulk",
                     secondary_priority="high",
                 )
                 queued += 1
@@ -724,7 +724,9 @@ class StorageService:
         queued = 0
         for storage_id in storage_ids:
             try:
-                get_storage(payload, storage_id).check_integrity(payload.get("user_id"))
+                get_storage(payload, storage_id).check_integrity(
+                    payload.get("user_id"), priority="bulk"
+                )
                 queued += 1
             except Error:
                 continue
@@ -1367,7 +1369,7 @@ class StorageService:
             storage = get_storage(payload, storage_id)
             if storage.status == "recycled":
                 continue
-            storage.find(payload.get("user_id"))
+            storage.find(payload.get("user_id"), priority="bulk")
 
     @staticmethod
     def batch_find_by_status(payload: dict, status: str) -> None:

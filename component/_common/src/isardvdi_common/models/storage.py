@@ -1205,7 +1205,7 @@ class Storage(RethinkCustomBase):
         task = Task(*args, **kwargs)
         return task if kwargs.get("enqueue") is False else task.id
 
-    def find(self, user_id, blocking=True, retry=3):
+    def find(self, user_id, blocking=True, retry=3, priority="default"):
         """
         Create a task to find the storage.
         It assumes any isard-storage will have all mountpoints in /isard.
@@ -1214,6 +1214,8 @@ class Storage(RethinkCustomBase):
         :type user_id: str
         :param blocking: Blocking
         :type blocking: bool
+        :param priority: queue tier; a mass run passes ``bulk``
+        :type priority: str
         :return: Task ID
         :rtype: str
         """
@@ -1221,7 +1223,7 @@ class Storage(RethinkCustomBase):
         return self.create_task(
             blocking=blocking,
             user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
             task="find",
             retry=retry,
             retry_intervals=15,

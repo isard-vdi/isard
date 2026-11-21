@@ -609,6 +609,35 @@ class TestBatchRepairLeaks:
         assert [c.args[1] for c in mock_get.call_args_list] == ["leaf"]
 
 
+class TestBulkActionsRideTheBulkLane:
+    """A mass action rides the governed ``bulk`` lane, not a capped foreground one."""
+
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_check_all_uses_the_bulk_tier(self, mock_get, mock_ids):
+        mock_ids.return_value = ["s1"]
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.batch_check_integrity_by_status(JWT_PAYLOAD_ADMIN, "ready")
+        assert storage.check_integrity.call_args.kwargs["priority"] == "bulk"
+
+    @patch("api.services.storage.Storage.get_children", return_value=[])
+    @patch("api.services.storage.Storage.pending_ids", return_value=["s1"])
+    @patch("api.services.storage.get_storage")
+    def test_repair_leaks_all_uses_the_bulk_tier(self, mock_get, _pending, _children):
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN)
+        assert storage.repair.call_args.kwargs["priority"] == "bulk"
+
+    @patch("api.services.storage.get_storage")
+    def test_find_all_uses_the_bulk_tier(self, mock_get):
+        storage = MagicMock(status="ready")
+        mock_get.return_value = storage
+        StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.find.call_args.kwargs["priority"] == "bulk"
+
+
 def _sweep_storage(payload, sid):
     storage = MagicMock()
     setattr(storage, "qemu-img-info", {"actual-size": 10})

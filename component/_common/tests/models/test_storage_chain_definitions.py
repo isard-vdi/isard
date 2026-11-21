@@ -144,6 +144,18 @@ def test_find_chain_ends_with_storage_update_parent():
     assert parents["storage_update_parent"] == "storage_update_pool"
 
 
+def test_find_rides_the_tier_it_is_given():
+    """A bulk find rides the governed bulk lane, not the foreground default one."""
+    s = _bare_storage()
+    with (
+        patch.object(Storage, "create_task") as mock_create,
+        patch("isardvdi_common.models.storage.StoragePool") as mock_pool,
+    ):
+        mock_pool.get_best_for_action.return_value = MagicMock(id="poolA")
+        s.find(user_id="u1", priority="bulk")
+    assert mock_create.call_args.kwargs["queue"] == "storage.poolA.bulk"
+
+
 def _pool_update_kwargs(dependents):
     return [
         dep["job_kwargs"]["kwargs"]
