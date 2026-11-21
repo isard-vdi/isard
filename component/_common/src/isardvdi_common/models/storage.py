@@ -209,6 +209,8 @@ PENDING_ACTIONS = {
 #: Flag ``sparsify`` when a disk's actual-size grows at least this much since its
 #: last measurement -- 256 MiB clears the journal a bare start/stop moves.
 SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
+#: Growth over a baseline older than this is organic data, not a sparsify signal.
+SPARSIFY_GROWTH_MAX_BASELINE_AGE_S = 7 * 24 * 3600
 #: The zeros a scan must count before the disk is flagged dig_holes.
 DIG_HOLES_SLACK_BYTES = 256 * 1024 * 1024
 #: The checks ``health.checked_at`` is the oldest of; a missing one counts as never.
@@ -892,6 +894,10 @@ class Storage(RethinkCustomBase):
         the row was deleted after the reading started (``read_at``).
         Returns the row's status afterwards, or None when there is no row."""
         data = {k: v for k, v in reading.items() if k != "id"}
+        if "qemu-img-info" in data:
+            # stamp when this size was read, so the sparsify-growth rule can tell a
+            # recent baseline from one too old to read a delta against
+            data["qemu_img_info_at"] = int(read_at if read_at is not None else time())
         change = data
         if "status" in data:
             data["status_time"] = time()

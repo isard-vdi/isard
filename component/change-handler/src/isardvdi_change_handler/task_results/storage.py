@@ -47,6 +47,7 @@ from isardvdi_common.models.storage import (
     DIG_HOLES_MISMATCH,
     DIG_HOLES_SLACK_BYTES,
     SPARSIFY_GROWTH_BYTES,
+    SPARSIFY_GROWTH_MAX_BASELINE_AGE_S,
     Storage,
     StoragePool,
 )
@@ -229,8 +230,11 @@ def _recover_orphan_dependents(storage_object, _seen=None):
         _recover_orphan_dependents(child, _seen)
 
 
-def _sparsify_growth(storage_dict):
-    """Bytes a ready, writable disk grew by since its last reading, if it grew."""
+def _sparsify_growth(storage_dict, read_at=None):
+    """Bytes a ready, writable disk grew by since its last reading, if it grew
+    enough and that reading is recent. Growth measured against a baseline older
+    than ``SPARSIFY_GROWTH_MAX_BASELINE_AGE_S`` (or one with no recorded time)
+    says nothing about reclaimable slack and does not flag."""
     new_size = (storage_dict.get("qemu-img-info") or {}).get("actual-size")
     if new_size is None:
         return None
@@ -241,8 +245,25 @@ def _sparsify_growth(storage_dict):
     old_size = (getattr(storage, "qemu-img-info", None) or {}).get("actual-size")
     if old_size is None:
         return None
+    baseline_at = getattr(storage, "qemu_img_info_at", None)
+    now = read_at if read_at is not None else time()
+    if (
+        not isinstance(baseline_at, (int, float))
+        or now - baseline_at > SPARSIFY_GROWTH_MAX_BASELINE_AGE_S
+    ):
+        return None
     grew = new_size - old_size
     return grew if grew >= SPARSIFY_GROWTH_BYTES else None
+
+
+def _is_stale_growth_sparsify_mark(storage):
+    """Whether a sparsify mark came from the growth heuristic (so a reading that no
+    longer grows may retract it); a mark from any other source is left alone."""
+    mark = (getattr(storage, "pending_actions", None) or {}).get("sparsify") or {}
+    return (
+        mark.get("found_by") == "storage refresh"
+        and (mark.get("detail") or {}).get("grew_bytes") is not None
+    )
 
 
 def _diggable_once_stopped(storage):
@@ -316,7 +337,7 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
         return None
     open_error = storage_dict.get("open_error")
     reading = {k: v for k, v in storage_dict.items() if k != "open_error"}
-    grew = _sparsify_growth(reading)
+    grew = _sparsify_growth(reading, read_at=read_at)
     status = Storage.write_reading(reading, observer=observer, read_at=read_at)
     if status is None:
         return None
@@ -332,6 +353,7 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
             },
             if_absent=True,
         )
+    storage_object = Storage(storage_dict["id"])
     if grew:
         Storage.flag_pending(
             storage_dict["id"],
@@ -339,7 +361,10 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
             found_by="storage refresh",
             detail={"grew_bytes": grew},
         )
-    storage_object = Storage(storage_dict["id"])
+    elif _is_stale_growth_sparsify_mark(storage_object):
+        # A6 would no longer flag this reading; retract a growth mark that an
+        # older, stale-baseline reading left, so the false marks clear themselves.
+        Storage.clear_pending(storage_dict["id"], "sparsify")
     if storage_dict.get("status") == status and status in (
         "deleted",
         "orphan",
