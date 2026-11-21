@@ -1,5 +1,6 @@
 import logging as log
 import os
+import sys
 import time
 import traceback
 from pprint import pprint
@@ -33,7 +34,44 @@ def reacheable(hostname, waittime=1000):
 ########### GET VPN CONFIG
 
 
+def _fetch_peer_content():
+    """One API attempt; the wg config content, or None if the api gave none."""
+    hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
+    with build_client("isard-hypervisor", role="hypervisor") as client:
+        resp = admin_hypervisor_vpn.sync_detailed(client=client, hyper_id=hyper_id)
+        raise_for_status(resp)
+        peer = resp.parsed.to_dict() if resp.parsed else {}
+    return peer.get("content")
+
+
+def run_once():
+    """Watchdog recovery: reconnect if the config changed, bounce wg0 if same, 1 if api down."""
+    try:
+        content = _fetch_peer_content()
+    except Exception as e:
+        print(f"vpnc --once: could not fetch wg VPNc config: {type(e).__name__}: {e}")
+        return 1
+    if not content:
+        print("vpnc --once: api returned no wg VPNc config")
+        return 1
+    try:
+        with open("/etc/wireguard/wg0.conf") as f:
+            current = f.read()
+    except OSError:
+        current = None
+    if content != current:
+        connect(content)
+        print("vpnc --once: config changed, reconnected wg0")
+    else:
+        check_call((WG_QUICK, "down", "wg0"))
+        check_call((WG_QUICK, "up", "wg0"))
+        print("vpnc --once: config unchanged, bounced wg0")
+    return 0
+
+
 def main():
+    if "--once" in sys.argv:
+        return run_once()
     ### API CONFIG
     ok = False
     while not ok:
@@ -75,4 +113,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

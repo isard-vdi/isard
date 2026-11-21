@@ -51,8 +51,8 @@ class _FakeReQL:
         self._get = key
         return self
 
-    def update(self, doc):
-        self._rec.append((self._table, doc))
+    def update(self, doc, return_changes=None):
+        self._rec.append((self._table, getattr(self, "_get", None), doc))
         self._updated = doc
         return self
 
@@ -128,8 +128,9 @@ def test_flush_peers_batch_inserts_and_noop_on_empty(wgtools_module, monkeypatch
     wg = _users_wg(wgtools_module)
     wg._flush_peers_batch("users", [{"id": "a"}, {"id": "b"}], 2, 2, time.monotonic())
     wg._flush_peers_batch("users", [], 2, 2, time.monotonic())  # no-op
-    # one update per peer, never a batch insert
-    assert rec == [("users", {"id": "a"}), ("users", {"id": "b"})]
+    # one update per peer, each the plain dict, never a batch insert
+    assert [(tbl, pid) for tbl, pid, _ in rec] == [("users", "a"), ("users", "b")]
+    assert all(isinstance(doc, dict) for _, _, doc in rec)
 
 
 # ---- (D) background up_peer draining -------------------------------------
@@ -209,14 +210,14 @@ def test_init_peers_batches_inserts_and_backgrounds_up_peer(
 
     assert isinstance(wg.clients_reserved_ips, set)
 
-    users_writes = [doc for tbl, doc in rec if tbl == "users"]
-    rv_writes = [doc for tbl, doc in rec if tbl == "remotevpn"]
+    users_ids = [pid for tbl, pid, _ in rec if tbl == "users"]
+    rv_ids = [pid for tbl, pid, _ in rec if tbl == "remotevpn"]
     # chunked (batch=2 over 4 creates), so the backfill is not one terminal write
-    assert len(users_writes) >= 2
-    created_ids = {p["id"] for p in users_writes}
+    assert len(users_ids) >= 2
     # u5 (vpn=None) is treated as lazy-init instead of crashing init_peers.
-    assert created_ids == {"u1", "u2", "u4", "u5"}
-    assert {p["id"] for p in rv_writes} == {"rv1"}
+    assert set(users_ids) == {"u1", "u2", "u4", "u5"}
+    assert set(rv_ids) == {"rv1"}
+    assert all(isinstance(doc, dict) for _, _, doc in rec)
 
     # Every active target, including the lazily provisioned u1 and u5: writing
     # the config without bringing the peer up left those users with no tunnel
@@ -239,40 +240,36 @@ def test_set_iptables_survives_a_null_vpn_subtree(wgtools_module):
     wg.set_iptables({"id": "u3", "vpn": {"iptables": []}})
 
 
-def test_add_peer_removes_the_peer_when_its_row_vanished(wgtools_module):
-    """The row can be deleted while the config is generated.
-
-    up_peer() has already put the peer on the interface by then, so a write
-    that skips a missing row must also take the peer back off. Leaving it is
-    the orphan that answers 404 on every reconnect, and recreating the row is
-    the stub that breaks the users listing -- neither is acceptable.
-    """
+def test_add_peer_adds_nothing_when_its_row_vanished(wgtools_module, monkeypatch):
+    """The conditional claim runs before up_peer, so a vanished row leaves wg untouched."""
     wg = _users_wg(wgtools_module)
+    upped = []
     removed = []
 
     class _Skipped:
         def get(self, key):
             return self
 
-        def update(self, doc):
+        def update(self, doc, return_changes=None):
             return self
 
         def run(self, conn):
-            return {"skipped": 1, "replaced": 0}
+            return {"skipped": 1, "replaced": 0, "changes": []}
 
     class _R:
         def table(self, name):
             return _Skipped()
 
-    wgtools_module.r = _R()
-    wgtools_module.vpn_rethink_conn = lambda: _NullCtx()
+    monkeypatch.setattr(wgtools_module, "r", _R())
+    monkeypatch.setattr(wgtools_module, "vpn_rethink_conn", lambda *a, **k: _NullCtx())
     wg.gen_new_peer = lambda peer, extra_client_nets=None: {"id": peer["id"], "vpn": {}}
-    wg.up_peer = lambda peer: True
+    wg.up_peer = lambda peer: upped.append(peer) or True
     wg.down_peer = lambda peer, table=False: removed.append(peer["id"])
 
     wg.add_peer({"id": "gone"}, table="users")
 
-    assert removed == ["gone"], "the peer added for a vanished row must be removed"
+    assert upped == []  # nothing was ever put on the interface
+    assert removed == []  # so nothing has to be removed
 
 
 class _NullCtx:
