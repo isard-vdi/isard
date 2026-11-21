@@ -599,6 +599,7 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
                 verify=verify,
+                require_descendants_stopped=True,
             )
         except Error:
             raise
@@ -619,6 +620,7 @@ class StorageService:
                     priority="low",
                     secondary_priority="high",
                     verify=verify,
+                    require_descendants_stopped=True,
                 )
             except Error as e:
                 error = getattr(e, "error", None) or {}

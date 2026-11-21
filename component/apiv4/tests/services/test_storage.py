@@ -493,6 +493,13 @@ class TestDigHoles:
         StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low", verify=True)
         assert storage.dig_holes.call_args.kwargs["verify"] is True
 
+    @patch("api.services.storage.get_storage")
+    def test_the_button_requires_descendants_stopped(self, mock_get):
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low")
+        assert storage.dig_holes.call_args.kwargs["require_descendants_stopped"] is True
+
     def test_rejects_an_unknown_priority(self):
         with pytest.raises(Error):
             StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "urgent")
@@ -533,6 +540,14 @@ class TestDigHoles:
         assert storage.dig_holes.call_args.kwargs["verify"] is True
         StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"])
         assert storage.dig_holes.call_args.kwargs["verify"] is False
+
+    @patch("api.services.storage.get_storage")
+    def test_a_batch_requires_descendants_stopped(self, mock_get):
+        storage = MagicMock()
+        storage.dig_holes.return_value = "task-1"
+        mock_get.return_value = storage
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.dig_holes.call_args.kwargs["require_descendants_stopped"] is True
 
 
 class TestRepair:

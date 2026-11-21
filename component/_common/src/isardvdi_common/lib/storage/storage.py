@@ -145,9 +145,15 @@ class StorageProcessed(RethinkSharedConnection):
 
     @classmethod
     def scan_on_disk_dependents(
-        cls, path, *, directory_path=None, priority="interactive", deadline=None
+        cls,
+        path,
+        *,
+        directory_path=None,
+        priority="interactive",
+        deadline=None,
+        transitive=False,
     ):
-        """The direct on-disk qcow2-header children of ``path`` from the worker, as ``{"dependents", "unreadable", "ok", "reason"}``; ``ok`` is False (fail closed) with no lane consumer, a failed/gone task, or a passed deadline."""
+        """The on-disk qcow2-header children of ``path`` from the worker, as ``{"dependents", "unreadable", "ok", "reason"}``; ``transitive`` follows the chain to any depth, else direct children only. ``ok`` is False (fail closed) with no lane consumer, a failed/gone task, or a passed deadline."""
         from time import monotonic, sleep
 
         from isardvdi_common.lib import queue_coverage, queue_tiers
@@ -170,7 +176,7 @@ class StorageProcessed(RethinkSharedConnection):
                 task="backing_dependents",
                 queue=queue,
                 user_id="admin",
-                job_kwargs={"kwargs": {"path": path}},
+                job_kwargs={"kwargs": {"path": path, "transitive": transitive}},
             ).id
         except Exception:
             return {**empty, "ok": False, "reason": "enqueue_failed"}

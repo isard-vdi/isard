@@ -2056,6 +2056,31 @@ class Storage(RethinkCustomBase):
             ],
         )
 
+    def descendants_all_stopped(self):
+        """Whether every transitive descendant of this disk -- by database parent
+        chain and by on-disk qcow2 header -- has all its domains stopped. Fails
+        closed when the on-disk header children cannot be read, so a dig is never
+        let through on a chain it could not verify."""
+        if any(
+            d.status in disk_actions.RUNNING
+            for d in self.domains_dependents(include_deleted=True)
+        ):
+            return False
+        from isardvdi_common.lib.storage.storage import StorageProcessed
+
+        scan = StorageProcessed.scan_on_disk_dependents(
+            self.path, directory_path=self.directory_path, transitive=True
+        )
+        if not scan["ok"] or scan["unreadable"]:
+            return False
+        for path in scan["dependents"]:
+            row = Storage.get_by_path(path)
+            if row is not None and any(
+                d.status in disk_actions.RUNNING for d in row.domains
+            ):
+                return False
+        return True
+
     def dig_holes(
         self,
         user_id,
@@ -2064,20 +2089,34 @@ class Storage(RethinkCustomBase):
         retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
         verify=False,
+        require_descendants_stopped=False,
     ):
         """Give back the all-zero blocks of a stopped desktop's leaf disk, a template's
         disk, or a base only templates use.
 
         A base its descendants read is always verified: the worker hashes it before
-        and after, and a mismatch leaves it damaged for an administrator.
+        and after, and a mismatch leaves it damaged for an administrator. With
+        ``require_descendants_stopped`` (the disk button and the bulk action, not
+        the nightly sweep) such a base is refused unless every descendant, by
+        database chain and by qcow2 header, is stopped.
         """
-        if disk_actions.is_base(
+        base_with_descendants = disk_actions.is_base(
             "dig_holes",
             [(getattr(d, "kind", None), d.status) for d in self.domains],
             lambda: disk_actions.has_dependents(self, include_deleted=True)
             or self._blocks_on_header_dependents("dig_holes"),
-        ):
+        )
+        if base_with_descendants:
             verify = True
+            if require_descendants_stopped and not self.descendants_all_stopped():
+                from isardvdi_common.helpers.error_factory import Error
+
+                raise Error(
+                    "precondition_required",
+                    f"Storage {self.id} has descendants that are not stopped; stop "
+                    "every desktop derived from it before giving back its zero blocks",
+                    description_code="storage_descendants_not_stopped",
+                )
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"

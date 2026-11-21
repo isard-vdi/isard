@@ -44,6 +44,17 @@ class TestBackingDependents:
         assert grand not in res["dependents"]
         assert res["unreadable"] == []
 
+    def test_transitive_reaches_the_grandchild_too(self, tmp_path, monkeypatch):
+        base = _mk(tmp_path / "base.qcow2")
+        child = _mk(tmp_path / "child.qcow2", backing=base)
+        grand = _mk(tmp_path / "grand.qcow2", backing=child)
+        monkeypatch.setattr(task, "_dependent_candidates", lambda: [base, child, grand])
+
+        res = task.backing_dependents(base, transitive=True)
+
+        assert res["dependents"] == sorted([child, grand])
+        assert res["unreadable"] == []
+
     def test_a_disk_with_no_header_child_reports_none(self, tmp_path, monkeypatch):
         base = _mk(tmp_path / "base.qcow2")
         other = _mk(tmp_path / "other.qcow2")
