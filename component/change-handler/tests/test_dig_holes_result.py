@@ -10,20 +10,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def _dig_result(status, exc_info, meta=None, since=None):
+def _dig_result(status, exc_info, meta=None, since=None, result=None):
     from isardvdi_change_handler.task_results import storage
 
-    task = SimpleNamespace(
-        depending_status=status,
-        dependencies=[
-            SimpleNamespace(
-                task="dig_holes",
-                id="t1",
-                exc_info=exc_info,
-                job=SimpleNamespace(meta=meta or {}),
-            )
-        ],
+    dep = SimpleNamespace(
+        task="dig_holes",
+        id="t1",
+        exc_info=exc_info,
+        job=SimpleNamespace(meta=meta or {}),
     )
+    if result is not None:
+        dep.result = result
+    task = SimpleNamespace(depending_status=status, dependencies=[dep])
     row = MagicMock()
     setattr(row, "qemu-img-info", {"actual-size": 99})
     with patch.object(storage, "Storage") as cls:
@@ -51,8 +49,23 @@ def test_a_dig_that_reads_back_differently_leaves_the_disk_damaged_for_review():
     )
 
 
-def test_a_finished_dig_marks_nothing():
+def test_a_finished_dig_updates_the_zeros_figure_and_clears_the_mark():
+    """On success the verdict records in ``health.checks.zeros`` that a finished
+    dig left nothing to reclaim (passing the post-dig size) and drops the
+    dig_holes mark; it never writes status or a damage/review mark."""
+    cls = _dig_result("finished", None, result={"reclaimed": 4096, "after": 50000})
+    cls.apply_dig_result.assert_called_once_with("base", 50000)
+    cls.clear_pending.assert_called_once_with("base", "dig_holes")
+    cls.write_status.assert_not_called()
+    cls.flag_pending.assert_not_called()
+
+
+def test_a_finished_dig_without_a_result_payload_still_clears_the_mark_and_is_safe():
+    """No dig result dict (defensive): record nothing, but a success still means
+    the mark's job is done, and nothing crashes or writes status."""
     cls = _dig_result("finished", None)
+    cls.apply_dig_result.assert_not_called()
+    cls.clear_pending.assert_called_once_with("base", "dig_holes")
     cls.write_status.assert_not_called()
     cls.flag_pending.assert_not_called()
 

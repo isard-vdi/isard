@@ -561,12 +561,22 @@ def handle_zero_scan_result(task, storage_id):
 
 
 def handle_dig_holes_result(task, storage_id, since=None):
-    """Settle a dig that did not finish: damaged on a mismatch, never again on a
-    filesystem that cannot punch, re-checked when it stopped mid-punch, and
-    flagged again with its original ``since`` otherwise."""
-    if task.depending_status not in ("failed", "canceled", "stopped"):
-        return
+    """Settle a dig. On success, record what it reclaimed in ``health.checks.zeros``
+    so the row stops advertising bytes the dig already gave back, and drop the
+    dig_holes mark. On a dig that did not finish: damaged on a mismatch, never
+    again where the filesystem cannot punch, re-checked when it stopped
+    mid-punch, flagged again with its original ``since`` otherwise."""
     if not Storage.exists(storage_id):
+        return
+    if task.depending_status == "finished":
+        dependency = next((d for d in task.dependencies if d.task == "dig_holes"), None)
+        result = getattr(dependency, "result", None) if dependency is not None else None
+        if isinstance(result, dict) and result.get("reclaimed") is not None:
+            Storage.apply_dig_result(storage_id, result.get("after"))
+        # success makes the mark moot; idempotent with the chain's clear_pending_action
+        Storage.clear_pending(storage_id, "dig_holes")
+        return
+    if task.depending_status not in ("failed", "canceled", "stopped"):
         return
     for dependency in task.dependencies:
         if dependency.task != "dig_holes":

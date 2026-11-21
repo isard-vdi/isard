@@ -975,17 +975,54 @@ class Storage(RethinkCustomBase):
 
     @classmethod
     def write_zeros(cls, storage_id, actual_size, reclaimable=None, result="ok"):
-        """Record a zero scan in ``health.checks.zeros``, never creating a row."""
+        """Record a zero scan in ``health.checks.zeros``, never creating a row. A
+        reclaimable figure above the allocated size cannot be real; clamp it so no
+        reader (web, sweep, priorities) ever trusts a stale over-count."""
+        size = int(actual_size or 0)
+        if reclaimable is not None:
+            reclaimable = max(0, min(int(reclaimable), size))
         value = {
             "at": int(time()),
             "result": result,
             "reclaimable_bytes": reclaimable,
-            "actual_size_at_scan": int(actual_size or 0),
+            "actual_size_at_scan": size,
         }
         with cls._rdb_context():
             r.table(cls._rdb_table).get(storage_id).update(
                 lambda row: cls._health(row, "zeros", value)
             ).run(cls._rdb_connection)
+
+    @classmethod
+    def _zeros_value_after_dig(cls, after):
+        """The ``health.checks.zeros`` a finished dig records: it gave back every
+        zero block it found, so nothing is left to reclaim; stamped, with the
+        post-dig allocated size."""
+        return {
+            "at": int(time()),
+            "result": "ok",
+            "reclaimable_bytes": 0,
+            "actual_size_at_scan": int(after or 0),
+        }
+
+    @classmethod
+    def apply_dig_result(cls, storage_id, after):
+        """Record a finished dig in ``health.checks.zeros``: nothing is left to
+        reclaim (see :meth:`_zeros_value_after_dig`), so the row stops advertising
+        a figure the dig already gave back. Only a row that already carries a zeros
+        check is touched; never creates a row."""
+        value = cls._zeros_value_after_dig(after)
+        with cls._rdb_context():
+
+            def change(row):
+                return r.branch(
+                    row["health"].default({})["checks"].default({}).has_fields("zeros"),
+                    cls._health(row, "zeros", value, replace=False),
+                    {},
+                )
+
+            r.table(cls._rdb_table).get(storage_id).update(change).run(
+                cls._rdb_connection
+            )
 
     @classmethod
     def write_check(cls, storage_id, damage_reason=None, leaks=0):
