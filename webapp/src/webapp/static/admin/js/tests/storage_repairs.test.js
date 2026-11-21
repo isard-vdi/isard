@@ -55,6 +55,20 @@ assert.ok(page.includes('id="btn-check-integrity-status"'));
 assert.ok(page.includes('id="check-integrity-status"'));
 console.log("the bulk check button calls the per-status check: PASS");
 
+// --- a batch report stays short at any size and keeps its line breaks ----------
+const reports = load("storage.js", ["storageBatchReport", "storageNoticeHtml"]);
+const many = { queued: 1, results: [{ storage_id: "ok", task_id: "t" }] };
+for (let i = 0; i < 5000; i++) many.results.push({ storage_id: `b${i}`, description_code: "storage_pending_task" });
+many.results.push({ storage_id: "<p>", description_code: "storage_has_children", message: "has children" });
+const big = reports.storageBatchReport(many);
+assert.strictEqual(big.refused, 5001);
+assert.strictEqual(
+  big.text,
+  "Queued on 1 of 5002 disk(s).<br>5000 refused: storage_pending_task (b0, b1, b2, ...)" +
+    "<br>1 refused: storage_has_children (&lt;p&gt;): has children"
+);
+console.log("a batch report groups the refusals by reason, escaped: PASS");
+
 // --- the allowed list is edited with the shared allowed modal -------------------
 const sweep = fs.readFileSync(path.join(__dirname, "..", "storage_sweep_config.js"), "utf8");
 assert.ok(sweep.includes('modalAllowedsFormShow("storage_repair"'));

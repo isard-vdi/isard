@@ -108,12 +108,20 @@ class StorageDigHolesBatchResponse(BaseModel):
     results: list[StorageDigHolesBatchResult]
 
 
-class StorageRepairBatchResponse(BaseModel):
-    """How many disks a batch repair queued, and how many it skipped because they
-    have descendants (never repaired automatically)."""
+class StorageBatchResult(BaseModel):
+    """What a mass action did with one disk: its task, or why it was refused."""
+
+    storage_id: str
+    task_id: Optional[str] = None
+    description_code: Optional[str] = None
+    message: Optional[str] = None
+
+
+class StorageBatchResponse(BaseModel):
+    """How many disks a mass action queued, and the outcome of each."""
 
     queued: int
-    skipped_has_descendants: int = 0
+    results: list[StorageBatchResult]
 
 
 class StorageSweepConfigResponse(BaseModel):

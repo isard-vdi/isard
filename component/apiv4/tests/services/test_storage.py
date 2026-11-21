@@ -189,6 +189,63 @@ class TestBatchSkipsMaintenanceAndPending:
         disk.check_backing_chain.assert_called_once()
 
 
+class TestBackingChainBatchReportsEveryDisk:
+    @patch("api.services.storage.tasks_from_ids")
+    @patch("api.services.storage.current_task_id")
+    @patch("api.services.storage.get_storage")
+    def test_each_skip_is_a_refusal_with_its_reason(
+        self, mock_get, mock_cti, mock_tasks
+    ):
+        disks = {
+            "bin": MagicMock(id="bin", status="recycled"),
+            "maint": MagicMock(id="maint", status="maintenance"),
+            "busy": MagicMock(id="busy", status="ready", pending_actions=None),
+            "marked": MagicMock(id="marked", status="ready", pending_actions={"x": {}}),
+            "ok": MagicMock(id="ok", status="ready", pending_actions=None),
+        }
+        disks["ok"].check_backing_chain.return_value = "t-ok"
+        mock_get.side_effect = lambda payload, sid: disks[sid]
+        mock_cti.side_effect = lambda redis, sid: "t-live" if sid == "busy" else None
+        mock_tasks.return_value = [MagicMock(pending=True)]
+        result = StorageService.batch_check_backing_chain(
+            JWT_PAYLOAD_ADMIN, list(disks)
+        )
+        codes = {r["storage_id"]: r.get("description_code") for r in result["results"]}
+        assert codes == {
+            "bin": "storage_recycled",
+            "maint": "storage_not_ready",
+            "busy": "storage_pending_task",
+            "marked": "storage_pending_action",
+            "ok": None,
+        }
+        assert result["queued"] == 1
+
+    @patch("api.services.storage.current_task_id", return_value=None)
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_by_status_a_failing_disk_does_not_stop_the_rest(
+        self, mock_get, mock_ids, _cti
+    ):
+        mock_ids.return_value = ["boom", "ok"]
+        ok = MagicMock(status="ready", pending_actions=None)
+        ok.check_backing_chain.return_value = "t-ok"
+
+        def storage_for(payload, sid):
+            if sid == "boom":
+                raise RuntimeError("db")
+            return ok
+
+        mock_get.side_effect = storage_for
+        result = StorageService.batch_check_backing_chain_by_status(
+            JWT_PAYLOAD_ADMIN, "ready"
+        )
+        assert [r.get("description_code") for r in result["results"]] == [
+            "internal_server",
+            None,
+        ]
+        ok.check_backing_chain.assert_called_once()
+
+
 class TestGetStorageDetail:
     @patch("api.services.storage.get_storage")
     @patch("api.services.storage.StorageProcessed.get_storage_row")
@@ -580,7 +637,8 @@ class TestBatchRepairLeaks:
         mock_get.return_value = storage
         result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN, limit=10)
         mock_pending.assert_called_once_with("repair_leaks", status="ready", limit=10)
-        assert result == {"queued": 2, "skipped_has_descendants": 0}
+        assert result["queued"] == 2
+        assert all(r.get("task_id") for r in result["results"])
         assert storage.repair.call_count == 2
         # the bulk path only ever repairs leaks, never attempts "all"
         for call in storage.repair.call_args_list:
@@ -603,8 +661,11 @@ class TestBatchRepairLeaks:
 
         result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN)
 
-        assert result == {"queued": 1, "skipped_has_descendants": 1}
-        # only the leaf reached get_storage / repair; the parent never did
+        assert result["queued"] == 1
+        by_id = {r["storage_id"]: r for r in result["results"]}
+        assert by_id["leaf"]["task_id"] is not None
+        assert by_id["parent"]["description_code"] == "storage_has_children"
+        # only the leaf reached get_storage / repair; the parent was refused first
         assert storage.repair.call_count == 1
         assert [c.args[1] for c in mock_get.call_args_list] == ["leaf"]
 
@@ -636,6 +697,52 @@ class TestBulkActionsRideTheBulkLane:
         mock_get.return_value = storage
         StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["s1"])
         assert storage.find.call_args.kwargs["priority"] == "bulk"
+
+
+class TestBatchActionsReportEveryDisk:
+    """A mass action answers for every disk: its task, or the refusal that kept it out."""
+
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_check_all_reports_a_refused_disk_instead_of_dropping_it(
+        self, mock_get, mock_ids
+    ):
+        mock_ids.return_value = ["ok", "busy"]
+
+        def storage_for(payload, sid):
+            s = MagicMock()
+            s.check_integrity.return_value = "task-ok"
+            if sid == "busy":
+                s.check_integrity.side_effect = Error(
+                    "precondition_required",
+                    "open by a running desktop",
+                    description_code="storage_open_not_checkable",
+                )
+            return s
+
+        mock_get.side_effect = storage_for
+        result = StorageService.batch_check_integrity_by_status(
+            JWT_PAYLOAD_ADMIN, "ready"
+        )
+        assert result["queued"] == 1
+        by_id = {r["storage_id"]: r for r in result["results"]}
+        assert by_id["ok"]["task_id"] == "task-ok"
+        assert by_id["busy"]["description_code"] == "storage_open_not_checkable"
+
+    @patch("api.services.storage.get_storage")
+    def test_find_reports_a_recycled_disk(self, mock_get):
+        mock_get.side_effect = lambda payload, sid: MagicMock(status="recycled", id=sid)
+        result = StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["r1"])
+        assert result["queued"] == 0
+        assert result["results"][0]["description_code"] == "storage_recycled"
+
+    @patch("api.services.storage.get_storage")
+    def test_an_unexpected_failure_is_reported_not_swallowed(self, mock_get):
+        storage = MagicMock()
+        storage.sparsify.side_effect = RuntimeError("boom")
+        mock_get.return_value = storage
+        result = StorageService.batch_sparsify(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert result["results"][0]["description_code"] == "internal_server"
 
 
 def _sweep_storage(payload, sid):

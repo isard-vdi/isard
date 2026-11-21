@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
 import time
 
 from api.services.error import Error
@@ -225,36 +226,52 @@ class StorageService:
         return storage.id
 
     @staticmethod
-    def batch_check_backing_chain(payload: dict, storage_ids: list[str]) -> None:
-        """Check backing chain for a batch of storages by IDs."""
-        for storage_id in storage_ids:
-            storage = get_storage(payload, storage_id)
-            # never re-measure a disk mid-operation: skip recycled/maintenance and a pending task/action
-            if storage.status in ("recycled", "maintenance"):
-                continue
-            task_id = current_task_id(Task._redis, storage.id)
-            tasks = tasks_from_ids([task_id]) if task_id else []
-            if (tasks and tasks[0].pending) or storage.pending_actions:
-                continue
-            storage.check_backing_chain(user_id=payload.get("user_id"))
+    def _check_backing_chain_one(payload: dict, storage_id: str) -> str:
+        """Measure one disk again, refusing one mid-operation."""
+        storage = get_storage(payload, storage_id)
+        if storage.status == "recycled":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} is in the recycle bin",
+                description_code="storage_recycled",
+            )
+        if storage.status == "maintenance":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} is in maintenance",
+                description_code="storage_not_ready",
+            )
+        task_id = current_task_id(Task._redis, storage.id)
+        tasks = tasks_from_ids([task_id]) if task_id else []
+        if tasks and tasks[0].pending:
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} has the pending task {task_id}",
+                description_code="storage_pending_task",
+            )
+        if storage.pending_actions:
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} has a pending action",
+                description_code="storage_pending_action",
+            )
+        return storage.check_backing_chain(user_id=payload.get("user_id"))
 
     @staticmethod
-    def batch_check_backing_chain_by_status(payload: dict, status: str) -> None:
-        """Check backing chain for all storages with a given status."""
-        storages_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        for storage_id in storages_ids:
-            try:
-                storage = get_storage(payload, storage_id)
-                if storage.status == "recycled":
-                    continue
-                storage.check_backing_chain(user_id=payload.get("user_id"))
-            except Exception:
-                notify_admin(
-                    payload["user_id"],
-                    "Error finding storage",
-                    f"There was an error creating a task for {storage_id}",
-                    type="error",
-                )
+    def batch_check_backing_chain(payload: dict, storage_ids: list[str]) -> dict:
+        """Check the backing chain of a batch of disks; report per disk what was queued or why not."""
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: StorageService._check_backing_chain_one(
+                payload, storage_id
+            ),
+        )
+
+    @staticmethod
+    def batch_check_backing_chain_by_status(payload: dict, status: str) -> dict:
+        """Check the backing chain of every disk with ``status``, reporting each one."""
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        return StorageService.batch_check_backing_chain(payload, storage_ids)
 
     # ── CRUD ───────────────────────────────────────────────────────────
 
@@ -551,7 +568,35 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_sparsify_by_status(payload: dict, status: str) -> None:
+    def _batch_outcome(storage_id, run) -> dict:
+        """``{storage_id, task_id}``, or ``{storage_id, description_code, message}`` when refused."""
+        result = {"storage_id": storage_id}
+        try:
+            result["task_id"] = run(storage_id)
+        except Error as e:
+            error = getattr(e, "error", None) or {}
+            result["description_code"] = error.get("description_code")
+            result["message"] = error.get("description")
+        except Exception:
+            log.exception("queuing a task for %s failed", storage_id)
+            result["description_code"] = "internal_server"
+            result["message"] = f"Could not queue a task for {storage_id}"
+        return result
+
+    @staticmethod
+    def _batch_run(storage_ids, run) -> dict:
+        """``{queued, results}``: ``run(storage_id)``'s task id, or its refusal, for each distinct id."""
+        results = [
+            StorageService._batch_outcome(storage_id, run)
+            for storage_id in dict.fromkeys(storage_ids)
+        ]
+        return {
+            "queued": sum(1 for result in results if result.get("task_id")),
+            "results": results,
+        }
+
+    @staticmethod
+    def batch_sparsify_by_status(payload: dict, status: str) -> dict:
         """Sparsify every storage with the given ``status``.
 
         Webapp drop-down "Global actions → Sparsify disks" with no row
@@ -559,26 +604,19 @@ class StorageService:
         the table's status. Mirrors :meth:`batch_check_backing_chain_by_status`.
         """
         storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        StorageService.batch_sparsify(payload, storage_ids)
+        return StorageService.batch_sparsify(payload, storage_ids)
 
     @staticmethod
-    def batch_sparsify(payload: dict, storage_ids: list[str]) -> None:
-        """Sparsify a batch of storages."""
-        for storage_id in storage_ids:
-            try:
-                storage = get_storage(payload, storage_id)
-                storage.sparsify(
-                    payload.get("user_id"),
-                    priority="default",
-                    secondary_priority="high",
-                )
-            except Exception:
-                notify_admin(
-                    payload["user_id"],
-                    "Error Sparsifying storage",
-                    f"There was an error creating a task for {storage_id}",
-                    type="error",
-                )
+    def batch_sparsify(payload: dict, storage_ids: list[str]) -> dict:
+        """Sparsify a batch of storages; report per disk what was queued or why not."""
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: get_storage(payload, storage_id).sparsify(
+                payload.get("user_id"),
+                priority="default",
+                secondary_priority="high",
+            ),
+        )
 
     @staticmethod
     def dig_holes(
@@ -612,29 +650,16 @@ class StorageService:
         payload: dict, storage_ids: list[str], verify: bool = False
     ) -> dict:
         """Queue dig_holes on each storage; say per id what was queued or why not."""
-        results = []
-        for storage_id in dict.fromkeys(storage_ids):
-            result = {"storage_id": storage_id}
-            try:
-                result["task_id"] = get_storage(payload, storage_id).dig_holes(
-                    payload.get("user_id"),
-                    priority="low",
-                    secondary_priority="high",
-                    verify=verify,
-                    require_descendants_stopped=True,
-                )
-            except Error as e:
-                error = getattr(e, "error", None) or {}
-                result["description_code"] = error.get("description_code")
-                result["message"] = error.get("description")
-            except Exception:
-                result["description_code"] = "internal_server"
-                result["message"] = f"Could not queue a task for {storage_id}"
-            results.append(result)
-        return {
-            "queued": sum(1 for result in results if result.get("task_id")),
-            "results": results,
-        }
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: get_storage(payload, storage_id).dig_holes(
+                payload.get("user_id"),
+                priority="low",
+                secondary_priority="high",
+                verify=verify,
+                require_descendants_stopped=True,
+            ),
+        )
 
     @staticmethod
     def repair(
@@ -665,36 +690,26 @@ class StorageService:
 
     @staticmethod
     def batch_repair_leaks(payload: dict, limit: int | None = None) -> dict:
-        """Repair every ``ready`` disk still carrying a ``repair_leaks`` mark, oldest
-        first, bounded by ``limit`` (via the ``status_pending_action`` index, never a
-        scan); always ``what="leaks"``. A disk with descendants is never repaired
-        automatically (a repair rewrites the qcow2 its children back onto): it is
-        skipped and counted, not queued. Returns {queued, skipped_has_descendants}."""
+        """Repair the leaks of up to ``limit`` marked ``ready`` disks, oldest first, refusing one with children."""
         storage_ids = Storage.pending_ids("repair_leaks", status="ready", limit=limit)
         parents_with_children = StorageService._ids_with_children(storage_ids)
-        queued = 0
-        skipped_has_descendants = 0
-        for storage_id in storage_ids:
+
+        def run(storage_id):
             if storage_id in parents_with_children:
-                skipped_has_descendants += 1
-                continue
-            try:
-                storage = get_storage(payload, storage_id)
-                storage.repair(
-                    payload.get("user_id"),
-                    "leaks",
-                    priority="bulk",
-                    secondary_priority="high",
+                raise Error(
+                    "precondition_required",
+                    f"Storage {storage_id} has children storages that depend on it "
+                    "as backing file",
+                    description_code="storage_has_children",
                 )
-                queued += 1
-            except Exception:
-                notify_admin(
-                    payload["user_id"],
-                    "Error repairing storage",
-                    f"There was an error creating a repair task for {storage_id}",
-                    type="error",
-                )
-        return {"queued": queued, "skipped_has_descendants": skipped_has_descendants}
+            return get_storage(payload, storage_id).repair(
+                payload.get("user_id"),
+                "leaks",
+                priority="bulk",
+                secondary_priority="high",
+            )
+
+        return StorageService._batch_run(storage_ids, run)
 
     @staticmethod
     def check_integrity(
@@ -717,27 +732,15 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_check_integrity_by_status(payload: dict, status: str) -> int:
-        """Check every disk with ``status`` (index-based ids). A disk a running
-        desktop holds open is skipped, not an error; returns how many were queued."""
+    def batch_check_integrity_by_status(payload: dict, status: str) -> dict:
+        """Check every disk with ``status``; report per disk what was queued or why not."""
         storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        queued = 0
-        for storage_id in storage_ids:
-            try:
-                get_storage(payload, storage_id).check_integrity(
-                    payload.get("user_id"), priority="bulk"
-                )
-                queued += 1
-            except Error:
-                continue
-            except Exception:
-                notify_admin(
-                    payload["user_id"],
-                    "Error checking storage",
-                    f"There was an error creating a check task for {storage_id}",
-                    type="error",
-                )
-        return queued
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: get_storage(payload, storage_id).check_integrity(
+                payload.get("user_id"), priority="bulk"
+            ),
+        )
 
     @staticmethod
     def zero_scan(payload: dict, storage_id: str, priority: str = "low") -> str:
@@ -753,23 +756,15 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_zero_scan_by_status(payload: dict, status: str) -> int:
-        """Zero-scan every disk with ``status``; a refused disk is skipped. Returns how many were queued."""
-        queued = 0
-        for storage_id in StorageProcessed.get_disks_ids_by_status(status=status):
-            try:
-                get_storage(payload, storage_id).zero_scan(payload.get("user_id"))
-                queued += 1
-            except Error:
-                continue
-            except Exception:
-                notify_admin(
-                    payload["user_id"],
-                    "Error scanning storage",
-                    f"There was an error creating a zero scan task for {storage_id}",
-                    type="error",
-                )
-        return queued
+    def batch_zero_scan_by_status(payload: dict, status: str) -> dict:
+        """Zero-scan every disk with ``status``; report per disk what was queued or why not."""
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: get_storage(payload, storage_id).zero_scan(
+                payload.get("user_id")
+            ),
+        )
 
     @staticmethod
     def get_sweep_config() -> dict:
@@ -1363,16 +1358,23 @@ class StorageService:
         return storage.find(payload.get("user_id"))
 
     @staticmethod
-    def batch_find(payload: dict, storage_ids: list[str]) -> None:
-        """Find multiple storages on disk."""
-        for storage_id in storage_ids:
+    def batch_find(payload: dict, storage_ids: list[str]) -> dict:
+        """Find several disks; report per disk what was queued or why not (a recycled one is refused)."""
+
+        def run(storage_id):
             storage = get_storage(payload, storage_id)
             if storage.status == "recycled":
-                continue
-            storage.find(payload.get("user_id"), priority="bulk")
+                raise Error(
+                    "precondition_required",
+                    f"Storage {storage_id} is in the recycle bin",
+                    description_code="storage_recycled",
+                )
+            return storage.find(payload.get("user_id"), priority="bulk")
+
+        return StorageService._batch_run(storage_ids, run)
 
     @staticmethod
-    def batch_find_by_status(payload: dict, status: str) -> None:
+    def batch_find_by_status(payload: dict, status: str) -> dict:
         """Find every storage with the given ``status`` on disk.
 
         Webapp drop-down "Global actions → Find & update disks" with no
@@ -1381,4 +1383,4 @@ class StorageService:
         ``other``). Mirrors :meth:`batch_check_backing_chain_by_status`.
         """
         storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        StorageService.batch_find(payload, storage_ids)
+        return StorageService.batch_find(payload, storage_ids)
