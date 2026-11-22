@@ -71,3 +71,59 @@ def test_the_global_cap_still_refuses_a_fresh_category_when_full(scratch_redis):
     decision, ctx = qc.lane_shed_decision(scratch_redis, LANE, category="fresh")
     assert decision == "reject"
     assert ctx["reason"] == qc.REASON_OVERLOADED
+
+
+def _storage_task(category, storage_id):
+    """A real ``Storage.create_task``; only the owner's category lookup is replaced."""
+    from unittest.mock import PropertyMock, patch
+
+    from isardvdi_common.models.storage import Storage
+
+    storage = Storage.__new__(Storage)
+    object.__setattr__(storage, "id", storage_id)
+    object.__setattr__(storage, "user_id", f"user-{category}")
+    with patch.object(
+        Storage, "category", new_callable=PropertyMock, return_value=category
+    ):
+        return storage.create_task(
+            user_id=f"user-{category}",
+            queue=LANE,
+            task="qemu_img_info",
+            job_kwargs={"kwargs": {"storage_id": storage_id}},
+        )
+
+
+def test_a_real_enqueue_indexes_its_category_and_is_capped(
+    task_on_scratch_redis, monkeypatch
+):
+    """a main: no storage:jobcat index is written, so one category fills the lane."""
+    from isardvdi_common.lib import governor_counters
+    from isardvdi_common.models.task import Task
+
+    monkeypatch.setenv("STORAGE_SHED_CAT_HARD_INTERACTIVE", "2")
+    conn = task_on_scratch_redis
+    _live_consumer(conn)
+
+    admitted = [_storage_task("catA", f"test-7850-a{i}") for i in range(2)]
+    for task_id in admitted:
+        assert (
+            Task(task_id).job.origin == LANE
+        ), f"{task_id} landed on {Task(task_id).job.origin}, not the flat {LANE}"
+        indexed = conn.get(f"storage:jobcat:{task_id}")
+        assert (
+            indexed == b"catA"
+        ), f"expected storage:jobcat:{task_id} == b'catA', got {indexed!r}"
+
+    with pytest.raises(Exception) as excinfo:
+        _storage_task("catA", "test-7850-a2")
+    assert (
+        getattr(excinfo.value, "status_code", None) == 429
+    ), f"expected a 429 for the capped category, got {excinfo.value!r}"
+    by_reason = governor_counters.read_shed(conn)["by_reason"]
+    assert by_reason == {
+        qc.REASON_CATEGORY_OVERLOADED: 1
+    }, f"expected one category_overloaded shed, got {by_reason}"
+    assert conn.llen(qc._RQ_QUEUE_PREFIX + LANE) == 2, "the refused task was queued"
+
+    other = _storage_task("catB", "test-7850-b0")
+    assert conn.get(f"storage:jobcat:{other}") == b"catB"
