@@ -9,13 +9,16 @@ import shutil
 import subprocess
 
 import pytest
+from isardvdi_apiv4_client.api.role_advanced import create_template
 from isardvdi_apiv4_client.api.role_manager import admin_get_templates
 from isardvdi_apiv4_client.api.role_user import create_desktop, get_desktop_details
+from isardvdi_apiv4_client.models.allowed_base_input import AllowedBaseInput
 from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 
 from .helpers.client import IsardClient
 from .helpers.responses import created_id, expect
-from .helpers.seed import derivable
+from .helpers.seed import SEEDED_TEMPLATE_ID, derivable
 from .helpers.waits import poll_for
 
 rethinkdb = pytest.importorskip("rethinkdb")
@@ -164,20 +167,41 @@ def test_dig_holes_refuses_an_unknown_priority(admin_client: IsardClient):
     assert resp.status_code == 400, resp.text
 
 
-def _derived_template_disk(admin_client: IsardClient, conn, name: str) -> str:
-    templates = derivable(
-        expect(admin_get_templates.sync_detailed(client=admin_client.apiv4()))
-    )
-    assert templates, "no derivable template seeded"
-    created_id(
+def _desktop(admin_client: IsardClient, template_id: str, name: str) -> str:
+    desktop_id = created_id(
         create_desktop.sync_detailed(
             client=admin_client.apiv4(),
             body=CreateDesktopRequest(
-                template_id=templates[0].id, name=name, description=""
+                template_id=template_id, name=name, description=""
             ),
         )
     )
-    domain = r.table("domains").get(templates[0].id).run(conn)
+    admin_client.poll_desktop_status(
+        desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
+    )
+    return desktop_id
+
+
+def _derived_template_disk(admin_client: IsardClient, conn, name: str) -> str:
+    # a template of its own: under a shared one another test's desktop may be running
+    source_id = _desktop(admin_client, SEEDED_TEMPLATE_ID, f"{name}_src")
+    template_id = created_id(
+        create_template.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewTemplateRequest(
+                desktop_id=source_id,
+                name=f"{name}_tmpl",
+                description="",
+                allowed=AllowedBaseInput(users=False, groups=False),
+                enabled=True,
+            ),
+        )
+    )
+    admin_client.wait_for_template_created(
+        source_desktop_id=source_id, template_id=template_id, max_wait=CREATE_TIMEOUT
+    )
+    _desktop(admin_client, template_id, name)
+    domain = r.table("domains").get(template_id).run(conn)
     return domain["create_dict"]["hardware"]["disks"][0]["storage_id"]
 
 

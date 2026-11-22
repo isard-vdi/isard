@@ -14,6 +14,9 @@ from __future__ import annotations
 # template listings are unordered and a blind ``[0]`` can land on it.
 DISKLESS_TEMPLATE_ID = "template-s9-seed"
 
+# Seeded with a real qcow2, so a desktop derived from it reaches Stopped.
+SEEDED_TEMPLATE_ID = "template-test-001"
+
 
 def derivable(templates: list) -> list:
     """The templates a desktop can actually be built from."""
