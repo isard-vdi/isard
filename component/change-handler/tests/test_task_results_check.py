@@ -10,15 +10,18 @@ from types import SimpleNamespace
 from unittest.mock import call, patch
 
 
-def _run(depending_status, result, exists=True):
+def _run(depending_status, result, exists=True, row=None):
     from isardvdi_change_handler.task_results import storage
 
     task = SimpleNamespace(
         depending_status=depending_status,
         dependencies=[SimpleNamespace(task="storage_check", result=result)],
     )
+    row = {"status": "ready", "path": "/isard/groups/s1.qcow2", **(row or {})}
     with patch.object(storage, "Storage") as cls:
         cls.exists.return_value = exists
+        cls.return_value.status = row["status"]
+        cls.return_value.path = row["path"]
         storage.handle_storage_check_result(task, storage_id="s1")
     return cls
 
@@ -65,6 +68,7 @@ def test_a_verdict_clears_the_inconclusive_and_the_recheck_marks():
         cls = _run("finished", result)
         assert cls.clear_pending.call_args_list == [
             call("s1", "check_inconclusive"),
+            call("s1", "review_coherence", found_by="check_integrity"),
             call("s1", "check_integrity"),
         ]
 
@@ -111,3 +115,48 @@ def test_storage_check_result_is_registered():
     handler, is_async = HANDLERS["storage_check_result"]
     assert handler is storage.handle_storage_check_result
     assert is_async is False
+
+
+def test_a_missing_file_leaves_the_status_and_flags_review_coherence():
+    cls = _run(
+        "finished",
+        {
+            "ok": False,
+            "inconclusive": False,
+            "missing": True,
+            "path": "/isard/groups/s1.qcow2",
+            "summary": "/isard/groups/s1.qcow2 does not exist",
+        },
+    )
+    cls.flag_pending.assert_called_once_with(
+        "s1",
+        "review_coherence",
+        "check_integrity",
+        {
+            "reason": "the row's file is not in its pool",
+            "path": "/isard/groups/s1.qcow2",
+        },
+    )
+    cls.write_check.assert_not_called()
+    cls.insert_document.assert_not_called()
+
+
+_MISSING = {
+    "ok": False,
+    "inconclusive": False,
+    "missing": True,
+    "path": "/isard/groups/s1.qcow2",
+    "summary": "/isard/groups/s1.qcow2 does not exist",
+}
+
+
+def test_a_missing_file_of_a_row_that_moved_meanwhile_is_not_flagged():
+    cls = _run("finished", _MISSING, row={"path": "/isard/templates/s1.qcow2"})
+    cls.flag_pending.assert_not_called()
+    cls.write_check.assert_not_called()
+
+
+def test_a_missing_file_of_a_recycled_row_is_not_flagged():
+    cls = _run("finished", _MISSING, row={"status": "recycled"})
+    cls.flag_pending.assert_not_called()
+    cls.write_check.assert_not_called()

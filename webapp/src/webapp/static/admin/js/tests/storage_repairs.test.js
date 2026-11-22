@@ -55,6 +55,9 @@ assert.ok(page.includes('id="btn-check-integrity-status"'));
 assert.ok(page.includes('id="check-integrity-status"'));
 console.log("the bulk check button calls the per-status check: PASS");
 
+assert.ok(page.includes('<option value="review_coherence">review_coherence</option>'));
+console.log("a disk a check found without file can be listed: PASS");
+
 // --- a batch report stays short at any size and keeps its line breaks ----------
 const reports = load("storage.js", ["storageBatchReport", "storageNoticeHtml"]);
 const many = { queued: 1, results: [{ storage_id: "ok", task_id: "t" }] };

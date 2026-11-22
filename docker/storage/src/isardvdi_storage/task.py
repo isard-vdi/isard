@@ -2029,13 +2029,20 @@ def _refuse_if_backs_live_disks(path, covered_paths, live_uuids=None):
 
 
 def storage_check(storage_path):
-    """Read-only ``qemu-img check -U`` of a qcow2 outside any migration. Returns
-    the report ({ok, inconclusive, summary, corruptions, leaks, ...}); the
-    change-handler records the verdict from it, or a check_inconclusive mark
-    when qemu-img reached none. Repairs nothing."""
+    """Read-only ``qemu-img check -U`` report; ``missing`` only for a file absent from a live volume."""
     qcow = _storage_qcow()
-    if not isfile(storage_path):
-        raise RuntimeError(f"storage_check: {storage_path} does not exist")
+    try:
+        os_stat(storage_path)
+    except FileNotFoundError:
+        if not _absent_on_a_live_volume(storage_path):
+            raise RuntimeError(f"storage_check: {storage_path} does not exist")
+        return {
+            "ok": False,
+            "inconclusive": False,
+            "missing": True,
+            "path": storage_path,
+            "summary": f"{storage_path} does not exist",
+        }
     return qcow.qemu_img_check_report(storage_path)
 
 

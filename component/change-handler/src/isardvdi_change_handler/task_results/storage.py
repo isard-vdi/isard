@@ -924,13 +924,7 @@ def handle_storage_repair_size(task, storage_id):
 
 
 def handle_storage_check_result(task, storage_id):
-    """Record a standalone integrity check on the row (:meth:`Storage.write_check`):
-    damaged + damage_reason on corruption, a repair_leaks mark on leaks, and
-    last_checked_at. A sound verdict brings a damaged disk back to ready; a
-    leaky-but-sound disk never leaves ready. A check that reached no verdict
-    (timed out, or qemu-img could not open the image) changes no status and no
-    last_checked_at, so the rotation picks the disk again, and leaves a
-    check_inconclusive mark. A check whose task failed records nothing."""
+    """Record a standalone integrity check's verdict, its absence, or a missing file on the row."""
     if task.depending_status != "finished":
         return
     if not Storage.exists(storage_id):
@@ -951,6 +945,20 @@ def handle_storage_check_result(task, storage_id):
         )
         return
     Storage.clear_pending(storage_id, "check_inconclusive")
+    if result.get("missing"):
+        storage = Storage(storage_id)
+        if storage.status != "recycled" and storage.path == result.get("path"):
+            Storage.flag_pending(
+                storage_id,
+                "review_coherence",
+                "check_integrity",
+                {
+                    "reason": "the row's file is not in its pool",
+                    "path": result.get("path"),
+                },
+            )
+        return
+    Storage.clear_pending(storage_id, "review_coherence", found_by="check_integrity")
     Storage.clear_pending(storage_id, "check_integrity")
     if result.get("ok"):
         leaks = int(result.get("leaks") or 0)

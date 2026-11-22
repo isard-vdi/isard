@@ -196,8 +196,11 @@ PENDING_ACTIONS = {
         "cleared_by": "a qemu-img check that reaches one",
     },
     "review_coherence": {
-        "flagged_by": ("the integrity coherence pass",),
-        "cleared_by": "an admin decision",
+        "flagged_by": (
+            "the integrity coherence pass",
+            "a check_integrity that finds the row's file gone",
+        ),
+        "cleared_by": "an admin decision, or a check that finds the file",
     },
     "review_dependents": {
         "flagged_by": ("the integrity on-disk dependents scan",),
@@ -455,12 +458,24 @@ class Storage(RethinkCustomBase):
             )
 
     @classmethod
-    def clear_pending(cls, storage_id, action):
+    def clear_pending(cls, storage_id, action, found_by=None):
+        """Drop the ``action`` mark; with ``found_by``, only a mark that finder left."""
+
+        def drop(row):
+            cleared = row.without({"pending_actions": {action: True}})
+            if found_by is None:
+                return cleared
+            return r.branch(
+                row["pending_actions"][action]["found_by"].default(None) == found_by,
+                cleared,
+                row,
+            )
+
         with cls._rdb_context():
             return (
                 r.table(cls._rdb_table)
                 .get(storage_id)
-                .replace(lambda row: row.without({"pending_actions": {action: True}}))
+                .replace(drop)
                 .run(cls._rdb_connection)
             )
 
