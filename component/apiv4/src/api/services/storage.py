@@ -21,6 +21,7 @@
 import logging as log
 import time
 
+from api.services import storage_batches
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
@@ -269,9 +270,10 @@ class StorageService:
 
     @staticmethod
     def batch_check_backing_chain_by_status(payload: dict, status: str) -> dict:
-        """Check the backing chain of every disk with ``status``, reporting each one."""
-        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        return StorageService.batch_check_backing_chain(payload, storage_ids)
+        """Accept a backing-chain check of every disk with ``status``; a notice says how it ended."""
+        return StorageService._batch_after_answer(
+            payload, "check_backing_chain", status
+        )
 
     # ── CRUD ───────────────────────────────────────────────────────────
 
@@ -597,25 +599,21 @@ class StorageService:
 
     @staticmethod
     def batch_sparsify_by_status(payload: dict, status: str) -> dict:
-        """Sparsify every storage with the given ``status``.
+        """Accept a sparsify of every disk with ``status``; a notice says how it ended."""
+        return StorageService._batch_after_answer(payload, "sparsify", status)
 
-        Webapp drop-down "Global actions → Sparsify disks" with no row
-        filter applied calls ``PUT /items/storage/sparsify/{status}`` for
-        the table's status. Mirrors :meth:`batch_check_backing_chain_by_status`.
-        """
-        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        return StorageService.batch_sparsify(payload, storage_ids)
+    @staticmethod
+    def _sparsify_one(payload: dict, storage_id: str) -> str:
+        return get_storage(payload, storage_id).sparsify(
+            payload.get("user_id"), priority="default", secondary_priority="high"
+        )
 
     @staticmethod
     def batch_sparsify(payload: dict, storage_ids: list[str]) -> dict:
         """Sparsify a batch of storages; report per disk what was queued or why not."""
         return StorageService._batch_run(
             storage_ids,
-            lambda storage_id: get_storage(payload, storage_id).sparsify(
-                payload.get("user_id"),
-                priority="default",
-                secondary_priority="high",
-            ),
+            lambda storage_id: StorageService._sparsify_one(payload, storage_id),
         )
 
     @staticmethod
@@ -732,15 +730,21 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_check_integrity_by_status(payload: dict, status: str) -> dict:
-        """Check every disk with ``status``; report per disk what was queued or why not."""
-        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        return StorageService._batch_run(
-            storage_ids,
-            lambda storage_id: get_storage(payload, storage_id).check_integrity(
-                payload.get("user_id"), priority="bulk"
-            ),
+    def _check_integrity_one(payload: dict, storage_id: str) -> str:
+        return get_storage(payload, storage_id).check_integrity(
+            payload.get("user_id"), priority="bulk"
         )
+
+    @staticmethod
+    def batch_check_integrity_by_status(payload: dict, status: str) -> dict:
+        """Accept a check of every disk with ``status``; a notice says how it ended."""
+        return StorageService._batch_after_answer(payload, "check", status)
+
+    @staticmethod
+    def _batch_after_answer(payload: dict, action: str, status: str) -> dict:
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        accepted = storage_batches.start(payload, action, status, storage_ids)
+        return {"status": status, "accepted": accepted}
 
     @staticmethod
     def zero_scan(payload: dict, storage_id: str, priority: str = "low") -> str:
@@ -756,15 +760,13 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
+    def _zero_scan_one(payload: dict, storage_id: str) -> str:
+        return get_storage(payload, storage_id).zero_scan(payload.get("user_id"))
+
+    @staticmethod
     def batch_zero_scan_by_status(payload: dict, status: str) -> dict:
-        """Zero-scan every disk with ``status``; report per disk what was queued or why not."""
-        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        return StorageService._batch_run(
-            storage_ids,
-            lambda storage_id: get_storage(payload, storage_id).zero_scan(
-                payload.get("user_id")
-            ),
-        )
+        """Accept a zero scan of every disk with ``status``; a notice says how it ended."""
+        return StorageService._batch_after_answer(payload, "zero_scan", status)
 
     @staticmethod
     def get_sweep_config() -> dict:
@@ -1358,29 +1360,49 @@ class StorageService:
         return storage.find(payload.get("user_id"))
 
     @staticmethod
+    def _find_one(payload: dict, storage_id: str) -> str:
+        storage = get_storage(payload, storage_id)
+        if storage.status == "recycled":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} is in the recycle bin",
+                description_code="storage_recycled",
+            )
+        return storage.find(payload.get("user_id"), priority="bulk")
+
+    @staticmethod
     def batch_find(payload: dict, storage_ids: list[str]) -> dict:
         """Find several disks; report per disk what was queued or why not (a recycled one is refused)."""
-
-        def run(storage_id):
-            storage = get_storage(payload, storage_id)
-            if storage.status == "recycled":
-                raise Error(
-                    "precondition_required",
-                    f"Storage {storage_id} is in the recycle bin",
-                    description_code="storage_recycled",
-                )
-            return storage.find(payload.get("user_id"), priority="bulk")
-
-        return StorageService._batch_run(storage_ids, run)
+        return StorageService._batch_run(
+            storage_ids,
+            lambda storage_id: StorageService._find_one(payload, storage_id),
+        )
 
     @staticmethod
     def batch_find_by_status(payload: dict, status: str) -> dict:
-        """Find every storage with the given ``status`` on disk.
+        """Accept a find of every disk with ``status``; a notice says how it ended."""
+        return StorageService._batch_after_answer(payload, "find", status)
 
-        Webapp drop-down "Global actions → Find & update disks" with no
-        row filter applied calls ``PUT /items/storage/find/{status}`` for
-        the table's status (e.g. ``ready``, ``orphan``, ``deleted``,
-        ``other``). Mirrors :meth:`batch_check_backing_chain_by_status`.
-        """
-        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
-        return StorageService.batch_find(payload, storage_ids)
+
+def _after_answer(one):
+    return lambda payload, storage_id: StorageService._batch_outcome(
+        storage_id, lambda sid: one(payload, sid)
+    )
+
+
+for _action, _title, _one in (
+    (
+        "check",
+        "Integrity checks of the {status} disks",
+        StorageService._check_integrity_one,
+    ),
+    ("find", "Find of the {status} disks", StorageService._find_one),
+    ("sparsify", "Sparsify of the {status} disks", StorageService._sparsify_one),
+    ("zero_scan", "Zero scans of the {status} disks", StorageService._zero_scan_one),
+    (
+        "check_backing_chain",
+        "Backing-chain checks of the {status} disks",
+        StorageService._check_backing_chain_one,
+    ),
+):
+    storage_batches.register(_action, _title, _after_answer(_one))

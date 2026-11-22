@@ -124,6 +124,16 @@ class StorageBatchResponse(BaseModel):
     results: list[StorageBatchResult]
 
 
+class StorageBatchAcceptedResponse(BaseModel):
+    """A mass action that runs after the answer: how many disks it will take."""
+
+    status: str
+    accepted: int = Field(
+        description="Distinct disks the batch will try; a notice to the admin "
+        "says how many were queued and why any was refused."
+    )
+
+
 class StorageSweepConfigResponse(BaseModel):
     """Effective storage-sweep config: stored values over presentation defaults."""
 

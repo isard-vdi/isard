@@ -30,6 +30,7 @@ from api.schemas.common import (
 )
 from api.schemas.storage import (
     Qcow2GeometryResponse,
+    StorageBatchAcceptedResponse,
     StorageBatchIdsRequest,
     StorageBatchResponse,
     StorageConvertRequest,
@@ -175,12 +176,15 @@ async def batch_check_backing_chain(
 @admin_router.put(
     "/items/storage/status/{status}",
     tags=[tag],
-    response_model=StorageBatchResponse,
+    response_model=StorageBatchAcceptedResponse,
+    status_code=202,
     summary="Batch check backing chain by status",
-    description="Check backing chain for all storages with the given status; returns a result per disk (its task, or why it was refused).",
-    responses={
-        500: {"model": ErrorResponse},
-    },
+    description=(
+        "Answers at once with how many disks have the given status, then checks their backing chains "
+        "in the background; a notice to the admin says how many were queued and "
+        "why any was refused."
+    ),
+    responses={500: {"model": ErrorResponse}},
 )
 async def batch_check_backing_chain_by_status(request: Request, status: str):
     try:
@@ -190,8 +194,8 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
             status,
         )
         return JSONResponse(
-            content=StorageBatchResponse(**result).model_dump(mode="json"),
-            status_code=200,
+            content=StorageBatchAcceptedResponse(**result).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
@@ -630,23 +634,24 @@ async def batch_sparsify_storages(
 @admin_router.put(
     "/items/storage/sparsify/{status}",
     tags=[tag],
-    response_model=StorageBatchResponse,
+    response_model=StorageBatchAcceptedResponse,
+    status_code=202,
     summary="Batch sparsify storages by status",
-    description="Sparsify all storages with the given status; returns a result per disk (its task, or why it was refused).",
-    responses={
-        500: {"model": ErrorResponse},
-    },
+    description=(
+        "Answers at once with how many disks have the given status, then sparsifies them "
+        "in the background; a notice to the admin says how many were queued and "
+        "why any was refused."
+    ),
+    responses={500: {"model": ErrorResponse}},
 )
 async def batch_sparsify_storages_by_status(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
-            StorageService.batch_sparsify_by_status,
-            request.token_payload,
-            status,
+            StorageService.batch_sparsify_by_status, request.token_payload, status
         )
         return JSONResponse(
-            content=StorageBatchResponse(**result).model_dump(mode="json"),
-            status_code=200,
+            content=StorageBatchAcceptedResponse(**result).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
@@ -860,9 +865,14 @@ async def check_storage(request: Request, storage_id: str):
 @admin_router.put(
     "/admin/items/storage/check/{status}",
     tags=[tag],
-    response_model=StorageBatchResponse,
+    response_model=StorageBatchAcceptedResponse,
+    status_code=202,
     summary="Batch check integrity by status",
-    description="Checks every disk with the given status; returns a result per disk (its task, or why it was refused).",
+    description=(
+        "Answers at once with how many disks have the given status, then checks them "
+        "in the background; a notice to the admin says how many were queued and "
+        "why any was refused."
+    ),
     responses={500: {"model": ErrorResponse}},
 )
 async def batch_check_storage_by_status(request: Request, status: str):
@@ -873,8 +883,8 @@ async def batch_check_storage_by_status(request: Request, status: str):
             status,
         )
         return JSONResponse(
-            content=StorageBatchResponse(**result).model_dump(mode="json"),
-            status_code=200,
+            content=StorageBatchAcceptedResponse(**result).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
@@ -929,21 +939,24 @@ async def zero_scan_storage(request: Request, storage_id: str):
 @admin_router.put(
     "/admin/items/storage/zero-scan/{status}",
     tags=[tag],
-    response_model=StorageBatchResponse,
+    response_model=StorageBatchAcceptedResponse,
+    status_code=202,
     summary="Batch count zeros by status",
-    description="Zero-scans every disk with the given status; returns a result per disk (its task, or why it was refused).",
+    description=(
+        "Answers at once with how many disks have the given status, then zero-scans them "
+        "in the background; a notice to the admin says how many were queued and "
+        "why any was refused."
+    ),
     responses={500: {"model": ErrorResponse}},
 )
 async def batch_zero_scan_storage_by_status(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
-            StorageService.batch_zero_scan_by_status,
-            request.token_payload,
-            status,
+            StorageService.batch_zero_scan_by_status, request.token_payload, status
         )
         return JSONResponse(
-            content=StorageBatchResponse(**result).model_dump(mode="json"),
-            status_code=200,
+            content=StorageBatchAcceptedResponse(**result).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
@@ -1574,23 +1587,24 @@ async def batch_find_storages(
 @admin_router.put(
     "/items/storage/find/{status}",
     tags=[tag],
-    response_model=StorageBatchResponse,
+    response_model=StorageBatchAcceptedResponse,
+    status_code=202,
     summary="Batch find storages by status",
-    description="Finds all storages on disk with the given status; returns a result per disk (its task, or why it was refused).",
-    responses={
-        500: {"model": ErrorResponse},
-    },
+    description=(
+        "Answers at once with how many disks have the given status, then finds them on disk "
+        "in the background; a notice to the admin says how many were queued and "
+        "why any was refused."
+    ),
+    responses={500: {"model": ErrorResponse}},
 )
 async def batch_find_storages_by_status(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
-            StorageService.batch_find_by_status,
-            request.token_payload,
-            status,
+            StorageService.batch_find_by_status, request.token_payload, status
         )
         return JSONResponse(
-            content=StorageBatchResponse(**result).model_dump(mode="json"),
-            status_code=200,
+            content=StorageBatchAcceptedResponse(**result).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
