@@ -264,7 +264,9 @@ def test_sparsify_safe_cancel_copies_sparsifies_temp_and_swaps(monkeypatch):
     from isardvdi_storage import task
 
     monkeypatch.setattr(task, "task_heartbeat", _nullcontext)
-    monkeypatch.setattr(task, "_get_disk_usage", lambda p: 100)
+    monkeypatch.setattr(
+        task, "_get_disk_usage", lambda p: 60 if p.endswith(".sparsetmp") else 100
+    )
     monkeypatch.setattr(task, "_free_space", lambda p: 100 * 1024 * 10)  # ample
     calls = []
     monkeypatch.setattr(task, "_run_cancellable", lambda cmd: calls.append(cmd) or 0)
@@ -278,6 +280,29 @@ def test_sparsify_safe_cancel_copies_sparsifies_temp_and_swaps(monkeypatch):
         c[0] == "virt-sparsify" and "/isard/d.qcow2.sparsetmp" in c for c in calls
     )
     assert renamed == [("/isard/d.qcow2.sparsetmp", "/isard/d.qcow2")]
+
+
+@pytest.mark.parametrize("copy_size", [100, 115])
+def test_sparsify_keeps_the_disk_when_the_copy_did_not_shrink(monkeypatch, copy_size):
+    from isardvdi_storage import task
+
+    monkeypatch.setattr(task, "task_heartbeat", _nullcontext)
+    monkeypatch.setattr(
+        task,
+        "_get_disk_usage",
+        lambda p: copy_size if p.endswith(".sparsetmp") else 100,
+    )
+    monkeypatch.setattr(task, "_free_space", lambda p: 100 * 1024 * 10)
+    monkeypatch.setattr(task, "_run_cancellable", lambda cmd: 0)
+    renamed, unlinked = [], []
+    monkeypatch.setattr(task, "rename", lambda a, b: renamed.append((a, b)))
+    monkeypatch.setattr(task, "_safe_unlink", lambda p: unlinked.append(p))
+
+    r = task.sparsify("/isard/d.qcow2")
+    assert renamed == []
+    assert unlinked[-1] == "/isard/d.qcow2.sparsetmp"
+    assert r["saved_space"] == 0 and r["new_size"] == 100
+    assert r["kept_original"] is True
 
 
 def test_sparsify_falls_back_in_place_without_headroom(monkeypatch):
