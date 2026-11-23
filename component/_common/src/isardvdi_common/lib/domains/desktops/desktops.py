@@ -276,9 +276,9 @@ class DesktopsProcessed(RethinkSharedConnection):
     @staticmethod
     def parse_frontend_desktop_status(desktop):
         # TODO(separate-common-classes): move this to a desktop helpers class
-        if (
-            desktop["status"].startswith("Creating")
-            and desktop["status"] != DesktopStatusEnum.creating_and_starting.value
+        if desktop["status"].startswith("Creating") and desktop["status"] not in (
+            DesktopStatusEnum.creating_and_starting.value,
+            DesktopStatusEnum.creating_template.value,
         ):
             desktop["status"] = DesktopStatusEnum.creating.value
         if desktop["status"] == DesktopStatusEnum.started.value and not desktop.get(

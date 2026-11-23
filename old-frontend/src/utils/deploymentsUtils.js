@@ -86,7 +86,7 @@ export class DeploymentsUtils {
       categoryName,
       groupName,
       image,
-      state,
+      state: DesktopUtils.desktopState(state),
       viewer,
       viewers,
       buttonIconName: state === undefined ? undefined : (state ? DesktopUtils.buttonIconName(desktop) : ''),

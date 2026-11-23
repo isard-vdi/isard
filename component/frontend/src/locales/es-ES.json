@@ -1743,6 +1743,9 @@
           "creatingandstarting": {
             "action": "Creando e iniciando",
             "text": "Creando e iniciando"
+          },
+          "creatingtemplate": {
+            "text": "Creando plantilla"
           }
         },
         "info": {

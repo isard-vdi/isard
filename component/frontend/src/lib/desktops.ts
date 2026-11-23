@@ -55,6 +55,7 @@ const TRANSITIONAL_STATUSES = new Set<string>([
   DesktopStatusEnum.CREATING,
   DesktopStatusEnum.CREATING_AND_STARTING,
   DesktopStatusEnum.CREATING_DISK_FROM_SCRATCH,
+  DesktopStatusEnum.CREATING_TEMPLATE,
   DesktopStatusEnum.STARTING,
   DesktopStatusEnum.STARTING_PAUSED,
   DesktopStatusEnum.STARTING_DOMAIN_DISPOSABLE,
