@@ -22,10 +22,8 @@ from faker import Faker
 
 log = logging.getLogger(__name__)
 
-# Built-in admin must stay loginable in dev with a known password.
+# Built-in admin must stay loginable in dev; it shares the run's user password.
 ADMIN_ID = "local-default-admin-admin"
-DEFAULT_USER_PASSWORD = "pirineus"  # all users (incl. admin) get this in dev
-ADMIN_DEV_PASSWORD = DEFAULT_USER_PASSWORD
 
 # Default guest_properties.credentials kept verbatim (matches the well-known
 # IsardVDI demo VM credentials so dev viewers still work out of the box).
@@ -89,7 +87,8 @@ class IdRemap:
 class Scrubber:
     """Holds the deterministic state used by all scrubbers."""
 
-    def __init__(self, seed: int = 0):
+    def __init__(self, seed: int = 0, user_password: str | None = None):
+        self.user_password = user_password or secrets.token_urlsafe(18)
         self.faker = Faker()
         self.faker.seed_instance(seed)
         self._bcrypt_cache: dict[str, str] = {}
@@ -151,7 +150,7 @@ class Scrubber:
         if isinstance(obj, dict):
             # Special case: leave guest_properties.credentials untouched here.
             # The per-table scrubber for `domains` rewrites it to a known
-            # default (isard / pirineus) so dev viewers work out of the box.
+            # demo guest default so dev viewers work out of the box.
             if (
                 _path
                 and _path[-1] == "credentials"
@@ -203,10 +202,8 @@ class Scrubber:
         for r in rows:
             uid = r.get("id", "")
             short = uid[:8] if uid else self.faker.pystr(8, 8)
-            if uid == ADMIN_ID:
-                r["password"] = self._bcrypt(ADMIN_DEV_PASSWORD)
-            else:
-                r["password"] = self._bcrypt(DEFAULT_USER_PASSWORD)
+            r["password"] = self._bcrypt(self.user_password)
+            if uid != ADMIN_ID:
                 # email, name, username and uid are all registered for the
                 # final cross-table rewrite pass, so anywhere IsardVDI
                 # denormalizes them by value (e.g. domains.username, owner_*

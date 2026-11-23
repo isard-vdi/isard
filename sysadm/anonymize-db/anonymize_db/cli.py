@@ -7,6 +7,7 @@ import contextlib
 import json
 import logging
 import os
+import secrets
 import shutil
 import socket
 import sys
@@ -470,6 +471,31 @@ def _print_report(scrubber: Scrubber) -> None:
         log.info("  %-22s %d", t, scrubber.counts[t])
 
 
+USER_PASSWORD_ENV = "ANONYMIZE_DB_USER_PASSWORD"
+
+
+def resolve_user_password(
+    password_file: Path | None, output: Path
+) -> tuple[str, Path | None]:
+    """Return the users' password and, when one was generated, the 0600 file holding it."""
+    if password_file is not None:
+        lines = password_file.read_text(encoding="utf-8").splitlines()
+        password = lines[0].strip() if lines else ""
+        if not password:
+            raise SystemExit(f"--user-password-file {password_file} is empty")
+        return password, None
+    password = os.environ.get(USER_PASSWORD_ENV, "").strip()
+    if password:
+        return password, None
+    password = secrets.token_urlsafe(18)
+    path = output.with_name(output.name + ".password")
+    path.unlink(missing_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(password + "\n")
+    return password, path
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The CLI parser, split out of main() so it can be exercised on its own.
 
@@ -518,8 +544,9 @@ def build_parser() -> argparse.ArgumentParser:
             "  - The target DB is dropped before restore so stale rows don't leak\n"
             "    through (--keep-existing-db opts out). drop_db is hard-restricted to\n"
             "    loopback / 172.31.x targets and never runs against a remote source.\n"
-            "  - Default user password after restore: 'pirineus' (admin and everyone).\n"
-            "  - guest_properties.credentials are reset to isard / pirineus on every\n"
+            "  - Every user (admin included) gets one password: $ANONYMIZE_DB_USER_PASSWORD,\n"
+            "    --user-password-file, or a random one written to <output>.password (0600).\n"
+            "  - guest_properties.credentials are reset to the demo guest credentials on every\n"
             "    domain so dev viewers Just Work.\n"
             "\n"
             "See sysadm/anonymize-db/README.md and sysadm/anonymize-db/USAGE.md.\n"
@@ -725,6 +752,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     g_misc = p.add_argument_group("misc")
     g_misc.add_argument(
+        "--user-password-file",
+        type=Path,
+        metavar="PATH",
+        help="file whose first line is the password every user gets "
+        f"(overrides ${USER_PASSWORD_ENV}; default: a random one written to "
+        "<output>.password, mode 0600)",
+    )
+    g_misc.add_argument(
         "--seed",
         type=int,
         default=0,
@@ -824,7 +859,12 @@ def main(argv: list[str] | None = None) -> int:
             db_dir = _extract(dump_tgz, extract_dir)
             json_files = sorted(db_dir.glob("*.json"))
             log.info("extracted %d tables to %s", len(json_files), db_dir)
-            scrubber = Scrubber(seed=args.seed)
+            user_password, password_path = resolve_user_password(
+                args.user_password_file, args.output
+            )
+            if password_path is not None:
+                log.info("users' password written to %s (mode 0600)", password_path)
+            scrubber = Scrubber(seed=args.seed, user_password=user_password)
             pruner = Pruner(
                 prune_deleted_days=args.prune_deleted_days,
                 cap_history_days=args.cap_history_days,
