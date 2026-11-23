@@ -96,6 +96,19 @@ async function waitDerivativesViaApi(client, storageId, want, timeoutMs = 30000)
   return false
 }
 
+// Disconnect is only offered on a disk with a parent: build a real parent and child.
+async function derivedDiskViaApi(client, testInfo) {
+  const parentId = await createStorageViaApi(client, { parent: '' })
+  test.skip(!parentId, 'could not create the parent storage in this env')
+  testInfo.annotations.push({ type: 'storage-id', description: parentId })
+  test.skip(!(await waitStorageReadyViaApi(client, parentId)), 'parent never reached ready')
+  const childId = await createStorageViaApi(client, { parent: parentId })
+  test.skip(!childId, 'could not create the derived storage in this env')
+  testInfo.annotations.unshift({ type: 'storage-id', description: childId })
+  test.skip(!(await waitStorageReadyViaApi(client, childId)), 'child never reached ready')
+  return childId
+}
+
 async function gotoStorage(page) {
   await page.goto(STORAGE_URL)
   await page
@@ -1389,9 +1402,12 @@ test.describe('Admin Storage — webapp', () => {
   // -------------------------------------------------------------------
   test('S21: disconnect modal opens and Send fires the API (md Then 4)', async ({
     authenticatedPage: page,
-  }) => {
+    apiv4Admin,
+  }, testInfo) => {
+    test.setTimeout(180000)
+    const derived = await derivedDiskViaApi(apiv4Admin, testInfo)
     await gotoStorage(page)
-    const modal = await openModalForSeedB(page)
+    const modal = await openSearchModalFor(page, derived)
 
     await modal.locator('.btn-modal-disconnect').click()
 
@@ -1406,7 +1422,7 @@ test.describe('Admin Storage — webapp', () => {
     // defaults to 0, so the form is valid without filling anything.
     const disconnectResp = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/item/storage/${SEED_B}/disconnect/priority/`) &&
+        r.url().includes(`/api/v4/item/storage/${derived}/disconnect/priority/`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -1424,9 +1440,12 @@ test.describe('Admin Storage — webapp', () => {
   // -------------------------------------------------------------------
   test('S21b: disconnect Cancel closes without any API call (md Then 5)', async ({
     authenticatedPage: page,
-  }) => {
+    apiv4Admin,
+  }, testInfo) => {
+    test.setTimeout(180000)
+    const derived = await derivedDiskViaApi(apiv4Admin, testInfo)
     await gotoStorage(page)
-    const modal = await openModalForSeedB(page)
+    const modal = await openSearchModalFor(page, derived)
 
     await modal.locator('.btn-modal-disconnect').click()
     const disconnectModal = page.locator('#modalDisconnect')
@@ -1439,6 +1458,17 @@ test.describe('Admin Storage — webapp', () => {
     await disconnectModal.locator('[data-dismiss="modal"]').first().click()
     await disconnectModal.waitFor({ state: 'hidden', timeout: 5000 })
     expect(await disconnectReq).toBeNull()
+  })
+
+  // -------------------------------------------------------------------
+  // Scenario 21c — Disconnect is disabled on a disk without a parent (md Then 6)
+  // -------------------------------------------------------------------
+  test('S21c: disconnect is disabled on a disk without a parent (md Then 6)', async ({
+    authenticatedPage: page,
+  }) => {
+    await gotoStorage(page)
+    const modal = await openModalForSeedB(page)
+    await expect(modal.locator('.btn-modal-disconnect')).toBeDisabled()
   })
 
   // -------------------------------------------------------------------

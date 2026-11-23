@@ -772,7 +772,7 @@ Additionally, the admin action buttons on the row:
 
 ### Given
 
-1. Seed B's storage info is loaded in `#modalSearchStorage`.
+1. A derived disk built at runtime (a parent and a child, as in S24) is loaded in `#modalSearchStorage`.
 
 ### When
 
@@ -786,6 +786,7 @@ Additionally, the admin action buttons on the row:
 4. Clicking **Send** calls
    `PUT /api/v4/item/storage/<id>/disconnect/priority/<priority>`.
 5. Clicking **Cancel** closes the modal without firing the API.
+6. On Seed B, which has no parent, the **Disconnect** button is disabled: there is no backing chain to fold.
 
 ---
 

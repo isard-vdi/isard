@@ -137,15 +137,6 @@ def storage_status(storage: Storage, status: str) -> None:
         )
 
 
-def not_storage_children(storage: Storage) -> None:
-    """Check that storage has no children (derivatives)."""
-    if storage.children:
-        raise Error(
-            "conflict",
-            f"Storage {storage.id} used as backing file for {len(storage.children)} storages. Can't execute operation",
-        )
-
-
 def check_task_priority(payload: dict, priority: str) -> str:
     """Validate and return task priority.
 
@@ -1206,8 +1197,8 @@ class StorageService:
     ) -> str:
         """Rsync a storage to a destination path."""
         storage = get_storage(payload, storage_id)
+        storage.guard("move")
         storage_status(storage, "ready")
-        not_storage_children(storage)
         storage_pool_destination = get_storage_pool_by_path(destination_path)
 
         dest = storage.path_in_pool(storage_pool_destination)
@@ -1241,6 +1232,8 @@ class StorageService:
     ) -> str:
         """Rsync a storage to a storage pool."""
         storage = get_storage(payload, storage_id)
+        # Before resolving the destination, which can fail on a half-configured pool.
+        storage.guard("move")
         if not StoragePool.exists(destination_storage_pool_id):
             raise Error(
                 "not_found",

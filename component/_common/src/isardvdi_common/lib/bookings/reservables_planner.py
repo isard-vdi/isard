@@ -341,7 +341,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
 
             if not ResourcePlanner.insert_plan(plan):
                 raise Error(
-                    "internal_error",
+                    "internal_server",
                     "Could not insert plan in database",
                     description_code="unable_to_insert",
                 )

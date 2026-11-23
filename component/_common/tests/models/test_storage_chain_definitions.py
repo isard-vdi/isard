@@ -60,6 +60,16 @@ def _repair_storage_new_slot():
         Storage.__new__ = staticmethod(lambda cls, *args, **kwargs: object.__new__(cls))
 
 
+@pytest.fixture(autouse=True)
+def _guards_admit(monkeypatch):
+    """The chain shape is under test here; the guards have their own tests."""
+    from isardvdi_common.models import storage as mod
+
+    monkeypatch.setattr(Storage, "guard", lambda self, *a, **k: None)
+    monkeypatch.setattr(mod.queue_coverage, "check_shed", lambda *a, **k: None)
+    monkeypatch.setattr(Storage, "category", None)
+
+
 def _bare_storage(
     *,
     id: str = "src-storage-1",

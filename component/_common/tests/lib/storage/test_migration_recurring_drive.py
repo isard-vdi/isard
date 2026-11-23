@@ -588,6 +588,19 @@ def test_space_pause_completes_when_its_last_tree_lands(monkeypatch):
     assert m.pause_reason is None
 
 
+def test_a_one_shot_job_that_left_unplaceable_trees_behind_is_not_completed(
+    monkeypatch,
+):
+    items = [_item("r", "released")]
+    m = _Mig("running", {"window": WINDOW})
+    m.logs = []
+    # the plan could not place a tree of three disks: no item, still on the source
+    m.recompute_totals = lambda items=None: {"excluded_disks_total": 3}
+    r = _runner(monkeypatch, items, m, now=datetime(2026, 7, 1, 20, 0))
+    r.tick()
+    assert m.status == MigrationStatus.COMPLETED_WITH_SKIPS.value
+
+
 def test_load_policy_leaves_a_space_pause_to_the_tick(monkeypatch):
     items = [_item("r", "pending")]
     m = _space_paused({"min_free_pct": 10})

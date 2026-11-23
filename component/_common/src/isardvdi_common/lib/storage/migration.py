@@ -632,6 +632,17 @@ def tree_summaries_page(items, *, page=1, per_page=25, state=None, q=None):
     }
 
 
+#: totals only the plan knows: a tree it left out has no item to count again
+_PLAN_ONLY_TOTALS = (
+    "excluded_trees",
+    "excluded_disks_total",
+    "usage_age_days",
+    "usage_age_excluded_trees",
+    "usage_age_excluded_disks",
+    "usage_age_excluded_bytes",
+)
+
+
 def aggregate_status(migration, items, *, include_items=False, include_trees=True):
     """Build the admin-view aggregate for a migration from its loaded ledger
     (pure given ``migration`` + its ``items``).
@@ -668,6 +679,7 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
     eta = job_eta_seconds(migration, max(0, bytes_total - bytes_done))
     cfg = getattr(migration, "config", None) or {}
     cfg_window = cfg.get("window") or {}
+    plan_totals = getattr(migration, "totals", None) or {}
     payload = {
         "id": migration.id,
         "status": str(migration.status),
@@ -710,6 +722,7 @@ def aggregate_status(migration, items, *, include_items=False, include_trees=Tru
                 1 for it in items if str(it["state"]) == MigrationItemState.RELEASED
             ),
             "state_counts": compute_state_counts(items),
+            **{k: plan_totals[k] for k in _PLAN_ONLY_TOTALS if k in plan_totals},
         },
         "trees": trees,
     }

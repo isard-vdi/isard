@@ -2180,7 +2180,7 @@ class RecycleBin(RethinkSharedConnection):
                     }
                 ).run(self._rdb_connection)
         except Exception:
-            raise Error("not found", "Invalid storage data")
+            raise Error("not_found", "Invalid storage data")
         Helpers.add_log(
             RecycleBinStatusEnum.restored.value,
             self.id,

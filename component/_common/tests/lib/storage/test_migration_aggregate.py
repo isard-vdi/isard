@@ -143,3 +143,28 @@ def test_aggregate_surfaces_config_and_window():
     p = mig.aggregate_status(m, [_item("r", "r", "template", "pending")])
     assert p["config"]["parallelism"] == 2
     assert p["current_window"]["open"] is False
+
+
+def test_aggregate_keeps_the_trees_the_plan_left_out():
+    # an excluded tree has no item, so only the persisted totals know it: the
+    # status endpoint must not report 0 left out while the job row says 9
+    left_out = [{"root_id": "t", "storage_id": "t", "disks": 9, "reason": "no path"}]
+    m = SimpleNamespace(
+        id="m",
+        status="completed_with_skips",
+        totals={
+            "excluded_trees": left_out,
+            "excluded_disks_total": 9,
+            "usage_age_days": 30,
+            "usage_age_excluded_trees": 2,
+            "usage_age_excluded_disks": 5,
+            "usage_age_excluded_bytes": 500,
+        },
+    )
+    p = mig.aggregate_status(m, [])
+    assert p["totals"]["excluded_trees"] == left_out
+    assert p["totals"]["excluded_disks_total"] == 9
+    assert p["totals"]["usage_age_days"] == 30
+    assert p["totals"]["usage_age_excluded_trees"] == 2
+    assert p["totals"]["usage_age_excluded_disks"] == 5
+    assert p["totals"]["usage_age_excluded_bytes"] == 500

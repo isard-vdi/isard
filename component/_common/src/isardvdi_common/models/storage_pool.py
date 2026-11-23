@@ -81,7 +81,8 @@ class StoragePool(RethinkCustomBase):
         """
         paths = []
         weights = []
-        for path in self.paths.get(usage, []):
+        # A pool created without paths stores ``paths: null``.
+        for path in (self.paths or {}).get(usage) or []:
             paths.append(path.get("path"))
             weights.append(path.get("weight"))
         if not paths:

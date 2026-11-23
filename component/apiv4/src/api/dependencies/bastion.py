@@ -55,7 +55,7 @@ async def can_use_bastion_individual_domains(
     )
     if bastion_allowed is None:
         raise Error(
-            "internal_error",
+            "internal_server",
             "Bastion individual domains configuration not found",
             traceback.format_exc(),
         )
