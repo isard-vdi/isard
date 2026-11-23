@@ -23,6 +23,7 @@ class _Ctx:
 def converted(monkeypatch):
     disk = SimpleNamespace(
         id="disk-1",
+        type="qcow2",
         children=[],
         directory_path_as_usage=lambda usage: f"/isard/{usage}s",
         rsync=MagicMock(name="rsync"),
@@ -88,5 +89,14 @@ def test_the_disk_row_becomes_writable(converted):
 
 
 def test_the_file_still_moves_to_the_desktops_directory(converted):
+    """The move names the file, not its directory: the worker renames onto
+    that path and the follow-up ``storage_update`` reads ``qemu-img info`` of
+    it, which a directory is not."""
     converted.disk.rsync.assert_called_once()
-    assert converted.disk.rsync.call_args.args[1] == "/isard/desktops"
+    assert converted.disk.rsync.call_args.args[1] == "/isard/desktops/disk-1.qcow2"
+
+
+def test_the_move_renames_when_it_can(converted):
+    """A template and its desktop usually share a mount, so the move is a
+    rename, not a copy that re-reads and rewrites the whole disk."""
+    assert converted.disk.rsync.call_args.kwargs["method"] == "auto"

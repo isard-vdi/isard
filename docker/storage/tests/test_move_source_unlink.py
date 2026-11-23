@@ -25,19 +25,19 @@ def worker(monkeypatch, tmp_path):
     job = _Job()
     monkeypatch.setattr(task, "get_current_job", lambda: job)
     monkeypatch.setattr(task, "_require_free_space", lambda *a, **k: None)
-    rsync = []
+    copies = []
 
-    def _copy(argv, *a, **k):
-        rsync.append(argv)
-        shutil.copyfile(argv[-2], argv[-1])
-        return 0
+    def _copy(origin, destination, **kwargs):
+        copies.append((origin, destination))
+        shutil.copyfile(origin, destination)
+        return {"method": "sparse"}
 
-    monkeypatch.setattr(task, "run_with_progress", _copy)
+    monkeypatch.setattr(task, "copy_disk_file", _copy)
     src = tmp_path / "groups" / "d.qcow2"
     src.parent.mkdir()
     src.write_bytes(b"disk-bytes")
     dst = tmp_path / "templates" / "t.qcow2"
-    return task, job, rsync, src, dst
+    return task, job, copies, src, dst
 
 
 def _unlink_raises(monkeypatch, task, exc):
@@ -63,7 +63,7 @@ def _unlink_raises(monkeypatch, task, exc):
 def test_an_unlink_that_fails_after_the_copy_leaves_both_files_and_says_so(
     worker, monkeypatch, exc
 ):
-    task, job, _rsync, src, dst = worker
+    task, job, _copies, src, dst = worker
     seen = _unlink_raises(monkeypatch, task, exc)
 
     with pytest.raises(type(exc)):
@@ -80,7 +80,7 @@ def test_an_unlink_that_fails_after_the_copy_leaves_both_files_and_says_so(
 
 def test_the_flag_is_saved_before_the_unlink_runs(worker, monkeypatch):
     """An unlink that never returns runs no code after it: the order is the fix."""
-    task, job, _rsync, src, dst = worker
+    task, job, _copies, src, dst = worker
     order = []
     monkeypatch.setattr(
         job, "save_meta", lambda: order.append(("save", dict(job.meta)))
@@ -93,18 +93,24 @@ def test_the_flag_is_saved_before_the_unlink_runs(worker, monkeypatch):
     assert order[0][1][task.COPY_COMPLETE_META_KEY] is True
 
 
-def test_rsync_does_not_remove_the_source_itself(worker):
-    task, _job, rsync, src, dst = worker
+def test_the_source_goes_only_after_the_copy(worker, monkeypatch):
+    task, _job, copies, src, dst = worker
+    order = []
+    real_remove = task.remove
+    monkeypatch.setattr(
+        task, "remove", lambda p: order.append(("unlink", p)) or real_remove(p)
+    )
 
     assert task.move(str(src), str(dst), "rsync") == 0
 
-    assert "--remove-source-files" not in rsync[0]
+    assert copies == [(str(src), str(dst))]
+    assert order == [("unlink", str(src))]
     assert not src.exists() and dst.read_bytes() == b"disk-bytes"
 
 
 def test_a_source_already_gone_is_the_unlink_done(worker, monkeypatch):
     """An NFS client replaying an unlink the server already did gets ENOENT."""
-    task, job, _rsync, src, dst = worker
+    task, job, _copies, src, dst = worker
     _unlink_raises(monkeypatch, task, FileNotFoundError(errno.ENOENT, "gone"))
 
     assert task.move(str(src), str(dst), "rsync") == 0
@@ -112,12 +118,17 @@ def test_a_source_already_gone_is_the_unlink_done(worker, monkeypatch):
 
 
 def test_a_copy_that_did_not_end_never_claims_it_is_complete(worker, monkeypatch):
-    task, job, _rsync, src, dst = worker
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 23)
+    task, job, _copies, src, dst = worker
+
+    def _fails(*a, **k):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(task, "copy_disk_file", _fails)
     removed = []
     monkeypatch.setattr(task, "remove", removed.append)
 
-    assert task.move(str(src), str(dst), "rsync") == 23
+    with pytest.raises(OSError):
+        task.move(str(src), str(dst), "rsync")
 
     assert removed == []
     assert task.COPY_COMPLETE_META_KEY not in job.meta
@@ -125,7 +136,7 @@ def test_a_copy_that_did_not_end_never_claims_it_is_complete(worker, monkeypatch
 
 
 def test_keeping_the_source_neither_unlinks_nor_flags(worker, monkeypatch):
-    task, job, _rsync, src, dst = worker
+    task, job, _copies, src, dst = worker
     removed = []
     monkeypatch.setattr(task, "remove", removed.append)
 

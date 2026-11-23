@@ -41,14 +41,10 @@ def test_move_proceeds_when_the_floor_is_respected(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 1024 * 1024)
-    copied = {}
-    monkeypatch.setattr(
-        task, "run_with_progress", lambda *a, **k: copied.setdefault("ran", True) or 0
-    )
 
     task.move(src, dst, "rsync", min_free_bytes=8192, remove_source_file=False)
 
-    assert copied.get("ran") is True
+    assert Path(dst).read_bytes() == Path(src).read_bytes()
 
 
 def test_a_same_filesystem_move_is_never_blocked(tmp_path, monkeypatch):
@@ -74,7 +70,6 @@ def test_move_without_a_floor_gets_the_default_one(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 1024)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 1)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
 
     with pytest.raises(RuntimeError) as excinfo:
         task.move(src, dst, "rsync", remove_source_file=False)
@@ -96,7 +91,6 @@ def test_move_reserves_the_source_size_against_the_floor(tmp_path, monkeypatch):
     src = _sized(tmp_path, "src.qcow2", 5000)
     dst = str(tmp_path / "out" / "dst.qcow2")
     monkeypatch.setattr(task, "_free_space", lambda p: 10000)
-    monkeypatch.setattr(task, "run_with_progress", lambda *a, **k: 0)
     with pytest.raises(RuntimeError) as excinfo:
         task.move(src, dst, "rsync", min_free_bytes=8000, remove_source_file=False)
     assert "refusing to copy" in str(excinfo.value)

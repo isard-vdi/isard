@@ -37,6 +37,22 @@ def _nullcontext(*args, **kwargs):
     return contextlib.nullcontext()
 
 
+@pytest.fixture(autouse=True)
+def _copy_through_the_runner(monkeypatch):
+    """The paths here are fictional: route the disk copy of virt_win_reg and
+    sparsify through ``_run_cancellable`` so each test's spy sees it as one
+    ``copy`` step, in order with the rest."""
+    from isardvdi_storage import task
+
+    monkeypatch.setattr(
+        task,
+        "copy_disk_file",
+        lambda origin, destination, **k: task._run_cancellable(
+            ["copy", origin, destination]
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # convert: raise + unlink the partial destination on abort or non-zero rc
 # ---------------------------------------------------------------------------
@@ -227,8 +243,8 @@ def test_virt_win_reg_copies_to_tmp_then_atomic_swaps(monkeypatch):
 
     rc = task.virt_win_reg("/isard/d.qcow2", "[HKEY_LOCAL_MACHINE]")
     assert rc == 0
-    # 1) byte copy to sibling temp (cp preserves backing header)
-    assert calls[0][0] == "cp"
+    # 1) byte copy to sibling temp (preserves the backing header)
+    assert calls[0][0] == "copy"
     assert calls[0][-2:] == ["/isard/d.qcow2", "/isard/d.qcow2.regtmp"]
     # 2) edit the TEMP, never the live disk
     assert any(c[0] == "virt-win-reg" and "/isard/d.qcow2.regtmp" in c for c in calls)
@@ -273,7 +289,7 @@ def test_sparsify_safe_cancel_copies_sparsifies_temp_and_swaps(monkeypatch):
 
     r = task.sparsify("/isard/d.qcow2")
     assert r["exit_code"] == 0
-    assert calls[0][0] == "cp"
+    assert calls[0] == ["copy", "/isard/d.qcow2", "/isard/d.qcow2.sparsetmp"]
     assert any(
         c[0] == "virt-sparsify" and "/isard/d.qcow2.sparsetmp" in c for c in calls
     )
@@ -362,7 +378,7 @@ def test_virt_win_reg_clears_stale_tmp_before_copying(monkeypatch):
 
     task.virt_win_reg("/isard/d.qcow2", "[HKEY_LOCAL_MACHINE]")
     assert order[0] == ("unlink", "/isard/d.qcow2.regtmp")
-    assert order.index(("cp",)) > 0
+    assert order.index(("copy",)) > 0
 
 
 def test_sparsify_clears_stale_tmp_before_measuring_headroom(monkeypatch):

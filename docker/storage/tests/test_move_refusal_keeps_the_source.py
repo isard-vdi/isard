@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""``move`` reserves what the sparse copy writes, and a refusal leaves the source untouched."""
+"""``move`` reserves what the copy writes, and a refusal leaves the source untouched."""
 
 from types import SimpleNamespace
 
@@ -30,18 +30,24 @@ def _fs(monkeypatch, task, *, size, blocks, free):
     monkeypatch.setattr(task, "_free_space", lambda d: free)
     job = _Job()
     monkeypatch.setattr(task, "get_current_job", lambda: job)
-    rsync = []
-    monkeypatch.setattr(
-        task, "run_with_progress", lambda *a, **k: rsync.append(a[0]) or 0
-    )
-    return job, rsync
+    copies = []
+
+    def _copy(origin, destination, **kwargs):
+        # a copy that cannot clone: the floor runs before any byte is written
+        kwargs["before_copy"]()
+        copies.append((origin, destination))
+        return {"method": "sparse"}
+
+    monkeypatch.setattr(task, "copy_disk_file", _copy)
+    monkeypatch.setattr(task, "remove", lambda p: None)
+    return job, copies
 
 
 def test_a_sparse_disk_that_fits_by_its_blocks_is_copied(monkeypatch):
     """10 GB apparent, 8 MiB real, 5 GiB free: the copy fits many times over."""
     from isardvdi_storage import task
 
-    job, rsync = _fs(
+    job, copies = _fs(
         monkeypatch,
         task,
         size=10_747_904_000,
@@ -57,7 +63,7 @@ def test_a_sparse_disk_that_fits_by_its_blocks_is_copied(monkeypatch):
         )
         == 0
     )
-    assert rsync and rsync[0][0] == "rsync" and "--sparse" in rsync[0]
+    assert copies == [("/isard/groups/origin.qcow2", "/isard/templates/dest.qcow2")]
     assert task.SOURCE_UNTOUCHED_META_KEY not in job.meta
 
 
@@ -65,7 +71,7 @@ def test_a_refusal_states_the_source_untouched_and_copies_nothing(monkeypatch):
     """Really too big: refused, nothing run, and the job says the source is intact."""
     from isardvdi_storage import task
 
-    job, rsync = _fs(
+    job, copies = _fs(
         monkeypatch, task, size=20 * GIB, blocks=(8 * GIB) // 512, free=5 * GIB
     )
     with pytest.raises(RuntimeError, match="move: refusing to copy"):
@@ -75,7 +81,7 @@ def test_a_refusal_states_the_source_untouched_and_copies_nothing(monkeypatch):
             "rsync",
             min_free_bytes=1 * GIB,
         )
-    assert rsync == []
+    assert copies == []
     assert job.meta[task.SOURCE_UNTOUCHED_META_KEY] is True
     assert job.saved == 1
 
@@ -90,10 +96,11 @@ def test_a_failed_copy_does_not_claim_the_source_untouched(monkeypatch):
         monkeypatch, task, size=1 * GIB, blocks=(1 * GIB) // 512, free=100 * GIB
     )
 
-    def _rsync_fails(*a, **k):
-        raise CalledProcessError(returncode=23, cmd=a[0])
+    def _copy_fails(*a, **k):
+        k["before_copy"]()
+        raise CalledProcessError(returncode=130, cmd=["copy"])
 
-    monkeypatch.setattr(task, "run_with_progress", _rsync_fails)
+    monkeypatch.setattr(task, "copy_disk_file", _copy_fails)
     with pytest.raises(CalledProcessError):
         task.move(
             "/isard/groups/origin.qcow2",

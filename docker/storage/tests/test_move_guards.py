@@ -6,12 +6,12 @@
 * an unknown method is rejected (ValueError);
 * origin and destination are the same file -> remove the SOURCE (or keep it
   when remove_source_file is False), never copy onto itself;
-* ``mv`` and ``auto`` both attempt the rename, and both degrade to the rsync
+* ``mv`` and ``auto`` both attempt the rename, and both degrade to the copy
   branch when the kernel refuses it with EXDEV (see
   test_move_across_mounts.py for why the old st_dev probe could not see that).
 
 DB-free: ``progress_domain_id`` is left None (the only Domain() touch), so
-only filesystem helpers and ``run_with_progress`` are stubbed.
+only filesystem helpers and ``copy_disk_file`` are stubbed.
 """
 
 import errno
@@ -95,7 +95,7 @@ class TestMoveGuards:
         task.move("/isard/origin.qcow2", "/isard/dest.qcow2", "auto")
         assert renamed == [("/isard/origin.qcow2", "/isard/dest.qcow2")]
 
-    def test_exdev_falls_back_to_rsync(self, monkeypatch):
+    def test_exdev_falls_back_to_a_copy(self, monkeypatch):
         from isardvdi_storage import task
 
         _fs(monkeypatch, task, origin=True, dest=False)
@@ -104,13 +104,10 @@ class TestMoveGuards:
             raise OSError(errno.EXDEV, "Invalid cross-device link")
 
         monkeypatch.setattr(task, "rename", _refuse)
-        # The fallback is a copy, so the floor now applies to it; the paths here
-        # are fictional, so give the guard a filesystem it can read.
-        monkeypatch.setattr(task, "os_stat", lambda p: _Stat(1))
-        monkeypatch.setattr(task, "_free_space", lambda d: 1 << 40)
-        rsync = []
+        copies = []
         monkeypatch.setattr(
-            task, "run_with_progress", lambda *a, **k: rsync.append(a[0]) or 0
+            task, "copy_disk_file", lambda a, b, **k: copies.append((a, b)) or {}
         )
+        monkeypatch.setattr(task, "remove", lambda p: None)
         assert task.move("/isard/origin.qcow2", "/isard/dest.qcow2", "auto") == 0
-        assert rsync and rsync[0][0] == "rsync"
+        assert copies == [("/isard/origin.qcow2", "/isard/dest.qcow2")]

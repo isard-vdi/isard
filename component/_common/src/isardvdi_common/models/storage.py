@@ -1394,9 +1394,10 @@ class Storage(RethinkCustomBase):
         priority="default",
         retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
+        method="rsync",
     ):
         """
-        Create a task to move the storage using rsync.
+        Create a task to move the storage, copying it.
 
         :param user_id: User ID of the user executing the task
         :type user_id: str
@@ -1410,6 +1411,9 @@ class Storage(RethinkCustomBase):
         :type priority: str
         :param timeout: Timeout
         :type timeout: int
+        :param method: ``"rsync"`` always copies; ``"auto"`` renames when the
+            kernel allows it and copies otherwise (see the ``move`` task)
+        :type method: str
         :return: Task ID
         :rtype: str
         """
@@ -1444,7 +1448,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "origin_path": self.path,
                     "destination_path": destination_path,
-                    "method": "rsync",
+                    "method": method,
                     "bwlimit": bwlimit,
                     "remove_source_file": remove_source_file,
                     "min_free_bytes": min_free_bytes,

@@ -9,7 +9,8 @@ precisely the case that cannot rename -- and ``shutil.move`` turned the refused
 rename into a whole-file copy with no free-space floor and no progress.
 
 DB-free: ``_state_progress`` no-ops outside an rq job and is stubbed only to
-observe it; the subprocess is stubbed too, so nothing is copied for real.
+observe it; the copy is stubbed too (it runs the floor the way a copy that
+cannot clone does), so nothing is copied for real.
 """
 
 import errno
@@ -28,17 +29,20 @@ def worker(monkeypatch):
     """The module with the copy branch observable and never actually run."""
     from isardvdi_storage import task
 
-    calls = {"guard": [], "rsync": [], "progress": []}
+    calls = {"guard": [], "copy": [], "progress": []}
     monkeypatch.setattr(
         task,
         "_require_free_space",
         lambda *a, **k: calls["guard"].append(a),
     )
-    monkeypatch.setattr(
-        task,
-        "run_with_progress",
-        lambda argv, *a, **k: calls["rsync"].append((argv, k)) or 0,
-    )
+
+    def _copy(origin, destination, **kwargs):
+        if kwargs.get("before_copy") is not None:
+            kwargs["before_copy"]()
+        calls["copy"].append(((origin, destination), kwargs))
+        return {"method": "sparse"}
+
+    monkeypatch.setattr(task, "copy_disk_file", _copy)
     monkeypatch.setattr(
         task, "_state_progress", lambda payload: calls["progress"].append(payload)
     )
@@ -71,7 +75,7 @@ class TestExdevDegradesToAGuardedCopy:
         assert source_path == str(src)
         assert (action, verb) == ("move", "copy")
 
-    def test_the_copy_is_an_rsync_that_drops_the_source(
+    def test_the_copy_is_a_disk_copy_that_drops_the_source(
         self, worker, monkeypatch, tmp_path
     ):
         task, calls = worker
@@ -81,15 +85,10 @@ class TestExdevDegradesToAGuardedCopy:
 
         task.move(str(src), str(dst), "auto")
 
-        (argv, _kwargs) = calls["rsync"][0]
-        assert argv[0] == "rsync"
-        # move drops the source itself once the copy is whole, not rsync, so an
-        # unlink that fails afterwards is told apart from a copy that did not end
-        assert "--remove-source-files" not in argv
+        ((origin, destination), _kwargs) = calls["copy"][0]
+        assert (origin, destination) == (str(src), str(dst))
+        # move drops the source itself once the copy is whole and verified
         assert not src.exists()
-        # Without it every hole of the qcow2 is written as zeros at the destination.
-        assert "--sparse" in argv
-        assert argv[-2:] == [str(src), str(dst)]
 
     def test_the_copy_reports_progress(self, worker, monkeypatch, tmp_path):
         """Only the rename branch was wired to the row, and it reports nothing
@@ -101,7 +100,7 @@ class TestExdevDegradesToAGuardedCopy:
 
         task.move(str(src), str(dst), "auto", progress_domain_id="dom-1")
 
-        (_argv, kwargs) = calls["rsync"][0]
+        (_paths, kwargs) = calls["copy"][0]
         assert kwargs["on_progress"] is not None
         kwargs["on_progress"](0.42)
         assert calls["progress"] == [{"total_percent": 42, "received_percent": 42}]
@@ -116,7 +115,7 @@ class TestExdevDegradesToAGuardedCopy:
 
         assert task.move(str(src), str(dst), "mv") == 0
 
-        assert len(calls["guard"]) == 1 and len(calls["rsync"]) == 1
+        assert len(calls["guard"]) == 1 and len(calls["copy"]) == 1
 
 
 class TestWhatMustNotChange:
@@ -129,7 +128,7 @@ class TestWhatMustNotChange:
         assert task.move(str(src), str(dst), "auto") == 0
 
         assert dst.read_bytes() == b"disk-bytes" and not src.exists()
-        assert calls["guard"] == [] and calls["rsync"] == []
+        assert calls["guard"] == [] and calls["copy"] == []
 
     def test_a_rename_still_reports_its_final_progress(self, worker, tmp_path):
         task, calls = worker
@@ -155,7 +154,7 @@ class TestWhatMustNotChange:
             task.move(str(src), str(tmp_path / "b" / "d.qcow2"), "auto")
 
         assert excinfo.value.errno == errno.EACCES
-        assert calls["rsync"] == []
+        assert calls["copy"] == []
 
     def test_keeping_the_source_is_never_a_rename(self, worker, tmp_path):
         """A rename IS the removal of the source, so it cannot serve a caller
@@ -167,5 +166,4 @@ class TestWhatMustNotChange:
         task.move(str(src), str(dst), "mv", remove_source_file=False)
 
         assert src.exists()
-        (argv, _kwargs) = calls["rsync"][0]
-        assert "--remove-source-files" not in argv
+        assert len(calls["copy"]) == 1

@@ -3,7 +3,7 @@
 """``move`` must not take a destination left by a FAILED attempt as the copy.
 
 The short-circuit at the top of ``move`` — same name, same size, same mtime ->
-return without copying — exists so a redelivered task is idempotent. But rsync
+return without copying — exists so a redelivered task is idempotent. But the copy
 preserves mtime, so the file a failed attempt leaves behind satisfies it too,
 and the retry then returns in milliseconds having copied nothing: it reaches the
 integrity gate with the same file and fails the same way, for ever.
@@ -40,7 +40,7 @@ class TestRetryDoesNotTrustTheDestination:
         _fs(monkeypatch, task)
         ran = []
         monkeypatch.setattr(
-            task, "run_with_progress", lambda cmd, *a, **k: ran.append(cmd) or 0
+            task, "copy_disk_file", lambda a, b, **k: ran.append((a, b)) or {}
         )
         rc = task.move(
             "/isard/src/disk.qcow2",
@@ -50,8 +50,9 @@ class TestRetryDoesNotTrustTheDestination:
             trust_existing_destination=False,
         )
         assert rc == 0
-        assert ran, "the retry must copy; an identical-looking file proves nothing"
-        assert ran[0][0] == "rsync"
+        assert ran == [
+            ("/isard/src/disk.qcow2", "/isard/dst/disk.qcow2")
+        ], "the retry must copy; an identical-looking file proves nothing"
 
     def test_the_default_still_short_circuits(self, monkeypatch):
         """A redelivered task that DID finish must stay a no-op."""
@@ -60,7 +61,7 @@ class TestRetryDoesNotTrustTheDestination:
         _fs(monkeypatch, task)
         ran = []
         monkeypatch.setattr(
-            task, "run_with_progress", lambda cmd, *a, **k: ran.append(cmd) or 0
+            task, "copy_disk_file", lambda a, b, **k: ran.append((a, b)) or {}
         )
         assert (
             task.move(
@@ -82,7 +83,7 @@ class TestRetryDoesNotTrustTheDestination:
         monkeypatch.setattr(task, "rename", lambda a, b: renamed.append((a, b)))
         monkeypatch.setattr(task, "remove", lambda p: removed.append(p))
         monkeypatch.setattr(
-            task, "run_with_progress", lambda cmd, *a, **k: ran.append(cmd) or 0
+            task, "copy_disk_file", lambda a, b, **k: ran.append((a, b)) or {}
         )
         task.move(
             "/isard/src/disk.qcow2",
