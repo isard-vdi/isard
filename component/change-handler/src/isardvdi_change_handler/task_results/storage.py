@@ -694,6 +694,44 @@ def handle_storage_delete(task, storage_id):
     Storage.delete_document_if(storage_id, field="status", values=("deleted",))
 
 
+#: A convert destination nothing finished writing has only these statuses.
+CONVERT_DISCARDABLE = ("creating", "deleted")
+
+
+def handle_convert_discard_destination(task, storage_id, path):
+    """A convert that did not finish removes the destination file it may have written."""
+    if task.depending_status == "finished" or not Storage.exists(storage_id):
+        return
+    destination = Storage(storage_id)
+    if destination.path != path or destination.status not in CONVERT_DISCARDABLE:
+        log.warning(
+            "convert_discard_destination: %s is %s at %s, keeping %s",
+            storage_id,
+            destination.status,
+            destination.path,
+            path,
+        )
+        return
+    if destination.domains:
+        log.warning("convert_discard_destination: %s has domains, keeping it", path)
+        return
+    try:
+        destination.create_task(
+            user_id=task.user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=destination.directory_path).id}.default",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": path,
+                    "pool_root": StoragePool.mountpoint_for_path(path),
+                }
+            },
+        )
+    except Exception:
+        # the leftovers inventory finds the file and purges it later
+        log.exception("convert_discard_destination: could not queue %s", path)
+
+
 def _still_holds(only_while):
     """Whether ``{"<class>": <id>, "statuses": [...]}`` still has one of its statuses."""
     for item_class, item_id in only_while.items():

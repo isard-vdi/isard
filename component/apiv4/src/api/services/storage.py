@@ -1089,9 +1089,13 @@ class StorageService:
                 priority=priority,
             )
             return {"new_storage_id": new_storage.id, "task_id": task_id}
-        except Error:
-            raise
         except Exception as e:
+            # refused before any task owned the destination row
+            Storage.delete_document_if(
+                new_storage.id, field="status", values=("creating",)
+            )
+            if isinstance(e, Error):
+                raise
             raise Error(*e.args)
 
     @staticmethod

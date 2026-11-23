@@ -441,6 +441,41 @@ class TestConvertKeepsTheDiskKind:
         assert storage_cls.init_document.call_args.kwargs["perms"] == perms
 
 
+class TestARefusedConvertLeavesNoRow:
+    """The destination row exists before the model decides; a refusal removes it."""
+
+    @pytest.mark.parametrize(
+        "refusal",
+        [
+            Error("precondition_required", "not ready", description_code="x"),
+            RuntimeError("lane refused"),
+        ],
+    )
+    def test_the_destination_row_is_removed_while_still_creating(self, refusal):
+        origin = MagicMock(name="origin_storage")
+        origin.user_id = "u-1"
+        origin.directory_path = "/isard/groups"
+        origin.convert.side_effect = refusal
+
+        with patch("api.services.storage.get_storage", return_value=origin), patch(
+            "api.services.storage.Storage"
+        ) as storage_cls:
+            storage_cls.init_document.return_value = MagicMock(id="s-2")
+            with pytest.raises(Exception):
+                StorageService.convert(
+                    JWT_PAYLOAD_ADMIN,
+                    storage_id="s-1",
+                    new_storage_type="qcow2",
+                    new_storage_status="ready",
+                    compress=False,
+                    priority="default",
+                )
+
+        storage_cls.delete_document_if.assert_called_once_with(
+            "s-2", field="status", values=("creating",)
+        )
+
+
 class TestDigHoles:
     @patch("api.services.storage.get_storage")
     def test_forwards_the_priority_and_returns_the_task(self, mock_get):

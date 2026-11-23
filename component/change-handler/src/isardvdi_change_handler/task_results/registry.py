@@ -45,6 +45,10 @@ HANDLERS = {
     "storage_update_dict": (storage.handle_storage_update_dict, ASYNC),
     "storage_add": (storage.handle_storage_add, SYNC),
     "storage_delete": (storage.handle_storage_delete, SYNC),
+    "convert_discard_destination": (
+        storage.handle_convert_discard_destination,
+        SYNC,
+    ),
     "clear_pending_action": (storage.handle_clear_pending_action, SYNC),
     "dig_holes_result": (storage.handle_dig_holes_result, SYNC),
     "zero_scan_result": (storage.handle_zero_scan_result, SYNC),
