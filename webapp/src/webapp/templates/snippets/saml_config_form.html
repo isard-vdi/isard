@@ -88,7 +88,7 @@
   label="Max Issue Delay",
   placeholder="90s",
   value="90s",
-  pattern="(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+"
+  pattern="[+\-]?(0|(([0-9]+(\.[0-9]*)?|\.[0-9]+)(ns|us|µs|μs|ms|s|m|h))+)"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

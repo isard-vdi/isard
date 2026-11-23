@@ -18,10 +18,21 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from isardvdi_common.helpers.url_validation import validate_url_scheme
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import InitErrorDetails, PydanticCustomError
 
 # --- Policy schemas ---
 
@@ -65,17 +76,286 @@ class ProviderStatus(BaseModel):
     last_updated: Optional[datetime] = None
 
 
+_GO_DURATION_UNITS = {
+    "ns": 1,
+    "us": 10**3,
+    "µs": 10**3,  # U+00B5
+    "μs": 10**3,  # U+03BC
+    "ms": 10**6,
+    "s": 10**9,
+    "m": 60 * 10**9,
+    "h": 3600 * 10**9,
+}
+_GO_DURATION_PART = re.compile(r"([0-9]*)\.?([0-9]*)(ns|us|µs|μs|ms|s|m|h)")
+
+
+def _fits_go_duration(value: str) -> str:
+    """Range check of Go's ``time.ParseDuration``, with its same arithmetic."""
+    total = 0
+    for integer, fraction, name in _GO_DURATION_PART.findall(value):
+        unit = _GO_DURATION_UNITS[name]
+        digits, scale = 0, 1
+        for digit in fraction:
+            if digits > (2**63 - 1) // 10 or digits * 10 + int(digit) > 2**63:
+                break
+            digits, scale = digits * 10 + int(digit), scale * 10
+        total += int(integer.lstrip("0") or 0) * unit
+        total += int(float(digits) * (unit / scale))
+    if total > (2**63 if value.startswith("-") else 2**63 - 1):
+        raise ValueError("duration out of range")
+    return value
+
+
+# A value Go can't parse makes the authentication service fail to decode the
+# whole ``config.auth``, other providers included.
+GoDuration = Annotated[
+    str,
+    Field(pattern=r"^[+\-]?(0|(([0-9]+(\.[0-9]*)?|\.[0-9]+)(ns|us|µs|μs|ms|s|m|h))+)$"),
+    AfterValidator(_fits_go_duration),
+]
+
+
+def _drop_defaults(schema: dict[str, Any]) -> None:
+    for prop in schema.get("properties", {}).values():
+        prop.pop("default", None)
+
+
+class ProviderPartialUpdate(BaseModel):
+    """Block merged into the stored provider: an omitted field keeps its value,
+    so the OpenAPI schema must not advertise the Python defaults."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra=_drop_defaults)
+
+
+class ProviderNotificationBarUpdate(ProviderPartialUpdate):
+    enabled: bool = False
+    template: Optional[str] = None
+    level: Optional[Literal["info", "warning", "danger"]] = None
+
+
+class ProviderMigrationUpdate(ProviderPartialUpdate):
+    import_: bool = Field(default=False, alias="import")
+    export: bool = False
+    force_migration: bool = False
+    action_after_migrate: Optional[Literal["", "none", "delete", "disable"]] = None
+    notification_bar: ProviderNotificationBarUpdate = Field(
+        default_factory=ProviderNotificationBarUpdate
+    )
+
+
+class ProviderConfigBlockUpdate(ProviderPartialUpdate):
+    """``<provider>_config`` block, validated as the webapp provider form."""
+
+    name: str = ""
+
+    def required_fields(self) -> list[str]:
+        """Fields the form requires, given the values of the others."""
+        return []
+
+    def missing_fields(self) -> dict[str, str]:
+        """Error message of each required field that is absent or blank."""
+        return {
+            field: "Field required"
+            for field in self.required_fields()
+            if not self._filled(field)
+        }
+
+    def _filled(self, field: str) -> bool:
+        if field not in self.model_fields_set:
+            return False
+        value = getattr(self, field)
+        return not isinstance(value, str) or bool(value.strip())
+
+
+class GoogleConfigUpdate(ProviderConfigBlockUpdate):
+    client_id: str = ""
+    client_secret: str = ""
+
+    def required_fields(self) -> list[str]:
+        return ["client_id"]
+
+
+class MappedConfigUpdate(ProviderConfigBlockUpdate):
+    """Fields shared by the providers that map external users (LDAP and SAML)."""
+
+    allow_insecure_tls: bool = False
+
+    field_uid: str = ""
+    regex_uid: str = ""
+    field_username: str = ""
+    regex_username: str = ""
+    field_name: str = ""
+    regex_name: str = ""
+    field_email: str = ""
+    regex_email: str = ""
+    field_photo: str = ""
+    regex_photo: str = ""
+
+    guess_category: bool = False
+    field_category: str = ""
+    regex_category: str = ""
+
+    auto_register: bool = False
+    auto_register_roles: list[Literal["admin", "manager", "advanced", "user"]] = Field(
+        default_factory=list
+    )
+    group_default: str = ""
+    field_group: str = ""
+    regex_group: str = ""
+    role_default: Literal["", "user", "advanced", "manager", "admin"] = ""
+    role_admin_ids: str = ""
+    role_manager_ids: str = ""
+    role_advanced_ids: str = ""
+    role_user_ids: str = ""
+
+    save_email: bool = False
+
+    def regex_by_field(self) -> dict[str, str]:
+        """Visible fields that need their regex once they have a value."""
+        pairs = {
+            "field_username": "regex_username",
+            "field_name": "regex_name",
+            "field_email": "regex_email",
+            "field_photo": "regex_photo",
+        }
+        if self.guess_category:
+            pairs["field_category"] = "regex_category"
+        if self.auto_register:
+            pairs["field_group"] = "regex_group"
+        return pairs
+
+    def required_fields(self) -> list[str]:
+        required = ["field_uid", "regex_uid"]
+        if self.guess_category:
+            required.append("field_category")
+        required.extend(
+            regex
+            for field, regex in self.regex_by_field().items()
+            if getattr(self, field)
+        )
+        return required
+
+
+class LdapConfigUpdate(MappedConfigUpdate):
+    protocol: str = ""
+    host: str = ""
+    port: int = 0
+    bind_dn: str = ""
+    password: str = ""
+    base_search: str = ""
+    filter: str = ""
+
+    role_list_search_base: str = ""
+    role_list_filter: str = ""
+    role_list_use_user_dn: bool = False
+    role_list_field: str = ""
+    role_list_regex: str = ""
+
+    def regex_by_field(self) -> dict[str, str]:
+        pairs = super().regex_by_field()
+        if self.auto_register:
+            pairs["role_list_field"] = "role_list_regex"
+        return pairs
+
+    def required_fields(self) -> list[str]:
+        required = ["protocol", "host", "port", "bind_dn", "base_search", "filter"]
+        required.extend(super().required_fields())
+        if self.auto_register:
+            required.extend(
+                ["role_list_search_base", "role_list_filter", "role_list_field"]
+            )
+        return required
+
+
+class SamlConfigUpdate(MappedConfigUpdate):
+    metadata_url: str = ""
+    metadata_file: str = ""
+    entity_id: str = ""
+    signature_method: str = ""
+    key_file: str = ""
+    cert_file: str = ""
+    max_issue_delay: GoDuration = ""
+    # Not in the webapp form, read by the authentication service.
+    request_tracker_max_age: GoDuration = ""
+
+    field_role: str = ""
+    regex_role: str = ""
+
+    logout_redirect_url: str = ""
+
+    @field_validator("logout_redirect_url")
+    @classmethod
+    def _logout_redirect_url_scheme(cls, value: str) -> str:
+        validate_url_scheme(value)
+        return value
+
+    def regex_by_field(self) -> dict[str, str]:
+        pairs = super().regex_by_field()
+        if self.auto_register:
+            pairs["field_role"] = "regex_role"
+        return pairs
+
+    def required_fields(self) -> list[str]:
+        required = ["key_file", "cert_file", "max_issue_delay"]
+        required.extend(super().required_fields())
+        required.append("logout_redirect_url")
+        return required
+
+    def missing_fields(self) -> dict[str, str]:
+        missing = super().missing_fields()
+        if not self._filled("metadata_url") and not self._filled("metadata_file"):
+            missing["metadata_url"] = "Field required unless metadata_file is set"
+        return missing
+
+
 class ProviderConfigUpdateRequest(BaseModel):
-    """Update a provider configuration.
+    """Update a provider."""
 
-    ``extra: allow`` passes the full provider block (``enabled``,
-    ``<provider>_config``, …) through to ``update_provider_config``, which does
-    the validation; without it Pydantic would drop ``enabled``.
-    """
+    model_config = ConfigDict(extra="forbid")
 
-    model_config = {"extra": "allow"}
+    _config_block: ClassVar[Optional[str]] = None
 
-    migration: Optional[Dict[str, Any]] = None
+    enabled: bool
+    migration: ProviderMigrationUpdate = Field(default_factory=ProviderMigrationUpdate)
+
+    @model_validator(mode="after")
+    def _complete_when_enabled(self):
+        if not self.enabled or self._config_block is None:
+            return self
+        missing = getattr(self, self._config_block).missing_fields()
+        if missing:
+            # A ValueError would put the whole body, secrets included, in the
+            # ``input`` that the 400 response echoes.
+            raise ValidationError.from_exception_data(
+                type(self).__name__,
+                [
+                    InitErrorDetails(
+                        type=PydanticCustomError("missing", message),
+                        loc=(self._config_block, field),
+                        input=None,
+                    )
+                    for field, message in missing.items()
+                ],
+            )
+        return self
+
+
+class GoogleProviderConfigUpdateRequest(ProviderConfigUpdateRequest):
+    _config_block: ClassVar[Optional[str]] = "google_config"
+
+    google_config: GoogleConfigUpdate = Field(default_factory=GoogleConfigUpdate)
+
+
+class LdapProviderConfigUpdateRequest(ProviderConfigUpdateRequest):
+    _config_block: ClassVar[Optional[str]] = "ldap_config"
+
+    ldap_config: LdapConfigUpdate = Field(default_factory=LdapConfigUpdate)
+
+
+class SamlProviderConfigUpdateRequest(ProviderConfigUpdateRequest):
+    _config_block: ClassVar[Optional[str]] = "saml_config"
+
+    saml_config: SamlConfigUpdate = Field(default_factory=SamlConfigUpdate)
 
 
 # --- Migration exception schemas ---
