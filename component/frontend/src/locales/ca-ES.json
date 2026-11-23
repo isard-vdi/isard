@@ -1039,7 +1039,7 @@
       },
       "reset-modal": {
         "title": "Forçar reinici de l'escriptori?",
-        "description": "Forçar el reinici de l'escriptori es una acció perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor.",
+        "description": "Forçar el reinici de l'escriptori és una acció perillosa. És l'equivalent a treure-li el corrent mentre està en marxa. Si pots, atura'l des de dins d'un visor.",
         "confirm": "Forçar reinici de l'escriptori",
         "cancel": "Cancel·la"
       },
