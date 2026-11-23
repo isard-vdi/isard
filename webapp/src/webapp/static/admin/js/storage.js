@@ -17,6 +17,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+function storageOtherStatus (value) {
+  return value && value !== 'none' ? value : null
+}
+
+function storageGlobalActionUrl (action, status) {
+  const target = storageOtherStatus(status)
+  return target ? `/api/v4/items/storage/${action}/${encodeURIComponent(target)}` : null
+}
+
 function getGroupParam() {
   return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchStorageId=')[1];
 }
@@ -115,19 +124,23 @@ $(document).ready(function () {
     }
   });
 
-  newStatus = null
+  otherTableStatus = null
 
   // Other status table
   $('#status').on('change', (event) => {
-    newStatus = event.target.value
-    $(".mactionsStorage").attr("status", newStatus)
+    otherTableStatus = storageOtherStatus(event.target.value)
+    $('.mactionsStorage[selectedTableId="storagesOtherTable"]').attr("status", otherTableStatus || "")
     let tableId = '#storagesOtherTable'
     if ($.fn.dataTable.isDataTable(tableId)) {
       $(tableId).DataTable().destroy();
       $(tableId).empty()
     }
+    if (!otherTableStatus) {
+      storagesOtherTable = null
+      return
+    }
 
-    storagesOtherTable = createDatatable(tableId, newStatus, function () {
+    storagesOtherTable = createDatatable(tableId, otherTableStatus, function () {
       let searchStorageId = getGroupParam()
       if (searchStorageId) {
         storagesOtherTable.column(4).search(searchStorageId).draw();
@@ -182,6 +195,16 @@ $(document).ready(function () {
     let actionText = $(this).find('option:selected').text();
     let status = $(this).attr('status')
     let tableId = '#' + $(this).attr('selectedTableId')
+    if (!$.fn.dataTable.isDataTable(tableId) || !storageOtherStatus(status)) {
+      $('.mactionsStorage option[value="none"]').prop("selected", true);
+      new PNotify({
+        title: 'Select a status first',
+        text: `'${actionText}' runs on the disks of the table, and the table is empty.`,
+        type: 'info', hide: true, delay: 5000, opacity: 1
+      });
+      return;
+    }
+    let reloadTable = () => $(tableId).DataTable().ajax.reload(null, false)
     let appliedFilter = $(tableId).DataTable().search();
 
     if (action === 'dig-holes' && !appliedFilter) {
@@ -265,7 +288,7 @@ $(document).ready(function () {
                 opacity: 1
               });
             }
-            storage_ready.ajax.reload(null, false);
+            reloadTable();
           },
           error: function (xhr) {
             document.body.classList.remove('loading-cursor')
@@ -309,7 +332,7 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: `/api/v4/items/storage/${action}/${status}`,
+                    url: storageGlobalActionUrl(action, status),
                     contentType: "application/json",
                     success: function (data) {
                       document.body.classList.remove('loading-cursor')
@@ -324,7 +347,7 @@ $(document).ready(function () {
                         icon: 'fa fa-success',
                         opacity: 1
                       });
-                      storage_ready.ajax.reload(null, false);
+                      reloadTable();
                     },
                     error: function (data) {
                       document.body.classList.remove('loading-cursor')
@@ -392,16 +415,16 @@ $(document).ready(function () {
 
   // storagesDuplicatedUUID
   $('#uuid_status').on('change', (event) => {
-    newStatus = event.target.value
+    let uuidStatus = event.target.value
     let tableId = '#storagesUUID'
     if ($.fn.dataTable.isDataTable(tableId)) {
       $(tableId).DataTable().destroy();
       $(tableId).empty()
     }
 
-    let uuidUrl = newStatus === 'all'
+    let uuidUrl = uuidStatus === 'all'
       ? '/api/v4/items/storage/storages_with_uuid'
-      : `/api/v4/items/storage/storages_with_uuid/${encodeURIComponent(newStatus)}`
+      : `/api/v4/items/storage/storages_with_uuid/${encodeURIComponent(uuidStatus)}`
     storagesUUID = $(tableId).DataTable({
       ajax: {
         url: uuidUrl,
@@ -457,7 +480,7 @@ $(document).ready(function () {
   var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
   $("#btn-search").on("click", function () {
-    var tables = [storage_ready, storagesMaintenance, storagesOtherTable];
+    var tables = [storage_ready, storagesMaintenance, storagesOtherTable].filter(Boolean);
     tables.forEach(table => {
       // do for each item filter box
       $("#filter-boxes .filter-item").each(function () {
@@ -755,7 +778,7 @@ $(document).on('click', '.btn-delete-orphan', function () {
       error: function (xhr, ajaxOptions, thrownError) {
         new PNotify({
           title: 'ERROR',
-          text: xhr.responseJSON ? xhr.response.description : 'Something went wrong',
+          text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
           hide: true,
           delay: 3000,
           icon: 'fa fa-warning',
@@ -1906,7 +1929,7 @@ function socketio_on() {
       toTable = storage_ready;
     } else if (data.status === 'maintenance') {
       toTable = storagesMaintenance;
-    } else if (storagesOtherTable && newStatus && newStatus === data.status) {
+    } else if (storagesOtherTable && otherTableStatus && otherTableStatus === data.status) {
       toTable = storagesOtherTable;
     }
 
