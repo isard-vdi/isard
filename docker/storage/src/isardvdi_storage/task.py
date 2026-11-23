@@ -2729,13 +2729,26 @@ def sparsify(storage_path):
     free = _free_space(dirname(storage_path))
     need = int(old_size) * 1024  # _get_disk_usage is KB, _free_space is bytes
     safe_cancel = old_size > 0 and free is not None and free > need * 1.1
+    kept_original = False
     try:
         with task_heartbeat("sparsify", storage_path=storage_path):
             if safe_cancel:
                 copy_disk_file(storage_path, tmp_path, report_progress=False)
                 _run_cancellable(["virt-sparsify", "--in-place", tmp_path])
                 new_size = _get_disk_usage(tmp_path)
-                rename(tmp_path, storage_path)  # atomic swap
+                if new_size < old_size:
+                    rename(tmp_path, storage_path)  # atomic swap
+                else:
+                    # a trim over clusters only the backing holds adds zero-cluster metadata
+                    log.info(
+                        "sparsify: %s would grow (%s -> %s); keeping it as it was",
+                        storage_path,
+                        _format_size(old_size),
+                        _format_size(new_size),
+                    )
+                    _safe_unlink(tmp_path)
+                    new_size = old_size
+                    kept_original = True
             else:
                 log.warning(
                     "sparsify: no headroom for a safe-cancel copy (free=%s need~%s); "
@@ -2788,6 +2801,7 @@ def sparsify(storage_path):
         "saved_space": saved,
         "old_size": old_size,
         "new_size": new_size,
+        "kept_original": kept_original,
     }
 
 
