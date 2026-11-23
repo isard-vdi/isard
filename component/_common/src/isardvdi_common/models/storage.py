@@ -331,6 +331,17 @@ def new_storage_directory_path(user_id, pool_usage):
     )
 
 
+def _release_step(storage_id, action, always=False):
+    """The core step that returns the domains ``action`` parked to ``Stopped``."""
+    return {
+        "queue": "core",
+        "task": "release_maintenance",
+        "job_kwargs": {
+            "kwargs": {"storage_id": storage_id, "action": action, "always": always}
+        },
+    }
+
+
 class Storage(RethinkCustomBase):
     """
     Manage Storage Objects
@@ -2437,6 +2448,7 @@ class Storage(RethinkCustomBase):
                         }
                     },
                 },
+                _release_step(self.id, "convert", always=True),
             ],
         )
 

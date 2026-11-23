@@ -790,6 +790,19 @@ async def handle_update_status(redis_manager, task, statuses=None, only_while=No
                     )
 
 
+def handle_release_maintenance(task, storage_id, action, always=False):
+    """Return the domains ``action`` parked in ``Maintenance`` to ``Stopped``;
+    on a finished chain only when ``always``."""
+    if not always and task.depending_status == "finished":
+        return
+    if not Storage.exists(storage_id):
+        return
+    for domain in Storage(storage_id).domains:
+        if domain.status == "Maintenance" and domain.current_action == action:
+            domain.current_action = None
+            domain.status = "Stopped"
+
+
 def _settle_repair_domains(storage_object, final_status):
     """Domains a repair parked in ``Maintenance`` -> ``Stopped`` (ready) or
     ``Failed``; only ``Maintenance`` ones, so a VM the engine moved on is spared."""
