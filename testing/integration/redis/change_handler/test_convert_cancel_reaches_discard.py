@@ -37,7 +37,11 @@ def convert_chain_kwargs():
             "get_best_for_action",
             return_value=SimpleNamespace(id="default"),
         ),
-        patch.object(storage_model.qcow2_geometry, "policy", return_value={}),
+        patch.object(
+            storage_model.qcow2_geometry,
+            "policy",
+            return_value=storage_model.qcow2_geometry.from_env({}),
+        ),
         patch.object(storage_model, "storage_min_free_bytes", return_value=0),
     ):
         storage_model.Storage.convert(
