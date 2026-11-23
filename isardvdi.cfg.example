@@ -99,6 +99,11 @@ FRONTEND_DIRECT_VIEWER_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/direct_vie
 ##                instead of into the (hidden) new frontend.
 #FRONTEND_MODE=deprecated
 
+## Seconds the user configuration (get-config) is cached. It carries the
+## frontend mode, so a frontend mode rule change takes up to this long, plus a
+## page reload, to reach the users. Lower it only on test stacks.
+#USER_CONFIG_CACHE_TTL=60
+
 # ------ Frontend Direct Viewer cookie ---------------------------------------
 ## Where will the direct viewer cookie be retrieved from.
 ## Values: (first value is the default one)

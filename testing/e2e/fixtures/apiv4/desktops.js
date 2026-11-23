@@ -3,10 +3,12 @@
 
 import {
   createDesktop,
+  createNonpersistentDesktop,
   deleteDesktop,
   editDesktop,
   getDesktopDetails,
   getUserAllowedTemplatesFlat,
+  getUserDesktops,
 } from '../../src/gen/apiv4/sdk.gen'
 import { unwrap } from './unwrap.js'
 import { registerResource, track } from './resources.js'
@@ -65,4 +67,81 @@ export async function createDesktopAndTrack(client, testInfo, body) {
   if (!created?.id) throw new Error('createDesktop: no id in response')
   track(testInfo, 'desktop-id', created.id)
   return created
+}
+
+// ── Temporary (non-persistent) desktops ─────────────────────────────────────
+
+// Statuses, as the desktops list reports them, that a temporary desktop
+// does not leave on its own. `WaitingIP` is a desktop that is `Started` in
+// the database, has a wireguard interface and no guest IP yet. Outside
+// them the desktop is still being created or started, and new-nonpersistent
+// can answer 428 instead of reusing it.
+const SETTLED_STATUSES = new Set(['Started', 'WaitingIP', 'Stopped', 'Failed'])
+
+/** First enabled template of the caller that needs no GPU booking to start. */
+export async function getTemporaryDesktopTemplate(client) {
+  const list = await unwrap(getUserAllowedTemplatesFlat({ client, path: { kind: 'all' } }))
+  const template = (list ?? []).find(
+    (t) => t.enabled !== false && !(t.reservables?.vgpus ?? []).length,
+  )
+  if (!template) throw new Error('no allowed template without GPU reservables')
+  return template
+}
+
+/** The caller's temporary desktops derived from `templateId`. */
+export async function listTemporaryDesktops(client, templateId) {
+  const data = await unwrap(getUserDesktops({ client }))
+  return (data?.desktops ?? []).filter(
+    (desktop) => desktop.type === 'nonpersistent' && desktop.template === templateId,
+  )
+}
+
+/** POST new-nonpersistent as the caller; tracks whatever id comes back. */
+export async function createTemporaryDesktopAndTrack(client, testInfo, templateId) {
+  const result = await createNonpersistentDesktop({ client, body: { template_id: templateId } })
+  if (result.data?.id) track(testInfo, 'desktop-id', result.data.id)
+  return result
+}
+
+/** Polls the caller's temporary desktops of `templateId` until `predicate` holds. */
+export async function waitForTemporaryDesktops(
+  client,
+  templateId,
+  predicate,
+  { timeoutMs = 60000, message = 'temporary desktops' } = {},
+) {
+  const deadline = Date.now() + timeoutMs
+  let desktops = []
+  for (;;) {
+    desktops = await listTemporaryDesktops(client, templateId)
+    if (predicate(desktops)) return desktops
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `${message}: condition not met after ${timeoutMs} ms, last: ${JSON.stringify(
+          desktops.map((d) => ({ id: d.id, status: d.status })),
+        )}`,
+      )
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
+/** Waits until every temporary desktop of `templateId` has settled. */
+export async function waitForTemporaryDesktopsSettled(client, templateId, options) {
+  return waitForTemporaryDesktops(
+    client,
+    templateId,
+    (desktops) => desktops.every((desktop) => SETTLED_STATUSES.has(desktop.status)),
+    { message: 'temporary desktops settled', ...options },
+  )
+}
+
+/** Deletes the caller's temporary desktops of `templateId` and waits until they are gone. */
+export async function deleteTemporaryDesktops(client, templateId) {
+  for (const desktop of await listTemporaryDesktops(client, templateId)) {
+    await deleteDesktop({ client, path: { desktop_id: desktop.id } })
+  }
+  return waitForTemporaryDesktops(client, templateId, (desktops) => desktops.length === 0, {
+    message: 'temporary desktops deleted',
+  })
 }

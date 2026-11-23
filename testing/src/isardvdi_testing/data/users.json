@@ -4171,7 +4171,7 @@
         "active": true,
         "api_key": "",
         "category": "fmre2e",
-        "disclaimer_acknowledged": false,
+        "disclaimer_acknowledged": true,
         "email": "",
         "email_verification_token": "",
         "email_verified": null,

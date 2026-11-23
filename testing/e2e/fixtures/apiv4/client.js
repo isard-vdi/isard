@@ -58,9 +58,17 @@ function buildFetch(request) {
  * @param {import('@playwright/test').Page} page
  */
 export function apiv4ClientForPage(page) {
-  return createClient(
-    createConfig({ baseUrl: SDK_BASE_URL, fetch: buildFetch(page.request) }),
-  )
+  return apiv4ClientForRequest(page.request)
+}
+
+/**
+ * Same as apiv4ClientForPage for a bare APIRequestContext, for callers
+ * that log in through the API without a browser.
+ *
+ * @param {import('@playwright/test').APIRequestContext} request
+ */
+export function apiv4ClientForRequest(request) {
+  return createClient(createConfig({ baseUrl: SDK_BASE_URL, fetch: buildFetch(request) }))
 }
 
 export const test = baseTest.extend({

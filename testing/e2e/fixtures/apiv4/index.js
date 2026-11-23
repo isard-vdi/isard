@@ -3,7 +3,7 @@
 // tracked kind regardless of which helpers a spec uses.
 import './reservables.js'
 
-export { test, expect, apiv4ClientForPage } from './client.js'
+export { test, expect, apiv4ClientForPage, apiv4ClientForRequest } from './client.js'
 export { unwrap } from './unwrap.js'
 export { track, cleanupTrackedResources } from './resources.js'
 export {
@@ -11,6 +11,12 @@ export {
   editDesktopWhenStopped,
   getFirstAllowedTemplate,
   createDesktopAndTrack,
+  getTemporaryDesktopTemplate,
+  listTemporaryDesktops,
+  createTemporaryDesktopAndTrack,
+  waitForTemporaryDesktops,
+  waitForTemporaryDesktopsSettled,
+  deleteTemporaryDesktops,
 } from './desktops.js'
 export { createBookingAndTrack, createPlanAndTrack } from './bookings.js'
 export {

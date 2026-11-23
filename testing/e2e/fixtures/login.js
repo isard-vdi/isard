@@ -123,6 +123,14 @@ const users = {
   qle2e_manager_15: { username: 'qle2e-manager-15', password: 'IsardTest1!', category: 'qle2e' },
   qle2e_logout_mgr: { username: 'qle2e-logout-mgr', password: 'IsardTest1!', category: 'qle2e' },
 
+  // Seeded inside the dedicated `fmre2e` category: the targets of the
+  // frontend mode rules scenarios. No other spec logs in with them, so a
+  // rule scoped to them never changes the frontend of a parallel spec.
+  fmre2e_user_a: { username: 'fmre2e-user-a', password: 'IsardTest1!', category: 'fmre2e' },
+  fmre2e_user_b: { username: 'fmre2e-user-b', password: 'IsardTest1!', category: 'fmre2e' },
+  fmre2e_advanced: { username: 'fmre2e-advanced', password: 'IsardTest1!', category: 'fmre2e' },
+  fmre2e_manager: { username: 'fmre2e-manager', password: 'IsardTest1!', category: 'fmre2e' },
+
   // LDAP test users (from planetexpress.com test server)
   ldap_fry: { username: 'fry', password: 'fry', category: 'default' },
   ldap_leela: { username: 'leela', password: 'leela', category: 'default' },
@@ -205,6 +213,13 @@ const categories = {
     id: 'qle2e',
     name: 'QuotasLimits E2E',
     url: 'qle2e',
+    frontend: false,
+    maintenance: false,
+  },
+  fmre2e: {
+    id: 'fmre2e',
+    name: 'FrontendModeRules E2E',
+    url: 'fmre2e',
     frontend: false,
     maintenance: false,
   },
@@ -319,6 +334,32 @@ const loginHelpers = {
     } else {
       await page.waitForTimeout(500)
     }
+  },
+
+  // Logs `user` in through the authentication API, without a browser, and
+  // returns an APIRequestContext that sends the resulting Bearer token. The
+  // caller disposes it. Like any login, it ends the user's previous session.
+  async apiLogin(playwright, baseURL, user, categories) {
+    const categoryId = categories[user.category].id
+    const anonymous = await playwright.request.newContext({ baseURL, ignoreHTTPSErrors: true })
+    let bearer
+    try {
+      const response = await anonymous.post(
+        `/authentication/login?provider=form&category_id=${encodeURIComponent(categoryId)}`,
+        { multipart: { username: user.username, password: user.password } },
+      )
+      bearer = response.headers().authorization
+      if (!response.ok() || !bearer) {
+        throw new Error(`apiLogin: status ${response.status()} for user=${user.username}`)
+      }
+    } finally {
+      await anonymous.dispose()
+    }
+    return playwright.request.newContext({
+      baseURL,
+      ignoreHTTPSErrors: true,
+      extraHTTPHeaders: { Authorization: `Bearer ${bearer.replace(/^Bearer\s+/i, '')}` },
+    })
   },
 
   async loginAsAdmin(page, categories, redirectPath = null) {
