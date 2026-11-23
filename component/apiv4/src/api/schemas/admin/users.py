@@ -20,9 +20,10 @@
 
 from typing import List, Literal, Optional, Union
 
+from api.schemas.admin.categories import CategoryAuthenticationUpdate
 from api.schemas.domains.hardware import DomainImage
 from isardvdi_common.schemas.shared.quotas import Limits, Quota
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # ── User CRUD ────────────────────────────────────────────────────────────
 
@@ -250,7 +251,9 @@ class AdminCategoryUpdateData(BaseModel):
 class AdminCategoryAuthenticationData(BaseModel):
     """Request body for updating category authentication."""
 
-    authentication: dict
+    model_config = ConfigDict(extra="forbid")
+
+    authentication: CategoryAuthenticationUpdate
 
 
 # ── Quotas & Limits ──────────────────────────────────────────────────────

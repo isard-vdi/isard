@@ -176,7 +176,7 @@ async def update_category_authentication(
             AdminCategoryService.update_authentication,
             request.token_payload,
             category_id,
-            data.model_dump(),
+            data.model_dump(exclude_unset=True),
         )
         return Response(status_code=204)
     except Error:

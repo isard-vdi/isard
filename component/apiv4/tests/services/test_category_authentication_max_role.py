@@ -11,11 +11,10 @@ mirroring how secrets are preserved.
 """
 
 import pytest
-from api.services.admin.categories import (
-    _enforce_max_role_admin_only,
-    _validate_category_authentication,
-)
+from api.schemas.admin.users import AdminCategoryAuthenticationData
+from api.services.admin.categories import _enforce_max_role_admin_only
 from api.services.error import Error
+from pydantic import ValidationError
 
 
 def _auth(max_role):
@@ -25,17 +24,16 @@ def _auth(max_role):
 class TestValidateMaxRoleValue:
     @pytest.mark.parametrize("role", ["user", "advanced", "manager", "admin"])
     def test_accepts_valid_roles(self, role):
-        _validate_category_authentication(_auth(role))  # no raise
+        AdminCategoryAuthenticationData(authentication=_auth(role))  # no raise
 
     def test_absent_and_empty_pass(self):
-        _validate_category_authentication({"local": {"disabled": True}})
-        _validate_category_authentication(_auth(""))
+        AdminCategoryAuthenticationData(authentication={"local": {"disabled": True}})
+        AdminCategoryAuthenticationData(authentication=_auth(""))
 
     def test_rejects_unknown_role(self):
-        with pytest.raises(Error) as exc:
-            _validate_category_authentication(_auth("superadmin"))
-        assert exc.value.status_code == 400
-        assert exc.value.error["description_code"] == "authentication_invalid"
+        with pytest.raises(ValidationError) as exc:
+            AdminCategoryAuthenticationData(authentication=_auth("superadmin"))
+        assert exc.value.errors()[0]["loc"] == ("authentication", "local", "max_role")
 
 
 class TestMaxRoleAdminOnly:

@@ -688,7 +688,7 @@ class TestUpdateCategoryAuthentication:
     def test_custom_google_requires_config(self, test_client):
         """config_source=custom for google must include google_config."""
         jwt = MockJWT(role_id="admin")
-        payload = self._payload(google={"config_source": "custom"})
+        payload = self._payload(google={"disabled": False, "config_source": "custom"})
         del payload["authentication"]["google"]["google_config"]
         response = test_client(
             url="/admin/item/category/test-cat/authentication",
@@ -706,13 +706,15 @@ class TestUpdateCategoryAuthentication:
             url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
-            body=self._payload(saml={"config_source": "custom", "saml_config": {}}),
+            body=self._payload(
+                saml={"disabled": False, "config_source": "custom", "saml_config": {}}
+            ),
             db_tables_data=_db(),
         )
         assert response.status_code == 400
 
     def test_custom_saml_with_metadata_accepted(self, test_client):
-        """A complete custom saml config passes structural validation."""
+        """A complete custom saml config passes validation."""
         jwt = MockJWT(role_id="admin")
         response = test_client(
             url="/admin/item/category/test-cat/authentication",
@@ -720,8 +722,17 @@ class TestUpdateCategoryAuthentication:
             jwt=jwt,
             body=self._payload(
                 saml={
+                    "disabled": False,
                     "config_source": "custom",
-                    "saml_config": {"metadata_url": "https://idp.example.com/meta"},
+                    "saml_config": {
+                        "metadata_url": "https://idp.example.com/meta",
+                        "key_file": "/keys/isardvdi.key",
+                        "cert_file": "/keys/isardvdi.cert",
+                        "max_issue_delay": "90s",
+                        "field_uid": "uid",
+                        "regex_uid": ".*",
+                        "logout_redirect_url": "https://idp.example.com/logout",
+                    },
                 }
             ),
             db_tables_data=_db(),

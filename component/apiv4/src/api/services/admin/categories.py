@@ -21,6 +21,7 @@
 import html
 import traceback
 
+from api.services.admin.authentication import AdminAuthenticationService
 from api.services.error import Error
 from api.services.login_config_cache import clear_logo_cache
 from isardvdi_common.configuration import Configuration
@@ -32,7 +33,6 @@ from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.users.categories.categories import CategoriesProcessed
 
 _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
-_KNOWN_PROVIDERS = ("local", "ldap", "google", "saml")
 
 
 class AdminCategoryService:
@@ -157,8 +157,8 @@ class AdminCategoryService:
         """Update category authentication.
 
         Preserves omitted/empty secrets from the DB (raising when a required one
-        is absent), enforces the apiv3 structural rules, then writes via the
-        Category setter (API→DB conversion).
+        is absent), rejects the global config of a provider disabled globally,
+        then writes via the Category setter (API→DB conversion).
         """
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "authentication"
@@ -173,7 +173,7 @@ class AdminCategoryService:
         existing = Category(category_id).authentication or {}
         _preserve_authentication_secrets(auth, existing)
         _enforce_max_role_admin_only(auth, existing, payload.get("role_id") == "admin")
-        _validate_category_authentication(auth)
+        _reject_globally_disabled(auth)
         Category(category_id).authentication = auth
         # check_max_role reads the cached category: drop it so the cap applies now.
         Caches.invalidate_cache("categories", category_id)
@@ -441,119 +441,18 @@ def _enforce_max_role_admin_only(
             )
 
 
-def _validate_category_authentication(auth: dict) -> None:
-    """Reject the same incomplete payloads as the apiv3 Cerberus schema.
-
-    Mirrors v3's per-provider ``depends_if`` co-requirements (presence-based);
-    unknown providers pass through for forward compatibility.
-    """
-
-    def _require(condition: bool, message: str) -> None:
-        if not condition:
-            raise Error(
-                "bad_request", message, description_code="authentication_invalid"
-            )
-
+def _reject_globally_disabled(auth: dict) -> None:
+    """A provider disabled globally can only be enabled with a custom config."""
+    providers = AdminAuthenticationService.get_providers()
     for provider, provider_data in auth.items():
-        if provider not in _KNOWN_PROVIDERS:
-            continue
-        _require(
-            isinstance(provider_data, dict),
-            f"'{provider}' authentication must be an object",
-        )
-
-        disabled = provider_data.get("disabled")
-        _require(
-            isinstance(disabled, bool), f"'{provider}' requires a boolean 'disabled'"
-        )
-
-        max_role = provider_data.get("max_role")
-        if max_role not in (None, ""):
-            _require(
-                max_role in ("user", "advanced", "manager", "admin"),
-                f"'{provider}' max_role must be one of user, advanced, manager, admin",
+        if (
+            not provider_data["disabled"]
+            and provider_data["config_source"] == "global"
+            and not providers[provider]["enabled"]
+        ):
+            raise Error(
+                "bad_request",
+                f"'{provider}' is not globally available: set its config_source "
+                "to custom or disable it",
+                description_code="authentication_invalid",
             )
-
-        config_source = provider_data.get("config_source")
-        edr = provider_data.get("email_domain_restriction")
-
-        if disabled is False:
-            _require(
-                edr is not None and config_source is not None,
-                f"'{provider}' requires 'email_domain_restriction' and "
-                "'config_source' when enabled",
-            )
-
-        if config_source is not None:
-            _require(
-                config_source in ("global", "custom"),
-                f"'{provider}' config_source must be 'global' or 'custom'",
-            )
-
-        if isinstance(edr, dict):
-            _require(
-                isinstance(edr.get("enabled"), bool),
-                f"'{provider}' email_domain_restriction requires a boolean 'enabled'",
-            )
-            if edr["enabled"]:
-                _require(
-                    "allowed" in edr,
-                    f"'{provider}' email_domain_restriction requires 'allowed' "
-                    "when enabled",
-                )
-
-        config = provider_data.get(f"{provider}_config")
-        config = config if isinstance(config, dict) else {}
-        edr_enabled = isinstance(edr, dict) and edr.get("enabled") is True
-
-        if provider == "google" and config_source == "custom":
-            _require(
-                "google_config" in provider_data,
-                "'google' requires 'google_config' when config_source is custom",
-            )
-
-        if provider == "ldap":
-            if config_source == "custom":
-                _require(
-                    "ldap_config" in provider_data,
-                    "'ldap' requires 'ldap_config' when config_source is custom",
-                )
-            if edr_enabled:
-                _require(
-                    "field_email" in config,
-                    "'ldap' requires 'ldap_config.field_email' when email domain "
-                    "restriction is enabled",
-                )
-            if config.get("auto_register") and config.get("group_default", "") == "":
-                _require(
-                    "field_group" in config,
-                    "'ldap' requires 'ldap_config.field_group' when auto-registering "
-                    "without a default group",
-                )
-
-        if provider == "saml":
-            if config_source == "custom":
-                _require(
-                    "metadata_url" in config or "metadata_file" in config,
-                    "'saml' requires 'saml_config.metadata_url' or "
-                    "'saml_config.metadata_file' when config_source is custom",
-                )
-            if edr_enabled:
-                _require(
-                    "field_email" in config,
-                    "'saml' requires 'saml_config.field_email' when email domain "
-                    "restriction is enabled",
-                )
-            if config.get("auto_register"):
-                if config.get("group_default", "") == "":
-                    _require(
-                        "field_group" in config,
-                        "'saml' requires 'saml_config.field_group' when "
-                        "auto-registering without a default group",
-                    )
-                if config.get("role_default", "") == "":
-                    _require(
-                        "field_role" in config,
-                        "'saml' requires 'saml_config.field_role' when "
-                        "auto-registering without a default role",
-                    )
