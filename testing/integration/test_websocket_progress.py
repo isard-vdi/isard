@@ -24,6 +24,7 @@ import time
 import pytest
 
 from .helpers.client import IsardClient
+from .helpers.media_source import create_media_from_url
 from .helpers.sockets import SocketIOListener
 
 # In-repo test media (testing/media) so the test does not depend on an external mirror.
@@ -42,21 +43,25 @@ def test_media_from_url_emits_progress_to_admins_and_userspace(
     media_name = f"{test_namespace}bug_c_ws_media"
     ws.clear()
 
-    resp = admin_client.post(
-        "/api/v4/item/media",
-        json_body={
-            "url": DEFAULT_MEDIA_URL,
-            "name": media_name,
-            "description": "regression: progress WS events reach admins",
-            "kind": "iso",
-            "allowed": {
-                "roles": False,
-                "categories": False,
-                "groups": False,
-                "users": False,
+    resp = create_media_from_url(
+        lambda: admin_client.post(
+            "/api/v4/item/media",
+            json_body={
+                "url": DEFAULT_MEDIA_URL,
+                "name": media_name,
+                "description": "regression: progress WS events reach admins",
+                "kind": "iso",
+                "allowed": {
+                    "roles": False,
+                    "categories": False,
+                    "groups": False,
+                    "users": False,
+                },
+                "hypervisors_pools": ["default"],
             },
-            "hypervisors_pools": ["default"],
-        },
+            expected=(200, 201, 400),
+        ),
+        DEFAULT_MEDIA_URL,
     )
     media_id = resp["id"]
 

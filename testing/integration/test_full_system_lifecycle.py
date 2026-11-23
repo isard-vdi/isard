@@ -106,6 +106,7 @@ from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 
 from .helpers.client import IsardClient
+from .helpers.media_source import create_media_from_url
 from .helpers.responses import created_id, expect
 from .helpers.sockets import SocketIOListener
 from .helpers.waits import poll_for
@@ -602,9 +603,12 @@ def test_media_upload_full_lifecycle(
     """
     media_name = f"{test_namespace}fullsys_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:

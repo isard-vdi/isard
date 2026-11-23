@@ -126,6 +126,7 @@ from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 from isardvdi_apiv4_client.types import UNSET
 
 from .helpers.client import IsardClient
+from .helpers.media_source import create_media_from_url
 from .helpers.responses import created_id, expect
 
 # ---------------------------------------------------------------------------
@@ -364,9 +365,12 @@ def _media_then_template(
     """
     media_name = f"{test_namespace}{prefix}_tmpl_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     admin_client.poll_media_status(
@@ -561,9 +565,12 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
     """
     media_name = f"{test_namespace}hw_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:
@@ -638,9 +645,12 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     # Use the smallest ISO so the storage chain finishes quickly.
     media_name = f"{test_namespace}hw_edit_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:
@@ -841,9 +851,12 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
     """
     media_name = f"{test_namespace}iso_attach_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:
@@ -1116,9 +1129,12 @@ def test_engine_xml_matches_virsh_dumpxml_when_running(
 
     media_name = f"{test_namespace}xml_match_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:
@@ -1199,9 +1215,12 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
     # smallest path that reliably produces a stopped desktop.
     media_name = f"{test_namespace}forced_hyp_media"
     media_id = created_id(
-        create_media.sync_detailed(
-            client=admin_client.apiv4(),
-            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        create_media_from_url(
+            lambda: create_media.sync_detailed(
+                client=admin_client.apiv4(),
+                body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+            ),
+            DEFAULT_MEDIA_URL,
         )
     )
     try:
