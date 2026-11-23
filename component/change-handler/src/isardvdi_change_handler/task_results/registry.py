@@ -56,6 +56,7 @@ HANDLERS = {
     "storage_repair_size": (storage.handle_storage_repair_size, SYNC),
     "storage_check_result": (storage.handle_storage_check_result, SYNC),
     "update_status": (storage.handle_update_status, ASYNC),
+    "release_maintenance": (storage.handle_release_maintenance, SYNC),
     # media
     "media_update": (media.handle_media_update, SYNC),
     "media_download_update_status": (
