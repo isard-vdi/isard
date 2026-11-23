@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -112,6 +113,53 @@ class StatsConnectedUsersResponse(BaseModel):
     sockets: int = Field(
         description="Live Socket.IO connections, per tab and namespace"
     )
+
+
+# -- /admin/item/stats/monthly-usage --
+
+
+class StatsMonthlyUsagePeriod(BaseModel):
+    start: datetime = Field(description="First day of the month, 00:00 UTC")
+    end: datetime = Field(
+        description="Now for the current month, else the first day of the next one"
+    )
+
+
+class StatsMonthlyUsageUsersByRole(BaseModel):
+    manager: int
+    advanced: int
+    user: int
+
+
+class StatsMonthlyUsageUsers(BaseModel):
+    total: int = Field(description="Distinct non-admin users who logged in")
+    by_role: StatsMonthlyUsageUsersByRole = Field(
+        description="Distinct users per role; a user whose role changed counts in each"
+    )
+    deleted: int = Field(description="Users no longer in the users table today")
+
+
+class StatsMonthlyUsageDesktops(BaseModel):
+    total: int = Field(description="Distinct desktops started")
+    gpu: int = Field(description="Desktops started with a vGPU reservable")
+    servers: int = Field(description="Existing desktops flagged as servers")
+    from_deployments: int = Field(description="Desktops belonging to a deployment")
+    deleted: int = Field(description="Desktops no longer in the domains table today")
+
+
+class StatsMonthlyUsageDeployments(BaseModel):
+    total: int = Field(description="Distinct deployments with a desktop started")
+    gpu: int = Field(description="Existing deployments with a vGPU reservable")
+    deleted: int = Field(
+        description="Deployments no longer in the deployments table today"
+    )
+
+
+class StatsMonthlyUsageResponse(BaseModel):
+    period: StatsMonthlyUsagePeriod
+    users: StatsMonthlyUsageUsers
+    desktops: StatsMonthlyUsageDesktops
+    deployments: StatsMonthlyUsageDeployments
 
 
 # -- /admin/item/stats/domains/status --

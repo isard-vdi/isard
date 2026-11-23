@@ -6,6 +6,8 @@
 """Unit tests for ``StatsProcessed`` top-level summaries."""
 
 import json
+from contextlib import nullcontext
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -640,3 +642,416 @@ class TestEveryCacheHasAStalenessCeiling:
         """Too tight a ceiling would fail the endpoint on a single hiccup."""
         cache = getattr(stub_rdb["mod"], cache_name)
         assert cache.max_stale >= 3 * cache.ttl
+
+
+def _utc(*args):
+    return datetime(*args, tzinfo=timezone.utc)
+
+
+class _FixedDatetime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 11, 23, 12, tzinfo=tz)
+
+
+class _FakeTable:
+    """In-memory stand-in for the ReQL selections that read user documents."""
+
+    def __init__(self, rows):
+        self.rows = rows
+
+    def get_all(self, keys, index="id"):
+        keys = keys if isinstance(keys, tuple) else (keys,)
+        assert None not in keys, "RethinkDB refuses null keys"
+        if index == "id":
+            return _FakeTable([row for row in self.rows if row["id"] in keys])
+        assert index == "user"
+        return _FakeTable(
+            [row for row in self.rows if {u["id"] for u in row["users"]} & set(keys)]
+        )
+
+    def filter(self, fields):
+        return _FakeTable(
+            [row for row in self.rows if fields.items() <= row.items()],
+        )
+
+    def pluck(self, *fields):
+        return _FakeTable(
+            [{f: row[f] for f in fields if f in row} for row in self.rows]
+        )
+
+    def concat_map(self, func):
+        return _FakeTable(
+            [
+                item
+                for row in self.rows
+                for item in func({"users": _FakeTable(row["users"])}).rows
+            ]
+        )
+
+    def __getitem__(self, field):
+        return _FakeTable([row[field] for row in self.rows])
+
+    def run(self, _connection):
+        return list(self.rows)
+
+
+def _logged_user(owner, *roles, deleted=False, category="cat-a"):
+    return {
+        "owner_user_id": owner,
+        "roles": list(roles or ("user",)),
+        "deleted": deleted,
+        "category": category,
+    }
+
+
+def _started_desktop(
+    desktop_id,
+    owner,
+    *,
+    gpu=False,
+    deployment_id=None,
+    deleted=False,
+    server=False,
+    category="cat-a",
+):
+    return {
+        "desktop_id": desktop_id,
+        "owner_user_id": owner,
+        "gpu": gpu,
+        "deployment_ids": [deployment_id] if deployment_id else [],
+        "deleted": deleted,
+        "server": server,
+        "category": category,
+    }
+
+
+@pytest.fixture
+def monthly_usage(monkeypatch):
+    """Call ``get_monthly_usage`` at 2026-11-23 12:00 UTC over the given log
+    rows, ``users`` documents and recycle bin entries."""
+    from isardvdi_common.lib.stats import stats as mod
+
+    Processed = mod.StatsProcessed
+
+    def call(
+        *, logged_users=(), started_desktops=(), users=(), recycle_bin=(), **filters
+    ):
+        tables = {
+            "users": _FakeTable(list(users)),
+            "recycle_bin": _FakeTable(list(recycle_bin)),
+        }
+
+        def reader(rows):
+            return classmethod(
+                lambda cls, start, end, category: [
+                    dict(row) for row in rows if category in (None, row["category"])
+                ]
+            )
+
+        monkeypatch.setattr(mod, "datetime", _FixedDatetime)
+        monkeypatch.setattr(mod.r, "table", tables.__getitem__)
+        monkeypatch.setattr(mod.r, "args", tuple)
+        monkeypatch.setattr(
+            Processed, "_rdb_context", classmethod(lambda cls: nullcontext())
+        )
+        monkeypatch.setattr(
+            type(Processed), "_rdb_connection", property(lambda self: None)
+        )
+        monkeypatch.setattr(Processed, "_monthly_users", reader(logged_users))
+        monkeypatch.setattr(Processed, "_monthly_desktops", reader(started_desktops))
+        monkeypatch.setattr(
+            Processed,
+            "_monthly_deployments",
+            classmethod(lambda cls, ids: {"total": len(ids), "gpu": 0, "deleted": 0}),
+        )
+        return Processed.get_monthly_usage(**filters)
+
+    return call
+
+
+class TestGetMonthlyUsagePeriod:
+    @pytest.mark.parametrize(
+        "month",
+        [pytest.param(None, id="omitted"), pytest.param("2026-11", id="current")],
+    )
+    def test_period_runs_from_the_first_until_now(self, monthly_usage, month):
+        usage = monthly_usage(month=month)
+
+        assert usage["period"] == {
+            "start": _utc(2026, 11, 1),
+            "end": _utc(2026, 11, 23, 12),
+        }
+
+    @pytest.mark.parametrize(
+        "month, start, end",
+        [
+            pytest.param(
+                "2026-10", _utc(2026, 10, 1), _utc(2026, 11, 1), id="previous-month"
+            ),
+            pytest.param(
+                "2025-12", _utc(2025, 12, 1), _utc(2026, 1, 1), id="year-rollover"
+            ),
+            pytest.param(
+                "2024-02", _utc(2024, 2, 1), _utc(2024, 3, 1), id="leap-february"
+            ),
+        ],
+    )
+    def test_period_is_the_whole_month_when_month_is_past(
+        self, monthly_usage, month, start, end
+    ):
+        usage = monthly_usage(month=month)
+
+        assert usage["period"] == {"start": start, "end": end}
+
+    def test_future_month_is_rejected(self, monthly_usage):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        with pytest.raises(ErrorBase, match="2026-12 is in the future") as exc:
+            monthly_usage(month="2026-12")
+
+        assert exc.value.status_code == 400
+
+
+class TestGetMonthlyUsageUsers:
+    def test_users_count_once_each(self, monthly_usage):
+        usage = monthly_usage(
+            logged_users=[
+                _logged_user("u1", "user"),
+                _logged_user("u2", "manager"),
+                _logged_user("gone", "advanced", deleted=True),
+            ]
+        )
+
+        assert usage["users"] == {
+            "total": 3,
+            "by_role": {"manager": 1, "advanced": 1, "user": 1},
+            "deleted": 1,
+        }
+
+    def test_user_counts_in_every_role_they_had_when_their_role_changed(
+        self, monthly_usage
+    ):
+        usage = monthly_usage(logged_users=[_logged_user("u1", "user", "manager")])
+
+        assert usage["users"] == {
+            "total": 1,
+            "by_role": {"manager": 1, "advanced": 0, "user": 1},
+            "deleted": 0,
+        }
+
+
+class TestGetMonthlyUsageDesktops:
+    def test_desktops_count_by_flag(self, monthly_usage):
+        usage = monthly_usage(
+            started_desktops=[
+                _started_desktop("plain", "u1"),
+                _started_desktop("gpu", "u1", gpu=True),
+                _started_desktop("server", "u1", server=True),
+                _started_desktop("deployed", "u1", deployment_id="dep"),
+                _started_desktop("gone", "u1", deleted=True),
+            ]
+        )
+
+        assert usage["desktops"] == {
+            "total": 5,
+            "gpu": 1,
+            "servers": 1,
+            "from_deployments": 1,
+            "deleted": 1,
+        }
+
+    def test_desktop_counts_once_when_its_owner_changed(self, monthly_usage):
+        usage = monthly_usage(
+            started_desktops=[
+                _started_desktop("d1", "u1"),
+                _started_desktop("d1", "u2"),
+            ]
+        )
+
+        assert usage["desktops"]["total"] == 1
+
+    def test_desktop_keeps_the_gpu_and_deployment_of_any_of_its_owners(
+        self, monthly_usage
+    ):
+        usage = monthly_usage(
+            started_desktops=[
+                _started_desktop("d1", "u1"),
+                _started_desktop("d1", "u2", gpu=True, deployment_id="dep"),
+                _started_desktop("d1", "u3"),
+            ]
+        )
+
+        assert usage["desktops"] == {
+            "total": 1,
+            "gpu": 1,
+            "servers": 0,
+            "from_deployments": 1,
+            "deleted": 0,
+        }
+
+    def test_deployments_count_once_each(self, monthly_usage):
+        usage = monthly_usage(
+            started_desktops=[
+                _started_desktop("d1", "u1", deployment_id="dep-a"),
+                _started_desktop("d2", "u2", deployment_id="dep-a"),
+                _started_desktop("d3", "u3", deployment_id="dep-b"),
+                _started_desktop("d4", "u4"),
+            ]
+        )
+
+        assert usage["deployments"]["total"] == 2
+
+    def test_deployments_include_every_one_a_desktop_was_started_in(
+        self, monthly_usage
+    ):
+        usage = monthly_usage(
+            started_desktops=[
+                _started_desktop("d1", "u1", deployment_id="dep-a"),
+                _started_desktop("d1", "u2", deployment_id="dep-b"),
+            ]
+        )
+
+        assert usage["deployments"]["total"] == 2
+        assert usage["desktops"]["from_deployments"] == 1
+
+
+class TestGetMonthlyUsageFilters:
+    LDAP = {"id": "ldap-user", "provider": "ldap"}
+    SAML = {"id": "saml-user", "provider": "saml"}
+
+    def test_category_narrows_users_and_desktops(self, monthly_usage):
+        usage = monthly_usage(
+            category="cat-a",
+            logged_users=[
+                _logged_user("u1", category="cat-a"),
+                _logged_user("u2", category="cat-b"),
+            ],
+            started_desktops=[
+                _started_desktop("d1", "u1", category="cat-a"),
+                _started_desktop("d2", "u2", category="cat-b"),
+                _started_desktop("d3", "u2", category="cat-b"),
+            ],
+        )
+
+        assert usage["users"]["total"] == 1
+        assert usage["desktops"]["total"] == 1
+
+    def test_provider_narrows_every_figure(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP, self.SAML],
+            logged_users=[_logged_user("ldap-user"), _logged_user("saml-user")],
+            started_desktops=[
+                _started_desktop("d1", "ldap-user", deployment_id="dep-a"),
+                _started_desktop("d2", "saml-user", gpu=True, deployment_id="dep-b"),
+                _started_desktop("d3", "saml-user", deleted=True),
+            ],
+        )
+
+        assert usage["users"]["total"] == 1
+        assert usage["desktops"] == {
+            "total": 1,
+            "gpu": 0,
+            "servers": 0,
+            "from_deployments": 1,
+            "deleted": 0,
+        }
+        assert usage["deployments"]["total"] == 1
+
+    def test_provider_leaves_out_deleted_users_and_what_they_used(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP],
+            recycle_bin=[{"users": [{"id": "gone", "provider": "ldap"}]}],
+            logged_users=[
+                _logged_user("ldap-user"),
+                _logged_user("gone", deleted=True),
+            ],
+            started_desktops=[
+                _started_desktop("d1", "ldap-user"),
+                _started_desktop("d2", "gone", deployment_id="dep"),
+            ],
+        )
+
+        assert usage["users"] == {
+            "total": 1,
+            "by_role": {"manager": 0, "advanced": 0, "user": 1},
+            "deleted": 0,
+        }
+        assert usage["desktops"]["total"] == 1
+        assert usage["desktops"]["from_deployments"] == 0
+        assert usage["deployments"]["total"] == 0
+
+    def test_deleted_users_count_when_provider_is_omitted(self, monthly_usage):
+        usage = monthly_usage(
+            users=[self.LDAP],
+            logged_users=[
+                _logged_user("ldap-user"),
+                _logged_user("gone", deleted=True),
+            ],
+            started_desktops=[_started_desktop("d1", "gone", deployment_id="dep")],
+        )
+
+        assert usage["users"]["total"] == 2
+        assert usage["users"]["deleted"] == 1
+        assert usage["desktops"]["total"] == 1
+        assert usage["deployments"]["total"] == 1
+
+    def test_provider_keeps_a_deleted_desktop_of_an_existing_user(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP],
+            started_desktops=[_started_desktop("d1", "ldap-user", deleted=True)],
+        )
+
+        assert usage["desktops"]["total"] == 1
+        assert usage["desktops"]["deleted"] == 1
+
+    def test_provider_keeps_a_desktop_through_its_existing_owner(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP],
+            started_desktops=[
+                _started_desktop("d1", "gone", gpu=True),
+                _started_desktop("d1", "ldap-user"),
+            ],
+        )
+
+        assert usage["desktops"]["total"] == 1
+        assert usage["desktops"]["gpu"] == 0
+
+    def test_provider_ignores_rows_without_an_owner(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP],
+            started_desktops=[
+                _started_desktop("d1", None),
+                _started_desktop("d2", "ldap-user"),
+            ],
+        )
+
+        assert usage["desktops"]["total"] == 1
+
+    def test_provider_leaves_out_users_without_one(self, monthly_usage):
+        usage = monthly_usage(
+            provider="ldap",
+            users=[self.LDAP, {"id": "no-provider"}],
+            logged_users=[_logged_user("ldap-user"), _logged_user("no-provider")],
+        )
+
+        assert usage["users"]["total"] == 1
+
+    def test_provider_matches_users_of_every_lookup_batch(
+        self, monthly_usage, monkeypatch
+    ):
+        from isardvdi_common.lib.stats import stats as mod
+
+        monkeypatch.setattr(mod, "_USAGE_GET_ALL_BATCH", 2)
+        usage = monthly_usage(
+            provider="ldap",
+            users=[{"id": f"u{i}", "provider": "ldap"} for i in range(5)],
+            logged_users=[_logged_user(f"u{i}") for i in range(5)],
+        )
+
+        assert usage["users"]["total"] == 5

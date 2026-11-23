@@ -7,6 +7,9 @@ The literal /stats/categories[/...] paths each get their own test so a
 future re-order under that prefix surfaces immediately.
 """
 
+from datetime import datetime, timezone
+
+import pytest
 from api.schemas.admin.stats import (
     StatsKindDesktop,
     StatsKindHypervisor,
@@ -413,3 +416,131 @@ class TestConnectedUsers:
         for role in ("manager", "user"):
             response = test_client(url=self.URL, jwt=MockJWT(role_id=role))
             assert response.status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET /admin/item/stats/monthly-usage
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestMonthlyUsage:
+    URL = "/admin/item/stats/monthly-usage"
+    STATS_PROCESSED = "isardvdi_common.lib.stats.stats.StatsProcessed"
+    USAGE = {
+        "period": {
+            "start": datetime(2026, 10, 1, tzinfo=timezone.utc),
+            "end": datetime(2026, 11, 1, tzinfo=timezone.utc),
+        },
+        "users": {
+            "total": 3,
+            "by_role": {"manager": 1, "advanced": 0, "user": 2},
+            "deleted": 1,
+        },
+        "desktops": {
+            "total": 5,
+            "gpu": 1,
+            "servers": 2,
+            "from_deployments": 3,
+            "deleted": 4,
+        },
+        "deployments": {"total": 2, "gpu": 1, "deleted": 0},
+    }
+
+    @pytest.fixture
+    def asked_filters(self, monkeypatch):
+        """The filters of each query, which answers ``USAGE``."""
+        asked = []
+
+        def get_monthly_usage(category=None, provider=None, month=None):
+            asked.append((category, provider, month))
+            return self.USAGE
+
+        monkeypatch.setattr(
+            f"{self.STATS_PROCESSED}.get_monthly_usage",
+            staticmethod(get_monthly_usage),
+        )
+        return asked
+
+    def test_admin_gets_the_usage_with_utc_dates(self, asked_filters, test_client):
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+
+        assert response.status_code == 200
+        assert response.json() == {
+            **self.USAGE,
+            "period": {
+                "start": "2026-10-01T00:00:00Z",
+                "end": "2026-11-01T00:00:00Z",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "query, filters",
+        [
+            pytest.param("", (None, None, None), id="none"),
+            pytest.param("?category=cat-a", ("cat-a", None, None), id="category"),
+            pytest.param("?provider=ldap", (None, "ldap", None), id="provider"),
+            pytest.param(
+                "?provider=external_key",
+                (None, "external_key", None),
+                id="external-provider",
+            ),
+            pytest.param("?month=2026-10", (None, None, "2026-10"), id="month"),
+            pytest.param(
+                "?category=cat-a&provider=ldap&month=2026-10",
+                ("cat-a", "ldap", "2026-10"),
+                id="all",
+            ),
+        ],
+    )
+    def test_filters_narrow_the_usage(self, asked_filters, test_client, query, filters):
+        response = test_client(url=f"{self.URL}{query}", jwt=MockJWT(role_id="admin"))
+
+        assert response.status_code == 200
+        assert asked_filters == [filters]
+
+    @pytest.mark.parametrize(
+        "month",
+        [
+            pytest.param("2026-13", id="month-13"),
+            pytest.param("2026-1", id="one-digit"),
+            pytest.param("october", id="not-a-date"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_malformed_month_is_rejected(self, asked_filters, test_client, month):
+        response = test_client(
+            url=f"{self.URL}?month={month}", jwt=MockJWT(role_id="admin")
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error"] == "validation_error"
+        assert asked_filters == []
+
+    def test_future_month_is_rejected(self, test_client):
+        response = test_client(
+            url=f"{self.URL}?month=2099-12", jwt=MockJWT(role_id="admin")
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error"] == "bad_request"
+
+    @pytest.mark.parametrize("role", ["manager", "advanced", "user"])
+    def test_usage_is_forbidden_to_other_roles(self, asked_filters, test_client, role):
+        response = test_client(url=self.URL, jwt=MockJWT(role_id=role))
+
+        assert response.status_code == 403
+        assert asked_filters == []
+
+    def test_failing_query_is_an_internal_error(self, monkeypatch, test_client):
+        def get_monthly_usage(category=None, provider=None, month=None):
+            raise RuntimeError("database down")
+
+        monkeypatch.setattr(
+            f"{self.STATS_PROCESSED}.get_monthly_usage",
+            staticmethod(get_monthly_usage),
+        )
+
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+
+        assert response.status_code == 500
+        assert response.json()["error"] == "internal_server"
