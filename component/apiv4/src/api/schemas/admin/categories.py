@@ -21,14 +21,18 @@
 from typing import Any, ClassVar, Dict, Literal, Optional
 
 from api.schemas.admin.authentication import (
+    GoogleConfigResponse,
     GoogleConfigUpdate,
+    LdapConfigResponse,
     LdapConfigUpdate,
     MappedConfigUpdate,
     ProviderPartialUpdate,
+    ProviderStatus,
+    SamlConfigResponse,
     SamlConfigUpdate,
     missing_fields_error,
 )
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 # ── Branding ─────────────────────────────────────────────────────────────
 
@@ -73,18 +77,47 @@ class BrandingResponse(BaseModel):
     logo_collapsed: Optional[BrandingLogo] = None
 
 
+class EmailDomainRestrictionResponse(BaseModel):
+    enabled: Optional[bool] = None
+    allowed: Optional[list[str]] = None
+
+
+class CategoryProviderResponse(BaseModel):
+    disabled: Optional[bool] = None
+    email_domain_restriction: Optional[EmailDomainRestrictionResponse] = None
+    config_source: Optional[str] = None
+    max_role: Optional[str] = None
+    status: Optional[ProviderStatus] = None
+
+
+class CategoryGoogleConfigResponse(GoogleConfigResponse):
+    client_secret_set: Optional[bool] = None
+
+
+class CategoryGoogleResponse(CategoryProviderResponse):
+    google_config: Optional[CategoryGoogleConfigResponse] = None
+
+
+class CategoryLdapConfigResponse(LdapConfigResponse):
+    password_set: Optional[bool] = None
+
+
+class CategoryLdapResponse(CategoryProviderResponse):
+    ldap_config: Optional[CategoryLdapConfigResponse] = None
+
+
+class CategorySamlResponse(CategoryProviderResponse):
+    saml_config: Optional[SamlConfigResponse] = None
+
+
 class CategoryAuthenticationResponse(BaseModel):
-    """Response shape for ``GET /admin/item/category/{id}/authentication``.
+    """Stored provider settings of a category, without their secrets. Looser than
+    the update request, as they may predate its validation."""
 
-    Permissive (``ConfigDict(extra="allow")``) because the underlying
-    ``Category.authentication`` blob is provider-specific freeform
-    (``local`` / ``ldap`` / ``saml`` / ``google``), and the service
-    pre-strips the secret keys (password, client_secret) before
-    returning. The response is consumed by the admin edit-modal which
-    inspects fields per-provider.
-    """
-
-    model_config = ConfigDict(extra="allow")
+    local: Optional[CategoryProviderResponse] = None
+    google: Optional[CategoryGoogleResponse] = None
+    ldap: Optional[CategoryLdapResponse] = None
+    saml: Optional[CategorySamlResponse] = None
 
 
 class EmailDomainRestrictionUpdate(ProviderPartialUpdate):

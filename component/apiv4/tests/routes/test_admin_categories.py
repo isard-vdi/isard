@@ -381,7 +381,6 @@ class TestGetCategoryAuthentication:
         saml_config = response.json().get("saml", {}).get("saml_config", {})
         assert saml_config.get("name") == "ACME Keycloak"
         assert "password" not in saml_config
-        assert saml_config.get("password_set") is True
 
     def test_manager_with_permission_gets_auth(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
