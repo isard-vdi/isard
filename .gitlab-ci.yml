@@ -17,7 +17,16 @@ workflow:
   rules:
     - if: $CI_COMMIT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS || $CI_COMMIT_TAG
       when: never
+    # Tags matching the registry's protected tag rules (versions, main, git-*)
+    # are pushed only by pipelines on protected refs.
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
+      variables:
+        IMAGE_REPO_SUFFIX: ""
+        IMAGE_SHA_TAG_PREFIX: "git-"
     - when: always
+      variables:
+        IMAGE_REPO_SUFFIX: "/mr"
+        IMAGE_SHA_TAG_PREFIX: "mr-"
 
 # https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker
 variables:
@@ -149,11 +158,22 @@ python-lint-ty:
 
 "build-codegen:docker-build":
   needs: []
+  script:
+    - |
+      CACHE_ARGS=""
+      if $[[ inputs.use-image-build-cache ]]
+      then
+        CACHE_ARGS="--cache-from $CI_REGISTRY_IMAGE/codegen:$CI_DEFAULT_BRANCH --cache-to type=inline"
+      fi
+      docker build -f docker/codegen/Dockerfile $CACHE_ARGS -t $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$CI_COMMIT_REF_SLUG .
+    - docker tag $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$IMAGE_SHA_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$IMAGE_SHA_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$CI_COMMIT_REF_SLUG
 
 codegen:
   stage: generate
   needs: ["build-codegen:docker-build"]
-  image: "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+  image: "$CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/codegen:$IMAGE_SHA_TAG_PREFIX$CI_COMMIT_SHORT_SHA"
   variables:
     GOPATH: "$CI_PROJECT_DIR/.codegen-go"
   cache:
@@ -210,7 +230,7 @@ docker-compose-build:
     - apk add bash git docker-compose yq
   script:
     - cp isardvdi.cfg.example isardvdi.build.cfg
-    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.build.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}${IMAGE_REPO_SUFFIX}/" >> isardvdi.build.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
     - echo "USAGE=build" >> isardvdi.build.cfg
     - echo "BASTION_ENABLED=true" >> isardvdi.build.cfg
@@ -228,16 +248,21 @@ docker-compose-build:
     - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
-      # Cache from the branch we are merging into (apiv4-integration today, main
-      # after the apiv4->main cutover — self-adjusting), with :main as fallback.
-      CACHE_REF="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-${CI_COMMIT_REF_SLUG:-main}}"
+      # Cache from the branch we are merging into, or from this branch's own
+      # images when there is no merge request, with :main as fallback.
+      CACHE_REPO="registry.gitlab.com/isard/isardvdi"
+      CACHE_REF="$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+      if [ -z "$CACHE_REF" ]; then
+        CACHE_REF="${CI_COMMIT_REF_SLUG:-main}"
+        CACHE_REPO="$CACHE_REPO$IMAGE_REPO_SUFFIX"
+      fi
       # The compose files this job publishes are an artifact every docker-image
       # job consumes, on every runner. Writing this runner's own cache registry
       # into cache_from therefore sent other runners to a registry they cannot
       # reach. Emit a placeholder; each build resolves it to its OWN registry.
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
-        yq -i '.services |= map_values(.build.cache_from = [ "LOCAL_BUILDKIT_CACHE/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+        yq -i '.services |= map_values(.build.cache_from = [ "LOCAL_BUILDKIT_CACHE/isard/isardvdi'"$IMAGE_REPO_SUFFIX"'/" + (.container_name | sub("isard-", "")) + ":latest", "'"$CACHE_REPO"'/" + (.container_name | sub("isard-", "")) + ":'"$CACHE_REF"'", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
       done
   artifacts:
     paths:
@@ -450,13 +475,13 @@ docker-image:
         sed -i "/LOCAL_BUILDKIT_CACHE/d" docker-compose*.yml
       fi
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
+    - docker tag $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$IMAGE_SHA_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$IMAGE_SHA_TAG_PREFIX$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$CI_COMMIT_REF_SLUG
     - |
       if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-        docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
-        docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
+        docker tag $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi$IMAGE_REPO_SUFFIX/$IMAGE:latest
+        docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi$IMAGE_REPO_SUFFIX/$IMAGE:latest
       fi
 
 # `rules:` is limited to the default branch on purpose: on any other branch
@@ -552,8 +577,8 @@ check-version-stamp:
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
     - cat testing/config/isardvdi.e2e.cfg.template >> isardvdi.e2e.cfg
     # CI-only vars appended by the runner
-    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
-    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}${IMAGE_REPO_SUFFIX}/" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_TAG=${IMAGE_SHA_TAG_PREFIX}$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
     - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
     # /dev/hugepages bind loses the hugetlbfs type through nested dind
     # layers; libvirtd's QEMU driver init aborts unless we point it at a
@@ -687,7 +712,7 @@ container_scanning:
     - job: "build-codegen:docker-build"
       artifacts: false
   variables:
-    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
+    CS_IMAGE: $CI_REGISTRY_IMAGE$IMAGE_REPO_SUFFIX/$IMAGE:$CI_COMMIT_REF_SLUG
   parallel:
     matrix:
       - IMAGE: *containers
