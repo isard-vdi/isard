@@ -83,9 +83,11 @@ class _FakeRedis:
         self._boom()
         return set(self.sets.get(key, ()))
 
-    def set(self, key, value):
+    def set(self, key, value, ex=None, **kwargs):
         self._boom()
         self.strings[key] = value
+        if ex is not None:
+            self.ttls[key] = ex
         return True
 
     def get(self, key):
@@ -98,7 +100,16 @@ class _FakeRedis:
 
     def llen(self, key):
         self._boom()
-        return self.lists.get(key, 0)
+        value = self.lists.get(key, 0)
+        return len(value) if isinstance(value, (list, tuple)) else value
+
+    def lrange(self, key, start, stop):
+        self._boom()
+        value = self.lists.get(key, [])
+        if not isinstance(value, (list, tuple)):
+            return []
+        items = list(value)
+        return items[start:] if stop == -1 else items[start : stop + 1]
 
     def hincrby(self, key, field, amount=1):
         self._boom()
@@ -1169,3 +1180,131 @@ def test_an_explicit_sighting_is_never_throttled():
     qc.publish_lane(r, DEF, "standard", "w1", now=1000.0, ttl=60)
     qc.note_fleet_seen(r, 1000.5)
     assert qc.fleet_last_seen(r) == 1000.5
+
+
+# --- per-category foreground cap: one category must not fill the shared lane ---
+
+
+def _fill_foreground_lane(r, lane, counts):
+    """Populate a flat foreground lane list and the per-job category index.
+
+    ``counts`` maps category -> number of pending jobs on the lane.
+    """
+    ids = []
+    for category, n in counts.items():
+        for i in range(n):
+            job_id = f"{category}-job-{i}"
+            ids.append(job_id)
+            r.strings[qc._JOBCAT_PREFIX + job_id] = category
+    r.lists[f"rq:queue:{lane}"] = ids
+    return ids
+
+
+def test_category_hard_cap_defaults_to_two_thirds_of_global():
+    assert qc.category_hard_cap("interactive") == qc.hard_cap("interactive") * 2 // 3
+    assert qc.category_hard_cap("standard") == qc.hard_cap("standard") * 2 // 3
+
+
+def test_category_hard_cap_is_none_for_governed_tiers():
+    assert qc.category_hard_cap("bulk") is None
+    assert qc.category_hard_cap("background") is None
+
+
+def test_category_hard_cap_env_override(monkeypatch):
+    monkeypatch.setenv("STORAGE_SHED_CAT_HARD_INTERACTIVE", "7")
+    assert qc.category_hard_cap("interactive") == 7
+
+
+def test_category_overloaded_is_in_the_decision_vocabulary():
+    assert "category_overloaded" in qc.DECISION_REASONS
+
+
+def test_a_full_category_does_not_block_another_on_the_same_lane():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    lane = f"storage.{DEF}.interactive"
+    cap = qc.category_hard_cap("interactive")
+    _fill_foreground_lane(r, lane, {"catA": cap})
+    # catA is at its own share -> refused, and the reason names its category.
+    decision, ctx = qc.lane_shed_decision(r, lane, category="catA")
+    assert decision == "reject"
+    assert ctx["reason"] == "category_overloaded"
+    assert ctx["category"] == "catA"
+    assert ctx["category_backlog"] == cap and ctx["category_cap"] == cap
+    # catB queued nothing, so it still gets in: the global cap still has room.
+    decision, ctx = qc.lane_shed_decision(r, lane, category="catB")
+    assert decision != "reject"
+
+
+def test_global_cap_still_refuses_when_many_categories_fill_the_lane():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    lane = f"storage.{DEF}.interactive"
+    gcap = qc.hard_cap("interactive")
+    ccap = qc.category_hard_cap("interactive")
+    counts, remaining, idx = {}, gcap, 0
+    while remaining > 0:
+        take = min(ccap - 1, remaining)
+        counts[f"cat{idx}"] = take
+        remaining -= take
+        idx += 1
+    _fill_foreground_lane(r, lane, counts)
+    # A fresh category far below its own cap is still refused by the GLOBAL cap.
+    decision, ctx = qc.lane_shed_decision(r, lane, category="newcat")
+    assert decision == "reject"
+    assert ctx["reason"] == "overloaded"
+
+
+def test_without_an_owner_category_there_is_no_per_category_cap():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    lane = f"storage.{DEF}.interactive"
+    _fill_foreground_lane(r, lane, {"catA": qc.category_hard_cap("interactive")})
+    decision, ctx = qc.lane_shed_decision(r, lane)
+    assert ctx.get("reason") != "category_overloaded"
+
+
+def test_redis_failure_during_the_category_count_refuses_like_today():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    lane = f"storage.{DEF}.interactive"
+    _fill_foreground_lane(r, lane, {"catA": qc.category_hard_cap("interactive")})
+    r.fail = True
+    decision, ctx = qc.lane_shed_decision(r, lane, category="catA")
+    assert decision == "reject"
+    assert ctx["reason"] == "coverage_unreadable"
+
+
+def test_a_governed_tier_never_gets_a_per_category_cap():
+    r = _FakeRedis()
+    _governed_worker(r, "w1", DEF)
+    lane = f"storage.{DEF}.catA.bulk"
+    r.lists[f"rq:queue:{lane}"] = 10_000
+    decision, ctx = qc.lane_shed_decision(r, lane, category="catA")
+    assert decision != "reject"
+
+
+def test_note_pending_category_writes_only_for_a_flat_foreground_lane():
+    r = _FakeRedis()
+    qc.note_pending_category(r, f"storage.{DEF}.interactive", "job1", "catA")
+    assert r.strings.get(qc._JOBCAT_PREFIX + "job1") == "catA"
+    qc.note_pending_category(r, f"storage.{DEF}.catA.bulk", "job2", "catA")
+    assert qc._JOBCAT_PREFIX + "job2" not in r.strings
+    qc.note_pending_category(r, f"storage.{DEF}.standard", "job3", None)
+    assert qc._JOBCAT_PREFIX + "job3" not in r.strings
+
+
+def test_note_pending_category_never_raises_on_redis_failure():
+    r = _FakeRedis()
+    r.fail = True
+    qc.note_pending_category(r, f"storage.{DEF}.interactive", "job1", "catA")
+
+
+def test_lane_category_backlog_counts_only_the_matching_category():
+    r = _FakeRedis()
+    lane = f"storage.{DEF}.interactive"
+    _fill_foreground_lane(r, lane, {"catA": 3, "catB": 5})
+    assert qc.lane_category_backlog(r, lane, "catA") == 3
+    assert qc.lane_category_backlog(r, lane, "catB") == 5
+    assert qc.lane_category_backlog(r, lane, "catC") == 0
+    assert qc.lane_category_backlog(r, lane, "catB", limit=2) == 2

@@ -2535,6 +2535,7 @@ class Storage(RethinkCustomBase):
             queue_tiers.retier_queue(
                 create_queue, "create", queue_tiers.resolve_category(self.category)
             ),
+            category=queue_tiers.resolve_category(self.category),
         )
 
         # ``set_maintenance`` is the only step that validates this row's own
@@ -2849,7 +2850,7 @@ class Storage(RethinkCustomBase):
         return (storage, task_id)
 
     @staticmethod
-    def _preflight_lane(queue, domain_id, pool_id, what):
+    def _preflight_lane(queue, domain_id, pool_id, what, category=None):
         """Ask the lane BEFORE any state mutation, and say so in product terms.
 
         Without this the refusal still happens, but later and deeper: the row is
@@ -2863,7 +2864,7 @@ class Storage(RethinkCustomBase):
         from isardvdi_common.models.domain import Domain
 
         try:
-            queue_coverage.check_shed(Task._redis, queue)
+            queue_coverage.check_shed(Task._redis, queue, category=category)
         except Error as shed_error:
             if domain_id and Domain.exists(domain_id):
                 domain = Domain(domain_id)
@@ -2991,7 +2992,13 @@ class Storage(RethinkCustomBase):
             "create",
             queue_tiers.resolve_category(self.category),
         )
-        self._preflight_lane(create_queue, domain_id, self.pool.id, "desktop disk")
+        self._preflight_lane(
+            create_queue,
+            domain_id,
+            self.pool.id,
+            "desktop disk",
+            category=queue_tiers.resolve_category(self.category),
+        )
 
         # Register before parking so a parked row always names its task;
         # enqueue after the park, never before.

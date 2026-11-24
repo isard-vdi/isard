@@ -92,7 +92,7 @@ def rec(monkeypatch):
 
     monkeypatch.setattr(Storage, "__init__", _init)
 
-    def _check_shed(conn, queue):
+    def _check_shed(conn, queue, category=None):
         events.append(("admit", queue))
         if holder["shed_error"] is not None:
             raise holder["shed_error"]

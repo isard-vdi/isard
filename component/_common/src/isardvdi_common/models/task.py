@@ -1085,9 +1085,17 @@ class Task(RedisBase):
         """
         if getattr(self, "_enqueued", True):
             return self
+        from isardvdi_common.lib import queue_coverage
+
         _await_result_stream_admission(self._redis, self._queue_name)
         self.job = Queue(self._queue_name, connection=self._redis).enqueue_job(self.job)
         self._enqueued = True
+        queue_coverage.note_pending_category(
+            self._redis,
+            self._queue_name,
+            self.job.id,
+            self.job.meta.get("category_id"),
+        )
         return self
 
     @property

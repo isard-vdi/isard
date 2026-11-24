@@ -95,7 +95,7 @@ def _lane_refuser(unserved_pool):
     turning this into a test of queue-name spelling.
     """
 
-    def _check(conn, queue):
+    def _check(conn, queue, category=None):
         parts = str(queue).split(".")
         if len(parts) < 2 or parts[1] != unserved_pool:
             return None
