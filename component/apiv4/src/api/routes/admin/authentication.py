@@ -373,6 +373,7 @@ async def get_disclaimer(request: Request):
     "/admin/item/authentication/provider/{provider}",
     tags=[tag],
     response_model=ProviderConfigResponse,
+    response_model_exclude_unset=True,
     summary="Get provider configuration",
     description="Returns the configuration for a specific authentication provider.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
@@ -384,10 +385,7 @@ async def get_provider_config_route(
         config = await asyncio.to_thread(
             AdminAuthenticationService.get_provider_config, provider
         )
-        return JSONResponse(
-            content=ProviderConfigResponse(**(config or {})).model_dump(mode="json"),
-            status_code=200,
-        )
+        return ProviderConfigResponse(**config)
     except Error:
         raise
     except Exception:

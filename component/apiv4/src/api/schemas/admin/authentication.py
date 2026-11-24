@@ -429,17 +429,102 @@ class DisclaimerResponse(BaseModel):
     body: Optional[str] = None
 
 
+class ProviderNotificationBarResponse(BaseModel):
+    enabled: Optional[bool] = None
+    template: Optional[str] = None
+    template_name: Optional[str] = None
+    level: Optional[str] = None
+
+
+class ProviderMigrationResponse(BaseModel):
+    import_: Optional[bool] = Field(default=None, alias="import")
+    export: Optional[bool] = None
+    force_migration: Optional[bool] = None
+    action_after_migrate: Optional[str] = None
+    notification_bar: Optional[ProviderNotificationBarResponse] = None
+
+
+class GoogleConfigResponse(BaseModel):
+    name: Optional[str] = None
+    client_id: Optional[str] = None
+
+
+class MappedConfigResponse(BaseModel):
+    """Fields shared by the providers that map external users (LDAP and SAML)."""
+
+    name: Optional[str] = None
+    allow_insecure_tls: Optional[bool] = None
+
+    field_uid: Optional[str] = None
+    regex_uid: Optional[str] = None
+    field_username: Optional[str] = None
+    regex_username: Optional[str] = None
+    field_name: Optional[str] = None
+    regex_name: Optional[str] = None
+    field_email: Optional[str] = None
+    regex_email: Optional[str] = None
+    field_photo: Optional[str] = None
+    regex_photo: Optional[str] = None
+
+    guess_category: Optional[bool] = None
+    field_category: Optional[str] = None
+    regex_category: Optional[str] = None
+
+    auto_register: Optional[bool] = None
+    auto_register_roles: Optional[list[str]] = None
+    group_default: Optional[str] = None
+    field_group: Optional[str] = None
+    regex_group: Optional[str] = None
+    role_default: Optional[str] = None
+    role_admin_ids: Optional[str] = None
+    role_manager_ids: Optional[str] = None
+    role_advanced_ids: Optional[str] = None
+    role_user_ids: Optional[str] = None
+
+    save_email: Optional[bool] = None
+
+
+class LdapConfigResponse(MappedConfigResponse):
+    protocol: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    bind_dn: Optional[str] = None
+    base_search: Optional[str] = None
+    filter: Optional[str] = None
+
+    role_list_search_base: Optional[str] = None
+    role_list_filter: Optional[str] = None
+    role_list_use_user_dn: Optional[bool] = None
+    role_list_field: Optional[str] = None
+    role_list_regex: Optional[str] = None
+
+
+class SamlConfigResponse(MappedConfigResponse):
+    metadata_url: Optional[str] = None
+    metadata_file: Optional[str] = None
+    entity_id: Optional[str] = None
+    signature_method: Optional[str] = None
+    key_file: Optional[str] = None
+    cert_file: Optional[str] = None
+    max_issue_delay: Optional[str] = None
+    request_tracker_max_age: Optional[str] = None
+
+    field_role: Optional[str] = None
+    regex_role: Optional[str] = None
+
+    logout_redirect_url: Optional[str] = None
+
+
 class ProviderConfigResponse(BaseModel):
-    """Response shape for ``GET /authentication/provider/{provider}``.
+    """Stored settings of a provider, without its secrets. Looser than the update
+    request, as they may predate its validation."""
 
-    The provider config is the raw ``Configuration.<provider>`` blob
-    plus a derived ``migration`` block. Permissive — each provider has
-    its own field set.
-    """
-
-    model_config = {"extra": "allow"}
-
+    enabled: Optional[bool] = None
     status: Optional[ProviderStatus] = None
+    migration: Optional[ProviderMigrationResponse] = None
+    google_config: Optional[GoogleConfigResponse] = None
+    ldap_config: Optional[LdapConfigResponse] = None
+    saml_config: Optional[SamlConfigResponse] = None
 
 
 class MigrationException(BaseModel):
