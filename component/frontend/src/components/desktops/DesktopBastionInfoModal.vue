@@ -31,6 +31,7 @@ import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { RouterLink } from 'vue-router'
 import { describeApiError } from '@/lib/api-errors'
 import { invalidAuthorizedKeyLines } from '@/lib/sshKeys'
+import { hostToUnicode } from '@/lib/hostName'
 
 const { t, te } = useI18n()
 
@@ -116,7 +117,7 @@ watch(
   (newVal) => {
     // TODO: migrate to the multi-domain (domains array) UI. For now we only
     // read/write the first custom domain.
-    bastionDomain.value = newVal?.domains?.[0] || ''
+    bastionDomain.value = hostToUnicode(newVal?.domains?.[0] || '')
     const keys = (newVal?.ssh.authorized_keys || []).filter(
       (k): k is string => !!k && k.trim().length > 0
     )
@@ -343,7 +344,7 @@ const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isVal
             <div class="flex items-center gap-3">
               <TruncatedText
                 as="code"
-                :title="httpUrl"
+                :title="hostToUnicode(httpUrl)"
                 class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
               />
               <a :href="httpUrl" target="_blank">
@@ -359,7 +360,7 @@ const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isVal
             <div class="flex items-center gap-3">
               <TruncatedText
                 as="code"
-                :title="httpsUrl"
+                :title="hostToUnicode(httpsUrl)"
                 class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
               />
               <a :href="httpsUrl" target="_blank">
@@ -388,7 +389,7 @@ const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isVal
                 :key="domain"
                 class="bg-gray-warm-50 border border-gray-warm-200 rounded px-2.5 py-1 text-sm font-mono"
               >
-                {{ domain }}
+                {{ hostToUnicode(domain) }}
               </code>
             </div>
           </div>

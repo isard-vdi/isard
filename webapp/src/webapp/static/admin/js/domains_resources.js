@@ -1394,7 +1394,7 @@ $(document).ready(function () {
             contentType: "application/json",
             accept: "application/json",
             success: function (response) {
-                $('#modalEditBastionForm #bastion-domain').val(response["bastion_domain"])
+                $('#modalEditBastionForm #bastion-domain').val(hostToUnicode(response["bastion_domain"] || ''))
                 $('#modalEditBastionForm #bastion-enabled').iCheck(response["bastion_enabled_in_db"] === true ? 'check' : 'uncheck').iCheck('update');
                 $('#modalEditBastionForm #domain-verification-required').iCheck(response["domain_verification_required"] === true ? 'check' : 'uncheck').iCheck('update');
             }

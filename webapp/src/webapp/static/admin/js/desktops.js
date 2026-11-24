@@ -165,7 +165,7 @@ columns = [
     {
         "data": "bastion.domains",
         "render": function (data, type) {
-            return (data && data.length) ? escapeHtmlText(data.join(', ')) : '-'
+            return (data && data.length) ? escapeHtmlText(data.map(hostToUnicode).join(', ')) : '-'
         }
     },
     {

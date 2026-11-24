@@ -108,6 +108,12 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 }
 
 func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, secondary []*model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
+	// Users are looked up by UID, so an empty one would match whichever user
+	// was stored with an empty UID first.
+	if data.UID == "" {
+		return "", "", fmt.Errorf("provider %s, category %s: %w", data.Provider, data.Category, ErrEmptyUserUID)
+	}
+
 	u := data.ToUser()
 
 	c := &model.Category{ID: u.Category}

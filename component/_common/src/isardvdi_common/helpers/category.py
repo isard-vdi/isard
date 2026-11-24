@@ -22,6 +22,7 @@ import os
 import re
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
+from isardvdi_common.helpers.host_name import normalize_host_name
 from isardvdi_common.helpers.provider_config import (
     provider_config_api_to_db,
     provider_config_db_to_api,
@@ -126,6 +127,8 @@ class Category(RethinkCustomBase):
         fields from API format (lists) to DB format (comma-separated strings).
 
         When setting the 'branding' attribute:
+        - Refuses a domain name that is not a valid host name and stores the
+          ASCII form idna gives it.
         - Validates that the domain is not already in use by another category.
         - If logo.data contains a base64 data URL, decodes it and saves the
           file to disk, then strips logo.data before storing in DB.
@@ -135,8 +138,8 @@ class Category(RethinkCustomBase):
         :type name: str
         :param value: The value to set.
         :type value: any
-        :raises ValueError: If the branding domain is already in use by another
-            category or if the logo data is invalid.
+        :raises ValueError: If the branding domain is not a valid host name, is
+            already in use by another category, or if the logo data is invalid.
         """
         if name == "authentication" and value:
             for provider_data in value.values():
@@ -147,11 +150,14 @@ class Category(RethinkCustomBase):
         if name == "branding" and value:
             enabled = value.get("domain", {}).get("enabled")
             domain_name = value.get("domain", {}).get("name")
+            if domain_name:
+                domain_name = normalize_host_name(domain_name)
+                value["domain"]["name"] = domain_name
             if enabled and domain_name:
                 # A second certificate for the name the installation already
                 # serves is resolved non-deterministically by HAProxy.
                 main_domain = os.environ.get("DOMAIN")
-                if main_domain and domain_name.lower() == main_domain.lower():
+                if main_domain and domain_name == main_domain.lower():
                     raise ValueError(
                         f"Branding domain {domain_name} is the installation's own "
                         "domain, which is already served"

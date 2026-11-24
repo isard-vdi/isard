@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.20
 
-FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+FROM python:3.14-alpine3.24@sha256:bc62fbcb684904b1bb81a6240041bb60e9c1ee19ddeaf17a6b4297e1cc9c95d2 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 /uv /usr/local/bin/
 # Place the venv outside /app — devel mode bind-mounts
 # ./component/change-handler/src onto /app and would otherwise
 # shadow /app/.venv (no python/rq in the bind-mounted source). The
@@ -18,7 +18,7 @@ RUN uv sync --frozen --no-dev --package isardvdi-change-handler --no-editable --
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-change-handler --no-editable
 
-FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
+FROM python:3.14-alpine3.24@sha256:bc62fbcb684904b1bb81a6240041bb60e9c1ee19ddeaf17a6b4297e1cc9c95d2 AS runtime
 RUN apk add --no-cache libffi openssl
 
 WORKDIR /app

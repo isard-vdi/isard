@@ -97,3 +97,16 @@ class User(RethinkCustomBase):
     """
 
     _rdb_table = "users"
+
+    @classmethod
+    def init_document(cls, *args, **kwargs):
+        if not kwargs.get("uid"):
+            from isardvdi_common.helpers.error_factory import Error
+
+            raise Error(
+                "internal_server",
+                "A user can not be created without uid",
+                description_code="user_uid_empty",
+            )
+
+        return super().init_document(*args, **kwargs)

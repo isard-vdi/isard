@@ -29,6 +29,7 @@ import humanfriendly as hf
 import rethinkdb as r
 from isardvdi_common.connections.redis_client import NO_MAINT_NOTIFICATIONS
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.host_name import normalize_host_name
 from redis import Redis
 
 from .lib import *
@@ -56,7 +57,9 @@ from .upgrade_helpers import (
 """
 Update to new database release version when new code version release
 """
-release_version = 217
+release_version = 218
+# release 218: store every bastion and branding host name in its idna ASCII form;
+#              the ones that are not host names are turned off
 # release 217: cleanup the orphaned bastion targets
 # release 216: storage health: the integrity, zero-scan and pending-since indexes,
 #              and health.checks.integrity.at backfilled from last_checked_at;
@@ -1351,6 +1354,28 @@ password:s:%s"""
             seeded = v216_storage_repair_allowed(r.table(table), self.conn, log.warning)
             log.info(f"v216: storage_repair.allowed seeded: {seeded}")
 
+        if version == 218:
+            try:
+                bastion = d.get("bastion") or {}
+                domain = bastion.get("domain")
+                if isinstance(domain, str) and domain:
+                    try:
+                        ascii_domain = normalize_host_name(domain.strip())
+                        if ascii_domain != domain:
+                            r.table(table).get(1).update(
+                                {"bastion": {"domain": ascii_domain}}
+                            ).run(self.conn)
+                    except ValueError:
+                        log.warning(
+                            f"v218: config bastion domain {domain!r} is not a host name"
+                        )
+                        # keep the domain for the admin to fix, turn the bastion off
+                        if bastion.get("enabled"):
+                            r.table(table).get(1).update(
+                                {"bastion": {"enabled": False}}
+                            ).run(self.conn)
+            except Exception as e:
+                log.error(f"v218: config host names upgrade failed: {e}")
         return True
 
     """
@@ -7367,6 +7392,58 @@ password:s:%s"""
                 v215_limits_volatile(self, table)
             except Exception as e:
                 log.error(f"v215: {table} volatile limit upgrade failed: {e}")
+        if version == 218:
+            try:
+                categories = list(
+                    r.table(table)
+                    .pluck(
+                        "id",
+                        {"branding": {"domain": ["name", "enabled"]}},
+                        "bastion_domain",
+                    )
+                    .run(self.conn)
+                )
+            except Exception as e:
+                log.error(f"v218: categories host names upgrade failed: {e}")
+                categories = []
+            for category in categories:
+                try:
+                    change = {}
+                    domain = (category.get("branding") or {}).get("domain") or {}
+                    name = domain.get("name")
+                    if isinstance(name, str) and name:
+                        try:
+                            ascii_name = normalize_host_name(name.strip())
+                            if ascii_name != name:
+                                change["branding"] = {"domain": {"name": ascii_name}}
+                        except ValueError:
+                            log.warning(
+                                f"v218: category {category['id']} branding domain "
+                                f"{name!r} is not a host name"
+                            )
+                            # keep the name for the admin to fix, turn the domain off
+                            if domain.get("enabled"):
+                                change["branding"] = {"domain": {"enabled": False}}
+                    bastion = category.get("bastion_domain")
+                    if isinstance(bastion, str) and bastion:
+                        try:
+                            ascii_bastion = normalize_host_name(bastion.strip())
+                        except ValueError:
+                            log.warning(
+                                f"v218: category {category['id']} bastion domain "
+                                f"{bastion!r} is not a host name"
+                            )
+                            # None falls back to the global bastion domain
+                            ascii_bastion = None
+                        if ascii_bastion != bastion:
+                            change["bastion_domain"] = ascii_bastion
+                    if change:
+                        r.table(table).get(category["id"]).update(change).run(self.conn)
+                except Exception as e:
+                    log.error(
+                        f"v218: category {category['id']} host names upgrade failed: {e}"
+                    )
+
         return True
 
     def qos_net(self, version):
@@ -7728,6 +7805,44 @@ password:s:%s"""
             except Exception:
                 pass
 
+        if version == 218:
+            try:
+                entries = list(r.table(table).pluck("id", "targets").run(self.conn))
+            except Exception as e:
+                log.error(f"v218: recycle_bin host names upgrade failed: {e}")
+                entries = []
+            for entry in entries:
+                try:
+                    targets = entry.get("targets")
+                    if not isinstance(targets, list):
+                        continue
+                    saved = []
+                    for target in targets:
+                        domains = target.get("domains")
+                        if isinstance(domains, list):
+                            kept = []
+                            for name in domains:
+                                try:
+                                    ascii_name = normalize_host_name(name.strip())
+                                except (AttributeError, ValueError):
+                                    log.warning(
+                                        f"v218: recycle_bin {entry['id']} domain "
+                                        f"{name!r} is not a host name"
+                                    )
+                                    # dropped, a restored desktop must not send it
+                                    continue
+                                if ascii_name not in kept:
+                                    kept.append(ascii_name)
+                            target = {**target, "domains": kept}
+                        saved.append(target)
+                    if saved != targets:
+                        r.table(table).get(entry["id"]).update({"targets": saved}).run(
+                            self.conn
+                        )
+                except Exception as e:
+                    log.error(
+                        f"v218: recycle_bin {entry['id']} host names upgrade failed: {e}"
+                    )
         return True
 
     def logs_desktops(self, version):
@@ -8727,6 +8842,38 @@ password:s:%s"""
             except Exception as e:
                 log.error(f"targets v217 failed (non-fatal): {e}")
 
+        if version == 218:
+            try:
+                targets = list(r.table(table).pluck("id", "domains").run(self.conn))
+            except Exception as e:
+                log.error(f"v218: targets host names upgrade failed: {e}")
+                targets = []
+            for target in targets:
+                try:
+                    domains = target.get("domains")
+                    if not isinstance(domains, list):
+                        continue
+                    kept = []
+                    for name in domains:
+                        try:
+                            ascii_name = normalize_host_name(name.strip())
+                        except (AttributeError, ValueError):
+                            log.warning(
+                                f"v218: target {target['id']} domain {name!r} "
+                                "is not a host name"
+                            )
+                            # dropped, haproxy-sync cannot serve it
+                            continue
+                        if ascii_name not in kept:
+                            kept.append(ascii_name)
+                    if kept != domains:
+                        r.table(table).get(target["id"]).update({"domains": kept}).run(
+                            self.conn
+                        )
+                except Exception as e:
+                    log.error(
+                        f"v218: target {target['id']} host names upgrade failed: {e}"
+                    )
         return True
 
     def vgpus(self, version):

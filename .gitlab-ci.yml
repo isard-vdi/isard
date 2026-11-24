@@ -129,7 +129,7 @@ warm-uv-cache:
   # resolve from the network as they did before.
   allow_failure: true
   retry: 2
-  image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
+  image: ghcr.io/astral-sh/uv:0.13.6-python3.14-alpine@sha256:a069b57ec30ef94da43700a7332b162a13adb0b8a1cfba4e0b62c1a9727153c4
   before_script:
     - apk add --no-cache git make
   script:
@@ -389,7 +389,7 @@ unit-test-frontend:
 
 unit-test-webapp-js:
   stage: unit-test
-  image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
+  image: oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a
   before_script:
     - apk add --no-cache make
   script:
@@ -629,7 +629,7 @@ test-integration-rethinkdb:
   extends: .python-test-template
   stage: test
   services:
-    - name: rethinkdb:2.4.4-bookworm-slim@sha256:30e0235da35e645025ca755c50d9ba617765f7f186fd1b0879fe00177e14de6a
+    - name: rethinkdb:2.4.4-bookworm-slim@sha256:2a19a4d4a7351fba859bdd02fb3d8e0ec942104c618fe4585707ddaf4470e6a7
       alias: rethinkdb
   variables:
     ISARD_TEST_RETHINKDB: "rethinkdb:28015"

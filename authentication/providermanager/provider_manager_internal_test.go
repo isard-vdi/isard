@@ -75,7 +75,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -115,7 +115,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -136,7 +136,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -166,7 +166,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -195,7 +195,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -216,7 +216,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -319,7 +319,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -419,7 +419,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -447,7 +447,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -522,7 +522,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -583,7 +583,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -977,7 +977,7 @@ func TestProviderManagerSAML(t *testing.T) {
 					log: log.New("test", "debug"),
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
 						},
 					},
 					categories:      map[string]*providerSet{},
@@ -1048,7 +1048,7 @@ func TestProviderManagerEnableProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := InitProviderManager(cfg.Authentication{}, log, nil)
-				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil, nil)
+				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil)
 
 				return m
 			},
@@ -1234,7 +1234,7 @@ func TestProviderManagerDisableProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := InitProviderManager(cfg.Authentication{}, log, nil)
-				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil, nil)
+				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil)
 
 				_, cancel := context.WithCancel(context.Background())
 				m.global.watcherCancels[types.ProviderSAML] = cancel
@@ -1280,7 +1280,7 @@ func TestProviderManagerDisableProvider(t *testing.T) {
 						types.ProviderUnknown:  &provider.Unknown{},
 						types.ProviderExternal: provider.InitExternal(nil),
 						types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, nil, nil),
-						types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
+						types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
 					},
 					watcherCancels: map[string]context.CancelFunc{
 						types.ProviderSAML: cancel,
@@ -1545,7 +1545,7 @@ func TestIsScopeEmpty(t *testing.T) {
 				providers: map[string]provider.Provider{
 					types.ProviderUnknown:  &provider.Unknown{},
 					types.ProviderExternal: provider.InitExternal(nil),
-					types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+					types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
 				},
 				formCustomSubProviders: map[string]bool{},
 			},
@@ -1698,7 +1698,7 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 					log: log.New("test", "debug"),
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
 						},
 					},
 					categories:      map[string]*providerSet{},
@@ -1935,7 +1935,7 @@ func TestApplyStoredBranding(t *testing.T) {
 					categories: map[string]*providerSet{
 						"cat1": {
 							providers: map[string]provider.Provider{
-								types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+								types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
 							},
 						},
 					},
@@ -2094,7 +2094,7 @@ func TestProviderManagerManage(t *testing.T) {
 				}, nil).Once()
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
-					LDAP:  model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
+					LDAP:  model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "192.0.2.1", Port: 636}},
 				}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},

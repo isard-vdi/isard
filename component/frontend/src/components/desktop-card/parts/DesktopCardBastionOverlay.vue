@@ -20,6 +20,7 @@ import {
   cardOverlayDetailVariants,
   cardOverlayLabelVariants
 } from '..'
+import { hostToUnicode } from '@/lib/hostName'
 
 const { t } = useI18n()
 
@@ -125,7 +126,7 @@ const sshUrl = computed(() => {
           <TooltipContent
             :title="
               t('components.desktops.desktop-card.overlay.bastion.open-in-browser', {
-                url: httpsUrl
+                url: hostToUnicode(httpsUrl)
               })
             "
           />
@@ -136,7 +137,9 @@ const sshUrl = computed(() => {
           </TooltipTrigger>
           <TooltipContent
             :title="
-              t('components.desktops.desktop-card.overlay.bastion.copy-url', { url: httpsUrl })
+              t('components.desktops.desktop-card.overlay.bastion.copy-url', {
+                url: hostToUnicode(httpsUrl)
+              })
             "
           />
         </Tooltip>
@@ -158,7 +161,7 @@ const sshUrl = computed(() => {
           <TooltipContent
             :title="
               t('components.desktops.desktop-card.overlay.bastion.open-in-browser', {
-                url: httpUrl
+                url: hostToUnicode(httpUrl)
               })
             "
           />
@@ -169,7 +172,9 @@ const sshUrl = computed(() => {
           </TooltipTrigger>
           <TooltipContent
             :title="
-              t('components.desktops.desktop-card.overlay.bastion.copy-url', { url: httpUrl })
+              t('components.desktops.desktop-card.overlay.bastion.copy-url', {
+                url: hostToUnicode(httpUrl)
+              })
             "
           />
         </Tooltip>

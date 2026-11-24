@@ -224,6 +224,31 @@ func TestStartLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
+		"should return ErrEmptyUserUID if the provider returns an empty UID": {
+			PrepareDB:  func(m *r.Mock) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+
+			Provider:   "saml",
+			CategoryID: "default",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				return &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "provider saml, category default: empty user uid",
+		},
 		"should return an error if there is an error getting the category": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("default")).Return(nil, fmt.Errorf("Category error"))
@@ -4342,6 +4367,30 @@ func TestCallback(t *testing.T) {
 				assert.Equal("provider-token", ss)
 			},
 			ExpectedRedirect: "/from-callback",
+		},
+		"should return ErrEmptyUserUID if the provider returns an empty UID": {
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				samlMock := provider.NewMockProvider(t)
+				samlMock.On("Callback", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(claims *token.CallbackClaims) bool {
+					return claims.Provider == "saml" && claims.CategoryID == "default" && claims.Redirect == "/from-callback"
+				}), provider.CallbackArgs{}).Return((*model.Group)(nil), []*model.Group{}, &types.ProviderUserData{
+					Provider: "saml",
+					Category: "default",
+					UID:      "",
+				}, "", "", (*provider.ProviderError)(nil))
+
+				m.On("Provider", "saml", "default").Return(samlMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			PrepareToken: func() string {
+				ss, err := token.SignCallbackToken("", "saml", "default", "/from-callback")
+				require.NoError(err)
+
+				return ss
+			},
+
+			ExpectedRedirect: "",
+			ExpectedErr:      "provider saml, category default: empty user uid",
 		},
 		"should return an error if the callback token cannot be parsed": {
 			RemoteAddr: "127.0.0.1",

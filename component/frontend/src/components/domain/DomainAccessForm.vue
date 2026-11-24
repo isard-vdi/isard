@@ -28,6 +28,7 @@ import AdjustmentStrip from '@/components/domain/AdjustmentStrip.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from '@/components/ui/toast'
+import { hostToUnicode } from '@/lib/hostName'
 import {
   hasWireguardRequiringViewer,
   WIREGUARD_INTERFACE_ID,
@@ -219,7 +220,7 @@ const bastion = computed<Bastion>(() => {
       },
       // TODO: full multi-domain UI. Reads the domains array; the create/edit
       // send path still needs to map customDomains -> the API `domains` field.
-      customDomains: bt.domains || []
+      customDomains: (bt.domains || []).map(hostToUnicode)
     }
   } else if (desktopData.value?.bastion_target) {
     const bt = desktopData.value.bastion_target
@@ -238,7 +239,7 @@ const bastion = computed<Bastion>(() => {
       },
       // TODO: full multi-domain UI. Reads the domains array; the create/edit
       // send path still needs to map customDomains -> the API `domains` field.
-      customDomains: bt.domains || []
+      customDomains: (bt.domains || []).map(hostToUnicode)
     }
   } else {
     return props.bastion!

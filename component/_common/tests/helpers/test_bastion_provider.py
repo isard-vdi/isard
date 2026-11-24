@@ -567,6 +567,30 @@ def test_check_duplicate_bastion_domains_rejects_system_domain(monkeypatch):
     assert "same as the default domain" in excinfo.value.error["description"]
 
 
+def test_check_duplicate_bastion_domains_rejects_system_domain_whatever_its_case(
+    monkeypatch,
+):
+    monkeypatch.setenv("DOMAIN", "IsardVDI.Example.com")
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: {"enabled": True, "domain": None}),
+    )
+
+    with pytest.raises(bastion_module.Error) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(["isardvdi.EXAMPLE.com"])
+
+    assert "same as the default domain" in excinfo.value.error["description"]
+
+
+def test_check_duplicate_bastion_domains_raises_when_a_domain_is_not_a_host_name(
+    _validation_only_caches,
+):
+    with pytest.raises(bastion_module.Error) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(["bad name.example.com"])
+
+    assert excinfo.value.error["description_code"] == "bastion_domain_invalid"
+
+
 def test_check_duplicate_bastion_domains_rejects_default_bastion_domain(monkeypatch):
     """The default bastion domain (``config[1].bastion.domain``) is
     reserved for the global wildcard. Rejecting it on a per-target
@@ -622,3 +646,38 @@ def test_domain_sync_leaves_time_for_acme_to_issue_certificates(monkeypatch):
     assert bastion_module.Bastion.sync_category_branding_domains() == "synced"
     assert calls[0]["timeout"] == bastion_module.DOMAIN_SYNC_TIMEOUT
     assert bastion_module.DOMAIN_SYNC_TIMEOUT >= 300
+
+
+class _StubCname:
+    def __init__(self, target):
+        self.target = target
+
+    def to_text(self):
+        return f"{self.target}."
+
+
+def test_check_bastion_domain_dns_resolves_the_ascii_form_of_a_unicode_domain(
+    monkeypatch,
+):
+    resolved = []
+
+    def resolve(name, rdtype):
+        resolved.append((name, rdtype))
+        return [_StubCname("t1.bastion.acme.org")]
+
+    monkeypatch.setattr(bastion_module.dns.resolver, "resolve", resolve)
+
+    bastion_module.Bastion.check_bastion_domain_dns(
+        "Straße.de", "t1.bastion.acme.org", kind="cname"
+    )
+
+    assert resolved == [("xn--strae-oqa.de", "CNAME")]
+
+
+def test_check_bastion_domain_dns_raises_when_the_domain_is_not_a_host_name():
+    with pytest.raises(bastion_module.Error) as excinfo:
+        bastion_module.Bastion.check_bastion_domain_dns(
+            "bad name.acme.org", "t1.bastion.acme.org", kind="cname"
+        )
+
+    assert excinfo.value.error["description_code"] == "bastion_domain_invalid"

@@ -724,6 +724,14 @@ function authProviderLabel (provider, categoryAuthentication, globalProviders) {
   return name ? base + " - " + name : base;
 }
 
+function hostToUnicode (text) {
+  try {
+    return punycode.toUnicode(text);
+  } catch (e) {
+    return text;
+  }
+}
+
 function escapeHtmlText (text) {
   return String(text == null ? "" : text)
     .replace(/&/g, "&amp;")

@@ -123,7 +123,7 @@ $(document).ready(function () {
                         case false:
                             return `<i class="fa fa-circle" aria-hidden="true" style="color:darkgray" title="Bastion access disabled."></i>`
                         default:
-                            return `<i class="fa fa-circle" aria-hidden="true" style="color:green"></i> ${data}`
+                            return `<i class="fa fa-circle" aria-hidden="true" style="color:green"></i> ${escapeHtmlText(hostToUnicode(data))}`
                     }
                 }
             },
@@ -866,7 +866,7 @@ function actionsCategoryDetail() {
                         break;
                     default:
                         $(modal + " #bastion-enabled").val("true").trigger('change');
-                        $(modal + " #bastion-domain").val(category.bastion_domain);
+                        $(modal + " #bastion-domain").val(hostToUnicode(category.bastion_domain));
                         break;
                 }
 
@@ -941,6 +941,9 @@ function actionsCategoryDetail() {
             url: "/api/v4/admin/item/category/" + pk + "/branding",
             contentType: "application/json",
             success: function (data) {
+                if (data && data.domain && data.domain.name) {
+                    data.domain.name = hostToUnicode(data.domain.name);
+                }
                 fillFormData($form, { branding: data });
             }
         });

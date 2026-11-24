@@ -10,6 +10,7 @@ dependencies = [
   "gevent==26.5.0",
   "hiredis==3.4.0",
   "html-sanitizer==2.6.0",
+  "idna==3.13",
   "isardvdi-notifier-client",
   "isardvdi-protobuf",
   "isardvdi-scheduler-client",

@@ -19,3 +19,7 @@ declare module 'vue-cal/dist/vuecal.css'
 declare module 'vue-cal/dist/i18n/*'
 
 declare const __APP_VERSION__: string
+
+declare module 'punycode/punycode.es6.js' {
+  export function toUnicode(input: string): string
+}

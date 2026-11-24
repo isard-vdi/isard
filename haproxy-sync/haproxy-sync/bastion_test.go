@@ -129,6 +129,24 @@ func TestBastionSyncMaps(t *testing.T) {
 				IndividualDomainsRemoved: 1,
 			},
 		},
+		"should sync the valid domains if one of them is invalid": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("AddMap", "virt@subdomains", ".example").Return(nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+				m.On("AddMap", "virt@individual", "example.com").Return(nil)
+			},
+			Maps: haproxysync.BastionSyncMaps{
+				Subdomains:        []string{"bad name", "example"},
+				IndividualDomains: []string{"example.com", "*.evil.com"},
+			},
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
+				SubdomainsAdded:          1,
+				SubdomainsRemoved:        0,
+				IndividualDomainsAdded:   1,
+				IndividualDomainsRemoved: 0,
+			},
+		},
 		"should return an error if getting subdomains fails": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, errors.New("socket error"))

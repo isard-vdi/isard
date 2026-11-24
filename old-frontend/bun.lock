@@ -24,6 +24,7 @@
         "jwt-decode": "^4.0.0",
         "material-icons": "^1.13.14",
         "moment": "^2.29.4",
+        "punycode": "^2.3.1",
         "socket.io-client": "^4.1.3",
         "tiny-cookie": "^2.3.2",
         "vue": "^2.6.11",
@@ -1837,7 +1838,7 @@
 
     "pumpify": ["pumpify@1.5.1", "", { "dependencies": { "duplexify": "^3.6.0", "inherits": "^2.0.3", "pump": "^2.0.0" } }, "sha512-oClZI37HvuUJJxSKKrC17bZ9Cu0ZYhEAGPsPUy9KlMUmv9dKX2o77RUmq7f3XjIxbwyGwYzbzQ1L2Ks8sIradQ=="],
 
-    "punycode": ["punycode@1.4.1", "", {}, "sha1-wNWmOycYgArY4esPpSachN1BhF4="],
+    "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "q": ["q@1.5.1", "", {}, "sha1-fjL3W0E4EpHQRhHxvxQQmsAGUdc="],
 
@@ -2806,6 +2807,8 @@
     "move-concurrently/rimraf": ["rimraf@2.7.1", "", { "dependencies": { "glob": "^7.1.3" }, "bin": { "rimraf": "./bin.js" } }, "sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w=="],
 
     "node-libs-browser/events": ["events@3.2.0", "", {}, "sha512-/46HWwbfCX2xTawVfkKLGxMifJYQBWMwY1mjywRtb4c9x8l5NP3KoJtnIOiL1hfdRkIuYhETxQlo62IF8tcnlg=="],
+
+    "node-libs-browser/punycode": ["punycode@1.4.1", "", {}, "sha1-wNWmOycYgArY4esPpSachN1BhF4="],
 
     "normalize-package-data/semver": ["semver@5.7.1", "", { "bin": { "semver": "./bin/semver" } }, "sha512-sauaDf/PZdVgrLTNYHRtpXa1iRiKcaebiKQ1BJdpQlWH2lCvexQdX55snPFyK7QzpudqbCI0qXFfOasHdyNDGQ=="],
 
