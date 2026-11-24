@@ -64,7 +64,7 @@ RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     conntrack-tools dnsmasq guacamole-server@community \
     guacamole-server-dev@community guacamole-server-rdp@community \
-    iptables libffi openssh openssl \
+    iptables libffi openssl \
     openvswitch wireguard-tools
 
 RUN apk info -v | grep -qx 'guacamole-server-rdp-1\.6\.0-r[0-9]*' \
