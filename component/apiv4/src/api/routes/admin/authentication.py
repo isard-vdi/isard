@@ -25,6 +25,8 @@ from typing import Literal
 from api import admin_router, disclaimer_router, manager_router
 from api.schemas.admin.authentication import (
     DisclaimerResponse,
+    GoogleProviderConfigUpdateRequest,
+    LdapProviderConfigUpdateRequest,
     MigrationException,
     MigrationExceptionCreateRequest,
     PolicyCreateRequest,
@@ -33,6 +35,7 @@ from api.schemas.admin.authentication import (
     ProviderConfigResponse,
     ProviderConfigUpdateRequest,
     ProvidersResponse,
+    SamlProviderConfigUpdateRequest,
 )
 from api.schemas.common import ErrorResponse
 from api.services.admin.authentication import AdminAuthenticationService
@@ -370,6 +373,7 @@ async def get_disclaimer(request: Request):
     "/admin/item/authentication/provider/{provider}",
     tags=[tag],
     response_model=ProviderConfigResponse,
+    response_model_exclude_unset=True,
     summary="Get provider configuration",
     description="Returns the configuration for a specific authentication provider.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
@@ -381,10 +385,7 @@ async def get_provider_config_route(
         config = await asyncio.to_thread(
             AdminAuthenticationService.get_provider_config, provider
         )
-        return JSONResponse(
-            content=ProviderConfigResponse(**(config or {})).model_dump(mode="json"),
-            status_code=200,
-        )
+        return ProviderConfigResponse(**config)
     except Error:
         raise
     except Exception:
@@ -397,27 +398,124 @@ async def get_provider_config_route(
 
 
 @admin_router.put(
-    "/admin/item/authentication/provider/{provider}",
+    "/admin/item/authentication/provider/local",
     tags=[tag],
     status_code=204,
     response_class=Response,
-    summary="Update provider configuration",
-    description="Updates the configuration for a specific authentication provider.",
+    summary="Update local provider configuration",
+    description="Updates the configuration of the local authentication provider.",
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
-async def edit_provider_config_route(
-    request: Request,
-    provider: Literal["local", "google", "saml", "ldap"],
-    data: ProviderConfigUpdateRequest,
+async def edit_local_provider_config_route(
+    request: Request, data: ProviderConfigUpdateRequest
 ):
     try:
         await asyncio.to_thread(
             AdminAuthenticationService.update_provider_config,
-            provider,
-            data.model_dump(exclude_none=True),
+            "local",
+            data.model_dump(exclude_unset=True, by_alias=True),
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update provider configuration",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/authentication/provider/google",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update Google provider configuration",
+    description="Updates the configuration of the Google authentication provider.",
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def edit_google_provider_config_route(
+    request: Request, data: GoogleProviderConfigUpdateRequest
+):
+    try:
+        await asyncio.to_thread(
+            AdminAuthenticationService.update_provider_config,
+            "google",
+            data.model_dump(exclude_unset=True, by_alias=True),
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update provider configuration",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/authentication/provider/saml",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update SAML provider configuration",
+    description="Updates the configuration of the SAML authentication provider.",
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def edit_saml_provider_config_route(
+    request: Request, data: SamlProviderConfigUpdateRequest
+):
+    try:
+        await asyncio.to_thread(
+            AdminAuthenticationService.update_provider_config,
+            "saml",
+            data.model_dump(exclude_unset=True, by_alias=True),
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update provider configuration",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/item/authentication/provider/ldap",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Update LDAP provider configuration",
+    description="Updates the configuration of the LDAP authentication provider.",
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def edit_ldap_provider_config_route(
+    request: Request, data: LdapProviderConfigUpdateRequest
+):
+    try:
+        await asyncio.to_thread(
+            AdminAuthenticationService.update_provider_config,
+            "ldap",
+            data.model_dump(exclude_unset=True, by_alias=True),
         )
         return Response(status_code=204)
     except Error:
