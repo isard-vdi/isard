@@ -53,14 +53,9 @@ from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 
 from .helpers.client import IsardClient
-from .helpers.media_source import create_media_from_url
+from .helpers.media_source import DEFAULT_MEDIA_URL, create_media_from_url
 from .helpers.responses import created_id
 from .helpers.sockets import SocketIOListener
-
-DEFAULT_MEDIA_URL = os.environ.get(
-    "E2E_MEDIA_URL",
-    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso",
-)
 
 # TCG emulation budgets — generous enough for CI, not idle.
 BOOT_TIMEOUT = 180

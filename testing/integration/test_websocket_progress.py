@@ -18,20 +18,13 @@ the admin flow.
 
 from __future__ import annotations
 
-import os
 import time
 
 import pytest
 
 from .helpers.client import IsardClient
-from .helpers.media_source import create_media_from_url
+from .helpers.media_source import DEFAULT_MEDIA_URL, create_media_from_url
 from .helpers.sockets import SocketIOListener
-
-# In-repo test media (testing/media) so the test does not depend on an external mirror.
-DEFAULT_MEDIA_URL = os.environ.get(
-    "E2E_MEDIA_URL",
-    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso",
-)
 
 
 @pytest.mark.real
