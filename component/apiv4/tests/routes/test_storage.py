@@ -179,23 +179,25 @@ def test_sparsify_storage(monkeypatch, test_client):
     assert captured == {"storage_id": "stor-1", "priority": "low"}
 
 
-def test_batch_sparsify_storages_by_status(monkeypatch, test_client):
+def test_batch_check_backing_chain_answers_each_id(monkeypatch, test_client):
     jwt = MockJWT()
-    captured = {}
+    refused = {"storage_id": "m", "description_code": "storage_not_ready"}
     monkeypatch.setattr(
-        "api.services.storage.StorageService.batch_sparsify_by_status",
-        staticmethod(lambda payload, status: captured.update(status=status)),
+        "api.services.storage.StorageService.batch_check_backing_chain",
+        staticmethod(
+            lambda payload, ids: {
+                "queued": 1,
+                "results": [{"storage_id": ids[0], "task_id": "t1"}, refused],
+            }
+        ),
     )
-
     response = test_client(
-        url="/items/storage/sparsify/ready",
-        method="PUT",
-        jwt=jwt,
+        url="/items/storage/status", method="PUT", body={"ids": ["s1", "m"]}, jwt=jwt
     )
-
-    assert response.status_code == 204
-    assert response.content == b""
-    assert captured == {"status": "ready"}
+    assert response.status_code == 200
+    body = response.json()
+    assert body["queued"] == 1
+    assert body["results"][1]["description_code"] == "storage_not_ready"
 
 
 def test_dig_holes_storage(monkeypatch, test_client):
@@ -346,9 +348,18 @@ def test_batch_repair_pending_leaks(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
 
+    refused = {
+        "storage_id": "p",
+        "description_code": "storage_has_children",
+        "message": "has children",
+    }
+
     def fake_batch(payload, limit):
         captured["limit"] = limit
-        return {"queued": 7, "skipped_has_descendants": 2}
+        return {
+            "queued": 7,
+            "results": [{"storage_id": "s1", "task_id": "t1"}, refused],
+        }
 
     monkeypatch.setattr(
         "api.services.storage.StorageService.batch_repair_leaks",
@@ -362,8 +373,10 @@ def test_batch_repair_pending_leaks(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    # the red-line skip count is carried through to the caller
-    assert response.json() == {"queued": 7, "skipped_has_descendants": 2}
+    body = response.json()
+    assert body["queued"] == 7
+    # the red-line refusal is carried through to the caller, not dropped
+    assert body["results"][1]["description_code"] == "storage_has_children"
     assert captured == {"limit": None}
 
 
@@ -374,34 +387,15 @@ def test_batch_repair_pending_leaks_honours_limit(monkeypatch, test_client):
         "api.services.storage.StorageService.batch_repair_leaks",
         staticmethod(
             lambda payload, limit: captured.update(limit=limit)
-            or {"queued": 3, "skipped_has_descendants": 0}
+            or {"queued": 3, "results": []}
         ),
     )
     response = test_client(
         url="/items/storage/repair/leaks?limit=5", method="PUT", jwt=jwt
     )
     assert response.status_code == 200
-    assert response.json() == {"queued": 3, "skipped_has_descendants": 0}
+    assert response.json() == {"queued": 3, "results": []}
     assert captured == {"limit": 5}
-
-
-def test_batch_find_storages_by_status(monkeypatch, test_client):
-    jwt = MockJWT()
-    captured = {}
-    monkeypatch.setattr(
-        "api.services.storage.StorageService.batch_find_by_status",
-        staticmethod(lambda payload, status: captured.update(status=status)),
-    )
-
-    response = test_client(
-        url="/items/storage/find/orphan",
-        method="PUT",
-        jwt=jwt,
-    )
-
-    assert response.status_code == 204
-    assert response.content == b""
-    assert captured == {"status": "orphan"}
 
 
 def test_stop_storage_desktops(monkeypatch, test_client):
@@ -675,3 +669,30 @@ def test_increase_storage_size_advanced_router(monkeypatch, test_client):
         "increment": 5,
         "priority": "low",
     }
+
+
+@pytest.mark.parametrize(
+    "url, method",
+    [
+        ("/items/storage/status/ready", "batch_check_backing_chain_by_status"),
+        ("/items/storage/sparsify/ready", "batch_sparsify_by_status"),
+        ("/admin/items/storage/check/ready", "batch_check_integrity_by_status"),
+        ("/admin/items/storage/zero-scan/ready", "batch_zero_scan_by_status"),
+        ("/items/storage/find/ready", "batch_find_by_status"),
+    ],
+)
+def test_a_batch_by_status_answers_202_with_the_count(
+    monkeypatch, test_client, url, method
+):
+    captured = {}
+    monkeypatch.setattr(
+        f"api.services.storage.StorageService.{method}",
+        staticmethod(
+            lambda payload, status: captured.update(status=status)
+            or {"status": status, "accepted": 2}
+        ),
+    )
+    response = test_client(url=url, method="PUT", jwt=MockJWT())
+    assert response.status_code == 202
+    assert response.json() == {"status": "ready", "accepted": 2}
+    assert captured == {"status": "ready"}

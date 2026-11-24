@@ -485,6 +485,28 @@ Additionally, the admin action buttons on the row:
 
 ---
 
+## Scenario 9c — *A global action names every disk the server refused*
+
+### Given
+
+1. A real parent disk with one derived child, both created through the API.
+2. The Ready table is filtered down to the parent alone.
+
+### When
+
+1. The admin runs **"Sparsify disks"** from the Global actions dropdown and
+   confirms with **Ok**. The batch sparsify reaches the real server.
+
+### Then
+
+1. `PUT /api/v4/items/storage/sparsify` answers 200 with `queued: 0` and one
+   result for the parent: no task, `description_code: storage_has_children`.
+2. The notification reads `Queued on 0 of 1 disk(s).` followed by one line
+   per reason, `1 refused: storage_has_children (<parent id>): <message>`;
+   a reason shared by more disks names three of them and its count.
+
+---
+
 ## Scenario 10 — *Global action on Ready table with no filter requires text confirmation*
 
 ### Given
@@ -502,7 +524,10 @@ Additionally, the admin action buttons on the row:
    admin to type **`I'm aware`** to confirm the bulk action on all storages.
 2. If the admin types `I'm aware` and clicks **Ok**:
    a. `PUT /api/v4/items/storage/sparsify/ready` is called.
-   b. The API returns status `< 400` (or an error surfaced in PNotify).
+   b. The API answers 202 with `{status, accepted}` (stubbed here, a real
+      batch would put every ready seed in maintenance) and a notice
+      **"Action accepted: sparsify"** reads
+      `Queuing sparsify on <accepted> ready disk(s) in the background.`
    c. The dropdown resets.
 3. If the admin clicks **Cancel**, no API call is made.
 4. Typing a wrong phrase and pressing Ok does **not** trigger the API call.
@@ -928,7 +953,10 @@ Additionally, the admin action buttons on the row:
 
 1. **S27** — clicking it and confirming **Ok** fires
    `PUT /api/v4/items/storage/repair/leaks` (which drains every ready disk carrying
-   a `repair_leaks` mark through the pending-actions index).
+   a `repair_leaks` mark through the pending-actions index). The stubbed answer has the
+   route's shape (`queued` plus a result per disk); the notification reads
+   `Queued on 1 of 2 disk(s).` and
+   `1 refused: storage_has_children (e2e-leaky-base): has children storages`.
 2. **S27b** — confirming **Cancel** fires no batch call.
 
 ---
@@ -990,6 +1018,7 @@ Additionally, the admin action buttons on the row:
 | S7 — Find row action | ✅ | API called `< 400`; PNotify "Find task started" |
 | S8 — Other status dropdown | ✅ | API called for selected status; table renders; empty state OK |
 | S9 — Global action with filter (Ok path) | ✅ | Confirmation with row count; API called with IDs; dropdown resets |
+| S9c — Global action lists refused disks | ✅ | Real batch sparsify on a base with a child: 200 with a result per disk; the notification groups the refused disks by reason |
 | S10 — Global action no filter (text confirmation) | ✅ | Warning dialog; `I'm aware` gating; wrong text blocks API |
 | S11 — Create storage modal | ✅ | Modal opens; Parsley blocks empty form (S11); Send creates a real unattached disk and cleans it up (S11b) |
 | S12 — Duplicated UUIDs section | ✅ | Status API; table renders; correct buttons per row status |
@@ -1006,7 +1035,7 @@ Additionally, the admin action buttons on the row:
 | S24 — Move/WinReg/Increase blocked (derivatives) | ✅ | Builds parent + 2 derived children via SDK; each action shows the block PNotify and its modal stays closed |
 | S26 — Repair leaks on a damaged row | ✅ | Reason shown; confirm Ok fires `repair/leaks` and the row leaves the table; Cancel fires nothing (S26b) |
 | S26c — Repair all on a damaged row | ✅ | Confirm Ok fires `repair/all` |
-| S27 — Repair all pending leaks (batch) | ✅ | Confirm Ok fires `items/storage/repair/leaks`; Cancel fires nothing (S27b) |
+| S27 — Repair all pending leaks (batch) | ✅ | Confirm Ok fires `items/storage/repair/leaks`; the report groups the refused disks by reason; Cancel fires nothing (S27b) |
 
 ## APIs touched by the flows (reference)
 

@@ -12,6 +12,7 @@ from api.services.storage import StorageService, check_task_priority
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.task import Task
 from rq.exceptions import NoSuchJobError
+from tests.services.fake_redis import FakeRedis
 
 JWT_PAYLOAD_ADMIN = {
     "user_id": "u-admin",
@@ -187,6 +188,63 @@ class TestBatchSkipsMaintenanceAndPending:
         mock_get.return_value = disk
         StorageService.batch_check_backing_chain(JWT_PAYLOAD_ADMIN, ["s1"])
         disk.check_backing_chain.assert_called_once()
+
+
+class TestBackingChainBatchReportsEveryDisk:
+    @patch("api.services.storage.tasks_from_ids")
+    @patch("api.services.storage.current_task_id")
+    @patch("api.services.storage.get_storage")
+    def test_each_skip_is_a_refusal_with_its_reason(
+        self, mock_get, mock_cti, mock_tasks
+    ):
+        disks = {
+            "bin": MagicMock(id="bin", status="recycled"),
+            "maint": MagicMock(id="maint", status="maintenance"),
+            "busy": MagicMock(id="busy", status="ready", pending_actions=None),
+            "marked": MagicMock(id="marked", status="ready", pending_actions={"x": {}}),
+            "ok": MagicMock(id="ok", status="ready", pending_actions=None),
+        }
+        disks["ok"].check_backing_chain.return_value = "t-ok"
+        mock_get.side_effect = lambda payload, sid: disks[sid]
+        mock_cti.side_effect = lambda redis, sid: "t-live" if sid == "busy" else None
+        mock_tasks.return_value = [MagicMock(pending=True)]
+        result = StorageService.batch_check_backing_chain(
+            JWT_PAYLOAD_ADMIN, list(disks)
+        )
+        codes = {r["storage_id"]: r.get("description_code") for r in result["results"]}
+        assert codes == {
+            "bin": "storage_recycled",
+            "maint": "storage_not_ready",
+            "busy": "storage_pending_task",
+            "marked": "storage_pending_action",
+            "ok": None,
+        }
+        assert result["queued"] == 1
+
+    @patch("api.services.storage.current_task_id", return_value=None)
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_by_status_a_failing_disk_does_not_stop_the_rest(
+        self, mock_get, mock_ids, _cti, inline_batches
+    ):
+        mock_ids.return_value = ["boom", "ok"]
+        ok = MagicMock(status="ready", pending_actions=None)
+        ok.check_backing_chain.return_value = "t-ok"
+
+        def storage_for(payload, sid):
+            if sid == "boom":
+                raise RuntimeError("db")
+            return ok
+
+        mock_get.side_effect = storage_for
+        result = StorageService.batch_check_backing_chain_by_status(
+            JWT_PAYLOAD_ADMIN, "ready"
+        )
+        assert result == {"status": "ready", "accepted": 2}
+        assert inline_batches.call_args.args[2] == (
+            "Queued on 1 of 2 disk(s).\n1 refused: internal_server (boom)"
+        )
+        ok.check_backing_chain.assert_called_once()
 
 
 class TestGetStorageDetail:
@@ -580,7 +638,8 @@ class TestBatchRepairLeaks:
         mock_get.return_value = storage
         result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN, limit=10)
         mock_pending.assert_called_once_with("repair_leaks", status="ready", limit=10)
-        assert result == {"queued": 2, "skipped_has_descendants": 0}
+        assert result["queued"] == 2
+        assert all(r.get("task_id") for r in result["results"])
         assert storage.repair.call_count == 2
         # the bulk path only ever repairs leaks, never attempts "all"
         for call in storage.repair.call_args_list:
@@ -603,10 +662,137 @@ class TestBatchRepairLeaks:
 
         result = StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN)
 
-        assert result == {"queued": 1, "skipped_has_descendants": 1}
-        # only the leaf reached get_storage / repair; the parent never did
+        assert result["queued"] == 1
+        by_id = {r["storage_id"]: r for r in result["results"]}
+        assert by_id["leaf"]["task_id"] is not None
+        assert by_id["parent"]["description_code"] == "storage_has_children"
+        # only the leaf reached get_storage / repair; the parent was refused first
         assert storage.repair.call_count == 1
         assert [c.args[1] for c in mock_get.call_args_list] == ["leaf"]
+
+
+@pytest.fixture
+def inline_batches(monkeypatch):
+    """Storage batches on an in-memory redis, run as soon as they start; yields the notice mock."""
+    from api.services import storage_batches
+
+    redis = FakeRedis()
+    notify = MagicMock()
+    monkeypatch.setattr(storage_batches, "_redis", lambda: redis)
+    monkeypatch.setattr(storage_batches, "_spawn", storage_batches.run)
+    monkeypatch.setattr(storage_batches, "notify_admin", notify)
+    return notify
+
+
+class TestBulkActionsRideTheBulkLane:
+    """A mass action rides the governed ``bulk`` lane, not a capped foreground one."""
+
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_check_all_uses_the_bulk_tier(self, mock_get, mock_ids, inline_batches):
+        mock_ids.return_value = ["s1"]
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.batch_check_integrity_by_status(JWT_PAYLOAD_ADMIN, "ready")
+        assert storage.check_integrity.call_args.kwargs["priority"] == "bulk"
+
+    @patch("api.services.storage.Storage.get_children", return_value=[])
+    @patch("api.services.storage.Storage.pending_ids", return_value=["s1"])
+    @patch("api.services.storage.get_storage")
+    def test_repair_leaks_all_uses_the_bulk_tier(self, mock_get, _pending, _children):
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.batch_repair_leaks(JWT_PAYLOAD_ADMIN)
+        assert storage.repair.call_args.kwargs["priority"] == "bulk"
+
+    @patch("api.services.storage.get_storage")
+    def test_find_all_uses_the_bulk_tier(self, mock_get):
+        storage = MagicMock(status="ready")
+        mock_get.return_value = storage
+        StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.find.call_args.kwargs["priority"] == "bulk"
+
+
+class TestBatchActionsReportEveryDisk:
+    """A mass action answers for every disk: its task, or the refusal that kept it out."""
+
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_check_all_answers_the_count_at_once_and_reports_every_disk_after(
+        self, mock_get, mock_ids, monkeypatch
+    ):
+        from api.services import storage_batches
+
+        mock_ids.return_value = ["a", "b", "a", "c"]
+        redis, spawned, notify = FakeRedis(), [], MagicMock()
+        monkeypatch.setattr(storage_batches, "_redis", lambda: redis)
+        monkeypatch.setattr(storage_batches, "_spawn", lambda *a: spawned.append(a))
+        monkeypatch.setattr(storage_batches, "notify_admin", notify)
+        answer = StorageService.batch_check_integrity_by_status(
+            JWT_PAYLOAD_ADMIN, "ready"
+        )
+        assert answer == {"status": "ready", "accepted": 3}
+        mock_get.assert_not_called()
+
+        def storage_for(payload, sid):
+            s = MagicMock()
+            s.check_integrity.return_value = f"task-{sid}"
+            if sid != "a":
+                s.check_integrity.side_effect = Error(
+                    "precondition_required",
+                    "open by a running desktop",
+                    description_code="storage_open_not_checkable",
+                )
+            return s
+
+        mock_get.side_effect = storage_for
+        storage_batches.run(*spawned.pop())
+        assert mock_get.call_count == 3
+        user_id, title, text = notify.call_args.args[:3]
+        assert user_id == JWT_PAYLOAD_ADMIN["user_id"]
+        assert title == "Integrity checks of the ready disks"
+        assert text == (
+            "Queued on 1 of 3 disk(s).\n2 refused: storage_open_not_checkable (b, c)"
+        )
+
+    @pytest.mark.parametrize(
+        "method, call",
+        [
+            ("batch_find_by_status", "find"),
+            ("batch_sparsify_by_status", "sparsify"),
+            ("batch_zero_scan_by_status", "zero_scan"),
+            ("batch_check_backing_chain_by_status", "check_backing_chain"),
+        ],
+    )
+    @patch("api.services.storage.current_task_id", return_value=None)
+    @patch("api.services.storage.StorageProcessed.get_disks_ids_by_status")
+    @patch("api.services.storage.get_storage")
+    def test_every_action_by_status_runs_after_the_answer(
+        self, mock_get, mock_ids, _cti, method, call, inline_batches
+    ):
+        mock_ids.return_value = ["s1", "s2"]
+        storage = MagicMock(status="ready", pending_actions=None)
+        getattr(storage, call).return_value = "t"
+        mock_get.return_value = storage
+        answer = getattr(StorageService, method)(JWT_PAYLOAD_ADMIN, "ready")
+        assert answer == {"status": "ready", "accepted": 2}
+        assert getattr(storage, call).call_count == 2
+        assert inline_batches.call_args.args[2] == "Queued on 2 of 2 disk(s)."
+
+    @patch("api.services.storage.get_storage")
+    def test_find_reports_a_recycled_disk(self, mock_get):
+        mock_get.side_effect = lambda payload, sid: MagicMock(status="recycled", id=sid)
+        result = StorageService.batch_find(JWT_PAYLOAD_ADMIN, ["r1"])
+        assert result["queued"] == 0
+        assert result["results"][0]["description_code"] == "storage_recycled"
+
+    @patch("api.services.storage.get_storage")
+    def test_an_unexpected_failure_is_reported_not_swallowed(self, mock_get):
+        storage = MagicMock()
+        storage.sparsify.side_effect = RuntimeError("boom")
+        mock_get.return_value = storage
+        result = StorageService.batch_sparsify(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert result["results"][0]["description_code"] == "internal_server"
 
 
 def _sweep_storage(payload, sid):

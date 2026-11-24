@@ -22,6 +22,7 @@ const names = [
   "storageActionAllowed",
   "storageModalButtonAllowed",
   "storageBatchReport",
+  "storageNoticeHtml",
   "storageRowActions",
   "formatEta",
   "renderQueueEstimate",
@@ -81,7 +82,7 @@ const rwLeaf = { status: "ready", perms: ["r", "w"], allowed_actions: ["check_in
 assert.strictEqual(ctx.storageModalButtonAllowed(rwLeaf, "btn-modal-dig-holes"), false);
 console.log("the modal offers a read-only base its dig and the API decides: PASS");
 
-// --- a bulk dig says per disk why one was left out -------------------------
+// --- a bulk dig says why disks were left out, one line per reason -----------
 const report = ctx.storageBatchReport({
   queued: 1,
   results: [
@@ -92,9 +93,8 @@ const report = ctx.storageBatchReport({
 });
 assert.strictEqual(report.refused, 2);
 assert.ok(report.text.startsWith("Queued on 1 of 3 disk(s)."));
-assert.ok(report.text.includes("b: Storage b has children storages that depend on it as backing file"));
-assert.ok(report.text.includes("c: storage_has_children"));
-console.log("the bulk report gives a reason per refused disk: PASS");
+assert.ok(report.text.includes("<br>2 refused: storage_has_children (b, c)"));
+console.log("the bulk report gives each reason with the disks it refused: PASS");
 
 // --- the bulk dig has no per-status path ------------------------------------
 assert.ok(!src.includes("dig-holes/${status}"));

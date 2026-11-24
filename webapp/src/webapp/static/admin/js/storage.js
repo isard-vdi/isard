@@ -272,6 +272,7 @@ $(document).ready(function () {
               notify.update({
                 title: `Action queued: ${action}`,
                 text: report.text,
+                text_escape: false,
                 type: report.refused ? 'info' : 'success',
                 hide: !report.refused,
                 delay: 4000,
@@ -338,15 +339,39 @@ $(document).ready(function () {
                       document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
                       $('thead #select-all').prop("checked", false);
-                      notify.update({
-                        title: `Action queued: ${action}`,
-                        text: `Queued ${action} on ALL storage(s). Rows will refresh as the operation progresses.`,
-                        type: 'success',
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-success',
-                        opacity: 1
-                      });
+                      if (data && data.accepted !== undefined) {
+                        notify.update({
+                          title: storageNoticeHtml(`Action accepted: ${action}`),
+                          title_escape: false,
+                          text: storageBatchAccepted(action, data),
+                          text_escape: false,
+                          type: 'info',
+                          hide: true,
+                          delay: 6000,
+                          opacity: 1
+                        });
+                      } else if (data && Array.isArray(data.results)) {
+                        const report = storageBatchReport(data);
+                        notify.update({
+                          title: `Action queued: ${action}`,
+                          text: report.text,
+                          text_escape: false,
+                          type: report.refused ? 'info' : 'success',
+                          hide: !report.refused,
+                          delay: 4000,
+                          opacity: 1
+                        });
+                      } else {
+                        notify.update({
+                          title: `Action queued: ${action}`,
+                          text: `Queued ${action} on ALL storage(s). Rows will refresh as the operation progresses.`,
+                          type: 'success',
+                          hide: true,
+                          delay: 4000,
+                          icon: 'fa fa-success',
+                          opacity: 1
+                        });
+                      }
                       reloadTable();
                     },
                     error: function (data) {
@@ -1608,11 +1633,12 @@ $(document).on('click', '#btn-repair-all-pending-leaks', function () {
       contentType: 'application/json',
       success: function (data) {
         document.body.classList.remove('loading-cursor');
+        const report = storageBatchReport(data);
         notify.update({
           title: 'Repair queued',
-          text: `Queued a leak repair on ${data.queued} disk(s).` +
-            (data.skipped_has_descendants ? ` Skipped ${data.skipped_has_descendants} disk(s) with descendants (repair those manually).` : ''),
-          type: 'success', hide: true, delay: 4000, icon: 'fa fa-success', opacity: 1
+          text: report.text,
+          text_escape: false,
+          type: report.refused ? 'info' : 'success', hide: !report.refused, delay: 4000, opacity: 1
         });
         storage_ready.ajax.reload(null, false);
       },
@@ -1671,11 +1697,31 @@ function storageBulkCheckRequest (status) {
   return { type: 'PUT', url: `/api/v4/admin/items/storage/check/${encodeURIComponent(status)}` };
 }
 
+function storageBatchAccepted (what, data) {
+  return storageNoticeHtml(`Queuing ${what} on ${data.accepted} ${data.status} disk(s) in the background. A notice will say how many were queued and why any was refused.`);
+}
+
+// A batch notice; the per-row notices other pages send (an id, or a delete) are not ours.
+function storageAdminNotice (data) {
+  const params = data.params || {};
+  if (data.id || params.delete) return null;
+  return {
+    title: storageNoticeHtml(data.title),
+    title_escape: false,
+    text: storageNoticeHtml(data.description),
+    text_escape: false,
+    type: data.type,
+    hide: params.hide !== false,
+    delay: 6000,
+    opacity: 1
+  };
+}
+
 $(document).on('click', '#btn-check-integrity-status', function () {
   const status = $('#check-integrity-status').val();
   new PNotify({
     title: 'Confirmation Needed',
-    text: `Run an integrity check (qemu-img check) on every ${status} disk? Disks open by a running desktop are skipped.`,
+    text: `Run an integrity check (qemu-img check) on every ${escapeHtmlText(status)} disk? A disk a running desktop holds open is reported as refused, not silently skipped.`,
     hide: false, opacity: 0.9, confirm: { confirm: true },
     buttons: { closer: false, sticker: false }, addclass: 'pnotify-center'
   }).get().on('pnotify.confirm', function () {
@@ -1683,7 +1729,7 @@ $(document).on('click', '#btn-check-integrity-status', function () {
       ...storageBulkCheckRequest(status),
       contentType: 'application/json',
       success: function (data) {
-        new PNotify({ title: 'Checks queued', text: `Integrity check queued on ${data.queued} ${status} disk(s).`, type: 'success', hide: true, delay: 4000, opacity: 1 });
+        new PNotify({ title: 'Checks accepted', text: storageBatchAccepted('integrity checks', data), text_escape: false, type: 'info', hide: true, delay: 6000, opacity: 1 });
       },
       error: function (xhr) {
         new PNotify({ title: 'ERROR checking storage', text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong', type: 'error', hide: true, delay: 5000, opacity: 1 });
@@ -1889,6 +1935,10 @@ $("#modalDisconnect #send").on("click", function () {
 });
 
 function socketio_on() {
+  socket.on('msg', function (rawData) {
+    const notice = storageAdminNotice(JSON.parse(rawData));
+    if (notice) new PNotify(notice);
+  });
   socket.on('storage', function (rawData) {
     const data = JSON.parse(rawData);
     if (!data || !data.id) return;
@@ -2876,12 +2926,22 @@ function storageModalButtonAllowed (row, className) {
   return storageActionAllowed(row, match[1]);
 }
 
-// One line per refused disk: the API says why each one was left out.
-function storageBatchReport (data) {
+// One line per reason a disk was refused, naming a few of the disks.
+function storageBatchReport (data, examples = 3) {
   const refused = data.results.filter(r => !r.task_id);
+  const byCode = {};
+  refused.forEach(r => (byCode[r.description_code] = byCode[r.description_code] || []).push(r));
   const lines = [`Queued on ${data.queued} of ${data.results.length} disk(s).`];
-  refused.forEach(r => lines.push(`${r.storage_id}: ${r.message || r.description_code}`));
-  return { refused: refused.length, text: lines.join('\n') };
+  Object.entries(byCode).sort((a, b) => b[1].length - a[1].length).forEach(([code, rows]) => {
+    const shown = rows.slice(0, examples).map(r => r.storage_id).join(', ') + (rows.length > examples ? ', ...' : '');
+    lines.push(`${rows.length} refused: ${code} (${shown})${rows.length === 1 && rows[0].message ? ': ' + rows[0].message : ''}`);
+  });
+  return { refused: refused.length, text: storageNoticeHtml(lines.join('\n')) };
+}
+
+function storageNoticeHtml (text) {
+  const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(text).replace(/[&<>"']/g, c => escape[c]).replace(/\n/g, '<br>');
 }
 
 // A row offers what its own fields allow; anything else is the API's to refuse.

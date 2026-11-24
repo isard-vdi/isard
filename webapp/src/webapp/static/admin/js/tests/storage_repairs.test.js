@@ -55,6 +55,50 @@ assert.ok(page.includes('id="btn-check-integrity-status"'));
 assert.ok(page.includes('id="check-integrity-status"'));
 console.log("the bulk check button calls the per-status check: PASS");
 
+assert.ok(page.includes('<option value="review_coherence">review_coherence</option>'));
+console.log("a disk a check found without file can be listed: PASS");
+
+// --- a batch report stays short at any size and keeps its line breaks ----------
+const reports = load("storage.js", ["storageBatchReport", "storageNoticeHtml"]);
+const many = { queued: 1, results: [{ storage_id: "ok", task_id: "t" }] };
+for (let i = 0; i < 5000; i++) many.results.push({ storage_id: `b${i}`, description_code: "storage_pending_task" });
+many.results.push({ storage_id: "<p>", description_code: "storage_has_children", message: "has children" });
+const big = reports.storageBatchReport(many);
+assert.strictEqual(big.refused, 5001);
+assert.strictEqual(
+  big.text,
+  "Queued on 1 of 5002 disk(s).<br>5000 refused: storage_pending_task (b0, b1, b2, ...)" +
+    "<br>1 refused: storage_has_children (&lt;p&gt;): has children"
+);
+console.log("a batch report groups the refusals by reason, escaped: PASS");
+
+// --- a mass action by status answers the count; its end comes as a notice -------
+const later = load("storage.js", ["storageBatchAccepted", "storageAdminNotice", "storageNoticeHtml"]);
+const accepted = later.storageBatchAccepted("integrity checks", { status: "ready", accepted: 49388 });
+assert.ok(accepted.includes("integrity checks on 49388 ready disk(s)"), accepted);
+assert.ok(/notice/.test(accepted), accepted);
+assert.ok(storage.src.includes("socket.on('msg'"));
+const end = later.storageAdminNotice({
+  id: "", title: "Integrity checks of the ready disks", type: "info",
+  description: "Queued on 1 of 2 disk(s).\n1 refused: storage_open_not_checkable (s<2>)",
+  params: { hide: false }
+});
+assert.strictEqual(end.text, "Queued on 1 of 2 disk(s).<br>1 refused: storage_open_not_checkable (s&lt;2&gt;)");
+assert.strictEqual(end.hide, false);
+assert.strictEqual(later.storageAdminNotice({ id: "batch-1", title: "User data generated", description: "1/2", params: {} }), null);
+assert.strictEqual(later.storageAdminNotice({ id: "", title: "", description: "", params: { delete: true } }), null);
+console.log("the end of a mass action shows its lines, and no other page's notice: PASS");
+
+const evil = '<img src=x onerror=alert(1)>';
+const evilAccepted = later.storageBatchAccepted("checks", { status: evil, accepted: evil });
+assert.ok(!evilAccepted.includes("<img"), evilAccepted);
+assert.ok(evilAccepted.includes("&lt;img src=x onerror=alert(1)&gt;"), evilAccepted);
+const evilEnd = later.storageAdminNotice({ id: "", title: evil, description: evil, type: "info", params: {} });
+assert.strictEqual(evilEnd.title, "&lt;img src=x onerror=alert(1)&gt;");
+assert.strictEqual(evilEnd.text, "&lt;img src=x onerror=alert(1)&gt;");
+assert.strictEqual(evilEnd.title_escape, false);
+console.log("a status, count or title carrying markup reaches the notice escaped: PASS");
+
 // --- the allowed list is edited with the shared allowed modal -------------------
 const sweep = fs.readFileSync(path.join(__dirname, "..", "storage_sweep_config.js"), "utf8");
 assert.ok(sweep.includes('modalAllowedsFormShow("storage_repair"'));

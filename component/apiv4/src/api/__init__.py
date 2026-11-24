@@ -217,6 +217,18 @@ async def _warm_route_matching(application) -> None:
     log.info("apiv4 route matching warmed in %.2fs", time.monotonic() - start)
 
 
+async def _resume_storage_batches():
+    """Pick up, every lease period, a mass disk action whose runner died with its process."""
+    from api.services import storage_batches
+
+    while True:
+        try:
+            await asyncio.to_thread(storage_batches.resume_all)
+        except Exception:
+            log.warning("Resuming the stored storage batches failed", exc_info=True)
+        await asyncio.sleep(storage_batches.LEASE_S)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -334,6 +346,8 @@ async def lifespan(app: FastAPI):
     await recycle_bin_queue.initialize()
     await recycle_bin_queue.start()
 
+    storage_batches_task = asyncio.create_task(_resume_storage_batches())
+
     await _warm_route_matching(app)
 
     # Keep last in startup: only objects that already exist get frozen.
@@ -342,6 +356,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    storage_batches_task.cancel()
     if health_task:
         health_task.cancel()
         try:

@@ -923,14 +923,22 @@ def handle_storage_repair_size(task, storage_id):
         Storage.insert_document(update, conflict="update")
 
 
+#: ``accessed`` and the worker's ``started_at`` come from different clocks
+CHECK_CLOCK_SLACK_S = 60
+
+
+def _used_during_check(storage_id, started_at):
+    """Whether a desktop on the disk runs now, or started or stopped since the check began."""
+    for item in Storage(storage_id).domains:
+        if item.status in disk_actions.RUNNING:
+            return True
+        if started_at and (item.accessed or 0) >= started_at - CHECK_CLOCK_SLACK_S:
+            return True
+    return False
+
+
 def handle_storage_check_result(task, storage_id):
-    """Record a standalone integrity check on the row (:meth:`Storage.write_check`):
-    damaged + damage_reason on corruption, a repair_leaks mark on leaks, and
-    last_checked_at. A sound verdict brings a damaged disk back to ready; a
-    leaky-but-sound disk never leaves ready. A check that reached no verdict
-    (timed out, or qemu-img could not open the image) changes no status and no
-    last_checked_at, so the rotation picks the disk again, and leaves a
-    check_inconclusive mark. A check whose task failed records nothing."""
+    """Record a standalone integrity check's verdict, its absence, or a missing file on the row."""
     if task.depending_status != "finished":
         return
     if not Storage.exists(storage_id):
@@ -950,7 +958,31 @@ def handle_storage_check_result(task, storage_id):
             {"summary": result.get("summary") or "no verdict"},
         )
         return
+    if not result.get("missing") and _used_during_check(
+        storage_id, result.get("started_at")
+    ):
+        Storage.flag_pending(
+            storage_id,
+            "check_inconclusive",
+            "check_integrity",
+            {"summary": "a desktop used the disk during the check"},
+        )
+        return
     Storage.clear_pending(storage_id, "check_inconclusive")
+    if result.get("missing"):
+        storage = Storage(storage_id)
+        if storage.status != "recycled" and storage.path == result.get("path"):
+            Storage.flag_pending(
+                storage_id,
+                "review_coherence",
+                "check_integrity",
+                {
+                    "reason": "the row's file is not in its pool",
+                    "path": result.get("path"),
+                },
+            )
+        return
+    Storage.clear_pending(storage_id, "review_coherence", found_by="check_integrity")
     Storage.clear_pending(storage_id, "check_integrity")
     if result.get("ok"):
         leaks = int(result.get("leaks") or 0)
