@@ -6,7 +6,7 @@ Anonymize an IsardVDI `rethinkdb-dump` archive so it can be safely used in devel
 
 | Table | What is replaced |
 |------|------------------|
-| `users` | password (bcrypt of `pirineus` for **all** users incl. the built-in `local-default-admin-admin`), email, name, username, uid, description, photo, api_key, password_history, password_reset_token, email_verification_token, accessed, vpn wireguard keypair, and the nested `user_storage.email` / `user_storage.displayname` |
+| `users` | password (bcrypt of one password for **all** users incl. the built-in `local-default-admin-admin`: `$ANONYMIZE_DB_USER_PASSWORD`, `--user-password-file`, or a random one written to `<output>.password` (mode 0600)), email, name, username, uid, description, photo, api_key, password_history, password_reset_token, email_verification_token, accessed, vpn wireguard keypair, and the nested `user_storage.email` / `user_storage.displayname` |
 | `domains` | name, description, username (derived from the `user` FK so it matches `users.username`), viewer (guest_ip/passwd/ticket/session_id), guest_properties.credentials, create_dict MAC addresses, libvirt XML (`<graphics passwd>`, `<channel><source path>`, `<log file>`, `<metadata>` notes), history_domain |
 | catalog/resource tables (`user_networks`, `qos_net`, `qos_disk`, `graphics`, `videos`, `boots`, `disk_bus`, `virt_install`, `desktops_priority`, `bookings_priority`, `storage_pool`, `scheduler_jobs`, `roles`, `notification_tmpls`) | admin-/user-authored `name` (renamed) + `description` (blanked); primary-key `id` is preserved (referenced by id everywhere) |
 | `hypervisors`, `vgpus`, `gpus`, `engine`, `secrets` | dropped entirely |
@@ -191,8 +191,8 @@ The tool then runs `qemu-img create` inside `isard-storage` (override with `--st
 
 ## Dev login after restore
 
-All users (including the built-in `admin`) get the password **`pirineus`**.
+All users (including the built-in `admin`) get one password, taken from `$ANONYMIZE_DB_USER_PASSWORD`, `--user-password-file`, or a random one written to `<output>.password` (mode 0600). The tool never prints it.
 
-`guest_properties.credentials` on every domain is rewritten to the IsardVDI demo defaults `isard` / `pirineus` so the dev viewers Just Work.
+`guest_properties.credentials` on every domain is rewritten to the IsardVDI demo guest credentials (`GUEST_DEFAULT_USERNAME` / `GUEST_DEFAULT_PASSWORD` in `anonymize_db/scrub.py`, the ones baked into the demo images) so the dev viewers Just Work.
 
 Every other password / secret / token field — anywhere in any table — is replaced with a fresh, unrelated `anon-<random>` token so structure and truthiness are preserved without leaking real values.

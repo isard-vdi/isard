@@ -184,8 +184,8 @@ Do not use it when the admin users/desktops logs or the usage history are what y
 
 Always runs against the extracted dump. Highlights:
 
-- `users.password` → bcrypt of `pirineus` for everyone (admin and regular users).
-- `domains.guest_properties.credentials` → `{username: isard, password: pirineus}` (well-known IsardVDI demo creds, kept verbatim so dev viewers work).
+- `users.password` → bcrypt of one password for everyone (admin and regular users): `$ANONYMIZE_DB_USER_PASSWORD`, `--user-password-file`, or a random one written to `<output>.password` (mode 0600).
+- `domains.guest_properties.credentials` → the demo guest credentials (`GUEST_DEFAULT_*` in `anonymize_db/scrub.py`) (well-known IsardVDI demo creds, kept verbatim so dev viewers work).
 - Every other `password` / `secret` / `*_token` / `private_key` / `access_key` / `secret_key` / `bearer` / `client_secret` / `api_key` field, anywhere in any table, → `anon-<random>`.
 - WireGuard keypairs (users, hypervisors, remotevpn, vpn_hypers, vpn_users) → freshly generated X25519.
 - libvirt XML: `<graphics passwd>`, `<channel><source path>`, `<log file>` stripped.
@@ -258,9 +258,8 @@ anonymize-db --input ~/dumps/today.tar.gz --restore-local --auto-stop-start --ye
 
 | Account | Password |
 |---------|----------|
-| `admin` | `pirineus` |
-| any other user | `pirineus` |
-| `guest_properties` viewer creds on every domain | `isard` / `pirineus` |
+| `admin` and any other user | `$ANONYMIZE_DB_USER_PASSWORD`, `--user-password-file`, or a random one written to `<output>.password` (mode 0600) |
+| `guest_properties` viewer creds on every domain | the demo guest credentials (`GUEST_DEFAULT_*` in `anonymize_db/scrub.py`) |
 
 ---
 
