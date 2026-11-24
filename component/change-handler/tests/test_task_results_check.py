@@ -22,6 +22,7 @@ def _run(depending_status, result, exists=True, row=None):
         cls.exists.return_value = exists
         cls.return_value.status = row["status"]
         cls.return_value.path = row["path"]
+        cls.return_value.domains = row.get("domains", [])
         storage.handle_storage_check_result(task, storage_id="s1")
     return cls
 
@@ -160,3 +161,61 @@ def test_a_missing_file_of_a_recycled_row_is_not_flagged():
     cls = _run("finished", _MISSING, row={"status": "recycled"})
     cls.flag_pending.assert_not_called()
     cls.write_check.assert_not_called()
+
+
+_CORRUPT = {
+    "ok": False,
+    "inconclusive": False,
+    "summary": "corruptions=3",
+    "corruptions": 3,
+}
+
+
+def _desktop(status, accessed=0):
+    return SimpleNamespace(status=status, accessed=accessed)
+
+
+def test_a_verdict_while_a_desktop_runs_is_inconclusive_not_damage():
+    cls = _run(
+        "finished",
+        {**_CORRUPT, "started_at": 1000},
+        row={"domains": [_desktop("Started", accessed=10)]},
+    )
+    cls.write_check.assert_not_called()
+    cls.flag_pending.assert_called_once_with(
+        "s1",
+        "check_inconclusive",
+        "check_integrity",
+        {"summary": "a desktop used the disk during the check"},
+    )
+
+
+def test_a_verdict_of_a_desktop_started_and_stopped_meanwhile_is_inconclusive():
+    cls = _run(
+        "finished",
+        {**_CORRUPT, "started_at": 1000},
+        row={"domains": [_desktop("Stopped", accessed=5000)]},
+    )
+    cls.write_check.assert_not_called()
+    assert cls.flag_pending.call_args.args[1] == "check_inconclusive"
+
+
+def test_a_desktop_untouched_since_before_the_check_lets_the_verdict_stand():
+    cls = _run(
+        "finished",
+        {**_CORRUPT, "started_at": 100000},
+        row={"domains": [_desktop("Stopped", accessed=10)]},
+    )
+    cls.write_check.assert_called_once_with("s1", damage_reason="corruptions=3")
+
+
+def test_a_check_the_worker_saw_a_writer_during_is_inconclusive():
+    summary = "/isard/groups/s1.qcow2 was open for writing during the check"
+    cls = _run(
+        "finished",
+        {"ok": False, "inconclusive": True, "in_use": True, "summary": summary},
+    )
+    cls.write_check.assert_not_called()
+    cls.flag_pending.assert_called_once_with(
+        "s1", "check_inconclusive", "check_integrity", {"summary": summary}
+    )

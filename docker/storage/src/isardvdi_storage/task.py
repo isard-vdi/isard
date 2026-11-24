@@ -2028,8 +2028,48 @@ def _refuse_if_backs_live_disks(path, covered_paths, live_uuids=None):
         )
 
 
+CHECK_WRITER_POLL_S = 2.0
+
+
+@contextmanager
+def _writer_watch(path, interval=None):
+    """Yield a list that gets an entry once another process holds ``path`` open for writing."""
+    seen = []
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        yield seen
+        return
+    stop = threading.Event()
+
+    def look():
+        try:
+            if not seen and qemu_locks.writers(fd):
+                seen.append(True)
+        except OSError as e:
+            log.warning("storage_check: cannot read the locks of %s: %s", path, e)
+            stop.set()
+
+    def poll():
+        while not seen and not stop.wait(interval or CHECK_WRITER_POLL_S):
+            look()
+
+    watcher = threading.Thread(target=poll, daemon=True)
+    try:
+        look()
+        watcher.start()
+        yield seen
+        look()
+    finally:
+        stop.set()
+        if watcher.is_alive():
+            watcher.join()
+        os.close(fd)
+
+
 def storage_check(storage_path):
-    """Read-only ``qemu-img check -U`` report; ``missing`` only for a file absent from a live volume."""
+    """Read-only ``qemu-img check -U`` report; no verdict when a writer had the image open meanwhile."""
+    started_at = time()
     qcow = _storage_qcow()
     try:
         os_stat(storage_path)
@@ -2043,7 +2083,17 @@ def storage_check(storage_path):
             "path": storage_path,
             "summary": f"{storage_path} does not exist",
         }
-    return qcow.qemu_img_check_report(storage_path)
+    with _writer_watch(storage_path) as seen:
+        report = None if seen else qcow.qemu_img_check_report(storage_path)
+    if seen:
+        return {
+            "ok": False,
+            "inconclusive": True,
+            "in_use": True,
+            "started_at": started_at,
+            "summary": f"{storage_path} was open for writing during the check",
+        }
+    return {**report, "started_at": started_at}
 
 
 def rebase(child_path, new_backing_path, verify=False):

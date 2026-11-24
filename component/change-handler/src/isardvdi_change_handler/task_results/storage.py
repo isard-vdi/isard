@@ -923,6 +923,20 @@ def handle_storage_repair_size(task, storage_id):
         Storage.insert_document(update, conflict="update")
 
 
+#: ``accessed`` and the worker's ``started_at`` come from different clocks
+CHECK_CLOCK_SLACK_S = 60
+
+
+def _used_during_check(storage_id, started_at):
+    """Whether a desktop on the disk runs now, or started or stopped since the check began."""
+    for item in Storage(storage_id).domains:
+        if item.status in disk_actions.RUNNING:
+            return True
+        if started_at and (item.accessed or 0) >= started_at - CHECK_CLOCK_SLACK_S:
+            return True
+    return False
+
+
 def handle_storage_check_result(task, storage_id):
     """Record a standalone integrity check's verdict, its absence, or a missing file on the row."""
     if task.depending_status != "finished":
@@ -942,6 +956,16 @@ def handle_storage_check_result(task, storage_id):
             "check_inconclusive",
             "check_integrity",
             {"summary": result.get("summary") or "no verdict"},
+        )
+        return
+    if not result.get("missing") and _used_during_check(
+        storage_id, result.get("started_at")
+    ):
+        Storage.flag_pending(
+            storage_id,
+            "check_inconclusive",
+            "check_integrity",
+            {"summary": "a desktop used the disk during the check"},
         )
         return
     Storage.clear_pending(storage_id, "check_inconclusive")
