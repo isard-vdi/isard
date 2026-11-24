@@ -21,6 +21,7 @@
 import asyncio
 import logging
 import traceback
+from typing import Annotated, Optional
 
 from api import admin_router
 from api.schemas.admin.stats import (
@@ -33,11 +34,12 @@ from api.schemas.admin.stats import (
     StatsKindHypervisor,
     StatsKindTemplate,
     StatsKindUser,
+    StatsMonthlyUsageResponse,
 )
 from api.schemas.common import ErrorResponse
 from api.services.admin.stats import AdminStatsService
 from api.services.error import Error
-from fastapi import Request
+from fastapi import Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic_core import to_json
 
@@ -257,6 +259,53 @@ async def stats_connected_users(request: Request):
             request,
             "internal_server",
             "Failed to get connected users",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/item/stats/monthly-usage",
+    tags=[tag],
+    response_model=StatsMonthlyUsageResponse,
+    summary="Get monthly usage metrics",
+    description="Distinct users who logged in and distinct desktops and "
+    "deployments started during a month (UTC), including the ones deleted "
+    "since. Months older than the log retention are incomplete.",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def stats_monthly_usage(
+    request: Request,
+    category: Annotated[
+        Optional[str],
+        Query(description="Only count rows whose owner was in this category"),
+    ] = None,
+    provider: Annotated[
+        Optional[str],
+        Query(
+            description="Only count rows whose owner has this authentication "
+            "provider. Deleted users, and the desktops and deployments they used, "
+            "are left out."
+        ),
+    ] = None,
+    month: Annotated[
+        Optional[str],
+        Query(
+            pattern=r"^20\d{2}-(0[1-9]|1[0-2])$",
+            description="Month as YYYY-MM, by default the current one",
+        ),
+    ] = None,
+):
+    try:
+        return await asyncio.to_thread(
+            AdminStatsService.get_monthly_usage, category, provider, month
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get monthly usage metrics",
             traceback.format_exc(),
         )
 

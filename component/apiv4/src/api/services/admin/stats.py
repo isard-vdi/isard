@@ -67,3 +67,9 @@ class AdminStatsService:
     @staticmethod
     def get_domains_by_category_count():
         return StatsProcessed.get_domains_by_category_count()
+
+    @staticmethod
+    def get_monthly_usage(
+        category: str | None, provider: str | None, month: str | None
+    ) -> dict:
+        return StatsProcessed.get_monthly_usage(category, provider, month)

@@ -19,10 +19,15 @@ and concurrent misses all run the same scan. They are read through
 stale-while-revalidate caches instead — a caller is served the last value
 immediately and the recomputation happens on a background worker.
 
+``get_monthly_usage`` is the exception: it reads the ``logs_users`` and
+``logs_desktops`` tables, is called on demand and is not cached.
+
 Set ``STATS_CACHE_TTL_S`` to override every TTL below (``0`` disables caching
 entirely) when developing or debugging against live data.
 """
 
+from datetime import datetime, timedelta, timezone
+from itertools import batched
 from os import environ
 
 from isardvdi_common.connections.rethink_shared_connection import (
@@ -35,6 +40,7 @@ from isardvdi_common.helpers.stale_while_revalidate import (
     swr_cached_keyed,
 )
 from rethinkdb import r
+from rethinkdb.ast import RqlQuery
 
 # An entry ages from the end of its fetch: a TTL equal to the period refreshes
 # only on every other poll.
@@ -127,6 +133,22 @@ _templates_stats_cache = StaleWhileRevalidate(
 # Steady-state desktop statuses surfaced by category aggregates; anything
 # else is "Other" and must be surfaced for admin triage.
 STABLE_STATUS = ["Started", "Stopped", "Failed"]
+
+USAGE_ROLES = ("manager", "advanced", "user")
+
+# RethinkDB refuses 100k groups by default, and each temporary desktop is a new id.
+_USAGE_ARRAY_LIMIT = 10_000_000
+_USAGE_GET_ALL_BATCH = 10_000
+
+
+def _has_vgpus(value: RqlQuery) -> RqlQuery:
+    """ReQL predicate: ``value`` lists at least one vGPU reservable."""
+    return (
+        value.default([])
+        .filter(lambda vgpu: r.expr([None, "None"]).contains(vgpu).not_())
+        .count()
+        .gt(0)
+    )
 
 
 class StatsProcessed(RethinkSharedConnection):
@@ -477,3 +499,188 @@ class StatsProcessed(RethinkSharedConnection):
     def clear_get_group_by_categories_cache(cls) -> None:
         """Invalidate the group-by-categories cache."""
         _group_by_categories_cache.clear()
+
+    @classmethod
+    def get_monthly_usage(
+        cls,
+        category: str | None = None,
+        provider: str | None = None,
+        month: str | None = None,
+    ) -> dict:
+        """Return the distinct users, desktops and deployments active in ``month``
+        (``YYYY-MM``, UTC), by default the current one."""
+        start, end = cls._month_range(month)
+        users = cls._monthly_users(start, end, category)
+        desktop_owners = cls._monthly_desktops(start, end, category)
+        if provider is not None:
+            owners = {row["owner_user_id"] for row in [*users, *desktop_owners]}
+            matching = cls._users_with_provider(owners - {None}, provider)
+            users = [row for row in users if row["owner_user_id"] in matching]
+            desktop_owners = [
+                row for row in desktop_owners if row["owner_user_id"] in matching
+            ]
+
+        by_role = dict.fromkeys(USAGE_ROLES, 0)
+        for user in users:
+            for role in user["roles"]:
+                by_role[role] += 1
+
+        by_desktop: dict[str, dict] = {}
+        deployment_ids: set[str] = set()
+        for row in desktop_owners:
+            deployment_ids.update(row["deployment_ids"])
+            desktop = by_desktop.setdefault(row["desktop_id"], row)
+            desktop["gpu"] = desktop["gpu"] or row["gpu"]
+            desktop["deployment_ids"] = (
+                desktop["deployment_ids"] or row["deployment_ids"]
+            )
+        desktops = by_desktop.values()
+
+        return {
+            "period": {"start": start, "end": end},
+            "users": {
+                "total": len(users),
+                "by_role": by_role,
+                "deleted": sum(1 for user in users if user["deleted"]),
+            },
+            "desktops": {
+                "total": len(desktops),
+                "gpu": sum(1 for desktop in desktops if desktop["gpu"]),
+                "servers": sum(1 for desktop in desktops if desktop["server"]),
+                "from_deployments": sum(
+                    1 for desktop in desktops if desktop["deployment_ids"]
+                ),
+                "deleted": sum(1 for desktop in desktops if desktop["deleted"]),
+            },
+            "deployments": cls._monthly_deployments(deployment_ids),
+        }
+
+    @staticmethod
+    def _month_range(month: str | None) -> tuple[datetime, datetime]:
+        from isardvdi_common.helpers.error_factory import Error
+
+        now = datetime.now(timezone.utc)
+        if month is None:
+            month = now.strftime("%Y-%m")
+        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        if start > now:
+            raise Error("bad_request", f"Month {month} is in the future")
+        next_month = (start + timedelta(days=32)).replace(day=1)
+        return start, min(now, next_month)
+
+    @classmethod
+    def _users_with_provider(cls, user_ids: set[str], provider: str) -> set[str]:
+        """Return the ``user_ids`` of existing users with ``provider``."""
+        matching: set[str] = set()
+        with cls._rdb_context():
+            for batch in batched(user_ids, _USAGE_GET_ALL_BATCH):
+                matching.update(
+                    r.table("users")
+                    .get_all(r.args(batch))
+                    .filter({"provider": provider})["id"]
+                    .run(cls._rdb_connection)
+                )
+        return matching
+
+    @classmethod
+    def _monthly_users(
+        cls, start: datetime, end: datetime, category: str | None
+    ) -> list[dict]:
+        query = r.table("logs_users").between(start, end, index="started_time")
+        if category is not None:
+            query = query.filter({"owner_category_id": category})
+        with cls._rdb_context():
+            return list(
+                query.filter(
+                    lambda log: r.expr(USAGE_ROLES).contains(log["owner_role_id"])
+                )
+                .group("owner_user_id")["owner_role_id"]
+                .distinct()
+                .ungroup()
+                .map(
+                    lambda group: {
+                        "owner_user_id": group["group"],
+                        "roles": group["reduction"],
+                        "deleted": r.table("users").get(group["group"]).eq(None),
+                    }
+                )
+                .run(cls._rdb_connection, array_limit=_USAGE_ARRAY_LIMIT)
+            )
+
+    @classmethod
+    def _monthly_desktops(
+        cls, start: datetime, end: datetime, category: str | None
+    ) -> list[dict]:
+        """Return one row per desktop and owner."""
+        query = r.table("logs_desktops").between(start, end, index="starting_time")
+        if category is not None:
+            query = query.filter({"owner_category_id": category})
+        with cls._rdb_context():
+            return list(
+                query.group("desktop_id", "owner_user_id")
+                .map(
+                    lambda log: {
+                        "gpu": _has_vgpus(log["hardware_bookables_vgpus"]),
+                        "deployment_ids": r.branch(
+                            log["deployment_id"].default(None).eq(None),
+                            [],
+                            [log["deployment_id"]],
+                        ),
+                    }
+                )
+                .reduce(
+                    lambda a, b: {
+                        "gpu": a["gpu"].or_(b["gpu"]),
+                        "deployment_ids": a["deployment_ids"].set_union(
+                            b["deployment_ids"]
+                        ),
+                    }
+                )
+                .ungroup()
+                .map(
+                    lambda group: r.table("domains")
+                    .get(group["group"][0])
+                    .do(
+                        lambda domain: group["reduction"].merge(
+                            {
+                                "desktop_id": group["group"][0],
+                                "owner_user_id": group["group"][1],
+                                "deleted": domain.eq(None),
+                                "server": domain["server"].default(False).eq(True),
+                            }
+                        )
+                    )
+                )
+                .run(cls._rdb_connection, array_limit=_USAGE_ARRAY_LIMIT)
+            )
+
+    @classmethod
+    def _monthly_deployments(cls, deployment_ids: set[str]) -> dict:
+        if not deployment_ids:
+            return {"total": 0, "gpu": 0, "deleted": 0}
+        with cls._rdb_context():
+            deployments = list(
+                r.expr(sorted(deployment_ids))
+                .map(
+                    lambda deployment_id: r.table("deployments")
+                    .get(deployment_id)
+                    .do(
+                        lambda deployment: {
+                            "deleted": deployment.eq(None),
+                            "gpu": deployment["create_dict"]
+                            .default([])
+                            .contains(
+                                lambda desktop: _has_vgpus(
+                                    desktop["reservables"]["vgpus"]
+                                )
+                            ),
+                        }
+                    )
+                )
+                .run(cls._rdb_connection, array_limit=_USAGE_ARRAY_LIMIT)
+            )
+        return {
+            "total": len(deployments),
+            "gpu": sum(1 for deployment in deployments if deployment["gpu"]),
+            "deleted": sum(1 for deployment in deployments if deployment["deleted"]),
+        }
