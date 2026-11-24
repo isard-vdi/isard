@@ -186,12 +186,26 @@
                         <label for="sweep-zero-scan" title="Reads the disks that grew since their last scan and counts the zeros a dig would give back"> Count zeros</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
+                        <input id="sweep-detect" type="checkbox">
+                        <label for="sweep-detect" title="Read-only pass that inspects every disk's coherence and on-disk backing chain and records what it finds as pending actions; writes nothing"> Detect problems</label>
+                    </div>
+                    <div class="col-md-3 col-xs-12">
                         <input id="sweep-desktop-disk-repairs" type="checkbox">
                         <label for="sweep-desktop-disk-repairs" title="When a disk stops a desktop from starting, run its quick fixes at once and show the user what is left; off, the start fails as before"> Repair the disks that stop a desktop</label>
                     </div>
                     <div class="col-md-3 col-xs-12">
                         <label for="sweep-check-age">Check disks unchecked for (days)</label>
                         <input class="form-control" id="sweep-check-age" type="number" min="1" value="30">
+                    </div>
+                </div>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-md-6 col-xs-12">
+                        <input id="sweep-dig-bases-with-children" type="checkbox">
+                        <label for="sweep-dig-bases-with-children" title="When giving back zeros, also dig a base its derived disks read; the dig is verified before and after, and at most 'Max bases' of them a pass"> Give back zeros of bases with children</label>
+                    </div>
+                    <div class="col-md-3 col-sm-6 col-xs-12">
+                        <label for="sweep-max-bases">Max bases with children per pass</label>
+                        <input class="form-control" id="sweep-max-bases" type="number" min="0" value="2">
                     </div>
                 </div>
                 <div class="row">

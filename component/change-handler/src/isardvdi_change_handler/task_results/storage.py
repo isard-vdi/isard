@@ -47,6 +47,7 @@ from isardvdi_common.models.storage import (
     DIG_HOLES_MISMATCH,
     DIG_HOLES_SLACK_BYTES,
     SPARSIFY_GROWTH_BYTES,
+    SPARSIFY_GROWTH_MAX_BASELINE_AGE_S,
     Storage,
     StoragePool,
 )
@@ -229,8 +230,11 @@ def _recover_orphan_dependents(storage_object, _seen=None):
         _recover_orphan_dependents(child, _seen)
 
 
-def _sparsify_growth(storage_dict):
-    """Bytes a ready, writable disk grew by since its last reading, if it grew."""
+def _sparsify_growth(storage_dict, read_at=None):
+    """Bytes a ready, writable disk grew by since its last reading, if it grew
+    enough and that reading is recent. Growth measured against a baseline older
+    than ``SPARSIFY_GROWTH_MAX_BASELINE_AGE_S`` (or one with no recorded time)
+    says nothing about reclaimable slack and does not flag."""
     new_size = (storage_dict.get("qemu-img-info") or {}).get("actual-size")
     if new_size is None:
         return None
@@ -241,8 +245,25 @@ def _sparsify_growth(storage_dict):
     old_size = (getattr(storage, "qemu-img-info", None) or {}).get("actual-size")
     if old_size is None:
         return None
+    baseline_at = getattr(storage, "qemu_img_info_at", None)
+    now = read_at if read_at is not None else time()
+    if (
+        not isinstance(baseline_at, (int, float))
+        or now - baseline_at > SPARSIFY_GROWTH_MAX_BASELINE_AGE_S
+    ):
+        return None
     grew = new_size - old_size
     return grew if grew >= SPARSIFY_GROWTH_BYTES else None
+
+
+def _is_stale_growth_sparsify_mark(storage):
+    """Whether a sparsify mark came from the growth heuristic (so a reading that no
+    longer grows may retract it); a mark from any other source is left alone."""
+    mark = (getattr(storage, "pending_actions", None) or {}).get("sparsify") or {}
+    return (
+        mark.get("found_by") == "storage refresh"
+        and (mark.get("detail") or {}).get("grew_bytes") is not None
+    )
 
 
 def _diggable_once_stopped(storage):
@@ -316,7 +337,7 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
         return None
     open_error = storage_dict.get("open_error")
     reading = {k: v for k, v in storage_dict.items() if k != "open_error"}
-    grew = _sparsify_growth(reading)
+    grew = _sparsify_growth(reading, read_at=read_at)
     status = Storage.write_reading(reading, observer=observer, read_at=read_at)
     if status is None:
         return None
@@ -332,6 +353,7 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
             },
             if_absent=True,
         )
+    storage_object = Storage(storage_dict["id"])
     if grew:
         Storage.flag_pending(
             storage_dict["id"],
@@ -339,7 +361,10 @@ def _apply_storage_update(storage_dict, observer=False, read_at=None):
             found_by="storage refresh",
             detail={"grew_bytes": grew},
         )
-    storage_object = Storage(storage_dict["id"])
+    elif _is_stale_growth_sparsify_mark(storage_object):
+        # A6 would no longer flag this reading; retract a growth mark that an
+        # older, stale-baseline reading left, so the false marks clear themselves.
+        Storage.clear_pending(storage_dict["id"], "sparsify")
     if storage_dict.get("status") == status and status in (
         "deleted",
         "orphan",
@@ -561,12 +586,22 @@ def handle_zero_scan_result(task, storage_id):
 
 
 def handle_dig_holes_result(task, storage_id, since=None):
-    """Settle a dig that did not finish: damaged on a mismatch, never again on a
-    filesystem that cannot punch, re-checked when it stopped mid-punch, and
-    flagged again with its original ``since`` otherwise."""
-    if task.depending_status not in ("failed", "canceled", "stopped"):
-        return
+    """Settle a dig. On success, record what it reclaimed in ``health.checks.zeros``
+    so the row stops advertising bytes the dig already gave back, and drop the
+    dig_holes mark. On a dig that did not finish: damaged on a mismatch, never
+    again where the filesystem cannot punch, re-checked when it stopped
+    mid-punch, flagged again with its original ``since`` otherwise."""
     if not Storage.exists(storage_id):
+        return
+    if task.depending_status == "finished":
+        dependency = next((d for d in task.dependencies if d.task == "dig_holes"), None)
+        result = getattr(dependency, "result", None) if dependency is not None else None
+        if isinstance(result, dict) and result.get("reclaimed") is not None:
+            Storage.apply_dig_result(storage_id, result.get("after"))
+        # success makes the mark moot; idempotent with the chain's clear_pending_action
+        Storage.clear_pending(storage_id, "dig_holes")
+        return
+    if task.depending_status not in ("failed", "canceled", "stopped"):
         return
     for dependency in task.dependencies:
         if dependency.task != "dig_holes":

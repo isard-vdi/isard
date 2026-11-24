@@ -2234,6 +2234,19 @@ def scan_backing_index(pool_paths):
     }
 
 
+def backing_dependents(path, transitive=False):
+    """Read-only on-disk qcow2-header children of ``path``, plus unreadable
+    candidates; ``transitive`` follows the chain to any depth, else direct only."""
+    from isardvdi_common.lib.storage.dependents import (
+        build_backing_index,
+        dependents_of,
+    )
+
+    index = _shared_backing_index(build_backing_index)
+    dependents, unreadable = dependents_of(path, index, transitive=transitive)
+    return {"dependents": dependents, "unreadable": unreadable}
+
+
 def migration_verify_destination_absent(dst_path):
     """Refuse a migration copy onto a path that already holds a file.
 

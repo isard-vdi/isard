@@ -721,7 +721,7 @@ async def dig_holes_storage(
 async def batch_dig_holes_storages(request: Request, body: StorageDigHolesBatchRequest):
     try:
         result = await asyncio.to_thread(
-            StorageService.batch_dig_holes, request.token_payload, body.ids
+            StorageService.batch_dig_holes, request.token_payload, body.ids, body.verify
         )
         return JSONResponse(
             content=StorageDigHolesBatchResponse(**result).model_dump(mode="json"),

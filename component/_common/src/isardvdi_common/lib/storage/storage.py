@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import os
 import time
 import traceback
 
@@ -33,6 +34,16 @@ from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
 from rethinkdb import r
+
+
+def _on_disk_dependents_deadline():
+    """Seconds the guard waits for the worker before failing closed (env ``STORAGE_ONDISK_DEPENDENTS_DEADLINE_S``, default 30)."""
+    value = os.environ.get("STORAGE_ONDISK_DEPENDENTS_DEADLINE_S")
+    try:
+        parsed = int(value) if value else 0
+    except (TypeError, ValueError):
+        parsed = 0
+    return parsed if parsed > 0 else 30
 
 
 class StorageProcessed(RethinkSharedConnection):
@@ -131,6 +142,62 @@ class StorageProcessed(RethinkSharedConnection):
         for pool_id in pending:
             failed.append({"pool": pool_id, "reason": "timeout"})
         return merged, temps, not failed, failed
+
+    @classmethod
+    def scan_on_disk_dependents(
+        cls,
+        path,
+        *,
+        directory_path=None,
+        priority="interactive",
+        deadline=None,
+        transitive=False,
+    ):
+        """The on-disk qcow2-header children of ``path`` from the worker, as ``{"dependents", "unreadable", "ok", "reason"}``; ``transitive`` follows the chain to any depth, else direct children only. ``ok`` is False (fail closed) with no lane consumer, a failed/gone task, or a passed deadline."""
+        from time import monotonic, sleep
+
+        from isardvdi_common.lib import queue_coverage, queue_tiers
+        from isardvdi_common.models.storage_pool import StoragePool
+        from isardvdi_common.models.task import Task
+
+        if deadline is None:
+            deadline = _on_disk_dependents_deadline()
+        tier = queue_tiers.normalize_tier(priority, "backing_dependents")
+        pool = StoragePool.get_best_for_action(
+            "backing_dependents", path=directory_path or path
+        )
+        queue = f"storage.{pool.id}.{tier}"
+        empty = {"dependents": [], "unreadable": []}
+        decision, ctx = queue_coverage.lane_shed_decision(Task._redis, queue)
+        if decision == "reject":
+            return {**empty, "ok": False, "reason": ctx.get("reason")}
+        try:
+            task_id = Task(
+                task="backing_dependents",
+                queue=queue,
+                user_id="admin",
+                job_kwargs={"kwargs": {"path": path, "transitive": transitive}},
+            ).id
+        except Exception:
+            return {**empty, "ok": False, "reason": "enqueue_failed"}
+        end = monotonic() + deadline
+        while monotonic() < end:
+            if not Task.exists(task_id):
+                return {**empty, "ok": False, "reason": "task_gone"}
+            task = Task(task_id)
+            status = task.job_status
+            if status == "finished":
+                result = task.result or {}
+                return {
+                    "dependents": result.get("dependents") or [],
+                    "unreadable": result.get("unreadable") or [],
+                    "ok": True,
+                    "reason": None,
+                }
+            if status in ("failed", "stopped", "canceled"):
+                return {**empty, "ok": False, "reason": "task_" + status}
+            sleep(0.5)
+        return {**empty, "ok": False, "reason": "timeout"}
 
     @classmethod
     def run_integrity_detection(cls, *, flag=True, scan_priority="interactive"):

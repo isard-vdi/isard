@@ -71,6 +71,31 @@ def test_a_zero_scan_records_the_figure_and_the_size_it_measured(queries):
     assert "actual_size_at_scan" in query and "checked_at" in query
 
 
+def test_a_zero_scan_never_records_more_reclaimable_than_the_disk_holds(queries):
+    """An impossible figure (above the allocated size) is clamped: nothing can
+    give back more than it holds, so a stale over-count is never stored."""
+    Storage.write_zeros("s1", 4096, reclaimable=5_000_000)
+    (query,) = queries
+    assert "4096" in query and "5000000" not in query
+
+
+def test_a_finished_dig_leaves_nothing_to_reclaim():
+    """A completed dig gave back every zero block, so the figure it records is a
+    plain 0 (stamped, with the post-dig size), not ``old minus reclaimed``."""
+    value = Storage._zeros_value_after_dig(17_276_248_064)
+    assert value["reclaimable_bytes"] == 0
+    assert value["actual_size_at_scan"] == 17_276_248_064
+    assert value["result"] == "ok" and isinstance(value["at"], int)
+
+
+def test_apply_dig_result_writes_the_finished_figure_only_where_a_scan_exists(queries):
+    Storage.apply_dig_result("s1", 4096)
+    (query,) = queries
+    assert "zeros" in query and "actual_size_at_scan" in query
+    # guarded by has_fields('zeros') so it never creates a row
+    assert "has_fields" in query
+
+
 def test_a_reflag_keeps_the_original_since_when_the_mark_is_gone(queries):
     Storage.flag_pending("s1", "dig_holes", "dig_holes", since=1234)
     (query,) = queries

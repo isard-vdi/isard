@@ -86,6 +86,10 @@ class StorageDigHolesBatchRequest(BaseModel):
         max_length=DIG_HOLES_BATCH_MAX,
         description=f"Storage IDs, at most {DIG_HOLES_BATCH_MAX}",
     )
+    verify: bool = Field(
+        default=False,
+        description="Hash each disk before and after the dig and leave it damaged on a mismatch; forced on for a base its children read",
+    )
 
 
 class StorageDigHolesBatchResult(BaseModel):

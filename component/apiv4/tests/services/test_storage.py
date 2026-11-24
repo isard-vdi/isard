@@ -493,6 +493,13 @@ class TestDigHoles:
         StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low", verify=True)
         assert storage.dig_holes.call_args.kwargs["verify"] is True
 
+    @patch("api.services.storage.get_storage")
+    def test_the_button_requires_descendants_stopped(self, mock_get):
+        storage = MagicMock()
+        mock_get.return_value = storage
+        StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "low")
+        assert storage.dig_holes.call_args.kwargs["require_descendants_stopped"] is True
+
     def test_rejects_an_unknown_priority(self):
         with pytest.raises(Error):
             StorageService.dig_holes(JWT_PAYLOAD_ADMIN, "s1", "urgent")
@@ -523,6 +530,24 @@ class TestDigHoles:
         assert by_id["parent"]["description_code"] == "storage_has_children"
         assert by_id["parent"]["message"] == "Storage parent has children"
         assert by_id["broken"]["description_code"] == "internal_server"
+
+    @patch("api.services.storage.get_storage")
+    def test_a_batch_forwards_verify(self, mock_get):
+        storage = MagicMock()
+        storage.dig_holes.return_value = "task-1"
+        mock_get.return_value = storage
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"], verify=True)
+        assert storage.dig_holes.call_args.kwargs["verify"] is True
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.dig_holes.call_args.kwargs["verify"] is False
+
+    @patch("api.services.storage.get_storage")
+    def test_a_batch_requires_descendants_stopped(self, mock_get):
+        storage = MagicMock()
+        storage.dig_holes.return_value = "task-1"
+        mock_get.return_value = storage
+        StorageService.batch_dig_holes(JWT_PAYLOAD_ADMIN, ["s1"])
+        assert storage.dig_holes.call_args.kwargs["require_descendants_stopped"] is True
 
 
 class TestRepair:
@@ -722,6 +747,37 @@ class TestSweepGivesBackZeros:
         mock_config.update_storage_sweep.assert_called_once_with(
             {"dig_bases_with_children": True, "max_bases": 3}
         )
+
+    @patch("api.services.storage.Config")
+    def test_the_sweep_form_body_persists_detect_bases_and_cap(self, mock_config):
+        """The full body the sweep form sends now carries detect,
+        dig_bases_with_children and max_bases; the PUT persists each one and
+        writes only the keys it was given, so the Config merge leaves the rest
+        untouched (saving the form no longer resets them to their default)."""
+        mock_config.get_storage_sweep_config.return_value = {}
+        body = {
+            "enabled": True,
+            "hour": 4,
+            "minute": 0,
+            "max_disks": 50,
+            "max_bytes": 0,
+            "sparsify": False,
+            "dig_holes": True,
+            "repair_leaks": False,
+            "check_integrity": False,
+            "zero_scan": False,
+            "detect": True,
+            "desktop_disk_repairs": False,
+            "check_max_age_days": 30,
+            "dig_bases_with_children": True,
+            "max_bases": 4,
+        }
+        StorageService.set_sweep_config(JWT_PAYLOAD_ADMIN, body)
+        written = mock_config.update_storage_sweep.call_args.args[0]
+        assert written["detect"] is True
+        assert written["dig_bases_with_children"] is True
+        assert written["max_bases"] == 4
+        assert set(written) == set(body)
 
     @patch("api.services.storage.Config")
     def test_the_desktop_disk_repairs_are_off_until_the_config_turns_them_on(

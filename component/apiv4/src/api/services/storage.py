@@ -600,6 +600,7 @@ class StorageService:
                 secondary_priority="high",
                 retry=retry,
                 verify=verify,
+                require_descendants_stopped=True,
             )
         except Error:
             raise
@@ -607,7 +608,9 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
-    def batch_dig_holes(payload: dict, storage_ids: list[str]) -> dict:
+    def batch_dig_holes(
+        payload: dict, storage_ids: list[str], verify: bool = False
+    ) -> dict:
         """Queue dig_holes on each storage; say per id what was queued or why not."""
         results = []
         for storage_id in dict.fromkeys(storage_ids):
@@ -617,6 +620,8 @@ class StorageService:
                     payload.get("user_id"),
                     priority="low",
                     secondary_priority="high",
+                    verify=verify,
+                    require_descendants_stopped=True,
                 )
             except Error as e:
                 error = getattr(e, "error", None) or {}

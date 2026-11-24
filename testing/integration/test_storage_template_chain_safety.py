@@ -538,7 +538,7 @@ def test_no_operation_on_a_template_breaks_its_descendants(
     operations = [
         (
             "dig-holes",
-            "accepted",
+            "refused:storage_descendants_not_stopped",
             None,
             "PUT",
             f"{url}/dig-holes/priority/default?verify=true",
@@ -546,7 +546,7 @@ def test_no_operation_on_a_template_breaks_its_descendants(
         ),
         (
             "punch unwritten (dig)",
-            "accepted",
+            "refused:storage_descendants_not_stopped",
             unwritten_tail,
             "PUT",
             f"{url}/dig-holes/priority/default?verify=true",
@@ -608,6 +608,8 @@ def test_no_operation_on_a_template_breaks_its_descendants(
 
     rows = []
     for name, expected, prepare, method, path, body in operations:
+        # "refused:<code>" also pins the refusal's description_code
+        expected, _, expected_code = expected.partition(":")
         row = Row(name, expected)
         rows.append(row)
         if prepare:
@@ -645,6 +647,10 @@ def test_no_operation_on_a_template_breaks_its_descendants(
         _ready(conn, base_id)
         if row.outcome != expected:
             row.problems.append(f"expected {expected}, was {row.outcome}")
+        elif expected_code and payload.get("description_code") != expected_code:
+            row.problems.append(
+                f"expected {expected_code}, was {payload.get('description_code')}"
+            )
         chain.verify(row)
         log.info(
             "%s: %s (%s) %s", row.op, row.outcome, row.detail, row.problems or "OK"

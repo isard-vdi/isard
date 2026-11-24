@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import os
 from enum import Enum
 from time import time
@@ -42,6 +43,8 @@ from rq.job import JobStatus
 from ..schemas.storage import *
 from . import domain
 from .task import Task
+
+log = logging.getLogger(__name__)
 
 
 # Installation policy, not a per-host fact: resolved by the enqueuer so an identical operation is
@@ -206,6 +209,8 @@ PENDING_ACTIONS = {
 #: Flag ``sparsify`` when a disk's actual-size grows at least this much since its
 #: last measurement -- 256 MiB clears the journal a bare start/stop moves.
 SPARSIFY_GROWTH_BYTES = 256 * 1024 * 1024
+#: Growth over a baseline older than this is organic data, not a sparsify signal.
+SPARSIFY_GROWTH_MAX_BASELINE_AGE_S = 7 * 24 * 3600
 #: The zeros a scan must count before the disk is flagged dig_holes.
 DIG_HOLES_SLACK_BYTES = 256 * 1024 * 1024
 #: The checks ``health.checked_at`` is the oldest of; a missing one counts as never.
@@ -900,6 +905,10 @@ class Storage(RethinkCustomBase):
         the row was deleted after the reading started (``read_at``).
         Returns the row's status afterwards, or None when there is no row."""
         data = {k: v for k, v in reading.items() if k != "id"}
+        if "qemu-img-info" in data:
+            # stamp when this size was read, so the sparsify-growth rule can tell a
+            # recent baseline from one too old to read a delta against
+            data["qemu_img_info_at"] = int(read_at if read_at is not None else time())
         change = data
         if "status" in data:
             data["status_time"] = time()
@@ -983,17 +992,54 @@ class Storage(RethinkCustomBase):
 
     @classmethod
     def write_zeros(cls, storage_id, actual_size, reclaimable=None, result="ok"):
-        """Record a zero scan in ``health.checks.zeros``, never creating a row."""
+        """Record a zero scan in ``health.checks.zeros``, never creating a row. A
+        reclaimable figure above the allocated size cannot be real; clamp it so no
+        reader (web, sweep, priorities) ever trusts a stale over-count."""
+        size = int(actual_size or 0)
+        if reclaimable is not None:
+            reclaimable = max(0, min(int(reclaimable), size))
         value = {
             "at": int(time()),
             "result": result,
             "reclaimable_bytes": reclaimable,
-            "actual_size_at_scan": int(actual_size or 0),
+            "actual_size_at_scan": size,
         }
         with cls._rdb_context():
             r.table(cls._rdb_table).get(storage_id).update(
                 lambda row: cls._health(row, "zeros", value)
             ).run(cls._rdb_connection)
+
+    @classmethod
+    def _zeros_value_after_dig(cls, after):
+        """The ``health.checks.zeros`` a finished dig records: it gave back every
+        zero block it found, so nothing is left to reclaim; stamped, with the
+        post-dig allocated size."""
+        return {
+            "at": int(time()),
+            "result": "ok",
+            "reclaimable_bytes": 0,
+            "actual_size_at_scan": int(after or 0),
+        }
+
+    @classmethod
+    def apply_dig_result(cls, storage_id, after):
+        """Record a finished dig in ``health.checks.zeros``: nothing is left to
+        reclaim (see :meth:`_zeros_value_after_dig`), so the row stops advertising
+        a figure the dig already gave back. Only a row that already carries a zeros
+        check is touched; never creates a row."""
+        value = cls._zeros_value_after_dig(after)
+        with cls._rdb_context():
+
+            def change(row):
+                return r.branch(
+                    row["health"].default({})["checks"].default({}).has_fields("zeros"),
+                    cls._health(row, "zeros", value, replace=False),
+                    {},
+                )
+
+            r.table(cls._rdb_table).get(storage_id).update(change).run(
+                cls._rdb_connection
+            )
 
     @classmethod
     def write_check(cls, storage_id, damage_reason=None, leaks=0):
@@ -1279,11 +1325,43 @@ class Storage(RethinkCustomBase):
             domains=[(getattr(d, "kind", None), d.status) for d in domains],
             has_children=lambda: disk_actions.has_dependents(
                 self, include_deleted=entry.children_include_deleted
-            ),
+            )
+            or self._blocks_on_header_dependents(action),
             perms=self.perms if entry.refuse_read_only else None,
             has_parent=bool(self.parent) if entry.refuse_without_parent else None,
             storage_id=self.id,
         )
+
+    def _blocks_on_header_dependents(self, action):
+        """Whether the worker finds an on-disk qcow2-header child of this disk, or cannot answer (fail closed); memoised per instance."""
+        if "_header_dependents_block" in self.__dict__:
+            return self.__dict__["_header_dependents_block"]
+        from isardvdi_common.lib.storage.storage import StorageProcessed
+
+        result = StorageProcessed.scan_on_disk_dependents(
+            self.path, directory_path=self.directory_path
+        )
+        if not result["ok"]:
+            log.warning(
+                "storage %s: refusing %s, on-disk dependents could not be verified (%s)",
+                self.id,
+                action,
+                result.get("reason"),
+            )
+            block = True
+        elif result["unreadable"]:
+            log.warning(
+                "storage %s: refusing %s, %d unreadable qcow2 candidate(s) %s",
+                self.id,
+                action,
+                len(result["unreadable"]),
+                result["unreadable"][:3],
+            )
+            block = True
+        else:
+            block = bool(result["dependents"])
+        self.__dict__["_header_dependents_block"] = block
+        return block
 
     def guard(self, action, exclude_domains=None):
         """Raise the refusal the disk action registry gives ``action`` on this disk."""
@@ -1989,6 +2067,31 @@ class Storage(RethinkCustomBase):
             ],
         )
 
+    def descendants_all_stopped(self):
+        """Whether every transitive descendant of this disk -- by database parent
+        chain and by on-disk qcow2 header -- has all its domains stopped. Fails
+        closed when the on-disk header children cannot be read, so a dig is never
+        let through on a chain it could not verify."""
+        if any(
+            d.status in disk_actions.RUNNING
+            for d in self.domains_dependents(include_deleted=True)
+        ):
+            return False
+        from isardvdi_common.lib.storage.storage import StorageProcessed
+
+        scan = StorageProcessed.scan_on_disk_dependents(
+            self.path, directory_path=self.directory_path, transitive=True
+        )
+        if not scan["ok"] or scan["unreadable"]:
+            return False
+        for path in scan["dependents"]:
+            row = Storage.get_by_path(path)
+            if row is not None and any(
+                d.status in disk_actions.RUNNING for d in row.domains
+            ):
+                return False
+        return True
+
     def dig_holes(
         self,
         user_id,
@@ -1997,19 +2100,34 @@ class Storage(RethinkCustomBase):
         retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
         verify=False,
+        require_descendants_stopped=False,
     ):
         """Give back the all-zero blocks of a stopped desktop's leaf disk, a template's
         disk, or a base only templates use.
 
         A base its descendants read is always verified: the worker hashes it before
-        and after, and a mismatch leaves it damaged for an administrator.
+        and after, and a mismatch leaves it damaged for an administrator. With
+        ``require_descendants_stopped`` (the disk button and the bulk action, not
+        the nightly sweep) such a base is refused unless every descendant, by
+        database chain and by qcow2 header, is stopped.
         """
-        if disk_actions.is_base(
+        base_with_descendants = disk_actions.is_base(
             "dig_holes",
             [(getattr(d, "kind", None), d.status) for d in self.domains],
-            lambda: disk_actions.has_dependents(self, include_deleted=True),
-        ):
+            lambda: disk_actions.has_dependents(self, include_deleted=True)
+            or self._blocks_on_header_dependents("dig_holes"),
+        )
+        if base_with_descendants:
             verify = True
+            if require_descendants_stopped and not self.descendants_all_stopped():
+                from isardvdi_common.helpers.error_factory import Error
+
+                raise Error(
+                    "precondition_required",
+                    f"Storage {self.id} has descendants that are not stopped; stop "
+                    "every desktop derived from it before giving back its zero blocks",
+                    description_code="storage_descendants_not_stopped",
+                )
         queue_dig_holes = f"storage.{StoragePool.get_best_for_action('dig_holes', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
         queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
