@@ -355,8 +355,8 @@ class TestWithoutUnusedCredentials:
 #
 # Rewrites the raw engine-level status into the one the frontend cards
 # should display. Three rewrites:
-#   1. Any `Creating*` (except `CreatingAndStarting`) collapses to
-#      `Creating` — the frontend only shows one spinner.
+#   1. Any `Creating*` (except `CreatingAndStarting` and
+#      `CreatingTemplate`) collapses to `Creating`.
 #   2. `Started` without a viewer passwd is effectively still starting.
 #   3. `Started` with a wireguard interface but no guest_ip is
 #      "waiting for IP" — the direct-viewer can't open yet.
@@ -380,17 +380,18 @@ class TestParseFrontendDesktopStatus:
 
     @pytest.mark.parametrize(
         "raw",
-        ["CreatingTemplate", "CreatingFromScratch", "CreatingDiskFromScratch"],
+        ["CreatingFromScratch", "CreatingDiskFromScratch"],
     )
-    def test_any_creating_prefix_collapses_except_creating_and_starting(self, raw):
+    def test_any_other_creating_prefix_collapses(self, raw):
         d = self._desktop(raw)
         out = DesktopsProcessed.parse_frontend_desktop_status(d)
         assert out["status"] == DesktopStatusEnum.creating.value
 
-    def test_creating_and_starting_is_preserved(self):
-        d = self._desktop(DesktopStatusEnum.creating_and_starting.value)
+    @pytest.mark.parametrize("raw", ["CreatingAndStarting", "CreatingTemplate"])
+    def test_creating_statuses_with_their_own_text_are_preserved(self, raw):
+        d = self._desktop(raw)
         out = DesktopsProcessed.parse_frontend_desktop_status(d)
-        assert out["status"] == DesktopStatusEnum.creating_and_starting.value
+        assert out["status"] == raw
 
     def test_started_without_passwd_becomes_starting(self):
         d = self._desktop(DesktopStatusEnum.started.value, viewer={})

@@ -956,6 +956,7 @@ class Helpers(RethinkSharedConnection):
         frontend_desktop_status = [
             DesktopStatusEnum.creating.value,
             DesktopStatusEnum.creating_and_starting.value,
+            DesktopStatusEnum.creating_template.value,
             DesktopStatusEnum.shutting_down.value,
             DesktopStatusEnum.stopping.value,
             DesktopStatusEnum.stopped.value,

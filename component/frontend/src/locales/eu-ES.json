@@ -2259,6 +2259,9 @@
             "text": "Sortzen eta abiarazten",
             "action": "Sortzen eta abiarazten"
           },
+          "creatingtemplate": {
+            "text": "Txantiloia sortzen"
+          },
           "failed": {
             "text": "Huts eginda",
             "action": "Saiatu berriro"

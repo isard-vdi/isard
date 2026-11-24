@@ -2395,6 +2395,9 @@
             "text": "Creating and Starting",
             "action": "Creating and Starting"
           },
+          "creatingtemplate": {
+            "text": "Creating template"
+          },
           "failed": {
             "text": "Failed",
             "action": "Retry"

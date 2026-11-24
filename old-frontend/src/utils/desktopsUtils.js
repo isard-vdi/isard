@@ -60,8 +60,12 @@ export class DesktopUtils {
   }
 
   static parseState (item) {
-    const state = item.state || item.status
-    return this.getState(state)
+    return this.getState(this.desktopState(item.state || item.status))
+  }
+
+  // Only the templates list has a text for ``creatingtemplate``.
+  static desktopState (state) {
+    return (state || '').toLowerCase() === desktopStates.creatingTemplate ? desktopStates.creating : state
   }
 
   static parseTemplates (items) {
@@ -129,7 +133,7 @@ export class DesktopUtils {
   }
 
   static buttonIconName (item) {
-    const state = this.getState(item.state || item.status)
+    const state = this.parseState(item)
     if (!state) return status.stopped.icon
     if (item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip].includes(state.toLowerCase())) {
       return 'trash'
