@@ -60,3 +60,9 @@ AUTHENTICATION_TEST_SAML_CATEGORY_IDS=default
 NOTIFY_EMAIL=True
 BASTION_ENABLED=true
 BASTION_SSH_PORT=2222
+
+# ------ Storage pools ------------------------------------------------
+# The storage worker also serves two pools the integration suite creates
+# and deletes (test_storage_move_sparse_copy.py), so a disk can be moved
+# between pools and back. The default pool stays listed.
+CAPABILITIES_STORAGE_POOLS=00000000-0000-0000-0000-000000000000,ci-move-plain,ci-move-l2
