@@ -766,6 +766,73 @@ def test_dequeue_defers_maintenance_at_cap(tmp_path):
     assert "storage.p.maintenance" not in qc.calls[0]
 
 
+def test_dequeue_at_cap_keeps_reclaim_and_background(tmp_path):
+    # The heavy cap only bounds template/maintenance; a delete takes no slot, so
+    # a full cap must not hide it (a migration's moves left deletes waiting hours).
+    qc = _FakeQueueClass([(_Job("d1"), _Q("storage.p.reclaim"))])
+    w = _worker(
+        _FakeRedis({"a", "b"}),
+        _psi_file(tmp_path, "cpu", 1.0),
+        _psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+        queue_class=qc,
+    )
+    _JobClass.table = {"a": "started", "b": "started"}
+    w._ordered_queues = [
+        _Q("storage.p.template"),
+        _Q("storage.p.maintenance"),
+        _Q("storage.p.reclaim"),
+        _Q("storage.p.background"),
+    ]
+    # max_idle_time bounds the poll: with nothing it may serve, the loop would
+    # otherwise sleep forever instead of failing.
+    result = w.dequeue_job_and_maintain_ttl(10, max_idle_time=1)
+    assert result is not None
+    assert result[0].id == "d1"
+    assert qc.calls[0] == ["storage.p.reclaim", "storage.p.background"]
+
+
+def test_dequeue_under_pressure_still_defers_reclaim(tmp_path):
+    qc = _FakeQueueClass([(_Job("i1"), _Q("storage.p.interactive"))])
+    w = _worker(
+        _FakeRedis(),
+        _psi_file(tmp_path, "cpu", 99.0),
+        _psi_file(tmp_path, "io", 1.0),
+        queue_class=qc,
+    )
+    w._ordered_queues = [_Q("storage.p.reclaim"), _Q("storage.p.interactive")]
+    w.dequeue_job_and_maintain_ttl(10)
+    assert "storage.p.reclaim" not in qc.calls[0]
+
+
+def test_admit_flat_reclaim_at_cap_runs_without_a_heavy_slot(tmp_path):
+    r = _FakeRedis({"a", "b"})
+    w = _worker(
+        r,
+        _psi_file(tmp_path, "cpu", 1.0),
+        _psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+    )
+    q = _Q("storage.p.reclaim")
+    job = _Job("d1")
+    assert w._admit(job, q, defer_bg="at_cap") is True
+    assert q.pushed is None
+    assert not hasattr(job, "_gov_reserved")
+    assert r.scard(gw.HEAVY_RUNNING_KEY) == 2
+
+
+def test_admit_flat_maintenance_at_cap_is_pushed_back(tmp_path):
+    w = _worker(
+        _FakeRedis({"a", "b"}),
+        _psi_file(tmp_path, "cpu", 1.0),
+        _psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+    )
+    q = _Q("storage.p.maintenance")
+    assert w._admit(_Job("m1"), q, defer_bg="at_cap") is False
+    assert q.pushed == ("m1", True)
+
+
 def test_dequeue_single_queue_duplicated_to_dodge_intermediate_leak(tmp_path):
     # When the per-poll filtered set collapses to
     # ONE queue while the static set is larger, RQ's reliable-queue path would
@@ -1788,6 +1855,42 @@ def test_admit_maintenance_deferred_pushes_back():
     assert r.scard(gw.HEAVY_RUNNING_KEY) == 0
 
 
+def test_admit_fair_reclaim_at_cap_reserves_only_category(tmp_path):
+    r = _FakeRedis({"a", "b"})
+    w = _mt_worker(
+        r,
+        cpu_path=_psi_file(tmp_path, "cpu", 1.0),
+        io_path=_psi_file(tmp_path, "io", 1.0),
+        max_heavy=2,
+    )
+    job = _Job("d1")
+    assert w._admit(job, _Q("storage.P.catA.reclaim"), defer_bg="at_cap") is True
+    assert job._gov_reserved == ("fair", "P", "catA", False)
+    assert r.scard(gw.HEAVY_RUNNING_KEY) == 2
+
+
+def test_admit_fair_reclaim_under_pressure_pushes_back():
+    w = _mt_worker(_FakeRedis())
+    q = _Q("storage.P.catA.reclaim")
+    assert w._admit(_Job("d1"), q, defer_bg="psi") is False
+    assert q.pushed == ("d1", True)
+
+
+def test_fair_ordered_queues_at_cap_keeps_reclaim_lanes():
+    r = _FakeRedis()
+    for name in ("storage.P.catA.maintenance", "storage.P.catA.reclaim"):
+        r.sadd("rq:queues", f"rq:queue:{name}")
+        r.lpush(f"rq:queue:{name}", "j")
+    w = _mt_worker(r)
+    w.queue_class = _NameQueue
+    w._ordered_queues = _ordered(["storage.P.maintenance", "storage.P.reclaim"])
+    w._fair_targets = w._derive_fair_targets()
+    names = [q.name for q in w._fair_ordered_queues("at_cap")]
+    assert "storage.P.catA.maintenance" not in names
+    assert "storage.P.maintenance" not in names
+    assert names == ["storage.P.catA.reclaim", "storage.P.reclaim"]
+
+
 # --- push-back must keep the lane discoverable (lane-GC race) ---------------
 #
 # A job popped but not yet admitted is in NO list and NO registry, so a peer
@@ -2105,8 +2208,8 @@ def _psi_write(path, value):
 def test_defer_edge_counted_once_per_storm(tmp_path):
     r = _FakeRedis()
     w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
-    assert w._defer_background() is True
-    assert w._defer_background() is True  # same uninterrupted storm
+    assert w._defer_background() == "psi"
+    assert w._defer_background() == "psi"  # same uninterrupted storm
     doc = gcnt.read_defer(r)
     assert doc["total"] == 1
     assert doc["by_reason"] == {"psi": 1}
@@ -2130,7 +2233,7 @@ def test_defer_oscillation_counts_every_edge(tmp_path):
 def test_no_pressure_records_no_defer():
     r = _FakeRedis()
     w = _worker(r)
-    assert w._defer_background() is False
+    assert w._defer_background() is None
     assert gcnt.read_defer(r) == gcnt.empty_counters()
 
 
@@ -2138,7 +2241,7 @@ def test_heavy_cap_defer_is_counted_as_at_cap():
     r = _FakeRedis({"x"})
     _JobClass.table = {"x": "started"}  # genuine at-cap: the slot's job is live
     w = _worker(r, max_heavy=1)
-    assert w._defer_background() is True
+    assert w._defer_background() == "at_cap"
     assert gcnt.read_defer(r)["by_reason"] == {"at_cap": 1}
 
 
@@ -2146,7 +2249,7 @@ def test_floor_worker_never_counts_a_defer(tmp_path):
     r = _FakeRedis()
     w = _worker(r, _psi_file(tmp_path, "cpu", 99.0), _psi_file(tmp_path, "io", 1.0))
     w._floor = True  # the ungoverned bg-floor never defers, so nothing to count
-    assert w._defer_background() is False
+    assert w._defer_background() is None
     assert gcnt.read_defer(r)["total"] == 0
 
 
