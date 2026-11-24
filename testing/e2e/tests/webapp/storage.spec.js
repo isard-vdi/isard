@@ -771,6 +771,73 @@ test.describe('Admin Storage — webapp', () => {
     ).toHaveValue('none')
   })
 
+  // Scenario 9c — a global action lists the disks the server refused, grouped by reason
+  test('S9c: global action lists every disk the server refused, with the reason', async ({
+    authenticatedPage: page,
+    apiv4Admin,
+  }) => {
+    test.setTimeout(180000)
+    const parentId = await createStorageViaApi(apiv4Admin, { parent: '' })
+    test.skip(!parentId, 'could not create the parent storage in this env')
+    let childId = null
+    try {
+      test.skip(!(await waitStorageReadyViaApi(apiv4Admin, parentId)), 'parent never reached ready')
+      childId = await createStorageViaApi(apiv4Admin, { parent: parentId })
+      test.skip(!childId, 'could not create the derived storage in this env')
+      test.skip(!(await waitDerivativesViaApi(apiv4Admin, parentId, 1)), 'parent never got its child')
+
+      // The real server answers this one: a base with a child is refused, nothing is parked.
+      await page.unroute(/\/api\/v4\/items\/storage\/sparsify(\/|\?|$)/)
+      await gotoStorage(page)
+      await page.locator(`#storage tbody tr[id="${parentId}"]`).waitFor({ state: 'visible', timeout: 15000 })
+      await page.evaluate((id) => {
+        const t = $('#storage').DataTable()
+        const idCol = t.columns().header().toArray().findIndex((h) => h.textContent.trim() === 'Id')
+        t.column(idCol).search(`^${id}$`, true, false)
+        t.search(id).draw()
+      }, parentId)
+      await expect(page.locator('#storage tbody tr[id]')).toHaveCount(1)
+
+      await page.locator('.mactionsStorage[selectedTableId="storage"]').selectOption('sparsify')
+      await page
+        .locator('.ui-pnotify')
+        .filter({ hasText: /confirmation needed/i })
+        .last()
+        .waitFor({ state: 'visible', timeout: 10000 })
+      const sparsifyResp = page.waitForResponse(
+        (r) => /\/api\/v4\/items\/storage\/sparsify(\?|$)/.test(r.url()) && r.request().method() === 'PUT',
+        { timeout: 15000 },
+      )
+      await clickPnotifyOk(page)
+      const resp = await sparsifyResp
+      expect(resp.status(), 'the batch must answer with a body').toBe(200)
+      const body = await resp.json()
+      expect(body.queued).toBe(0)
+      expect(body.results).toEqual([
+        expect.objectContaining({ storage_id: parentId, task_id: null, description_code: 'storage_has_children' }),
+      ])
+
+      const report = page.locator('.ui-pnotify').filter({ hasText: /Action queued: sparsify/ })
+      await expect(report).toContainText('Queued on 0 of 1 disk(s).')
+      await expect(report).toContainText(
+        `1 refused: storage_has_children (${parentId}): ${body.results[0].message}`,
+      )
+    } finally {
+      await page.evaluate(() => $('#storage').DataTable().columns().search('').search('').draw()).catch(() => {})
+      if (childId) {
+        await deleteStorageViaApi(apiv4Admin, childId)
+        const deadline = Date.now() + 90000
+        while (Date.now() < deadline) {
+          const res = await adminStorageSearchInfo({ client: apiv4Admin, path: { storage_id: childId } }).catch(() => null)
+          const status = res?.data?.status
+          if (!status || status === 'deleted') break
+          await new Promise((r) => setTimeout(r, 1500))
+        }
+      }
+      await deleteStorageViaApi(apiv4Admin, parentId)
+    }
+  })
+
   // -------------------------------------------------------------------
   // Scenario 10 — Global action with no filter: text confirmation
   // -------------------------------------------------------------------
@@ -827,6 +894,13 @@ test.describe('Admin Storage — webapp', () => {
     await pnotify2.waitFor({ state: 'visible', timeout: 10000 })
     const textInput2 = pnotify2.locator('input[type="text"]')
     await textInput2.fill("I'm aware")
+    await page.route(/\/api\/v4\/items\/storage\/sparsify\/[^/?]+(\?|$)/, (route) =>
+      route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ready', accepted: 7 }),
+      }),
+    )
 
     const sparsifyResp = page.waitForResponse(
       (r) =>
@@ -836,10 +910,9 @@ test.describe('Admin Storage — webapp', () => {
     )
     await clickPnotifyOk(page)
     const resp = await sparsifyResp
-    // The bulk sparsify is stubbed in beforeEach (a real one would set_maintenance
-    // on every ready seed and corrupt shared state), so it always returns 200.
-    // This confirms the "I'm aware" phrase actually fired the bulk sparsify PUT.
-    expect(resp.status()).toBeLessThan(400)
+    expect(resp.status()).toBe(202)
+    const accepted = page.locator('.ui-pnotify').filter({ hasText: /Action accepted: sparsify/ })
+    await expect(accepted).toContainText('Queuing sparsify on 7 ready disk(s) in the background.')
   })
 
   // -------------------------------------------------------------------
@@ -1811,11 +1884,23 @@ test.describe('Admin Storage — webapp', () => {
   test('S27: Repair all pending leaks batch button fires the batch repair', async ({
     authenticatedPage: page,
   }) => {
+    // Stubbed in the route's own shape: a real run repairs whatever disk on the stack carries the mark.
     await page.route(/\/api\/v4\/items\/storage\/repair\/leaks(\?|$)/, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ queued: 3 }),
+        body: JSON.stringify({
+          queued: 1,
+          results: [
+            { storage_id: 'e2e-leaky-1', task_id: 'e2e-repair' },
+            {
+              storage_id: 'e2e-leaky-base',
+              task_id: null,
+              description_code: 'storage_has_children',
+              message: 'has children storages',
+            },
+          ],
+        }),
       }),
     )
     await gotoStorage(page)
@@ -1827,6 +1912,9 @@ test.describe('Admin Storage — webapp', () => {
     await clickPnotifyOk(page)
     const req = await batchReq
     expect(req.method()).toBe('PUT')
+    const report = page.locator('.ui-pnotify').filter({ hasText: /Repair queued/ })
+    await expect(report).toContainText('Queued on 1 of 2 disk(s).')
+    await expect(report).toContainText('1 refused: storage_has_children (e2e-leaky-base): has children storages')
   })
 
   test('S27b: Repair all pending leaks Cancel fires no batch call', async ({
