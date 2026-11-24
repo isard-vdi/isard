@@ -226,6 +226,30 @@ class TestCreateMediaUrlProbe:
         retry_headers = mock_get.call_args_list[1].kwargs.get("headers") or {}
         assert "Mozilla" in retry_headers.get("User-Agent", "")
 
+    @patch("isardvdi_common.helpers.url_validation.validate_url_not_internal")
+    @patch("api.services.media.requests.get")
+    def test_a_refused_probe_logs_the_upstream_status(
+        self, mock_get, _validate, caplog
+    ):
+        throttled = self._make_response(status_code=429)
+        throttled.headers["Retry-After"] = "60"
+        mock_get.side_effect = [self._make_response(status_code=429), throttled]
+        with caplog.at_level("WARNING", logger="api.services.media"):
+            with pytest.raises(Error):
+                MediaService.create_media(self._media_data(), self._PAYLOAD)
+        assert "HTTP 429 (Retry-After 60)" in caplog.text
+
+    @patch("isardvdi_common.helpers.url_validation.validate_url_not_internal")
+    @patch("api.services.media.requests.get")
+    def test_an_unreachable_probe_logs_the_exception_class(
+        self, mock_get, _validate, caplog
+    ):
+        mock_get.side_effect = requests.ConnectionError("name resolution failed")
+        with caplog.at_level("WARNING", logger="api.services.media"):
+            with pytest.raises(Error):
+                MediaService.create_media(self._media_data(), self._PAYLOAD)
+        assert "unreachable: ConnectionError" in caplog.text
+
 
 class TestStartMediaDownload:
     """A restart must download from the URL the row actually stores.

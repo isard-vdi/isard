@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import os
 import re
 from urllib.parse import quote, urlparse
@@ -36,6 +37,8 @@ from isardvdi_common.models.media import Media as RethinkMedia
 from isardvdi_common.models.task import Task
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.schemas.media import MediaStatusEnum
+
+log = logging.getLogger(__name__)
 
 # When True, the storage download_url task passes ``-k`` to curl.
 # The legacy engine path hardcoded this to True; we default to the
@@ -327,6 +330,12 @@ class MediaService:
                 )
             if probe.status_code >= 400:
                 probe.close()
+                log.warning(
+                    "media URL host %s refused the probe: HTTP %s (Retry-After %s)",
+                    url.hostname,
+                    probe.status_code,
+                    probe.headers.get("Retry-After"),
+                )
                 raise Error(
                     "bad_request",
                     "The URL is not valid or accessible.",
@@ -336,7 +345,10 @@ class MediaService:
             probe.close()
         except Error:
             raise
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            log.warning(
+                "media URL host %s unreachable: %s", url.hostname, type(exc).__name__
+            )
             raise Error(
                 "bad_request",
                 "The URL is not valid or accessible.",
