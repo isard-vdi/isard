@@ -29,11 +29,11 @@ type SessionTime struct {
 	ExpirationTime time.Time `json:"expiration_time"`
 }
 
-func NewSession(ctx context.Context, db redis.UniversalClient, userID, RemoteAddr string, time *SessionTime) (*Session, error) {
+func NewSession(ctx context.Context, db redis.UniversalClient, userID, remoteAddr string, time *SessionTime) (*Session, error) {
 	s := &Session{
 		ID:         uuid.NewString(),
 		UserID:     userID,
-		RemoteAddr: RemoteAddr,
+		RemoteAddr: remoteAddr,
 		Time:       time,
 	}
 

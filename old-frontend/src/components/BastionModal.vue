@@ -54,7 +54,7 @@
         >
           <b-form-input
             readonly
-            :value="httpUrl"
+            :value="hostToUnicode(httpUrl)"
           />
           <b-input-group-append>
             <b-button
@@ -90,7 +90,7 @@
         >
           <b-form-input
             readonly
-            :value="httpsUrl"
+            :value="hostToUnicode(httpsUrl)"
           />
           <b-input-group-append>
             <b-button
@@ -326,6 +326,7 @@
 import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 import { invalidAuthorizedKeyLines } from '@/utils/sshKeys'
+import { hostToUnicode } from '@/utils/hostName'
 
 export default {
   setup (_, context) {
@@ -398,14 +399,14 @@ export default {
     }
 
     // Track saved domains (from server) and local domain list
-    const savedDomains = ref(new Set(modal.value.bastion.domains || []))
-    const domainNames = ref([...(modal.value.bastion.domains || [])])
+    const savedDomains = ref(new Set((modal.value.bastion.domains || []).map(hostToUnicode)))
+    const domainNames = ref((modal.value.bastion.domains || []).map(hostToUnicode))
     // Track verification status per index: 'pending', 'verifying', 'verified', 'failed'
     const domainStatuses = ref({})
 
     watch(() => modal.value.bastion.domains, (newValue) => {
-      savedDomains.value = new Set(newValue || [])
-      domainNames.value = [...(newValue || [])]
+      savedDomains.value = new Set((newValue || []).map(hostToUnicode))
+      domainNames.value = (newValue || []).map(hostToUnicode)
       domainStatuses.value = {}
     })
 
@@ -486,6 +487,7 @@ export default {
     })
 
     return {
+      hostToUnicode,
       modal,
       closeModal,
       sshUrl,

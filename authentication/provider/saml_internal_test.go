@@ -5,21 +5,18 @@ import (
 	"compress/flate"
 	"context"
 	"crypto"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/pem"
 	"io"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,103 +24,38 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	pkgTls "gitlab.com/isard/isardvdi/pkg/tls"
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func generateTestCert(t *testing.T, dir string) (certPath, keyPath string) {
-	t.Helper()
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "test"},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	require.NoError(t, err)
-
-	certPath = filepath.Join(dir, "cert.pem")
-	certFile, err := os.Create(certPath)
-	require.NoError(t, err)
-	require.NoError(t, pem.Encode(certFile, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
-	require.NoError(t, certFile.Close())
-
-	keyPath = filepath.Join(dir, "key.pem")
-	keyFile, err := os.Create(keyPath)
-	require.NoError(t, err)
-	require.NoError(t, pem.Encode(keyFile, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	}))
-	require.NoError(t, keyFile.Close())
-
-	return certPath, keyPath
-}
-
-const testSAMLMetadata = `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
-  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
-  </md:IDPSSODescriptor>
-</md:EntityDescriptor>`
-
-const testSAMLMetadataWithSLO = `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
-  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
-    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/slo"/>
-  </md:IDPSSODescriptor>
-</md:EntityDescriptor>`
-
-func prepareSAMLFiles(t *testing.T) (certPath, keyPath, metadataPath string) {
-	t.Helper()
-
-	dir := t.TempDir()
-	certPath, keyPath = generateTestCert(t, dir)
-
-	metadataPath = filepath.Join(dir, "metadata.xml")
-	require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadata), 0644))
-
-	return certPath, keyPath, metadataPath
-}
 
 func TestSAMLLoadConfig(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
 
-	nopLog := zerolog.Nop()
-
 	type expected struct {
-		Err string
-		Cfg *SAMLConfig
+		Err           string
+		Cfg           *SAMLConfig
+		MaxIssueDelay time.Duration
 	}
 
-	tlsFallbackServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xml")
-		w.Write([]byte(testSAMLMetadata))
-	}))
-	t.Cleanup(tlsFallbackServer.Close)
-
 	cases := map[string]struct {
-		Input         func(certPath, keyPath, metadataPath string) model.SAMLConfig
-		NeedTLS       bool
-		ValidateURL   func(string) error
-		CategoryID    *string
-		BrandingHosts map[string]string
-		Expected      expected
+		PreviousInput             func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig
+		Input                     func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig
+		NeedTLS                   bool
+		ValidateURL               func(string) error
+		CategoryID                *string
+		BrandingHosts             map[string]string
+		SkippedBrandingCategories []string
+		Expected                  expected
 	}{
 		"should load config with all fields from local metadata file": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile:    metadataPath,
 					EntityID:        "https://sp.example.com",
@@ -196,11 +128,30 @@ func TestSAMLLoadConfig(t *testing.T) {
 
 					SaveEmail: true,
 				},
+				MaxIssueDelay: 5 * time.Minute,
 			},
+		},
+		"should use the library default max issue delay if it is negative": {
+			NeedTLS: true,
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile:  metadataPath,
+					KeyFile:       keyPath,
+					CertFile:      certPath,
+					MaxIssueDelay: db.Duration(-time.Second),
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{}},
 		},
 		"should return error when neither metadata file nor URL is configured": {
 			NeedTLS: false,
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				return model.SAMLConfig{}
 			},
 			Expected: expected{
@@ -209,7 +160,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid UID regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: "[invalid",
@@ -219,7 +170,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid username regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: "[invalid",
@@ -229,7 +180,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid name regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: "[invalid",
@@ -239,7 +190,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid email regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -250,7 +201,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid photo regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -261,7 +212,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid category regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -273,7 +224,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid group regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -285,7 +236,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid role regex": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -297,7 +248,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should set ReCategory to nil when GuessCategory is false": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -309,7 +260,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should compile ReCategory when GuessCategory is true": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -321,7 +272,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should set ReGroup and ReRole to nil when AutoRegister is false": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -333,7 +284,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should compile ReGroup and ReRole when AutoRegister is true": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath, KeyFile: keyPath, CertFile: certPath,
 					RegexUID: ".*", RegexUsername: ".*", RegexName: ".*",
@@ -345,10 +296,15 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error when key pair cannot be generated": {
 			NeedTLS: false,
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				dir := t.TempDir()
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
 				metadataPath := filepath.Join(dir, "metadata.xml")
-				require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadata), 0644))
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 
 				return model.SAMLConfig{
 					MetadataFile: metadataPath,
@@ -360,10 +316,15 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should auto-generate key pair when files are missing": {
 			NeedTLS: false,
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				dir := t.TempDir()
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
 				metadataPath := filepath.Join(dir, "metadata.xml")
-				require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadata), 0644))
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 
 				return model.SAMLConfig{
 					MetadataFile:  metadataPath,
@@ -381,7 +342,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should fallback to URL when metadata file has invalid XML": {
 			NeedTLS:     false,
 			ValidateURL: func(string) error { return nil },
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				dir := t.TempDir()
 				invalidMetadata := filepath.Join(dir, "bad.xml")
 				require.NoError(t, os.WriteFile(invalidMetadata, []byte("not xml"), 0644))
@@ -396,7 +357,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should fallback to URL when metadata file does not exist": {
 			NeedTLS:     false,
 			ValidateURL: func(string) error { return nil },
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: "/nonexistent/metadata.xml",
 					MetadataURL:  "https://idp.example.com/metadata",
@@ -406,7 +367,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should return error for invalid metadata URL": {
 			NeedTLS: false,
-			Input: func(_, _, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, _, _, _ string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataURL: "://invalid-url",
 				}
@@ -416,10 +377,20 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should fallback to URL and load config when metadata file does not exist": {
 			NeedTLS:     true,
 			ValidateURL: func(string) error { return nil },
-			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, _ string) model.SAMLConfig {
+				idp := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/xml")
+					w.Write([]byte(`<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`))
+				}))
+				t.Cleanup(idp.Close)
+
 				return model.SAMLConfig{
 					MetadataFile:    "/nonexistent/metadata.xml",
-					MetadataURL:     tlsFallbackServer.URL,
+					MetadataURL:     idp.URL,
 					EntityID:        "https://sp.example.com",
 					SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
 					KeyFile:         keyPath,
@@ -492,15 +463,83 @@ func TestSAMLLoadConfig(t *testing.T) {
 
 					SaveEmail: true,
 				},
+				MaxIssueDelay: 5 * time.Minute,
 			},
 		},
 		"should fail to fetch metadata from self-signed URL when allow_insecure_tls is false": {
 			NeedTLS:     true,
 			ValidateURL: func(string) error { return nil },
-			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, _ string) model.SAMLConfig {
+				idp := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/xml")
+					w.Write([]byte(`<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`))
+				}))
+				t.Cleanup(idp.Close)
+
 				return model.SAMLConfig{
 					MetadataFile: "/nonexistent/metadata.xml",
-					MetadataURL:  tlsFallbackServer.URL,
+					MetadataURL:  idp.URL,
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+
+					AllowInsecureTLS: false,
+				}
+			},
+			Expected: expected{Err: "fetch metadata from URL failed"},
+		},
+		"should fail to fetch metadata from self-signed URL when allow_insecure_tls is turned off": {
+			NeedTLS:     true,
+			ValidateURL: func(string) error { return nil },
+			PreviousInput: func(t *testing.T, certPath, keyPath, _ string) model.SAMLConfig {
+				idp := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/xml")
+					w.Write([]byte(`<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`))
+				}))
+				t.Cleanup(idp.Close)
+
+				return model.SAMLConfig{
+					MetadataFile: "/nonexistent/metadata.xml",
+					MetadataURL:  idp.URL,
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+
+					AllowInsecureTLS: true,
+				}
+			},
+			Input: func(t *testing.T, certPath, keyPath, _ string) model.SAMLConfig {
+				idp := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/xml")
+					w.Write([]byte(`<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`))
+				}))
+				t.Cleanup(idp.Close)
+
+				return model.SAMLConfig{
+					MetadataFile: "/nonexistent/metadata.xml",
+					MetadataURL:  idp.URL,
 					KeyFile:      keyPath,
 					CertFile:     certPath,
 
@@ -518,7 +557,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should use category-specific SAML endpoint paths when categoryID is set": {
 			NeedTLS:    true,
 			CategoryID: strPtr("my-category"),
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath,
 					EntityID:     "https://sp.example.com",
@@ -538,7 +577,35 @@ func TestSAMLLoadConfig(t *testing.T) {
 			NeedTLS:       true,
 			CategoryID:    strPtr("my-category"),
 			BrandingHosts: map[string]string{"my-category": "branding.example.com"},
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile:  metadataPath,
+					EntityID:      "https://sp.example.com",
+					KeyFile:       keyPath,
+					CertFile:      certPath,
+					MaxIssueDelay: db.Duration(5 * time.Minute),
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{
+				Cfg:           &SAMLConfig{},
+				MaxIssueDelay: 5 * time.Minute,
+			},
+		},
+		"should skip a branding host if its middleware cannot be built": {
+			NeedTLS:    true,
+			CategoryID: strPtr("my-category"),
+			BrandingHosts: map[string]string{
+				"my-category":    "branding.example.com",
+				"other-category": "bad name.example.com",
+			},
+			SkippedBrandingCategories: []string{"other-category"},
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath,
 					EntityID:     "https://sp.example.com",
@@ -557,7 +624,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should not create branding middleware when branding host is nil": {
 			NeedTLS:    true,
 			CategoryID: strPtr("my-category"),
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath,
 					EntityID:     "https://sp.example.com",
@@ -575,7 +642,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should cache the model config after successful load": {
 			NeedTLS: true,
-			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+			Input: func(t *testing.T, certPath, keyPath, metadataPath string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: metadataPath,
 					KeyFile:      keyPath,
@@ -595,12 +662,26 @@ func TestSAMLLoadConfig(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// NOTE: not parallel because LoadConfig writes to the
-			// package-level saml.MaxIssueDelay global variable.
+			t.Parallel()
 
-			var certPath, keyPath, metadataPath string
+			var certPath string
+			var keyPath string
+			var metadataPath string
 			if tc.NeedTLS {
-				certPath, keyPath, metadataPath = prepareSAMLFiles(t)
+				dir := t.TempDir()
+
+				certPath = filepath.Join(dir, "cert.pem")
+				keyPath = filepath.Join(dir, "key.pem")
+				certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+				require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+				metadataPath = filepath.Join(dir, "metadata.xml")
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 			}
 
 			brandingHosts := tc.BrandingHosts
@@ -617,16 +698,24 @@ func TestSAMLLoadConfig(t *testing.T) {
 				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 				host:          "sp.example.com",
 				categoryID:    tc.CategoryID,
-				log:           &nopLog,
+				log:           log.New("test", "debug"),
 				validateURL:   validateURL,
 				brandingHosts: brandingHosts,
 			}
 
-			input := tc.Input(certPath, keyPath, metadataPath)
-			err := s.LoadConfig(context.Background(), input)
+			if tc.PreviousInput != nil {
+				prvInput := tc.PreviousInput(t, certPath, keyPath, metadataPath)
+				require.NoError(t, s.LoadConfig(t.Context(), prvInput))
+			}
+
+			prvCfg := s.cfg.Cfg()
+
+			input := tc.Input(t, certPath, keyPath, metadataPath)
+			err := s.LoadConfig(t.Context(), input)
 
 			if tc.Expected.Err != "" {
 				assert.ErrorContains(err, tc.Expected.Err)
+				assert.Equal(prvCfg, s.cfg.Cfg())
 				return
 			}
 
@@ -634,6 +723,10 @@ func TestSAMLLoadConfig(t *testing.T) {
 
 			cfg := s.cfg.Cfg()
 			exp := tc.Expected.Cfg
+
+			require.NotNil(t, cfg.Middleware)
+			assert.Equal(tc.Expected.MaxIssueDelay, cfg.Middleware.ServiceProvider.MaxIssueDelay)
+			assert.Equal(90*time.Second, saml.MaxIssueDelay)
 
 			if input.EntityID != "" {
 				assert.NotNil(cfg.Middleware)
@@ -712,9 +805,17 @@ func TestSAMLLoadConfig(t *testing.T) {
 			// Branding middleware assertions.
 			if len(tc.BrandingHosts) > 0 {
 				for catID, bHost := range tc.BrandingHosts {
+					if slices.Contains(tc.SkippedBrandingCategories, catID) {
+						assert.NotContains(cfg.BrandingMiddlewares, catID)
+						assert.NotContains(cfg.BrandingHosts, catID)
+
+						continue
+					}
+
 					assert.Contains(cfg.BrandingMiddlewares, catID)
 					assert.NotNil(cfg.BrandingMiddlewares[catID])
 					assert.Equal(bHost, cfg.BrandingHosts[catID])
+					assert.Equal(tc.Expected.MaxIssueDelay, cfg.BrandingMiddlewares[catID].ServiceProvider.MaxIssueDelay)
 
 					// Verify branding middleware uses the branding host.
 					brandingACS := cfg.BrandingMiddlewares[catID].ServiceProvider.AcsURL.String()
@@ -731,9 +832,8 @@ func TestSAMLLoadConfig(t *testing.T) {
 			s.brandingMux.RUnlock()
 
 			// InsecureSkipVerify tracks AllowInsecureTLS.
-			assert.NotNil(s.httpClient)
-			require.NotNil(t, s.httpClient.Transport)
-			tr, ok := s.httpClient.Transport.(*http.Transport)
+			require.NotNil(t, cfg.HTTPClient)
+			tr, ok := cfg.HTTPClient.Transport.(*http.Transport)
 			require.True(t, ok, "httpClient.Transport should be *http.Transport")
 			if input.AllowInsecureTLS {
 				require.NotNil(t, tr.TLSClientConfig)
@@ -838,8 +938,6 @@ func TestSAMLAutoRegister(t *testing.T) {
 
 	assert := assert.New(t)
 
-	nopLog := zerolog.Nop()
-
 	cases := map[string]struct {
 		Cfg      SAMLConfig
 		User     *model.User
@@ -883,7 +981,7 @@ func TestSAMLAutoRegister(t *testing.T) {
 
 			s := &SAML{
 				cfg: &cfgManager[SAMLConfig]{cfg: &tc.Cfg},
-				log: &nopLog,
+				log: log.New("test", "debug"),
 			}
 
 			assert.Equal(tc.Expected, s.AutoRegister(tc.User))
@@ -938,10 +1036,20 @@ func TestSAMLLogout(t *testing.T) {
 		"should work as expected": {
 			PrepareSAML: func(t *testing.T) *SAML {
 				dir := t.TempDir()
-				certPath, keyPath := generateTestCert(t, dir)
 
+				certPath := filepath.Join(dir, "cert.pem")
+				keyPath := filepath.Join(dir, "key.pem")
+				certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+				require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/slo"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
 				metadataPath := filepath.Join(dir, "metadata.xml")
-				require.NoError(t, os.WriteFile(metadataPath, []byte(testSAMLMetadataWithSLO), 0644))
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 
 				s := &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
@@ -983,6 +1091,11 @@ func TestSAMLLogout(t *testing.T) {
 				require.NoError(t, mw.Session.CreateSession(rec, req, assertion))
 
 				for _, c := range rec.Result().Cookies() {
+					// A browser drops the expired cookie that clears the legacy domain cookie.
+					if !c.Expires.IsZero() && c.Expires.Before(time.Now()) {
+						continue
+					}
+
 					req.AddCookie(c)
 				}
 
@@ -1116,27 +1229,12 @@ func TestSAMLGuessRole(t *testing.T) {
 }
 
 func TestSAMLSetBrandingHost(t *testing.T) {
-	// NOTE: not parallel because LoadConfig writes to the
-	// package-level saml.MaxIssueDelay global variable.
+	t.Parallel()
 
 	assert := assert.New(t)
 
-	nopLog := zerolog.Nop()
-	certPath, keyPath, metadataPath := prepareSAMLFiles(t)
-
-	cachedCfg := &model.SAMLConfig{
-		MetadataFile:  metadataPath,
-		KeyFile:       keyPath,
-		CertFile:      certPath,
-		RegexUID:      ".*",
-		RegexUsername: ".*",
-		RegexName:     ".*",
-		RegexEmail:    ".*",
-		RegexPhoto:    ".*",
-	}
-
 	cases := map[string]struct {
-		PrepareProvider    func() *SAML
+		PrepareProvider    func(certPath, keyPath, metadataPath string) *SAML
 		CategoryID         string
 		Host               *string
 		ExpectedHosts      map[string]string
@@ -1144,13 +1242,22 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 		ExpectReload       bool
 	}{
 		"should store host and reload when config is cached": {
-			PrepareProvider: func() *SAML {
+			PrepareProvider: func(certPath, keyPath, metadataPath string) *SAML {
 				return &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 					host:          "sp.example.com",
-					log:           &nopLog,
+					log:           log.New("test", "debug"),
 					brandingHosts: map[string]string{},
-					lastModelCfg:  cachedCfg,
+					lastModelCfg: &model.SAMLConfig{
+						MetadataFile:  metadataPath,
+						KeyFile:       keyPath,
+						CertFile:      certPath,
+						RegexUID:      ".*",
+						RegexUsername: ".*",
+						RegexName:     ".*",
+						RegexEmail:    ".*",
+						RegexPhoto:    ".*",
+					},
 				}
 			},
 			CategoryID:         "cat1",
@@ -1160,11 +1267,11 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 			ExpectReload:       true,
 		},
 		"should store host without reload when no config is cached": {
-			PrepareProvider: func() *SAML {
+			PrepareProvider: func(certPath, keyPath, metadataPath string) *SAML {
 				return &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 					host:          "sp.example.com",
-					log:           &nopLog,
+					log:           log.New("test", "debug"),
 					brandingHosts: map[string]string{},
 				}
 			},
@@ -1174,13 +1281,22 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 			ExpectReload:  false,
 		},
 		"should clear branding when host is nil and config is cached": {
-			PrepareProvider: func() *SAML {
+			PrepareProvider: func(certPath, keyPath, metadataPath string) *SAML {
 				return &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 					host:          "sp.example.com",
-					log:           &nopLog,
+					log:           log.New("test", "debug"),
 					brandingHosts: map[string]string{"cat1": "old.example.com"},
-					lastModelCfg:  cachedCfg,
+					lastModelCfg: &model.SAMLConfig{
+						MetadataFile:  metadataPath,
+						KeyFile:       keyPath,
+						CertFile:      certPath,
+						RegexUID:      ".*",
+						RegexUsername: ".*",
+						RegexName:     ".*",
+						RegexEmail:    ".*",
+						RegexPhoto:    ".*",
+					},
 				}
 			},
 			CategoryID:    "cat1",
@@ -1189,13 +1305,22 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 			ExpectReload:  true,
 		},
 		"should not affect other categories when setting host": {
-			PrepareProvider: func() *SAML {
+			PrepareProvider: func(certPath, keyPath, metadataPath string) *SAML {
 				return &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 					host:          "sp.example.com",
-					log:           &nopLog,
+					log:           log.New("test", "debug"),
 					brandingHosts: map[string]string{"other": "other.example.com"},
-					lastModelCfg:  cachedCfg,
+					lastModelCfg: &model.SAMLConfig{
+						MetadataFile:  metadataPath,
+						KeyFile:       keyPath,
+						CertFile:      certPath,
+						RegexUID:      ".*",
+						RegexUsername: ".*",
+						RegexName:     ".*",
+						RegexEmail:    ".*",
+						RegexPhoto:    ".*",
+					},
 				}
 			},
 			CategoryID:         "cat1",
@@ -1205,13 +1330,22 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 			ExpectReload:       true,
 		},
 		"should not affect other categories when clearing host": {
-			PrepareProvider: func() *SAML {
+			PrepareProvider: func(certPath, keyPath, metadataPath string) *SAML {
 				return &SAML{
 					cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 					host:          "sp.example.com",
-					log:           &nopLog,
+					log:           log.New("test", "debug"),
 					brandingHosts: map[string]string{"other": "other.example.com", "cat1": "old.example.com"},
-					lastModelCfg:  cachedCfg,
+					lastModelCfg: &model.SAMLConfig{
+						MetadataFile:  metadataPath,
+						KeyFile:       keyPath,
+						CertFile:      certPath,
+						RegexUID:      ".*",
+						RegexUsername: ".*",
+						RegexName:     ".*",
+						RegexEmail:    ".*",
+						RegexPhoto:    ".*",
+					},
 				}
 			},
 			CategoryID:         "cat1",
@@ -1224,10 +1358,24 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// NOTE: not parallel because LoadConfig writes to the
-			// package-level saml.MaxIssueDelay global variable.
+			t.Parallel()
 
-			s := tc.PrepareProvider()
+			dir := t.TempDir()
+
+			certPath := filepath.Join(dir, "cert.pem")
+			keyPath := filepath.Join(dir, "key.pem")
+			certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+			require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+			metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+			metadataPath := filepath.Join(dir, "metadata.xml")
+			require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
+
+			s := tc.PrepareProvider(certPath, keyPath, metadataPath)
 
 			err := s.SetBrandingHost(t.Context(), tc.CategoryID, tc.Host)
 			assert.NoError(err)
@@ -1250,24 +1398,9 @@ func TestSAMLSetBrandingHost(t *testing.T) {
 }
 
 func TestSAMLMiddleware(t *testing.T) {
-	// NOTE: not parallel because LoadConfig writes to the
-	// package-level saml.MaxIssueDelay global variable.
+	t.Parallel()
 
 	assert := assert.New(t)
-
-	nopLog := zerolog.Nop()
-	certPath, keyPath, metadataPath := prepareSAMLFiles(t)
-
-	baseCfg := model.SAMLConfig{
-		MetadataFile:  metadataPath,
-		KeyFile:       keyPath,
-		CertFile:      certPath,
-		RegexUID:      ".*",
-		RegexUsername: ".*",
-		RegexName:     ".*",
-		RegexEmail:    ".*",
-		RegexPhoto:    ".*",
-	}
 
 	cases := map[string]struct {
 		BrandingHosts      map[string]string
@@ -1306,17 +1439,42 @@ func TestSAMLMiddleware(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// NOTE: not parallel because LoadConfig writes to the
-			// package-level saml.MaxIssueDelay global variable.
+			t.Parallel()
+
+			dir := t.TempDir()
+
+			certPath := filepath.Join(dir, "cert.pem")
+			keyPath := filepath.Join(dir, "key.pem")
+			certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+			require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+			metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+			metadataPath := filepath.Join(dir, "metadata.xml")
+			require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 
 			s := &SAML{
 				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 				host:          "sp.example.com",
-				log:           &nopLog,
+				log:           log.New("test", "debug"),
 				brandingHosts: tc.BrandingHosts,
 			}
 
-			err := s.LoadConfig(t.Context(), baseCfg)
+			input := model.SAMLConfig{
+				MetadataFile:  metadataPath,
+				KeyFile:       keyPath,
+				CertFile:      certPath,
+				RegexUID:      ".*",
+				RegexUsername: ".*",
+				RegexName:     ".*",
+				RegexEmail:    ".*",
+				RegexPhoto:    ".*",
+			}
+
+			err := s.LoadConfig(t.Context(), input)
 			assert.NoError(err)
 
 			mw := s.Middleware(tc.RequestHost)
@@ -1332,71 +1490,97 @@ func TestSAMLMiddleware(t *testing.T) {
 	}
 }
 
-func TestSAMLLoadConfigTogglesInsecureTransport(t *testing.T) {
-	// NOTE: not parallel because LoadConfig writes to the
-	// package-level saml.MaxIssueDelay global variable.
-
-	nopLog := zerolog.Nop()
-	certPath, keyPath, _ := prepareSAMLFiles(t)
-
-	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xml")
-		w.Write([]byte(testSAMLMetadata))
-	}))
-	t.Cleanup(tlsServer.Close)
-
-	s := &SAML{
-		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-		host:          "sp.example.com",
-		log:           &nopLog,
-		validateURL:   func(string) error { return nil },
-		brandingHosts: map[string]string{},
-	}
-
-	base := model.SAMLConfig{
-		MetadataFile:  "/nonexistent/metadata.xml",
-		MetadataURL:   tlsServer.URL,
-		KeyFile:       keyPath,
-		CertFile:      certPath,
-		RegexUID:      ".*",
-		RegexUsername: ".*",
-		RegexName:     ".*",
-		RegexEmail:    ".*",
-		RegexPhoto:    ".*",
-	}
-
-	// First load: flag ON — must succeed and install insecure transport.
-	onCfg := base
-	onCfg.AllowInsecureTLS = true
-	require.NoError(t, s.LoadConfig(context.Background(), onCfg))
-	require.NotNil(t, s.httpClient)
-	require.NotNil(t, s.httpClient.Transport)
-	tr, ok := s.httpClient.Transport.(*http.Transport)
-	require.True(t, ok)
-	assert.True(t, tr.TLSClientConfig.InsecureSkipVerify)
-
-	// Second load: flag OFF — InsecureSkipVerify must be cleared and the fetch
-	// must fail against the self-signed server.
-	offCfg := base
-	offCfg.AllowInsecureTLS = false
-	err := s.LoadConfig(context.Background(), offCfg)
-	assert.ErrorContains(t, err, "fetch metadata from URL failed")
-	require.NotNil(t, s.httpClient)
-	tr, ok = s.httpClient.Transport.(*http.Transport)
-	require.True(t, ok)
-	if tr.TLSClientConfig != nil {
-		assert.False(t, tr.TLSClientConfig.InsecureSkipVerify)
-	}
-}
-
 func TestSAMLHealthcheck(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
 
 	cases := map[string]struct {
+		PrepareSAML func(*testing.T) *SAML
+		Reload      bool
 		ExpectedErr error
 	}{
+		"should work as expected": {
+			PrepareSAML: func(t *testing.T) *SAML {
+				handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+				idp := httptest.NewTLSServer(handler)
+				t.Cleanup(idp.Close)
+
+				dir := t.TempDir()
+
+				certPath := filepath.Join(dir, "cert.pem")
+				keyPath := filepath.Join(dir, "key.pem")
+				certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+				require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="` + idp.URL + `/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+				metadataPath := filepath.Join(dir, "metadata.xml")
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
+
+				s := InitSAML("", "sp.example.com", nil, log.New("test", "debug"), nil)
+
+				cfg := model.SAMLConfig{
+					MetadataFile:     metadataPath,
+					KeyFile:          keyPath,
+					CertFile:         certPath,
+					AllowInsecureTLS: true,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+				require.NoError(t, s.LoadConfig(t.Context(), cfg))
+
+				return s
+			},
+		},
+		"should work as expected if the configuration reloads at the same time": {
+			PrepareSAML: func(t *testing.T) *SAML {
+				handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+				idp := httptest.NewTLSServer(handler)
+				t.Cleanup(idp.Close)
+
+				dir := t.TempDir()
+
+				certPath := filepath.Join(dir, "cert.pem")
+				keyPath := filepath.Join(dir, "key.pem")
+				certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+				require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+				metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="` + idp.URL + `/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+				metadataPath := filepath.Join(dir, "metadata.xml")
+				require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
+
+				s := InitSAML("", "sp.example.com", nil, log.New("test", "debug"), nil)
+
+				cfg := model.SAMLConfig{
+					MetadataFile:     metadataPath,
+					KeyFile:          keyPath,
+					CertFile:         certPath,
+					AllowInsecureTLS: true,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+				require.NoError(t, s.LoadConfig(t.Context(), cfg))
+
+				return s
+			},
+			Reload: true,
+		},
 		"should return an error if the configuration has never been loaded": {
 			ExpectedErr: ErrNotConfigured,
 		},
@@ -1406,9 +1590,21 @@ func TestSAMLHealthcheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			s := InitSAML("", "", nil, log.New("test", "debug"), nil, nil)
+			s := InitSAML("", "", nil, log.New("test", "debug"), nil)
+			if tc.PrepareSAML != nil {
+				s = tc.PrepareSAML(t)
+			}
+
+			var wg sync.WaitGroup
+			if tc.Reload {
+				cfg := *s.lastModelCfg
+				wg.Go(func() {
+					assert.NoError(s.LoadConfig(t.Context(), cfg))
+				})
+			}
 
 			err := s.Healthcheck()
+			wg.Wait()
 
 			assert.ErrorIs(err, tc.ExpectedErr)
 		})
@@ -1419,8 +1615,9 @@ func strPtr(s string) *string {
 	return &s
 }
 
-// Not parallel: LoadConfig sets the saml.MaxIssueDelay package global.
 func TestSAMLRequestTracker(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	cases := map[string]struct {
@@ -1442,7 +1639,22 @@ func TestSAMLRequestTracker(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			certPath, keyPath, metadataPath := prepareSAMLFiles(t)
+			t.Parallel()
+
+			dir := t.TempDir()
+
+			certPath := filepath.Join(dir, "cert.pem")
+			keyPath := filepath.Join(dir, "key.pem")
+			certCfg := pkgTls.CertConfig{CommonName: "sp.example.com", Duration: time.Hour}
+			require.NoError(t, pkgTls.GenerateSelfSignedKeyPair(certPath, keyPath, certCfg))
+
+			metadata := `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.example.com/metadata">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+			metadataPath := filepath.Join(dir, "metadata.xml")
+			require.NoError(t, os.WriteFile(metadataPath, []byte(metadata), 0644))
 
 			s := &SAML{
 				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
@@ -1474,7 +1686,7 @@ func TestSAMLRequestTracker(t *testing.T) {
 
 			assert.Equal(tc.ExpectedMaxAge, tracker.MaxAge)
 			assert.Equal(tc.ExpectedMaxAge, codec.MaxAge)
-			assert.Equal(tc.MaxIssueDelay, saml.MaxIssueDelay)
+			assert.Equal(tc.MaxIssueDelay, cfg.Middleware.ServiceProvider.MaxIssueDelay)
 
 			// TLS ends at the proxy, so the request the service sees is plain HTTP
 			rec := httptest.NewRecorder()

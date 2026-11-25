@@ -243,7 +243,7 @@ seed-test-db:
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	ghcr.io/astral-sh/uv:0.13.6-python3.14-alpine@sha256:a069b57ec30ef94da43700a7332b162a13adb0b8a1cfba4e0b62c1a9727153c4 \
 	sh -c 'apk add --no-cache git qemu-img && uv run --group test --package isardvdi-testing isardvdi-populate-test-db'
 
 .PHONY: test-integration
@@ -258,7 +258,7 @@ test-integration: seed-test-db
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv -e REDIS_PASSWORD -e E2E_MEDIA_URL \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	-v /var/run/docker.sock:/var/run/docker.sock \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	ghcr.io/astral-sh/uv:0.13.6-python3.14-alpine@sha256:a069b57ec30ef94da43700a7332b162a13adb0b8a1cfba4e0b62c1a9727153c4 \
 	sh -c 'apk add --no-cache docker-cli && uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real'
 
 .PHONY: ci-test-integration
@@ -267,7 +267,7 @@ ci-test-integration: seed-test-db
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv -e REDIS_PASSWORD -e E2E_MEDIA_URL \
 	-v "${ISARDVDI_SRC}:/src" -w /src \
 	-v /var/run/docker.sock:/var/run/docker.sock \
-	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650 \
+	ghcr.io/astral-sh/uv:0.13.6-python3.14-alpine@sha256:a069b57ec30ef94da43700a7332b162a13adb0b8a1cfba4e0b62c1a9727153c4 \
 	sh -c 'apk add --no-cache docker-cli && uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml'
 
 # What rq's job graph really does, what a Lua script really writes: a mocked

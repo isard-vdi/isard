@@ -1846,6 +1846,7 @@
     "bastion_domain_dns_error": "Se ha producido un error al comprobar el DNS del dominio. Por favor, inténtalo de nuevo más tarde.",
     "bastion_domain_dns_mismatch": "El registro DNS del dominio no coincide con el valor esperado. Por favor, compruébalo e inténtalo de nuevo.",
     "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
+    "bastion_domain_invalid": "El dominio no es un nombre de host válido. Por favor, compruébalo e inténtalo de nuevo.",
     "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe.",
     "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo.",
     "no_available_profile": "No hay ninguna GPU disponible ahora.",

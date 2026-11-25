@@ -1100,7 +1100,7 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 		}, nil
 	}
 
-	APIKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
+	apiKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
 	if err != nil {
 
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) || errors.Is(err, token.ErrInvalidTokenRole) {
@@ -1126,7 +1126,7 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 	}
 
 	return &oasAuthentication.GenerateAPIKeyResponse{
-		APIKey: APIKey,
+		APIKey: apiKey,
 	}, nil
 }
 

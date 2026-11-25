@@ -2,7 +2,6 @@ package providermanager
 
 import (
 	"context"
-	"net/http"
 	"slices"
 	"sync"
 
@@ -79,8 +78,6 @@ type ProviderManager struct {
 	db  r.QueryExecutor
 
 	cfgWatcher *cfgWatcher
-
-	httpClient *http.Client
 
 	// samlValidateURL overrides the SSRF check on SAML metadata URLs.
 	// nil means use the default (validateMetadataURL). Set to a no-op in tests
@@ -477,7 +474,6 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 		db:              m.db,
 		changesChans:    changesChans,
 		categoryID:      categoryID,
-		httpClient:      m.httpClient,
 		samlValidateURL: m.samlValidateURL,
 	}, scope, prv)
 
@@ -538,7 +534,6 @@ type enableProviderParams struct {
 	db              r.QueryExecutor
 	changesChans    *providerChangesChannels
 	categoryID      *string
-	httpClient      *http.Client
 	samlValidateURL func(string) error
 }
 
@@ -580,7 +575,7 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 		}
 
 	case types.ProviderSAML:
-		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db, params.httpClient)
+		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db)
 
 		if params.samlValidateURL != nil {
 			saml.SetValidateURL(params.samlValidateURL)

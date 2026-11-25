@@ -1739,6 +1739,7 @@
     "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",
     "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini.",
+    "bastion_domain_invalid": "El domini no és un nom d'amfitrió vàlid. Si us plau, comprova'l i torna-ho a provar.",
     "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix.",
     "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo.",
     "no_available_profile": "No hi ha cap GPU disponible ara.",

@@ -1340,6 +1340,9 @@ class AdminUsersService:
         from isardvdi_common.helpers.bastion import Bastion
 
         bastion_domain = data["bastion_domain"]
+        AdminUsersService._check_duplicate_bastion_domain(
+            bastion_domain, category_id=category_id
+        )
         if (
             isinstance(bastion_domain, str)
             and Bastion.bastion_domain_verification_required()
@@ -1347,9 +1350,6 @@ class AdminUsersService:
             Bastion.check_bastion_domain_dns(
                 bastion_domain, category_id, kind="category"
             )
-        AdminUsersService._check_duplicate_bastion_domain(
-            bastion_domain, category_id=category_id
-        )
         Bastion.update_category_bastion_domain(category_id, bastion_domain)
 
     # ── Users Table Nav ──────────────────────────────────────────────────

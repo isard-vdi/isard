@@ -65,6 +65,24 @@ class TestBulkUserCheckGuards:
             UP.bulk_user_check({"role_id": "admin"}, _user(), "generate")
         assert exc.value.error["description_code"] == "user_already_exists"
 
+    @pytest.mark.parametrize(
+        "username",
+        [pytest.param("", id="empty"), pytest.param("   ", id="only-spaces")],
+    )
+    def test_generated_user_without_username_is_rejected(self, env, username):
+        user = {
+            "username": username,
+            "category": "Cat",
+            "group": "Grp",
+            "role": "user",
+        }
+
+        with pytest.raises(Error) as exc:
+            UP.bulk_user_check({"role_id": "admin"}, user, "generate")
+
+        assert exc.value.status_code == 400
+        assert exc.value.error["description_code"] == "user_uid_empty"
+
     def test_manager_cannot_create_admin(self, env):
         with pytest.raises(Error) as exc:
             UP.bulk_user_check({"role_id": "manager"}, _user(role="admin"), "generate")

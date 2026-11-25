@@ -310,12 +310,12 @@
             // HTTP/HTTPS Access
             if (bastion.http && bastion.http.enabled) {
                 var httpsUrl = 'https://' + autoSubdomain;
-                addRowHtml(bastionTable, 'Web Access', formatExternalLink(httpsUrl, autoSubdomain));
+                addRowHtml(bastionTable, 'Web Access', formatExternalLink(httpsUrl, hostToUnicode(autoSubdomain)));
 
                 // Custom CNAMEs with links
                 if (bastion.domains && bastion.domains.length > 0) {
                     var cnameLinks = bastion.domains.map(function(d) {
-                        return formatExternalLink('https://' + d, d);
+                        return formatExternalLink('https://' + d, hostToUnicode(d));
                     }).join('<br>');
                     addRowHtml(bastionTable, 'Custom Domains', cnameLinks);
                 }

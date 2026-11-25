@@ -145,9 +145,15 @@ def create_indexes(
                 r.table("groups").index_wait().run(conn)
 
             case "targets":
+                r.table("targets").index_create("desktop_id").run(conn)
                 r.table("targets").index_create("user_id").run(conn)
 
                 r.table("targets").index_wait().run(conn)
+
+            case "categories":
+                r.table("categories").index_create("bastion_domain").run(conn)
+
+                r.table("categories").index_wait().run(conn)
 
             case "media":
                 r.table("media").index_create("category").run(conn)

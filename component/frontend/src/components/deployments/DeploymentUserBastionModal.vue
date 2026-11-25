@@ -16,6 +16,7 @@ import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TruncatedText } from '@/components/truncated-text'
 import { desktopStatusLabel } from '@/lib/desktops'
+import { hostToUnicode } from '@/lib/hostName'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -249,7 +250,7 @@ const closeModal = () => {
               <div class="flex items-center gap-3">
                 <TruncatedText
                   as="code"
-                  :title="httpUrl"
+                  :title="hostToUnicode(httpUrl)"
                   class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
                 />
                 <a :href="httpUrl" target="_blank">
@@ -265,7 +266,7 @@ const closeModal = () => {
               <div class="flex items-center gap-3">
                 <TruncatedText
                   as="code"
-                  :title="httpsUrl"
+                  :title="hostToUnicode(httpsUrl)"
                   class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono"
                 />
                 <a :href="httpsUrl" target="_blank">

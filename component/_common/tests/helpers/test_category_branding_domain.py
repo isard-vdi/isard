@@ -18,12 +18,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""A category branding domain must not be the installation's own domain.
+"""A category branding domain must be a host name that is not the installation's own domain.
 
-Accepting it made haproxy-sync register a second certificate for a name the
-base certificate already served, leaving two crt-list entries with the same SAN
-and no deterministic answer to which one HAProxy would serve.
+Accepting the installation's own domain made haproxy-sync register a second
+certificate for a name the base certificate already served, leaving two
+crt-list entries with the same SAN and no deterministic answer to which one
+HAProxy would serve.
 """
+
+import re
 
 import pytest
 from isardvdi_common.helpers.category import Category
@@ -80,3 +83,30 @@ def test_does_not_refuse_anything_when_domain_is_unset(monkeypatch):
 
     with pytest.raises(_Reached):
         cat.branding = {"domain": {"enabled": True, "name": "portal.example.com"}}
+
+
+@pytest.mark.parametrize(
+    "enabled",
+    [pytest.param(True, id="enabled"), pytest.param(False, id="disabled")],
+)
+def test_branding_setter_raises_before_the_db_query_when_name_is_not_a_host_name(
+    monkeypatch, enabled
+):
+    monkeypatch.delenv("DOMAIN", raising=False)
+    cat = _stub()
+    _trip_on_the_db_query(cat)
+
+    with pytest.raises(ValueError, match=re.escape("is not a valid host name")):
+        cat.branding = {"domain": {"enabled": enabled, "name": "bad name.example.com"}}
+
+
+def test_branding_setter_normalizes_the_name_before_the_db_query(monkeypatch):
+    monkeypatch.delenv("DOMAIN", raising=False)
+    cat = _stub()
+    _trip_on_the_db_query(cat)
+    value = {"domain": {"enabled": True, "name": "Aula.Example.COM"}}
+
+    with pytest.raises(_Reached):
+        cat.branding = value
+
+    assert value["domain"]["name"] == "aula.example.com"

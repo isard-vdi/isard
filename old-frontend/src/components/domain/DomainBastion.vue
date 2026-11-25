@@ -229,7 +229,7 @@
               </b-input-group-prepend>
               <b-form-input
                 :id="`httpDomainNameField-${index}`"
-                :value="domain"
+                :value="hostToUnicode(domain)"
                 type="text"
                 @input="updateDomainAtIndex(index, $event)"
               />
@@ -362,6 +362,7 @@ import useVuelidate from '@vuelidate/core'
 import i18n from '@/i18n'
 import { ErrorUtils } from '@/utils/errorUtils'
 import { invalidAuthorizedKeyLines } from '@/utils/sshKeys'
+import { hostToUnicode } from '@/utils/hostName'
 
 export default {
   setup (props, context) {
@@ -549,6 +550,7 @@ export default {
     })
 
     return {
+      hostToUnicode,
       showBastionOptions,
       bastion,
       bastionId,

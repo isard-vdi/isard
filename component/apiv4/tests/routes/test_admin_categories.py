@@ -6,6 +6,8 @@ import copy
 from unittest.mock import MagicMock
 
 import pytest
+from rethinkdb import r
+from rethinkdb_mock import MockThink
 from tests.routes.factories import make_category, make_config
 from tests.routes.helpers import MockJWT
 
@@ -1094,3 +1096,35 @@ def test_update_branding_does_not_block_on_grpc(test_client):
     # Production gRPC timeout is 30s; generous 2s ceiling gives plenty of margin
     # on slow CI runners while still catching regressions.
     assert elapsed < 2.0, f"branding PUT took {elapsed:.2f}s — grpc mock not applied?"
+
+
+def test_update_branding_returns_400_when_domain_name_is_not_a_host_name(
+    test_client_with_conn, monkeypatch
+):
+    """Nothing is stored or synced, so every other category keeps its domain."""
+    from isardvdi_common.helpers import bastion as bastion_mod
+
+    synced = []
+    monkeypatch.setattr(
+        bastion_mod.Bastion,
+        "sync_category_branding_domains",
+        classmethod(lambda cls: synced.append(True)),
+    )
+    tables = _db()
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/admin/item/category/test-cat/branding",
+            method="PUT",
+            jwt=MockJWT(role_id="manager", category_id="test-cat"),
+            body={"domain": {"enabled": True, "name": "bad name.example.com"}},
+        )
+        stored = r.table("categories").get("test-cat")["branding"].run(conn)
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "branding_invalid"
+    assert stored == _DEFAULT_BRANDING
+    assert synced == []

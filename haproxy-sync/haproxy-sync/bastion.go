@@ -16,11 +16,32 @@ func (HAproxySync) bastionRemovePrefixSubdomain(subdomain string) string {
 	return sub
 }
 
+// BastionSyncMaps leaves an invalid name out and still syncs the rest.
 func (h *HAproxySync) BastionSyncMaps(ctx context.Context, maps BastionSyncMaps) (BastionSyncMapsResult, error) {
+	valid := BastionSyncMaps{
+		Subdomains:        h.validBastionDomains(maps.Subdomains),
+		IndividualDomains: h.validBastionDomains(maps.IndividualDomains),
+	}
+
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	return h.bastionSyncMaps(maps)
+	return h.bastionSyncMaps(valid)
+}
+
+func (h *HAproxySync) validBastionDomains(domains []string) []string {
+	valid := make([]string, 0, len(domains))
+	for _, d := range domains {
+		if err := validateDomain(d); err != nil {
+			h.log.Warn().Err(err).Str("domain", d).Msg("refusing invalid bastion domain, syncing the rest")
+
+			continue
+		}
+
+		valid = append(valid, d)
+	}
+
+	return valid
 }
 
 func (h *HAproxySync) bastionSyncMaps(maps BastionSyncMaps) (BastionSyncMapsResult, error) {

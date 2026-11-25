@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"maps"
@@ -43,7 +42,9 @@ var _ BrandingAwareProvider = &SAML{}
 type SAMLConfig struct {
 	Name string
 
-	Middleware          *samlsp.Middleware
+	Middleware *samlsp.Middleware
+	HTTPClient *http.Client
+
 	BrandingMiddlewares map[string]*samlsp.Middleware
 	BrandingHosts       map[string]string
 
@@ -81,8 +82,6 @@ type SAMLConfig struct {
 	LogoutRedirectURL string
 
 	SaveEmail bool
-
-	AllowInsecureTLS bool
 }
 
 type SAML struct {
@@ -93,7 +92,6 @@ type SAML struct {
 	categoryID *string
 	log        *zerolog.Logger
 	db         r.QueryExecutor
-	httpClient *http.Client
 
 	// validateURL is the SSRF check applied to the metadata URL. Always
 	// initialized in InitSAML; tests that build the struct directly must
@@ -107,7 +105,7 @@ type SAML struct {
 	keyPairMux    sync.Mutex
 }
 
-func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor, httpClient *http.Client) *SAML {
+func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
 	s := &SAML{
 		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 		secret:        secret,
@@ -115,7 +113,6 @@ func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logge
 		categoryID:    categoryID,
 		log:           log,
 		db:            db,
-		httpClient:    httpClient,
 		validateURL:   validateMetadataURL,
 		brandingHosts: map[string]string{},
 	}
@@ -144,6 +141,7 @@ type samlMiddlewareParams struct {
 	metadata             *saml.EntityDescriptor
 	entityID             string
 	sigMethod            string
+	maxIssueDelay        time.Duration
 	requestTrackerMaxAge time.Duration
 	log                  *zerolog.Logger
 }
@@ -157,26 +155,20 @@ func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error
 	callbackURL := *baseURL
 	callbackURL.Path = path.Join(baseURL.Path, "/callback")
 
-	middleware, _ := samlsp.New(samlsp.Options{
-		URL:                callbackURL,
-		Key:                params.key,
-		Certificate:        params.cert,
-		IDPMetadata:        params.metadata,
-		DefaultRedirectURI: "/authentication/callback",
-		// The IdP posts back cross-site, and Lax only lets that through for two minutes.
-		CookieSameSite: http.SameSiteNoneMode,
+	middleware, err := samlsp.New(samlsp.Options{
+		URL:                  callbackURL,
+		Key:                  params.key,
+		Certificate:          params.cert,
+		IDPMetadata:          params.metadata,
+		DefaultRedirectURI:   "/authentication/callback",
+		TrackedRequestMaxAge: params.requestTrackerMaxAge,
 	})
-	middleware.OnError = samlOnError(params.log)
-
-	// samlsp.New ties both the cookie and its signed token to saml.MaxIssueDelay.
-	if tracker, ok := middleware.RequestTracker.(samlsp.CookieRequestTracker); ok {
-		tracker.MaxAge = params.requestTrackerMaxAge
-		if codec, ok := tracker.Codec.(samlsp.JWTTrackedRequestCodec); ok {
-			codec.MaxAge = params.requestTrackerMaxAge
-			tracker.Codec = codec
-		}
-		middleware.RequestTracker = tracker
+	if err != nil {
+		return nil, fmt.Errorf("create the SAML middleware: %w", err)
 	}
+
+	middleware.OnError = samlOnError(params.log)
+	middleware.ServiceProvider.MaxIssueDelay = max(params.maxIssueDelay, 0)
 
 	// Build category-aware SAML endpoint paths.
 	acsSuffix := ACSRoute
@@ -213,21 +205,14 @@ func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error
 
 func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg := s.cfg.Cfg()
+	prvHTTPClient := prvCfg.HTTPClient
 
-	if s.httpClient == nil {
-		s.httpClient = &http.Client{Timeout: 30 * time.Second}
-	}
-	tr, _ := s.httpClient.Transport.(*http.Transport)
-	if tr == nil {
-		tr = &http.Transport{}
-		s.httpClient.Transport = tr
-	}
+	// A reload must not mutate the transport of a request in flight.
+	tr := &http.Transport{}
 	if cfg.AllowInsecureTLS {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	} else {
-		tr.TLSClientConfig = nil
 	}
-	tr.CloseIdleConnections()
+	httpClient := &http.Client{Timeout: 30 * time.Second, Transport: tr}
 
 	var metadata *saml.EntityDescriptor
 	var err error
@@ -269,7 +254,7 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		}
 
 		s.log.Debug().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
-		metadata, err = samlsp.FetchMetadata(ctx, s.httpClient, *remoteMetadataURL)
+		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
 		if err != nil {
 			return fmt.Errorf("fetch metadata from URL failed: %w", err)
 		}
@@ -303,10 +288,6 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		return fmt.Errorf("parse certificate: %w", err)
 	}
 
-	// Set the maximum time between the initial login request and the
-	// response.
-	saml.MaxIssueDelay = time.Duration(cfg.MaxIssueDelay)
-
 	requestTrackerMaxAge := time.Duration(cfg.RequestTrackerMaxAge)
 	if requestTrackerMaxAge <= 0 {
 		requestTrackerMaxAge = defaultSAMLRequestTrackerMaxAge
@@ -320,6 +301,7 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		metadata:             metadata,
 		entityID:             cfg.EntityID,
 		sigMethod:            cfg.SignatureMethod,
+		maxIssueDelay:        time.Duration(cfg.MaxIssueDelay),
 		requestTrackerMaxAge: requestTrackerMaxAge,
 		log:                  s.log,
 	}
@@ -348,7 +330,9 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 		bMW, err := buildSAMLMiddleware(bParams)
 		if err != nil {
-			return fmt.Errorf("build branding middleware for category %s: %w", catID, err)
+			s.log.Error().Err(err).Str("category", catID).Str("host", bHost).Msg("branding host cannot be used for SAML")
+
+			continue
 		}
 
 		brandingMiddlewares[catID] = bMW
@@ -444,12 +428,17 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 	prvCfg.SaveEmail = cfg.SaveEmail
 
-	prvCfg.AllowInsecureTLS = cfg.AllowInsecureTLS
 	if cfg.AllowInsecureTLS {
 		s.log.Warn().Msg("SAML: TLS certificate verification is DISABLED (allow_insecure_tls=true). Use only for testing or with trusted self-signed certificates.")
 	}
 
+	prvCfg.HTTPClient = httpClient
+
 	s.cfg.LoadCfg(prvCfg)
+
+	if prvHTTPClient != nil {
+		prvHTTPClient.CloseIdleConnections()
+	}
 
 	s.brandingMux.Lock()
 	s.lastModelCfg = &cfg
@@ -643,11 +632,11 @@ func (s *SAML) Healthcheck() error {
 		}
 	}
 
-	resp, err := s.httpClient.Get(bindingLocation)
+	rsp, err := cfg.HTTPClient.Get(bindingLocation)
 	if err != nil {
 		return fmt.Errorf("unable to get the SAML binding location: %w", err)
 	}
-	defer resp.Body.Close()
+	defer rsp.Body.Close()
 
 	return nil
 }
@@ -667,8 +656,7 @@ func (s *SAML) Logout(ctx context.Context, _ string) (string, error) {
 
 	sp := &mw.ServiceProvider
 
-	sloLocation := sp.GetSLOBindingLocation(saml.HTTPRedirectBinding)
-	if sloLocation == "" {
+	if sp.GetSLOBindingLocation(saml.HTTPRedirectBinding) == "" {
 		return cfg.LogoutRedirectURL, nil
 	}
 
@@ -684,37 +672,11 @@ func (s *SAML) Logout(ctx context.Context, _ string) (string, error) {
 		return cfg.LogoutRedirectURL, nil
 	}
 
-	req, err := sp.MakeLogoutRequest(sloLocation, jwtSess.Subject)
+	logoutURL, err := sp.MakeRedirectLogoutRequest(jwtSess.Subject, "")
 	if err != nil {
 		s.log.Warn().Err(err).Msg("failed to create SAML logout request, falling back to redirect URL")
 		return cfg.LogoutRedirectURL, nil
 	}
-
-	// TODO: Remove this when merged: https://github.com/crewjam/saml/pull/621
-	req.Signature = nil
-
-	logoutURL := req.Redirect("")
-
-	if sp.SignatureMethod == "" {
-		return logoutURL.String(), nil
-	}
-
-	query := "SAMLRequest=" + url.QueryEscape(logoutURL.Query().Get("SAMLRequest")) +
-		"&SigAlg=" + url.QueryEscape(sp.SignatureMethod)
-
-	signingCtx, err := saml.GetSigningContext(sp)
-	if err != nil {
-		s.log.Warn().Err(err).Msg("failed to get the SAML signing context, falling back to redirect URL")
-		return cfg.LogoutRedirectURL, nil
-	}
-
-	sig, err := signingCtx.SignString(query)
-	if err != nil {
-		s.log.Warn().Err(err).Msg("failed to sign the SAML logout request, falling back to redirect URL")
-		return cfg.LogoutRedirectURL, nil
-	}
-
-	logoutURL.RawQuery = query + "&Signature=" + url.QueryEscape(base64.StdEncoding.EncodeToString(sig))
 
 	return logoutURL.String(), nil
 }

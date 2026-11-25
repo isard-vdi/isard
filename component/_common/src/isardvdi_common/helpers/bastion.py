@@ -34,6 +34,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.host_name import normalize_host_name
 from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from rethinkdb import r
 
@@ -173,6 +174,18 @@ class Bastion(RethinkSharedConnection):
         """
         Update the bastion config.
         """
+        from isardvdi_common.helpers.error_factory import Error
+
+        try:
+            domain = normalize_host_name(domain)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                traceback.format_exc(),
+                description_code="bastion_domain_invalid",
+            )
+
         with cls._rdb_context():
             old_domain = (
                 r.table("config")
@@ -212,6 +225,19 @@ class Bastion(RethinkSharedConnection):
 
     @classmethod
     def update_category_bastion_domain(cls, category_id, domain):
+        from isardvdi_common.helpers.error_factory import Error
+
+        if isinstance(domain, str):
+            try:
+                domain = normalize_host_name(domain)
+            except ValueError as e:
+                raise Error(
+                    "bad_request",
+                    str(e),
+                    traceback.format_exc(),
+                    description_code="bastion_domain_invalid",
+                )
+
         with cls._rdb_context():
             old_domain = (
                 r.table("categories")
@@ -441,6 +467,15 @@ class Bastion(RethinkSharedConnection):
         kind: Literal["category", "cname"] = "category",
     ):
         try:
+            domain = normalize_host_name(domain)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                traceback.format_exc(),
+                description_code="bastion_domain_invalid",
+            )
+        try:
             match kind:
                 case "category":
                     domain = f"_isardvdi-bastion-{kind}.{domain}"
@@ -505,6 +540,8 @@ class Bastion(RethinkSharedConnection):
         - rejects any domain already used by another desktop's bastion
           target (excluding ``target_id`` if given).
         """
+        from isardvdi_common.helpers.error_factory import Error
+
         if not domains:
             return
         if not isinstance(domains, list):
@@ -531,7 +568,16 @@ class Bastion(RethinkSharedConnection):
                     "Whitespace-only domains are not allowed",
                     traceback.format_exc(),
                 )
-            if domain == system_domain:
+            try:
+                domain = normalize_host_name(domain)
+            except ValueError as e:
+                raise Error(
+                    "bad_request",
+                    str(e),
+                    traceback.format_exc(),
+                    description_code="bastion_domain_invalid",
+                )
+            if system_domain and domain == system_domain.lower():
                 raise Error(
                     "conflict",
                     "Bastion domain is the same as the default domain",

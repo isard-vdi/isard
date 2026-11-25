@@ -42,17 +42,32 @@ func domainCertPath(certsPath, pemName string) string {
 	return filepath.Join(certsPath, pemName)
 }
 
+// DomainSync reports an invalid name in FailedDomains and still syncs the rest.
 func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {
+	valid := make([]DomainSyncDomain, 0, len(domains))
+	var invalid []DomainSyncError
 	for _, d := range domains {
 		if err := validateDomain(d.Name); err != nil {
-			return DomainSyncResult{}, err
+			h.log.Warn().Err(err).Str("domain", d.Name).Msg("refusing invalid domain, syncing the rest")
+			invalid = append(invalid, DomainSyncError{Domain: d.Name, Error: err.Error()})
+
+			continue
 		}
+
+		valid = append(valid, d)
 	}
 
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	return h.domainSync(ctx, domains)
+	result, err := h.domainSync(ctx, valid)
+	if err != nil {
+		return result, err
+	}
+
+	result.FailedDomains = append(invalid, result.FailedDomains...)
+
+	return result, nil
 }
 
 func (h *HAproxySync) domainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {

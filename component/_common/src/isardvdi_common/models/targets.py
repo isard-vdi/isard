@@ -28,6 +28,7 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.bastion import Bastion, _haproxy_bastion_client
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.host_name import normalize_host_name
 from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from pydantic import BaseModel, Field
 from pydantic.experimental.missing_sentinel import MISSING
@@ -128,9 +129,18 @@ class Targets(RethinkCustomBase):
         if data.get("ssh"):
             target["ssh"] = {**(target.get("ssh") or {}), **data["ssh"]}
         if "domains" in data:
-            new_domains = [
-                d.strip() for d in (data["domains"] or []) if d and d.strip()
-            ]
+            try:
+                new_domains = [
+                    normalize_host_name(d.strip())
+                    for d in (data["domains"] or [])
+                    if d and d.strip()
+                ]
+            except ValueError as e:
+                raise Error(
+                    "bad_request",
+                    str(e),
+                    description_code="bastion_domain_invalid",
+                )
             old_domains = [d for d in target.get("domains", []) if d]
 
             if len(new_domains) > 10:

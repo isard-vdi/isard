@@ -20,6 +20,8 @@
 
 
 import pytest
+from rethinkdb import r
+from rethinkdb_mock import MockThink
 from tests.routes.factories import make_config
 from tests.routes.helpers import MockJWT
 
@@ -649,3 +651,329 @@ def test_get_bastion_targets_offloads_to_worker_thread(
         "asyncio.to_thread — see Bug 40 in load-testing markdown. "
         f"Saw: {[getattr(fn, '__qualname__', repr(fn)) for fn, _ in scheduled]}"
     )
+
+
+class FakeHaproxySync:
+    """Records the bastion map changes the api asks haproxy-sync for."""
+
+    def __init__(self):
+        self.calls = []
+
+    def BastionAddSubdomain(self, request):
+        self.calls.append(("add-subdomain", request.domain))
+
+    def BastionDeleteSubdomain(self, request):
+        self.calls.append(("delete-subdomain", request.domain))
+
+    def BastionAddIndividualDomain(self, request):
+        self.calls.append(("add-individual-domain", request.domain))
+
+    def BastionDeleteIndividualDomain(self, request):
+        self.calls.append(("delete-individual-domain", request.domain))
+
+
+@pytest.fixture()
+def haproxy_sync():
+    import isardvdi_common.helpers.bastion as bastion_module
+
+    fake = FakeHaproxySync()
+    bastion_module.configure_haproxy_bastion_client(lambda: fake)
+    return fake
+
+
+@pytest.mark.setup_clear_cache
+def test_update_bastion_config_returns_400_when_domain_is_not_a_host_name(
+    test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/admin/item/config/bastion",
+            method="PUT",
+            jwt=jwt,
+            body={
+                "enabled": True,
+                "bastion_domain": "bad name.example.org",
+                "domain_verification_required": False,
+            },
+        )
+        stored = r.table("config").get(1)["bastion"]["domain"].run(conn)
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+    assert stored == "bastion.example.org"
+    assert haproxy_sync.calls == []
+
+
+@pytest.mark.setup_clear_cache
+def test_update_bastion_config_stores_the_domain_idna_gives(
+    test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/admin/item/config/bastion",
+            method="PUT",
+            jwt=jwt,
+            body={
+                "enabled": True,
+                "bastion_domain": "Bastion.Example.NET",
+                "domain_verification_required": False,
+            },
+        )
+        stored = r.table("config").get(1)["bastion"]["domain"].run(conn)
+
+    assert response.status_code == 204
+    assert stored == "bastion.example.net"
+    assert haproxy_sync.calls == [
+        ("delete-subdomain", "bastion.example.org"),
+        ("add-subdomain", "bastion.example.net"),
+    ]
+
+
+@pytest.mark.setup_clear_cache
+def test_update_category_bastion_domain_returns_400_before_the_dns_check_when_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    import dns.resolver
+
+    resolved = []
+    monkeypatch.setattr(
+        dns.resolver, "resolve", lambda name, kind: resolved.append(name)
+    )
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    tables["config"][0]["bastion"]["domain_verification_required"] = True
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url=f"/admin/item/category/{jwt.category_id}/bastion_domain",
+            method="PUT",
+            jwt=jwt,
+            body={"bastion_domain": "bad name.example.org"},
+        )
+        stored = r.table("categories").get(jwt.category_id).run(conn)
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+    assert "bastion_domain" not in stored
+    assert resolved == []
+    assert haproxy_sync.calls == []
+
+
+@pytest.mark.setup_clear_cache
+def test_update_category_bastion_domain_stores_the_domain_idna_gives(
+    test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url=f"/admin/item/category/{jwt.category_id}/bastion_domain",
+            method="PUT",
+            jwt=jwt,
+            body={"bastion_domain": "Aula.Example.ORG"},
+        )
+        stored = r.table("categories").get(jwt.category_id)["bastion_domain"].run(conn)
+
+    assert response.status_code == 200
+    assert stored == "aula.example.org"
+    assert haproxy_sync.calls == [("add-subdomain", "aula.example.org")]
+
+
+@pytest.mark.setup_clear_cache
+def test_update_bastion_domains_returns_400_when_a_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-1/bastion/domains",
+            method="PUT",
+            jwt=jwt,
+            body={"domains": ["app.example.com", "bad name.example.com"]},
+        )
+        stored = (
+            r.table("targets")
+            .get("43179a19-62e9-4a75-8529-0678afbc84a0")["domains"]
+            .run(conn)
+        )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+    assert stored == []
+    assert haproxy_sync.calls == []
+
+
+@pytest.mark.setup_clear_cache
+def test_update_desktop_bastion_domain_stores_the_domain_idna_gives(
+    monkeypatch, test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    tables["domains"].append(
+        {
+            "id": "desktop-4",
+            "kind": "desktop",
+            "user": jwt.payload["user_id"],
+            "group": jwt.payload["group_id"],
+            "category": jwt.payload["category_id"],
+        }
+    )
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-4/update-bastion-domain",
+            method="PUT",
+            jwt=jwt,
+            body={"domain_name": "App.Example.COM"},
+        )
+        stored = [
+            target["domains"]
+            for target in r.table("targets")
+            .get_all("desktop-4", index="desktop_id")
+            .run(conn)
+        ]
+
+    assert response.status_code == 200
+    assert stored == [["app.example.com"]]
+    assert haproxy_sync.calls == [("add-individual-domain", "app.example.com")]
+
+
+@pytest.mark.setup_clear_cache
+def test_update_desktop_bastion_domain_returns_400_when_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-1/update-bastion-domain",
+            method="PUT",
+            jwt=jwt,
+            body={"domain_name": "bad name.example.com"},
+        )
+        stored = (
+            r.table("targets")
+            .get("43179a19-62e9-4a75-8529-0678afbc84a0")["domains"]
+            .run(conn)
+        )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+    assert stored == []
+    assert haproxy_sync.calls == []
+
+
+@pytest.mark.setup_clear_cache
+def test_verify_bastion_domain_returns_400_when_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-1/bastion/domain/verify",
+            method="POST",
+            jwt=jwt,
+            body={"domain": "bad name.example.com"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+
+
+@pytest.mark.setup_clear_cache
+def test_update_desktop_bastion_domains_returns_400_when_a_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory, haproxy_sync
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-1/update-bastion-domains",
+            method="PUT",
+            jwt=jwt,
+            body={"domains": ["bad name.example.com"]},
+        )
+        stored = (
+            r.table("targets")
+            .get("43179a19-62e9-4a75-8529-0678afbc84a0")["domains"]
+            .run(conn)
+        )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"
+    assert stored == []
+    assert haproxy_sync.calls == []
+
+
+@pytest.mark.setup_clear_cache
+def test_verify_desktop_bastion_domain_returns_400_when_domain_is_not_a_host_name(
+    monkeypatch, test_client_with_conn, bastion_db_factory
+):
+    _bypass_owns_domain_id(monkeypatch)
+    _bypass_bastion_checks(monkeypatch)
+    jwt = MockJWT()
+    tables = bastion_db_factory(jwt)
+    mock_db = MockThink({"dbs": {"isard": {"tables": tables}}, "default": "isard"})
+
+    with mock_db.connect() as conn:
+        response = test_client_with_conn(
+            db_tables_data=tables,
+            conn=conn,
+            url="/item/desktop/desktop-1/verify-bastion-domain",
+            method="POST",
+            jwt=jwt,
+            body={"domain": "bad name.example.com"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["description_code"] == "bastion_domain_invalid"

@@ -13,8 +13,8 @@ COPY rdpgw /build/rdpgw
 WORKDIR /build/rdpgw
 RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 
-FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.23@sha256:d0a0a753ab981624b49c97abc98821c1c09f4ca69d1ef5cee69c501be3d88479 /uv /usr/local/bin/
+FROM python:3.14-alpine3.24@sha256:bc62fbcb684904b1bb81a6240041bb60e9c1ee19ddeaf17a6b4297e1cc9c95d2 AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 /uv /usr/local/bin/
 # UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
 # venv's hard-coded shebangs keep resolving after the cross-stage COPY.
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
@@ -32,7 +32,7 @@ RUN uv sync --frozen --no-dev --package isardvdi-vpn --no-editable
 # RDP plugin rebuilt with guacd-patches/. 0001 (GUACAMOLE-2221) and 0002 (GUACAMOLE-2255) are
 # upstream in 1.6.1 and 0006 (GUACAMOLE-2306) in the unreleased 1.7.0; 0003-0005 are ours and
 # are not, so moving to 1.6.1 drops 0001-0002 and keeps rebuilding the plugin with the rest.
-FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS guacd-rdp-build
+FROM python:3.14-alpine3.24@sha256:bc62fbcb684904b1bb81a6240041bb60e9c1ee19ddeaf17a6b4297e1cc9c95d2 AS guacd-rdp-build
 ARG GUACAMOLE_SERVER_VERSION=1.6.0
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 RUN apk -U upgrade --no-cache
@@ -54,7 +54,7 @@ COPY docker/vpn/rdp-auth-check /build/rdp-auth-check
 RUN gcc -O2 -Wall -Werror -o /build/rdp-auth-check/rdp-auth-check /build/rdp-auth-check/rdp-auth-check.c \
     $(pkg-config --cflags --libs freerdp2 freerdp-client2 winpr2)
 
-FROM python:3.14-alpine3.24@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8 AS runtime
+FROM python:3.14-alpine3.24@sha256:bc62fbcb684904b1bb81a6240041bb60e9c1ee19ddeaf17a6b4297e1cc9c95d2 AS runtime
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories

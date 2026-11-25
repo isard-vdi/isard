@@ -15,6 +15,7 @@
     "mathjs": "^14.5.2",
     "parsleyjs": "^2.9.2",
     "pnotify": "^3.2.1",
+    "punycode": "1.4.1",
     "select2": "^4.0.13",
     "socket.io": "^4.8.1"
   },

@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -20,6 +21,8 @@ import (
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
+var ErrEmptyUserUID = errors.New("empty user uid")
+
 type Interface interface {
 	Providers(categoryID string) []string
 	Provider(provider string, categoryID string) provider.Provider
@@ -36,9 +39,9 @@ type Interface interface {
 	VerifyEmail(ctx context.Context, tkn string) error
 	ForgotPassword(ctx context.Context, categoryID, email string) error
 	ResetPassword(ctx context.Context, tkn string, pwd string, remoteAddr string) error
-	MigrateUser(ctx context.Context, tkn string, UserID string) (migrationTkn string, err error)
+	MigrateUser(ctx context.Context, tkn string, userID string) (migrationTkn string, err error)
 	// External
-	ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (apiKey string, err error)
+	ExternalUser(ctx context.Context, tkn string, userID string, role string, username string, name string, email string, photo string) (apiKey string, err error)
 	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
 	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 

@@ -230,6 +230,91 @@ func TestDomainSync(t *testing.T) {
 				CertsRemoved:   0,
 			},
 		},
+		"should sync the valid domains if another one is invalid": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
+				m.On("ShowMap", "virt@domains").Return([]string{"kept.com"}, nil)
+				m.On("NewSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("SetSslCert", filepath.Join(certsPath, "provided.com.pem"), testPEMData).Return(nil)
+				m.On("CommitSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddMap", "virt@domains", "provided.com").Return(nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "bad space.example.com"},
+				{Name: "kept.com", Certificate: testPEMData},
+				{Name: "provided.com", Certificate: testPEMData},
+			},
+			ExpectedResult: haproxysync.DomainSyncResult{
+				DomainsAdded:   1,
+				DomainsRemoved: 0,
+				CertsIssued:    0,
+				CertsRemoved:   0,
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "bad space.example.com", Error: "invalid domain name"},
+			},
+		},
+		"should report the domain as failed if it has a path traversal": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "../../../etc/passwd", Certificate: testPEMData},
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "../../../etc/passwd", Error: "invalid domain name"},
+			},
+		},
+		"should report the domain as failed if its name is empty": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "", Certificate: testPEMData},
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "", Error: "invalid domain name"},
+			},
+		},
+		"should report the domain as failed if it is too long": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: strings.Repeat("a", 254) + ".com", Certificate: testPEMData},
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: strings.Repeat("a", 254) + ".com", Error: "invalid domain name"},
+			},
+		},
+		"should report the domain as failed if it has invalid characters": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "bad space.example.com", Certificate: testPEMData},
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "bad space.example.com", Error: "invalid domain name"},
+			},
+		},
+		"should report the domain as failed if it is a wildcard": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "*.example.com", Certificate: testPEMData},
+			},
+			ExpectedFailedDomains: []haproxysync.DomainSyncError{
+				{Domain: "*.example.com", Error: "invalid domain name"},
+			},
+		},
 		"should return an error if getting domains fails": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {
 				m.On("ShowMap", "virt@domains").Return([]string{}, errors.New("socket error"))
@@ -527,46 +612,6 @@ func TestDomainSync(t *testing.T) {
 				CertsIssued:    1,
 				CertsRemoved:   0,
 			},
-		},
-		"should reject domain with path traversal": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
-			PrepareACME:    func(m *acme.MockAcme) {},
-			Domains: []haproxysync.DomainSyncDomain{
-				{Name: "../../../etc/passwd", Certificate: testPEMData},
-			},
-			ExpectedErr: "invalid domain name",
-		},
-		"should reject empty domain name": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
-			PrepareACME:    func(m *acme.MockAcme) {},
-			Domains: []haproxysync.DomainSyncDomain{
-				{Name: "", Certificate: testPEMData},
-			},
-			ExpectedErr: "invalid domain name",
-		},
-		"should reject overly long domain": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
-			PrepareACME:    func(m *acme.MockAcme) {},
-			Domains: []haproxysync.DomainSyncDomain{
-				{Name: strings.Repeat("a", 254) + ".com", Certificate: testPEMData},
-			},
-			ExpectedErr: "invalid domain name",
-		},
-		"should reject domain with invalid characters": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
-			PrepareACME:    func(m *acme.MockAcme) {},
-			Domains: []haproxysync.DomainSyncDomain{
-				{Name: "bad space.example.com", Certificate: testPEMData},
-			},
-			ExpectedErr: "invalid domain name",
-		},
-		"should reject wildcard domain": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
-			PrepareACME:    func(m *acme.MockAcme) {},
-			Domains: []haproxysync.DomainSyncDomain{
-				{Name: "*.example.com", Certificate: testPEMData},
-			},
-			ExpectedErr: "invalid domain name",
 		},
 	}
 

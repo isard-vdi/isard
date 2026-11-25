@@ -12,7 +12,7 @@ import (
 
 var ErrUserAlreadyExists = errors.New("user already exists")
 
-func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (string, error) {
+func (a *Authentication) ExternalUser(ctx context.Context, tkn string, userID string, role string, username string, name string, email string, photo string) (string, error) {
 	// Firstly check if the external app token is valid
 	claims, err := token.ParseExternalToken(a.DB, tkn)
 	if err != nil {
@@ -26,6 +26,10 @@ func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID st
 	// Check if the user that wants to create the user is allowed to do so
 	if !model.Role(role).HasEqualOrLessPrivileges(model.Role(claims.Role)) {
 		return "", errors.New("external app cannot create users with role greater than manager")
+	}
+
+	if userID == "" {
+		return "", fmt.Errorf("provider %s_%s, category %s: %w", types.ProviderExternal, claims.KeyID, claims.CategoryID, ErrEmptyUserUID)
 	}
 
 	g := &model.Group{
@@ -62,7 +66,7 @@ func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID st
 		Category: claims.CategoryID,
 		Group:    g.ID,
 
-		UID: UserID,
+		UID: userID,
 
 		Role:     model.Role(role),
 		Username: username,

@@ -465,6 +465,12 @@ class UsersProcessed(RethinkSharedConnection):
             )
 
         user["username"] = user["username"].replace(" ", "")
+        if not user["username"]:
+            raise Error(
+                "bad_request",
+                "A user can not be created without username",
+                description_code="user_uid_empty",
+            )
 
         match = Helpers.category_name_group_name_match(user["category"], user["group"])
         user["category_id"] = match["category_id"]

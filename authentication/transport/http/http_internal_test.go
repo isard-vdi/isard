@@ -3,9 +3,19 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"math/big"
 	nethttp "net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +26,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	httpErr "gitlab.com/isard/isardvdi/authentication/transport/http/error"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
@@ -163,6 +174,12 @@ func TestLogin(t *testing.T) {
 			},
 			ExpectedErr: provider.ErrUnknownIDP.Error(),
 		},
+		"should return an internal server error if the provider returns an empty uid": {
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
+				m.On("Login", ctx, types.ProviderForm, "default", provider.LoginArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "", fmt.Errorf("provider saml, category default: %w", authentication.ErrEmptyUserUID))
+			},
+			ExpectedErr: provider.ErrInternal.Error(),
+		},
 		"should return an internal server error if the login fails": {
 			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
 				m.On("Login", ctx, types.ProviderForm, "default", provider.LoginArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "", errors.New("oh no"))
@@ -302,6 +319,180 @@ func TestLoginSAML(t *testing.T) {
 	prvMock.AssertExpectations(t)
 }
 
+func TestACSSAML(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		MaxIssueDelay         time.Duration
+		IssuedAgo             time.Duration
+		PrepareAuthentication func(*authentication.MockAuthentication, *samlsp.Middleware)
+		ExpectedLocation      string
+	}{
+		"should work as expected": {
+			MaxIssueDelay: 5 * time.Minute,
+			IssuedAgo:     2 * time.Minute,
+			PrepareAuthentication: func(m *authentication.MockAuthentication, mw *samlsp.Middleware) {
+				m.On("SAML", "", "sp.example.com").Return(mw)
+			},
+			ExpectedLocation: "/authentication/login",
+		},
+		"should use the library default max issue delay if it is unset": {
+			IssuedAgo: 30 * time.Second,
+			PrepareAuthentication: func(m *authentication.MockAuthentication, mw *samlsp.Middleware) {
+				m.On("SAML", "", "sp.example.com").Return(mw)
+			},
+			ExpectedLocation: "/authentication/login",
+		},
+		"should redirect to the login error if the SAML middleware is not initialized": {
+			MaxIssueDelay: 5 * time.Minute,
+			PrepareAuthentication: func(m *authentication.MockAuthentication, _ *samlsp.Middleware) {
+				m.On("SAML", "", "sp.example.com").Return((*samlsp.Middleware)(nil))
+			},
+			ExpectedLocation: "/login?error=internal_server",
+		},
+		"should redirect to the login error if the assertion is older than the max issue delay": {
+			MaxIssueDelay: 30 * time.Second,
+			IssuedAgo:     2 * time.Minute,
+			PrepareAuthentication: func(m *authentication.MockAuthentication, mw *samlsp.Middleware) {
+				m.On("SAML", "", "sp.example.com").Return(mw)
+			},
+			ExpectedLocation: "/login?error=unknown",
+		},
+		"should redirect to the login error if the assertion is older than the library default": {
+			IssuedAgo: 2 * time.Minute,
+			PrepareAuthentication: func(m *authentication.MockAuthentication, mw *samlsp.Middleware) {
+				m.On("SAML", "", "sp.example.com").Return(mw)
+			},
+			ExpectedLocation: "/login?error=unknown",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			idpKey, err := rsa.GenerateKey(rand.Reader, 2048)
+			require.NoError(t, err)
+
+			idpTemplate := &x509.Certificate{
+				SerialNumber: big.NewInt(1),
+				NotBefore:    time.Now().Add(-time.Hour),
+				NotAfter:     time.Now().Add(time.Hour),
+			}
+
+			idpCertDER, err := x509.CreateCertificate(rand.Reader, idpTemplate, idpTemplate, &idpKey.PublicKey, idpKey)
+			require.NoError(t, err)
+
+			idpCert, err := x509.ParseCertificate(idpCertDER)
+			require.NoError(t, err)
+
+			idp := &saml.IdentityProvider{
+				Key:         idpKey,
+				Certificate: idpCert,
+				MetadataURL: url.URL{Scheme: "https", Host: "idp.example.com", Path: "/metadata"},
+				SSOURL:      url.URL{Scheme: "https", Host: "idp.example.com", Path: "/sso"},
+			}
+
+			idpMetadata, err := xml.Marshal(idp.Metadata())
+			require.NoError(t, err)
+
+			dir := t.TempDir()
+			metadataPath := filepath.Join(dir, "metadata.xml")
+			require.NoError(t, os.WriteFile(metadataPath, idpMetadata, 0644))
+
+			s := provider.InitSAML("", "sp.example.com", nil, log.New("test", "debug"), nil)
+
+			cfg := model.SAMLConfig{
+				MetadataFile:  metadataPath,
+				KeyFile:       filepath.Join(dir, "key.pem"),
+				CertFile:      filepath.Join(dir, "cert.pem"),
+				MaxIssueDelay: db.Duration(tc.MaxIssueDelay),
+
+				RegexUID:      ".*",
+				RegexUsername: ".*",
+				RegexName:     ".*",
+				RegexEmail:    ".*",
+				RegexPhoto:    ".*",
+			}
+			require.NoError(t, s.LoadConfig(t.Context(), cfg))
+
+			mw := s.Middleware("sp.example.com")
+			require.NotNil(t, mw)
+
+			login := httptest.NewRequest(nethttp.MethodGet, "/authentication/login", nil)
+			login.Host = "sp.example.com"
+			tracked := httptest.NewRecorder()
+
+			relayState, err := mw.RequestTracker.TrackRequest(tracked, login, "request-id")
+			require.NoError(t, err)
+
+			spMetadata := mw.ServiceProvider.Metadata()
+			spSSO := &spMetadata.SPSSODescriptors[0]
+
+			acs := &spSSO.AssertionConsumerServices[0]
+			require.Equal(t, saml.HTTPPostBinding, acs.Binding)
+
+			issued := time.Now().Add(-tc.IssuedAgo)
+
+			authnReq := &saml.IdpAuthnRequest{
+				IDP:                     idp,
+				HTTPRequest:             login,
+				RelayState:              relayState,
+				Request:                 saml.AuthnRequest{ID: "request-id"},
+				ServiceProviderMetadata: spMetadata,
+				SPSSODescriptor:         spSSO,
+				ACSEndpoint:             acs,
+				Now:                     issued,
+			}
+
+			session := &saml.Session{
+				ID:         "session",
+				NameID:     "nefix",
+				CreateTime: issued,
+				ExpireTime: issued.Add(time.Hour),
+			}
+
+			assertionMaker := saml.DefaultAssertionMaker{}
+			require.NoError(t, assertionMaker.MakeAssertion(authnReq, session))
+
+			form, err := authnReq.PostBinding()
+			require.NoError(t, err)
+
+			body := url.Values{
+				"SAMLResponse": {form.SAMLResponse},
+				"RelayState":   {form.RelayState},
+			}
+
+			reqBody := strings.NewReader(body.Encode())
+
+			req := httptest.NewRequest(nethttp.MethodPost, form.URL, reqBody)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			for _, c := range tracked.Result().Cookies() {
+				req.AddCookie(c)
+			}
+
+			authMock := authentication.NewMockAuthentication(t)
+			tc.PrepareAuthentication(authMock, mw)
+
+			a := &AuthenticationServer{
+				Authentication: authMock,
+				Log:            log.New("test", "debug"),
+			}
+
+			rec := httptest.NewRecorder()
+			a.acsSAML(rec, req)
+
+			assert.Equal(nethttp.StatusFound, rec.Code)
+			assert.Equal(tc.ExpectedLocation, rec.Header().Get("Location"))
+
+			authMock.AssertExpectations(t)
+		})
+	}
+}
+
 func TestCallback(t *testing.T) {
 	t.Parallel()
 
@@ -404,6 +595,15 @@ func TestCallback(t *testing.T) {
 			},
 			ExpectedErr: provider.ErrUnknownIDP.Error(),
 		},
+		"should return an internal server error if the provider returns an empty uid": {
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
+				m.On("Callback", ctx, "the callback token", provider.CallbackArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "", fmt.Errorf("provider saml, category default: %w", authentication.ErrEmptyUserUID))
+			},
+			Params: oasAuthentication.CallbackParams{
+				State: "the callback token",
+			},
+			ExpectedErr: provider.ErrInternal.Error(),
+		},
 		"should return an internal server error if the callback fails": {
 			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication, _ string) {
 				m.On("Callback", ctx, "the callback token", provider.CallbackArgs{Host: "isard.example.org"}, "127.0.0.1").Return("", "", errors.New("oh no"))
@@ -458,6 +658,74 @@ func TestCallback(t *testing.T) {
 			} else {
 				assert.Equal(tc.Expected, res)
 			}
+
+			authMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestExternalUser(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareAuthentication func(context.Context, *authentication.MockAuthentication)
+		Request               oasAuthentication.OptExternalUserRequest
+		Expected              oasAuthentication.ExternalUserRes
+	}{
+		"should work as expected": {
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication) {
+				m.On("ExternalUser", ctx, "the external token", "ext-user", "user", "nefix", "Néfix Estrada", "nefix@example.org", "").Return("user-1", nil)
+			},
+			Request: oasAuthentication.NewOptExternalUserRequest(oasAuthentication.ExternalUserRequest{
+				UserID:   "ext-user",
+				RoleID:   "user",
+				Username: "nefix",
+				Name:     "Néfix Estrada",
+				Email:    oasAuthentication.NewOptNilString("nefix@example.org"),
+			}),
+			Expected: &oasAuthentication.ExternalUserResponse{
+				UserID: "user-1",
+			},
+		},
+		"should return an internal server error if the user ID is empty": {
+			PrepareAuthentication: func(ctx context.Context, m *authentication.MockAuthentication) {
+				m.On("ExternalUser", ctx, "the external token", "", "user", "nefix", "Néfix Estrada", "nefix@example.org", "").Return("", fmt.Errorf("provider external_app-key, category default: %w", authentication.ErrEmptyUserUID))
+			},
+			Request: oasAuthentication.NewOptExternalUserRequest(oasAuthentication.ExternalUserRequest{
+				UserID:   "",
+				RoleID:   "user",
+				Username: "nefix",
+				Name:     "Néfix Estrada",
+				Email:    oasAuthentication.NewOptNilString("nefix@example.org"),
+			}),
+			Expected: &oasAuthentication.ExternalUserInternalServerError{
+				Error: oasAuthentication.ExternalUserErrorErrorInternalServer,
+				Msg:   "unknown error",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			authMock := authentication.NewMockAuthentication(t)
+
+			a := &AuthenticationServer{
+				Authentication: authMock,
+				Log:            log.New("test", "debug"),
+			}
+
+			ctx := context.WithValue(t.Context(), tokenCtxKey, "the external token")
+
+			tc.PrepareAuthentication(ctx, authMock)
+
+			res, err := a.ExternalUser(ctx, tc.Request)
+
+			assert.NoError(err)
+			assert.Equal(tc.Expected, res)
 
 			authMock.AssertExpectations(t)
 		})
