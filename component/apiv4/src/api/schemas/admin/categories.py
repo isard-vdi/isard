@@ -18,9 +18,21 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, ClassVar, Dict, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from api.schemas.admin.authentication import (
+    GoogleConfigResponse,
+    GoogleConfigUpdate,
+    LdapConfigResponse,
+    LdapConfigUpdate,
+    MappedConfigUpdate,
+    ProviderPartialUpdate,
+    ProviderStatus,
+    SamlConfigResponse,
+    SamlConfigUpdate,
+    missing_fields_error,
+)
+from pydantic import BaseModel, Field, model_validator
 
 # ── Branding ─────────────────────────────────────────────────────────────
 
@@ -65,18 +77,120 @@ class BrandingResponse(BaseModel):
     logo_collapsed: Optional[BrandingLogo] = None
 
 
+class EmailDomainRestrictionResponse(BaseModel):
+    enabled: Optional[bool] = None
+    allowed: Optional[list[str]] = None
+
+
+class CategoryProviderResponse(BaseModel):
+    disabled: Optional[bool] = None
+    email_domain_restriction: Optional[EmailDomainRestrictionResponse] = None
+    config_source: Optional[str] = None
+    max_role: Optional[str] = None
+    status: Optional[ProviderStatus] = None
+
+
+class CategoryGoogleConfigResponse(GoogleConfigResponse):
+    client_secret_set: Optional[bool] = None
+
+
+class CategoryGoogleResponse(CategoryProviderResponse):
+    google_config: Optional[CategoryGoogleConfigResponse] = None
+
+
+class CategoryLdapConfigResponse(LdapConfigResponse):
+    password_set: Optional[bool] = None
+
+
+class CategoryLdapResponse(CategoryProviderResponse):
+    ldap_config: Optional[CategoryLdapConfigResponse] = None
+
+
+class CategorySamlResponse(CategoryProviderResponse):
+    saml_config: Optional[SamlConfigResponse] = None
+
+
 class CategoryAuthenticationResponse(BaseModel):
-    """Response shape for ``GET /admin/item/category/{id}/authentication``.
+    """Stored provider settings of a category, without their secrets. Looser than
+    the update request, as they may predate its validation."""
 
-    Permissive (``ConfigDict(extra="allow")``) because the underlying
-    ``Category.authentication`` blob is provider-specific freeform
-    (``local`` / ``ldap`` / ``saml`` / ``google``), and the service
-    pre-strips the secret keys (password, client_secret) before
-    returning. The response is consumed by the admin edit-modal which
-    inspects fields per-provider.
-    """
+    local: Optional[CategoryProviderResponse] = None
+    google: Optional[CategoryGoogleResponse] = None
+    ldap: Optional[CategoryLdapResponse] = None
+    saml: Optional[CategorySamlResponse] = None
 
-    model_config = ConfigDict(extra="allow")
+
+class EmailDomainRestrictionUpdate(ProviderPartialUpdate):
+    enabled: bool
+    allowed: list[str] = Field(default_factory=list)
+
+
+class CategoryProviderUpdate(ProviderPartialUpdate):
+    """Provider settings in a category, validated as the webapp category form.
+    A disabled provider needs nothing else."""
+
+    _config_block: ClassVar[Optional[str]] = None
+
+    disabled: bool
+    email_domain_restriction: EmailDomainRestrictionUpdate = Field(
+        default_factory=lambda: EmailDomainRestrictionUpdate(enabled=False)
+    )
+    config_source: Literal["global", "custom"] = "global"
+    max_role: Optional[Literal["", "user", "advanced", "manager", "admin"]] = None
+
+    @model_validator(mode="after")
+    def _complete_when_enabled(self):
+        if self.disabled:
+            return self
+        missing: dict[tuple[str, ...], str] = {
+            (field,): "Field required"
+            for field in ("email_domain_restriction", "config_source")
+            if field not in self.model_fields_set
+        }
+        restriction = self.email_domain_restriction
+        if restriction.enabled and "allowed" not in restriction.model_fields_set:
+            missing[("email_domain_restriction", "allowed")] = "Field required"
+        if self._config_block is not None:
+            config = getattr(self, self._config_block)
+            fields = config.missing_fields() if self.config_source == "custom" else {}
+            if (
+                restriction.enabled
+                and isinstance(config, MappedConfigUpdate)
+                and not config.filled("field_email")
+            ):
+                fields["field_email"] = "Field required"
+            for field, message in fields.items():
+                missing[(self._config_block, field)] = message
+        if missing:
+            raise missing_fields_error(type(self).__name__, missing)
+        return self
+
+
+class CategoryGoogleUpdate(CategoryProviderUpdate):
+    _config_block: ClassVar[Optional[str]] = "google_config"
+
+    google_config: GoogleConfigUpdate = Field(default_factory=GoogleConfigUpdate)
+
+
+class CategoryLdapUpdate(CategoryProviderUpdate):
+    _config_block: ClassVar[Optional[str]] = "ldap_config"
+
+    ldap_config: LdapConfigUpdate = Field(default_factory=LdapConfigUpdate)
+
+
+class CategorySamlUpdate(CategoryProviderUpdate):
+    _config_block: ClassVar[Optional[str]] = "saml_config"
+
+    saml_config: SamlConfigUpdate = Field(default_factory=SamlConfigUpdate)
+
+
+class CategoryAuthenticationUpdate(ProviderPartialUpdate):
+    """Omitted providers keep their stored settings."""
+
+    local: CategoryProviderUpdate = Field(default=None)
+    google: CategoryGoogleUpdate = Field(default=None)
+    ldap: CategoryLdapUpdate = Field(default=None)
+    saml: CategorySamlUpdate = Field(default=None)
 
 
 # ── Login Notification ───────────────────────────────────────────────────

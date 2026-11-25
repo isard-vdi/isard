@@ -122,6 +122,7 @@ async def update_category_branding(
     "/admin/item/category/{category_id}/authentication",
     tags=[tag],
     response_model=CategoryAuthenticationResponse,
+    response_model_exclude_unset=True,
     summary="Get category authentication",
     description="Returns authentication provider configuration for a category "
     "with sensitive fields stripped.",
@@ -136,12 +137,7 @@ async def get_category_authentication(request: Request, category_id: str):
         auth = await asyncio.to_thread(
             AdminCategoryService.get_authentication, request.token_payload, category_id
         )
-        return JSONResponse(
-            content=CategoryAuthenticationResponse(**(auth or {})).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return CategoryAuthenticationResponse(**auth)
     except Error:
         raise
     except Exception:
@@ -176,7 +172,7 @@ async def update_category_authentication(
             AdminCategoryService.update_authentication,
             request.token_payload,
             category_id,
-            data.model_dump(),
+            data.model_dump(exclude_unset=True),
         )
         return Response(status_code=204)
     except Error:

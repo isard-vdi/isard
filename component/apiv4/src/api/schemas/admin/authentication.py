@@ -120,6 +120,22 @@ def _drop_defaults(schema: dict[str, Any]) -> None:
         prop.pop("default", None)
 
 
+def missing_fields_error(
+    title: str, missing: dict[tuple[str, ...], str]
+) -> ValidationError:
+    # A ValueError would put the whole body, secrets included, in the ``input``
+    # that the 400 response echoes.
+    return ValidationError.from_exception_data(
+        title,
+        [
+            InitErrorDetails(
+                type=PydanticCustomError("missing", message), loc=loc, input=None
+            )
+            for loc, message in missing.items()
+        ],
+    )
+
+
 class ProviderPartialUpdate(BaseModel):
     """Block merged into the stored provider: an omitted field keeps its value,
     so the OpenAPI schema must not advertise the Python defaults."""
@@ -157,10 +173,10 @@ class ProviderConfigBlockUpdate(ProviderPartialUpdate):
         return {
             field: "Field required"
             for field in self.required_fields()
-            if not self._filled(field)
+            if not self.filled(field)
         }
 
-    def _filled(self, field: str) -> bool:
+    def filled(self, field: str) -> bool:
         if field not in self.model_fields_set:
             return False
         value = getattr(self, field)
@@ -303,7 +319,7 @@ class SamlConfigUpdate(MappedConfigUpdate):
 
     def missing_fields(self) -> dict[str, str]:
         missing = super().missing_fields()
-        if not self._filled("metadata_url") and not self._filled("metadata_file"):
+        if not self.filled("metadata_url") and not self.filled("metadata_file"):
             missing["metadata_url"] = "Field required unless metadata_file is set"
         return missing
 
@@ -324,18 +340,12 @@ class ProviderConfigUpdateRequest(BaseModel):
             return self
         missing = getattr(self, self._config_block).missing_fields()
         if missing:
-            # A ValueError would put the whole body, secrets included, in the
-            # ``input`` that the 400 response echoes.
-            raise ValidationError.from_exception_data(
+            raise missing_fields_error(
                 type(self).__name__,
-                [
-                    InitErrorDetails(
-                        type=PydanticCustomError("missing", message),
-                        loc=(self._config_block, field),
-                        input=None,
-                    )
+                {
+                    (self._config_block, field): message
                     for field, message in missing.items()
-                ],
+                },
             )
         return self
 

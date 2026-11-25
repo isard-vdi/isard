@@ -975,7 +975,7 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalAuthenticationForm" class="form-horizontal form-label-left">
-                    <input hidden name="id" id="id">
+                    <input hidden name="id" id="id" data-parsley-excluded="true" />
                     {% with provider="local" %}
                         {% include '/snippets/category_authentication_form.html' %}
                     {% endwith %}
