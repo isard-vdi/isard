@@ -2,6 +2,7 @@
 
 """Create media from a public URL that may refuse requests for a few minutes."""
 
+import os
 import time
 from typing import Any, Callable
 
@@ -9,6 +10,10 @@ import pytest
 import requests
 
 REFUSED_CODE = "media_url_not_valid"
+
+DEFAULT_MEDIA_URL = os.environ.get("E2E_MEDIA_URL") or (
+    "https://gitlab.com/isard/isardvdi/-/raw/694ba43e8a77e04e13e373df63646071363b0f57/testing/media/isard-test.iso"
+)
 
 
 def _refused(resp: Any) -> bool:

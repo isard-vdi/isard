@@ -39,7 +39,7 @@ docker compose -f docker-compose.yml -f docker-compose.integration.yml \
 | `E2E_ADMIN_CATEGORY` | `default` | login category |
 | `E2E_NAMESPACE_PREFIX` | `e2e_real_<worker>_<ts>_` | object name prefix used for cleanup |
 | `E2E_SKIP_STARTUP_CLEANUP` | — | set `1` to skip wiping prior `e2e_real_*` rows |
-| `E2E_MEDIA_URL` | `https://archive.org/download/tiny-iso-test/TinyIsoTest.iso` | ISO used for media-from-URL flow |
+| `E2E_MEDIA_URL` | `testing/media/isard-test.iso` at a pinned commit, from gitlab.com | ISO for the media-from-URL flows, read in `helpers/media_source.py`. Set it as a CI variable to serve the ISO from your own mirror. apiv4 refuses URLs that resolve to a private address, so the mirror needs a public one |
 | `E2E_REGISTRY_IMAGE` | `TetrOS` | registry image for download flow |
 | `E2E_REGISTRY_CODE` | — | IsardVDI registration code; skips the registry test if absent |
 
