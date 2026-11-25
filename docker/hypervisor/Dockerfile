@@ -140,7 +140,7 @@ RUN apk add --no-cache \
     libtheora libusb libvirt libvirt-common-drivers libvirt-daemon libvirt-qemu \
     libvorbis libx11 libxau libxcb libxdamage libxdmcp libxext libxfixes libxft \
     libxkbcommon libxml2-utils libxrender libxshmfence libxslt libxv libxxf86vm \
-    lz4-libs lzo mesa mesa-egl mesa-gbm mesa-gl netcf-libs openssh openssl \
+    lz4-libs lzo mesa mesa-egl mesa-gbm mesa-gl netcf-libs openssh "openssh-server>=10.3_p1-r2" openssl \
     openvswitch opus orc ovmf pango pciutils pixman polkit qemu \
     qemu-img qemu-modules qemu-system-x86_64 rsync shadow snappy speedtest-cli \
     spice-server swtpm tshark usbredir virglrenderer virtiofsd \
