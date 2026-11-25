@@ -85,6 +85,39 @@ class Targets(RethinkCustomBase):
             return target[conn_type]
         return target
 
+    @staticmethod
+    def normalize_domains(domains: list[str] | None) -> list[str]:
+        """Return the ASCII form of the non-blank ``domains``."""
+        try:
+            return [
+                normalize_host_name(d.strip()) for d in domains or [] if d and d.strip()
+            ]
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="bastion_domain_invalid",
+            )
+
+    @classmethod
+    def verify_new_domains(
+        cls, domain_id: str, target: dict, domains: list[str]
+    ) -> None:
+        """Check the DNS of the ``domains`` not stored on ``target`` yet, if required."""
+        stored = target.get("domains") or []
+        new_domains = [d for d in domains if d not in stored]
+        if not new_domains or not Bastion.bastion_domain_verification_required():
+            return
+        with cls._rdb_context():
+            dom_row = (
+                r.table("domains").get(domain_id).default(None).run(cls._rdb_connection)
+            )
+        bastion_domain = Bastion.get_bastion_domain((dom_row or {}).get("category"))
+        for d in new_domains:
+            Bastion.check_bastion_domain_dns(
+                d, f"{target['id']}.{bastion_domain}", kind="cname"
+            )
+
     @classmethod
     def update_domain_target(cls, domain_id, data={}):
         try:
@@ -129,18 +162,7 @@ class Targets(RethinkCustomBase):
         if data.get("ssh"):
             target["ssh"] = {**(target.get("ssh") or {}), **data["ssh"]}
         if "domains" in data:
-            try:
-                new_domains = [
-                    normalize_host_name(d.strip())
-                    for d in (data["domains"] or [])
-                    if d and d.strip()
-                ]
-            except ValueError as e:
-                raise Error(
-                    "bad_request",
-                    str(e),
-                    description_code="bastion_domain_invalid",
-                )
+            new_domains = cls.normalize_domains(data["domains"])
             old_domains = [d for d in target.get("domains", []) if d]
 
             if len(new_domains) > 10:
@@ -149,22 +171,7 @@ class Targets(RethinkCustomBase):
                     "Maximum 10 domains allowed per target",
                 )
 
-            if Bastion.bastion_domain_verification_required():
-                with cls._rdb_context():
-                    dom_row = (
-                        r.table("domains")
-                        .get(domain_id)
-                        .default(None)
-                        .run(cls._rdb_connection)
-                    )
-                category_id = (dom_row or {}).get("category")
-                for d in new_domains:
-                    if d and d not in old_domains:
-                        Bastion.check_bastion_domain_dns(
-                            d,
-                            f"{target['id']}.{Bastion.get_bastion_domain(category_id)}",
-                            kind="cname",
-                        )
+            cls.verify_new_domains(domain_id, target, new_domains)
 
             domains_to_add = set(new_domains) - set(old_domains)
             domains_to_remove = set(old_domains) - set(new_domains)

@@ -638,9 +638,13 @@ class UsersProcessed(RethinkSharedConnection):
         if Helpers.can_use_bastion(payload):
             bastion_allowed = True
             bastion_domain = Bastion.get_bastion_domain(payload["category_id"])
+            bastion_domain_verification_required = (
+                Bastion.bastion_domain_verification_required()
+            )
         else:
             bastion_allowed = False
             bastion_domain = None
+            bastion_domain_verification_required = True
 
         frontend_mode = get_frontend_mode_rule(payload)
 
@@ -674,6 +678,7 @@ class UsersProcessed(RethinkSharedConnection):
                 "http_port": getenv("HTTP_PORT", "80"),
                 "https_port": getenv("HTTPS_PORT", "443"),
                 "bastion_domain": bastion_domain,
+                "bastion_domain_verification_required": bastion_domain_verification_required,
                 "bastion_ssh_port": (
                     getenv(
                         "BASTION_SSH_PORT",

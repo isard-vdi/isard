@@ -1653,16 +1653,34 @@
               "description": "Enable to forward the real client IP to the guest. Only enable if your guest web server supports Proxy Protocol v2."
             },
             "custom-domains": {
-              "label": "Custom domain name (Optional)",
+              "label": "Custom domain names",
+              "count": "{count}/{max}",
               "placeholder": "mydesktop.example.com",
               "empty": "No custom domains added",
-              "add": "Add custom domain",
+              "add": "Add domain",
+              "input-label": "Custom domain {position}",
+              "verify": "Verify domain DNS",
+              "remove": "Remove domain",
+              "save": "Update custom domains",
+              "status": {
+                "saved": "Domain saved and active",
+                "verified": "Domain verified (save to apply)",
+                "verifying": "Verifying domain",
+                "failed": "The domain could not be verified",
+                "pending": "Domain not verified"
+              },
+              "limit-reached": "You've reached the limit of {max} domains.",
+              "over-limit": "This desktop has {count} custom domains, over the limit of {max}. They are kept, but you can't add more.",
+              "over-limit-error": "Remove {count} more domain to save the changes: the limit is {max}. | Remove {count} more domains to save the changes: the limit is {max}.",
+              "disabled": {
+                "title": "Save the desktop before adding custom domains",
+                "description": "The DNS record of a custom domain must point to the bastion ID of this desktop, which is created when you save it with the bastion enabled. Save the desktop and edit it again to add domains."
+              },
               "more-details": "More details",
               "less-details": "Less details",
               "alert": {
                 "title": "You can use your own domain name to access this desktop via bastion.",
-                "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}",
-                "cname-example": "00000000-0000-0000-0000.000000000000.example.com"
+                "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}"
               }
             }
           },
@@ -2148,7 +2166,7 @@
     },
     "bastion-info-modal": {
       "title": "Bastion information for desktop '{name}'",
-      "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
+      "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set custom domains and authorized SSH keys below.",
       "description-read-only": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command.",
       "no-bastion-configured": "Bastion is not enabled for this desktop",
       "no-bastion-configured-description": "Edit the desktop and enable HTTP/HTTPS or SSH access to use the bastion.",
@@ -2172,7 +2190,7 @@
               "title": "You can use your own domain name to access this desktop via bastion.",
               "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}"
             },
-            "success": "Custom domain updated successfully"
+            "success": "Custom domains updated successfully"
           }
         },
         "ssh": {
@@ -3428,7 +3446,14 @@
         "only_works_rdp": "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option.",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
         "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host.",
-        "bastion_ssh_key_invalid": "One of the authorized SSH keys is not a valid SSH public key."
+        "bastion_ssh_key_invalid": "One of the authorized SSH keys is not a valid SSH public key.",
+        "bastion_domain_exists": "One of the custom domains is already in use. Please choose a different one.",
+        "bastion_domain_dns_not_found": "The DNS record of the domain was not found. Make sure it exists and try again in a few minutes.",
+        "bastion_domain_dns_mismatch": "The DNS record of the domain does not point to this desktop. Please check it and try again.",
+        "bastion_domain_dns_error": "There was an error checking the DNS record of the domain. Please try again later.",
+        "bastion_domain_requires_target": "Save the desktop with the bastion enabled before adding custom domains.",
+        "bastion_domains_not_allowed": "You are not allowed to use custom domains.",
+        "bastion_domain_invalid": "One of the custom domains is not a valid host name. Please check it and try again."
       }
     },
     "increase-storage": {
@@ -3508,6 +3533,22 @@
         "vgpu_profile_not_found": "One or more selected vGPU profiles no longer exist.",
         "vgpu_profiles_different_hypervisors": "The selected GPU profiles are not all available on a single host. Pick a different combination.",
         "vgpu_profiles_different_models": "All the selected GPU profiles must be of the same GPU model so they can run on one host."
+      }
+    },
+    "bastion-domains": {
+      "errors": {
+        "generic": "There was an error with the custom domains. Please try again.",
+        "internal_server": "Internal server error with the custom domains.",
+        "not_found": "The desktop has no bastion target yet. Save it with the bastion enabled first.",
+        "bad_request": "One of the custom domains is not valid, or there are too many.",
+        "forbidden": "You are not allowed to use custom domains.",
+        "bastion_domain_exists": "One of the custom domains is already in use. Please choose a different one.",
+        "bastion_domain_dns_not_found": "The DNS record of the domain was not found. Make sure it exists and try again in a few minutes.",
+        "bastion_domain_dns_mismatch": "The DNS record of the domain does not point to this desktop. Please check it and try again.",
+        "bastion_domain_dns_error": "There was an error checking the DNS record of the domain. Please try again later.",
+        "bastion_domain_requires_target": "Save the desktop with the bastion enabled before adding custom domains.",
+        "bastion_domains_not_allowed": "You are not allowed to use custom domains.",
+        "bastion_domain_invalid": "One of the custom domains is not a valid host name. Please check it and try again."
       }
     },
     "booking": {

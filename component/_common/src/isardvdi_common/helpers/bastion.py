@@ -582,12 +582,14 @@ class Bastion(RethinkSharedConnection):
                     "conflict",
                     "Bastion domain is the same as the default domain",
                     traceback.format_exc(),
+                    description_code="bastion_domain_exists",
                 )
             if domain == bastion_domain:
                 raise Error(
                     "conflict",
                     "Bastion domain is the same as the default domain",
                     traceback.format_exc(),
+                    description_code="bastion_domain_exists",
                 )
 
             with cls._rdb_context():
@@ -603,6 +605,7 @@ class Bastion(RethinkSharedConnection):
                         "conflict",
                         f"Bastion domain '{domain}' already used by another category",
                         traceback.format_exc(),
+                        description_code="bastion_domain_exists",
                     )
 
                 target_query = r.table("targets").filter(
@@ -615,4 +618,5 @@ class Bastion(RethinkSharedConnection):
                         "conflict",
                         f"Bastion domain '{domain}' already used by another desktop",
                         traceback.format_exc(),
+                        description_code="bastion_domain_exists",
                     )

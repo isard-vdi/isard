@@ -10,18 +10,16 @@ import {
   getUserConfigOptions,
   getDesktopBastionLegacyOptions,
   getUserBastionSshKeyOptions,
-  updateDesktopBastionAuthorizedKeysMutation,
-  updateDesktopBastionDomainMutation
+  updateBastionDomainsMutation,
+  updateDesktopBastionAuthorizedKeysMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { BastionDirectViewerResponse } from '@/gen/oas/apiv4'
 import { toast } from '@/components/ui/toast'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Code } from '@/components/code'
 import { FieldError } from '@/components/ui/field'
 import { Icon, CopyIcon } from '@/components/icon'
-import { InputField } from '@/components/input-field'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,7 +27,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { TruncatedText } from '@/components/truncated-text'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { RouterLink } from 'vue-router'
+import BastionDomainsEditor from '@/components/domain/BastionDomainsEditor.vue'
 import { describeApiError } from '@/lib/api-errors'
+import { cleanDomains, domainsChanged, domainsOverLimit } from '@/lib/bastionDomains'
 import { invalidAuthorizedKeyLines } from '@/lib/sshKeys'
 import { hostToUnicode } from '@/lib/hostName'
 
@@ -79,17 +79,14 @@ const {
   enabled: isEditable
 })
 
-const {
-  mutate: saveBastionHttpDomain,
-  mutateAsync: saveBastionHttpDomainAsync,
-  isPending: saveBastionHttpDomainIsPending,
-  isError: saveBastionHttpDomainIsError,
-  error: saveBastionHttpDomainError
-} = useMutation({
-  ...updateDesktopBastionDomainMutation(),
+const { mutate: saveBastionDomains, isPending: saveBastionDomainsIsPending } = useMutation({
+  ...updateBastionDomainsMutation(),
   onSuccess: () => {
     toast.success(t('components.bastion-info-modal.fields.http.custom-domain.success'))
     refetchBastionTargetData()
+  },
+  onError: (error) => {
+    toast.error(describeApiError(error, { t, te }, 'bastion-domains'))
   }
 })
 
@@ -110,14 +107,37 @@ const { data: userBastionSshKey } = useQuery({
 })
 const hasOwnKey = computed(() => Boolean((userBastionSshKey.value?.ssh_key || '').trim()))
 
-const bastionDomain = ref<string>('')
+const canEditDomains = computed(
+  () => isEditable.value && !!userConfig.value?.can_use_bastion_individual_domains
+)
+const savedDomains = computed<string[]>(() =>
+  (bastionTargetData.value?.domains ?? []).map(hostToUnicode)
+)
+const domains = ref<string[]>([])
+watch(
+  savedDomains,
+  (next, prev) => {
+    // Any other change to the target refreshes this too; it must not discard edits.
+    if (!prev || domainsChanged(next, prev)) domains.value = [...next]
+  },
+  { immediate: true }
+)
+const canSaveDomains = computed(
+  () =>
+    !saveBastionDomainsIsPending.value &&
+    domainsChanged(domains.value, savedDomains.value) &&
+    domainsOverLimit(domains.value, savedDomains.value) === 0
+)
+const saveDomains = () =>
+  saveBastionDomains({
+    path: { desktop_id: props.desktopId },
+    body: { domains: cleanDomains(domains.value) }
+  })
+
 const bastionAuthorizedKeys = ref<string>('')
 watch(
   () => bastionTargetData.value,
   (newVal) => {
-    // TODO: migrate to the multi-domain (domains array) UI. For now we only
-    // read/write the first custom domain.
-    bastionDomain.value = hostToUnicode(newVal?.domains?.[0] || '')
     const keys = (newVal?.ssh.authorized_keys || []).filter(
       (k): k is string => !!k && k.trim().length > 0
     )
@@ -125,8 +145,6 @@ watch(
   },
   { immediate: true }
 )
-
-const bastionModalDnsAlertOpen = ref(false)
 
 const hasTarget = computed(() =>
   isReadOnly.value ? !!props.bastion?.enabled : !!bastionTargetData.value
@@ -156,8 +174,6 @@ const targetIdSplit = computed(() => {
   )
 })
 
-// TODO: migrate to the multi-domain (domains array) UI. For now we only
-// surface the first custom domain.
 const httpUrl = computed(() => {
   if (isReadOnly.value) return props.bastion?.http_url ?? ''
   const port = userConfig.value?.http_port === '80' ? '' : `:${userConfig.value?.http_port}`
@@ -182,8 +198,6 @@ const sshUrl = computed(() => {
 })
 
 const closeModal = () => {
-  bastionModalDnsAlertOpen.value = false
-  bastionDomain.value = ''
   bastionAuthorizedKeys.value = ''
   emit('close')
 }
@@ -196,22 +210,6 @@ const isPending = computed(
 const isError = computed(
   () => isEditable.value && (userConfigIsError.value || bastionTargetDataIsError.value)
 )
-
-const domainNameForm = useForm({
-  defaultValues: reactive({
-    domainName: computed(() => bastionDomain.value)
-  }),
-  onSubmit: async ({ value }) => {
-    await saveBastionHttpDomainAsync({
-      body: {
-        domain_name: value.domainName
-      },
-      path: {
-        desktop_id: props.desktopId
-      }
-    })
-  }
-})
 
 const authorizedKeysSchema = z.object({
   authorizedKeys: z.string().superRefine((value, ctx) => {
@@ -377,7 +375,7 @@ const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isVal
 
           <!-- All configured custom domains; the URLs above only use the first. -->
           <div
-            v-if="customDomains.length"
+            v-if="customDomains.length && !canEditDomains"
             class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200"
           >
             <Label class="text-sm text-gray-warm-700">
@@ -394,75 +392,25 @@ const authorizedKeysIsValid = authorizedKeysForm.useStore((state) => state.isVal
             </div>
           </div>
 
-          <!-- Custom domain editor -->
-          <div v-if="isEditable" class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
-            <Label class="text-sm text-gray-warm-700">
-              {{ t('components.domain.access.bastion.http-https.custom-domains.label') }}
-            </Label>
-            <form
-              class="flex items-center gap-2"
-              @submit.prevent.stop="domainNameForm.handleSubmit"
+          <div v-if="canEditDomains" class="flex flex-col gap-3 pt-4 border-t border-gray-warm-200">
+            <BastionDomainsEditor
+              v-model="domains"
+              :saved-domains="savedDomains"
+              :desktop-id="props.desktopId"
+              :target-id="targetId"
+              :bastion-domain="userConfig?.bastion_domain"
+            />
+            <Button
+              type="button"
+              hierarchy="primary"
+              size="sm"
+              icon="save-02"
+              class="self-end"
+              :disabled="!canSaveDomains"
+              @click="saveDomains"
             >
-              <domainNameForm.Field v-slot="{ field }" name="domainName">
-                <InputField
-                  :id="field.name"
-                  class="flex-1"
-                  :placeholder="
-                    t('components.domain.access.bastion.http-https.custom-domains.placeholder')
-                  "
-                  :name="field.name"
-                  :model-value="field.state.value"
-                  @blur="field.handleBlur"
-                  @input="field.handleChange($event.target.value)"
-                />
-              </domainNameForm.Field>
-              <Button
-                :aria-label="t('common.actions.save')"
-                hierarchy="primary"
-                icon="save-02"
-                :disabled="saveBastionHttpDomainIsPending"
-                type="submit"
-              />
-            </form>
-            <Label
-              class="cursor-pointer flex items-center gap-1 text-sm text-gray-warm-600 hover:text-gray-warm-800"
-              @click="bastionModalDnsAlertOpen = !bastionModalDnsAlertOpen"
-            >
-              {{
-                bastionModalDnsAlertOpen
-                  ? t('components.domain.access.bastion.http-https.custom-domains.less-details')
-                  : t('components.domain.access.bastion.http-https.custom-domains.more-details')
-              }}
-              <Icon
-                :name="bastionModalDnsAlertOpen ? 'chevron-up' : 'chevron-down'"
-                size="sm"
-                stroke-color="gray-warm-600"
-              />
-            </Label>
-            <Alert v-if="bastionModalDnsAlertOpen" class="bg-gray-warm-50 border-gray-warm-300">
-              <AlertTitle class="font-semibold text-gray-warm-700 mb-1">
-                {{ t('components.domain.access.bastion.http-https.custom-domains.alert.title') }}
-              </AlertTitle>
-              <i18n-t
-                keypath="components.domain.access.bastion.http-https.custom-domains.alert.description"
-                tag="AlertDescription"
-                class="text-gray-warm-700"
-              >
-                <template #cname-url>
-                  <Code>{{
-                    `${bastionTargetData!.desktop_id}.${userConfig?.bastion_domain}`
-                  }}</Code>
-                  <span class="inline-block mx-1">
-                    <CopyIcon
-                      class="inline-block"
-                      :value="`${bastionTargetData!.desktop_id}.${userConfig?.bastion_domain}`"
-                      size="sm"
-                      stroke-color="gray-warm-600"
-                    />
-                  </span>
-                </template>
-              </i18n-t>
-            </Alert>
+              {{ t('components.domain.access.bastion.http-https.custom-domains.save') }}
+            </Button>
           </div>
         </section>
 

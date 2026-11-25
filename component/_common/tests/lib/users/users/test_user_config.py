@@ -85,6 +85,11 @@ def user_config_env(monkeypatch):
         "get_bastion_domain",
         staticmethod(lambda category_id: f"bastion-{category_id}"),
     )
+    monkeypatch.setattr(
+        mod.Bastion,
+        "bastion_domain_verification_required",
+        staticmethod(lambda: True),
+    )
     # Default: no bastion. Individual tests override to probe a payload field.
     monkeypatch.setattr(
         mod.Helpers, "can_use_bastion", staticmethod(lambda payload: False)

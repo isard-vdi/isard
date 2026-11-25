@@ -1591,16 +1591,34 @@
               "placeholder": "Sartu HTTPS ataka"
             },
             "custom-domains": {
-              "label": "Domeinu-izen pertsonalizatua (aukerakoa)",
+              "label": "Domeinu-izen pertsonalizatuak",
+              "count": "{count}/{max}",
               "placeholder": "mydesktop.example.com",
               "empty": "Ez da domeinu pertsonalizaturik gehitu",
-              "add": "Gehitu domeinu pertsonalizatua",
+              "add": "Gehitu domeinua",
+              "input-label": "{position}. domeinu pertsonalizatua",
+              "verify": "Egiaztatu domeinuaren DNSa",
+              "remove": "Kendu domeinua",
+              "save": "Eguneratu domeinu pertsonalizatuak",
+              "status": {
+                "saved": "Domeinua gordeta eta aktibo",
+                "verified": "Domeinua egiaztatuta (gorde aplikatzeko)",
+                "verifying": "Domeinua egiaztatzen",
+                "failed": "Ezin izan da domeinua egiaztatu",
+                "pending": "Domeinua egiaztatu gabe"
+              },
+              "limit-reached": "{max} domeinuko mugara iritsi zara.",
+              "over-limit": "Mahaigain honek {count} domeinu pertsonalizatu ditu, {max}ko mugaren gainetik. Gorde egiten dira, baina ezin duzu gehiago gehitu.",
+              "over-limit-error": "Kendu domeinu {count} gehiago aldaketak gordetzeko: muga {max} da. | Kendu {count} domeinu gehiago aldaketak gordetzeko: muga {max} da.",
+              "disabled": {
+                "title": "Gorde mahaigaina domeinu pertsonalizatuak gehitu aurretik",
+                "description": "Domeinu pertsonalizatu baten DNS erregistroak mahaigain honen bastion IDra seinalatu behar du, eta ID hori bastiona gaituta gordetzean sortzen da. Gorde mahaigaina eta editatu berriro domeinuak gehitzeko."
+              },
               "more-details": "Xehetasun gehiago",
               "less-details": "Xehetasun gutxiago",
               "alert": {
                 "title": "Zure domeinu-izena erabil dezakezu mahaigain honetara bastion bidez sartzeko.",
-                "description": "Gehitu CNAME erregistro bat zure DNS hornitzailean hona seinalatuz: {cname-url}",
-                "cname-example": "00000000-0000-0000-0000.000000000000.example.com"
+                "description": "Gehitu CNAME erregistro bat zure DNS hornitzailean hona seinalatuz: {cname-url}"
               }
             },
             "enable": "HTTP / HTTPS sarbidea gaitu",
@@ -2071,7 +2089,7 @@
               "title": "Zure domeinu-izena erabil dezakezu mahaigain honetara bastion bidez sartzeko.",
               "description": "Gehitu CNAME erregistro bat zure DNS hornitzailean hona seinalatuz: {cname-url}"
             },
-            "success": "Domeinu pertsonalizatua behar bezala eguneratu da"
+            "success": "Domeinu pertsonalizatuak behar bezala eguneratu dira"
           }
         },
         "ssh": {
@@ -3381,7 +3399,14 @@
         "only_works_rdp": "'GPU soilik' moduak RDP ikustaileekin bakarrik funtzionatzen du. Kendu RDP ez diren ikustaileak edo aukeratu beste bideo aukera bat.",
         "vgpu_profiles_different_hypervisors": "Hautatutako GPU profil guztiak ez daude erabilgarri host bakar batean. Aukeratu beste konbinazio bat.",
         "vgpu_profiles_different_models": "Hautatutako GPU profil guztiek GPU eredu berekoak izan behar dute, host bakar batean exekutatu ahal izateko.",
-        "bastion_ssh_key_invalid": "Baimendutako SSH gakoetako bat ez da baliozko SSH gako publikoa."
+        "bastion_ssh_key_invalid": "Baimendutako SSH gakoetako bat ez da baliozko SSH gako publikoa.",
+        "bastion_domain_exists": "Domeinu pertsonalizaturen bat dagoeneko erabiltzen ari da. Aukeratu beste bat.",
+        "bastion_domain_dns_not_found": "Ez da domeinuaren DNS erregistroa aurkitu. Ziurtatu existitzen dela eta saiatu berriro minutu batzuk barru.",
+        "bastion_domain_dns_mismatch": "Domeinuaren DNS erregistroak ez du mahaigain hau seinalatzen. Egiaztatu eta saiatu berriro.",
+        "bastion_domain_dns_error": "Errore bat gertatu da domeinuaren DNS erregistroa egiaztatzean. Saiatu berriro geroago.",
+        "bastion_domain_requires_target": "Gorde mahaigaina bastiona gaituta domeinu pertsonalizatuak gehitu aurretik.",
+        "bastion_domains_not_allowed": "Ez duzu domeinu pertsonalizatuak erabiltzeko baimenik.",
+        "bastion_domain_invalid": "Domeinu pertsonalizaturen bat ez da baliozko ostalari-izena. Egiaztatu eta saiatu berriro."
       }
     },
     "delete-desktop": {
@@ -3430,6 +3455,22 @@
         "too_many_vgpu_profiles": "vGPU profilen gehienezko kopurua gainditu da.",
         "duplicate_vgpu_profiles": "Ezin da vGPU profil bera behin baino gehiagotan hautatu.",
         "vgpu_profile_not_found": "Hautatutako vGPU profil bat edo gehiago ez dira jada existitzen."
+      }
+    },
+    "bastion-domains": {
+      "errors": {
+        "generic": "Errore bat gertatu da domeinu pertsonalizatuekin. Saiatu berriro.",
+        "internal_server": "Zerbitzariaren barne errorea domeinu pertsonalizatuekin.",
+        "not_found": "Mahaigainak ez du oraindik bastionik. Gorde lehenik bastiona gaituta.",
+        "bad_request": "Domeinu pertsonalizaturen bat ez da baliozkoa, edo gehiegi daude.",
+        "forbidden": "Ez duzu domeinu pertsonalizatuak erabiltzeko baimenik.",
+        "bastion_domain_exists": "Domeinu pertsonalizaturen bat dagoeneko erabiltzen ari da. Aukeratu beste bat.",
+        "bastion_domain_dns_not_found": "Ez da domeinuaren DNS erregistroa aurkitu. Ziurtatu existitzen dela eta saiatu berriro minutu batzuk barru.",
+        "bastion_domain_dns_mismatch": "Domeinuaren DNS erregistroak ez du mahaigain hau seinalatzen. Egiaztatu eta saiatu berriro.",
+        "bastion_domain_dns_error": "Errore bat gertatu da domeinuaren DNS erregistroa egiaztatzean. Saiatu berriro geroago.",
+        "bastion_domain_requires_target": "Gorde mahaigaina bastiona gaituta domeinu pertsonalizatuak gehitu aurretik.",
+        "bastion_domains_not_allowed": "Ez duzu domeinu pertsonalizatuak erabiltzeko baimenik.",
+        "bastion_domain_invalid": "Domeinu pertsonalizaturen bat ez da baliozko ostalari-izena. Egiaztatu eta saiatu berriro."
       }
     },
     "booking": {

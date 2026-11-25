@@ -45,6 +45,9 @@ const {
 
 const { data: userConfig } = useQuery(getUserConfigOptions())
 const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
+const canUseCustomDomains = computed(
+  () => userConfig.value?.can_use_bastion_individual_domains === true
+)
 
 // Card colour only. `DomainInfoResponse` has no persistent flag; only
 // deployment desktops report a `deployment_name`.
@@ -129,6 +132,7 @@ const handleSubmit = () => {
       :image-persist-on-save="false"
       always-show-configuration
       :show-bastion-config="canUseBastion"
+      :show-custom-domains="canUseCustomDomains"
       context="edit-desktop"
     />
   </main>

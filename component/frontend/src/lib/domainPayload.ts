@@ -17,6 +17,7 @@ export type BootDevice = 'iso' | 'floppy' | 'disk' | 'pxe'
 export interface BastionFormData {
   http?: { enabled?: boolean; httpPort: number; httpsPort: number; proxyProtocol?: boolean } | null
   ssh?: { enabled?: boolean; sshPort: number; authorizedKeys: string } | null
+  /** Only present when the list changed. */
   customDomains?: string[]
 }
 
@@ -119,7 +120,8 @@ export function toBastionTarget(bastion: BastionFormData | undefined): BastionRe
         .split('\n')
         .map((key) => key.trim())
         .filter((key) => key.length > 0)
-    }
+    },
+    ...(bastion.customDomains ? { domains: bastion.customDomains } : {})
   }
 }
 

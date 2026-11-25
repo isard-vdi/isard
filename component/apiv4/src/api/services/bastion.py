@@ -61,6 +61,20 @@ class BastionService:
         )
 
     @staticmethod
+    def validate_request_domains(desktop_id: str, data: dict) -> None:
+        """Clean in place and check the custom domains of a bastion request, if any."""
+        if "domains" not in data:
+            return
+        domains = Targets.normalize_domains(data["domains"])
+        data["domains"] = list(dict.fromkeys(domains))
+        target = Targets.find_domain_target(desktop_id)
+        Bastion.check_duplicate_bastion_domains(
+            data["domains"], target_id=(target or {}).get("id")
+        )
+        if target:
+            Targets.verify_new_domains(desktop_id, target, data["domains"])
+
+    @staticmethod
     def apply_bastion_config(desktop_id: str, config: dict) -> None:
         """Apply a bastion config (ssh/http enable + ports) to a desktop's
         target, **preserving** existing authorized_keys / domains. Creates the

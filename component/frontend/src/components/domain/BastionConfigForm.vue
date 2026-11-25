@@ -1,25 +1,26 @@
 <script setup lang="ts">
 import { useForm } from '@tanstack/vue-form'
+import { useQuery } from '@tanstack/vue-query'
+import { getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { provideFormSchema } from '@/composables/useFormSchema'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { reactive } from 'vue'
+import { computed, reactive } from 'vue'
 import { z } from 'zod'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { Code } from '@/components/code'
-import { Icon, CopyIcon } from '@/components/icon'
+import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { toast } from '@/components/ui/toast'
 import { ref, watch } from 'vue'
 import { WIREGUARD_INTERFACE_ID } from '@/lib/viewers'
 import { invalidAuthorizedKeyLines } from '@/lib/sshKeys'
+import { cleanDomains, domainsChanged, domainsOverLimit } from '@/lib/bastionDomains'
+import BastionDomainsEditor from '@/components/domain/BastionDomainsEditor.vue'
 
 interface BastionHttpHttps {
   enabled?: boolean
@@ -44,6 +45,8 @@ interface Bastion {
 interface Props {
   bastion?: Bastion
   showCustomDomains?: boolean
+  desktopId?: string
+  targetId?: string
   hardwareInterfaces?: string[]
   onRequestAddInterface?: (ifaceId: string) => boolean | undefined
 }
@@ -65,6 +68,8 @@ const props = withDefaults(defineProps<Props>(), {
     customDomains: []
   }),
   showCustomDomains: false,
+  desktopId: undefined,
+  targetId: undefined,
   hardwareInterfaces: () => [],
   onRequestAddInterface: undefined
 })
@@ -74,6 +79,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const { data: userConfig } = useQuery(getUserConfigOptions())
+
+// The CNAME to verify holds the target id, so there is nothing to point a domain at yet.
+const customDomainsDisabled = computed(
+  () => !props.targetId && (userConfig.value?.bastion_domain_verification_required ?? true)
+)
 
 const formSchema = z.object({
   http: z
@@ -107,7 +119,7 @@ const formSchema = z.object({
       }
     })
     .optional(),
-  customDomains: z.array(z.string().url('Invalid domain URL')).optional()
+  customDomains: z.array(z.string()).optional()
 })
 
 const defaultValues = reactive(props.bastion)
@@ -120,6 +132,19 @@ const form = useForm({
   }
 })
 
+const savedDomains = ref<string[]>([...(props.bastion?.customDomains ?? [])])
+
+const customDomains = form.useStore((state) => state.values.customDomains ?? [])
+const httpEnabled = form.useStore((state) => !!state.values.http?.enabled)
+
+const canEditCustomDomains = computed(
+  () =>
+    props.showCustomDomains &&
+    !!props.desktopId &&
+    httpEnabled.value &&
+    !customDomainsDisabled.value
+)
+
 const getFormData = () => {
   const http = form.getFieldValue('http')
   const ssh = form.getFieldValue('ssh')
@@ -129,14 +154,21 @@ const getFormData = () => {
     ssh: ssh?.enabled ? ssh : null
   }
 
-  if (props.showCustomDomains) {
-    data.customDomains = form.getFieldValue('customDomains')
+  // Only a changed list is sent: the API takes at most 10, and a desktop may hold more.
+  if (canEditCustomDomains.value && domainsChanged(customDomains.value, savedDomains.value)) {
+    data.customDomains = cleanDomains(customDomains.value)
   }
 
   return data
 }
 
 const isFormValid = form.useStore((state) => state.isValid)
+
+const isValid = computed(
+  () =>
+    isFormValid.value &&
+    (!canEditCustomDomains.value || domainsOverLimit(customDomains.value, savedDomains.value) === 0)
+)
 
 const isDirty = form.useStore((state) => !state.isDefaultValue)
 
@@ -148,17 +180,17 @@ const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh
 
 const reset = () => {
   bastionEnabled.value = !!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled)
+  savedDomains.value = [...(props.bastion?.customDomains ?? [])]
   form.reset(props.bastion)
 }
 
 defineExpose({
   getFormData,
-  isValid: isFormValid,
+  isValid,
   isDirty,
   reset
 })
 
-const bastionModalDnsAlertOpen = ref(false)
 const stopBastionHydration = watch(
   () => props.bastion,
   () => {
@@ -220,19 +252,6 @@ watch(
     }
   }
 )
-
-const addCustomDomain = () => {
-  const currentDomains = form.getFieldValue('customDomains') || []
-  form.setFieldValue('customDomains', [...currentDomains, ''])
-}
-
-const removeCustomDomain = (index: number) => {
-  const currentDomains = form.getFieldValue('customDomains') || []
-  form.setFieldValue(
-    'customDomains',
-    currentDomains.filter((_, i) => i !== index)
-  )
-}
 </script>
 
 <template>
@@ -421,101 +440,21 @@ const removeCustomDomain = (index: number) => {
                   </FieldContent>
                 </div>
               </form.Field>
-              <div v-if="showCustomDomains" class="flex flex-col gap-2">
-                <div class="flex items-center justify-between gap-2">
-                  <FieldLabel>
-                    <Icon
-                      name="link-01"
-                      size="sm"
-                      stroke-color=""
-                      aria-hidden="true"
-                      class="text-gray-warm-500"
-                    />
-                    {{ t('components.domain.access.bastion.http-https.custom-domains.label') }}
-                  </FieldLabel>
-                  <Button size="sm" hierarchy="secondary" @click="addCustomDomain">
-                    <Icon name="plus" size="sm" />
-                    {{ t('components.domain.access.bastion.http-https.custom-domains.add') }}
-                  </Button>
-                </div>
-                <form.Field v-slot="{ field: domainsField }" name="customDomains">
-                  <div class="space-y-2">
-                    <div
-                      v-for="(domain, index) in domainsField.state.value"
-                      :key="index"
-                      class="flex gap-2"
-                    >
-                      <form.Field v-slot="{ field: domainField }" :name="`customDomains[${index}]`">
-                        <div class="flex-1">
-                          <InputField
-                            :id="domainField.name"
-                            :name="domainField.name"
-                            :model-value="domainField.state.value"
-                            type="text"
-                            :placeholder="
-                              t(
-                                'components.domain.access.bastion.http-https.custom-domains.placeholder'
-                              )
-                            "
-                            @update:model-value="(value) => domainField.handleChange(String(value))"
-                          />
-                          <FieldError :errors="domainField.state.meta.errors" />
-                        </div>
-                      </form.Field>
-                      <Button size="sm" hierarchy="link-color" @click="removeCustomDomain(index)">
-                        <Icon name="delete" stroke-color="error-600" />
-                      </Button>
-                    </div>
-                    <p
-                      v-if="!domainsField.state.value || domainsField.state.value.length === 0"
-                      class="text-sm text-muted-foreground"
-                    >
-                      {{ t('components.domain.access.bastion.http-https.custom-domains.empty') }}
-                    </p>
-                  </div>
-                </form.Field>
-                <div class="flex flex-col items-start gap-2">
-                  <Label
-                    class="cursor-pointer gap-1 text-gray-warm-600"
-                    @click="bastionModalDnsAlertOpen = !bastionModalDnsAlertOpen"
-                    >{{
-                      bastionModalDnsAlertOpen
-                        ? t(
-                            'components.domain.access.bastion.http-https.custom-domains.less-details'
-                          )
-                        : t(
-                            'components.domain.access.bastion.http-https.custom-domains.more-details'
-                          )
-                    }}
-                    <Icon
-                      :name="bastionModalDnsAlertOpen ? 'chevron-up' : 'chevron-down'"
-                      stroke-color="gray-warm-600"
-                    />
-                  </Label>
-                  <Alert v-if="bastionModalDnsAlertOpen" class="bg-white border-gray-warm-300">
-                    <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
-                      t('components.domain.access.bastion.http-https.custom-domains.alert.title')
-                    }}</AlertTitle>
-                    <i18n-t
-                      keypath="components.domain.access.bastion.http-https.custom-domains.alert.description"
-                      tag="AlertDescription"
-                      class="text-gray-warm-700"
-                    >
-                      <template #cname-url>
-                        <Code>{{ `00000000-0000-0000-0000.000000000000.example.com` }}</Code>
-                        <div class="inline-block mx-1">
-                          <CopyIcon
-                            class="inline-block"
-                            :value="`00000000-0000-0000-0000.000000000000.example.com`"
-                            size="sm"
-                            stroke-color="gray-warm-600"
-                          />
-                        </div>
-                      </template>
-                    </i18n-t>
-                  </Alert>
-                </div>
-              </div>
+              <form.Field
+                v-if="showCustomDomains && desktopId"
+                v-slot="{ field: domainsField }"
+                name="customDomains"
+              >
+                <BastionDomainsEditor
+                  :model-value="domainsField.state.value ?? []"
+                  :saved-domains="savedDomains"
+                  :desktop-id="desktopId"
+                  :target-id="targetId"
+                  :bastion-domain="userConfig?.bastion_domain"
+                  :disabled="customDomainsDisabled"
+                  @update:model-value="(value) => domainsField.handleChange(value)"
+                />
+              </form.Field>
             </template>
           </div>
         </form.Field>

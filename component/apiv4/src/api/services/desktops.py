@@ -1362,6 +1362,8 @@ class DesktopService:
             BastionService.normalize_request_keys(desktop_id, bastion_data)
 
         CommonDesktops.validate_desktop_update(data, desktop_id)
+        if bastion_data:
+            BastionService.validate_request_domains(desktop_id, bastion_data)
 
         CommonDesktops.update_desktop(
             desktop_id=desktop_id,
