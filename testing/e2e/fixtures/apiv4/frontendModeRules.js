@@ -110,8 +110,14 @@ export async function purgeE2eFrontendModeRules(client) {
 }
 
 // `client` is the target user's client: get-config answers for the caller.
-// The rules are cached for 60 s, hence the default timeout.
-export async function waitForFrontendMode(client, expected, { timeoutMs = 65000 } = {}) {
+// get-config is cached for up to 60 s, hence the default timeout. The e2e
+// stack caches it for 1 s, so the poll is short enough not to be what a
+// scenario waits for.
+export async function waitForFrontendMode(
+  client,
+  expected,
+  { timeoutMs = 65000, intervalMs = 250 } = {},
+) {
   const deadline = Date.now() + timeoutMs
   let last
   for (;;) {
@@ -120,6 +126,6 @@ export async function waitForFrontendMode(client, expected, { timeoutMs = 65000 
     if (Date.now() >= deadline) {
       throw new Error(`frontend_mode is "${last}", expected "${expected}" after ${timeoutMs} ms`)
     }
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
   }
 }

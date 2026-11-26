@@ -25,7 +25,9 @@
             "default"
         ],
         "allowed": {
-            "categories": false,
+            "categories": [
+                "fmre2e"
+            ],
             "groups": [],
             "roles": false,
             "users": false

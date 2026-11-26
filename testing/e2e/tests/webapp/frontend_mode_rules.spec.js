@@ -1,12 +1,17 @@
-// E2E tests for Config → Frontend (/isard-admin/admin/frontend_mode).
-// Spec: testing/e2e/specs/webapp/frontend_mode_rules.md — SECTION A only.
-// Sections B (API contract) and C (effect of the rule on the user) are
-// covered apart.
+// E2E tests for the frontend mode rules.
+// Spec: testing/e2e/specs/webapp/frontend_mode_rules.md
+//   - Section A: managing the rules from Config → Frontend
+//     (/isard-admin/admin/frontend_mode).
+//   - Section B: the priority uniqueness and the not-found answers of the API.
+//   - Section C: the frontend each user gets once a rule applies to them.
 //
 // Conventions:
-//   - The rules are global configuration: the file runs serially and every
-//     rule targets the dedicated `fmre2e` seed accounts, which no spec
-//     logs in with, so no parallel spec ever changes frontend.
+//   - The rules are global configuration: the tests run one at a time, in
+//     order, and every rule targets the dedicated `fmre2e` seed accounts,
+//     which no other spec logs in with, so no parallel spec ever changes
+//     frontend. The only rules reaching further (roles:[admin] /
+//     roles:[advanced] in C3 and C5) carry the installation mode, so they
+//     change nothing for the users outside `fmre2e`.
 //   - Rules are tracked via testInfo.annotations ('frontend-mode-rule-id')
 //     and deleted in afterEach, even when assertions fail. Names carry the
 //     `e2e-fmr-` prefix so beforeAll can purge the leftovers of an aborted
@@ -17,11 +22,16 @@
 //   - "Without reloading the page" is asserted with a marker set on
 //     `window` after the first load: it only survives if the table was
 //     refreshed in place.
+//   - Section C logs the target users in on fresh contexts. Every login ends
+//     the user's previous session, so a test first waits for the expected
+//     mode through an API-only login and only then logs in with the browser,
+//     whose client it keeps using.
 
 import {
-  test,
+  test as base,
   expect,
   apiv4ClientForPage,
+  apiv4ClientForRequest,
   track,
   cleanupTrackedResources,
   E2E_FRONTEND_MODE_RULE_PREFIX,
@@ -30,9 +40,46 @@ import {
   nextFrontendModeRulePriority,
   createFrontendModeRuleAndTrack,
   purgeE2eFrontendModeRules,
+  updateFrontendModeRule,
+  waitForFrontendMode,
+  getTemporaryDesktopTemplate,
+  listTemporaryDesktops,
+  createTemporaryDesktopAndTrack,
+  waitForTemporaryDesktops,
+  waitForTemporaryDesktopsSettled,
+  deleteTemporaryDesktops,
 } from '../../fixtures/apiv4/index.js'
 import { bridgeAdminSession } from '../../fixtures/common.js'
-import { deleteFrontendModeRule, getFrontendModeRule } from '../../src/gen/apiv4/sdk.gen'
+import {
+  createFrontendModeRule,
+  deleteFrontendModeRule,
+  getFrontendModeRule,
+  getUserConfig,
+  updateFrontendModeRule as sdkUpdateFrontendModeRule,
+} from '../../src/gen/apiv4/sdk.gen'
+
+// `targets` logs the fmre2e accounts in, through the API or the browser,
+// and closes every context it opened once the test ends.
+const test = base.extend({
+  targets: async ({ browser, playwright, baseURL, users, categories, loginHelpers }, use) => {
+    const opened = []
+    await use({
+      async api(key) {
+        const request = await loginHelpers.apiLogin(playwright, baseURL, users[key], categories)
+        opened.push(() => request.dispose())
+        return apiv4ClientForRequest(request)
+      },
+      async browser(key) {
+        const context = await browser.newContext({ ignoreHTTPSErrors: true })
+        opened.push(() => context.close())
+        const page = await context.newPage()
+        await loginHelpers.login(page, users[key], categories)
+        return { page, client: apiv4ClientForPage(page) }
+      },
+    })
+    for (const close of opened.reverse()) await close().catch(() => {})
+  },
+})
 
 const FRONTEND_MODE_URL = '/isard-admin/admin/frontend_mode'
 const RULES_API = '/api/v4/items/frontend-mode-rules'
@@ -57,7 +104,11 @@ const DUPLICATED_PRIORITY = 'Another rule already has this priority.'
 // Seeded in testing/src/isardvdi_testing/data (category `fmre2e`).
 const USER_A = { id: 'fmre2e-user-a', name: 'FMR E2E User A' }
 const USER_B = { id: 'fmre2e-user-b', name: 'FMR E2E User B' }
+const ADVANCED = { id: 'fmre2e-advanced', name: 'FMR E2E Advanced' }
+const MANAGER = { id: 'fmre2e-manager', name: 'FMR E2E Manager' }
+const GROUP_A = { id: 'fmre2e-group-a', name: 'FMR E2E Group A' }
 const GROUP_B = { id: 'fmre2e-group-b', name: 'FMR E2E Group B' }
+const CATEGORY = 'fmre2e'
 
 const NO_ALLOWED = { users: false, groups: false, categories: false, roles: false }
 
@@ -91,6 +142,9 @@ async function gotoFrontendMode(page) {
   await page.goto(FRONTEND_MODE_URL)
   expect((await listResp).status()).toBeLessThan(400)
   await page.locator(`${TABLE} tbody tr`).first().waitFor({ state: 'visible', timeout: 15000 })
+  // The first row can still be the DataTables loading placeholder, which
+  // has no id: the rows are only there once its spinner is gone.
+  await expect(page.locator(`${TABLE} tbody .fa-spinner`)).toHaveCount(0, { timeout: 15000 })
   await page.evaluate(() => {
     window.__e2eFrontendModeLoaded = true
   })
@@ -216,7 +270,7 @@ async function getRule(client, id) {
 }
 
 test.describe('Config — Frontend mode rules (admin webapp)', () => {
-  test.describe.configure({ mode: 'serial' })
+  test.describe.configure({ mode: 'default' })
 
   test.beforeAll(async ({ authenticatedContext }) => {
     const page = await authenticatedContext.newPage()
@@ -1098,5 +1152,732 @@ test.describe('Config — Frontend mode rules (admin webapp)', () => {
       // that session is shared by every manager test of this worker.
       await bridgeAdminSession(page)
     }
+  })
+
+  // ── SECTION B — API contract through the SDK ──────────────────────────────
+
+  test.describe('Section B — API contract', () => {
+    test('B1: priorities are unique on create and on edit (CE-07)', async ({
+      apiv4Admin,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      const r1 = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('b1-r1'),
+        priority,
+        allowed: { users: [USER_A.id] },
+      })
+      const r2 = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('b1-r2'),
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const name = ruleName('b1-dup')
+      const created = await createFrontendModeRule({
+        client: apiv4Admin,
+        body: {
+          name,
+          frontend_mode: 'hidden',
+          priority,
+          allowed: { ...NO_ALLOWED, users: [USER_A.id] },
+        },
+      })
+      const leaked = await findFrontendModeRuleByName(apiv4Admin, name)
+      if (leaked) track(testInfo, 'frontend-mode-rule-id', leaked.id)
+      expect(created.response.status).toBe(409)
+      expect(created.error?.description_code).toBe('duplicated_priority')
+      expect(leaked).toBeNull()
+
+      const moved = await sdkUpdateFrontendModeRule({
+        client: apiv4Admin,
+        path: { rule_id: r2.id },
+        body: { priority },
+      })
+      expect(moved.response.status).toBe(409)
+      expect(moved.error?.description_code).toBe('duplicated_priority')
+      expect((await getRule(apiv4Admin, r2.id)).data.priority).toBe(r2.priority)
+
+      const kept = await sdkUpdateFrontendModeRule({
+        client: apiv4Admin,
+        path: { rule_id: r1.id },
+        body: { priority: r1.priority },
+      })
+      expect(kept.response.status).toBe(204)
+      expect((await getRule(apiv4Admin, r1.id)).data).toEqual(r1)
+    })
+
+    test('B2: unknown rule ids answer 404', async ({ apiv4Admin }) => {
+      const id = crypto.randomUUID()
+      expect((await getRule(apiv4Admin, id)).response.status).toBe(404)
+      const updated = await sdkUpdateFrontendModeRule({
+        client: apiv4Admin,
+        path: { rule_id: id },
+        body: { description: 'never stored' },
+      })
+      expect(updated.response.status).toBe(404)
+      const deleted = await deleteFrontendModeRule({ client: apiv4Admin, path: { rule_id: id } })
+      expect(deleted.response.status).toBe(404)
+    })
+  })
+
+  // ── SECTION C — Effect of the rule on the user ────────────────────────────
+
+  test.describe('Section C — the frontend each user gets', () => {
+    // A rule change can take the whole 60 s of the get-config cache to reach
+    // the user (USER_CONFIG_CACHE_TTL, 1 on the e2e stack), and a scenario
+    // waits for up to three changes in a row.
+    test.describe.configure({ timeout: 300_000 })
+
+    // The mode of a user no rule matches. Read from an fmre2e user before
+    // any scenario creates a rule: nothing else reaches that category, while
+    // a rule left on the stack by hand may well reach the control user.
+    let installationMode
+    // What the control user gets, which no scenario may change.
+    let controlMode
+
+    test.beforeAll(async ({ userE2EContext, playwright, baseURL, users, categories, loginHelpers }) => {
+      const request = await loginHelpers.apiLogin(
+        playwright,
+        baseURL,
+        users.fmre2e_user_b,
+        categories,
+      )
+      try {
+        const { data } = await getUserConfig({ client: apiv4ClientForRequest(request) })
+        installationMode = data?.frontend_mode
+        expect(Object.keys(MODE_DESCRIPTIONS)).toContain(installationMode)
+      } finally {
+        await request.dispose()
+      }
+
+      const page = await userE2EContext.newPage()
+      try {
+        const { data } = await getUserConfig({ client: apiv4ClientForPage(page) })
+        controlMode = data?.frontend_mode
+      } finally {
+        await page.close()
+      }
+    })
+
+    // A mode that differs from the installation one and lands on the other
+    // frontend after the login, so it can only come from a rule.
+    const contrastMode = () => (installationMode === 'actual' ? 'deprecated' : 'actual')
+
+    // When the mode under test is the installation mode, a user no rule
+    // matches would get it too. A lower-priority rule on the whole fmre2e
+    // category then gives them another one, so the mode can only come from
+    // the rule under test. Returns the mode the users get without it.
+    // `fallback` is for the scenarios that go through two modes and need a
+    // guard that is neither.
+    async function guardInstallationMode(
+      client,
+      testInfo,
+      mode,
+      priority,
+      fallback = mode === 'hidden' ? 'all' : 'hidden',
+    ) {
+      if (installationMode !== mode) return installationMode
+      await createFrontendModeRuleAndTrack(client, testInfo, {
+        name: ruleName(`fallback-${fallback}`),
+        frontend_mode: fallback,
+        priority,
+        allowed: { categories: [CATEGORY] },
+      })
+      return fallback
+    }
+
+    // Waits for `mode` through an API-only login, then logs the user in with
+    // the browser: the landing is then decided by the rule, not by the cache.
+    async function loginWithMode(targets, key, mode) {
+      await waitForFrontendMode(await targets.api(key), mode)
+      return targets.browser(key)
+    }
+
+    async function apiWithMode(targets, key, mode) {
+      const client = await targets.api(key)
+      await waitForFrontendMode(client, mode)
+      return client
+    }
+
+    const urlFor = (path) =>
+      new RegExp(`^https?://[^/]+${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?$`)
+
+    // The old frontend renders its layout only once its router guard, which
+    // applies the mode, let the route through.
+    async function expectOldFrontend(page, path) {
+      await expect(page).toHaveURL(urlFor(path), { timeout: 30000 })
+      await expect(page.locator('#main-layout')).toBeVisible({ timeout: 30000 })
+      await expect(page).toHaveURL(urlFor(path))
+    }
+
+    async function expectNewFrontend(page, path) {
+      await expect(page).toHaveURL(urlFor(path), { timeout: 30000 })
+      await expect(page.locator('[data-sidebar="sidebar"]').first()).toBeVisible({
+        timeout: 30000,
+      })
+      await expect(page).toHaveURL(urlFor(path))
+    }
+
+    // Where the login sends a user without a stored preference.
+    async function expectLanding(page, mode) {
+      if (mode === 'actual') await expectNewFrontend(page, '/frontend/desktops')
+      else await expectOldFrontend(page, '/desktops')
+    }
+
+    const oldToggler = (page) => page.locator('.frontend-toggler')
+    const newToggler = (page) =>
+      page.getByRole('button', { name: /^(Switch to legacy interface|No legacy equivalent)$/ })
+
+    // Absence checks wait for the config queries of the page to finish.
+    async function expectNoToggler(page) {
+      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
+      await expect(oldToggler(page)).toHaveCount(0)
+      await expect(newToggler(page)).toHaveCount(0)
+    }
+
+    const preferredFrontend = (page) =>
+      page.evaluate(() => window.localStorage.getItem('preferredFrontend'))
+
+    async function deleteRule(client, id) {
+      const { response } = await deleteFrontendModeRule({ client, path: { rule_id: id } })
+      expect(response.status).toBe(204)
+    }
+
+    // ── Who a rule reaches ──────────────────────────────────────────────────
+
+    test('C1: a category rule reaches its users and nobody else (CE-01)', async ({
+      apiv4Admin,
+      apiv4User,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'all', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c1'),
+        frontend_mode: 'all',
+        priority: priority + 1,
+        allowed: { categories: [CATEGORY] },
+      })
+
+      await apiWithMode(targets, 'fmre2e_user_b', 'all')
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'all')
+      await expectLanding(page, 'all')
+      await expect(oldToggler(page)).toBeVisible({ timeout: 15000 })
+
+      expect((await getUserConfig({ client: apiv4User })).data.frontend_mode).toBe(
+        controlMode,
+      )
+    })
+
+    test('C2: a group rule reaches only the members of the group', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const mode = contrastMode()
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c2'),
+        frontend_mode: mode,
+        allowed: { groups: [GROUP_A.id] },
+      })
+
+      await apiWithMode(targets, 'fmre2e_advanced', mode)
+      await apiWithMode(targets, 'fmre2e_user_b', installationMode)
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', mode)
+      await expectLanding(page, mode)
+    })
+
+    test('C3: a role rule reaches the users of the role', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      // roles:[advanced] reaches every advanced user of the stack, so it
+      // carries the installation mode: it changes nothing for them. The
+      // lower rule gives fmre2e-advanced another mode, which it only gets
+      // while the role rule does not apply.
+      const mode = contrastMode()
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c3-user'),
+        frontend_mode: mode,
+        priority,
+        allowed: { users: [ADVANCED.id] },
+      })
+      const roleRule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c3-role'),
+        frontend_mode: installationMode,
+        priority: priority + 1,
+        allowed: { roles: ['advanced'] },
+      })
+
+      const { page, client } = await loginWithMode(targets, 'fmre2e_advanced', installationMode)
+      await expectLanding(page, installationMode)
+
+      await deleteRule(apiv4Admin, roleRule.id)
+      await waitForFrontendMode(client, mode)
+      await page.goto('/')
+      await expectLanding(page, mode)
+    })
+
+    test('C4: a user rule reaches only that user', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const mode = contrastMode()
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c4'),
+        frontend_mode: mode,
+        allowed: { users: [USER_A.id] },
+      })
+
+      await apiWithMode(targets, 'fmre2e_user_b', installationMode)
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', mode)
+      await expectLanding(page, mode)
+    })
+
+    test('C5: matching one dimension is enough (CE-09)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      // categories:[fmre2e] + roles:[admin]: fmre2e-user-a is no admin. The
+      // rule carries the installation mode, so the admins of the stack it
+      // also reaches see no change; the lower rule shows when it stops
+      // applying.
+      const mode = contrastMode()
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c5-user'),
+        frontend_mode: mode,
+        priority,
+        allowed: { users: [USER_A.id] },
+      })
+      const anyRule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c5-any'),
+        frontend_mode: installationMode,
+        priority: priority + 1,
+        allowed: { categories: [CATEGORY], roles: ['admin'] },
+      })
+
+      const { page, client } = await loginWithMode(targets, 'fmre2e_user_a', installationMode)
+      await expectLanding(page, installationMode)
+
+      await deleteRule(apiv4Admin, anyRule.id)
+      await waitForFrontendMode(client, mode)
+      await page.goto('/')
+      await expectLanding(page, mode)
+    })
+
+    test('C6: the highest priority wins (CE-08)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'all', priority)
+      const categoryRule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c6-category'),
+        frontend_mode: 'all',
+        priority: priority + 1,
+        allowed: { categories: [CATEGORY] },
+      })
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c6-user'),
+        frontend_mode: 'actual',
+        priority: priority + 11,
+        allowed: { users: [USER_A.id] },
+      })
+
+      await apiWithMode(targets, 'fmre2e_user_b', 'all')
+      const { page, client } = await loginWithMode(targets, 'fmre2e_user_a', 'actual')
+      await expectLanding(page, 'actual')
+
+      // The category rule now outranks the user rule.
+      await updateFrontendModeRule(apiv4Admin, categoryRule.id, { priority: priority + 21 })
+      await waitForFrontendMode(client, 'all')
+      await page.goto('/')
+      await expectLanding(page, 'all')
+      await expect(oldToggler(page)).toBeVisible({ timeout: 15000 })
+    })
+
+    test('C7: a user no rule matches gets the installation mode', async ({
+      apiv4Admin,
+      apiv4User,
+      targets,
+    }, testInfo) => {
+      const mode = contrastMode()
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c7'),
+        frontend_mode: mode,
+        allowed: { users: [USER_B.id] },
+      })
+
+      await apiWithMode(targets, 'fmre2e_user_b', mode)
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', installationMode)
+      await expectLanding(page, installationMode)
+      if (installationMode === 'all') await expect(oldToggler(page)).toBeVisible()
+      else await expectNoToggler(page)
+
+      expect((await getUserConfig({ client: apiv4User })).data.frontend_mode).toBe(
+        controlMode,
+      )
+    })
+
+    // ── One scenario per mode ───────────────────────────────────────────────
+
+    test('C8: `deprecated` sends the user to the old frontend (CE-11)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'deprecated', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c8'),
+        frontend_mode: 'deprecated',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'deprecated')
+      await expectLanding(page, 'deprecated')
+      await expectNoToggler(page)
+
+      await page.goto('/frontend/desktops')
+      await expectOldFrontend(page, '/desktops')
+      await expectNoToggler(page)
+
+      await page.goto('/frontend/profile')
+      await expectOldFrontend(page, '/profile')
+    })
+
+    test('C9: `actual` sends the user to the new frontend', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'actual', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c9'),
+        frontend_mode: 'actual',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'actual')
+      await expectLanding(page, 'actual')
+      await expectNoToggler(page)
+      expect(await preferredFrontend(page)).toBeNull()
+
+      await page.goto('/desktops')
+      await expectNewFrontend(page, '/frontend/desktops')
+
+      await page.goto('/profile')
+      await expectNewFrontend(page, '/frontend/profile')
+      await expectNoToggler(page)
+      expect(await preferredFrontend(page)).toBeNull()
+    })
+
+    test('C10: an `actual` user reaches their bookings in the old frontend (CE-03)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'actual', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c10'),
+        frontend_mode: 'actual',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'actual')
+      await expectLanding(page, 'actual')
+
+      const bookings = page.waitForResponse(
+        (r) => pathOf(r.url()) === '/api/v4/items/bookings' && r.request().method() === 'GET',
+        { timeout: 30000 },
+      )
+      await page.locator('[data-sidebar="sidebar"] a[href="/booking/summary"]').first().click()
+      await expectOldFrontend(page, '/booking/summary')
+      expect((await bookings).status()).toBe(200)
+      await expect(page.locator('#main-layout .calendar-container')).toBeVisible()
+      await expectNoToggler(page)
+      await expect(page).toHaveURL(urlFor('/booking/summary'))
+
+      await page.goto('/booking/summary')
+      await expectOldFrontend(page, '/booking/summary')
+
+      await page.goto('/desktops')
+      await expectNewFrontend(page, '/frontend/desktops')
+    })
+
+    test('C11: an `actual` manager reaches the planning in the old frontend', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'actual', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c11'),
+        frontend_mode: 'actual',
+        priority: priority + 1,
+        allowed: { users: [MANAGER.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_manager', 'actual')
+      await expectLanding(page, 'actual')
+
+      await page.goto('/planning')
+      await expectOldFrontend(page, '/planning')
+      await expect(page.locator('#main-layout .reservableItemTitle')).toBeVisible()
+      await expectNoToggler(page)
+      await expect(page).toHaveURL(urlFor('/planning'))
+
+      await page.goto('/desktops')
+      await expectNewFrontend(page, '/frontend/desktops')
+    })
+
+    test('C12: `hidden` allows both frontends without the switch (CE-12)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'hidden', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c12'),
+        frontend_mode: 'hidden',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'hidden')
+      await expectLanding(page, 'hidden')
+      await expectNoToggler(page)
+
+      await page.goto('/frontend/desktops')
+      await expectNewFrontend(page, '/frontend/desktops')
+      await expectNoToggler(page)
+
+      await page.goto('/desktops')
+      await expectOldFrontend(page, '/desktops')
+      await expectNoToggler(page)
+    })
+
+    test('C13: `all` shows the switch and it changes frontend (CE-01)', async ({
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'all', priority)
+      await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c13'),
+        frontend_mode: 'all',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page } = await loginWithMode(targets, 'fmre2e_user_a', 'all')
+      await expectLanding(page, 'all')
+
+      await expect(oldToggler(page)).toHaveText('Switch to new interface', { timeout: 15000 })
+      await oldToggler(page).click()
+      await expectNewFrontend(page, '/frontend/desktops')
+      expect(await preferredFrontend(page)).toBe('vue3')
+
+      const toLegacy = page.getByRole('button', { name: 'Switch to legacy interface' })
+      await expect(toLegacy).toBeVisible({ timeout: 15000 })
+      await toLegacy.click()
+      await expectOldFrontend(page, '/desktops')
+      expect(await preferredFrontend(page)).toBe('vue2')
+
+      // Not on the edit forms of either frontend.
+      await page.goto('/frontend/desktops/new')
+      await expectNewFrontend(page, '/frontend/desktops/new')
+      await expectNoToggler(page)
+      await page.goto('/desktops/new')
+      await expectOldFrontend(page, '/desktops/new')
+      await expectNoToggler(page)
+    })
+
+    test('C14: changing the mode of a rule changes what its users get', async ({
+      authenticatedPage: adminPage,
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      // The rule goes from `hidden` to `deprecated`: the guard must be
+      // neither, and at most one of the two calls creates it.
+      const priority = await nextFrontendModeRulePriority(apiv4Admin)
+      await guardInstallationMode(apiv4Admin, testInfo, 'hidden', priority, 'all')
+      await guardInstallationMode(apiv4Admin, testInfo, 'deprecated', priority, 'all')
+      const rule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c14'),
+        frontend_mode: 'hidden',
+        priority: priority + 1,
+        allowed: { users: [USER_A.id] },
+      })
+
+      const { page, client } = await loginWithMode(targets, 'fmre2e_user_a', 'hidden')
+      await page.goto('/frontend/desktops')
+      await expectNewFrontend(page, '/frontend/desktops')
+
+      await gotoFrontendMode(adminPage)
+      const { modal } = await openEditDialog(adminPage, rule.id)
+      await fillRuleForm(modal, { mode: 'deprecated' })
+      expect((await submitAndUpdate(adminPage, modal, rule.id)).status()).toBe(204)
+      await modal.waitFor({ state: 'hidden', timeout: 10000 })
+
+      await waitForFrontendMode(client, 'deprecated')
+      await page.reload()
+      await expectOldFrontend(page, '/desktops')
+    })
+
+    test('C15: editing the alloweds from the dialog changes who the rule reaches', async ({
+      authenticatedPage: adminPage,
+      apiv4Admin,
+      targets,
+    }, testInfo) => {
+      const mode = contrastMode()
+      const rule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+        name: ruleName('c15'),
+        frontend_mode: mode,
+        allowed: { users: [USER_B.id] },
+      })
+
+      const userA = await apiWithMode(targets, 'fmre2e_user_a', installationMode)
+      const userB = await apiWithMode(targets, 'fmre2e_user_b', mode)
+
+      await gotoFrontendMode(adminPage)
+      let { modal } = await openAllowedsDialog(adminPage, rule.id)
+      await toggleAllowed(modal, 'groups')
+      await pickAllowed(adminPage, modal, 'groups', GROUP_A)
+      expect((await saveAlloweds(adminPage, modal)).status()).toBe(204)
+
+      await waitForFrontendMode(userA, mode)
+      await waitForFrontendMode(userB, mode)
+
+      ;({ modal } = await openAllowedsDialog(adminPage, rule.id))
+      await expect(allowedCheckbox(modal, 'groups')).toBeChecked()
+      await toggleAllowed(modal, 'groups')
+      expect((await saveAlloweds(adminPage, modal)).status()).toBe(204)
+
+      await waitForFrontendMode(userA, installationMode)
+      await waitForFrontendMode(userB, mode)
+    })
+
+    // ── Temporary desktops ──────────────────────────────────────────────────
+
+    test.describe('temporary desktops', () => {
+      // On top of the cache, the desktops have to start; C18 creates four.
+      test.describe.configure({ timeout: 420_000 })
+
+      // Leftovers of an aborted run would break the counts.
+      async function templateWithoutDesktops(client) {
+        const template = await getTemporaryDesktopTemplate(client)
+        await deleteTemporaryDesktops(client, template.id)
+        return template
+      }
+
+      async function createTemporary(client, testInfo, templateId) {
+        const result = await createTemporaryDesktopAndTrack(client, testInfo, templateId)
+        expect(result.response.status, JSON.stringify(result.error ?? null)).toBeLessThan(400)
+        return result.data.id
+      }
+
+      test('C16: an `actual` user can hold several temporary desktops (CE-13)', async ({
+        apiv4Admin,
+        targets,
+      }, testInfo) => {
+        const priority = await nextFrontendModeRulePriority(apiv4Admin)
+        await guardInstallationMode(apiv4Admin, testInfo, 'actual', priority)
+        await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+          name: ruleName('c16'),
+          frontend_mode: 'actual',
+          priority: priority + 1,
+          allowed: { users: [USER_A.id] },
+        })
+        const client = await apiWithMode(targets, 'fmre2e_user_a', 'actual')
+        expect((await getUserConfig({ client })).data.multiple_temporal_desktops).toBe(true)
+        const template = await templateWithoutDesktops(client)
+
+        const first = await createTemporary(client, testInfo, template.id)
+        const second = await createTemporary(client, testInfo, template.id)
+        expect(second).not.toBe(first)
+
+        const desktops = await waitForTemporaryDesktops(
+          client,
+          template.id,
+          (list) => list.length === 2,
+        )
+        expect(desktops.map((d) => d.id).sort()).toEqual([first, second].sort())
+      })
+
+      test('C17: choosing the new frontend under `all` does not give the `actual` behaviour (CE-05)', async ({
+        apiv4Admin,
+        targets,
+      }, testInfo) => {
+        const priority = await nextFrontendModeRulePriority(apiv4Admin)
+        await guardInstallationMode(apiv4Admin, testInfo, 'all', priority)
+        await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+          name: ruleName('c17'),
+          frontend_mode: 'all',
+          priority: priority + 1,
+          allowed: { users: [USER_A.id] },
+        })
+
+        const { page, client } = await loginWithMode(targets, 'fmre2e_user_a', 'all')
+        await expectLanding(page, 'all')
+        await expect(oldToggler(page)).toBeVisible({ timeout: 15000 })
+        await oldToggler(page).click()
+        await expectNewFrontend(page, '/frontend/desktops')
+        expect(await preferredFrontend(page)).toBe('vue3')
+        expect((await getUserConfig({ client })).data.multiple_temporal_desktops).toBe(false)
+
+        // Sent with the session that just switched: the server decides by
+        // the mode, it does not know which frontend is asking.
+        const template = await templateWithoutDesktops(client)
+        const first = await createTemporary(client, testInfo, template.id)
+        // A desktop still being created answers 428 instead of being reused.
+        await waitForTemporaryDesktopsSettled(client, template.id)
+        const second = await createTemporary(client, testInfo, template.id)
+        expect(second).toBe(first)
+
+        const desktops = await listTemporaryDesktops(client, template.id)
+        expect(desktops.map((d) => d.id)).toEqual([first])
+      })
+
+      test('C18: leaving `actual` collapses the temporary desktops of a template (CE-04)', async ({
+        apiv4Admin,
+        targets,
+      }, testInfo) => {
+        const priority = await nextFrontendModeRulePriority(apiv4Admin)
+        const baseline = await guardInstallationMode(apiv4Admin, testInfo, 'actual', priority)
+        const rule = await createFrontendModeRuleAndTrack(apiv4Admin, testInfo, {
+          name: ruleName('c18'),
+          frontend_mode: 'actual',
+          priority: priority + 1,
+          allowed: { users: [USER_A.id] },
+        })
+        const client = await apiWithMode(targets, 'fmre2e_user_a', 'actual')
+        const template = await templateWithoutDesktops(client)
+
+        const previous = []
+        for (let i = 0; i < 3; i += 1) {
+          previous.push(await createTemporary(client, testInfo, template.id))
+        }
+        expect(new Set(previous).size).toBe(3)
+        await waitForTemporaryDesktops(client, template.id, (list) => list.length === 3)
+        await waitForTemporaryDesktopsSettled(client, template.id)
+
+        await deleteRule(apiv4Admin, rule.id)
+        await waitForFrontendMode(client, baseline)
+
+        const current = await createTemporary(client, testInfo, template.id)
+        expect(previous).not.toContain(current)
+        const desktops = await waitForTemporaryDesktops(
+          client,
+          template.id,
+          (list) => list.length === 1,
+          { message: 'only the new temporary desktop left' },
+        )
+        expect(desktops.map((d) => d.id)).toEqual([current])
+      })
+    })
   })
 })

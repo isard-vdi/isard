@@ -46,6 +46,18 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false
 # and login redirects.
 SESSIONS_SESSIONS_EXPIRATION_TIME=1h
 
+# ------ Frontend bookings --------------------------------------------
+# Off by default, which hides the bookings menu from every non-admin.
+# frontend_mode_rules.spec.js (C10) reaches the bookings through it.
+FRONTEND_SHOW_BOOKINGS=True
+
+# ------ User configuration cache -------------------------------------
+# get-config is cached per user (60s by default) and carries the
+# frontend mode. frontend_mode_rules.spec.js changes rules dozens of
+# times and waits for each change to reach get-config, so the default
+# adds ~15 minutes to the run.
+USER_CONFIG_CACHE_TTL=1
+
 # ------ LDAP / SAML / Google wiring ----------------------------------
 # The Go isard-authentication service loads provider config from the
 # RethinkDB `config` table's `auth` key (see authentication/model/config.go).

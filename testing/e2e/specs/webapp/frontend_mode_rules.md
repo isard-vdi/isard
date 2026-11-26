@@ -31,8 +31,21 @@ The contract is delivered in two merge requests:
 
 | Part | Sections | Merge request |
 | --- | --- | --- |
-| Administration page | A | This one |
-| API contract and effect of the rule on the user | B, C | A later one |
+| Administration page | A | The previous one (`test/7478-frontend-mode-rules-admin-e2e`) |
+| API contract and effect of the rule on the user | B, C | This one |
+
+Requirements of the effect on the user and the scenarios that cover
+them:
+
+| Requirement | Scenarios |
+| --- | --- |
+| On login the user lands on the frontend of the rule applied by category | C1 |
+| … by group | C2 |
+| … by role | C3 |
+| … by specific user | C4 |
+| Priority when more than one rule matches | C6 (and C3, C5) |
+| Default behaviour when no rule matches | C7 |
+| One scenario per frontend mode | `deprecated` C8, `actual` C9, `hidden` C12, `all` C13 |
 
 Requirements of the administration page and the scenarios that cover
 them:
@@ -88,9 +101,11 @@ them:
    contains, and **an empty list `[]` matches every user**.
 4. When no rule matches, the user gets the installation `FRONTEND_MODE`.
 5. Priorities are unique across rules.
-6. The rules are cached for 60 s. A change may therefore take up to 60 s
-   to reach `get-config`, and the frontends only read `get-config` on
-   page load, so the user also has to reload.
+6. `get-config` is cached per user for `USER_CONFIG_CACHE_TTL` seconds
+   (60 by default, 1 on the e2e stack) and carries the frontend mode. A
+   rule change therefore takes up to that long to reach `get-config`,
+   and the frontends only read `get-config` on page load, so the user
+   also has to reload.
 
 | Mode | New frontend (`/frontend/*`) | Old frontend (`/*`) | Switch button | Temporary desktops per template |
 | --- | --- | --- | --- | --- |
@@ -111,9 +126,10 @@ them, so they must not bounce back.
 | Admin | `authenticatedPage` / `apiv4Admin` (`admin_e2e_NN`) |
 | Non-admin | `managerE2EPage` (`manager_e2e_NN`), only for A14. `@isAdmin` logs the Flask session out when it rejects the manager, so A14 re-bridges it (`bridgeAdminSession`) before finishing: the session is shared by the whole worker |
 | Target users | Dedicated accounts of the `fmre2e` category (see below), logged in on a fresh context per test |
-| Control user | `user_e2e_NN` (category `default`), never matched by a test rule |
-| Installation mode | Whatever `FRONTEND_MODE` the stack runs with (`all` in CI). Read at runtime from the control user's `get-config` and referred to below as **installation mode** |
-| Desktop scenarios | Hypervisor online, a template allowed to the target user and a `volatile` quota of at least 3 |
+| Control user | `user_e2e_NN` (category `default`), never matched by a test rule. Its mode is read once before the scenarios (**control mode**) and must not change |
+| Installation mode | Whatever `FRONTEND_MODE` the stack runs with (`all` in CI). Read at runtime from the `get-config` of `fmre2e-user-b`, before any scenario creates a rule, and referred to below as **installation mode** |
+| Desktop scenarios (C16–C18) | Hypervisor online, a template allowed to the target user that needs no GPU booking (the first enabled one without GPU reservables among the user's allowed templates; `template-test-001` in CI) and a `volatile` quota of at least 3 |
+| Bookings menu (C10) | `FRONTEND_SHOW_BOOKINGS=True` on the stack, set by `testing/config/isardvdi.e2e.cfg.template`: it is off by default and hides the **Bookings** entry from every non-admin |
 
 ### Seed data
 
@@ -122,8 +138,8 @@ those scenarios must never target the shared `default` category: a
 `deprecated` rule on it would redirect every other spec running in
 parallel. The scenarios use a dedicated category seeded in
 `testing/src/isardvdi_testing/data/` (same approach as `qle2e`). Nobody
-else logs in with these accounts, so section A can point its rules at
-them without changing the frontend of any running spec:
+else logs in with these accounts, so the rules can point at them without
+changing the frontend of any running spec:
 
 | Item | Value | Used for |
 | --- | --- | --- |
@@ -131,15 +147,20 @@ them without changing the frontend of any running spec:
 | Groups | `fmre2e-group-a`, `fmre2e-group-b` | Group-scoped rules |
 | `fmre2e-user-a` | role `user`, group A | Main target user |
 | `fmre2e-user-b` | role `user`, group B | Same category, other group |
-| `fmre2e-advanced` | role `advanced`, group A | Role-scoped rules |
-| `fmre2e-manager` | role `manager`, group A | Planning page under `actual` (C7b); not used by section A |
-| Template | `template-test-001` shared with the category | Temporary desktops |
+| `fmre2e-advanced` | role `advanced`, group A, disclaimer acknowledged | Role-scoped rule (C3), group member (C2) |
+| `fmre2e-manager` | role `manager`, group A | Planning page under `actual` (C11); not used by section A |
 
 The ids equal the usernames and the password is the one of the other
 e2e accounts. The alloweds selectors search by display name, hence the
-names above. Still pending, with section C: the template share and the
-entries of the accounts and the category in `fixtures/login.js`
-(`users`, `categories`).
+names above. The accounts and the category are listed in
+`fixtures/login.js` (`users.fmre2e_*`, `categories.fmre2e`).
+`fmre2e-advanced` is seeded with `disclaimer_acknowledged: true`:
+advanced users otherwise get a disclaimer token at login instead of a
+session. The seeded template `template-test-001` (category `default`) is
+shared with the `fmre2e` category through its `allowed.categories`, so the
+temporary-desktop scenarios find a template on a stack that only has the
+seed, as in CI. On a stack with more templates they use the first one by
+name.
 
 ## Common data
 
@@ -152,10 +173,12 @@ entries of the accounts and the category in `fixtures/login.js`
 | Allowed | `{ users: [<id>] }` and the like | Unset dimensions are stored as `false` |
 
 When a scenario must prove that the mode comes from the rule, the rule
-uses a mode **different from the installation mode**. Where the scenario
-needs `all` specifically and the installation mode is also `all`, a
-lower-priority `hidden` rule on the `fmre2e` category is created first so
-that `all` can only come from the rule under test.
+uses the **contrast mode** (different from the installation mode). Where
+the scenario needs one specific mode and the installation mode is that
+same mode, a lower-priority **guard rule** on the `fmre2e` category is
+created first so that the mode can only come from the rule under test.
+Both are described at the top of section C, with the one exception to
+the mode the guard rule carries.
 
 ## Fixtures (SDK)
 
@@ -179,7 +202,20 @@ to get them.
 | `setFrontendModeRuleAllowed(client, id, allowed)` | Replaces the alloweds through `adminAllowedUpdate` (`table: 'frontend_mode_rules'`), the same endpoint the dialog uses. Already in the generated SDK |
 | `getFrontendModeRuleAllowed(client, id)` | Reads the alloweds enriched with names through `allowedTable`, as the dialog does. Already in the generated SDK |
 | `purgeE2eFrontendModeRules(client)` | Deletes every rule whose name starts with `e2e-fmr-` (`E2E_FRONTEND_MODE_RULE_PREFIX`). Run in `beforeAll` to recover from an aborted run |
-| `waitForFrontendMode(client, expected, { timeoutMs = 65000 })` | Polls `getUserConfig` with the **target user's** client until `frontend_mode` equals `expected` |
+| `waitForFrontendMode(client, expected, { timeoutMs = 65000, intervalMs = 250 })` | Polls `getUserConfig` with the **target user's** client, every `intervalMs`, until `frontend_mode` equals `expected` |
+
+Other helpers section C relies on:
+
+| Helper | Where | Behaviour |
+| --- | --- | --- |
+| `loginHelpers.apiLogin(playwright, baseURL, user, categories)` | `fixtures/login.js` | Logs a user in through `POST /authentication/login`, without a browser, and returns an `APIRequestContext` carrying the Bearer token |
+| `apiv4ClientForRequest(request)` | `fixtures/apiv4/client.js` | SDK client over a bare `APIRequestContext` (`apiv4ClientForPage` now delegates to it) |
+| `targets` fixture | the spec file | `targets.api(key)` → SDK client of an API-only login; `targets.browser(key)` → `{ page, client }` of a browser login on a fresh context. Closes everything it opened when the test ends |
+| `getTemporaryDesktopTemplate(client)` | `fixtures/apiv4/desktops.js` | First enabled template allowed to the caller without GPU reservables |
+| `createTemporaryDesktopAndTrack(client, testInfo, templateId)` | idem | `POST new-nonpersistent` as the caller; tracks the returned id as `desktop-id` and returns the raw SDK result |
+| `listTemporaryDesktops(client, templateId)` | idem | The caller's temporary desktops of the template |
+| `waitForTemporaryDesktops(client, templateId, predicate)` / `waitForTemporaryDesktopsSettled(…)` | idem | Poll that list until the predicate holds / until every desktop is `Started`, `WaitingIP` (started, wireguard interface, no guest IP yet), `Stopped` or `Failed` |
+| `deleteTemporaryDesktops(client, templateId)` | idem | Deletes them and waits until the list is empty |
 
 Safety guard: `createFrontendModeRuleAndTrack`, `updateFrontendModeRule`
 and `setFrontendModeRuleAllowed` throw when any `allowed` dimension is `[]`, because that rule would apply
@@ -191,12 +227,28 @@ Rules created through the UI are tracked with
 ## Concurrency & ordering
 
 - The rules are global configuration: the file runs with
-  `test.describe.configure({ mode: 'serial' })`.
-- No rule may match users outside the `fmre2e` category.
-- Section C scenarios wait up to 65 s for the cache; they raise the test
-  timeout to 120 s.
+  `test.describe.configure({ mode: 'default' })`, one test at a time and
+  in order. It is not `serial`: every scenario creates the rules it
+  needs, so a failure does not skip the scenarios after it and a retry
+  repeats only the failed one.
+- No rule may change the mode of users outside the `fmre2e` category.
+  The two rules that reach further (`roles: [advanced]` in C3,
+  `roles: [admin]` in C5) carry the installation mode, so those users
+  keep getting what they already had.
+- Section C scenarios poll `get-config` up to 65 s after every rule
+  change and raise the test timeout to 300 s (420 s for the
+  temporary-desktop ones), which covers a stack with the default 60 s
+  cache. With `USER_CONFIG_CACHE_TTL=1`, set by
+  `testing/config/isardvdi.e2e.cfg.template`, a change is seen within a
+  couple of seconds.
+- The installation mode is read from an `fmre2e` user before any
+  scenario creates a rule, so a rule left on the stack by hand that
+  reaches the control user does not change what the scenarios expect.
 - A target user logs in on a **new browser context** per test, so
   `localStorage.preferredFrontend` starts empty.
+- The sessions service keeps one session per user: a test never holds
+  two live sessions of the same account (API-only login first, browser
+  login afterwards).
 - *Without reloading the page*: after the first load the test sets a
   marker on `window` and asserts it is still there once the table shows
   the change. Checked in A2, A2b, A9, A11, A11b, A11d and A13. The table
@@ -208,8 +260,8 @@ Rules created through the UI are tracked with
 | Section | Spec file | Status |
 | --- | --- | --- |
 | A | `tests/webapp/frontend_mode_rules.spec.js` | ✅ every scenario automated |
-| B | — | ⏳ later merge request |
-| C | — | ⏳ later merge request |
+| B | `tests/webapp/frontend_mode_rules.spec.js` | ✅ B1, B2 automated |
+| C | `tests/webapp/frontend_mode_rules.spec.js` | ✅ C1–C18 automated |
 
 ---
 
@@ -238,7 +290,7 @@ Rules created through the UI are tracked with
    desktops.
 6. The mode label carries the mode description as its `title`.
 
-### Scenario A2 — *admin creates a rule and sees it listed*
+### Scenario A2 — *admin creates a rule and sees it listed without reloading*
 
 #### Given
 
@@ -536,8 +588,8 @@ Rules created through the UI are tracked with
 
 #### Given
 
-1. A rule exists with `allowed = { users: [fmre2e-user-a] }` and a mode
-   different from the installation mode.
+1. A rule exists with `allowed = { users: [fmre2e-user-a] }` and mode
+   `deprecated`.
 
 #### When
 
@@ -649,261 +701,377 @@ check; the rest of the endpoint contract lives in the unit suite.
 Unless stated otherwise the rules are created through the SDK and the
 target user is `fmre2e-user-a`.
 
-### Scenario C1 — *a category rule reaches its users and nobody else* (CE-01)
+Common mechanics of every scenario:
 
-#### Given
+- **Installation mode** is read once (`beforeAll`) from the `get-config`
+  of `fmre2e-user-b`, through an API-only login, while no test rule
+  exists. It is not read from the control user: a rule left on the stack
+  by hand can reach the `default` category, never `fmre2e`.
+- **Control mode** is what the control user gets at that same moment.
+  No scenario may change it.
+- **Contrast mode** is a mode that differs from the installation mode and
+  lands on the other frontend after the login: `actual`, or `deprecated`
+  when the installation mode is `actual`. A user can only get it from a
+  rule.
+- **Waiting for the mode**: the target user is first logged in through
+  the API only and `get-config` is polled (up to 65 s) until it returns
+  the expected mode. Only then is the user logged in with the browser, so
+  the landing is decided by the rule and not by the cache. Every login
+  ends the user's previous session, so the browser session is the one the
+  test keeps using.
+- **Landing**: the login sends a user without a stored preference to
+  `/`. With `actual` the old frontend redirects it to
+  `/frontend/desktops` (new frontend, `[data-sidebar="sidebar"]`);
+  with any other mode it stays on `/desktops` (old frontend,
+  `#main-layout`). The layout only renders once the router guard that
+  applies the mode let the route through, so "stays on" is asserted by
+  the URL after the layout is visible.
+- **Switch button**: `.frontend-toggler` in the old frontend, the button
+  *Switch to legacy interface* / *No legacy equivalent* in the new one.
+  Absence is checked after the page's requests settle.
+- **Guard rule**: when the mode under test equals the installation mode,
+  a lower-priority rule on the whole `fmre2e` category with another mode
+  (`hidden`, or `all` when testing `hidden`) is created first, so the mode
+  can only come from the rule under test. C14 goes through two modes
+  (`hidden`, then `deprecated`) and its guard uses `all`, which is
+  neither.
 
-1. The admin creates a rule with `categories: [fmre2e]` and a mode
-   different from the installation mode.
+### Who a rule reaches
 
-#### When
+#### Scenario C1 — *a category rule reaches its users and nobody else* (CE-01)
 
-1. `fmre2e-user-a` logs in.
-2. The control user (category `default`) requests their configuration.
+##### Given
 
-#### Then
+1. A rule with `categories: [fmre2e]` and mode `all` (guard rule when the
+   installation mode is `all`).
 
-1. Within 60 s `GET /api/v4/item/user/get-config` returns the rule's
-   mode for `fmre2e-user-a`.
-2. `fmre2e-user-b` (same category) gets the rule's mode too.
-3. The control user gets the installation mode.
+##### Then
 
-### Scenario C2 — *the highest priority wins* (CE-08)
+1. `fmre2e-user-b` (same category) gets `all` from `get-config`.
+2. `fmre2e-user-a` logs in, lands on `/desktops` (old frontend) and sees
+   the switch button.
+3. The control user (category `default`) still gets the control mode.
 
-#### Given
+#### Scenario C2 — *a group rule reaches only the members of the group*
 
-1. Rule `categories: [fmre2e]`, priority `P`, mode `all`.
-2. Rule `users: [fmre2e-user-a]`, priority `P+10`, mode `actual`.
+##### Given
 
-#### Then
+1. A rule with `groups: [fmre2e-group-a]` and the contrast mode.
 
-1. `fmre2e-user-a` gets `actual`.
-2. `fmre2e-user-b` gets `all`.
-3. After swapping the two priorities through the SDK, `fmre2e-user-a`
-   gets `all` (within 60 s).
+##### Then
 
-### Scenario C3 — *matching one dimension is enough* (CE-09)
+1. `fmre2e-advanced` (group A) gets the contrast mode.
+2. `fmre2e-user-b` (group B) gets the installation mode.
+3. `fmre2e-user-a` (group A) logs in and lands on the frontend of the
+   contrast mode.
 
-#### Given
+#### Scenario C3 — *a role rule reaches the users of the role*
 
-1. A rule with `categories: [fmre2e]` **and** `roles: [admin]`, with a
-   mode different from the installation mode.
+##### Given
 
-#### Then
+1. Rule `users: [fmre2e-advanced]`, priority `P`, contrast mode.
+2. Rule `roles: [advanced]`, priority `P+1`, **installation mode**.
 
-1. `fmre2e-user-a` (category `fmre2e`, role `user`) gets the rule's mode.
+> `roles: [advanced]` reaches every advanced user of the stack, so it
+> carries the installation mode and changes nothing for them. The lower
+> rule shows whether the role rule applies.
 
-### Scenario C4 — *group and role dimensions match only their members*
+##### Then
 
-#### Given
+1. `fmre2e-advanced` logs in and lands on the frontend of the
+   installation mode: the role rule outranks the user rule.
+2. After deleting the role rule through the SDK, within 60 s
+   `get-config` returns the contrast mode and opening `/` lands on its
+   frontend.
 
-1. A rule with `groups: [fmre2e-group-a]`, priority `P`, mode `hidden`.
-2. A rule with `roles: [advanced]` is **not** created: it would reach
-   every advanced user of the stack. The role dimension is covered by C3.
+#### Scenario C4 — *a user rule reaches only that user*
 
-#### Then
+##### Given
 
-1. `fmre2e-user-a` and `fmre2e-advanced` (group A) get `hidden`.
-2. `fmre2e-user-b` (group B) does not get it.
+1. A rule with `users: [fmre2e-user-a]` and the contrast mode.
 
-### Scenario C5 — *`deprecated` sends the user to the old frontend* (CE-11)
+##### Then
 
-#### Given
+1. `fmre2e-user-b` gets the installation mode.
+2. `fmre2e-user-a` logs in and lands on the frontend of the contrast
+   mode.
 
-1. A rule with mode `deprecated` matches the user; the installation mode
-   is not `deprecated`.
+#### Scenario C5 — *matching one dimension is enough* (CE-09)
 
-#### When
+##### Given
 
-1. The user opens `/frontend/desktops`.
+1. Rule `users: [fmre2e-user-a]`, priority `P`, contrast mode.
+2. Rule `categories: [fmre2e]` **and** `roles: [admin]`, priority `P+1`,
+   installation mode (it also reaches the admins of the stack, so it
+   changes nothing for them).
 
-#### Then
+##### Then
 
-1. The browser ends on `/desktops` (old frontend) and the desktops list
-   renders.
-2. The switch button (`.frontend-toggler`) is not present.
-3. Opening `/frontend/templates` ends on `/templates`.
+1. `fmre2e-user-a` (category `fmre2e`, role `user`) logs in and lands on
+   the frontend of the installation mode: the second rule applies
+   although the role does not match.
+2. After deleting it, within 60 s the user gets the contrast mode and `/`
+   lands on its frontend.
 
-### Scenario C6 — *`actual` sends the user to the new frontend*
+#### Scenario C6 — *the highest priority wins* (CE-08)
 
-#### Given
+##### Given
 
-1. A rule with mode `actual` matches the user.
+1. Rule `categories: [fmre2e]`, priority `P+1`, mode `all` (guard rule at
+   `P` when the installation mode is `all`).
+2. Rule `users: [fmre2e-user-a]`, priority `P+11`, mode `actual`.
 
-#### When
+##### Then
 
-1. The user opens `/desktops` (old frontend).
+1. `fmre2e-user-b` gets `all`.
+2. `fmre2e-user-a` logs in and lands on `/frontend/desktops`.
+3. After raising the category rule to `P+21` through the SDK,
+   `fmre2e-user-a` gets `all` within 60 s; opening `/` lands on
+   `/desktops` with the switch button.
 
-#### Then
+#### Scenario C7 — *a user no rule matches gets the installation mode*
 
-1. The browser ends on `/frontend/desktops`.
-2. The switch button is not present.
-3. `localStorage.preferredFrontend` is unset.
-4. Opening `/templates` ends on `/frontend/templates`: the redirect keeps
-   applying to every route that has a new-frontend equivalent.
+##### Given
 
-### Scenario C7 — *an `actual` user reaches their bookings in the old frontend* (CE-03)
+1. A rule with `users: [fmre2e-user-b]` and the contrast mode: rules
+   exist, but none matches `fmre2e-user-a`.
 
-#### Given
+##### Then
 
-1. A rule with mode `actual` matches the user, who has a booking.
+1. `fmre2e-user-b` gets the contrast mode.
+2. `fmre2e-user-a` logs in, gets the installation mode and lands on its
+   frontend; the switch button shows only if that mode is `all`.
+3. The control user still gets the control mode.
 
-#### When
+### One scenario per mode
 
-1. The user opens the bookings entry of the new frontend sidebar.
+#### Scenario C8 — *`deprecated` sends the user to the old frontend* (CE-11)
+
+##### Given
+
+1. A rule with mode `deprecated` matches the user (guard rule when the
+   installation mode is `deprecated`).
+
+##### Then
+
+1. The login lands on `/desktops` (old frontend) without switch button.
+2. Opening `/frontend/desktops` ends on `/desktops`, without switch
+   button.
+3. Opening `/frontend/profile` ends on `/profile`.
+
+> The spec used `/frontend/templates`; templates are not open to the
+> `user` role, so the new frontend answers 403 before the mode applies.
+> The profile has an equivalent in both frontends and is open to every
+> role.
+
+#### Scenario C9 — *`actual` sends the user to the new frontend*
+
+##### Given
+
+1. A rule with mode `actual` matches the user (guard rule when the
+   installation mode is `actual`).
+
+##### Then
+
+1. The login lands on `/frontend/desktops`, without switch button and
+   with `localStorage.preferredFrontend` unset.
+2. Opening `/desktops` ends on `/frontend/desktops`.
+3. Opening `/profile` ends on `/frontend/profile`; still no switch button
+   and no stored preference.
+
+#### Scenario C10 — *an `actual` user reaches their bookings in the old frontend* (CE-03)
+
+##### Given
+
+1. A rule with mode `actual` matches the user (guard rule when the
+   installation mode is `actual`).
+
+##### When
+
+1. The user logs in (lands on `/frontend/desktops`) and opens the
+   **Bookings** entry of the new frontend sidebar.
 2. Later they open `/booking/summary` directly by URL.
-3. From the bookings page they open `/desktops`.
+3. Then they open `/desktops`.
 
-#### Then
+##### Then
 
-1. After step 1 the browser ends on `/booking/summary` (old frontend)
-   and stays there: it is not redirected to `/frontend/desktops`.
-2. The user's booking is listed.
-3. After step 2 the page also stays on `/booking/summary`.
-4. After step 3 the browser ends on `/frontend/desktops`: only the
+1. After step 1 the browser ends on `/booking/summary` (old frontend) and
+   stays there; the calendar renders and the user's bookings request
+   (`GET /api/v4/items/bookings`) answers `200`. No switch button.
+2. After step 2 the page also stays on `/booking/summary`.
+3. After step 3 the browser ends on `/frontend/desktops`: only the
    bookings and plannings routes are exempt from the redirect.
-5. The switch button is not present on the bookings page.
 
-### Scenario C7b — *an `actual` manager reaches the planning in the old frontend*
+> The scenario checks that the user's bookings are requested and the
+> page renders them; it does not seed a booking (that needs a GPU plan
+> for the category). The listing itself is covered by
+> `tests/vue2/bookings.spec.js`.
 
-#### Given
+#### Scenario C11 — *an `actual` manager reaches the planning in the old frontend*
 
-1. A rule with mode `actual` and `users: [fmre2e-manager]`.
+##### Given
 
-#### When
+1. A rule with mode `actual` and `users: [fmre2e-manager]` (guard rule
+   when the installation mode is `actual`; the manager belongs to the
+   `fmre2e` category, so it reaches them).
 
-1. `fmre2e-manager` logs in and opens `/planning` by URL.
-2. From the planning page they open `/desktops`.
+##### Then
 
-#### Then
-
-1. After step 1 the browser stays on `/planning` (old frontend) and the
-   planning page renders: it is not redirected to `/frontend/desktops`.
-2. The switch button is not present.
-3. After step 2 the browser ends on `/frontend/desktops`.
+1. The manager logs in and lands on `/frontend/desktops`.
+2. Opening `/planning` stays on `/planning` (old frontend) and the
+   planning page renders, without switch button.
+3. Opening `/desktops` then ends on `/frontend/desktops`.
 
 > The page only admits the `admin` and `manager` roles, hence the
 > dedicated manager. The scenario checks that the route is reachable,
 > not the planning contents.
 
-### Scenario C8 — *`hidden` allows both frontends without the switch* (CE-12)
+#### Scenario C12 — *`hidden` allows both frontends without the switch* (CE-12)
 
-#### Given
+##### Given
 
-1. A rule with mode `hidden` matches the user.
+1. A rule with mode `hidden` matches the user (guard rule when the
+   installation mode is `hidden`).
 
-#### Then
+##### Then
 
-1. `/frontend/desktops` renders in the new frontend, with no redirect and
+1. The login lands on `/desktops` (old frontend), without switch button.
+2. `/frontend/desktops` renders in the new frontend, with no redirect and
    no switch button.
-2. `/desktops` renders in the old frontend, with no redirect and no
+3. `/desktops` renders in the old frontend, with no redirect and no
    switch button.
 
-### Scenario C9 — *`all` shows the switch and it changes frontend* (CE-01)
+#### Scenario C13 — *`all` shows the switch and it changes frontend* (CE-01)
 
-#### Given
+##### Given
 
-1. A rule with mode `all` matches the user (see *Common data* when the
-   installation mode is also `all`).
+1. A rule with mode `all` matches the user (guard rule when the
+   installation mode is `all`).
 
-#### When
+##### When
 
-1. The user opens `/frontend/desktops` and presses the switch button.
-2. In the old frontend they press the switch button again.
+1. The user logs in and presses the switch button.
+2. In the new frontend they press the switch button again.
+3. They open the new-desktop form of each frontend.
 
-#### Then
+##### Then
 
-1. The button is visible in the new frontend; pressing it lands on
-   `/desktops` and stores `preferredFrontend = vue2`.
-2. The button is visible in the old frontend; pressing it lands on
-   `/frontend/desktops` and stores `preferredFrontend = vue3`.
-3. On an edit form (e.g. new desktop) the button is not shown.
+1. The login lands on `/desktops`, with the button *Switch to new
+   interface*; pressing it lands on `/frontend/desktops` and stores
+   `preferredFrontend = vue3`.
+2. The button *Switch to legacy interface* is visible; pressing it lands
+   on `/desktops` and stores `preferredFrontend = vue2`.
+3. Neither `/frontend/desktops/new` nor `/desktops/new` shows the button.
 
-### Scenario C10 — *changing the mode of a rule changes what its users get*
+### Changes made from the administration page
 
-#### Given
+#### Scenario C14 — *changing the mode of a rule changes what its users get*
 
-1. A rule with mode `hidden` matches the user.
+##### Given
 
-#### When
+1. A rule with mode `hidden` matches the user, who has
+   `/frontend/desktops` open (guard rule with mode `all` when the
+   installation mode is `hidden` or `deprecated`, the two modes the rule
+   goes through).
 
-1. The admin edits the rule to `deprecated` from the edit dialog (as in A11).
+##### When
+
+1. The admin edits the rule to `deprecated` from the edit dialog (as in
+   A11).
 2. The user reloads the page.
 
-#### Then
+##### Then
 
-1. Within 60 s `get-config` returns `deprecated` and, after a reload,
-   `/frontend/desktops` redirects to `/desktops`.
+1. Within 60 s `get-config` returns `deprecated` and, after the reload,
+   `/frontend/desktops` ends on `/desktops`.
 
-### Scenario C11 — *an `actual` user can hold several temporary desktops* (CE-13)
+#### Scenario C15 — *editing the alloweds from the dialog changes who the rule reaches*
 
-#### Given
+##### Given
 
-1. A rule with mode `actual` matches the user, who has no temporary
-   desktops of template `T`.
+1. A rule with `users: [fmre2e-user-b]` and the contrast mode.
+   `fmre2e-user-a` gets the installation mode.
 
-#### When
-
-1. The user creates a temporary desktop from `T` twice
-   (`POST /api/v4/item/desktop/new-nonpersistent`).
-
-#### Then
-
-1. Both calls respond with status `< 400` and return **different** ids.
-2. The user has two temporary desktops of `T`.
-
-### Scenario C12 — *choosing the new frontend under `all` does not give the `actual` behaviour* (CE-05)
-
-#### Given
-
-1. A rule with mode `all` matches the user, who switched to the new
-   frontend with the button (`preferredFrontend = vue3`).
-
-#### When
-
-1. They create a temporary desktop from `T` twice from the new frontend.
-
-#### Then
-
-1. The second request returns the **same** desktop id as the first.
-2. The user has exactly one temporary desktop of `T`.
-
-### Scenario C13 — *leaving `actual` collapses the temporary desktops of a template* (CE-04)
-
-#### Given
-
-1. A rule with mode `actual` is the only one matching the user.
-2. The user has three temporary desktops of `T`.
-
-#### When
-
-1. The admin deletes the rule.
-2. Once `get-config` no longer returns `actual`, the user starts `T` again.
-
-#### Then
-
-1. The three previous desktops are deleted.
-2. Exactly one temporary desktop of `T` exists, with a new id.
-
-### Scenario C14 — *editing the alloweds from the dialog changes who the rule reaches*
-
-#### Given
-
-1. A rule with `users: [fmre2e-user-b]` and a mode different from the
-   installation mode. `fmre2e-user-a` gets the installation mode.
-
-#### When
+##### When
 
 1. The administrator adds `groups: [fmre2e-group-a]` from the alloweds
    dialog (as in A13).
 2. Later they uncheck **Set groups** and save again.
 
-#### Then
+##### Then
 
-1. After step 1, within 60 s `get-config` returns the rule's mode for
+1. After step 1, within 60 s `get-config` returns the contrast mode for
    `fmre2e-user-a`; `fmre2e-user-b` keeps it.
 2. After step 2, within 60 s `fmre2e-user-a` is back to the installation
-   mode.
+   mode and `fmre2e-user-b` keeps the contrast mode.
+
+### Temporary desktops
+
+The template `T` is the first enabled one allowed to the user that needs
+no GPU booking. Leftover temporary desktops of `T` are deleted before each
+scenario, and every desktop is tracked and deleted in `afterEach`.
+
+#### Scenario C16 — *an `actual` user can hold several temporary desktops* (CE-13)
+
+##### Given
+
+1. A rule with mode `actual` matches the user (guard rule when the
+   installation mode is `actual`); `get-config` returns
+   `multiple_temporal_desktops = true`.
+
+##### When
+
+1. The user creates a temporary desktop from `T` twice
+   (`POST /api/v4/item/desktop/new-nonpersistent`).
+
+##### Then
+
+1. Both calls respond with status `< 400` and return **different** ids.
+2. The user has exactly those two temporary desktops of `T`.
+
+#### Scenario C17 — *choosing the new frontend under `all` does not give the `actual` behaviour* (CE-05)
+
+##### Given
+
+1. A rule with mode `all` matches the user (guard rule when the
+   installation mode is `all`), who logs in and switches to the new
+   frontend with the button (`preferredFrontend = vue3`).
+2. `get-config` returns `multiple_temporal_desktops = false`.
+
+##### When
+
+1. With that same session they create a temporary desktop from `T`, wait
+   for it to settle and create one again.
+
+##### Then
+
+1. The second request returns the **same** desktop id as the first.
+2. The user has exactly one temporary desktop of `T`.
+
+> The requests go through the API with the session that switched: the
+> server decides by the mode, it does not know which frontend sends them.
+> While the first desktop is still being created the endpoint answers
+> `428`, hence the wait.
+
+#### Scenario C18 — *leaving `actual` collapses the temporary desktops of a template* (CE-04)
+
+##### Given
+
+1. A rule with mode `actual` is the only one matching the user (guard
+   rule when the installation mode is `actual`).
+2. The user has three temporary desktops of `T`, settled.
+
+##### When
+
+1. The admin deletes the rule.
+2. Once `get-config` no longer returns `actual`, the user starts `T`
+   again.
+
+##### Then
+
+1. The returned id is new, and within 60 s the three previous desktops
+   are gone.
+2. Exactly one temporary desktop of `T` exists: the new one.
 
 ---
 
@@ -911,33 +1079,32 @@ target user is `fmre2e-user-a`.
 
 - `cleanupTrackedResources(apiv4Admin, testInfo)` deletes every tracked
   rule, even when assertions fail; in section C also the temporary
-  desktops.
-- Section C: target users' browser contexts are closed.
+  desktops (admin client, after the rules).
+- Section C: the `targets` fixture closes the target users' browser
+  contexts and API sessions.
 - `beforeAll` runs `purgeE2eFrontendModeRules`; `afterAll` asserts that no
   `e2e-fmr-` rule is left.
 
 ## Traceability with the project acceptance cases
 
-Only CE-07 is covered by the administration page; the other cases belong
-to section C and arrive with the later merge request.
-
 | Case | Scenario(s) | Automation |
 | --- | --- | --- |
-| CE-01 | C1, C9 | ✅ with a mode different from the installation mode |
-| CE-03 | C7 | ✅ |
-| CE-04 | C13 | ✅ |
-| CE-05 | C12 | ✅ |
+| CE-01 | C1, C13 | ✅ category rule with `all`, switch button, other category keeps the mode it had |
+| CE-03 | C10 | ✅ route and bookings request; no booking is seeded (see *Known issues*, point 3) |
+| CE-04 | C18 | ✅ |
+| CE-05 | C17 | ✅ |
 | CE-07 | A5, A6, A12, A12b, B1 | ✅ create and edit, in the form and from the server |
-| CE-08 | C2 | ✅ |
-| CE-09 | C3 | ✅ |
-| CE-11 | C5 | ✅ |
-| CE-12 | C8 | ✅ |
-| CE-13 | C11 | ✅ |
+| CE-08 | C6 | ✅ |
+| CE-09 | C5 | ✅ with the role rule carrying the installation mode |
+| CE-11 | C8 | ✅ |
+| CE-12 | C12 | ✅ |
+| CE-13 | C16 | ✅ |
 
 CE-02, CE-10, CE-14, CE-15, CE-16 and CE-17 are not part of this
-contract. Scenarios without a case (A1–A4, A7–A11d, A13–A14, B2, C4, C6,
-C7b, C10, C14) are added for coverage of the page, of the alloweds edition and
-of the remaining modes.
+contract. Scenarios without a case (A1–A4, A7–A11d, A13–A14, B2, C2–C4,
+C7, C9, C11, C14, C15) are added for coverage of the page, of the
+dimensions a rule can target, of the default behaviour and of the
+remaining modes.
 
 ## APIs touched by the flows (reference)
 
@@ -960,7 +1127,14 @@ of the remaining modes.
 - `DELETE /api/v4/item/frontend-mode-rule/{id}` — `204`; `404`.
 - `GET    /api/v4/item/user/get-config` — `frontend_mode` of the caller.
 - `POST   /api/v4/item/desktop/new-nonpersistent` — temporary desktop;
-  reuses the template's desktop unless the caller's mode is `actual`.
+  reuses the template's desktop unless the caller's mode is `actual`;
+  `428` while that desktop is still being created.
+- `POST   /authentication/login?provider=form&category_id=…` — API-only
+  login of the target users.
+- `GET    /api/v4/items/desktops` — the caller's desktops; filtered by
+  `type = nonpersistent` and `template`.
+- `GET    /api/v4/items/bookings` — the bookings the old frontend's
+  summary page lists.
 
 ## Relevant database state
 
@@ -975,7 +1149,32 @@ of the remaining modes.
    selecting any value sends `[]`, which applies the rule to every user.
    It is not automated because it would change the frontend of every
    parallel spec; it stays a manual check on an isolated stack.
-2. **Cache across processes**: the cache is cleared in the process that
-   handles the write (rule endpoints and alloweds update alike);
-   assertions always poll up to 60 s instead of
-   assuming an immediate change.
+2. **A rule change is not immediate**: `get-config` serves
+   `frontend_mode` from the per-user config body, cached for
+   `USER_CONFIG_CACHE_TTL` seconds (60 by default). A write clears the
+   rules cache but not that one, so the change takes up to that long to
+   reach the user, as the ticket states. Assertions therefore always
+   poll up to 65 s. The e2e stack sets the variable to 1 so the spec
+   does not spend a minute per rule change; production keeps 60.
+3. **Bookings of the user (CE-03)**: C10 checks that the bookings page
+   of the old frontend is reached, stays, renders and requests the
+   user's bookings (`200`). It does not seed a booking, which needs a
+   bookable GPU planned for the `fmre2e` category.
+4. **Role-only and admin-role rules**: a rule with `roles: [...]`
+   reaches every user of that role in the stack. C3 and C5 only create
+   them with the installation mode and prove they apply through a
+   lower-priority rule; a role rule with a different mode stays a manual
+   check on an isolated stack. "Changes nothing" assumes the stack has
+   no rule of its own on those users: if one gives an advanced user or
+   an admin a mode other than the installation one, C3 and C5 outrank
+   it while they run.
+5. **Temporary desktops from the UI (CE-05)**: C17 switches frontend
+   with the button and then sends the two requests through the API with
+   that session, not by clicking a template in the new frontend.
+6. **Installation mode read from a cached `get-config`**: section C
+   reads it once per worker. After a failure Playwright starts a new
+   worker, which reads it again; on a stack with the default 60 s cache
+   that read can still return the mode of the rule the failed scenario
+   had on `fmre2e-user-b` (C1, C6, C7, C15 and the guard rules), and the
+   remaining scenarios would then expect the wrong mode. With
+   `USER_CONFIG_CACHE_TTL=1` the cache has expired by then.

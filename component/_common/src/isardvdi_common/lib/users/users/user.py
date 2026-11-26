@@ -68,6 +68,18 @@ _user_quota_sync_throttle: SynchronizedTTLCache = SynchronizedTTLCache(
     maxsize=600, ttl=60
 )
 
+
+def _user_config_cache_ttl():
+    """Seconds the user_config body is cached. It carries the frontend mode,
+    so this is how long a frontend mode rule change takes to reach the user.
+    The e2e stack lowers it to keep the frontend mode rules suite fast."""
+    try:
+        ttl = int(os.environ.get("USER_CONFIG_CACHE_TTL") or 60)
+    except ValueError:
+        return 60
+    return ttl if ttl > 0 else 60
+
+
 # The seeded default admin must always be able to log in as an admin, so it
 # can't be deleted, deactivated, demoted or have its login identity changed.
 DEFAULT_ADMIN_ID = "local-default-admin-admin"
@@ -595,7 +607,7 @@ class UsersProcessed(RethinkSharedConnection):
 
     @classmethod
     @cached(
-        cache=SynchronizedTTLCache(maxsize=600, ttl=60),
+        cache=SynchronizedTTLCache(maxsize=600, ttl=_user_config_cache_ttl()),
         # Every payload field the body reads, directly or through
         # Helpers.can_use_bastion* -> Alloweds.is_allowed (which reads group_id).
         key=lambda cls, payload: hashkey(
