@@ -11,7 +11,7 @@ Covers the pure-aggregation helpers (``_aggregate_inc``,
 against a stub rdb.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -160,9 +160,10 @@ class TestBuildBucketRow:
 
 class TestProcessGroups:
     def test_skips_already_bucket(self, stub_r):
-        # Pick a bucket date far enough back to be in WEEKLY tier
-        # under the test retention (daily_months=1 → 30 days).
-        bucket_date = datetime(2025, 12, 1, tzinfo=timezone.utc)
+        # relative to now: a fixed date ages out of the weekly tier
+        bucket_date = mod.bucket_for(
+            datetime.now(timezone.utc) - timedelta(days=90), Tier.WEEKLY
+        )
         groups = {
             ("i1", "desktop", "user", bucket_date): [
                 {
