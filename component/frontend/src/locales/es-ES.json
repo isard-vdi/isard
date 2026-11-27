@@ -2273,7 +2273,7 @@
               "description": "Añade un registro CNAME a tu proveedor de DNS que apunte a: {cname-url}",
               "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión."
             },
-            "success": "El dominio personalizado se ha actualizado correctamente"
+            "success": "Los dominios personalizados se han actualizado correctamente"
           }
         },
         "ssh": {
@@ -2468,16 +2468,34 @@
               "description": "Actívalo para reenviar la IP real del cliente al escritorio. Actívalo solo si el servidor web del escritorio soporta Proxy Protocol v2."
             },
             "custom-domains": {
-              "label": "Nombre de dominio personalizado (opcional)",
+              "label": "Nombres de dominio personalizados",
+              "count": "{count}/{max}",
               "placeholder": "miescritorio.ejemplo.com",
               "empty": "No se han añadido dominios personalizados",
-              "add": "Añadir dominio personalizado",
+              "add": "Añadir dominio",
+              "input-label": "Dominio personalizado {position}",
+              "verify": "Verificar el DNS del dominio",
+              "remove": "Eliminar el dominio",
+              "save": "Actualizar los dominios personalizados",
+              "status": {
+                "saved": "Dominio guardado y activo",
+                "verified": "Dominio verificado (guarda para aplicarlo)",
+                "verifying": "Verificando el dominio",
+                "failed": "No se ha podido verificar el dominio",
+                "pending": "Dominio no verificado"
+              },
+              "limit-reached": "Has alcanzado el límite de {max} dominios.",
+              "over-limit": "Este escritorio tiene {count} dominios personalizados, por encima del límite de {max}. Se conservan, pero no puedes añadir más.",
+              "over-limit-error": "Elimina {count} dominio más para guardar los cambios: el límite es de {max}. | Elimina {count} dominios más para guardar los cambios: el límite es de {max}.",
+              "disabled": {
+                "title": "Guarda el escritorio antes de añadir dominios personalizados",
+                "description": "El registro DNS de un dominio personalizado debe apuntar al identificador de bastión de este escritorio, que se crea al guardarlo con el bastión activado. Guarda el escritorio y vuelve a editarlo para añadir dominios."
+              },
               "more-details": "Más detalles",
               "less-details": "Menos detalles",
               "alert": {
                 "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión.",
-                "description": "Añade un registro CNAME a tu proveedor de DNS apuntando a: {cname-url}",
-                "cname-example": "00000000-0000-0000-0000.000000000000.ejemplo.com"
+                "description": "Añade un registro CNAME a tu proveedor de DNS apuntando a: {cname-url}"
               }
             }
           },
@@ -3441,7 +3459,14 @@
         "only_works_rdp": "El modo 'Solo GPU' solo funciona con visores RDP. Por favor, elimina los visores que no sean RDP o elige otra opción de vídeo.",
         "vgpu_profiles_different_hypervisors": "Los perfiles de GPU seleccionados no están todos disponibles en un mismo host. Elige otra combinación.",
         "vgpu_profiles_different_models": "Todos los perfiles de GPU seleccionados deben ser del mismo modelo de GPU para poder ejecutarse en un mismo host.",
-        "bastion_ssh_key_invalid": "Una de las claves SSH autorizadas no es una clave pública SSH válida."
+        "bastion_ssh_key_invalid": "Una de las claves SSH autorizadas no es una clave pública SSH válida.",
+        "bastion_domain_exists": "Alguno de los dominios personalizados ya está en uso. Elige otro.",
+        "bastion_domain_dns_not_found": "No se ha encontrado el registro DNS del dominio. Comprueba que existe e inténtalo de nuevo en unos minutos.",
+        "bastion_domain_dns_mismatch": "El registro DNS del dominio no apunta a este escritorio. Compruébalo e inténtalo de nuevo.",
+        "bastion_domain_dns_error": "Se ha producido un error al comprobar el registro DNS del dominio. Inténtalo de nuevo más tarde.",
+        "bastion_domain_requires_target": "Guarda el escritorio con el bastión activado antes de añadir dominios personalizados.",
+        "bastion_domains_not_allowed": "No tienes permiso para usar dominios personalizados.",
+        "bastion_domain_invalid": "Alguno de los dominios personalizados no es un nombre de host válido. Compruébalo e inténtalo de nuevo."
       }
     },
     "increase-storage": {
@@ -3506,6 +3531,22 @@
         "generic": "No se ha podido comprobar la recreación del despliegue. Inténtalo de nuevo.",
         "not_found": "No se encontró el despliegue.",
         "deployment_recreate_booking_not_enough_units": "La reserva futura del despliegue no tiene suficientes unidades para los escritorios que crearía la recreación."
+      }
+    },
+    "bastion-domains": {
+      "errors": {
+        "generic": "Se ha producido un error con los dominios personalizados. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor con los dominios personalizados.",
+        "not_found": "El escritorio aún no tiene bastión. Guárdalo primero con el bastión activado.",
+        "bad_request": "Alguno de los dominios personalizados no es válido, o hay demasiados.",
+        "forbidden": "No tienes permiso para usar dominios personalizados.",
+        "bastion_domain_exists": "Alguno de los dominios personalizados ya está en uso. Elige otro.",
+        "bastion_domain_dns_not_found": "No se ha encontrado el registro DNS del dominio. Comprueba que existe e inténtalo de nuevo en unos minutos.",
+        "bastion_domain_dns_mismatch": "El registro DNS del dominio no apunta a este escritorio. Compruébalo e inténtalo de nuevo.",
+        "bastion_domain_dns_error": "Se ha producido un error al comprobar el registro DNS del dominio. Inténtalo de nuevo más tarde.",
+        "bastion_domain_requires_target": "Guarda el escritorio con el bastión activado antes de añadir dominios personalizados.",
+        "bastion_domains_not_allowed": "No tienes permiso para usar dominios personalizados.",
+        "bastion_domain_invalid": "Alguno de los dominios personalizados no es un nombre de host válido. Compruébalo e inténtalo de nuevo."
       }
     },
     "booking": {

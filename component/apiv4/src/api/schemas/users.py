@@ -144,6 +144,13 @@ class UserConfigResponse(BaseModel):
     http_port: str
     https_port: str
     bastion_domain: str | None
+    bastion_domain_verification_required: bool = Field(
+        default=True,
+        description=(
+            "Whether the DNS of a custom bastion domain must point to the "
+            "desktop's bastion target before it can be saved."
+        ),
+    )
     bastion_ssh_port: str | None
     can_use_bastion: bool
     can_use_bastion_individual_domains: bool

@@ -218,8 +218,6 @@ const bastion = computed<Bastion>(() => {
         sshPort: bt.ssh?.port || 22,
         authorizedKeys: bt.ssh?.authorized_keys?.join('\n') || ''
       },
-      // TODO: full multi-domain UI. Reads the domains array; the create/edit
-      // send path still needs to map customDomains -> the API `domains` field.
       customDomains: (bt.domains || []).map(hostToUnicode)
     }
   } else if (desktopData.value?.bastion_target) {
@@ -237,8 +235,6 @@ const bastion = computed<Bastion>(() => {
         sshPort: bt.ssh?.port || 22,
         authorizedKeys: bt.ssh?.authorized_keys?.join('\n') || ''
       },
-      // TODO: full multi-domain UI. Reads the domains array; the create/edit
-      // send path still needs to map customDomains -> the API `domains` field.
       customDomains: (bt.domains || []).map(hostToUnicode)
     }
   } else {
@@ -638,6 +634,8 @@ defineExpose({
         ref="bastionFormRef"
         :bastion="bastion"
         :show-custom-domains="showCustomDomains"
+        :desktop-id="props.desktopId"
+        :target-id="desktopData?.bastion_target?.id"
         :hardware-interfaces="props.hardwareInterfaces"
         :on-request-add-interface="props.onRequestAddInterface"
         @bastion-enabled="handleBastionEnabled"

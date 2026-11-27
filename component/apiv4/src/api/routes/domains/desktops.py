@@ -1246,7 +1246,12 @@ async def get_desktop_info(
     response_model=SimpleResponse,
     summary="Edit a desktop",
     description="Updates a desktop with the given parameters.",
-    responses={400: {"model": ErrorResponse}},
+    responses={
+        400: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+    },
     dependencies=[
         Depends(owns_domain_id("desktop_id")),
         Depends(check_domain_kind("desktop_id", "desktop")),
@@ -1260,16 +1265,26 @@ async def edit_desktop(
     if data.bastion_target:
         await can_use_bastion(request.token_payload)
 
-        if data.bastion_target.domains:
-            await can_use_bastion_individual_domains(request.token_payload)
-            if bastion_domain_verification_required() and not domain_has_bastion_target(
-                desktop_id
+        # An empty list clears the stored domains, so it needs the permission too.
+        if "domains" in data.bastion_target.model_fields_set:
+            if not await can_use_bastion_individual_domains(request.token_payload):
+                raise Error(
+                    "forbidden",
+                    "User cannot use individual bastion domains",
+                    traceback.format_exc(),
+                    description_code="bastion_domains_not_allowed",
+                )
+            if (
+                data.bastion_target.domains
+                and bastion_domain_verification_required()
+                and not domain_has_bastion_target(desktop_id)
             ):
                 # The domains cannot be verified when creating a new target
                 raise Error(
                     "bad_request",
                     "Cannot set a bastion domain when the domain has no bastion target",
                     traceback.format_exc(),
+                    description_code="bastion_domain_requires_target",
                 )
 
     try:

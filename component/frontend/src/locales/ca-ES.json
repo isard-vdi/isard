@@ -2261,7 +2261,7 @@
               "description": "Afegeix un registre CNAME al teu proveïdor de DNS que apunti a: {cname-url}",
               "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió."
             },
-            "success": "El domini personalitzat s'ha actualitzat correctament"
+            "success": "Els dominis personalitzats s'han actualitzat correctament"
           }
         },
         "ssh": {
@@ -2456,16 +2456,34 @@
               "description": "Activa-ho per reenviar la IP real del client a l'escriptori. Activa-ho només si el servidor web de l'escriptori admet Proxy Protocol v2."
             },
             "custom-domains": {
-              "label": "Nom de domini personalitzat (opcional)",
+              "label": "Noms de domini personalitzats",
+              "count": "{count}/{max}",
               "placeholder": "elmeescriptori.exemple.com",
               "empty": "No s'han afegit dominis personalitzats",
-              "add": "Afegeix un domini personalitzat",
+              "add": "Afegeix un domini",
+              "input-label": "Domini personalitzat {position}",
+              "verify": "Verifica el DNS del domini",
+              "remove": "Elimina el domini",
+              "save": "Actualitza els dominis personalitzats",
+              "status": {
+                "saved": "Domini desat i actiu",
+                "verified": "Domini verificat (desa per aplicar-ho)",
+                "verifying": "S'està verificant el domini",
+                "failed": "No s'ha pogut verificar el domini",
+                "pending": "Domini no verificat"
+              },
+              "limit-reached": "Has arribat al límit de {max} dominis.",
+              "over-limit": "Aquest escriptori té {count} dominis personalitzats, per sobre del límit de {max}. Es conserven, però no en pots afegir més.",
+              "over-limit-error": "Elimina {count} domini més per desar els canvis: el límit és de {max}. | Elimina {count} dominis més per desar els canvis: el límit és de {max}.",
+              "disabled": {
+                "title": "Desa l'escriptori abans d'afegir dominis personalitzats",
+                "description": "El registre DNS d'un domini personalitzat ha d'apuntar a l'identificador de bastió d'aquest escriptori, que es crea quan el deses amb el bastió activat. Desa l'escriptori i torna a editar-lo per afegir-hi dominis."
+              },
               "more-details": "Més detalls",
               "less-details": "Menys detalls",
               "alert": {
                 "title": "Pots fer servir el teu propi nom de domini per accedir a aquest escriptori a través del bastió.",
-                "description": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: {cname-url}",
-                "cname-example": "00000000-0000-0000-0000.000000000000.exemple.com"
+                "description": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: {cname-url}"
               }
             }
           },
@@ -3429,6 +3447,22 @@
         }
       }
     },
+    "bastion-domains": {
+      "errors": {
+        "generic": "Hi ha hagut un error amb els dominis personalitzats. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor amb els dominis personalitzats.",
+        "not_found": "L'escriptori encara no té cap bastió. Desa'l primer amb el bastió activat.",
+        "bad_request": "Algun dels dominis personalitzats no és vàlid, o n'hi ha massa.",
+        "forbidden": "No tens permís per fer servir dominis personalitzats.",
+        "bastion_domain_exists": "Algun dels dominis personalitzats ja està en ús. Tria'n un altre.",
+        "bastion_domain_dns_not_found": "No s'ha trobat el registre DNS del domini. Comprova que existeix i torna-ho a provar d'aquí a uns minuts.",
+        "bastion_domain_dns_mismatch": "El registre DNS del domini no apunta a aquest escriptori. Comprova'l i torna-ho a provar.",
+        "bastion_domain_dns_error": "Hi ha hagut un error en comprovar el registre DNS del domini. Torna-ho a provar més tard.",
+        "bastion_domain_requires_target": "Desa l'escriptori amb el bastió activat abans d'afegir dominis personalitzats.",
+        "bastion_domains_not_allowed": "No tens permís per fer servir dominis personalitzats.",
+        "bastion_domain_invalid": "Algun dels dominis personalitzats no és un nom d'amfitrió vàlid. Comprova'l i torna-ho a provar."
+      }
+    },
     "booking": {
       "errors": {
         "booking_deployment_delete_stop": "El desplegament ha d'estar aturat per eliminar aquesta reserva",
@@ -3469,7 +3503,14 @@
         "only_works_rdp": "El mode «Només GPU» només funciona amb visors RDP. Si us plau, elimina els visors que no siguin RDP o tria una altra opció de vídeo.",
         "vgpu_profiles_different_hypervisors": "Els perfils de GPU seleccionats no estan tots disponibles en un mateix host. Trieu una altra combinació.",
         "vgpu_profiles_different_models": "Tots els perfils de GPU seleccionats han de ser del mateix model de GPU per poder executar-se en un mateix host.",
-        "bastion_ssh_key_invalid": "Una de les claus SSH autoritzades no és una clau pública SSH vàlida."
+        "bastion_ssh_key_invalid": "Una de les claus SSH autoritzades no és una clau pública SSH vàlida.",
+        "bastion_domain_exists": "Algun dels dominis personalitzats ja està en ús. Tria'n un altre.",
+        "bastion_domain_dns_not_found": "No s'ha trobat el registre DNS del domini. Comprova que existeix i torna-ho a provar d'aquí a uns minuts.",
+        "bastion_domain_dns_mismatch": "El registre DNS del domini no apunta a aquest escriptori. Comprova'l i torna-ho a provar.",
+        "bastion_domain_dns_error": "Hi ha hagut un error en comprovar el registre DNS del domini. Torna-ho a provar més tard.",
+        "bastion_domain_requires_target": "Desa l'escriptori amb el bastió activat abans d'afegir dominis personalitzats.",
+        "bastion_domains_not_allowed": "No tens permís per fer servir dominis personalitzats.",
+        "bastion_domain_invalid": "Algun dels dominis personalitzats no és un nom d'amfitrió vàlid. Comprova'l i torna-ho a provar."
       }
     },
     "increase-storage": {
